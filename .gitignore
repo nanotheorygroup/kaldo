@@ -1,0 +1,10 @@
+log.out
+fig*
+*.pyc
+.idea
+minimized*
+/*/
+!/forcefields/
+!/others/
+!/ballistico/
+!/examples/
