@@ -92,6 +92,23 @@ class PhononsAnharmonic (Phonons):
 
         omega = 2 * np.pi * self.frequencies
         density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
+
+        i_kpp = np.zeros((2, nptk, nptk, 3)).astype(int)
+        index_kpp = np.zeros((2, nptk, nptk)).astype(int)
+        for index_k in range(np.prod(self.k_size)):
+            i_k = np.array (np.unravel_index (index_k, self.k_size))
+            for index_kp in range (np.prod (self.k_size)):
+                i_kp = np.array (np.unravel_index (index_kp, self.k_size))
+                for is_plus in (1, 0):
+                    # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
+                    if is_plus:
+                        i_kpp[is_plus, index_k, index_kp, :] = ((i_k + i_kp)) % self.k_size
+
+                    else:
+                        i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
+                    index_kpp[is_plus, index_k, index_kp] = np.ravel_multi_index (i_kpp[is_plus, index_k, index_kp] , self.k_size)
+
+
         for index_k in range(np.prod(self.k_size)):
             geometry = self.system.configuration.positions
             n_particles = geometry.shape[0]
@@ -127,6 +144,8 @@ class PhononsAnharmonic (Phonons):
                                                energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
                 delta_condition = np.array([delta_condition_minus, delta_condition_plus])
                 
+                
+                
                 for is_plus in (1, 0):
                     dirac_delta[is_plus] = density_fact[is_plus, :, :, :, :] * np.exp (
                         -(energy_diff[is_plus, :, :, :, :]) ** 2 / (
@@ -135,29 +154,23 @@ class PhononsAnharmonic (Phonons):
                                                                                                               np.newaxis,
                                                                                                               np.newaxis,
                                                                                                               :, :])
-                    for mu_p in range (n_modes):
-                        for index_kp in range (np.prod (self.k_size)):
-                            i_kp = np.array(np.unravel_index (index_kp, self.k_size))
-                            # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
-                            if is_plus:
-                                i_kpp = ((i_k + i_kp)) % self.k_size
-                            else:
-                                i_kpp = ((i_k - i_kp)) % self.k_size
-                                
-                            index_kpp= np.ravel_multi_index (i_kpp, self.k_size)
-                            
+                    for index_kp in range (np.prod (self.k_size)):
+                        i_kp = np.array (np.unravel_index (index_kp, self.k_size))
+                        # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
+
+                        
+                        for mu_p in range (n_modes):
                             for mu_pp in range (n_modes):
                                 
-
-                                if delta_condition[is_plus, index_kp, mu_p, index_kpp, mu_pp]:
+                                if delta_condition[is_plus, index_kp, mu_p, index_kpp[is_plus, index_k, index_kp], mu_pp]:
                                     
-                                    phase_space[is_plus, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
-                                    potential[is_plus, index_kp, mu_p, mu_pp] = self.potentials_phonons (index_k, index_kp, index_kpp, mu, mu_p,
+                                    phase_space[is_plus, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp[is_plus, index_k, index_kp], mu_pp]
+                                    potential[is_plus, index_kp, mu_p, mu_pp] = self.potentials_phonons (index_k, index_kp, index_kpp[is_plus, index_k, index_kp], mu, mu_p,
                                                                                                mu_pp, is_plus=is_plus)
                                 
-                                    gamma[is_plus, mu] += hbarp * np.pi / 4. * np.abs (potential[is_plus, index_kp, mu_p, mu_pp]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+                                    gamma[is_plus, mu] += hbarp * np.pi / 4. * np.abs (potential[is_plus, index_kp, mu_p, mu_pp]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp[is_plus, index_k, index_kp], mu_pp]
                     
-    
+
             prefactor = 5.60626442 * 10 ** 8 / nptk
             gamma_plus[index_k] = prefactor * gamma[1]
             gamma_minus[index_k] = prefactor * gamma[0]
