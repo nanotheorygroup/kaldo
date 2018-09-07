@@ -3,62 +3,6 @@ from ballistico.Phonons import Phonons
 from ballistico.constants import *
 
 class PhononsAnharmonic (Phonons):
-    
-    def potentials_phonons(self, index_k, index_kp, index_kpp, mu, mu_p, mu_pp,
-                           is_plus):
-
-        i_kp = np.array(np.unravel_index (index_kp, self.k_size))
-        i_kpp = np.array(np.unravel_index (index_kpp, self.k_size))
-        
-
-        kp_point = i_kp / self.k_size
-    
-        kpp_point = i_kpp / self.k_size
-    
-        list_of_replicas = self.system.list_of_replicas
-        geometry = self.system.configuration.positions
-        n_particles = geometry.shape[0]
-        n_replicas = list_of_replicas.shape[0]
-    
-        # TODO: I don't know why there's a 10 here, copied by sheng bte
-        cellinv = self.system.configuration.cell_inv
-        rlattvec = cellinv * 2 * np.pi * 10.
-        realqprime = np.matmul (rlattvec, kp_point)
-        realqdprime = np.matmul (rlattvec, kpp_point)
-    
-        chi_p = np.zeros (n_replicas).astype (complex)
-        chi_pp = np.zeros (n_replicas).astype (complex)
-    
-        for l in range (n_replicas):
-        
-            sxij = list_of_replicas[l]
-            if is_plus:
-                chi_p[l] = np.exp (1j * sxij.dot (realqprime))
-            else:
-                chi_p[l] = np.exp (-1j * sxij.dot (realqprime))
-            chi_pp[l] = np.exp (-1j * sxij.dot (realqdprime))
-        potential = np.tensordot (self.system.third_order, chi_p, (3, 0))
-        potential = np.tensordot (potential, chi_pp, (5, 0)).squeeze ()
-    
-        masses = self.system.configuration.get_masses ()
-        potential /= np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        potential /= np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
-        potential /= np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-        a_k = self.eigenvectors[index_k, :, :].T[mu]
-        a_kp = self.eigenvectors[index_kp, :, :].T[mu_p]
-        a_kpp = self.eigenvectors[index_kpp, :, :].T[mu_pp]
-
-        a_k = a_k.reshape (n_particles * 3)
-        a_kp = a_kp.reshape (n_particles * 3)
-        a_kpp = a_kpp.reshape (n_particles * 3)
-        potential = potential.reshape (n_particles * 3, n_particles * 3, n_particles * 3)
-        potential = np.tensordot (potential, a_k, (0, 0))
-        if is_plus:
-            potential = np.tensordot (potential, a_kp, (0, 0))
-        else:
-            potential = np.tensordot (potential, np.conj (a_kp), (0, 0))
-        potential = np.tensordot (potential, np.conj (a_kpp), (0, 0))
-        return potential
 
     def calculate_gamma(self):
         hbarp = 1.05457172647
@@ -95,10 +39,14 @@ class PhononsAnharmonic (Phonons):
 
         geometry = self.system.configuration.positions
         prefactor = 5.60626442 * 10 ** 8 / nptk
+        cellinv = self.system.configuration.cell_inv
+        masses = self.system.configuration.get_masses ()
 
+        list_of_replicas = self.system.list_of_replicas
         n_particles = geometry.shape[0]
         n_modes = n_particles * 3
-        for index_k in range(np.prod(self.k_size)):
+        k_size = self.k_size
+        for index_k in range(np.prod(k_size)):
 
             for mu in range (n_modes):
     
@@ -124,6 +72,8 @@ class PhononsAnharmonic (Phonons):
                 delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
                             omega[np.newaxis, np.newaxis, :, :] != 0)) & (
                                                energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
+                
+                omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis,np.newaxis,:, :]
                 coords_plus = np.array (np.argwhere (delta_condition_plus), dtype=int)
                 coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
 
@@ -144,21 +94,68 @@ class PhononsAnharmonic (Phonons):
                 coords = np.array([coords_minus, coords_plus])
 
                 for is_plus in (1, 0):
-                    dirac_delta[is_plus] = density_fact[is_plus, :, :, :, :] * np.exp (
-                        -(energy_diff[is_plus, :, :, :, :]) ** 2 / (
-                                sigma[:, :, :, :] ** 2)) / sigma[:, :, :, :] / np.sqrt (np.pi) / (
-                                                   omega[index_k, mu] * omega[:, :, np.newaxis, np.newaxis] * omega[
-                                                                                                              np.newaxis,
-                                                                                                              np.newaxis,
-                                                                                                              :, :])
-
-                    for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-
-                        potential = self.potentials_phonons (index_k, index_kp, index_kpp, mu, mu_p,mu_pp, is_plus=is_plus)
-                                
-                        gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
-
-                        ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
+                    if (coords[is_plus].size != 0):
+    
+                        indexes_reduced = (coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+                        indexes = (np.ones(coords[is_plus][:, 0].shape[0]).astype(int) * is_plus, coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+        
+                        dirac_delta[indexes] = density_fact[indexes] * np.exp (-(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (np.pi) / (omega_product[indexes_reduced])
+                        dirac_delta[indexes] /= omega[index_k, mu]
+    
+                        for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
+    
+    
+                            i_kp = np.array (np.unravel_index (index_kp, k_size))
+                            i_kpp = np.array (np.unravel_index (index_kpp, k_size))
+    
+                            kp_point = i_kp / k_size
+    
+                            kpp_point = i_kpp / k_size
+    
+                            n_particles = geometry.shape[0]
+                            n_replicas = list_of_replicas.shape[0]
+    
+                            # TODO: I don't know why there's a 10 here, copied by sheng bte
+                            rlattvec = cellinv * 2 * np.pi * 10.
+                            realqprime = np.matmul (rlattvec, kp_point)
+                            realqdprime = np.matmul (rlattvec, kpp_point)
+    
+                            chi_p = np.zeros (n_replicas).astype (complex)
+                            chi_pp = np.zeros (n_replicas).astype (complex)
+    
+                            for l in range (n_replicas):
+        
+                                sxij = list_of_replicas[l]
+                                if is_plus:
+                                    chi_p[l] = np.exp (1j * sxij.dot (realqprime))
+                                else:
+                                    chi_p[l] = np.exp (-1j * sxij.dot (realqprime))
+                                chi_pp[l] = np.exp (-1j * sxij.dot (realqdprime))
+                            potential = np.tensordot (self.system.third_order, chi_p, (3, 0))
+                            potential = np.tensordot (potential, chi_pp, (5, 0)).squeeze ()
+    
+                            potential /= np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+                            potential /= np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
+                            potential /= np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+                            a_k = self.eigenvectors[index_k, :, :].T[mu]
+                            a_kp = self.eigenvectors[index_kp, :, :].T[mu_p]
+                            a_kpp = self.eigenvectors[index_kpp, :, :].T[mu_pp]
+    
+                            a_k = a_k.reshape (n_particles * 3)
+                            a_kp = a_kp.reshape (n_particles * 3)
+                            a_kpp = a_kpp.reshape (n_particles * 3)
+                            potential = potential.reshape (n_particles * 3, n_particles * 3, n_particles * 3)
+                            potential = np.tensordot (potential, a_k, (0, 0))
+                            if is_plus:
+                                potential = np.tensordot (potential, a_kp, (0, 0))
+                            else:
+                                potential = np.tensordot (potential, np.conj (a_kp), (0, 0))
+                            potential = np.tensordot (potential, np.conj (a_kpp), (0, 0))
+                            
+                            
+                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+    
+                            ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
 
         return gamma[1], gamma[0], ps[1], ps[0]
 
