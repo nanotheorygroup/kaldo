@@ -68,10 +68,8 @@ class PhononsAnharmonic (Phonons):
 
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
-        gamma_plus = np.zeros ((np.prod(self.k_size), n_modes))
-        gamma_minus = np.zeros ((np.prod(self.k_size), n_modes))
-        ps_plus = np.zeros ((np.prod(self.k_size), n_modes))
-        ps_minus = np.zeros ((np.prod(self.k_size), n_modes))
+        gamma = np.zeros ((2, np.prod(self.k_size), n_modes))
+        ps = np.zeros ((2, np.prod(self.k_size), n_modes))
 
         # TODO: remove acoustic sum rule
         self.frequencies[0, :3] = 0
@@ -95,13 +93,12 @@ class PhononsAnharmonic (Phonons):
                         i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
                     index_kpp_calc[is_plus, index_k, index_kp] = np.ravel_multi_index (i_kpp[is_plus, index_k, index_kp] , self.k_size)
 
+        geometry = self.system.configuration.positions
+        prefactor = 5.60626442 * 10 ** 8 / nptk
 
+        n_particles = geometry.shape[0]
+        n_modes = n_particles * 3
         for index_k in range(np.prod(self.k_size)):
-            geometry = self.system.configuration.positions
-            n_particles = geometry.shape[0]
-            n_modes = n_particles * 3
-            phase_space = np.zeros ((2, n_modes))
-            gamma = np.zeros ((2, n_modes))
 
             for mu in range (n_modes):
     
@@ -157,18 +154,13 @@ class PhononsAnharmonic (Phonons):
 
                     for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
 
-                        phase_space[is_plus, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
                         potential = self.potentials_phonons (index_k, index_kp, index_kpp, mu, mu_p,mu_pp, is_plus=is_plus)
                                 
-                        gamma[is_plus, mu] += hbarp * np.pi / 4. * np.abs (potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
-                    
+                        gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
 
-            prefactor = 5.60626442 * 10 ** 8 / nptk
-            gamma_plus[index_k] = prefactor * gamma[1]
-            gamma_minus[index_k] = prefactor * gamma[0]
-            ps_plus[index_k] = phase_space[1] / nptk
-            ps_minus[index_k] = phase_space[0] / nptk
-        return gamma_plus, gamma_minus, ps_plus, ps_minus
+                        ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
+
+        return gamma[1], gamma[0], ps[1], ps[0]
 
     def calculate_broadening(self, velocity):
         cellinv = np.linalg.inv (self.system.configuration.cell)
