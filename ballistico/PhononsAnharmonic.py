@@ -54,6 +54,10 @@ class PhononsAnharmonic (Phonons):
         rlattvec = cellinv * 2 * np.pi * 10.
         chi = np.zeros ((nptk, n_replicas)).astype (complex)
 
+        rescaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+
         for index_k in range (np.prod (k_size)):
             i_k = np.array (np.unravel_index (index_k, k_size))
             k_point = i_k / k_size
@@ -77,11 +81,9 @@ class PhononsAnharmonic (Phonons):
     
                 density_fact = np.zeros ((2, nptk, n_modes, nptk, n_modes))
                 density_fact[1] = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
-                density_fact[0] = .5 * (
-                            1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
+                density_fact[0] = .5 * ( 1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
 
-                sigma = self.calculate_broadening (
-                    self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
+                sigma = self.calculate_broadening (self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
                 
                 dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
 
@@ -122,18 +124,14 @@ class PhononsAnharmonic (Phonons):
                         dirac_delta[indexes] /= omega[index_k, mu]
     
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-    
-    
-                            if is_plus:
-                                potential = np.tensordot (self.system.third_order, chi[index_kp], (3, 0))
-                            else:
-                                potential = np.tensordot (self.system.third_order, chi[index_kp].conj(), (3, 0))
+                            potential = np.tensordot (rescaled_potential, chi[index_kpp].conj(), (5, 0))
 
-                            potential = np.tensordot (potential, chi[index_kpp].conj(), (5, 0)).squeeze ()
+                            if is_plus:
+                                potential = np.tensordot (potential, chi[index_kp], (2,0))
+                            else:
+                                potential = np.tensordot (potential, chi[index_kp].conj(), (2, 0))
+
     
-                            potential /= np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-                            potential /= np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
-                            potential /= np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
                             a_k = self.eigenvectors[index_k, :, :].T[mu]
                             a_kp = self.eigenvectors[index_kp, :, :].T[mu_p]
                             a_kpp = self.eigenvectors[index_kpp, :, :].T[mu_pp]
