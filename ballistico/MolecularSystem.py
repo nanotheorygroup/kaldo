@@ -19,6 +19,8 @@ class MolecularSystem (object):
         self.replicas = replicas
         self.temperature = temperature
         self.configuration = configuration
+        self.configuration.cell_inv = np.linalg.inv (self.configuration.cell)
+
         self.lammps_cmd = lammps_cmd
         self.folder = str (self) + '/'
         if not os.path.exists (self.folder):
@@ -34,7 +36,6 @@ class MolecularSystem (object):
         self._second_order = None
         self._dynamical_matrix = None
         self._third_order = None
-        
         
 
         self.index_first_cell = 0

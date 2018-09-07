@@ -6,8 +6,7 @@ class PhononsAnharmonic (Phonons):
     
     def potentials_phonons(self, index_k, index_kp, index_kpp, mu, mu_p, mu_pp,
                            is_plus):
-        n_kpoints = np.prod(self.k_size)
-        i_k = np.array(np.unravel_index (index_k, self.k_size))
+
         i_kp = np.array(np.unravel_index (index_kp, self.k_size))
         i_kpp = np.array(np.unravel_index (index_kpp, self.k_size))
         
@@ -20,31 +19,19 @@ class PhononsAnharmonic (Phonons):
         geometry = self.system.configuration.positions
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
-        n_modes = n_particles * 3
     
-        n_grid = self.k_size
         # TODO: I don't know why there's a 10 here, copied by sheng bte
-        cellinv = np.linalg.inv (self.system.configuration.cell)
+        cellinv = self.system.configuration.cell_inv
         rlattvec = cellinv * 2 * np.pi * 10.
         realqprime = np.matmul (rlattvec, kp_point)
         realqdprime = np.matmul (rlattvec, kpp_point)
-        # print(realqprime, realqdprime)
     
-        cell = self.system.replicated_configuration.cell
-        cellinv = np.linalg.inv (cell)
-        unit_cell_inv = np.linalg.inv (self.system.configuration.cell)
         chi_p = np.zeros (n_replicas).astype (complex)
         chi_pp = np.zeros (n_replicas).astype (complex)
     
-        rlatticevec = np.linalg.inv (cell) * np.linalg.det (cell)
-        V = np.abs (rlatticevec[0].dot (cell[0]))
-        rlatticevec = 2 * np.pi / V * rlatticevec
         for l in range (n_replicas):
-            rep_position = self.system.replicated_configuration[l]
         
             sxij = list_of_replicas[l]
-            # sxij = sxij - np.round (sxij)
-            # dxij = cell.dot (sxij)
             if is_plus:
                 chi_p[l] = np.exp (1j * sxij.dot (realqprime))
             else:
@@ -94,7 +81,7 @@ class PhononsAnharmonic (Phonons):
         density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
 
         i_kpp = np.zeros((2, nptk, nptk, 3)).astype(int)
-        index_kpp = np.zeros((2, nptk, nptk)).astype(int)
+        index_kpp_calc = np.zeros((2, nptk, nptk)).astype(int)
         for index_k in range(np.prod(self.k_size)):
             i_k = np.array (np.unravel_index (index_k, self.k_size))
             for index_kp in range (np.prod (self.k_size)):
@@ -106,7 +93,7 @@ class PhononsAnharmonic (Phonons):
 
                     else:
                         i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
-                    index_kpp[is_plus, index_k, index_kp] = np.ravel_multi_index (i_kpp[is_plus, index_k, index_kp] , self.k_size)
+                    index_kpp_calc[is_plus, index_k, index_kp] = np.ravel_multi_index (i_kpp[is_plus, index_k, index_kp] , self.k_size)
 
 
         for index_k in range(np.prod(self.k_size)):
@@ -115,7 +102,6 @@ class PhononsAnharmonic (Phonons):
             n_modes = n_particles * 3
             phase_space = np.zeros ((2, n_modes))
             gamma = np.zeros ((2, n_modes))
-            i_k = np.array (np.unravel_index (index_k, self.k_size))
 
             for mu in range (n_modes):
     
@@ -135,17 +121,31 @@ class PhononsAnharmonic (Phonons):
                 
                 dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
 
-                potential = np.zeros ((2, nptk, n_modes, n_modes)).astype (np.complex)
                 delta_condition_plus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (omega[np.newaxis, np.newaxis, :, :] != 0)) & (
                         energy_diff[1, :, :, :, :] <= (
                             2. * sigma[:, :, :, :]))
                 delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
                             omega[np.newaxis, np.newaxis, :, :] != 0)) & (
                                                energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
-                delta_condition = np.array([delta_condition_minus, delta_condition_plus])
+                coords_plus = np.array (np.argwhere (delta_condition_plus), dtype=int)
+                coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
+
+                coords_plus_new = []
+                for interaction in np.arange(coords_plus.shape[0]):
+                    if (coords_plus[interaction, 2] == index_kpp_calc[1, index_k, coords_plus[interaction, 0]]):
+                        coords_plus_new.append (coords_plus[interaction, :])
+                    
+                coords_plus = np.array(coords_plus_new)
+
+                coords_minus_new = []
+                for interaction in np.arange (coords_minus.shape[0]):
+                    if (coords_minus[interaction, 2] == index_kpp_calc[0, index_k, coords_minus[interaction, 0]]):
+                        coords_minus_new.append (coords_minus[interaction, :])
+
+                coords_minus = np.array (coords_minus_new)
                 
-                
-                
+                coords = np.array([coords_minus, coords_plus])
+
                 for is_plus in (1, 0):
                     dirac_delta[is_plus] = density_fact[is_plus, :, :, :, :] * np.exp (
                         -(energy_diff[is_plus, :, :, :, :]) ** 2 / (
@@ -154,21 +154,13 @@ class PhononsAnharmonic (Phonons):
                                                                                                               np.newaxis,
                                                                                                               np.newaxis,
                                                                                                               :, :])
-                    for index_kp in range (np.prod (self.k_size)):
-                        i_kp = np.array (np.unravel_index (index_kp, self.k_size))
-                        # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
 
-                        
-                        for mu_p in range (n_modes):
-                            for mu_pp in range (n_modes):
+                    for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
+
+                        phase_space[is_plus, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+                        potential = self.potentials_phonons (index_k, index_kp, index_kpp, mu, mu_p,mu_pp, is_plus=is_plus)
                                 
-                                if delta_condition[is_plus, index_kp, mu_p, index_kpp[is_plus, index_k, index_kp], mu_pp]:
-                                    
-                                    phase_space[is_plus, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp[is_plus, index_k, index_kp], mu_pp]
-                                    potential[is_plus, index_kp, mu_p, mu_pp] = self.potentials_phonons (index_k, index_kp, index_kpp[is_plus, index_k, index_kp], mu, mu_p,
-                                                                                               mu_pp, is_plus=is_plus)
-                                
-                                    gamma[is_plus, mu] += hbarp * np.pi / 4. * np.abs (potential[is_plus, index_kp, mu_p, mu_pp]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp[is_plus, index_k, index_kp], mu_pp]
+                        gamma[is_plus, mu] += hbarp * np.pi / 4. * np.abs (potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
                     
 
             prefactor = 5.60626442 * 10 ** 8 / nptk
