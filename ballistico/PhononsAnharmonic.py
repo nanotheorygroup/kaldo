@@ -46,8 +46,27 @@ class PhononsAnharmonic (Phonons):
         n_particles = geometry.shape[0]
         n_modes = n_particles * 3
         k_size = self.k_size
-        for index_k in range(np.prod(k_size)):
 
+        n_particles = geometry.shape[0]
+        n_replicas = list_of_replicas.shape[0]
+
+        # TODO: I don't know why there's a 10 here, copied by sheng bte
+        rlattvec = cellinv * 2 * np.pi * 10.
+        chi = np.zeros ((nptk, n_replicas)).astype (complex)
+
+        for index_k in range (np.prod (k_size)):
+            i_k = np.array (np.unravel_index (index_k, k_size))
+            k_point = i_k / k_size
+    
+            realq = np.matmul (rlattvec, k_point)
+
+            for l in range (n_replicas):
+                sxij = list_of_replicas[l]
+                chi[index_k, l] = np.exp (1j * sxij.dot (realq))
+
+        for index_k in range(np.prod(k_size)):
+    
+    
             for mu in range (n_modes):
     
                 energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
@@ -105,34 +124,12 @@ class PhononsAnharmonic (Phonons):
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
     
     
-                            i_kp = np.array (np.unravel_index (index_kp, k_size))
-                            i_kpp = np.array (np.unravel_index (index_kpp, k_size))
-    
-                            kp_point = i_kp / k_size
-    
-                            kpp_point = i_kpp / k_size
-    
-                            n_particles = geometry.shape[0]
-                            n_replicas = list_of_replicas.shape[0]
-    
-                            # TODO: I don't know why there's a 10 here, copied by sheng bte
-                            rlattvec = cellinv * 2 * np.pi * 10.
-                            realqprime = np.matmul (rlattvec, kp_point)
-                            realqdprime = np.matmul (rlattvec, kpp_point)
-    
-                            chi_p = np.zeros (n_replicas).astype (complex)
-                            chi_pp = np.zeros (n_replicas).astype (complex)
-    
-                            for l in range (n_replicas):
-        
-                                sxij = list_of_replicas[l]
-                                if is_plus:
-                                    chi_p[l] = np.exp (1j * sxij.dot (realqprime))
-                                else:
-                                    chi_p[l] = np.exp (-1j * sxij.dot (realqprime))
-                                chi_pp[l] = np.exp (-1j * sxij.dot (realqdprime))
-                            potential = np.tensordot (self.system.third_order, chi_p, (3, 0))
-                            potential = np.tensordot (potential, chi_pp, (5, 0)).squeeze ()
+                            if is_plus:
+                                potential = np.tensordot (self.system.third_order, chi[index_kp], (3, 0))
+                            else:
+                                potential = np.tensordot (self.system.third_order, chi[index_kp].conj(), (3, 0))
+
+                            potential = np.tensordot (potential, chi[index_kpp].conj(), (5, 0)).squeeze ()
     
                             potential /= np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
                             potential /= np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
