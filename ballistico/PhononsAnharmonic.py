@@ -84,6 +84,11 @@ class PhononsAnharmonic (Phonons):
         potential_plus = potential_plus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
         potential_plus = np.tensordot(potential_plus, eigenv.conj(), [[2],[2]])
         potential_plus = np.diagonal (potential_plus, axis1=3, axis2=4)
+
+        potential_plus = np.tensordot(potential_plus, eigenv, [[1],[2]])
+        potential_plus = np.diagonal (potential_plus, axis1=1, axis2=4)
+
+        
         
         potential_minus = np.tensordot (rescaled_potential, chi[:].conj (), (2, 1))
         potential_minus = np.tensordot (potential_minus, chi[:].conj (), (4, 1))
@@ -91,6 +96,9 @@ class PhononsAnharmonic (Phonons):
         potential_minus = np.tensordot(potential_minus, eigenv.conj(), [[2],[2]])
         potential_minus = np.diagonal (potential_minus, axis1=3, axis2=4)
 
+        potential_minus = np.tensordot(potential_minus, eigenv.conj(), [[1],[2]])
+        potential_minus = np.diagonal (potential_minus, axis1=1, axis2=4)
+        
 
 
 
@@ -151,21 +159,21 @@ class PhononsAnharmonic (Phonons):
     
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
                             a_k = self.eigenvectors[index_k, :, mu]
-                            a_kp = self.eigenvectors[index_kp, :, mu_p]
+                            # a_kp = self.eigenvectors[index_kp, :, mu_p]
                             # a_kpp = self.eigenvectors[index_kpp, :, mu_pp]
     
                             if is_plus:
-                                reduced_potential = potential_plus[:,:, index_kp, mu_pp, index_kpp]
+                                reduced_potential = potential_plus[:, mu_pp, index_kpp, mu_p, index_kp]
                                 reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
-                                reduced_potential = np.tensordot (reduced_potential, a_kp, (0, 0))
+                                # reduced_potential = np.tensordot (reduced_potential, a_kp, (0, 0))
                                 # reduced_potential = np.tensordot (reduced_potential, np.conj (a_kpp), (0, 0))
 
 
 
                             else:
-                                reduced_potential = potential_minus[:,:, index_kp, mu_pp, index_kpp]
+                                reduced_potential = potential_minus[:, mu_pp, index_kpp,mu_p, index_kp]
                                 reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
-                                reduced_potential = np.tensordot (reduced_potential, np.conj (a_kp), (0, 0))
+                                # reduced_potential = np.tensordot (reduced_potential, np.conj (a_kp), (0, 0))
                                 # reduced_potential = np.tensordot (reduced_potential, np.conj (a_kpp), (0, 0))
 
                             
