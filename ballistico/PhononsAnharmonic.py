@@ -22,6 +22,8 @@ class PhononsAnharmonic (Phonons):
         omega = 2 * np.pi * self.frequencies
         density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
 
+        tensor_k = np.zeros ((2, nptk, nptk, nptk), dtype=bool)
+
         i_kpp = np.zeros((2, nptk, nptk, 3)).astype(int)
         index_kpp_calc = np.zeros((2, nptk, nptk)).astype(int)
         for index_k in range(np.prod(self.k_size)):
@@ -32,10 +34,20 @@ class PhononsAnharmonic (Phonons):
                     # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
                     if is_plus:
                         i_kpp[is_plus, index_k, index_kp, :] = ((i_k + i_kp)) % self.k_size
-
+                
                     else:
                         i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
                     index_kpp_calc[is_plus, index_k, index_kp] = np.ravel_multi_index (i_kpp[is_plus, index_k, index_kp] , self.k_size)
+                    tensor_k[is_plus, index_k, index_kp, index_kpp_calc[is_plus, index_k, index_kp]] = True
+
+        # for index_kp in range (np.prod (self.k_size)):
+        #     for index_kpp in range (np.prod (self.k_size)):
+        #         if (tensor_k[0, :, index_kp, index_kpp].sum () > 1):
+        #             print (tensor_k[0, :, index_kp, index_kpp].sum ())
+        
+        # for index_kp in range (np.prod (self.k_size)):
+        #     for index_kpp in range (np.prod (self.k_size)):
+        #         print (np.argwhere (tensor_k[1, :, index_kp, index_kpp] == True))
 
         geometry = self.system.configuration.positions
         prefactor = 5.60626442 * 10 ** 8 / nptk
@@ -61,12 +73,18 @@ class PhononsAnharmonic (Phonons):
         for index_k in range (np.prod (k_size)):
             i_k = np.array (np.unravel_index (index_k, k_size))
             k_point = i_k / k_size
-    
             realq = np.matmul (rlattvec, k_point)
-
             for l in range (n_replicas):
                 sxij = list_of_replicas[l]
                 chi[index_k, l] = np.exp (1j * sxij.dot (realq))
+
+        potential_plus = np.tensordot (rescaled_potential, chi[:], (2, 1))
+        potential_plus = np.tensordot (potential_plus, chi[:].conj (), (4, 1))
+        potential_plus = potential_plus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
+        potential_minus = np.tensordot (rescaled_potential, chi[:].conj (), (2, 1))
+        potential_minus = np.tensordot (potential_minus, chi[:].conj (), (4, 1))
+        potential_minus = potential_minus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
+
 
         for index_k in range(np.prod(k_size)):
     
@@ -124,14 +142,6 @@ class PhononsAnharmonic (Phonons):
                         dirac_delta[indexes] /= omega[index_k, mu]
     
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-                            potential = np.tensordot (rescaled_potential, chi[index_kpp].conj(), (5, 0))
-
-                            if is_plus:
-                                potential = np.tensordot (potential, chi[index_kp], (2,0))
-                            else:
-                                potential = np.tensordot (potential, chi[index_kp].conj(), (2, 0))
-
-    
                             a_k = self.eigenvectors[index_k, :, :].T[mu]
                             a_kp = self.eigenvectors[index_kp, :, :].T[mu_p]
                             a_kpp = self.eigenvectors[index_kpp, :, :].T[mu_pp]
@@ -139,16 +149,19 @@ class PhononsAnharmonic (Phonons):
                             a_k = a_k.reshape (n_particles * 3)
                             a_kp = a_kp.reshape (n_particles * 3)
                             a_kpp = a_kpp.reshape (n_particles * 3)
-                            potential = potential.reshape (n_particles * 3, n_particles * 3, n_particles * 3)
-                            potential = np.tensordot (potential, a_k, (0, 0))
                             if is_plus:
-                                potential = np.tensordot (potential, a_kp, (0, 0))
+                                reduced_potential = potential_plus[:,:,:, index_kp, index_kpp]
                             else:
-                                potential = np.tensordot (potential, np.conj (a_kp), (0, 0))
-                            potential = np.tensordot (potential, np.conj (a_kpp), (0, 0))
+                                reduced_potential = potential_minus[:,:,:, index_kp, index_kpp]
+                            reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
+                            if is_plus:
+                                reduced_potential = np.tensordot (reduced_potential, a_kp, (0, 0))
+                            else:
+                                reduced_potential = np.tensordot (reduced_potential, np.conj (a_kp), (0, 0))
+                            reduced_potential = np.tensordot (reduced_potential, np.conj (a_kpp), (0, 0))
                             
                             
-                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (reduced_potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
     
                             ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
 
