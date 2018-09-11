@@ -271,10 +271,10 @@ class Phonons (object):
 
         is_classical = False
         sh_par = {'classical': is_classical, 'convergence': True, 'only_gamma': False}
-        k_mesh = np.array ([3, 3, 3])
-        shl = ShengbteHelper (self.system, k_mesh, sh_par)
-        dyn_k, ddyn_k = shl.read_file ()
-        ddyn_k *= toTHz*bohr2nm
+        # k_mesh = np.array ([3, 3, 3])
+        # shl = ShengbteHelper (self.system, k_mesh, sh_par)
+        # dyn_k, ddyn_k = shl.read_file ()
+        # ddyn_k *= toTHz*bohr2nm
         
         
         # dyn = dyn_s.swapaxes(0,2).swapaxes(1,3)

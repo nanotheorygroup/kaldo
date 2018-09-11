@@ -159,22 +159,16 @@ class PhononsAnharmonic (Phonons):
     
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
                             a_k = self.eigenvectors[index_k, :, mu]
-                            # a_kp = self.eigenvectors[index_kp, :, mu_p]
-                            # a_kpp = self.eigenvectors[index_kpp, :, mu_pp]
     
                             if is_plus:
                                 reduced_potential = potential_plus[:, mu_pp, index_kpp, mu_p, index_kp]
                                 reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
-                                # reduced_potential = np.tensordot (reduced_potential, a_kp, (0, 0))
-                                # reduced_potential = np.tensordot (reduced_potential, np.conj (a_kpp), (0, 0))
 
 
 
                             else:
                                 reduced_potential = potential_minus[:, mu_pp, index_kpp,mu_p, index_kp]
                                 reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
-                                # reduced_potential = np.tensordot (reduced_potential, np.conj (a_kp), (0, 0))
-                                # reduced_potential = np.tensordot (reduced_potential, np.conj (a_kpp), (0, 0))
 
                             
                             
@@ -185,7 +179,7 @@ class PhononsAnharmonic (Phonons):
         return gamma[1], gamma[0], ps[1], ps[0]
 
     def calculate_broadening(self, velocity):
-        cellinv = np.linalg.inv (self.system.configuration.cell)
+        cellinv = self.system.configuration.cell_inv
         # armstrong to nanometers
         rlattvec = cellinv * 2 * np.pi * 10.
         
