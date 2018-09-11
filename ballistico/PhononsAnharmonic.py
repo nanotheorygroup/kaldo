@@ -4,10 +4,10 @@ from ballistico.constants import *
 
 class PhononsAnharmonic (Phonons):
     
-    def calculate_potential(self, potential, eigenv, chi, is_plus):
+    def project_potential(self, potential, eigenv, chi, is_plus):
         """
-        Projection of potential on eigenvectors of dynamical matrix.
-        :param potential: Third order derivative of the potential, rank = (n_particles * 3, n_replicas, n_particles * 3, n_replicas, n_particles * 3, n_replicas,  n_particles * 3)
+        Projection of potential on second and third phonon.
+        :param potential: Third order derivative of the potential, rank = (n_replicas, n_particles * 3, n_replicas, n_particles * 3, n_replicas,  n_particles * 3)
         :param eigenv: eigenvector of the dynamical matrix, rank (n_kpoints, n_modes, n_modes)
         :param chi:
         :param n_modes:
@@ -25,13 +25,13 @@ class PhononsAnharmonic (Phonons):
         third_eigenv = eigenv.conj()
         third_chi = chi.conj()
 
-        potential = np.tensordot (potential, second_chi, (1, 1))
-        potential = np.tensordot (potential, third_chi, (2, 1))
+        potential = np.tensordot (potential, second_chi, (0, 1))
+        potential = np.tensordot (potential, third_chi, (1, 1))
 
-        potential = np.tensordot (potential, third_eigenv, (2, 2))
-        potential = np.diagonal (potential, axis1=3, axis2=4)
-        potential = np.tensordot (potential, second_eigenv, (1, 2))
-        potential = np.diagonal (potential, axis1=1, axis2=4)
+        potential = np.tensordot (potential, third_eigenv, (1, 2))
+        potential = np.diagonal (potential, axis1=2, axis2=3)
+        potential = np.tensordot (potential, second_eigenv, (0, 2))
+        potential = np.diagonal (potential, axis1=0, axis2=3)
 
         return potential
 
@@ -112,56 +112,57 @@ class PhononsAnharmonic (Phonons):
         
         projected_potential = np.zeros((2, n_modes, n_modes, n_replicas, n_modes, n_replicas)).astype(np.complex)
         for is_plus in (1, 0):
-            projected_potential[is_plus] = self.calculate_potential (rescaled_potential, eigenv, chi, is_plus)
+            for i in range(n_modes):
+                projected_potential[is_plus, i] = self.project_potential (rescaled_potential[i], eigenv, chi, is_plus)
 
+        for is_plus in (1, 0):
+
+            for index_k in range(np.prod(k_size)):
         
-        for index_k in range(np.prod(k_size)):
+        
+                for mu in range (n_modes):
+        
+                    energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
+                    energy_diff[1] = np.abs (
+                        omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+                    energy_diff[0] = np.abs (
+                        omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+        
+                    density_fact = np.zeros ((2, nptk, n_modes, nptk, n_modes))
+                    density_fact[1] = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
+                    density_fact[0] = .5 * ( 1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
     
-    
-            for mu in range (n_modes):
-    
-                energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-                energy_diff[1] = np.abs (
-                    omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-                energy_diff[0] = np.abs (
-                    omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-    
-                density_fact = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-                density_fact[1] = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
-                density_fact[0] = .5 * ( 1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
-
-                sigma = self.calculate_broadening (self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
-                
-                dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-
-                delta_condition_plus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (omega[np.newaxis, np.newaxis, :, :] != 0)) & (
-                        energy_diff[1, :, :, :, :] <= (
-                            2. * sigma[:, :, :, :]))
-                delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
-                            omega[np.newaxis, np.newaxis, :, :] != 0)) & (
-                                               energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
-                
-                omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis,np.newaxis,:, :]
-                coords_plus = np.array (np.argwhere (delta_condition_plus), dtype=int)
-                coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
-
-                coords_plus_new = []
-                for interaction in np.arange(coords_plus.shape[0]):
-                    if (coords_plus[interaction, 2] == index_kpp_calc[1, index_k, coords_plus[interaction, 0]]):
-                        coords_plus_new.append (coords_plus[interaction, :])
+                    sigma = self.calculate_broadening (self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
                     
-                coords_plus = np.array(coords_plus_new)
+                    dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
+    
+                    delta_condition_plus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (omega[np.newaxis, np.newaxis, :, :] != 0)) & (
+                            energy_diff[1, :, :, :, :] <= (
+                                2. * sigma[:, :, :, :]))
+                    delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
+                                omega[np.newaxis, np.newaxis, :, :] != 0)) & (
+                                                   energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
+                    
+                    omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis,np.newaxis,:, :]
+                    coords_plus = np.array (np.argwhere (delta_condition_plus), dtype=int)
+                    coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
+    
+                    coords_plus_new = []
+                    for interaction in np.arange(coords_plus.shape[0]):
+                        if (coords_plus[interaction, 2] == index_kpp_calc[1, index_k, coords_plus[interaction, 0]]):
+                            coords_plus_new.append (coords_plus[interaction, :])
+                        
+                    coords_plus = np.array(coords_plus_new)
+    
+                    coords_minus_new = []
+                    for interaction in np.arange (coords_minus.shape[0]):
+                        if (coords_minus[interaction, 2] == index_kpp_calc[0, index_k, coords_minus[interaction, 0]]):
+                            coords_minus_new.append (coords_minus[interaction, :])
+    
+                    coords_minus = np.array (coords_minus_new)
+                    
+                    coords = np.array([coords_minus, coords_plus])
 
-                coords_minus_new = []
-                for interaction in np.arange (coords_minus.shape[0]):
-                    if (coords_minus[interaction, 2] == index_kpp_calc[0, index_k, coords_minus[interaction, 0]]):
-                        coords_minus_new.append (coords_minus[interaction, :])
-
-                coords_minus = np.array (coords_minus_new)
-                
-                coords = np.array([coords_minus, coords_plus])
-
-                for is_plus in (1, 0):
                     if (coords[is_plus].size != 0):
     
                         indexes_reduced = (coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
