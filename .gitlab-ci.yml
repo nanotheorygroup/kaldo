@@ -3,5 +3,5 @@ before_script:
 
 doc:
   script: 
-    - apt-get update -qq && apt-get install -y -qq python
-    - python -v
+    - apt-get update -qq && apt-get install -y -qq python python-sphinx
+    - sphinx -v
