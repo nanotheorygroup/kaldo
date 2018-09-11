@@ -1,0 +1,6 @@
+before_script:
+  - echo "Testing the before script :) "
+run_test:
+  script: 
+    - echo "running inside the runner Here"
+    - ping www.google.com
