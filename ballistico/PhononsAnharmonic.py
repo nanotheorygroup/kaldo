@@ -4,11 +4,11 @@ from ballistico.constants import *
 
 class PhononsAnharmonic (Phonons):
     
-    def calculate_potential(self, potential, eigenv, chi, n_modes, nptk, is_plus):
+    def calculate_potential(self, potential, eigenv, chi, is_plus):
         """
-        Projection of potential on eigenmodes.
+        Projection of potential on eigenvectors of dynamical matrix.
         :param potential: Third order derivative of the potential, rank = (n_particles * 3, n_replicas, n_particles * 3, n_replicas, n_particles * 3, n_replicas,  n_particles * 3)
-        :param eigenv: Right eigenvector of the dynamical matrix(27, 6, 6)
+        :param eigenv: eigenvector of the dynamical matrix, rank (n_kpoints, n_modes, n_modes)
         :param chi:
         :param n_modes:
         :param nptk:
@@ -27,11 +27,10 @@ class PhononsAnharmonic (Phonons):
 
         potential = np.tensordot (potential, second_chi, (1, 1))
         potential = np.tensordot (potential, third_chi, (2, 1))
-        potential = potential.reshape (n_modes, n_modes, n_modes, nptk, nptk)
 
-        potential = np.tensordot (potential, third_eigenv, [[2], [2]])
+        potential = np.tensordot (potential, third_eigenv, (2, 2))
         potential = np.diagonal (potential, axis1=3, axis2=4)
-        potential = np.tensordot (potential, second_eigenv, [[1], [2]])
+        potential = np.tensordot (potential, second_eigenv, (1, 2))
         potential = np.diagonal (potential, axis1=1, axis2=4)
 
         return potential
@@ -94,10 +93,6 @@ class PhononsAnharmonic (Phonons):
         rlattvec = cellinv * 2 * np.pi * 10.
         chi = np.zeros ((nptk, n_replicas)).astype (complex)
 
-        rescaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-
         for index_k in range (np.prod (k_size)):
             i_k = np.array (np.unravel_index (index_k, k_size))
             k_point = i_k / k_size
@@ -105,6 +100,11 @@ class PhononsAnharmonic (Phonons):
             for l in range (n_replicas):
                 sxij = list_of_replicas[l]
                 chi[index_k, l] = np.exp (1j * sxij.dot (realq))
+
+        rescaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+
                 
         eigenv = np.swapaxes (self.eigenvectors, 1, 2)
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
@@ -112,8 +112,7 @@ class PhononsAnharmonic (Phonons):
         
         projected_potential = np.zeros((2, n_modes, n_modes, n_replicas, n_modes, n_replicas)).astype(np.complex)
         for is_plus in (1, 0):
-
-            projected_potential[is_plus] = self.calculate_potential (rescaled_potential, eigenv, chi, n_modes, nptk, is_plus)
+            projected_potential[is_plus] = self.calculate_potential (rescaled_potential, eigenv, chi, is_plus)
 
         
         for index_k in range(np.prod(k_size)):
