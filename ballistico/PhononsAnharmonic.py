@@ -79,8 +79,10 @@ class PhononsAnharmonic (Phonons):
                 chi[index_k, l] = np.exp (1j * sxij.dot (realq))
 
         eigenv = np.swapaxes (self.eigenvectors, 1, 2)
-        potential_plus = np.tensordot (rescaled_potential, chi[:], (2, 1))
-        potential_plus = np.tensordot (potential_plus, chi[:].conj (), (4, 1))
+        rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
+        
+        potential_plus = np.tensordot (rescaled_potential, chi[:] , (1, 1))
+        potential_plus = np.tensordot (potential_plus, chi[:].conj(), (2, 1))
         potential_plus = potential_plus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
         potential_plus = np.tensordot(potential_plus, eigenv.conj(), [[2],[2]])
         potential_plus = np.diagonal (potential_plus, axis1=3, axis2=4)
@@ -90,8 +92,9 @@ class PhononsAnharmonic (Phonons):
 
         
         
-        potential_minus = np.tensordot (rescaled_potential, chi[:].conj (), (2, 1))
-        potential_minus = np.tensordot (potential_minus, chi[:].conj (), (4, 1))
+        potential_minus = np.tensordot (rescaled_potential, chi[:].conj (), (1, 1))
+        potential_minus = np.tensordot (potential_minus, chi[:].conj (), (2, 1))
+        
         potential_minus = potential_minus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
         potential_minus = np.tensordot(potential_minus, eigenv.conj(), [[2],[2]])
         potential_minus = np.diagonal (potential_minus, axis1=3, axis2=4)
