@@ -3,5 +3,5 @@ before_script:
 
 doc:
   script: 
-    - apk add --update python python-dev py-pip build-base
+    - apt-get update -qq && apt-get install -y -qq python
     - python -v
