@@ -3,6 +3,38 @@ from ballistico.Phonons import Phonons
 from ballistico.constants import *
 
 class PhononsAnharmonic (Phonons):
+    
+    def calculate_potential(self, potential, eigenv, chi, n_modes, nptk, is_plus):
+        """
+        Projection of potential on eigenmodes.
+        :param potential: Third order derivative of the potential, rank = (n_particles * 3, n_replicas, n_particles * 3, n_replicas, n_particles * 3, n_replicas,  n_particles * 3)
+        :param eigenv: Right eigenvector of the dynamical matrix(27, 6, 6)
+        :param chi:
+        :param n_modes:
+        :param nptk:
+        :param is_plus:
+        :return:
+        """
+        if is_plus:
+            second_eigenv = eigenv
+            second_chi = chi
+        else:
+            second_eigenv = eigenv.conj ()
+            second_chi = chi.conj ()
+            
+        third_eigenv = eigenv.conj()
+        third_chi = chi.conj()
+
+        potential = np.tensordot (potential, second_chi, (1, 1))
+        potential = np.tensordot (potential, third_chi, (2, 1))
+        potential = potential.reshape (n_modes, n_modes, n_modes, nptk, nptk)
+
+        potential = np.tensordot (potential, third_eigenv, [[2], [2]])
+        potential = np.diagonal (potential, axis1=3, axis2=4)
+        potential = np.tensordot (potential, second_eigenv, [[1], [2]])
+        potential = np.diagonal (potential, axis1=1, axis2=4)
+
+        return potential
 
     def calculate_gamma(self):
         hbarp = 1.05457172647
@@ -49,17 +81,13 @@ class PhononsAnharmonic (Phonons):
         #     for index_kpp in range (np.prod (self.k_size)):
         #         print (np.argwhere (tensor_k[1, :, index_kp, index_kpp] == True))
 
-        geometry = self.system.configuration.positions
         prefactor = 5.60626442 * 10 ** 8 / nptk
         cellinv = self.system.configuration.cell_inv
         masses = self.system.configuration.get_masses ()
 
         list_of_replicas = self.system.list_of_replicas
-        n_particles = geometry.shape[0]
         n_modes = n_particles * 3
         k_size = self.k_size
-
-        n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
 
         # TODO: I don't know why there's a 10 here, copied by sheng bte
@@ -77,34 +105,17 @@ class PhononsAnharmonic (Phonons):
             for l in range (n_replicas):
                 sxij = list_of_replicas[l]
                 chi[index_k, l] = np.exp (1j * sxij.dot (realq))
-
+                
         eigenv = np.swapaxes (self.eigenvectors, 1, 2)
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
         
-        potential_plus = np.tensordot (rescaled_potential, chi[:] , (1, 1))
-        potential_plus = np.tensordot (potential_plus, chi[:].conj(), (2, 1))
-        potential_plus = potential_plus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
-        potential_plus = np.tensordot(potential_plus, eigenv.conj(), [[2],[2]])
-        potential_plus = np.diagonal (potential_plus, axis1=3, axis2=4)
+        
+        projected_potential = np.zeros((2, n_modes, n_modes, n_replicas, n_modes, n_replicas)).astype(np.complex)
+        for is_plus in (1, 0):
 
-        potential_plus = np.tensordot(potential_plus, eigenv, [[1],[2]])
-        potential_plus = np.diagonal (potential_plus, axis1=1, axis2=4)
+            projected_potential[is_plus] = self.calculate_potential (rescaled_potential, eigenv, chi, n_modes, nptk, is_plus)
 
         
-        
-        potential_minus = np.tensordot (rescaled_potential, chi[:].conj (), (1, 1))
-        potential_minus = np.tensordot (potential_minus, chi[:].conj (), (2, 1))
-        
-        potential_minus = potential_minus.reshape (n_modes, n_modes, n_modes, nptk, nptk)
-        potential_minus = np.tensordot(potential_minus, eigenv.conj(), [[2],[2]])
-        potential_minus = np.diagonal (potential_minus, axis1=3, axis2=4)
-
-        potential_minus = np.tensordot(potential_minus, eigenv.conj(), [[1],[2]])
-        potential_minus = np.diagonal (potential_minus, axis1=1, axis2=4)
-        
-
-
-
         for index_k in range(np.prod(k_size)):
     
     
@@ -160,24 +171,13 @@ class PhononsAnharmonic (Phonons):
                         dirac_delta[indexes] = density_fact[indexes] * np.exp (-(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (np.pi) / (omega_product[indexes_reduced])
                         dirac_delta[indexes] /= omega[index_k, mu]
     
+    
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
                             a_k = self.eigenvectors[index_k, :, mu]
-    
-                            if is_plus:
-                                reduced_potential = potential_plus[:, mu_pp, index_kpp, mu_p, index_kp]
-                                reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
-
-
-
-                            else:
-                                reduced_potential = potential_minus[:, mu_pp, index_kpp,mu_p, index_kp]
-                                reduced_potential = np.tensordot (reduced_potential, a_k, (0, 0))
-
                             
-                            
-                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (reduced_potential) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
-    
+                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (np.tensordot (projected_potential[is_plus, :, mu_pp, index_kpp,mu_p, index_kp], a_k, (0, 0))) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
                             ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
+                            
 
         return gamma[1], gamma[0], ps[1], ps[0]
 
