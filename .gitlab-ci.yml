@@ -1,6 +1,7 @@
 before_script:
   - echo "Testing the before script :) "
-run_test:
+
+doc:
   script: 
-    - echo "running inside the runner Here"
-    - ping www.google.com
+    - apk add --update python python-dev py-pip build-base
+    - python -v
