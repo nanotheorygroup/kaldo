@@ -4,6 +4,78 @@ from ballistico.constants import *
 
 class PhononsAnharmonic (Phonons):
     
+    def calculate_delta(self, index_k, mu, index_kpp_calc):
+
+        n_particles = self.system.configuration.positions.shape[0]
+        n_modes = n_particles * 3
+        k_size = self.k_size
+        nptk = np.prod(k_size)
+
+        
+        # TODO: remove acoustic sum rule
+        self.frequencies[0, :3] = 0
+        self.velocities[0, :3, :] = 0
+
+        omega = 2 * np.pi * self.frequencies
+        density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
+
+
+        energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
+        energy_diff[1] = np.abs (
+            omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+        energy_diff[0] = np.abs (
+            omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+    
+        density_fact = np.zeros ((2, nptk, n_modes, nptk, n_modes))
+        density_fact[1] = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
+        density_fact[0] = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
+    
+        sigma = self.calculate_broadening (
+            self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
+    
+        dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
+    
+        delta_condition_plus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
+                    omega[np.newaxis, np.newaxis, :, :] != 0)) & (
+                                       energy_diff[1, :, :, :, :] <= (
+                                       2. * sigma[:, :, :, :]))
+        delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
+                omega[np.newaxis, np.newaxis, :, :] != 0)) & (
+                                        energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
+    
+        omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
+        coords_plus = np.array (np.argwhere (delta_condition_plus), dtype=int)
+        coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
+
+        coords_plus_new = []
+        for interaction in np.arange (coords_plus.shape[0]):
+            if (coords_plus[interaction, 2] == index_kpp_calc[1, index_k, coords_plus[interaction, 0]]):
+                coords_plus_new.append (coords_plus[interaction, :])
+    
+        coords_plus = np.array (coords_plus_new)
+    
+        coords_minus_new = []
+        for interaction in np.arange (coords_minus.shape[0]):
+            if (coords_minus[interaction, 2] == index_kpp_calc[0, index_k, coords_minus[interaction, 0]]):
+                coords_minus_new.append (coords_minus[interaction, :])
+    
+        coords_minus = np.array (coords_minus_new)
+    
+        coords = np.array ([coords_minus, coords_plus])
+        for is_plus in (1, 0):
+        
+            if (coords[is_plus].size != 0):
+                indexes_reduced = (
+                coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+                indexes = (np.ones (coords[is_plus][:, 0].shape[0]).astype (int) * is_plus, coords[is_plus][:, 0],
+                           coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+            
+                dirac_delta[indexes] = density_fact[indexes] * np.exp (
+                    -(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (
+                    np.pi) / (omega_product[indexes_reduced])
+                dirac_delta[indexes] /= omega[index_k, mu]
+        return dirac_delta, coords
+
     def project_potential(self, potential, eigenv, chi, is_plus):
         """
         Projection of potential on second and third phonon.
@@ -116,69 +188,13 @@ class PhononsAnharmonic (Phonons):
                 projected_potential[is_plus, n] = self.project_potential (rescaled_potential[n], eigenv, chi,
                                                                            is_plus)
 
-        for is_plus in (1, 0):
-            for mu in range (n_modes):
-                for index_k in range (np.prod (k_size)):
-    
- 
-        
-        
-    
-    
-                    energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-                    energy_diff[1] = np.abs (
-                        omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-                    energy_diff[0] = np.abs (
-                        omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-        
-                    density_fact = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-                    density_fact[1] = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
-                    density_fact[0] = .5 * ( 1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
-    
-                    sigma = self.calculate_broadening (self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
-                    
-                    dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-    
-                    delta_condition_plus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (omega[np.newaxis, np.newaxis, :, :] != 0)) & (
-                            energy_diff[1, :, :, :, :] <= (
-                                2. * sigma[:, :, :, :]))
-                    delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
-                                omega[np.newaxis, np.newaxis, :, :] != 0)) & (
-                                                   energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
-                    
-                    omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis,np.newaxis,:, :]
-                    coords_plus = np.array (np.argwhere (delta_condition_plus), dtype=int)
-                    coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
-    
-                    coords_plus_new = []
-                    for interaction in np.arange(coords_plus.shape[0]):
-                        if (coords_plus[interaction, 2] == index_kpp_calc[1, index_k, coords_plus[interaction, 0]]):
-                            coords_plus_new.append (coords_plus[interaction, :])
-                        
-                    coords_plus = np.array(coords_plus_new)
-    
-                    coords_minus_new = []
-                    for interaction in np.arange (coords_minus.shape[0]):
-                        if (coords_minus[interaction, 2] == index_kpp_calc[0, index_k, coords_minus[interaction, 0]]):
-                            coords_minus_new.append (coords_minus[interaction, :])
-    
-                    coords_minus = np.array (coords_minus_new)
-                    
-                    coords = np.array([coords_minus, coords_plus])
-
-                    if (coords[is_plus].size != 0):
-    
-                        indexes_reduced = (coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
-                        indexes = (np.ones(coords[is_plus][:, 0].shape[0]).astype(int) * is_plus, coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
-        
-                        dirac_delta[indexes] = density_fact[indexes] * np.exp (-(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (np.pi) / (omega_product[indexes_reduced])
-                        dirac_delta[indexes] /= omega[index_k, mu]
-    
-    
-                        for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-                            
-                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (np.tensordot (projected_potential[is_plus, :, mu_pp, index_kpp,mu_p, index_kp], eigenv[index_k, mu, :], (0, 0))) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
-                            ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
+        for mu in range (n_modes):
+            for index_k in range (np.prod (k_size)):
+                dirac_delta, coords = self.calculate_delta (index_k, mu, index_kpp_calc)
+                for is_plus in (1,0):
+                    for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
+                        gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (np.tensordot (projected_potential[is_plus, :, mu_pp, index_kpp,mu_p, index_kp], eigenv[index_k, mu, :], (0, 0))) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+                        ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
                             
 
         return gamma[1], gamma[0], ps[1], ps[0]
