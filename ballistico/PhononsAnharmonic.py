@@ -185,9 +185,9 @@ class PhononsAnharmonic (Phonons):
         for index_k in range (np.prod (k_size)):
             for mu in range (n_modes):
     
-                first_proj_potential_sq = np.abs(np.tensordot (projected_potential, eigenv[index_k, mu, :], (1, 0))) ** 2
+                first_proj_potential_sq = np.abs(np.einsum('ijklmn,j->iklmn', projected_potential, eigenv[index_k, mu, :])) ** 2
     
-                dirac_delta, coords = self.calculate_delta (index_k, mu)
+                dirac_delta, _ = self.calculate_delta (index_k, mu)
                 for is_plus in (1,0):
                     gamma[is_plus, index_k, mu] = np.einsum('ijkl,lkji->', first_proj_potential_sq[is_plus], dirac_delta[is_plus])
                     ps[is_plus, index_k, mu] = np.einsum('lkji->', dirac_delta[is_plus])
