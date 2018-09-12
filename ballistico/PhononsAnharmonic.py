@@ -177,26 +177,21 @@ class PhononsAnharmonic (Phonons):
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
 
-                
         eigenv = np.swapaxes (self.eigenvectors, 1, 2)
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
-        
         
         projected_potential = np.zeros((2, n_modes, n_modes, nptk, n_modes, nptk)).astype(np.complex)
         for is_plus in (1, 0):
             for n in range(n_modes):
-                projected_potential[is_plus, n] = self.project_potential (rescaled_potential[n], eigenv, chi,is_plus)
-                
+                projected_potential[is_plus, n] = self.project_potential (rescaled_potential[n], eigenv, chi, is_plus)
 
+        first_proj_potential = np.tensordot (projected_potential, eigenv, (1, 2))
         for index_k in range (np.prod (k_size)):
             for mu in range (n_modes):
                 
                 dirac_delta, coords = self.calculate_delta (index_k, mu)
                 for is_plus in (1,0):
     
-                    first_proj_potential = np.tensordot (projected_potential,eigenv,(1, 2))
-                    
-                    
                     for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
                         gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (first_proj_potential[is_plus, mu_pp, index_kpp, mu_p, index_kp, index_k, mu]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
                         ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
