@@ -114,13 +114,10 @@ class PhononsAnharmonic (Phonons):
         third_eigenv = eigenv.conj()
         third_chi = chi.conj()
 
-        potential = np.tensordot (potential, second_chi, (0, 1))
-        potential = np.tensordot (potential, third_chi, (1, 1))
-
-        potential = np.tensordot (potential, third_eigenv, (1, 2))
-        potential = np.diagonal (potential, axis1=2, axis2=3)
-        potential = np.tensordot (potential, second_eigenv, (0, 2))
-        potential = np.diagonal (potential, axis1=0, axis2=3)
+        potential = np.einsum('ijkl,mi->jklm', potential, second_chi)
+        potential = np.einsum('jklm,ik->jlmi', potential, third_chi)
+        potential = np.einsum('jlmi,ikl->jmki', potential, third_eigenv)
+        potential = np.einsum('jmki,mlj->kilm', potential, second_eigenv)
 
         return potential
 
