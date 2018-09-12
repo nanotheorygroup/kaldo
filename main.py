@@ -64,7 +64,6 @@ if __name__ == "__main__":
     
     phonons = PhononsAnharmonic (system, k_size)
     
-    # phonons.diagonalize_second_order_single_k(np.array([1/3, 0., 0.]))
     phonons.calculate_second_all_grid()
     NKPOINTS_TO_PLOT = 100
     

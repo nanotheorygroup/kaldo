@@ -110,18 +110,21 @@ class PhononsAnharmonic (Phonons):
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
         
         
-        projected_potential = np.zeros((2, n_modes, n_modes, n_replicas, n_modes, n_replicas)).astype(np.complex)
+        projected_potential = np.zeros((2, n_modes, n_modes, nptk, n_modes, nptk)).astype(np.complex)
         for is_plus in (1, 0):
-            for i in range(n_modes):
-                projected_potential[is_plus, i] = self.project_potential (rescaled_potential[i], eigenv, chi, is_plus)
+            for n in range(n_modes):
+                projected_potential[is_plus, n] = self.project_potential (rescaled_potential[n], eigenv, chi,
+                                                                           is_plus)
 
         for is_plus in (1, 0):
-
-            for index_k in range(np.prod(k_size)):
+            for mu in range (n_modes):
+                for index_k in range (np.prod (k_size)):
+    
+ 
         
         
-                for mu in range (n_modes):
-        
+    
+    
                     energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
                     energy_diff[1] = np.abs (
                         omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
@@ -173,9 +176,8 @@ class PhononsAnharmonic (Phonons):
     
     
                         for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-                            a_k = self.eigenvectors[index_k, :, mu]
                             
-                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (np.tensordot (projected_potential[is_plus, :, mu_pp, index_kpp,mu_p, index_kp], a_k, (0, 0))) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+                            gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (np.tensordot (projected_potential[is_plus, :, mu_pp, index_kpp,mu_p, index_kp], eigenv[index_k, mu, :], (0, 0))) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
                             ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
                             
 
