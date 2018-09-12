@@ -4,7 +4,7 @@ from ballistico.constants import *
 
 class PhononsAnharmonic (Phonons):
     
-    def calculate_delta(self, index_k, mu, index_kpp_calc):
+    def calculate_delta(self, index_k, mu):
 
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -48,15 +48,32 @@ class PhononsAnharmonic (Phonons):
         coords_minus = np.array (np.argwhere (delta_condition_minus), dtype=int)
 
         coords_plus_new = []
+
+        i_kpp = np.zeros ((2, nptk, nptk, 3)).astype (int)
+        index_kpp_calc = np.zeros ((2, nptk)).astype (int)
+
+        i_k = np.array (np.unravel_index (index_k, self.k_size))
+        for index_kp in range (np.prod (self.k_size)):
+            i_kp = np.array (np.unravel_index (index_kp, self.k_size))
+            for is_plus in (1, 0):
+                # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
+                if is_plus:
+                    i_kpp[is_plus, index_k, index_kp, :] = ((i_k + i_kp)) % self.k_size
+        
+                else:
+                    i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
+                index_kpp_calc[is_plus, index_kp] = np.ravel_multi_index (
+                    i_kpp[is_plus, index_k, index_kp], self.k_size)
+                
         for interaction in np.arange (coords_plus.shape[0]):
-            if (coords_plus[interaction, 2] == index_kpp_calc[1, index_k, coords_plus[interaction, 0]]):
+            if (coords_plus[interaction, 2] == index_kpp_calc[1, coords_plus[interaction, 0]]):
                 coords_plus_new.append (coords_plus[interaction, :])
     
         coords_plus = np.array (coords_plus_new)
     
         coords_minus_new = []
         for interaction in np.arange (coords_minus.shape[0]):
-            if (coords_minus[interaction, 2] == index_kpp_calc[0, index_k, coords_minus[interaction, 0]]):
+            if (coords_minus[interaction, 2] == index_kpp_calc[0, coords_minus[interaction, 0]]):
                 coords_minus_new.append (coords_minus[interaction, :])
     
         coords_minus = np.array (coords_minus_new)
@@ -125,23 +142,6 @@ class PhononsAnharmonic (Phonons):
         omega = 2 * np.pi * self.frequencies
         density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
 
-        tensor_k = np.zeros ((2, nptk, nptk, nptk), dtype=bool)
-
-        i_kpp = np.zeros((2, nptk, nptk, 3)).astype(int)
-        index_kpp_calc = np.zeros((2, nptk, nptk)).astype(int)
-        for index_k in range(np.prod(self.k_size)):
-            i_k = np.array (np.unravel_index (index_k, self.k_size))
-            for index_kp in range (np.prod (self.k_size)):
-                i_kp = np.array (np.unravel_index (index_kp, self.k_size))
-                for is_plus in (1, 0):
-                    # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
-                    if is_plus:
-                        i_kpp[is_plus, index_k, index_kp, :] = ((i_k + i_kp)) % self.k_size
-                
-                    else:
-                        i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
-                    index_kpp_calc[is_plus, index_k, index_kp] = np.ravel_multi_index (i_kpp[is_plus, index_k, index_kp] , self.k_size)
-                    tensor_k[is_plus, index_k, index_kp, index_kpp_calc[is_plus, index_k, index_kp]] = True
 
         # for index_kp in range (np.prod (self.k_size)):
         #     for index_kpp in range (np.prod (self.k_size)):
@@ -188,9 +188,14 @@ class PhononsAnharmonic (Phonons):
                 projected_potential[is_plus, n] = self.project_potential (rescaled_potential[n], eigenv, chi,
                                                                            is_plus)
 
-        for mu in range (n_modes):
-            for index_k in range (np.prod (k_size)):
-                dirac_delta, coords = self.calculate_delta (index_k, mu, index_kpp_calc)
+        for index_k in range (np.prod (k_size)):
+    
+            # tensor_k = np.zeros ((2, nptk, nptk), dtype=bool)
+    
+                    # tensor_k[is_plus, index_kp, index_kpp_calc[is_plus, index_kp]] = True
+            
+            for mu in range (n_modes):
+                dirac_delta, coords = self.calculate_delta (index_k, mu)
                 for is_plus in (1,0):
                     for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
                         gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (np.tensordot (projected_potential[is_plus, :, mu_pp, index_kpp,mu_p, index_kp], eigenv[index_k, mu, :], (0, 0))) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
