@@ -182,8 +182,8 @@ class PhononsAnharmonic (Phonons):
         
         projected_potential = np.zeros((2, n_modes, n_modes, nptk, n_modes, nptk)).astype(np.complex)
         for is_plus in (1, 0):
-            for n in range(n_modes):
-                projected_potential[is_plus, n] = self.project_potential (rescaled_potential[n], eigenv, chi, is_plus)
+            for i in range(n_particles * 3):
+                projected_potential[is_plus, i] = self.project_potential (rescaled_potential[i], eigenv, chi, is_plus)
 
         for index_k in range (np.prod (k_size)):
             for mu in range (n_modes):
@@ -192,10 +192,9 @@ class PhononsAnharmonic (Phonons):
     
                 dirac_delta, coords = self.calculate_delta (index_k, mu)
                 for is_plus in (1,0):
-                    first_proj_potential_reduced = first_proj_potential[:, :, :, :, :]
     
                     for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-                        gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (first_proj_potential_reduced[is_plus, mu_pp, index_kpp, mu_p, index_kp]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
+                        gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (first_proj_potential[is_plus, mu_pp, index_kpp, mu_p, index_kp]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
                         ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
                             
 
