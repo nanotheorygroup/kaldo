@@ -185,17 +185,17 @@ class PhononsAnharmonic (Phonons):
         for index_k in range (np.prod (k_size)):
             for mu in range (n_modes):
     
-                first_proj_potential = np.tensordot (projected_potential, eigenv[index_k, mu, :], (1, 0))
+                first_proj_potential_sq = np.abs(np.tensordot (projected_potential, eigenv[index_k, mu, :], (1, 0))) ** 2
     
                 dirac_delta, coords = self.calculate_delta (index_k, mu)
                 for is_plus in (1,0):
-    
-                    for index_kp, mu_p, index_kpp, mu_pp in coords[is_plus]:
-                        gamma[is_plus, index_k, mu] += prefactor *  hbarp * np.pi / 4. * np.abs (first_proj_potential[is_plus, mu_pp, index_kpp, mu_p, index_kp]) ** 2 * dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp]
-                        ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mu_p, index_kpp, mu_pp] / nptk
-                            
+                    gamma[is_plus, index_k, mu] = np.einsum('ijkl,lkji->', first_proj_potential_sq[is_plus], dirac_delta[is_plus])
+                    ps[is_plus, index_k, mu] = np.einsum('lkji->', dirac_delta[is_plus])
 
-        return gamma[1], gamma[0], ps[1], ps[0]
+
+
+
+        return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
     def calculate_broadening(self, velocity):
         cellinv = self.system.configuration.cell_inv
