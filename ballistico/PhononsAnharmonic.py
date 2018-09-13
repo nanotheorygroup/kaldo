@@ -13,8 +13,8 @@ class PhononsAnharmonic (Phonons):
 
         
         # TODO: remove acoustic sum rule
-        self.frequencies[0, :3] = 0
-        self.velocities[0, :3, :] = 0
+        # self.frequencies[0, :3] = 0
+        # self.velocities[0, :3, :] = 0
 
         omega = 2 * np.pi * self.frequencies
         density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
@@ -176,7 +176,7 @@ class PhononsAnharmonic (Phonons):
 
         eigenv = np.swapaxes (self.eigenvectors, 1, 2)
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
-        
+        full_dirac_delta = np.zeros((2, nptk, n_modes, nptk, n_modes, nptk, n_modes))
         projected_potential = np.zeros((2, n_modes, n_modes, nptk, n_modes, nptk)).astype(np.complex)
         for is_plus in (1, 0):
             for i in range(n_particles * 3):
@@ -184,16 +184,21 @@ class PhononsAnharmonic (Phonons):
 
         for index_k in range (np.prod (k_size)):
             for mu in range (n_modes):
-    
-                first_proj_potential_sq = np.abs(np.einsum('ijklmn,j->iklmn', projected_potential, eigenv[index_k, mu, :])) ** 2
-    
+                print (index_k, mu)
+        
                 dirac_delta, _ = self.calculate_delta (index_k, mu)
                 for is_plus in (1,0):
-                    gamma[is_plus, index_k, mu] = np.einsum('ijkl,lkji->', first_proj_potential_sq[is_plus], dirac_delta[is_plus])
-                    ps[is_plus, index_k, mu] = np.einsum('lkji->', dirac_delta[is_plus])
+                    full_dirac_delta[is_plus, index_k, mu] = dirac_delta[is_plus]
+        print('phase space completed')
 
-
-
+        for index_k in range (np.prod (k_size)):
+            for mu in range (n_modes):
+                print (index_k, mu)
+                for is_plus in (1,0):
+                    first_proj_potential_sq = np.abs (np.einsum ('mijkl,m->ijkl', projected_potential[is_plus], eigenv[index_k, mu, :])) ** 2
+    
+                    gamma[is_plus, index_k, mu] = np.einsum('ijkl,lkji->', first_proj_potential_sq, full_dirac_delta[is_plus, index_k, mu])
+                    ps[is_plus, index_k, mu] = np.einsum('lkji->', full_dirac_delta[is_plus, index_k, mu])
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
