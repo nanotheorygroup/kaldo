@@ -112,7 +112,8 @@ class ShengbteHelper (object):
     @frequencies.getter
     def frequencies(self):
         if self._frequencies is None:
-            self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
+            # self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
+            self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])) / 2. / np.pi
         return self._frequencies
     
     @frequencies.setter
@@ -231,9 +232,9 @@ class ShengbteHelper (object):
                         file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1) + '\t' + str (j + 1) + '\n')
                         for id_replica in range(harmonic_system.list_of_indices.shape[0]):
                             index = harmonic_system.list_of_indices[id_replica]
-                            l_1 = int (index[0])% self.system.replicas[0] + 1
-                            l_2 = int (index[1])% self.system.replicas[1] + 1
-                            l_3 = int (index[2])% self.system.replicas[2] + 1
+                            l_1 = int (index[0]) % self.system.replicas[0] + 1
+                            l_2 = int (index[1]) % self.system.replicas[1] + 1
+                            l_3 = int (index[2]) % self.system.replicas[2] + 1
                             
                             
                             file.write ('\t' + str (l_1) + '\t' + str (l_2) + '\t' + str (l_3))

@@ -57,7 +57,7 @@ if __name__ == "__main__":
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
     
     
-    k_size = np.array ([3, 3, 3])
+    k_size = np.array ([3,3,3])
 
     n_modes = system.configuration.positions.shape[0] * 3
     n_kpoints = np.prod (k_size)
@@ -100,7 +100,8 @@ if __name__ == "__main__":
     
     shl.save_second_order_qe_matrix ()
     shl.save_third_order_matrix_new ()
-    
+    print(shl.run_sheng_bte(n_processors=1))
+
 
     filename = system.folder + 'T300K/BTE.WP3_plus'
     data = pd.read_csv (filename, delim_whitespace=True, skiprows=[0, 1], header=None)
@@ -117,13 +118,12 @@ if __name__ == "__main__":
     plt.scatter (freqs_to_plot, gamma_to_plot, color='blue')
     max_ps = np.array ([gamma_to_plot.max (), max_ps]).max ()
     plt.ylim ([0, max_ps])
-    
+
     plt.show()
     
-    print(shl.run_sheng_bte(n_processors=1))
     print(shl.frequencies.max())
     velocities = shl.velocities.reshape (phonons.velocities.shape)
-   
+
     print(shl.read_conductivity(is_classical=is_classical))
     plt.scatter(shl.frequencies.flatten (), shl.read_decay_rate_data('plus').flatten ())
 
@@ -166,4 +166,35 @@ if __name__ == "__main__":
     conductivity_per_mode *= 1.E21 / (volume * n_kpoints)
     conductivity = conductivity_per_mode.sum (axis=0)
     print(conductivity)
+
+    n_modes = system.configuration.positions.shape[0] * 3
+    freqs_plot = np.zeros ((k_list.shape[0], n_modes))
+
+    for mode in range (n_modes):
+        velocity_x = shl.velocities.reshape (
+            (k_size[0], k_size[1], k_size[2], shl.velocities.shape[1], shl.velocities.shape[2]))
     
+        freqs_plot[:, mode] = interpolator (k_list, velocity_x[:, :, :, mode, 0])
+
+    omega_e, dos_e = phonons.density_of_states (shl.frequencies)
+    # out = phonons.diagonalize_second_order_k (k_list)
+    # freqs_plot = out[0]
+    plot_vc = PlotViewController (system)
+    plot_vc.plot_in_brillouin_zone (freqs_plot, 'fcc', n_k_points=NKPOINTS_TO_PLOT)
+    plot_vc.plot_dos (omega_e, dos_e)
+    plot_vc.show ()
+
+    for mode in range (n_modes):
+        velocity_x = phonons.velocities.reshape (
+            (k_size[0], k_size[1], k_size[2], shl.velocities.shape[1], shl.velocities.shape[2]))
+    
+        freqs_plot[:, mode] = interpolator (k_list, velocity_x[:, :, :, mode, 0])
+
+    omega_e, dos_e = phonons.density_of_states (shl.frequencies)
+    # out = phonons.diagonalize_second_order_k (k_list)
+    # freqs_plot = out[0]
+    plot_vc = PlotViewController (system)
+    plot_vc.plot_in_brillouin_zone (freqs_plot, 'fcc', n_k_points=NKPOINTS_TO_PLOT)
+    plot_vc.plot_dos (omega_e, dos_e)
+    plot_vc.show ()
+

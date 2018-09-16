@@ -190,97 +190,53 @@ class Phonons (object):
             return np.array(frequencies), np.array(eigenvals), np.array(eigenvects), np.array(velocities)
     
     def diagonalize_second_order_single_k(self, qvec):
+
+        toTHz = 20670.687
+        bohr2nm = 0.052917721092
         
-        # make sure q is between -.5 and .5
-        # qvec -= np.round(qvec)
-        #TODO: this could probably be expanded a bit
-        if (qvec[0] == 0 and qvec[1] == 0 and qvec[2]==0):
+        list_of_replicas = self.system.list_of_replicas
+        geometry = self.system.configuration.positions
+        cell = self.system.configuration.cell
+        cell_inv = np.linalg.inv (cell)
+
+        kpoint = (cell_inv).dot (qvec)
+
+        n_particles = geometry.shape[0]
+        n_replicas = list_of_replicas.shape[0]
+        dyn_s = np.zeros ((n_particles, 3, n_particles, 3,)).astype (complex)
+        ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
+
+        if (qvec[0] == 0 and qvec[1] == 0 and qvec[2] == 0):
             calculate_eigenvec = scipy.linalg.lapack.zheev
             # calculate_eigenvec = np.linalg.eigh
         else:
             calculate_eigenvec = scipy.linalg.lapack.zheev
             # calculate_eigenvec = np.linalg.eigh
-        # dynmat = self.system.dynamical_matrix
-        
-        list_of_replicas = self.system.list_of_replicas
-        geometry = self.system.configuration.positions
-        n_particles = geometry.shape[0]
-        n_replicas = list_of_replicas.shape[0]
-        dyn_s = np.zeros ((n_particles * 3, n_particles * 3)).astype (complex)
-        ddyn_s = np.zeros ((3, 3 * n_particles, n_particles * 3)).astype (complex)
-        # dynbase = np.zeros ((n_particles, 3, n_particles, 3)).astype (complex)
-        # perturb = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
-        
-        unit_cell_inv = np.linalg.inv (self.system.configuration.cell)
-        cell = self.system.configuration.cell
-        rlatticevec = np.linalg.inv (cell) * np.linalg.det (cell)
-        V = np.abs (rlatticevec[0].dot (cell[0]))
-        rlatticevec = 2 * np.pi / V * rlatticevec
-        toTHz = 20670.687
-        bohr2nm = 0.052917721092
-        
-        for i_at in range (n_particles):
-            for j_at in range (n_particles):
-                for id_replica in range (n_replicas):
-                    # print (self.system.list_of_indices[id_replica] % self.k_size + 1)
+
+        for id_replica in range (n_replicas):
+            phase = - 2j * np.pi * list_of_replicas[id_replica].dot (kpoint)
+
+            for i_at in range (n_particles):
+                for j_at in range (n_particles):
+    
                     for i_pol in range(3):
                         for j_pol in range (3):
 
-                            # self.system.list_of_replicas[id_replica] / bohroverangstrom
-                            # dxij =  (geometry[j_at] + list_of_replicas[id_replica]) - geometry[i_at]
-                            # dxij = (ath.apply_boundary (self.system.replicated_configuration, dxij))
-                            dxij = list_of_replicas[id_replica]
-                            # phase = 2j * np.pi * list_of_replicas[id_replica].dot ((unit_cell_inv).dot(qvec))
-        
-                            kpoints = (rlatticevec).dot (qvec)
-                            kt = dxij.dot (kpoints)
-                            phase = -1j * kt
-                            # second_order[self.system.index_first_cell, 1, :, self.system.index_first_cell, 0, :]
-
-                            i_dim = (i_at ) * 3 + i_pol
-                            j_dim = (j_at ) * 3 + j_pol
                             
-                            # print(qvec, l, t, s)
-                            # print(phase)
-                            
-                            # sheng
-                            # self.system.second_order[self.system.index_first_cell, j_at, :, id_replica, i_at,:] / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
-                            
-                            # TODO: here i and j are swapped
-                            # dynbase[i_at, :, j_at, :] += self.system.second_order[self.system.index_first_cell, i_at, :, id_replica, j_at, :] * np.exp (phase)
                             mass_i = self.system.configuration.get_masses ()[i_at]
                             mass_j = self.system.configuration.get_masses ()[j_at]
                             massfactor = 1.8218779 * 6.022e-4
                             mass = np.sqrt (mass_i * mass_j) / massfactor
                             
-                            # mass = 25598.9578654481
-                            # mass = 1
                             ifc = self.system.second_order[self.system.index_first_cell, j_at, j_pol, id_replica,i_at, i_pol]
-                            prefactor =  1 / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2) * np.exp (phase) / mass
             
-                            dyn_s[i_dim, j_dim] += prefactor * ifc
-                            # print(i_dim + 1, j_dim + 1, self.system.list_of_indices[id_replica] % self.k_size + 1)
-                            # print(dyn_s[i_dim, j_dim])
-                            for alpha in range (3):
-                                # perturb[alpha, i_at, :, j_at, :] += 1j * dxij[alpha] * dynmat[self.system.index_first_cell, j_at, :, id_replica, i_at, :] * np.exp (phase)
-                                ddyn_s[alpha, i_dim, j_dim] += -1j * prefactor * ifc * self.system.list_of_replicas[ id_replica][alpha] / bohroverangstrom #*toTHz*bohr2nm
-                            # print(id_replica, i_pol,j_pol,i_at,j_at,ddyn_s[:,i_at, i_pol, j_at, j_pol])
+                            dyn_s[i_at, i_pol, j_at, j_pol] += ifc * np.exp (phase) / mass
+                            ddyn_s[:, i_at, i_pol, j_at, j_pol] += -1j * np.exp (phase) / mass * ifc * self.system.list_of_replicas[ id_replica][:]
 
-                            # print('')
-        
+        prefactor =  1 / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
 
-        is_classical = False
-        sh_par = {'classical': is_classical, 'convergence': True, 'only_gamma': False}
-        # k_mesh = np.array ([3, 3, 3])
-        # shl = ShengbteHelper (self.system, k_mesh, sh_par)
-        # dyn_k, ddyn_k = shl.read_file ()
-        # ddyn_k *= toTHz*bohr2nm
-        
-        
-        # dyn = dyn_s.swapaxes(0,2).swapaxes(1,3)
-        dyn = dyn_s.reshape(n_particles * 3, n_particles * 3)
-        # ddyn = ddyn_s.swapaxes(1,3).swapaxes(2,4)
-        ddyn = ddyn_s.reshape(3,n_particles * 3, n_particles * 3)
+        dyn = prefactor * dyn_s.reshape(n_particles * 3, n_particles * 3)
+        ddyn = prefactor * ddyn_s.reshape(3,n_particles * 3, n_particles * 3) / bohroverangstrom
 
         out = calculate_eigenvec (dyn.reshape (n_particles * 3, n_particles * 3))
         eigenvals, eigenvects = out[0], out[1]
@@ -294,11 +250,6 @@ class Phonons (object):
 
         velocities = np.zeros((frequencies.shape[0], 3))
         for alpha in range (3):
-            # perturbdx = perturb[alpha, :, :, :, :].reshape (n_particles * 3, n_particles * 3)
-
-            # np.real (np.dot (eigenvects[:, 0],
-            #                  np.matmul (ddyn_s[0, :, :, :, :].reshape (3 * n_particles, 3 * n_particles),
-            #                             eigenvects[:, 0])))
 
             for i in range(3 * n_particles):
                 vel = (eigenvects[:, i].conj()).dot (np.matmul (ddyn[alpha, :, :], eigenvects[:, i])).real
@@ -348,9 +299,9 @@ class Phonons (object):
         
         for index_k in range(np.prod(self.k_size)):
             # print(q_vec)
-            k_point = np.unravel_index(index_k, self.k_size)
+            k_point = np.unravel_index(index_k, self.k_size, order='C')
             # k_point = np.array([k_0/(1. * self.k_size[0]), k_1/(1. * self.k_size[1]), k_2/(1. * self.k_size[2])])
-            freq, eval, evect, vels = self.diagonalize_second_order_k (k_point / self.k_size)
+            freq, eval, evect, vels = self.diagonalize_second_order_single_k (k_point / self.k_size)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
@@ -462,11 +413,13 @@ class Phonons (object):
         n_phonons = energies.shape[0]
         n_atoms = int (n_phonons / 3)
         evects = self.eigenvectors.squeeze()
+        n_replicas = np.prod(self.replicas)
+
         
         sparse_third = self.system.third_order.dot (evects[:, phonon_index])
         
         # TODO: Maybe we need to replace (phonon_index % n_atoms) with int(phonon_index / 3)
-        atom_mass = self.system.configuration.get_masses ()[phonon_index % n_atoms]
+        atom_mass = self.system.configuration.get_masses ()[phonon_index / n_replicas]
         sparse_third /= np.sqrt (atom_mass)
         sparse_third = sparse_third.reshape ((n_atoms, 3, n_atoms, 3))
         
