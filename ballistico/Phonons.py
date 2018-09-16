@@ -172,22 +172,18 @@ class Phonons (object):
         return frequency
     
     def diagonalize_second_order_k(self, klist):
-        is_single_k = (len(klist.shape) == 1)
-        if is_single_k:
-            return self.diagonalize_second_order_single_k(klist)
-        else:
-            frequencies = []
-            eigenvals = []
-            velocities = []
-            eigenvects = []
-            for qvec in klist:
-                # TODO: The logic is a bit messy here and we can only support this for the path and not the grid
-                freq, evalue, evect, vels = self.diagonalize_second_order_single_k(qvec)
-                frequencies.append(freq)
-                velocities.append(vels)
-                eigenvects.append(evect)
-                eigenvals.append(evalue)
-            return np.array(frequencies), np.array(eigenvals), np.array(eigenvects), np.array(velocities)
+        frequencies = []
+        eigenvals = []
+        velocities = []
+        eigenvects = []
+        for qvec in klist:
+            # TODO: The logic is a bit messy here and we can only support this for the path and not the grid
+            freq, evalue, evect, vels = self.diagonalize_second_order_single_k(qvec)
+            frequencies.append(freq)
+            velocities.append(vels)
+            eigenvects.append(evect)
+            eigenvals.append(evalue)
+        return np.array(frequencies), np.array(eigenvals), np.array(eigenvects), np.array(velocities)
     
     def diagonalize_second_order_single_k(self, qvec):
 
@@ -198,8 +194,27 @@ class Phonons (object):
         geometry = self.system.configuration.positions
         cell = self.system.configuration.cell
         cell_inv = np.linalg.inv (cell)
+        
 
-        kpoint = (cell_inv).dot (qvec)
+        k_size = self.k_size
+        nptk = np.prod(k_size)
+        n_replicas = list_of_replicas.shape[0]
+        # TODO: I don't know why there's a 10 here, copied by sheng bte
+        rlattvec = cell_inv * 2 * np.pi * 10.
+        chi = np.zeros ((nptk, n_replicas)).astype (complex)
+
+        for index_k in range (np.prod (k_size)):
+            i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
+            k_point = i_k / k_size
+            realq = np.matmul (rlattvec, k_point)
+            for l in range (n_replicas):
+                sxij = list_of_replicas[l]
+                chi[index_k, l] = np.exp (1j * sxij.dot (realq))
+
+
+
+
+        kpoint = 2 * np.pi * (cell_inv).dot (qvec)
 
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
@@ -214,18 +229,11 @@ class Phonons (object):
             # calculate_eigenvec = np.linalg.eigh
 
         for id_replica in range (n_replicas):
-            phase = - 2j * np.pi * list_of_replicas[id_replica].dot (kpoint)
-
-            for i_at in range (n_particles):
-                for j_at in range (n_particles):
-    
-                    for i_pol in range(3):
-                        for j_pol in range (3):
-
-                            ifc = self.system.second_order[self.system.index_first_cell, j_at, j_pol, id_replica,i_at, i_pol]
-            
-                            dyn_s[i_at, i_pol, j_at, j_pol] += ifc * np.exp (phase)
-                            ddyn_s[:, i_at, i_pol, j_at, j_pol] += -1j * np.exp (phase) * ifc * self.system.list_of_replicas[ id_replica][:]
+            phase = 1j * list_of_replicas[id_replica].dot (kpoint)
+            work_dyn = self.system.second_order[self.system.index_first_cell, :, :, id_replica, :, :] * np.exp (phase)
+            dyn_s[:, :, :, :] += work_dyn[ :, :, :, :]
+            for alpha in range(3):
+                ddyn_s[alpha, :, :, :, :] += 1j * self.system.list_of_replicas[id_replica, alpha] * work_dyn[ :, :, :, :]
 
         mass = np.sqrt(self.system.configuration.get_masses ())
         massfactor = 1.8218779 * 6.022e-4
