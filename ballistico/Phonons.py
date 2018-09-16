@@ -222,19 +222,23 @@ class Phonons (object):
                     for i_pol in range(3):
                         for j_pol in range (3):
 
-                            
-                            mass_i = self.system.configuration.get_masses ()[i_at]
-                            mass_j = self.system.configuration.get_masses ()[j_at]
-                            massfactor = 1.8218779 * 6.022e-4
-                            mass = np.sqrt (mass_i * mass_j) / massfactor
-                            
                             ifc = self.system.second_order[self.system.index_first_cell, j_at, j_pol, id_replica,i_at, i_pol]
             
-                            dyn_s[i_at, i_pol, j_at, j_pol] += ifc * np.exp (phase) / mass
-                            ddyn_s[:, i_at, i_pol, j_at, j_pol] += -1j * np.exp (phase) / mass * ifc * self.system.list_of_replicas[ id_replica][:]
+                            dyn_s[i_at, i_pol, j_at, j_pol] += ifc * np.exp (phase)
+                            ddyn_s[:, i_at, i_pol, j_at, j_pol] += -1j * np.exp (phase) * ifc * self.system.list_of_replicas[ id_replica][:]
+
+        mass = np.sqrt(self.system.configuration.get_masses ())
+        massfactor = 1.8218779 * 6.022e-4
+
+        dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
+        dyn_s /= mass[np.newaxis, np.newaxis, :, np.newaxis]
+        dyn_s *= massfactor
+
+        ddyn_s /= mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis]
+        ddyn_s /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+        ddyn_s *= massfactor
 
         prefactor =  1 / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
-
         dyn = prefactor * dyn_s.reshape(n_particles * 3, n_particles * 3)
         ddyn = prefactor * ddyn_s.reshape(3,n_particles * 3, n_particles * 3) / bohroverangstrom
 
