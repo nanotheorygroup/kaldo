@@ -192,33 +192,26 @@ class Phonons (object):
         
         list_of_replicas = self.system.list_of_replicas
         geometry = self.system.configuration.positions
-        cell = self.system.configuration.cell
-        cell_inv = np.linalg.inv (cell)
+        cell_inv = self.system.configuration.cell_inv
+
+        # k_size = self.k_size
+        # nptk = np.prod(k_size)
+        # n_replicas = list_of_replicas.shape[0]
+        # # TODO: I don't know why there's a 10 here, copied by sheng bte
+        # rlattvec = cell_inv * 2 * np.pi * 10.
+        # chi = np.zeros ((nptk, n_replicas)).astype (complex)
+        #
+        # for index_k in range (np.prod (k_size)):
+        #     i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
+        #     k_point = i_k / k_size
+        #     realq = np.matmul (rlattvec, k_point)
+        #     for l in range (n_replicas):
+        #         sxij = list_of_replicas[l]
+        #         chi[index_k, l] = np.exp (1j * sxij.dot (realq))
         
-
-        k_size = self.k_size
-        nptk = np.prod(k_size)
-        n_replicas = list_of_replicas.shape[0]
-        # TODO: I don't know why there's a 10 here, copied by sheng bte
-        rlattvec = cell_inv * 2 * np.pi * 10.
-        chi = np.zeros ((nptk, n_replicas)).astype (complex)
-
-        for index_k in range (np.prod (k_size)):
-            i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
-            k_point = i_k / k_size
-            realq = np.matmul (rlattvec, k_point)
-            for l in range (n_replicas):
-                sxij = list_of_replicas[l]
-                chi[index_k, l] = np.exp (1j * sxij.dot (realq))
-
-
-
-
         kpoint = 2 * np.pi * (cell_inv).dot (qvec)
-
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
-        dyn_s = np.zeros ((n_particles, 3, n_particles, 3,)).astype (complex)
         ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
 
         if (qvec[0] == 0 and qvec[1] == 0 and qvec[2] == 0):
@@ -236,6 +229,7 @@ class Phonons (object):
         dyn_s = np.einsum('ijklm,k->ijlm', self.system.second_order[self.system.index_first_cell], chi_k)
         
         for alpha in range(3):
+            # prefactor = self.system.configuration.cell.T.dot(self.system.list_of_replicas.T)[alpha] * chi_k[:]
             prefactor = 1j * self.system.list_of_replicas[:, alpha] * chi_k[:]
             ddyn_s[alpha] = np.einsum ('ijklm,k->ijlm', self.system.second_order[self.system.index_first_cell], prefactor)
 
@@ -266,12 +260,9 @@ class Phonons (object):
 
         velocities = np.zeros((frequencies.shape[0], 3))
         for alpha in range (3):
-
             for i in range(3 * n_particles):
                 vel = (eigenvects[:, i].conj()).dot (np.matmul (ddyn[alpha, :, :], eigenvects[:, i])).real
-    
                 if frequencies[i] != 0:
-    
                     velocities[i, alpha] = vel / (2 * (2 * np.pi) * frequencies[i])
     
         return frequencies * toTHz, eigenvals, eigenvects, velocities*toTHz*bohr2nm
@@ -306,17 +297,9 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
-
-        unit_cell_inv = np.linalg.inv (self.system.configuration.cell)
-        cell = self.system.configuration.cell
-        rlatticevec = np.linalg.inv (cell) * np.linalg.det (cell)
-        V = np.abs (rlatticevec[0].dot (cell[0]))
-        rlatticevec = 2 * np.pi / V * rlatticevec
         
         for index_k in range(np.prod(self.k_size)):
-            # print(q_vec)
             k_point = np.unravel_index(index_k, self.k_size, order='C')
-            # k_point = np.array([k_0/(1. * self.k_size[0]), k_1/(1. * self.k_size[1]), k_2/(1. * self.k_size[2])])
             freq, eval, evect, vels = self.diagonalize_second_order_single_k (k_point / self.k_size)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
@@ -327,7 +310,7 @@ class Phonons (object):
         
         self._frequencies = frequencies
         self._eigenvalues = eigenvalues
-        # self._velocities = np.flip(velocities, axis=4)
+        # self._velocities = np.flip(velocities, axis=2)
         self._velocities = velocities
         self._eigenvectors = eigenvectors
 

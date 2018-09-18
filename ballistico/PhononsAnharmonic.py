@@ -5,6 +5,7 @@ from ballistico.constants import *
 class PhononsAnharmonic (Phonons):
     
     def calculate_delta(self, index_k, mu):
+        
 
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -17,8 +18,10 @@ class PhononsAnharmonic (Phonons):
         # self.velocities[0, :3, :] = 0
 
         omega = 2 * np.pi * self.frequencies
-        density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
+        
+        density = np.empty_like(omega)
 
+        density[omega != 0] = 1. / (np.exp (hbar * omega[omega != 0] / k_b / self.system.temperature) - 1.)
 
         energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
         energy_diff[1] = np.abs (
@@ -79,18 +82,19 @@ class PhononsAnharmonic (Phonons):
         coords_minus = np.array (coords_minus_new)
     
         coords = np.array ([coords_minus, coords_plus])
-        for is_plus in (1, 0):
-        
-            if (coords[is_plus].size != 0):
-                indexes_reduced = (
-                coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
-                indexes = (np.ones (coords[is_plus][:, 0].shape[0]).astype (int) * is_plus, coords[is_plus][:, 0],
-                           coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+        if omega[index_k, mu] != 0:
+            for is_plus in (1, 0):
+                if (coords[is_plus].size != 0):
+                    indexes_reduced = (
+                    coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+                    indexes = (np.ones (coords[is_plus][:, 0].shape[0]).astype (int) * is_plus, coords[is_plus][:, 0],
+                               coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+                
+                    dirac_delta[indexes] = density_fact[indexes] * np.exp (
+                        -(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (
+                        np.pi) / (omega_product[indexes_reduced])
+                    dirac_delta[indexes] /= omega[index_k, mu]
             
-                dirac_delta[indexes] = density_fact[indexes] * np.exp (
-                    -(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (
-                    np.pi) / (omega_product[indexes_reduced])
-                dirac_delta[indexes] /= omega[index_k, mu]
         return dirac_delta, coords
 
     def project_potential(self, potential, eigenv, chi, is_plus):
@@ -136,9 +140,6 @@ class PhononsAnharmonic (Phonons):
         self.frequencies[0, :3] = 0
         self.velocities[0, :3, :] = 0
 
-        omega = 2 * np.pi * self.frequencies
-        density = 1. / (np.exp (hbar * omega / k_b / self.system.temperature) - 1.)
-
 
         # for index_kp in range (np.prod (self.k_size)):
         #     for index_kpp in range (np.prod (self.k_size)):
@@ -167,14 +168,13 @@ class PhononsAnharmonic (Phonons):
             k_point = i_k / k_size
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
-                sxij = list_of_replicas[l]
-                chi[index_k, l] = np.exp (1j * sxij.dot (realq))
+                chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
 
         rescaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
 
-        eigenv = np.swapaxes (self.eigenvectors, 1, 2)
+        eigenv = np.swapaxes (self.eigenvectors, 2, 1)
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
         full_dirac_delta = np.zeros((2, nptk, n_modes, nptk, n_modes, nptk, n_modes))
         projected_potential = np.zeros((2, n_modes, n_modes, nptk, n_modes, nptk)).astype(np.complex)
@@ -195,7 +195,7 @@ class PhononsAnharmonic (Phonons):
             for mu in range (n_modes):
                 # print (index_k, mu)
                 for is_plus in (1,0):
-                    first_proj_potential_sq = np.abs (np.einsum ('mijkl,m->ijkl', projected_potential[is_plus], eigenv[index_k, mu, :])) ** 2
+                    first_proj_potential_sq = np.abs (np.einsum ('mijkl,m->ijkl', projected_potential[is_plus], (eigenv[index_k, mu, :]))) ** 2
     
                     gamma[is_plus, index_k, mu] = np.einsum('ijkl,lkji->', first_proj_potential_sq, full_dirac_delta[is_plus, index_k, mu])
                     ps[is_plus, index_k, mu] = np.einsum('lkji->', full_dirac_delta[is_plus, index_k, mu])
@@ -208,6 +208,6 @@ class PhononsAnharmonic (Phonons):
         rlattvec = cellinv * 2 * np.pi * 10.
         
         # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
-        base_sigma = ((np.tensordot (velocity, rlattvec / self.k_size,[-1,1])) ** 2).sum(axis=-1)
+        base_sigma = ((np.tensordot (velocity, rlattvec / self.k_size,[4,1])) ** 2).sum(axis=-1)
         base_sigma = np.sqrt (base_sigma / 6.)
         return base_sigma

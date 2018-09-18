@@ -437,7 +437,27 @@ class ShengbteHelper (object):
         for index, reduced_index, q_point_x, q_point_y, q_point_z in self.qpoints_mapper:
             energy_data[int (index - 1)] = omega.loc[[int (reduced_index - 1)]].values
         self.energies = energy_data
-        
+
+    def read_ps_data(self, type=None):
+        if type == 'plus':
+            file = 'BTE.WP3_plus'
+        elif type == 'minus':
+            file = 'BTE.WP3_minus'
+        else:
+            file = 'BTE.WP3'
+        temperature = str (int (self.system.temperature))
+        decay = pd.read_csv (self.folder + 'T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
+        # decay = pd.read_csv (self.folder + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
+        n_qpoints_reduced = int (decay.shape[0] / n_branches)
+        n_qpoints = self.qpoints_mapper.shape[0]
+        decay = np.delete (decay.values, 0, 1)
+        decay = decay.reshape ((n_branches, n_qpoints_reduced))
+        decay_data = np.zeros ((n_qpoints, n_branches))
+        for index, reduced_index, q_point_x, q_point_y, q_point_z in self.qpoints_mapper:
+            decay_data[int (index - 1)] = decay[:, int (reduced_index - 1)]
+        return decay_data
+    
     def read_decay_rate_data(self, type=None):
         if type == 'plus':
             file = 'BTE.w_anharmonic_plus'
@@ -463,12 +483,20 @@ class ShengbteHelper (object):
         velocities = pd.read_csv (shenbte_folder + 'BTE.v_full', header=None, delim_whitespace=True)
         n_velocities = velocities.shape[0]
         n_qpoints = self.qpoints_mapper.shape[0]
-        velocity_array = velocities.values.reshape (int(n_velocities / n_qpoints), n_qpoints, 3)
-        velocity_array = velocity_array.swapaxes (0, 1)
-        self.velocities = velocity_array
+        n_modes = int(n_velocities / n_qpoints)
+        
+        velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
 
+        self.velocities =  np.zeros((self.k_size[0], self.k_size[1], self.k_size[2], n_modes, 3))
 
-    
+        z = 0
+        for k in range (self.k_size[2]):
+            for j in range(self.k_size[1]):
+                for i in range (self.k_size[0]):
+                    self.velocities[i,j,k,:,:] = velocity_array[:, z, :]
+                    z += 1
+        
+   
     def calculate_broadening(self, velocity, n_grid):
         # TODO: I don't know why there's a 10 here, copied by sheng bte
         cellinv = np.linalg.inv (self.system.cell)
