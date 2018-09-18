@@ -202,7 +202,7 @@ class Phonons (object):
         # chi = np.zeros ((nptk, n_replicas)).astype (complex)
         #
         # for index_k in range (np.prod (k_size)):
-        #     i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
+        #     i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
         #     k_point = i_k / k_size
         #     realq = np.matmul (rlattvec, k_point)
         #     for l in range (n_replicas):
@@ -299,7 +299,7 @@ class Phonons (object):
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
         
         for index_k in range(np.prod(self.k_size)):
-            k_point = np.unravel_index(index_k, self.k_size, order='C')
+            k_point = np.unravel_index(index_k, self.k_size, order='F')
             freq, eval, evect, vels = self.diagonalize_second_order_single_k (k_point / self.k_size)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval

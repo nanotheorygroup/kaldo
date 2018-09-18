@@ -55,9 +55,9 @@ class PhononsAnharmonic (Phonons):
         i_kpp = np.zeros ((2, nptk, nptk, 3)).astype (int)
         index_kpp_calc = np.zeros ((2, nptk)).astype (int)
 
-        i_k = np.array (np.unravel_index (index_k, self.k_size), order='C')
+        i_k = np.array (np.unravel_index (index_k, self.k_size, order='F'))
         for index_kp in range (np.prod (self.k_size)):
-            i_kp = np.array (np.unravel_index (index_kp, self.k_size, order='C'))
+            i_kp = np.array (np.unravel_index (index_kp, self.k_size, order='F'))
             for is_plus in (1, 0):
                 # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
                 if is_plus:
@@ -66,7 +66,7 @@ class PhononsAnharmonic (Phonons):
                 else:
                     i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
                 index_kpp_calc[is_plus, index_kp] = np.ravel_multi_index (
-                    i_kpp[is_plus, index_k, index_kp], self.k_size, order='C')
+                    i_kpp[is_plus, index_k, index_kp], self.k_size, order='F')
                 
         for interaction in np.arange (coords_plus.shape[0]):
             if (coords_plus[interaction, 2] == index_kpp_calc[1, coords_plus[interaction, 0]]):
@@ -164,7 +164,7 @@ class PhononsAnharmonic (Phonons):
         chi = np.zeros ((nptk, n_replicas)).astype (complex)
 
         for index_k in range (np.prod (k_size)):
-            i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
+            i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
             k_point = i_k / k_size
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
