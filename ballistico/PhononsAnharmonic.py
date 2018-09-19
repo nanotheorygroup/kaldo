@@ -119,10 +119,8 @@ class PhononsAnharmonic (Phonons):
         third_eigenv = eigenv.conj()
         third_chi = chi.conj()
 
-        potential = np.einsum('litj,kl->kitj', potential, second_chi)
-        potential = np.einsum('kitj,kin->kntj', potential, second_eigenv)
-        potential = np.einsum('kntj,qt->knqj', potential, third_chi)
-        potential = np.einsum('knqj,qjm->knqm', potential, third_eigenv)
+        potential = np.einsum('litj,kl,kin->kntj', potential, second_chi, second_eigenv)
+        potential = np.einsum('kntj,qt,qjm->knqm', potential, third_chi, third_eigenv)
 
         return potential
 

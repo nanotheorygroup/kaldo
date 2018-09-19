@@ -57,7 +57,7 @@ if __name__ == "__main__":
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
     
     
-    k_size = np.array ([3, 3, 3])
+    k_size = np.array ([5,5,5])
 
     n_modes = system.configuration.positions.shape[0] * 3
     n_kpoints = np.prod (k_size)
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         velocity_x = phonons.velocities.reshape (
             (k_size[0], k_size[1], k_size[2], phonons.velocities.shape[1], 3))
     
-        freqs_plot[:, mode] = interpolator (k_list, velocity_x[:, :, :, mode, 0])
+        freqs_plot[:, mode] = interpolator (k_list, velocity_x[:, :, :, mode, 2])
 
     omega_e, dos_e = phonons.density_of_states (shl.frequencies)
     # out = phonons.diagonalize_second_order_k (k_list)
