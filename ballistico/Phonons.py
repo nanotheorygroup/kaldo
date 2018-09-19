@@ -136,9 +136,15 @@ class Phonons (object):
     @occupations.setter
     def occupations(self, new_occupations):
         self._occupations = new_occupations
-    
-    
-    
+
+    def unravel_index(self, index):
+        multi_index = np.unravel_index (index, self.k_size, order='F')
+        return multi_index
+
+    def ravel_multi_index(self, multi_index):
+        single_index = np.ravel_multi_index (multi_index, self.k_size, order='F',  mode='wrap')
+        return single_index
+
     def lorentzian_line_broadening(self, delta, width, threshold=2.):
         # TODO: maybe we want to normalize the energy among the used states. In order to conserve that
         
@@ -226,12 +232,12 @@ class Phonons (object):
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
 
-        dyn_s = np.einsum('ijklm,k->ijlm', self.system.second_order[self.system.index_first_cell], chi_k)
+        dyn_s = np.einsum('ialjb,l->iajb', self.system.second_order[self.system.index_first_cell], chi_k)
         
         for alpha in range(3):
             # prefactor = self.system.configuration.cell.T.dot(self.system.list_of_replicas.T)[alpha] * chi_k[:]
             prefactor = 1j * self.system.list_of_replicas[:, alpha] * chi_k[:]
-            ddyn_s[alpha] = np.einsum ('ijklm,k->ijlm', self.system.second_order[self.system.index_first_cell], prefactor)
+            ddyn_s[alpha] = np.einsum ('ialjb,l->iajb', self.system.second_order[self.system.index_first_cell], prefactor)
 
         mass = np.sqrt(self.system.configuration.get_masses ())
         massfactor = 1.8218779 * 6.022e-4
@@ -244,11 +250,11 @@ class Phonons (object):
         ddyn_s /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
         ddyn_s *= massfactor
 
-        prefactor =  1 / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
+        prefactor = 1 / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
         dyn = prefactor * dyn_s.reshape(n_particles * 3, n_particles * 3)
-        ddyn = prefactor * ddyn_s.reshape(3,n_particles * 3, n_particles * 3) / bohroverangstrom
+        ddyn = prefactor * ddyn_s.reshape(3, n_particles * 3, n_particles * 3) / bohroverangstrom
 
-        out = calculate_eigenvec (dyn.reshape (n_particles * 3, n_particles * 3))
+        out = calculate_eigenvec(dyn.reshape(n_particles * 3, n_particles * 3))
         eigenvals, eigenvects = out[0], out[1]
         # idx = eigenvals.argsort ()
         # eigenvals = eigenvals[idx]
@@ -299,7 +305,7 @@ class Phonons (object):
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
         
         for index_k in range(np.prod(self.k_size)):
-            k_point = np.unravel_index(index_k, self.k_size, order='F')
+            k_point = self.unravel_index(index_k)
             freq, eval, evect, vels = self.diagonalize_second_order_single_k (k_point / self.k_size)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval

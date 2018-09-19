@@ -1,6 +1,7 @@
 import numpy as np
 from ballistico.Phonons import Phonons
 from ballistico.constants import *
+from sparse import tensordot,COO
 
 class PhononsAnharmonic (Phonons):
     
@@ -38,11 +39,11 @@ class PhononsAnharmonic (Phonons):
     
         dirac_delta = np.zeros ((2, nptk, n_modes, nptk, n_modes))
     
-        delta_condition_plus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
+        delta_condition_plus = ((omega[index_k, mu]!=0) & (omega[:, :, np.newaxis, np.newaxis] != 0) & (
                     omega[np.newaxis, np.newaxis, :, :] != 0)) & (
                                        energy_diff[1, :, :, :, :] <= (
                                        2. * sigma[:, :, :, :]))
-        delta_condition_minus = ((omega[:, :, np.newaxis, np.newaxis] != 0) & (
+        delta_condition_minus = ((omega[index_k, mu]!=0) & (omega[:, :, np.newaxis, np.newaxis] != 0) & (
                 omega[np.newaxis, np.newaxis, :, :] != 0)) & (
                                         energy_diff[0, :, :, :, :] <= (2. * sigma[:, :, :, :]))
     
@@ -55,18 +56,17 @@ class PhononsAnharmonic (Phonons):
         i_kpp = np.zeros ((2, nptk, nptk, 3)).astype (int)
         index_kpp_calc = np.zeros ((2, nptk)).astype (int)
 
-        i_k = np.array (np.unravel_index (index_k, self.k_size, order='F'))
+        i_k = np.array (self.unravel_index (index_k))
         for index_kp in range (np.prod (self.k_size)):
-            i_kp = np.array (np.unravel_index (index_kp, self.k_size, order='F'))
+            i_kp = np.array (self.unravel_index (index_kp))
             for is_plus in (1, 0):
                 # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
                 if is_plus:
-                    i_kpp[is_plus, index_k, index_kp, :] = ((i_k + i_kp)) % self.k_size
+                    i_kpp[is_plus, index_k, index_kp, :] = ((i_k + i_kp))
         
                 else:
-                    i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp)) % self.k_size
-                index_kpp_calc[is_plus, index_kp] = np.ravel_multi_index (
-                    i_kpp[is_plus, index_k, index_kp], self.k_size, order='F')
+                    i_kpp[is_plus, index_k, index_kp, :] = ((i_k - i_kp))
+                index_kpp_calc[is_plus, index_kp] = self.ravel_multi_index (i_kpp[is_plus, index_k, index_kp])
                 
         for interaction in np.arange (coords_plus.shape[0]):
             if (coords_plus[interaction, 2] == index_kpp_calc[1, coords_plus[interaction, 0]]):
@@ -82,18 +82,17 @@ class PhononsAnharmonic (Phonons):
         coords_minus = np.array (coords_minus_new)
     
         coords = np.array ([coords_minus, coords_plus])
-        if omega[index_k, mu] != 0:
-            for is_plus in (1, 0):
-                if (coords[is_plus].size != 0):
-                    indexes_reduced = (
-                    coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
-                    indexes = (np.ones (coords[is_plus][:, 0].shape[0]).astype (int) * is_plus, coords[is_plus][:, 0],
-                               coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
-                
-                    dirac_delta[indexes] = density_fact[indexes] * np.exp (
-                        -(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (
-                        np.pi) / (omega_product[indexes_reduced])
-                    dirac_delta[indexes] /= omega[index_k, mu]
+        for is_plus in (1, 0):
+            if (coords[is_plus].size != 0):
+                indexes_reduced = (
+                coords[is_plus][:, 0], coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+                indexes = (np.ones (coords[is_plus][:, 0].shape[0]).astype (int) * is_plus, coords[is_plus][:, 0],
+                           coords[is_plus][:, 1], coords[is_plus][:, 2], coords[is_plus][:, 3])
+            
+                dirac_delta[indexes] = density_fact[indexes] * np.exp (
+                    -(energy_diff[indexes]) ** 2 / (sigma[indexes_reduced] ** 2)) / sigma[indexes_reduced] / np.sqrt (
+                    np.pi) / (omega_product[indexes_reduced])
+                dirac_delta[indexes] /= omega[index_k, mu]
             
         return dirac_delta, coords
 
@@ -108,20 +107,22 @@ class PhononsAnharmonic (Phonons):
         :param is_plus:
         :return:
         """
+        
+
         if is_plus:
             second_eigenv = eigenv
             second_chi = chi
         else:
-            second_eigenv = eigenv.conj ()
+            second_eigenv = eigenv.conj()
             second_chi = chi.conj ()
             
         third_eigenv = eigenv.conj()
         third_chi = chi.conj()
 
-        potential = np.einsum('ijkl,mi->jklm', potential, second_chi)
-        potential = np.einsum('jklm,ik->jlmi', potential, third_chi)
-        potential = np.einsum('jlmi,ikl->jmki', potential, third_eigenv)
-        potential = np.einsum('jmki,mlj->kilm', potential, second_eigenv)
+        potential = np.einsum('litj,kl->kitj', potential, second_chi)
+        potential = np.einsum('kitj,kin->kntj', potential, second_eigenv)
+        potential = np.einsum('kntj,qt->knqj', potential, third_chi)
+        potential = np.einsum('knqj,qjm->knqm', potential, third_eigenv)
 
         return potential
 
@@ -160,11 +161,11 @@ class PhononsAnharmonic (Phonons):
         n_replicas = list_of_replicas.shape[0]
 
         # TODO: I don't know why there's a 10 here, copied by sheng bte
-        rlattvec = cellinv * 2 * np.pi * 10.
-        chi = np.zeros ((nptk, n_replicas)).astype (complex)
+        rlattvec = cellinv * 2 * np.pi
+        chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
 
         for index_k in range (np.prod (k_size)):
-            i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
+            i_k = np.array (self.unravel_index (index_k))
             k_point = i_k / k_size
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
@@ -174,31 +175,26 @@ class PhononsAnharmonic (Phonons):
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
 
-        eigenv = np.swapaxes (self.eigenvectors, 2, 1)
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
-        full_dirac_delta = np.zeros((2, nptk, n_modes, nptk, n_modes, nptk, n_modes))
-        projected_potential = np.zeros((2, n_modes, n_modes, nptk, n_modes, nptk)).astype(np.complex)
+        projected_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
+        eigenv = self.eigenvectors
         for is_plus in (1, 0):
             for i in range(n_particles * 3):
                 projected_potential[is_plus, i] = self.project_potential (rescaled_potential[i], eigenv, chi, is_plus)
 
-        for index_k in range (np.prod (k_size)):
-            for mu in range (n_modes):
-                # print (index_k, mu)
         
-                dirac_delta, _ = self.calculate_delta (index_k, mu)
-                for is_plus in (1,0):
-                    full_dirac_delta[is_plus, index_k, mu] = dirac_delta[is_plus]
-        print('phase space completed')
+                
 
         for index_k in range (np.prod (k_size)):
             for mu in range (n_modes):
                 # print (index_k, mu)
+                dirac_delta, _ = self.calculate_delta (index_k, mu)
+
                 for is_plus in (1,0):
-                    first_proj_potential_sq = np.abs (np.einsum ('mijkl,m->ijkl', projected_potential[is_plus], (eigenv[index_k, mu, :]))) ** 2
+                    first_proj_potential_sq = np.abs (np.einsum ('mijkl,m->ijkl', projected_potential[is_plus], (eigenv[index_k,:, mu]))) ** 2
     
-                    gamma[is_plus, index_k, mu] = np.einsum('ijkl,lkji->', first_proj_potential_sq, full_dirac_delta[is_plus, index_k, mu])
-                    ps[is_plus, index_k, mu] = np.einsum('lkji->', full_dirac_delta[is_plus, index_k, mu])
+                    gamma[is_plus, index_k, mu] = np.sum(first_proj_potential_sq * dirac_delta[is_plus])
+                    ps[is_plus, index_k, mu] = np.sum(dirac_delta[is_plus])
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
