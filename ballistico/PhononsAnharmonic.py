@@ -88,7 +88,7 @@ class PhononsAnharmonic (Phonons):
         if not total_iterations:
             return None
         else:
-            return dirac_delta_sparse.todense(), dirac_delta_sparse.coords.T
+            return dirac_delta_sparse
 
 
     def calculate_gamma(self):
@@ -139,43 +139,68 @@ class PhononsAnharmonic (Phonons):
         rescaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-        eigenv = self.eigenvectors
+        
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
         projected_potential = np.zeros((2, nptk, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
         print('Projection started')
-        
+        #
+        # for is_plus in (1, 0):
+        #
+        #     if is_plus:
+        #         second_eigenv = self.eigenvectors
+        #         second_chi = chi
+        #     else:
+        #         second_eigenv = self.eigenvectors.conj ()
+        #         second_chi = chi.conj ()
+        #
+        #     third_eigenv = self.eigenvectors.conj ()
+        #     third_chi = chi.conj ()
+        #
+        #     projected_potential[is_plus] = np.einsum ('wlitj,kl,kin,qt,qjm,pwr->prknqm', rescaled_potential, second_chi, second_eigenv, third_chi, third_eigenv, self.eigenvectors, optimize='greedy')
+        #
+        #     # TODO: make it sparse here
+        #
+        #     projected_potential[is_plus] = np.abs (projected_potential[is_plus]) ** 2
+        #
+        # print('Projection done')
+
+        second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
+        second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
+        # transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes))
+
+        gamma = np.zeros((2, nptk, n_modes))
         for is_plus in (1, 0):
-    
             if is_plus:
-                second_eigenv = eigenv
-                second_chi = chi
+                second_eigenv[is_plus] = self.eigenvectors
+                second_chi[is_plus] = chi
             else:
-                second_eigenv = eigenv.conj ()
-                second_chi = chi.conj ()
+                second_eigenv[is_plus] = self.eigenvectors.conj ()
+                second_chi[is_plus] = chi.conj ()
     
-            third_eigenv = eigenv.conj ()
+            third_eigenv = self.eigenvectors.conj ()
             third_chi = chi.conj ()
-            projected_potential[is_plus] = np.einsum ('wlitj,kl,kin,qt,qjm,pwr->prknqm', rescaled_potential, second_chi, second_eigenv, third_chi, third_eigenv, eigenv, optimize='greedy')
-    
-            # TODO: make it sparse here
-    
-            projected_potential[is_plus] = np.abs (projected_potential[is_plus]) ** 2
-
-        print('Projection done')
-
+            
+            # transformed_potential[is_plus] = np.einsum ('wlitj,kl,qt->wkiqj', rescaled_potential, second_chi[is_plus], third_chi, optimize='greedy')
+ 
+        
         for index_k in range (np.prod (k_size)):
 
                             
             for mu in range (n_modes):
+                
 
                 # print (index_k, mu)
-                out = self.calculate_delta (index_k, mu)
-                if out:
-                    dirac_delta, _ = out
-                    for is_plus in (1,0):
-        
-                        gamma[is_plus, index_k, mu] = np.sum(projected_potential[is_plus, index_k, mu] * dirac_delta[is_plus])
-                        ps[is_plus, index_k, mu] = np.sum(dirac_delta[is_plus])
+                dirac_delta = self.calculate_delta (index_k, mu)
+                if dirac_delta:
+
+                    for is_plus, index_kp, mup, index_kpp, mupp in dirac_delta.coords.T:
+                        
+                        ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
+                        projected_potential = np.einsum ('wlitj,w,l,i,t,j->', rescaled_potential, self.eigenvectors[index_k, :, mu], second_chi[is_plus, index_kp, :],  second_eigenv[is_plus, index_kp, :, mup], third_chi[index_kpp, :], third_eigenv[index_kpp, :, mupp], optimize='greedy')
+                     
+                        gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
+
+
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
