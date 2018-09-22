@@ -280,7 +280,10 @@ class Phonons (object):
         # increase_factor = 3
         omega_kl = np.zeros(( n_k_points, n_modes))
         for mode in range(n_modes):
-            omega_kl[:, mode] = frequencies[:,:,:,mode].flatten()
+            try:
+                omega_kl[:, mode] = frequencies[...,mode].flatten()
+            except IndexError as err:
+                print(err)
         delta = 1.
         # Energy axis and dos
         omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
