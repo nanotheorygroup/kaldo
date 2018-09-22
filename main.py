@@ -160,7 +160,12 @@ if __name__ == "__main__":
     plt.ylim([0,0.30])
     plt.show ()
 
+
+    import time
+    ts = time.time ()
     gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma()
+    print('time spent = ', time.time() - ts)
+
     plt.ylim([0,0.30])
     plt.scatter (phonons.frequencies.flatten (), gamma_plus.flatten ())
     plt.scatter (phonons.frequencies.flatten (), gamma_minus.flatten ())

@@ -141,7 +141,6 @@ class PhononsAnharmonic (Phonons):
         rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         
         rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
-        projected_potential = np.zeros((2, nptk, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
         print('Projection started')
         #
         # for is_plus in (1, 0):
@@ -166,7 +165,7 @@ class PhononsAnharmonic (Phonons):
 
         second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
         second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
-        # transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes))
+        transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
 
         gamma = np.zeros((2, nptk, n_modes))
         for is_plus in (1, 0):
@@ -180,7 +179,7 @@ class PhononsAnharmonic (Phonons):
             third_eigenv = self.eigenvectors.conj ()
             third_chi = chi.conj ()
             
-            # transformed_potential[is_plus] = np.einsum ('wlitj,kl,qt->wkiqj', rescaled_potential, second_chi[is_plus], third_chi, optimize='greedy')
+            transformed_potential[is_plus] = np.einsum ('wlitj,kl,qt->wkiqj', rescaled_potential, second_chi[is_plus], third_chi, optimize='greedy')
  
         
         for index_k in range (np.prod (k_size)):
@@ -196,8 +195,10 @@ class PhononsAnharmonic (Phonons):
                     for is_plus, index_kp, mup, index_kpp, mupp in dirac_delta.coords.T:
                         
                         ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
-                        projected_potential = np.einsum ('wlitj,w,l,i,t,j->', rescaled_potential, self.eigenvectors[index_k, :, mu], second_chi[is_plus, index_kp, :],  second_eigenv[is_plus, index_kp, :, mup], third_chi[index_kpp, :], third_eigenv[index_kpp, :, mupp], optimize='greedy')
+                        projected_potential = transformed_potential[is_plus, :, index_kp, :, index_kpp, :].dot(third_eigenv[index_kpp, :, mupp]).dot(second_eigenv[is_plus, index_kp, :, mup]).dot(self.eigenvectors[index_k, :, mu])
+                        
                      
+                        # gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
                         gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
 
 
