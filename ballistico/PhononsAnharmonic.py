@@ -43,8 +43,6 @@ class PhononsAnharmonic (Phonons):
         total_iterations = 0
         for is_plus in (1, 0):
     
-            interactions_list = []
-    
             for index_kp in range (np.prod (self.k_size)):
                 i_kp = np.array (self.unravel_index (index_kp))
                 # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
@@ -56,35 +54,36 @@ class PhononsAnharmonic (Phonons):
                 index_kpp = self.ravel_multi_index (i_kpp)
         
                 delta_energy = energy_diff[is_plus, index_kp, :, index_kpp, :]
-        
+
                 sigma_small = sigma[index_kp, :, index_kpp, :]
         
                 if omega[index_k, mu] != 0:
                     interactions = np.argwhere ((delta_energy < 2 * sigma_small) & (
                                 omega[index_kp, :, np.newaxis] != 0) & (omega[index_kpp, np.newaxis, :] != 0))
-                    for mup, mupp in interactions:
-                        interactions_list.append ([index_kp, mup, index_kpp, mupp])
-    
-            coords = np.array (interactions_list)
-            n_interactions = coords.shape[0]
-            total_iterations += n_interactions
-            dirac_delta = np.zeros((2, n_interactions))
-    
-            if n_interactions:
-    
-                reduced_index = coords[:, 0], coords[:, 1], coords[:, 2], coords[:, 3]
-                full_index = np.ones (n_interactions, dtype=int) * is_plus, coords[:, 0], coords[:, 1], coords[:, 2], coords[:, 3]
-                dirac_delta[is_plus] = density_fact[full_index]
-                dirac_delta[is_plus] /= (omega[index_k, mu])
-                dirac_delta[is_plus] /= omega_product[reduced_index]
 
-                
-                dirac_delta[is_plus] *= np.exp (- energy_diff[full_index] ** 2 / sigma[reduced_index] ** 2) / \
-                               sigma[reduced_index] / np.sqrt (np.pi)
-                try:
-                    dirac_delta_sparse = dirac_delta_sparse + COO (full_index, dirac_delta[is_plus], shape=(2, nptk, n_modes, nptk, n_modes))
-                except UnboundLocalError as err:
-                    dirac_delta_sparse = COO (np.array(full_index), dirac_delta[is_plus], shape=(2, nptk, n_modes, nptk, n_modes))
+                    if interactions.size != 0:
+                        mup_vec = interactions[:,0]
+                        mupp_vec = interactions[:,1]
+                        n_interactions = mup_vec.shape[0]
+                        dirac_delta = np.zeros ((2, n_interactions))
+                        index_kp_vec = index_kp * np.ones(n_interactions, dtype=int)
+                        index_kpp_vec = index_kpp * np.ones(n_interactions, dtype=int)
+                        reduced_index = [index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                        full_index = [np.ones (n_interactions, dtype=int) * is_plus, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                        dirac_delta[is_plus] = density_fact[full_index]
+                        dirac_delta[is_plus] /= (omega[index_k, mu])
+                        dirac_delta[is_plus] /= omega_product[reduced_index]
+    
+                        dirac_delta[is_plus] *= np.exp (- energy_diff[full_index] ** 2 / sigma[reduced_index] ** 2) / \
+                                                sigma[reduced_index] / np.sqrt (np.pi)
+                        try:
+                            dirac_delta_sparse = dirac_delta_sparse + COO (full_index, dirac_delta[is_plus],
+                                                                           shape=(2, nptk, n_modes, nptk, n_modes))
+                        except UnboundLocalError as err:
+                            dirac_delta_sparse = COO (np.array (full_index), dirac_delta[is_plus],
+                                                      shape=(2, nptk, n_modes, nptk, n_modes))
+                        total_iterations += n_interactions
+
         if not total_iterations:
             return None
         else:
@@ -180,7 +179,7 @@ class PhononsAnharmonic (Phonons):
             third_chi = chi.conj ()
             
             transformed_potential[is_plus] = np.einsum ('wlitj,kl,qt->wkiqj', rescaled_potential, second_chi[is_plus], third_chi, optimize='greedy')
- 
+            
         
         for index_k in range (np.prod (k_size)):
 
