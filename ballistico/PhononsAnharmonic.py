@@ -5,7 +5,7 @@ from sparse import tensordot,COO
 
 class PhononsAnharmonic (Phonons):
     
-    def calculate_delta(self, index_k, mu):
+    def calculate_delta(self, index_k, mu, is_plus):
         i_k = np.array (self.unravel_index (index_k))
 
 
@@ -41,48 +41,46 @@ class PhononsAnharmonic (Phonons):
             self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
 
         total_iterations = 0
-        for is_plus in (1, 0):
-    
-            for index_kp in range (np.prod (self.k_size)):
-                i_kp = np.array (self.unravel_index (index_kp))
-                # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
-                if is_plus:
-                    i_kpp = i_k + i_kp
-                else:
-                    i_kpp = i_k - i_kp
-            
-                index_kpp = self.ravel_multi_index (i_kpp)
-        
-                delta_energy = energy_diff[is_plus, index_kp, :, index_kpp, :]
 
-                sigma_small = sigma[index_kp, :, index_kpp, :]
+        for index_kp in range (np.prod (self.k_size)):
+            i_kp = np.array (self.unravel_index (index_kp))
+            # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
+            if is_plus:
+                i_kpp = i_k + i_kp
+            else:
+                i_kpp = i_k - i_kp
         
-                if omega[index_k, mu] != 0:
-                    interactions = np.argwhere ((delta_energy < 2 * sigma_small) & (
-                                omega[index_kp, :, np.newaxis] != 0) & (omega[index_kpp, np.newaxis, :] != 0))
-
-                    if interactions.size != 0:
-                        mup_vec = interactions[:,0]
-                        mupp_vec = interactions[:,1]
-                        n_interactions = mup_vec.shape[0]
-                        dirac_delta = np.zeros ((2, n_interactions))
-                        index_kp_vec = index_kp * np.ones(n_interactions, dtype=int)
-                        index_kpp_vec = index_kpp * np.ones(n_interactions, dtype=int)
-                        reduced_index = [index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-                        full_index = [np.ones (n_interactions, dtype=int) * is_plus, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-                        dirac_delta[is_plus] = density_fact[full_index]
-                        dirac_delta[is_plus] /= (omega[index_k, mu])
-                        dirac_delta[is_plus] /= omega_product[reduced_index]
+            index_kpp = self.ravel_multi_index (i_kpp)
     
-                        dirac_delta[is_plus] *= np.exp (- energy_diff[full_index] ** 2 / sigma[reduced_index] ** 2) / \
-                                                sigma[reduced_index] / np.sqrt (np.pi)
-                        try:
-                            dirac_delta_sparse = dirac_delta_sparse + COO (full_index, dirac_delta[is_plus],
-                                                                           shape=(2, nptk, n_modes, nptk, n_modes))
-                        except UnboundLocalError as err:
-                            dirac_delta_sparse = COO (np.array (full_index), dirac_delta[is_plus],
-                                                      shape=(2, nptk, n_modes, nptk, n_modes))
-                        total_iterations += n_interactions
+            delta_energy = energy_diff[is_plus, index_kp, :, index_kpp, :]
+
+            sigma_small = sigma[index_kp, :, index_kpp, :]
+    
+            if omega[index_k, mu] != 0:
+                interactions = np.argwhere ((delta_energy < 2 * sigma_small) & (
+                            omega[index_kp, :, np.newaxis] != 0) & (omega[index_kpp, np.newaxis, :] != 0))
+
+                if interactions.size != 0:
+                    mup_vec = interactions[:,0]
+                    mupp_vec = interactions[:,1]
+                    n_interactions = mup_vec.shape[0]
+                    index_kp_vec = index_kp * np.ones(n_interactions, dtype=int)
+                    index_kpp_vec = index_kpp * np.ones(n_interactions, dtype=int)
+                    reduced_index = [index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                    full_index = [np.ones (n_interactions, dtype=int) * is_plus, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                    dirac_delta = density_fact[full_index]
+                    dirac_delta /= (omega[index_k, mu])
+                    dirac_delta /= omega_product[reduced_index]
+
+                    dirac_delta *= np.exp (- energy_diff[full_index] ** 2 / sigma[reduced_index] ** 2) / \
+                                            sigma[reduced_index] / np.sqrt (np.pi)
+                    try:
+                        dirac_delta_sparse = dirac_delta_sparse + COO (reduced_index, dirac_delta,
+                                                                       shape=(nptk, n_modes, nptk, n_modes))
+                    except UnboundLocalError as err:
+                        dirac_delta_sparse = COO (np.array (reduced_index), dirac_delta,
+                                                  shape=(nptk, n_modes, nptk, n_modes))
+                    total_iterations += n_interactions
 
         if not total_iterations:
             return None
@@ -186,21 +184,26 @@ class PhononsAnharmonic (Phonons):
                             
             for mu in range (n_modes):
                 
-
+                for is_plus in (1, 0):
                 # print (index_k, mu)
-                dirac_delta = self.calculate_delta (index_k, mu)
-                if dirac_delta:
-
-                    for is_plus, index_kp, mup, index_kpp, mupp in dirac_delta.coords.T:
+                    dirac_delta = self.calculate_delta (index_k, mu, is_plus)
+                    if dirac_delta:
+    
+                        index_kp = dirac_delta.coords[0]
+                        mup = dirac_delta.coords[1]
+                        index_kpp = dirac_delta.coords[2]
+                        mupp = dirac_delta.coords[3]
+                        dirac_delta_dense = dirac_delta.todense()
+                        for interaction in range(index_kp.shape[0]):
+                            ps[is_plus, index_k, mu] += (dirac_delta[index_kp[interaction], mup[interaction], index_kpp[interaction], mupp[interaction]])
+                            projected_potential = transformed_potential[is_plus, :, index_kp[interaction], :, index_kpp[interaction], :].dot(third_eigenv[index_kpp[interaction], :, mupp[interaction]]).dot(second_eigenv[is_plus, index_kp[interaction], :, mup[interaction]]).dot(self.eigenvectors[index_k, :, mu])
                         
-                        ps[is_plus, index_k, mu] += dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
-                        projected_potential = transformed_potential[is_plus, :, index_kp, :, index_kpp, :].dot(third_eigenv[index_kpp, :, mupp]).dot(second_eigenv[is_plus, index_kp, :, mup]).dot(self.eigenvectors[index_k, :, mu])
-                        
-                     
-                        # gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
-                        gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
-
-
+                            # projected_potential = np.einsum('wkiqj', transformed_potential[interaction, is_plus, :, index_kp, :, index_kpp, :],third_eigenv[index_kpp, :, mupp],second_eigenv[is_plus, index_kp, :, mup],self.eigenvectors[index_k, :, mu])
+        
+                            # gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
+                            gamma[is_plus, index_k, mu] += (np.abs (projected_potential) ** 2 * dirac_delta[index_kp[interaction], mup[interaction], index_kpp[interaction], mupp[interaction]])
+    
+    
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
