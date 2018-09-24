@@ -180,24 +180,22 @@ class PhononsAnharmonic (Phonons):
             
         
         for index_k in range (np.prod (k_size)):
-
-                            
             for mu in range (n_modes):
-                
                 for is_plus in (1, 0):
-                # print (index_k, mu)
                     dirac_delta = self.calculate_delta (index_k, mu, is_plus)
                     if dirac_delta:
-    
                         index_kp = dirac_delta.coords[0]
                         mup = dirac_delta.coords[1]
                         index_kpp = dirac_delta.coords[2]
                         mupp = dirac_delta.coords[3]
                         ps[is_plus, index_k, mu] += np.sum(dirac_delta[index_kp, mup, index_kpp, mupp])
-                        projected_potential = np.einsum('awij,aj,ai,w->a', transformed_potential[is_plus, :, index_kp, :, index_kpp, :], third_eigenv[index_kpp, :, mupp], second_eigenv[is_plus, index_kp, :, mup], self.eigenvectors[index_k, :, mu])
+                        # projected_potential = np.einsum('aij,aj,ai->a', projected_potential, third_eigenv[index_kpp, :, mupp], second_eigenv[is_plus, index_kp, :, mup])
+                        projected_potential = np.tensordot(transformed_potential[is_plus, :, index_kp, :, index_kpp, :], self.eigenvectors[index_k, :, mu], (1, 0))
+                        projected_potential = np.tensordot(projected_potential, third_eigenv[index_kpp, :, mupp], (2, 1))
+                        projected_potential = np.diagonal(projected_potential, axis1=0, axis2=2)
+                        projected_potential = np.tensordot(projected_potential, second_eigenv[is_plus, index_kp, :, mup], (0,1))
+                        projected_potential = np.diagonal(projected_potential)
                         gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta.todense()[index_kp, mup, index_kpp, mupp])
-    
-    
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
