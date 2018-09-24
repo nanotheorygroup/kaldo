@@ -193,15 +193,9 @@ class PhononsAnharmonic (Phonons):
                         mup = dirac_delta.coords[1]
                         index_kpp = dirac_delta.coords[2]
                         mupp = dirac_delta.coords[3]
-                        dirac_delta_dense = dirac_delta.todense()
-                        for interaction in range(index_kp.shape[0]):
-                            ps[is_plus, index_k, mu] += (dirac_delta[index_kp[interaction], mup[interaction], index_kpp[interaction], mupp[interaction]])
-                            projected_potential = transformed_potential[is_plus, :, index_kp[interaction], :, index_kpp[interaction], :].dot(third_eigenv[index_kpp[interaction], :, mupp[interaction]]).dot(second_eigenv[is_plus, index_kp[interaction], :, mup[interaction]]).dot(self.eigenvectors[index_k, :, mu])
-                        
-                            # projected_potential = np.einsum('wkiqj', transformed_potential[interaction, is_plus, :, index_kp, :, index_kpp, :],third_eigenv[index_kpp, :, mupp],second_eigenv[is_plus, index_kp, :, mup],self.eigenvectors[index_k, :, mu])
-        
-                            # gamma[is_plus, index_k, mu] += np.abs (projected_potential) ** 2 * dirac_delta[is_plus, index_kp, mup, index_kpp, mupp]
-                            gamma[is_plus, index_k, mu] += (np.abs (projected_potential) ** 2 * dirac_delta[index_kp[interaction], mup[interaction], index_kpp[interaction], mupp[interaction]])
+                        ps[is_plus, index_k, mu] += np.sum(dirac_delta[index_kp, mup, index_kpp, mupp])
+                        projected_potential = np.einsum('awij,aj,ai,w->a', transformed_potential[is_plus, :, index_kp, :, index_kpp, :], third_eigenv[index_kpp, :, mupp], second_eigenv[is_plus, index_kp, :, mup], self.eigenvectors[index_k, :, mu])
+                        gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta.todense()[index_kp, mup, index_kpp, mupp])
     
     
 
