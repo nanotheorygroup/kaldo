@@ -43,27 +43,27 @@ class PhononsAnharmonic (Phonons):
             i_k = np.array (self.unravel_index (index_k))
     
             for mu in range (n_modes):
-        
-                energy_diff[1] = np.abs (
-                    omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-                energy_diff[0] = np.abs (
-                    omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+                if omega[index_k, mu] != 0:
 
-                for index_kp in range (np.prod (self.k_size)):
-                    i_kp = np.array (self.unravel_index (index_kp))
-                    # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
-                    if is_plus:
-                        i_kpp = i_k + i_kp
-                    else:
-                        i_kpp = i_k - i_kp
+                    energy_diff[1] = np.abs (
+                        omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+                    energy_diff[0] = np.abs (
+                        omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+    
+                    for index_kp in range (np.prod (self.k_size)):
+                        i_kp = np.array (self.unravel_index (index_kp))
+                        # TODO: Umklapp processes are when the reminder is != 0, we could probably separate those
+                        if is_plus:
+                            i_kpp = i_k + i_kp
+                        else:
+                            i_kpp = i_k - i_kp
+                    
+                        index_kpp = self.ravel_multi_index (i_kpp)
                 
-                    index_kpp = self.ravel_multi_index (i_kpp)
+                        delta_energy = energy_diff[is_plus, index_kp, :, index_kpp, :]
             
-                    delta_energy = energy_diff[is_plus, index_kp, :, index_kpp, :]
-        
-                    sigma_small = sigma[index_kp, :, index_kpp, :]
-            
-                    if omega[index_k, mu] != 0:
+                        sigma_small = sigma[index_kp, :, index_kpp, :]
+                
                         interactions = np.argwhere ((delta_energy < 2 * sigma_small) & (
                                     omega[index_kp, :, np.newaxis] != 0) & (omega[index_kpp, np.newaxis, :] != 0))
         
