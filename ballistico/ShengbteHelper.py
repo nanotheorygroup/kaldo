@@ -112,7 +112,7 @@ class ShengbteHelper (object):
     @frequencies.getter
     def frequencies(self):
         if self._frequencies is None:
-            # self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
+            # self._frequencies = self.energies.reshape ((self.k_mesh[0], self.k_mesh[1], self.k_mesh[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
             self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])) / 2. / np.pi
         return self._frequencies
     
@@ -665,7 +665,7 @@ class ShengbteHelper (object):
     def __str__(self):
         # string = 'S_'
         # string += str(self.ph_system)
-        # string += '_k' + str (self.k_size).replace (" ", "").replace ('[', "").replace (']', "")
+        # string += '_k' + str (self.k_mesh).replace (" ", "").replace ('[', "").replace (']', "")
         # if (self.length.any() != 0):
         # 	string += '_l'
         # 	for length in self.length:

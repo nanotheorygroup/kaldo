@@ -1,6 +1,7 @@
 import numpy as np
 from ballistico.Phonons import Phonons
 from ballistico.constants import *
+import scipy
 from sparse import tensordot,COO
 
 class PhononsAnharmonic (Phonons):
@@ -100,8 +101,18 @@ class PhononsAnharmonic (Phonons):
                                                       shape=(nptk, n_modes, nptk, n_modes, nptk, n_modes))
         return dirac_delta_sparse
 
+    def gaussian_delta(self, params):
+        # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
+        alpha = 2
+    
+        delta_energy = params[0]
+        # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
+        sigma = params[1] / alpha
+        gauss = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
+        gauss /= np.erf (2 / np.sqrt (2))
+        return gauss
 
-    def calculate_gamma(self):
+    def calculate_gamma(self, unique_points=None):
         hbarp = 1.05457172647
     
         print ('Lifetime:')
@@ -117,13 +128,13 @@ class PhononsAnharmonic (Phonons):
         self.velocities[0, :3, :] = 0
 
 
-        # for index_kp in range (np.prod (self.k_size)):
-        #     for index_kpp in range (np.prod (self.k_size)):
+        # for index_kp in range (np.prod (self.k_mesh)):
+        #     for index_kpp in range (np.prod (self.k_mesh)):
         #         if (tensor_k[0, :, index_kp, index_kpp].sum () > 1):
         #             print (tensor_k[0, :, index_kp, index_kpp].sum ())
         
-        # for index_kp in range (np.prod (self.k_size)):
-        #     for index_kpp in range (np.prod (self.k_size)):
+        # for index_kp in range (np.prod (self.k_mesh)):
+        #     for index_kpp in range (np.prod (self.k_mesh)):
         #         print (np.argwhere (tensor_k[1, :, index_kp, index_kpp] == True))
 
         prefactor = 5.60626442 * 10 ** 8 / nptk
@@ -210,6 +221,17 @@ class PhononsAnharmonic (Phonons):
 
         sigma = self.calculate_broadening (
             self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
+
+        DELTA_THRESHOLD = 2
+        delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
+        # delta_correction = 1
+        if unique_points is None:
+            list_of_k = np.arange(np.prod (k_size))
+        else:
+            
+            list_of_k = np.array(unique_points)
+            
+            
         for is_plus in (1, 0):
     
             if is_plus:
@@ -217,7 +239,7 @@ class PhononsAnharmonic (Phonons):
             else:
                 density_fact = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
                 
-            for index_k in range (np.prod (k_size)):
+            for index_k in (list_of_k):
                 print (is_plus, index_k)
     
                 i_k = np.array (self.unravel_index (index_k))
@@ -238,7 +260,7 @@ class PhononsAnharmonic (Phonons):
                         delta_energy = energy_diff[index_kp_vec, :, index_kpp_vec, :]
                 
                         sigma_small = sigma[index_kp_vec, :, index_kpp_vec, :]
-                        condition = (delta_energy < 2 * sigma_small) & (
+                        condition = (delta_energy < DELTA_THRESHOLD * sigma_small) & (
                                 omega[index_kp_vec, :, np.newaxis] != 0) & (omega[index_kpp_vec, np.newaxis, :] != 0)
 
                         interactions = np.array(np.where (condition)).T
@@ -254,7 +276,7 @@ class PhononsAnharmonic (Phonons):
                             dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
                     
                             dirac_delta *= np.exp (- energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2) / \
-                                           sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (np.pi)
+                                           sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (np.pi) / delta_correction
                     
                             ps[is_plus, index_k, mu] += np.sum(dirac_delta)
                             projected_potential = np.einsum('awij,aj,ai,w->a', transformed_potential[is_plus, :, index_kp_vec, :, index_kpp_vec, :], third_eigenv[index_kpp_vec, :, mupp_vec], second_eigenv[is_plus, index_kp_vec, :, mup_vec], self.eigenvectors[index_k, :, mu])

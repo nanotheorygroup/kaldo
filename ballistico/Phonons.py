@@ -200,16 +200,16 @@ class Phonons (object):
         geometry = self.system.configuration.positions
         cell_inv = self.system.configuration.cell_inv
 
-        # k_size = self.k_size
-        # nptk = np.prod(k_size)
+        # k_mesh = self.k_mesh
+        # nptk = np.prod(k_mesh)
         # n_replicas = list_of_replicas.shape[0]
         # # TODO: I don't know why there's a 10 here, copied by sheng bte
         # rlattvec = cell_inv * 2 * np.pi * 10.
         # chi = np.zeros ((nptk, n_replicas)).astype (complex)
         #
-        # for index_k in range (np.prod (k_size)):
-        #     i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
-        #     k_point = i_k / k_size
+        # for index_k in range (np.prod (k_mesh)):
+        #     i_k = np.array (np.unravel_index (index_k, k_mesh, order='F'))
+        #     k_point = i_k / k_mesh
         #     realq = np.matmul (rlattvec, k_point)
         #     for l in range (n_replicas):
         #         sxij = list_of_replicas[l]
@@ -411,7 +411,7 @@ class Phonons (object):
         delta_energy = params[0]
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
         sigma = params[1] / alpha
-        return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / np.erf(alpha / np.sqrt(2))
+        return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / scipy.special.erf(alpha / np.sqrt(2))
     
     
     def triangular_delta(self, params):

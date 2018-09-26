@@ -55,14 +55,21 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     temperature = 300
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    
-    
-    k_size = np.array ([5, 5, 5])
+    k_mesh = np.array ([7,7,7])
+    n_kpoints = np.prod(k_mesh)
 
-    n_modes = system.configuration.positions.shape[0] * 3
-    n_kpoints = np.prod (k_size)
+    import spglib as spg
+    spacegroup = spg.get_spacegroup (geometry, symprec=1e-5)
+    mapping, grid = spg.get_ir_reciprocal_mesh (k_mesh, geometry, is_shift=[0, 0, 0])
+    print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
+    unique_points, degeneracy = np.unique (mapping, return_counts=True)
+
+
     
-    phonons = PhononsAnharmonic (system, k_size)
+    phonons = PhononsAnharmonic (system, k_mesh)
+    
+    print(unique_points)
+    
     
     phonons.calculate_second_all_grid()
     NKPOINTS_TO_PLOT = 100
@@ -72,7 +79,7 @@ if __name__ == "__main__":
     freqs_plot = np.zeros ((k_list.shape[0], phonons.system.configuration.positions.shape[0] * 3))
     n_modes = system.configuration.positions.shape[0] * 3
     freqs_plot = np.zeros ((k_list.shape[0], n_modes))
-    freqs = phonons._frequencies.reshape((k_size[0], k_size[1], k_size[2], n_modes))
+    freqs = phonons._frequencies.reshape((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
     for mode in range (n_modes):
         freqs_plot[:, mode] = interpolator (k_list, freqs[:, :, :, mode])
 
@@ -94,7 +101,7 @@ if __name__ == "__main__":
     
     is_classical = False
     # sh_par = {'classical': is_classical, 'convergence': True, 'only_gamma': False}
-    # shl = ShengbteHelper (system, k_size, sh_par)
+    # shl = ShengbteHelper (system, k_mesh, sh_par)
     # # dyn = shl.read_file('fort.1111').reshape(n_modes, n_modes)
     #
     #
@@ -123,7 +130,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     velocity_x = phonons.velocities.reshape (
-    #         (k_size[0], k_size[1], k_size[2], phonons.velocities.shape[1], 3))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], phonons.velocities.shape[1], 3))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, velocity_x[:, :, :, mode, 2])
     #
@@ -163,7 +170,7 @@ if __name__ == "__main__":
 
     import time
     ts = time.time ()
-    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma()
+    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(unique_points)
     print('time spent = ', time.time() - ts)
 
     plt.ylim([0,0.30])
@@ -209,7 +216,7 @@ if __name__ == "__main__":
 
     for mode in range (n_modes):
         to_plot = ps_plus.reshape (
-            (k_size[0], k_size[1], k_size[2], ps_plus.shape[1]))
+            (k_mesh[0], k_mesh[1], k_mesh[2], ps_plus.shape[1]))
 
         freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     print('ps_plus', np.abs(ps_plus).sum())
@@ -224,7 +231,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot =shl.read_ps_data('plus').reshape (
-    #         (k_size[0], k_size[1], k_size[2], shl.decay_rates.shape[1]))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], shl.decay_rates.shape[1]))
     #
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
@@ -240,7 +247,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot = (ps_minus.reshape (
-    #         (k_size[0], k_size[1], k_size[2], shl.decay_rates.shape[1])))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], shl.decay_rates.shape[1])))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     #
@@ -257,7 +264,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot = shl.read_ps_data ('minus').reshape (
-    #         (k_size[0], k_size[1], k_size[2], shl.decay_rates.shape[1]))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], shl.decay_rates.shape[1]))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     #
@@ -273,7 +280,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot = gamma_plus.reshape (
-    #         (k_size[0], k_size[1], k_size[2], ps_plus.shape[1]))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], ps_plus.shape[1]))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     #
@@ -287,7 +294,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot = shl.read_decay_rate_data ('plus').reshape (
-    #         (k_size[0], k_size[1], k_size[2], shl.decay_rates.shape[1]))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], shl.decay_rates.shape[1]))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     #
@@ -301,7 +308,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot = (gamma_minus.reshape (
-    #         (k_size[0], k_size[1], k_size[2], shl.decay_rates.shape[1])))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], shl.decay_rates.shape[1])))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     #
@@ -315,7 +322,7 @@ if __name__ == "__main__":
     #
     # for mode in range (n_modes):
     #     to_plot = shl.read_decay_rate_data ('minus').reshape (
-    #         (k_size[0], k_size[1], k_size[2], shl.decay_rates.shape[1]))
+    #         (k_mesh[0], k_mesh[1], k_mesh[2], shl.decay_rates.shape[1]))
     #
     #     freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
     #
