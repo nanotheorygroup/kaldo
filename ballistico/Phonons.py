@@ -228,16 +228,20 @@ class Phonons (object):
             # calculate_eigenvec = np.linalg.eigh
 
         chi_k = np.zeros (n_replicas).astype (complex)
-
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-
         dyn_s = np.einsum('ialjb,l->iajb', self.system.second_order[self.system.index_first_cell], chi_k)
-        
-        for alpha in range(3):
-            # prefactor = self.system.configuration.cell.T.dot(self.system.list_of_replicas.T)[alpha] * chi_k[:]
-            prefactor = 1j * self.system.list_of_replicas[:, alpha] * chi_k[:]
-            ddyn_s[alpha] = np.einsum ('ialjb,l->iajb', self.system.second_order[self.system.index_first_cell], prefactor)
+
+        for id_replica in range (n_replicas):
+            for alpha in range(3):
+                for i_at in range (n_particles):
+                    for j_at in range (n_particles):
+                        for i_pol in range (3):
+                            for j_pol in range (3):
+            
+                                dxij = geometry[i_at] - (geometry[j_at] + list_of_replicas[id_replica])
+                                prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
+                                ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * (self.system.second_order[self.system.index_first_cell, i_at, i_pol, id_replica, j_at, j_pol])
 
         mass = np.sqrt(self.system.configuration.get_masses ())
         massfactor = 1.8218779 * 6.022e-4
