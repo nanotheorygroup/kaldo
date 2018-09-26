@@ -57,7 +57,7 @@ if __name__ == "__main__":
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
     
     
-    k_size = np.array ([3,3,3])
+    k_size = np.array ([5,5,5])
 
     n_modes = system.configuration.positions.shape[0] * 3
     n_kpoints = np.prod (k_size)

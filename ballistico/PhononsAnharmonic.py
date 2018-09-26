@@ -191,25 +191,81 @@ class PhononsAnharmonic (Phonons):
             
             transformed_potential[is_plus] = np.einsum ('wlitj,kl,qt->wkiqj', rescaled_potential, second_chi[is_plus], third_chi, optimize='greedy')
 
+        n_particles = self.system.configuration.positions.shape[0]
+        n_modes = n_particles * 3
+        k_size = self.k_size
+        nptk = np.prod (k_size)
 
+        # TODO: remove acoustic sum rule
+        # self.frequencies[0, :3] = 0
+        # self.velocities[0, :3, :] = 0
+
+        omega = 2 * np.pi * self.frequencies
+
+        density = np.empty_like (omega)
+
+        density[omega != 0] = 1. / (np.exp (hbar * omega[omega != 0] / k_b / self.system.temperature) - 1.)
+
+        omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
+
+        sigma = self.calculate_broadening (
+            self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
         for is_plus in (1, 0):
-            big_dirac_delta = self.calculate_delta (is_plus)
+    
+            if is_plus:
+                density_fact = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
+            else:
+                density_fact = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
+                
             for index_k in range (np.prod (k_size)):
+                i_k = np.array (self.unravel_index (index_k))
+        
                 for mu in range (n_modes):
-                    dirac_delta = big_dirac_delta[index_k, mu]
-                    index_kp = dirac_delta.coords[0]
-                    mup = dirac_delta.coords[1]
-                    index_kpp = dirac_delta.coords[2]
-                    mupp = dirac_delta.coords[3]
-                    print(is_plus, index_k, mu, 'n_int:', index_kp.shape[0])
-                    ps[is_plus, index_k, mu] += np.sum(dirac_delta[index_kp, mup, index_kpp, mupp])
-                    projected_potential = np.einsum('awij,aj,ai,w->a', transformed_potential[is_plus, :, index_kp, :, index_kpp, :], third_eigenv[index_kpp, :, mupp], second_eigenv[is_plus, index_kp, :, mup], self.eigenvectors[index_k, :, mu])
-                    # projected_potential = np.tensordot(transformed_potential[is_plus, :, index_kp, :, index_kpp, :], self.eigenvectors[index_k, :, mu], (1, 0))
-                    # projected_potential = np.tensordot(projected_potential, third_eigenv[index_kpp, :, mupp], (2, 1))
-                    # projected_potential = np.diagonal(projected_potential, axis1=0, axis2=2)
-                    # projected_potential = np.tensordot(projected_potential, second_eigenv[is_plus, index_kp, :, mup], (0,1))
-                    # projected_potential = np.diagonal(projected_potential)
-                    gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta.todense()[index_kp, mup, index_kpp, mupp])
+                    if omega[index_k, mu] != 0:
+                
+                        if is_plus:
+                            energy_diff = np.abs (
+                                omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+                        else:
+                            energy_diff = np.abs (
+                                omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
+                
+                        index_kp_vec = np.arange (np.prod (self.k_size))
+                        i_kp_vec = np.array (self.unravel_index (index_kp_vec))
+                        i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
+                        index_kpp_vec = self.ravel_multi_index (i_kpp_vec)
+                        delta_energy = energy_diff[index_kp_vec, :, index_kpp_vec, :]
+                
+                        sigma_small = sigma[index_kp_vec, :, index_kpp_vec, :]
+                
+                        interactions = np.argwhere ((delta_energy < 2 * sigma_small) & (
+                                omega[index_kp_vec, :, np.newaxis] != 0) & (omega[index_kpp_vec, np.newaxis, :] != 0))
+                
+                        if interactions.size != 0:
+                            index_kp_vec = interactions[:, 0]
+                            index_kpp_vec = index_kpp_vec[index_kp_vec]
+                            mup_vec = interactions[:, 1]
+                            mupp_vec = interactions[:, 2]
+                    
+                    
+                            dirac_delta = density_fact[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                    
+                            dirac_delta /= (omega[index_k, mu])
+                            dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                    
+                            dirac_delta *= np.exp (- energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2) / \
+                                           sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (np.pi)
+                    
+                    
+                            # print(is_plus, index_k, mu, 'n_int:', index_kp.shape[0])
+                            ps[is_plus, index_k, mu] += np.sum(dirac_delta)
+                            projected_potential = np.einsum('awij,aj,ai,w->a', transformed_potential[is_plus, :, index_kp_vec, :, index_kpp_vec, :], third_eigenv[index_kpp_vec, :, mupp_vec], second_eigenv[is_plus, index_kp_vec, :, mup_vec], self.eigenvectors[index_k, :, mu])
+                            # projected_potential = np.tensordot(transformed_potential[is_plus, :, index_kp, :, index_kpp, :], self.eigenvectors[index_k, :, mu], (1, 0))
+                            # projected_potential = np.tensordot(projected_potential, third_eigenv[index_kpp, :, mupp], (2, 1))
+                            # projected_potential = np.diagonal(projected_potential, axis1=0, axis2=2)
+                            # projected_potential = np.tensordot(projected_potential, second_eigenv[is_plus, index_kp, :, mup], (0,1))
+                            # projected_potential = np.diagonal(projected_potential)
+                            gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta)
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 
