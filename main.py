@@ -57,7 +57,7 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     temperature = 300
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    k_mesh = np.array ([9, 9, 9])
+    k_mesh = np.array ([11, 11, 11])
     n_kpoints = np.prod(k_mesh)
 
     spacegroup = spg.get_spacegroup (geometry, symprec=1e-5)

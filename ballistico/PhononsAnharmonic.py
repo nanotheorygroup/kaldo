@@ -73,8 +73,8 @@ class PhononsAnharmonic (Phonons):
         scaled_potential = scaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
         print('Projection started')
         #
-        second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
-        second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
+        # second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
+        # second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
         # transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
 
         gamma = np.zeros((2, nptk, n_modes))
@@ -129,7 +129,8 @@ class PhononsAnharmonic (Phonons):
                 for mu in range (n_modes):
                     if omega[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
-    
+                        projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
+
                         if is_plus:
                             energy_diff = np.abs (
                                 omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
@@ -164,14 +165,12 @@ class PhononsAnharmonic (Phonons):
                                            sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (np.pi) / delta_correction
                     
                             ps[is_plus, index_k, mu] += np.sum(dirac_delta)
-                            # index_i = np.arange(n_modes)[:, index_kp_vec, np.newaxis, index_kpp_vec, np.newaxis]
-                            # index_ip = np.arange(n_modes)[np.newaxis, index_kp_vec, :, index_kpp_vec, np.newaxis]
-                            # index_ipp = np.arange(n_modes)[np.newaxis, index_kp_vec, np.newaxis, index_kpp_vec, :]
-
+                            
                             third = third_eigenv[index_kpp_vec, :, mupp_vec]
                             second = second_eigenv[index_kp_vec, :, mup_vec]
+                            
 
-                            projected_potential = np.einsum ('wlitj,al,at,aj,ai,w->a', scaled_potential, second_chi[index_kp_vec], third_chi[index_kpp_vec], third , second, first, optimize='greedy')
+                            projected_potential = np.einsum ('litj,al,at,aj,ai->a', projected_potential, second_chi[index_kp_vec], third_chi[index_kpp_vec], third , second, optimize='greedy')
                             
                             gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (omega[index_k, mu])
