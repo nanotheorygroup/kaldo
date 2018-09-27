@@ -9,97 +9,6 @@ class PhononsAnharmonic (Phonons):
     
     
     
-    
-    def calculate_delta(self, is_plus):
-
-
-        n_particles = self.system.configuration.positions.shape[0]
-        n_modes = n_particles * 3
-        k_size = self.k_size
-        nptk = np.prod(k_size)
-
-        
-        # TODO: remove acoustic sum rule
-        # self.frequencies[0, :3] = 0
-        # self.velocities[0, :3, :] = 0
-
-        omega = 2 * np.pi * self.frequencies
-
-        density = np.empty_like(omega)
-
-        density[omega != 0] = 1. / (np.exp (hbar * omega[omega != 0] / k_b / self.system.temperature) - 1.)
-
-        energy_diff = np.zeros ((2, nptk, n_modes, nptk, n_modes))
-        omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
-
-        sigma = self.calculate_broadening (
-            self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
-        if is_plus:
-            density_fact = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
-        else:
-            density_fact = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
-
-
-        for index_k in range (np.prod (k_size)):
-            i_k = np.array (self.unravel_index (index_k))
-    
-            for mu in range (n_modes):
-                if omega[index_k, mu] != 0:
-
-                    if is_plus:
-                        energy_diff = np.abs (
-                            omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-                    else:
-                        energy_diff = np.abs (
-                            omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis, :, :])
-                    
-                    index_kp_vec = np.arange (np.prod (self.k_size))
-                    i_kp_vec = np.array (self.unravel_index (index_kp_vec))
-                    i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-                    index_kpp_vec = self.ravel_multi_index (i_kpp_vec)
-
-            
-                    delta_energy = energy_diff[index_kp_vec, :, index_kpp_vec, :]
-        
-                    sigma_small = sigma[index_kp_vec, :, index_kpp_vec, :]
-            
-                    interactions = np.argwhere ((delta_energy < 2 * sigma_small) & (
-                                omega[index_kp_vec, :, np.newaxis] != 0) & (omega[index_kpp_vec, np.newaxis, :] != 0))
-    
-                    if interactions.size != 0:
-                        index_kp_vec = interactions[:, 0]
-                        index_kpp_vec = index_kpp_vec[index_kp_vec]
-                        mup_vec = interactions[:,1]
-                        mupp_vec = interactions[:,2]
-                        
-                        
-                        
-                        n_interactions = mup_vec.shape[0]
-                        mu_vec = mu * np.ones(n_interactions, dtype=int)
-                        index_k_vec = index_k * np.ones(n_interactions, dtype=int)
-                        reduced_index = [index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-                        # full_index = [np.ones (n_interactions, dtype=int) * is_plus, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-
-
-
-                        dirac_delta = density_fact[reduced_index]
-
-
-                        dirac_delta /= (omega[index_k, mu])
-                        dirac_delta /= omega_product[reduced_index]
-    
-                        dirac_delta *= np.exp (- energy_diff[reduced_index] ** 2 / sigma[reduced_index] ** 2) / \
-                                                sigma[reduced_index] / np.sqrt (np.pi)
-                        sparse_index = [index_k_vec, mu_vec, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-
-                        try:
-                            dirac_delta_sparse = dirac_delta_sparse + COO (sparse_index, dirac_delta,
-                                                                           shape=(nptk, n_modes, nptk, n_modes, nptk, n_modes))
-                        except UnboundLocalError as err:
-                            print(err)
-                            dirac_delta_sparse = COO (sparse_index, dirac_delta,
-                                                      shape=(nptk, n_modes, nptk, n_modes, nptk, n_modes))
-        return dirac_delta_sparse
 
     def gaussian_delta(self, params):
         # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
@@ -157,51 +66,18 @@ class PhononsAnharmonic (Phonons):
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
 
-        rescaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        rescaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+        scaled_potential = self.system.third_order[0] / np.sqrt (masses[ :, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        scaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        scaled_potential /= np.sqrt (masses[ np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         
-        rescaled_potential = rescaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
+        scaled_potential = scaled_potential.reshape(n_modes, n_replicas, n_modes, n_replicas, n_modes)
         print('Projection started')
         #
-        # for is_plus in (1, 0):
-        #
-        #     if is_plus:
-        #         second_eigenv = self.eigenvectors
-        #         second_chi = chi
-        #     else:
-        #         second_eigenv = self.eigenvectors.conj ()
-        #         second_chi = chi.conj ()
-        #
-        #     third_eigenv = self.eigenvectors.conj ()
-        #     third_chi = chi.conj ()
-        #
-        #     projected_potential[is_plus] = np.einsum ('wlitj,kl,kin,qt,qjm,pwr->prknqm', rescaled_potential, second_chi, second_eigenv, third_chi, third_eigenv, self.eigenvectors, optimize='greedy')
-        #
-        #     # TODO: make it sparse here
-        #
-        #     projected_potential[is_plus] = np.abs (projected_potential[is_plus]) ** 2
-        #
-        # print('Projection done')
-
         second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
         second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
-        transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
+        # transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
 
         gamma = np.zeros((2, nptk, n_modes))
-        for is_plus in (1, 0):
-            if is_plus:
-                second_eigenv[is_plus] = self.eigenvectors
-                second_chi[is_plus] = chi
-            else:
-                second_eigenv[is_plus] = self.eigenvectors.conj ()
-                second_chi[is_plus] = chi.conj ()
-    
-            third_eigenv = self.eigenvectors.conj ()
-            third_chi = chi.conj ()
-            
-            transformed_potential[is_plus] = np.einsum ('wlitj,kl,qt->wkiqj', rescaled_potential, second_chi[is_plus], third_chi, optimize='greedy')
-
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
         k_size = self.k_size
@@ -230,21 +106,29 @@ class PhononsAnharmonic (Phonons):
         else:
             
             list_of_k = np.array(unique_points)
-            
-            
+
+        third_eigenv = self.eigenvectors.conj ()
+        third_chi = chi.conj ()
+
         for is_plus in (1, 0):
     
             if is_plus:
                 density_fact = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
+                second_eigenv = self.eigenvectors
+                second_chi = chi
             else:
                 density_fact = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
-                
+                second_eigenv = self.eigenvectors.conj ()
+                second_chi = chi.conj ()
+    
+    
             for index_k in (list_of_k):
                 print (is_plus, index_k)
     
                 i_k = np.array (self.unravel_index (index_k))
                 for mu in range (n_modes):
                     if omega[index_k, mu] != 0:
+                        first = self.eigenvectors[index_k, :, mu]
     
                         if is_plus:
                             energy_diff = np.abs (
@@ -266,6 +150,7 @@ class PhononsAnharmonic (Phonons):
                         interactions = np.array(np.where (condition)).T
                         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
                         if interactions.size != 0:
+                            print('interactions: ', index_k, interactions.size)
                             index_kp_vec = interactions[:, 0]
                             index_kpp_vec = index_kpp_vec[index_kp_vec]
                             mup_vec = interactions[:, 1]
@@ -279,12 +164,15 @@ class PhononsAnharmonic (Phonons):
                                            sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (np.pi) / delta_correction
                     
                             ps[is_plus, index_k, mu] += np.sum(dirac_delta)
-                            projected_potential = np.einsum('awij,aj,ai,w->a', transformed_potential[is_plus, :, index_kp_vec, :, index_kpp_vec, :], third_eigenv[index_kpp_vec, :, mupp_vec], second_eigenv[is_plus, index_kp_vec, :, mup_vec], self.eigenvectors[index_k, :, mu])
-                            # projected_potential = np.tensordot(transformed_potential[is_plus, :, index_kp_vec, :, index_kpp_vec, :], self.eigenvectors[index_k, :, mu], (1, 0))
-                            # projected_potential = np.tensordot(projected_potential, third_eigenv[index_kpp_vec, :, mupp_vec], (2, 1))
-                            # projected_potential = np.diagonal(projected_potential, axis1=0, axis2=2)
-                            # projected_potential = np.tensordot(projected_potential, second_eigenv[is_plus, index_kp_vec, :, mup_vec], (0,1))
-                            # projected_potential = np.diagonal(projected_potential)
+                            # index_i = np.arange(n_modes)[:, index_kp_vec, np.newaxis, index_kpp_vec, np.newaxis]
+                            # index_ip = np.arange(n_modes)[np.newaxis, index_kp_vec, :, index_kpp_vec, np.newaxis]
+                            # index_ipp = np.arange(n_modes)[np.newaxis, index_kp_vec, np.newaxis, index_kpp_vec, :]
+
+                            third = third_eigenv[index_kpp_vec, :, mupp_vec]
+                            second = second_eigenv[index_kp_vec, :, mup_vec]
+
+                            projected_potential = np.einsum ('wlitj,al,at,aj,ai,w->a', scaled_potential, second_chi[index_kp_vec], third_chi[index_kpp_vec], third , second, first, optimize='greedy')
+                            
                             gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (omega[index_k, mu])
                         ps[is_plus, index_k, mu] /= (omega[index_k, mu])

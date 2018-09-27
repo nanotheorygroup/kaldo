@@ -10,6 +10,8 @@ from ballistico.constants import hbar, k_b
 from sparse import COO
 import pandas as pd
 import matplotlib.pyplot as plt
+import spglib as spg
+
 import ballistico.ConductivityController as ConductivityController
 from scipy.interpolate import RegularGridInterpolator
 import seaborn as sns
@@ -55,10 +57,9 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     temperature = 300
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    k_mesh = np.array ([7,7,7])
+    k_mesh = np.array ([9, 9, 9])
     n_kpoints = np.prod(k_mesh)
 
-    import spglib as spg
     spacegroup = spg.get_spacegroup (geometry, symprec=1e-5)
     mapping, grid = spg.get_ir_reciprocal_mesh (k_mesh, geometry, is_shift=[0, 0, 0])
     # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
