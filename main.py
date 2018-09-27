@@ -55,7 +55,7 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     temperature = 300
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    k_mesh = np.array ([7,7,7])
+    k_mesh = np.array ([7,7, 7])
     n_kpoints = np.prod(k_mesh)
 
     import spglib as spg
@@ -202,13 +202,16 @@ if __name__ == "__main__":
 
     tau_zero[tau_zero == np.inf] = 0
     c_v[np.isnan(c_v)] = 0
-    conductivity_per_mode = np.zeros ((n_kpoints, n_modes, 3, 3))
-    for alpha in range (3):
-        for beta in range (3):
-            conductivity_per_mode[:, :,alpha, beta] += c_v[:, :] * phonons.velocities[:, :,beta] * tau_zero[:, :] * phonons.velocities[:,:, alpha]
+    conductivity_per_mode = np.zeros ((3, 3))
+    for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
+        print ((index_k, associated_index))
+        for alpha in range (3):
+            for beta in range (3):
+                for mode in range(n_modes):
+                    conductivity_per_mode[alpha, beta] += c_v[index_k, mode] * phonons.velocities[index_k, mode,beta] * tau_zero[associated_index, mode] * phonons.velocities[index_k,mode, alpha]
 
     conductivity_per_mode *= 1.E21 / (volume * n_kpoints)
-    conductivity = conductivity_per_mode.sum (axis=0).sum (axis=0)
+    conductivity = conductivity_per_mode
     print(conductivity)
 
     n_modes = system.configuration.positions.shape[0] * 3
