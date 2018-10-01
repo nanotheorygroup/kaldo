@@ -10,6 +10,8 @@ from ballistico.constants import hbar, k_b
 from sparse import COO
 import pandas as pd
 import matplotlib.pyplot as plt
+import spglib as spg
+
 import ballistico.ConductivityController as ConductivityController
 from scipy.interpolate import RegularGridInterpolator
 import seaborn as sns
@@ -55,16 +57,19 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     temperature = 300
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    
-    
-    k_size = np.array ([3, 3, 3])
+    k_mesh = np.array ([11, 11, 11])
+    n_kpoints = np.prod(k_mesh)
 
-    n_modes = system.configuration.positions.shape[0] * 3
-    n_kpoints = np.prod (k_size)
+    spacegroup = spg.get_spacegroup (geometry, symprec=1e-5)
+    mapping, grid = spg.get_ir_reciprocal_mesh (k_mesh, geometry, is_shift=[0, 0, 0])
+    # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
+    unique_points, degeneracy = np.unique (mapping, return_counts=True)
     
-    phonons = PhononsAnharmonic (system, k_size)
+    phonons = PhononsAnharmonic (system, k_mesh)
     
-    # phonons.diagonalize_second_order_single_k(np.array([1/3, 0., 0.]))
+    print(unique_points)
+    
+    
     phonons.calculate_second_all_grid()
     NKPOINTS_TO_PLOT = 100
     
@@ -73,7 +78,7 @@ if __name__ == "__main__":
     freqs_plot = np.zeros ((k_list.shape[0], phonons.system.configuration.positions.shape[0] * 3))
     n_modes = system.configuration.positions.shape[0] * 3
     freqs_plot = np.zeros ((k_list.shape[0], n_modes))
-    freqs = phonons._frequencies.reshape((k_size[0], k_size[1], k_size[2], n_modes))
+    freqs = phonons._frequencies.reshape((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
     for mode in range (n_modes):
         freqs_plot[:, mode] = interpolator (k_list, freqs[:, :, :, mode])
 
@@ -94,45 +99,12 @@ if __name__ == "__main__":
     plt.close (fig)
     
     is_classical = False
-    sh_par = {'classical': is_classical, 'convergence': True, 'only_gamma': False}
-    shl = ShengbteHelper (system, k_size, sh_par)
-    # dyn = shl.read_file('fort.1111').reshape(n_modes, n_modes)
 
-    
-    shl.save_second_order_qe_matrix ()
-    shl.save_third_order_matrix_new ()
-    
+    import time
+    ts = time.time ()
+    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(unique_points)
+    print('time spent = ', time.time() - ts)
 
-    filename = system.folder + 'T300K/BTE.WP3_plus'
-    data = pd.read_csv (filename, delim_whitespace=True, skiprows=[0, 1], header=None)
-    data = np.array (data.values)
-    freqs_to_plot = data[:, 0]
-    gamma_to_plot = data[:, 1]
-    max_ps = gamma_to_plot.max()
-    plt.scatter (freqs_to_plot, gamma_to_plot, color='red')
-    filename = system.folder + 'T300K/BTE.WP3_minus'
-    data = pd.read_csv (filename, delim_whitespace=True, skiprows=[0, 1], header=None)
-    data = np.array (data.values)
-    freqs_to_plot = data[:, 0]
-    gamma_to_plot = data[:, 1]
-    plt.scatter (freqs_to_plot, gamma_to_plot, color='blue')
-    max_ps = np.array ([gamma_to_plot.max (), max_ps]).max ()
-    plt.ylim ([0, max_ps])
-    
-    plt.show()
-    
-    print(shl.run_sheng_bte(n_processors=1))
-    print(shl.frequencies.max())
-    velocities = shl.velocities.reshape (phonons.velocities.shape)
-   
-    print(shl.read_conductivity(is_classical=is_classical))
-    plt.scatter(shl.frequencies.flatten (), shl.read_decay_rate_data('plus').flatten ())
-
-    plt.scatter (shl.frequencies.flatten (), shl.read_decay_rate_data('minus').flatten ())
-    plt.ylim([0,0.30])
-    plt.show ()
-    
-    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma()
     plt.ylim([0,0.30])
     plt.scatter (phonons.frequencies.flatten (), gamma_plus.flatten ())
     plt.scatter (phonons.frequencies.flatten (), gamma_minus.flatten ())
@@ -145,26 +117,37 @@ if __name__ == "__main__":
     max_ps = np.array ([ps_plus.max (), ps_minus.max()]).max ()
     plt.ylim([0,max_ps])
     plt.show ()
-    tau_zero = 1 / (gamma_plus + gamma_minus).reshape((n_kpoints * n_modes))
-    tau_zero[np.isnan(tau_zero)] = 0
+    gamma = gamma_plus + gamma_minus
+    tau_zero = np.empty_like(gamma)
 
-    energies = phonons.frequencies.reshape((n_kpoints * n_modes))
-    velocities = phonons.velocities.reshape((n_kpoints * n_modes, 3))
-    
-    f_be = 1. / (np.exp (hbar * energies / (k_b * temperature)) - 1.)
-    c_v = hbar ** 2 * f_be * (f_be + 1) * energies ** 2 / (k_b * temperature ** 2)
+    tau_zero[(gamma)!=0] = 1 / (gamma[gamma!=0])
+    f_be = np.empty_like(phonons.frequencies)
+    f_be[phonons.frequencies!=0] = 1. / (np.exp (hbar * phonons.frequencies[phonons.frequencies!=0] / (k_b * temperature)) - 1.)
+    c_v = hbar ** 2 * f_be * (f_be + 1) * phonons.frequencies ** 2 / (k_b * temperature ** 2)
     cell = system.replicated_configuration.cell
     rlatticevec = np.linalg.inv (cell) * np.linalg.det (cell)
     volume = np.linalg.det (system.configuration.cell) / 1000.
 
     tau_zero[tau_zero == np.inf] = 0
     c_v[np.isnan(c_v)] = 0
-    conductivity_per_mode = np.zeros ((n_kpoints * n_modes, 3, 3))
-    for alpha in range (3):
-        for beta in range (3):
-            conductivity_per_mode[:, alpha, beta] += c_v[:] * velocities[:, beta] * tau_zero[:] * velocities[:, alpha]
-            
+    conductivity_per_mode = np.zeros ((3, 3))
+    for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
+        print ((index_k, associated_index))
+        for alpha in range (3):
+            for beta in range (3):
+                for mode in range(n_modes):
+                    conductivity_per_mode[alpha, beta] += c_v[index_k, mode] * phonons.velocities[index_k, mode,beta] * tau_zero[associated_index, mode] * phonons.velocities[index_k,mode, alpha]
+
     conductivity_per_mode *= 1.E21 / (volume * n_kpoints)
-    conductivity = conductivity_per_mode.sum (axis=0)
+    conductivity = conductivity_per_mode
     print(conductivity)
-    
+
+    n_modes = system.configuration.positions.shape[0] * 3
+    freqs_plot = np.zeros ((k_list.shape[0], n_modes))
+
+    for mode in range (n_modes):
+        to_plot = ps_plus.reshape (
+            (k_mesh[0], k_mesh[1], k_mesh[2], ps_plus.shape[1]))
+
+        freqs_plot[:, mode] = interpolator (k_list, to_plot[:, :, :, mode])
+    print('ps_plus', np.abs(ps_plus).sum())

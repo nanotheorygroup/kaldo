@@ -19,6 +19,8 @@ class MolecularSystem (object):
         self.replicas = replicas
         self.temperature = temperature
         self.configuration = configuration
+        self.configuration.cell_inv = np.linalg.inv (self.configuration.cell)
+
         self.lammps_cmd = lammps_cmd
         self.folder = str (self) + '/'
         if not os.path.exists (self.folder):
@@ -34,7 +36,6 @@ class MolecularSystem (object):
         self._second_order = None
         self._dynamical_matrix = None
         self._third_order = None
-        
         
 
         self.index_first_cell = 0
@@ -137,8 +138,10 @@ class MolecularSystem (object):
     
     def atom_and_replica_index(self, absolute_index):
         n_atoms = self.configuration.positions.shape[0]
-        id_replica = absolute_index / n_atoms
-        id_atom = absolute_index % n_atoms
+        n_replicas = np.prod(self.replicas)
+
+        id_replica = absolute_index % n_replicas
+        id_atom = absolute_index / n_replicas
         return int(id_atom), int(id_replica)
     
     def absolute_index(self, atom_index, replica_index):
