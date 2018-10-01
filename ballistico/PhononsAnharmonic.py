@@ -3,6 +3,7 @@ from ballistico.Phonons import Phonons
 from ballistico.constants import *
 import scipy
 from sparse import tensordot,COO
+import spglib as spg
 
 class PhononsAnharmonic (Phonons):
     
@@ -21,7 +22,7 @@ class PhononsAnharmonic (Phonons):
         gauss /= np.erf (2 / np.sqrt (2))
         return gauss
 
-    def calculate_gamma(self, unique_points=None):
+    def calculate_gamma(self):
         hbarp = 1.05457172647
     
         print ('Lifetime:')
@@ -101,12 +102,14 @@ class PhononsAnharmonic (Phonons):
         DELTA_THRESHOLD = 2
         delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
         # delta_correction = 1
-        if unique_points is None:
-            list_of_k = np.arange(np.prod (k_size))
-        else:
-            
-            list_of_k = np.array(unique_points)
 
+        spacegroup = spg.get_spacegroup (self.system.configuration, symprec=1e-5)
+        mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
+        # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
+        unique_points, degeneracy = np.unique (mapping, return_counts=True)
+        list_of_k = unique_points
+
+        print (unique_points)
         third_eigenv = self.eigenvectors.conj ()
         third_chi = chi.conj ()
 
@@ -175,6 +178,9 @@ class PhononsAnharmonic (Phonons):
                             gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (omega[index_k, mu])
                         ps[is_plus, index_k, mu] /= (omega[index_k, mu])
+        for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
+            ps[:, index_k, :] = ps[:, associated_index, :]
+            gamma[:, index_k, :] = gamma[:, associated_index, :]
 
         return gamma[1] * prefactor *  hbarp * np.pi / 4., gamma[0] * prefactor *  hbarp * np.pi / 4., ps[1] / nptk, ps[0] / nptk
 

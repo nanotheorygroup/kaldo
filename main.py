@@ -57,17 +57,10 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     temperature = 300
     system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    k_mesh = np.array ([11, 11, 11])
+    k_mesh = np.array ([3, 3, 3])
     n_kpoints = np.prod(k_mesh)
-
-    spacegroup = spg.get_spacegroup (geometry, symprec=1e-5)
-    mapping, grid = spg.get_ir_reciprocal_mesh (k_mesh, geometry, is_shift=[0, 0, 0])
-    # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
-    unique_points, degeneracy = np.unique (mapping, return_counts=True)
-    
     phonons = PhononsAnharmonic (system, k_mesh)
-    
-    print(unique_points)
+
     
     
     phonons.calculate_second_all_grid()
@@ -102,7 +95,7 @@ if __name__ == "__main__":
 
     import time
     ts = time.time ()
-    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(unique_points)
+    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma()
     print('time spent = ', time.time() - ts)
 
     plt.ylim([0,0.30])
@@ -131,12 +124,11 @@ if __name__ == "__main__":
     tau_zero[tau_zero == np.inf] = 0
     c_v[np.isnan(c_v)] = 0
     conductivity_per_mode = np.zeros ((3, 3))
-    for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
-        print ((index_k, associated_index))
+    for index_k in range(n_kpoints):
         for alpha in range (3):
             for beta in range (3):
                 for mode in range(n_modes):
-                    conductivity_per_mode[alpha, beta] += c_v[index_k, mode] * phonons.velocities[index_k, mode,beta] * tau_zero[associated_index, mode] * phonons.velocities[index_k,mode, alpha]
+                    conductivity_per_mode[alpha, beta] += c_v[index_k, mode] * phonons.velocities[index_k, mode,beta] * tau_zero[index_k, mode] * phonons.velocities[index_k,mode, alpha]
 
     conductivity_per_mode *= 1.E21 / (volume * n_kpoints)
     conductivity = conductivity_per_mode
