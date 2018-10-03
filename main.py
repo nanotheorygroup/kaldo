@@ -10,7 +10,10 @@ from ballistico.constants import hbar, k_b
 from sparse import COO
 import pandas as pd
 import matplotlib.pyplot as plt
+from ballistico.constants import evoverdlpoly
+
 import spglib as spg
+import ase
 
 import ballistico.ConductivityController as ConductivityController
 from scipy.interpolate import RegularGridInterpolator
@@ -22,11 +25,19 @@ import matplotlib
 
 
 
+import os
+folder = os.getcwd()
 
-folder = '/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/'
+def import_dynamical_matrix_charlie(dynamical_matrix_file, replicas):
+    # dynamical_matrix_file = '/Users/giuseppe/Development/research-dev/charlie-lammps/dynmat/dynmat.dat'
+    dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, skiprows=1, delim_whitespace=True)
+    dynamical_matrix_vector = dynamical_matrix_frame.values
+    n_replicas = replicas[0] * replicas[1] * replicas[2]
+    n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
+    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
-def import_dynamical_matrix(replicas):
-    dynamical_matrix_file = folder + 'Dyn.form'
+def import_dynamical_matrix_dlpoly(dynamical_matrix_file, replicas):
+    # dynamical_matrix_file = '/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/Dyn.form'
     dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, delim_whitespace=True)
     dynamical_matrix_vector = dynamical_matrix_frame.values
     n_replicas = replicas[0] * replicas[1] * replicas[2]
@@ -34,8 +45,9 @@ def import_dynamical_matrix(replicas):
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
 
-def import_third_order(ndim):
-    third_order_frame = pd.read_csv (folder + 'THIRD', header=None, delim_whitespace=True)
+def import_third_order(file, ndim):
+    # third_order_frame = pd.read_csv ('/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/THIRD', header=None, delim_whitespace=True)
+    third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
     third_order = third_order_frame.values.T
     v3ijk = third_order[5:8].T
     n_particles = int (ndim / 3)
@@ -52,17 +64,40 @@ def import_third_order(ndim):
 
 
 if __name__ == "__main__":
-    geometry = ath.from_filename ('examples/si-bulk.xyz')
+    # ase_geometry = ase.io.read ('/Users/giuseppe/Development/research-dev/charlie-lammps/dynmat/silicon_input_file.lmp', format='lammps-data')
+    # ase.io.write ('examples/silicon-charlie-8.xyz', ase_geometry)
+    
+    
+    geometry = ath.from_filename ('examples/replicated_Si-2.xyz')
     forcefield = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
-    replicas = np.array ([3, 3, 3])
+    replicas = np.array ([1,1,1])
     temperature = 300
-    system = MolecularSystem (geometry, replicas=replicas, temperature=temperature, optimize=True, lammps_cmd=forcefield)
-    k_mesh = np.array ([3, 3, 3])
+    system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature, optimize=False, lammps_cmd=forcefield)
+    
+    second_calculated = system.second_order
+    # system.third_order
+    print(second_calculated.shape)
+    mass = np.sqrt (system.configuration.get_masses ())
+    second_calculated /= mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+    second_calculated /= mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    # massfactor = 1.8218779 * 6.022e-4
+    massfactor = 1
+    dynmat_calculated = massfactor * second_calculated
+    
+    # file_second_charlie = folder + '/' + system.folder + '/charlie/dynmat.dat'
+    # dynmat_charlie = import_dynamical_matrix_charlie(file_second_charlie, replicas) * evoverdlpoly
+    # print(dynmat_charlie.shape)
+    
+    file_second_dlpoly = folder + '/' + system.folder + '/dlpoly/Dyn.form'
+    dynmat_dlpoly = import_dynamical_matrix_dlpoly(file_second_dlpoly, replicas)
+    print(dynmat_dlpoly.shape)
+
+
+    
+    k_mesh = np.array ([5, 5, 5])
     n_kpoints = np.prod(k_mesh)
     phonons = PhononsAnharmonic (system, k_mesh)
 
-    
-    
     phonons.calculate_second_all_grid()
     NKPOINTS_TO_PLOT = 100
     
@@ -76,21 +111,12 @@ if __name__ == "__main__":
         freqs_plot[:, mode] = interpolator (k_list, freqs[:, :, :, mode])
 
     omega_e, dos_e = phonons.density_of_states (freqs)
-    freqs_plot, _, _, velocities_plot = phonons.diagonalize_second_order_k (k_list)
+    # freqs_plot, _, _, velocities_plot = phonons.diagonalize_second_order_k (k_list)
     plot_vc = PlotViewController (system)
     plot_vc.plot_in_brillouin_zone (freqs_plot, 'fcc', n_k_points=NKPOINTS_TO_PLOT)
     plot_vc.plot_dos (omega_e, dos_e)
     plot_vc.show ()
 
-    fig = plt.figure ()
-    velocity_plot = velocities_plot[:, :, 0]
-    plt.scatter (freqs_plot.flatten (), np.abs (velocity_plot.flatten ()), marker='.')
-    plt.ylabel ('velocity $/ (m/s)$')
-    plt.xlabel ('frequency $/ THz$')
-    # plt.ylim(0,10)
-    plt.show ()
-    plt.close (fig)
-    
     is_classical = False
 
     import time
