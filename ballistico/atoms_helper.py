@@ -4,21 +4,6 @@ from ase import Atoms
 from ase.build import bulk
 import numpy as np
 
-def from_filename(filename):
-	structure = io.read (filename)
-	names = structure.get_chemical_symbols()
-	geometry = structure.positions
-	sizes = structure.cell
-	return Atoms (positions=geometry, symbols=names, cell=sizes, pbc=[1, 1, 1])
-
-def from_bulk(*args, **kwargs):
-	structure = bulk (*args, **kwargs)
-	names = structure.get_chemical_symbols()
-	geometry = structure.positions
-	sizes = structure.cell
-	return Atoms (positions=geometry, symbols=names, cell=sizes, pbc=[1, 1, 1])
-
-
 
 def replicate_configuration(atoms, replicas):
 	list_of_replicas, list_of_indices = create_list_of_replicas (atoms, replicas)

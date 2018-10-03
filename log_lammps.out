@@ -1,0 +1,129 @@
+LAMMPS (5 Feb 2018)
+units metal
+atom_style atomic
+atom_modify map array sort 0 0
+boundary p p p
+box tilt large
+region cell prism    0 11.518769465528859 0 9.975546977484491 0 9.405035885099002     5.7593847327644285 5.7593847327644285 3.325182325828164     units box
+create_box 1 cell
+Created triclinic box = (0 0 0) to (11.5188 9.97555 9.40504) with tilt (5.75938 5.75938 3.32518)
+  1 by 1 by 1 MPI processor grid
+echo none
+Created 54 atoms
+  Time spent = 0.000525951 secs
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+pair_style tersoff
+pair_coeff * * forcefields/Si.tersoff Si
+Reading potential file forcefields/Si.tersoff with DATE: 2007-10-25
+mass 1 28.084999992775298238711911835708
+variable pxx equal pxx
+variable pyy equal pyy
+variable pzz equal pzz
+variable pxy equal pxy
+variable pxz equal pxz
+variable pyz equal pyz
+thermo_style custom pe pxx
+variable fx atom fx
+variable fy atom fy
+variable fz atom fz
+variable pe equal pe
+neigh_modify delay 0 every 1 check yes
+echo none
+run 0
+WARNING: No fixes defined, atoms won't move (../verlet.cpp:55)
+Neighbor list info ...
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 5
+  ghost atom cutoff = 5
+  binsize = 2.5, bins = 10 6 4
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair tersoff, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 2.947 | 2.947 | 2.947 Mbytes
+PotEng Pxx 
+  -249.99773     1085.447 
+Loop time of 4.05312e-06 on 1 procs for 0 steps with 54 atoms
+
+98.7% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 4.053e-06  |            |       |100.00
+
+Nlocal:    54 ave 54 max 54 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    378 ave 378 max 378 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:  1512 ave 1512 max 1512 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1512
+Ave neighs/atom = 28
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:00

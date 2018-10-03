@@ -1,7 +1,39 @@
 import subprocess
 import numpy as np
+from sparse import COO
 
-from ballistico.geometry_helper import normalize_geometry
+def import_dynamical_matrix_charlie(dynamical_matrix_file, replicas):
+    # dynamical_matrix_file = '/Users/giuseppe/Development/research-dev/charlie-lammps/dynmat/dynmat.dat'
+    dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, skiprows=1, delim_whitespace=True)
+    dynamical_matrix_vector = dynamical_matrix_frame.values
+    n_replicas = replicas[0] * replicas[1] * replicas[2]
+    n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
+    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
+
+def import_dynamical_matrix_dlpoly(dynamical_matrix_file, replicas):
+    # dynamical_matrix_file = '/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/Dyn.form'
+    dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, delim_whitespace=True)
+    dynamical_matrix_vector = dynamical_matrix_frame.values
+    n_replicas = replicas[0] * replicas[1] * replicas[2]
+    n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
+    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
+
+
+def import_third_order_dlpoly(file, ndim):
+    # third_order_frame = pd.read_csv ('/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/THIRD', header=None, delim_whitespace=True)
+    third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
+    third_order = third_order_frame.values.T
+    v3ijk = third_order[5:8].T
+    n_particles = int (ndim / 3)
+    coords = np.vstack ((third_order[0:5] - 1, 0 * np.ones ((third_order.shape[1]))))
+    sparse_x = COO (coords, v3ijk[:, 0], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
+    coords = np.vstack ((third_order[0:5] - 1, 1 * np.ones ((third_order.shape[1]))))
+    sparse_y = COO (coords, v3ijk[:, 1], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
+    coords = np.vstack ((third_order[0:5] - 1, 2 * np.ones ((third_order.shape[1]))))
+    sparse_z = COO (coords, v3ijk[:, 2], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
+    sparse = sparse_x + sparse_y + sparse_z
+    return sparse.reshape ((ndim, ndim, ndim))
+
 
 
 def save_fourier_second_order(harmonic_system, second_order, k_list):

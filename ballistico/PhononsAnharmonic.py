@@ -53,7 +53,7 @@ class PhononsAnharmonic (Phonons):
         cellinv = self.system.configuration.cell_inv
         masses = self.system.configuration.get_masses ()
 
-        list_of_replicas = self.system.list_of_replicas
+        list_of_replicas = self.list_of_replicas
         n_modes = n_particles * 3
         k_size = self.k_size
         n_replicas = list_of_replicas.shape[0]
@@ -179,6 +179,7 @@ class PhononsAnharmonic (Phonons):
                             gamma[is_plus, index_k, mu] += np.sum(np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (omega[index_k, mu])
                         ps[is_plus, index_k, mu] /= (omega[index_k, mu])
+                        
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
