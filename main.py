@@ -18,10 +18,10 @@ if __name__ == "__main__":
     
     geometry = ase.io.read ('examples/si-bulk.xyz')
     # geometry = ash.optimize(geometry)
-    replicas = [3, 3, 3]
+    replicas = np.array ([3,3,3])
     replicated_geometry, _, _ = replicate_configuration(geometry, replicas)
     # replicated_geometry = ash.optimize(replicated_geometry)
-    ase.io.write ('examples/replicated_Si-2.xyz', replicated_geometry)
+    # ase.io.write ('examples/replicated_Si-2.xyz', replicated_geometry)
 
 
     
@@ -41,12 +41,12 @@ if __name__ == "__main__":
         print (err)
         system.third_order = ash.calculate_third (geometry, replicas)
 
-    mass = np.sqrt (system.configuration.get_masses ())
-    second_calculated = system.second_order / mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-    second_calculated /= mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    # massfactor = 1.8218779 * 6.022e-4
-    massfactor = 1
-    dynmat_calculated = massfactor * second_calculated
+    # mass = np.sqrt (system.configuration.get_masses ())
+    # second_calculated = system.second_order / mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+    # second_calculated /= mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    # # massfactor = 1.8218779 * 6.022e-4
+    # massfactor = 1
+    # dynmat_calculated = massfactor * second_calculated
     
     # file_second_charlie = folder + '/' + system.folder + '/charlie/dynmat.dat'
     # dynmat_charlie = import_dynamical_matrix_charlie(file_second_charlie, replicas) * evoverdlpoly
