@@ -6,6 +6,7 @@ import numpy as np
 
 
 def replicate_configuration(atoms, replicas):
+	replicas = np.array(replicas)
 	list_of_replicas, list_of_indices = create_list_of_replicas (atoms, replicas)
 	replicated_symbols = []
 	n_replicas = list_of_replicas.shape[0]

@@ -17,11 +17,11 @@ if __name__ == "__main__":
     
     
     geometry = ase.io.read ('examples/si-bulk.xyz')
-    # geometry = ash.optimize(geometry)
+    geometry = ash.optimize(geometry)
     replicas = np.array ([3,3,3])
     replicated_geometry, _, _ = replicate_configuration(geometry, replicas)
-    # replicated_geometry = ash.optimize(replicated_geometry)
-    # ase.io.write ('examples/replicated_Si-2.xyz', replicated_geometry)
+    replicated_geometry = ash.optimize(replicated_geometry)
+    ase.io.write ('examples/replicated_Si-2.xyz', replicated_geometry)
 
 
     
