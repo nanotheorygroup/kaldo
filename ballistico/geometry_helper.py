@@ -37,6 +37,10 @@ def create_k_space_with_path(system, resolution, time_refersal=True):
 
 
 def create_k_and_symmetry_space(system, symmetry='fcc', n_k_points=100):
+	
+	# TODO: implement symmetry here
+	# import spglib as spg
+	# spacegroup = spg.get_spacegroup (system.configuration, symprec=1e-5)
 	structure = system.configuration
 
 	# High-symmetry points in the Brillouin zone

@@ -32,7 +32,8 @@ class MolecularSystem (object):
             self.optimize (optimize)
 
         self.replicated_configuration, self.list_of_replicas, self.list_of_indices= ath.replicate_configuration(configuration, replicas)
-        
+        io.write (self.folder + 'replicated_' + str (self) + '.xyz', self.replicated_configuration, format='extxyz')
+
         self._second_order = None
         self._dynamical_matrix = None
         self._third_order = None
@@ -56,52 +57,12 @@ class MolecularSystem (object):
     @second_order.getter
     def second_order(self):
         if self._second_order is None:
-            if self._dynamical_matrix is None:
-                self._second_order = self.calculate_second ()
-            else:
-                self._second_order = self._dynamical_matrix.copy()
-                size = self._second_order.shape[0] * self._second_order.shape[1]
-                for i in range (size):
-                    atom_i_index, replica_i_index = self.atom_and_replica_index (i)
-                    mass_i = self.configuration.get_masses ()[atom_i_index]
-                    for j in range (size):
-                        atom_j_index, replica_j_index = self.atom_and_replica_index (j)
-                        mass_j = self.configuration.get_masses ()[atom_j_index]
-                        mass = np.sqrt (mass_i * mass_j)
-                        self._second_order[replica_i_index, atom_i_index, :, replica_j_index, atom_j_index, :] *= mass
+            self._second_order = self.calculate_second ()
         return self._second_order
     
     @second_order.setter
     def second_order(self, new_second_order):
         self._second_order = new_second_order
-
-    @property
-    def dynamical_matrix(self):
-        return self._dynamical_matrix
-
-    @dynamical_matrix.getter
-    def dynamical_matrix(self):
-        if self._dynamical_matrix is None:
-            if self._second_order is None:
-                self._second_order = self.calculate_second ()
-                self._dynamical_matrix = self.dynamical_matrix
-            else:
-                second = self._second_order
-                self._dynamical_matrix = np.empty_like(second)
-                size = second.shape[0] * second.shape[1]
-                for i in range (size):
-                    atom_i_index, replica_i_index = self.atom_and_replica_index (i)
-                    mass_i = self.configuration.get_masses ()[atom_i_index]
-                    for j in range (size):
-                        atom_j_index, replica_j_index = self.atom_and_replica_index (j)
-                        mass_j = self.configuration.get_masses ()[atom_j_index]
-                        mass = np.sqrt (mass_i * mass_j)
-                        self._dynamical_matrix[replica_i_index, atom_i_index, :, replica_j_index, atom_j_index,:] = second[replica_i_index, atom_i_index, :, replica_j_index, atom_j_index, :] / mass
-        return self._dynamical_matrix
-
-    @dynamical_matrix.setter
-    def dynamical_matrix(self, new_dynamical_matrix):
-        self._dynamical_matrix = new_dynamical_matrix
 
     @property
     def third_order(self):
@@ -156,9 +117,9 @@ class MolecularSystem (object):
             result = minimize (self.max_force, self.configuration.positions, args=self.configuration, jac=self.gradient, method=method)
             print (result.message)
             self.configuration.positions = result.x.reshape((int(result.x.size / 3), 3))
-            io.write (self.folder + 'mInimized_' + str(self) + '.xyz', self.configuration, format='extxyz')
+            io.write (self.folder + 'minimized_' + str(self) + '.xyz', self.configuration, format='extxyz')
         print ('Final max force: ', self.max_force(self.configuration.positions, self.configuration))
-        self.replicated_configuration, self.list_of_replicas, self.list_of_indices= ath.replicate_configuration(self.configuration, self.replicas)
+        # self.replicated_configuration, self.list_of_replicas, self.list_of_indices= ath.replicate_configuration(self.configuration, self.replicas)
 
     
     def calculate_second(self):

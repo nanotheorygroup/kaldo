@@ -5,6 +5,8 @@ import scipy
 from sparse import tensordot,COO
 import spglib as spg
 
+
+
 class PhononsAnharmonic (Phonons):
     
     
@@ -103,7 +105,6 @@ class PhononsAnharmonic (Phonons):
         delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
         # delta_correction = 1
 
-        spacegroup = spg.get_spacegroup (self.system.configuration, symprec=1e-5)
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
         # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
