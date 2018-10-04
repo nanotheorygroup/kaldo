@@ -5,12 +5,16 @@ from ballistico.atoms_helper import replicate_configuration
 from scipy.optimize import minimize
 from ase.calculators.lammpslib import LAMMPSlib
 import ase.io as io
+from ase.calculators.tip3p import TIP3P
+
 
 SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE = 'third.npy'
 
 # TODO: this should be an imput somehow
 LAMMPS_CMD = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
+CALCULATOR = LAMMPSlib (lmpcmds=LAMMPS_CMD, log_file='log_lammps.out')
+CALCULATOR = TIP3P(rc=7.)
 
 
 def max_force(x, atoms):
@@ -26,8 +30,7 @@ def gradient(x, input_atoms):
     '''
     atoms = input_atoms.copy ()
     atoms.positions = np.reshape (x, (int (x.size / 3.), 3))
-    calc = LAMMPSlib (lmpcmds=LAMMPS_CMD, log_file='log_lammps.out')
-    atoms.set_calculator (calc)
+    atoms.set_calculator (CALCULATOR)
     gr = -1. * atoms.get_forces ()
     grad = np.reshape (gr, gr.size)
     return grad

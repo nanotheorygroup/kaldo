@@ -6,13 +6,21 @@ import ballistico.atoms_helper as ath
 from ballistico.constants import evoverdlpoly
 
 
+def import_second_charlie(dynamical_matrix_file, configuration, replicas):
+    dyn_mat = import_dynamical_matrix_charlie(dynamical_matrix_file, replicas)
+
+    mass = np.sqrt (configuration.get_masses ())
+    mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis,
+                                                                                 np.newaxis, np.newaxis, :, np.newaxis]
+    return dyn_mat * mass
+
 def import_dynamical_matrix_charlie(dynamical_matrix_file, replicas):
     # dynamical_matrix_file = '/Users/giuseppe/Development/research-dev/charlie-lammps/dynmat/dynmat.dat'
     dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, skiprows=1, delim_whitespace=True)
     dynamical_matrix_vector = dynamical_matrix_frame.values
     n_replicas = replicas[0] * replicas[1] * replicas[2]
     n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
-    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
+    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3) * evoverdlpoly
 
 def import_second_dlpoly(dynamical_matrix_file, configuration, replicas):
     dyn_mat = import_dynamical_matrix_dlpoly(dynamical_matrix_file, replicas)

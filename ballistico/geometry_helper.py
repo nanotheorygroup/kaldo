@@ -36,7 +36,7 @@ def create_k_space_with_path(system, resolution, time_refersal=True):
 	return kpath, np.arange(0., explicit_segments.max(), dx), 1. * explicit_segments, point_names
 
 
-def create_k_and_symmetry_space(system, symmetry='fcc', n_k_points=100):
+def create_k_and_symmetry_space(system, symmetry='fcc', n_k_points=50):
 	
 	# TODO: implement symmetry here
 	# import spglib as spg
