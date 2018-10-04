@@ -76,12 +76,6 @@ def calculate_second(configuration, replicas):
 def calculate_third(configuration, replicas):
     replicated_configuration, list_of_replicas, list_of_indices = replicate_configuration(configuration, replicas)
 
-    # index_first_cell is going to be different than 0 only if we use a bigger third order grid \
-    # and a different ordering than the one made by the helper
-    for replica_id in range (list_of_replicas.shape[0]):
-        replica = list_of_replicas[replica_id]
-        if (replica == np.zeros (3)).all ():
-            index_first_cell = replica_id
             
     # TODO: Here we should create it sparse
     print('Calculating third order')
@@ -98,7 +92,7 @@ def calculate_third(configuration, replicas):
                     for move_1 in (-1, 1):
                         for move_2 in (-1, 1):
                             shift = np.zeros ((n_atoms, 3))
-                            shift[index_first_cell * n_in_unit_cell + i, alpha] += move_1 * dx
+                            shift[i, alpha] += move_1 * dx
                             
                             shift[j, beta] += move_2 * dx
                             third[i, alpha, j, beta, :] += move_1 * move_2 * (

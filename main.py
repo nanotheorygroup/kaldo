@@ -16,7 +16,7 @@ import numpy as np
 if __name__ == "__main__":
     
     
-    geometry = ase.io.read ('examples/cubic-si.xyz')
+    geometry = ase.io.read ('examples/si-bulk.xyz')
     geometry = ash.optimize(geometry)
     replicas = np.array ([3,3,3])
     n_replicas = np.prod(replicas)
@@ -25,27 +25,20 @@ if __name__ == "__main__":
     replicated_geometry = ash.optimize(replicated_geometry)
     # ase.io.write ('examples/replicated-cubic-si.xyz', replicated_geometry)
 
-
     temperature = 300
     system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature)
-    dyn_mat = ioh.import_dynamical_matrix_dlpoly('Dyn.form', replicas)
-
-    mass = np.sqrt (system.configuration.get_masses ())
-    system.second_order = dyn_mat * mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-
-    n_particles = geometry.get_positions().shape[0]
-    third_dlpoly = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
-
-    system.third_order = third_dlpoly
-
     
-    # try:
-    #     system.second_order = np.load ('second.npy')
-    # except IOError as err:
-    #     print (err)
-    #     system.second_order = ash.calculate_second (geometry, replicas)
+    try:
+        system.second_order = np.load ('second.npy')
 
+        # dyn_mat = ioh.import_dynamical_matrix_dlpoly ('Dyn.form', replicas)
+        # mass = np.sqrt (system.configuration.get_masses ())
+        # mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+        # system.second_order = dyn_mat * mass
 
+    except IOError as err:
+        print (err)
+        system.second_order = ash.calculate_second (geometry, replicas)
     
     k_mesh = np.array ([5, 5, 5])
     n_kpoints = np.prod(k_mesh)
@@ -72,13 +65,12 @@ if __name__ == "__main__":
 
     is_classical = False
 
-    # third_order = np.load ('third.npy')
-
-    # try:
-    #     system.third_order = np.load ('third.npy')
-    # except IOError as err:
-    #     print (err)
-    #     system.third_order = ash.calculate_third (geometry, replicas)
+    try:
+        system.third_order = np.load ('third.npy')
+        # system.third_order = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
+    except IOError as err:
+        print (err)
+        system.third_order = ash.calculate_third (geometry, replicas)
 
     import time
     ts = time.time ()

@@ -26,17 +26,6 @@ class Phonons (object):
         is_folder_present(self.folder)
 
         self.replicated_configuration, self.list_of_replicas, self.list_of_indices = ath.replicate_configuration(self.system.configuration, self.system.replicas)
-
-        # index_first_cell is going to be different than 0 only if we use a bigger third order grid \
-        # and a different ordering than the one made by the helper
-        self.index_first_cell = 0
-        for replica_id in range (self.list_of_replicas.shape[0]):
-            replica = self.list_of_replicas[replica_id]
-            if (replica == np.zeros (3)).all ():
-                self.index_first_cell = replica_id
-                print(replica_id)
-        # Create k mesh
-        # TODO: for some reason k-mesh comes with axis swapped
         
         self._frequencies = None
         self._velocities = None
@@ -235,7 +224,7 @@ class Phonons (object):
         else:
             calculate_eigenvec = scipy.linalg.lapack.zheev
             # calculate_eigenvec = np.linalg.eigh
-        second_order = self.system.second_order[self.index_first_cell]
+        second_order = self.system.second_order[0]
         chi_k = np.zeros (n_replicas).astype (complex)
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))

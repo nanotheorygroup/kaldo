@@ -29,13 +29,6 @@ def import_third_order_dlpoly(file, configuration, replicas):
         configuration, replicas)
     n_particles = replicated_configuration.get_positions().shape[0]
     
-    # index_first_cell is going to be different than 0 only if we use a bigger third order grid \
-    # and a different ordering than the one made by the helper
-    index_first_cell = 0
-    for replica_id in range (list_of_replicas.shape[0]):
-        replica = list_of_replicas[replica_id]
-        if (replica == np.zeros (3)).all ():
-            index_first_cell = replica_id
             
     third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
     third_order = third_order_frame.values.T
@@ -51,7 +44,7 @@ def import_third_order_dlpoly(file, configuration, replicas):
     n_particles_small = int(n_particles / n_replicas)
     sparse = sparse.reshape ((n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3,))
     sparse = sparse.todense() / evoverdlpoly
-    return sparse[index_first_cell].reshape ((1, n_particles_small, 3, n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3))
+    return sparse[0].reshape ((1, n_particles_small, 3, n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3))
 
 
 def save_fourier_second_order(harmonic_system, second_order, k_list):
