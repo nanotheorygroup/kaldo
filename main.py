@@ -16,13 +16,13 @@ import numpy as np
 if __name__ == "__main__":
     
     
-    geometry = ase.io.read ('examples/si-bulk.xyz')
-    geometry = ash.optimize(geometry)
+    geometry = ase.io.read ('examples/cubic-si.xyz')
+    # geometry = ash.optimize(geometry)
     replicas = np.array ([3,3,3])
     n_replicas = np.prod(replicas)
     replicated_geometry, list_of_replicas = replicate_configuration(geometry, replicas)
 
-    replicated_geometry = ash.optimize(replicated_geometry)
+    # replicated_geometry = ash.optimize(replicated_geometry)
     ase.io.write ('examples/replicated-cubic-si.xyz', replicated_geometry)
 
     temperature = 300
@@ -41,30 +41,39 @@ if __name__ == "__main__":
     n_kpoints = np.prod(k_mesh)
     phonons = PhononsAnharmonic (system, k_mesh)
 
-    phonons.calculate_second_all_grid()
+    # phonons.calculate_second_all_grid()
     NKPOINTS_TO_PLOT = 100
     
     k_list, q, Q, point_names = ghl.create_k_and_symmetry_space (phonons.system, symmetry='fcc',
                                                                  n_k_points=NKPOINTS_TO_PLOT)
-    freqs_plot = np.zeros ((k_list.shape[0], phonons.system.configuration.positions.shape[0] * 3))
     n_modes = system.configuration.positions.shape[0] * 3
     freqs_plot = np.zeros ((k_list.shape[0], n_modes))
-    freqs = phonons._frequencies.reshape((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
-    for mode in range (n_modes):
-        freqs_plot[:, mode] = interpolator (k_list, freqs[:, :, :, mode])
+    vel_to_plot = np.zeros ((k_list.shape[0], n_modes, 3))
 
-    omega_e, dos_e = phonons.density_of_states (freqs)
+    for index_k in range(k_list.shape[0]):
+        k_point = k_list[index_k]
+        freqs_plot[index_k], _, _ ,vel_to_plot[index_k] = phonons.diagonalize_second_order_single_k (k_point)
+        # print(freqs_plot[index_k])
+
+
+
+    # phonons.calculate_second_all_grid()
+    # freqs = phonons._frequencies.reshape((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
+    # for mode in range (n_modes):
+    #     freqs_plot[:, mode] = interpolator (k_list, freqs[:, :, :, mode])
+
+    # omega_e, dos_e = phonons.density_of_states (freqs)
     # freqs_plot, _, _, velocities_plot = phonons.diagonalize_second_order_k (k_list)
     plot_vc = PlotViewController (system)
     plot_vc.plot_in_brillouin_zone (freqs_plot, 'fcc', n_k_points=NKPOINTS_TO_PLOT)
-    plot_vc.plot_dos (omega_e, dos_e)
+    # plot_vc.plot_dos (omega_e, dos_e)
     plot_vc.show ()
 
     is_classical = False
 
     try:
-        # system.third_order = np.load ('third.npy')
-        system.third_order = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
+        system.third_order = np.load ('third.npy')
+        # system.third_order = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
     except IOError as err:
         print (err)
         system.third_order = ash.calculate_third (geometry, replicas)
