@@ -42,38 +42,22 @@ if __name__ == "__main__":
 
     temperature = 300
     system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature)
-    # dyn_mat = ioh.import_dynamical_matrix_dlpoly('Dyn.form', replicas)
+    dyn_mat = ioh.import_dynamical_matrix_dlpoly('Dyn.form', replicas)
 
-    # mass = np.sqrt (system.configuration.get_masses ())
-    # system.second_order = dyn_mat * mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    mass = np.sqrt (system.configuration.get_masses ())
+    system.second_order = dyn_mat * mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 
     n_particles = geometry.get_positions().shape[0]
-    # third_dlpoly = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
+    third_dlpoly = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
 
-    # system.third_order = third_dlpoly[replica_id].reshape ((1, n_particles, 3, n_replicas, n_particles, 3, n_replicas, n_particles, 3,))
+    system.third_order = third_dlpoly[index_first_cell].reshape ((1, n_particles, 3, n_replicas, n_particles, 3, n_replicas, n_particles, 3,))
 
     
-    try:
-        system.second_order = np.load ('second.npy')
-    except IOError as err:
-        print (err)
-        system.second_order = ash.calculate_second (geometry, replicas)
-
-
-    # mass = np.sqrt (system.configuration.get_masses ())
-    # second_calculated = system.second_order / mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-    # second_calculated /= mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    # # massfactor = 1.8218779 * 6.022e-4
-    # massfactor = 1
-    # dynmat_calculated = massfactor * second_calculated
-    
-    # file_second_charlie = folder + '/' + system.folder + '/charlie/dynmat.dat'
-    # dynmat_charlie = import_dynamical_matrix_charlie(file_second_charlie, replicas) * evoverdlpoly
-    # print(dynmat_charlie.shape)
-    
-    # file_second_dlpoly = folder + '/' + system.folder + '/dlpoly/Dyn.form'
-    # dynmat_dlpoly = import_dynamical_matrix_dlpoly(file_second_dlpoly, replicas)
-    # print(dynmat_dlpoly.shape)
+    # try:
+    #     system.second_order = np.load ('second.npy')
+    # except IOError as err:
+    #     print (err)
+    #     system.second_order = ash.calculate_second (geometry, replicas)
 
 
     
@@ -102,12 +86,13 @@ if __name__ == "__main__":
 
     is_classical = False
 
+    # third_order = np.load ('third.npy')
 
-    try:
-        system.third_order = np.load ('third.npy')
-    except IOError as err:
-        print (err)
-        system.third_order = ash.calculate_third (geometry, replicas)
+    # try:
+    #     system.third_order = np.load ('third.npy')
+    # except IOError as err:
+    #     print (err)
+    #     system.third_order = ash.calculate_third (geometry, replicas)
 
     import time
     ts = time.time ()
