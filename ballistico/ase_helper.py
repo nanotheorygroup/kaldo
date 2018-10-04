@@ -12,8 +12,8 @@ SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE = 'third.npy'
 
 # TODO: this should be an imput somehow
-LAMMPS_CMD = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
-CALCULATOR = LAMMPSlib (lmpcmds=LAMMPS_CMD, log_file='log_lammps.out')
+# LAMMPS_CMD = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
+# CALCULATOR = LAMMPSlib (lmpcmds=LAMMPS_CMD, log_file='log_lammps.out')
 CALCULATOR = TIP3P(rc=7.)
 
 
