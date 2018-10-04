@@ -16,28 +16,14 @@ import numpy as np
 if __name__ == "__main__":
     
     
-    geometry = ase.io.read ('examples/si-bulk.xyz')
-    # geometry = ash.optimize(geometry)
+    geometry = ase.io.read ('examples/cubic-si.xyz')
+    geometry = ash.optimize(geometry)
     replicas = np.array ([3,3,3])
     n_replicas = np.prod(replicas)
     replicated_geometry, list_of_replicas, list_of_indices = replicate_configuration(geometry, replicas)
 
-    # index_first_cell is going to be different than 0 only if we use a bigger third order grid \
-    # and a different ordering than the one made by the helper
-    index_first_cell = 0
-    for replica_id in range (list_of_replicas.shape[0]):
-        replica = list_of_replicas[replica_id]
-        if (replica == np.zeros (3)).all ():
-            index_first_cell = replica_id
-            print (replica_id)
-    
-    
-    
-    
-    
-    
-    # replicated_geometry = ash.optimize(replicated_geometry)
-    ase.io.write ('examples/replicated_Si-2.xyz', replicated_geometry)
+    replicated_geometry = ash.optimize(replicated_geometry)
+    # ase.io.write ('examples/replicated-cubic-si.xyz', replicated_geometry)
 
 
     temperature = 300

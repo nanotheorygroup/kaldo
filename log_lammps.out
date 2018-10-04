@@ -4,13 +4,175 @@ atom_style atomic
 atom_modify map array sort 0 0
 boundary p p p
 box tilt large
-region cell prism    0 11.518769465528859 0 9.975546977484491 0 9.405035885099002     5.7593847327644285 5.7593847327644285 3.325182325828164     units box
+region cell prism    0 16.293 0 16.293 0 16.293     0.0 0.0 0.0     units box
 create_box 1 cell
-Created triclinic box = (0 0 0) to (11.5188 9.97555 9.40504) with tilt (5.75938 5.75938 3.32518)
+Created triclinic box = (0 0 0) to (16.293 16.293 16.293) with tilt (0 0 0)
   1 by 1 by 1 MPI processor grid
 echo none
-Created 54 atoms
-  Time spent = 4.60148e-05 secs
+Created 216 atoms
+  Time spent = 6.00815e-05 secs
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
+  1 settings made for type
   1 settings made for type
   1 settings made for type
   1 settings made for type
@@ -89,17 +251,17 @@ Neighbor list info ...
   max neighbors/atom: 2000, page size: 100000
   master list distance cutoff = 5
   ghost atom cutoff = 5
-  binsize = 2.5, bins = 10 6 4
+  binsize = 2.5, bins = 7 7 7
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
   (1) pair tersoff, perpetual
       attributes: full, newton on
       pair build: full/bin/atomonly
       stencil: full/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 2.947 | 2.947 | 2.947 Mbytes
+Per MPI rank memory allocation (min/avg/max) = 2.958 | 2.958 | 2.958 Mbytes
 PotEng Pxx 
-  -249.99626    1088.9333 
-Loop time of 9.53674e-07 on 1 procs for 0 steps with 54 atoms
+  -999.99212    543.43583 
+Loop time of 9.53674e-07 on 1 procs for 0 steps with 216 atoms
 
 104.9% CPU use with 1 MPI tasks x no OpenMP threads
 
@@ -113,16 +275,16 @@ Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
 Other   |            | 9.537e-07  |            |       |100.00
 
-Nlocal:    54 ave 54 max 54 min
+Nlocal:    216 ave 216 max 216 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:    378 ave 378 max 378 min
+Nghost:    648 ave 648 max 648 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 Neighs:    0 ave 0 max 0 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-FullNghs:  1512 ave 1512 max 1512 min
+FullNghs:  6048 ave 6048 max 6048 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 
-Total # of neighbors = 1512
+Total # of neighbors = 6048
 Ave neighs/atom = 28
 Neighbor list builds = 0
 Dangerous builds = 0
