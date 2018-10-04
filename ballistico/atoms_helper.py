@@ -36,14 +36,21 @@ def create_list_of_replicas(atoms, replicas):
 	list_of_replicas = np.zeros ((n_replicas, 3))
 	list_of_indices = np.zeros ((n_replicas, 3))
 	
-	range_0 = np.linspace(-int(replicas[0]/2),int(replicas[0]/2),int(replicas[0]))
+	# range_0 = np.linspace(-int(replicas[0]/2),int(replicas[0]/2),int(replicas[0]))
 	# range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
-	
-	range_1 = np.linspace(-int(replicas[1]/2),int(replicas[1]/2),int(replicas[1]))
+	#
+	# range_1 = np.linspace(-int(replicas[1]/2),int(replicas[1]/2),int(replicas[1]))
 	# range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
-	
-	range_2 = np.linspace(-int(replicas[2]/2),int(replicas[2]/2),int(replicas[2]))
+	#
+	# range_2 = np.linspace(-int(replicas[2]/2),int(replicas[2]/2),int(replicas[2]))
 	# range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
+
+	range_0 = np.arange(int(replicas[0]))
+	range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
+	range_1 = np.arange(int(replicas[1]))
+	range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
+	range_2 = np.arange(int(replicas[2]))
+	range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
 	
 	for lx in range_0:
 		for ly in range_1:

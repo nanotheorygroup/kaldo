@@ -248,7 +248,7 @@ class Phonons (object):
                         for i_pol in range (3):
                             for j_pol in range (3):
             
-                                dxij = geometry[i_at] - (geometry[j_at] + list_of_replicas[id_replica])
+                                dxij = ath.apply_boundary(self.replicated_configuration, geometry[i_at] - (geometry[j_at] + list_of_replicas[id_replica]))
                                 prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
                                 ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * (second_order[i_at, i_pol, id_replica, j_at, j_pol])
 

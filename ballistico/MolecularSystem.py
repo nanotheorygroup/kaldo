@@ -15,11 +15,6 @@ class MolecularSystem (object):
         self.folder = str (self) + '/'
         if not os.path.exists (self.folder):
             os.makedirs (self.folder)
-
-        self._second_order = None
-        self._dynamical_matrix = None
-        self._third_order = None
-        # self.index_first_cell = 0
         
         
     
