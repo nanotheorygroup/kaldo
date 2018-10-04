@@ -50,7 +50,7 @@ if __name__ == "__main__":
     n_particles = geometry.get_positions().shape[0]
     third_dlpoly = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
 
-    system.third_order = third_dlpoly[index_first_cell].reshape ((1, n_particles, 3, n_replicas, n_particles, 3, n_replicas, n_particles, 3,))
+    system.third_order = third_dlpoly
 
     
     # try:

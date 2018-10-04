@@ -36,13 +36,10 @@ def import_third_order_dlpoly(file, configuration, replicas):
         replica = list_of_replicas[replica_id]
         if (replica == np.zeros (3)).all ():
             index_first_cell = replica_id
-            print (replica_id)
-    
-    # third_order_frame = pd.read_csv ('/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/THIRD', header=None, delim_whitespace=True)
+            
     third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
     third_order = third_order_frame.values.T
     v3ijk = third_order[5:8].T
-    ndim = n_particles * 3
     coords = np.vstack ((third_order[0:5] - 1, 0 * np.ones ((third_order.shape[1]))))
     sparse_x = COO (coords, v3ijk[:, 0], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
     coords = np.vstack ((third_order[0:5] - 1, 1 * np.ones ((third_order.shape[1]))))
@@ -53,7 +50,8 @@ def import_third_order_dlpoly(file, configuration, replicas):
     n_replicas = np.prod(replicas)
     n_particles_small = int(n_particles / n_replicas)
     sparse = sparse.reshape ((n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3,))
-    return sparse.todense() / evoverdlpoly
+    sparse = sparse.todense() / evoverdlpoly
+    return sparse[index_first_cell].reshape ((1, n_particles_small, 3, n_replicas, n_particles_small, 3, n_replicas, n_particles_small, 3))
 
 
 def save_fourier_second_order(harmonic_system, second_order, k_list):
