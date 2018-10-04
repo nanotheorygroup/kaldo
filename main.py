@@ -29,12 +29,12 @@ if __name__ == "__main__":
     system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature)
     
     try:
-        system.second_order = np.load ('second.npy')
+        # system.second_order = np.load ('second.npy')
 
-        # dyn_mat = ioh.import_dynamical_matrix_dlpoly ('Dyn.form', replicas)
-        # mass = np.sqrt (system.configuration.get_masses ())
-        # mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-        # system.second_order = dyn_mat * mass
+        dyn_mat = ioh.import_dynamical_matrix_dlpoly ('Dyn.form', replicas)
+        mass = np.sqrt (system.configuration.get_masses ())
+        mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+        system.second_order = dyn_mat * mass
 
     except IOError as err:
         print (err)
@@ -66,8 +66,8 @@ if __name__ == "__main__":
     is_classical = False
 
     try:
-        system.third_order = np.load ('third.npy')
-        # system.third_order = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
+        # system.third_order = np.load ('third.npy')
+        system.third_order = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
     except IOError as err:
         print (err)
         system.third_order = ash.calculate_third (geometry, replicas)

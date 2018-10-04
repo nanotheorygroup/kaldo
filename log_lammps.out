@@ -10,7 +10,7 @@ Created triclinic box = (0 0 0) to (11.5188 9.97555 9.40504) with tilt (5.75938 
   1 by 1 by 1 MPI processor grid
 echo none
 Created 54 atoms
-  Time spent = 4.50611e-05 secs
+  Time spent = 0.000150919 secs
   1 settings made for type
   1 settings made for type
   1 settings made for type
@@ -98,10 +98,10 @@ Neighbor list info ...
       bin: standard
 Per MPI rank memory allocation (min/avg/max) = 2.947 | 2.947 | 2.947 Mbytes
 PotEng Pxx 
-  -249.99626    1088.9333 
-Loop time of 2.14577e-06 on 1 procs for 0 steps with 54 atoms
+  -249.99773     1085.447 
+Loop time of 9.53674e-07 on 1 procs for 0 steps with 54 atoms
 
-93.2% CPU use with 1 MPI tasks x no OpenMP threads
+104.9% CPU use with 1 MPI tasks x no OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -111,7 +111,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 2.146e-06  |            |       |100.00
+Other   |            | 9.537e-07  |            |       |100.00
 
 Nlocal:    54 ave 54 max 54 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
