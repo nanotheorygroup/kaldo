@@ -239,7 +239,7 @@ class ShengbteHelper (object):
                             
                             file.write ('\t' + str (l_1) + '\t' + str (l_2) + '\t' + str (l_3))
                             
-                            # TODO: Swap indices
+                            # TODO: Swap indices, index_first_cell should also be removed
                             matrix_element = harmonic_system.second_order[self.system.index_first_cell, j, beta, id_replica, i, alpha]
                             # matrix_element = harmonic_system.second_order[id_replica, j, beta, index_first_cell, i, alpha]
                             

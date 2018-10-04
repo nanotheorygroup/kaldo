@@ -54,7 +54,7 @@ def calculate_second(configuration, replicas):
     '''
     print('Calculating second order potential derivatives')
     n_in_unit_cell = len (configuration.numbers)
-    replicated_configuration, list_of_replicas, list_of_indices = replicate_configuration(configuration, replicas)
+    replicated_configuration, list_of_replicas = replicate_configuration(configuration, replicas)
 
     atoms = replicated_configuration
     n_atoms = len (atoms.numbers)
@@ -74,7 +74,7 @@ def calculate_second(configuration, replicas):
     return second
 
 def calculate_third(configuration, replicas):
-    replicated_configuration, list_of_replicas, list_of_indices = replicate_configuration(configuration, replicas)
+    replicated_configuration, list_of_replicas = replicate_configuration(configuration, replicas)
 
             
     # TODO: Here we should create it sparse

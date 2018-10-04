@@ -25,7 +25,7 @@ class Phonons (object):
         self.folder = str(self.system) + '/'
         is_folder_present(self.folder)
 
-        self.replicated_configuration, self.list_of_replicas, self.list_of_indices = ath.replicate_configuration(self.system.configuration, self.system.replicas)
+        self.replicated_configuration, self.list_of_replicas = ath.replicate_configuration(self.system.configuration, self.system.replicas)
         
         self._frequencies = None
         self._velocities = None

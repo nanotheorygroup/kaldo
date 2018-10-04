@@ -7,7 +7,7 @@ import numpy as np
 
 def replicate_configuration(atoms, replicas):
 	replicas = np.array(replicas)
-	list_of_replicas, list_of_indices = create_list_of_replicas (atoms, replicas)
+	list_of_replicas = create_list_of_replicas (atoms, replicas)
 	replicated_symbols = []
 	n_replicas = list_of_replicas.shape[0]
 	n_unit_atoms = len(atoms.numbers)
@@ -19,22 +19,15 @@ def replicate_configuration(atoms, replicas):
 		replicated_geometry[i, :,:] = atoms.positions + vector
 	replicated_geometry = replicated_geometry.reshape((n_replicas * n_unit_atoms, 3))
 	replicated_cell = atoms.cell * replicas
-	replicated_configuration = Atoms(positions=replicated_geometry, symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
+	replicated_configuration = Atoms(positions=replicated_geometry - np.min(list_of_replicas, axis=0), symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
 	
-	# Apply pbc to all elements in new positions
-	# for i in range(replicated_configuration.positions.shape[0]):
-		# replicated_configuration.positions[i] = apply_boundary(replicated_configuration, replicated_configuration.positions[i])
-	# for i in range(list_of_replicas.shape[0]):
-		# list_of_replicas[i] = apply_boundary(replicated_configuration, list_of_replicas[i])
-	
-	return replicated_configuration, list_of_replicas, list_of_indices
+	return replicated_configuration, list_of_replicas
 
 def create_list_of_replicas(atoms, replicas):
 	# TODO: replicas[i] needs to be odd, throw an exception otherwise
 	n_replicas = replicas[0] * replicas[1] * replicas[2]
 	replica_id = 0
 	list_of_replicas = np.zeros ((n_replicas, 3))
-	list_of_indices = np.zeros ((n_replicas, 3))
 	
 	# range_0 = np.linspace(-int(replicas[0]/2),int(replicas[0]/2),int(replicas[0]))
 	# range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
@@ -57,9 +50,8 @@ def create_list_of_replicas(atoms, replicas):
 			for lz in range_2:
 				index = np.array ([lx, ly, lz])#%replicas
 				list_of_replicas[replica_id] = index.dot(atoms.cell)
-				list_of_indices[replica_id] = index
 				replica_id += 1
-	return list_of_replicas, list_of_indices
+	return list_of_replicas
 
 def apply_boundary(atoms, dxij):
 	cellinv = np.linalg.inv (atoms.cell)

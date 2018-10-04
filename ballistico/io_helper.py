@@ -14,6 +14,14 @@ def import_dynamical_matrix_charlie(dynamical_matrix_file, replicas):
     n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
+def import_second_dlpoly(dynamical_matrix_file, configuration, replicas):
+    dyn_mat = import_dynamical_matrix_dlpoly(dynamical_matrix_file, replicas)
+
+    mass = np.sqrt (configuration.get_masses ())
+    mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis,
+                                                                                 np.newaxis, np.newaxis, :, np.newaxis]
+    return dyn_mat * mass
+
 def import_dynamical_matrix_dlpoly(dynamical_matrix_file, replicas):
     
     # dynamical_matrix_file = '/Users/giuseppe/Development/research-dev/PhononRelax/test-Si-54/Dyn.form'
@@ -25,7 +33,7 @@ def import_dynamical_matrix_dlpoly(dynamical_matrix_file, replicas):
 
 
 def import_third_order_dlpoly(file, configuration, replicas):
-    replicated_configuration, list_of_replicas, list_of_indices = ath.replicate_configuration (
+    replicated_configuration, list_of_replicas = ath.replicate_configuration (
         configuration, replicas)
     n_particles = replicated_configuration.get_positions().shape[0]
     

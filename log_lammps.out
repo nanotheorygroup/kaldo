@@ -10,7 +10,7 @@ Created triclinic box = (0 0 0) to (11.5188 9.97555 9.40504) with tilt (5.75938 
   1 by 1 by 1 MPI processor grid
 echo none
 Created 54 atoms
-  Time spent = 0.000150919 secs
+  Time spent = 0.000127077 secs
   1 settings made for type
   1 settings made for type
   1 settings made for type
@@ -101,7 +101,7 @@ PotEng Pxx
   -249.99773     1085.447 
 Loop time of 9.53674e-07 on 1 procs for 0 steps with 54 atoms
 
-104.9% CPU use with 1 MPI tasks x no OpenMP threads
+209.7% CPU use with 1 MPI tasks x no OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total

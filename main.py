@@ -20,10 +20,10 @@ if __name__ == "__main__":
     geometry = ash.optimize(geometry)
     replicas = np.array ([3,3,3])
     n_replicas = np.prod(replicas)
-    replicated_geometry, list_of_replicas, list_of_indices = replicate_configuration(geometry, replicas)
+    replicated_geometry, list_of_replicas = replicate_configuration(geometry, replicas)
 
     replicated_geometry = ash.optimize(replicated_geometry)
-    # ase.io.write ('examples/replicated-cubic-si.xyz', replicated_geometry)
+    ase.io.write ('examples/replicated-cubic-si.xyz', replicated_geometry)
 
     temperature = 300
     system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature)
@@ -31,10 +31,7 @@ if __name__ == "__main__":
     try:
         # system.second_order = np.load ('second.npy')
 
-        dyn_mat = ioh.import_dynamical_matrix_dlpoly ('Dyn.form', replicas)
-        mass = np.sqrt (system.configuration.get_masses ())
-        mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-        system.second_order = dyn_mat * mass
+        system.second_order = ioh.import_second_dlpoly ('Dyn.form', geometry, replicas)
 
     except IOError as err:
         print (err)
