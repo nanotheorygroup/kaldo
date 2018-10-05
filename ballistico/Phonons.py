@@ -278,8 +278,11 @@ class Phonons (object):
 
     
     def density_of_states(self, frequencies):
-        n_k_points = np.prod (self.k_size)
+        k_mesh = self.k_size
         n_modes = frequencies.shape[-1]
+
+        frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
+        n_k_points = np.prod (self.k_size)
         # increase_factor = 3
         omega_kl = np.zeros(( n_k_points, n_modes))
         for mode in range(n_modes):

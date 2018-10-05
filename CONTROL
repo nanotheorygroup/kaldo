@@ -1,0 +1,18 @@
+HEAT FLUX calculation for bulk silicon
+
+temperature              1.0
+ensemble nve
+
+phonons  dx  0.0001
+qvec 0. 0. 0. third
+
+
+timestep 0.1
+
+cut                    3.1
+delr                   0.
+
+no elec
+no vdw
+
+finish
