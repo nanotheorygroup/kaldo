@@ -290,7 +290,7 @@ class Phonons (object):
                 omega_kl[:, mode] = frequencies[...,mode].flatten()
             except IndexError as err:
                 print(err)
-        delta = 1.
+        delta = 2
         # Energy axis and dos
         omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
         dos_e = np.zeros_like (omega_e)

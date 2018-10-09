@@ -155,10 +155,10 @@ long range correction for: vdw energy     0.000000E+00
 
  Allocated dynmat         162
 
- time elapsed since job start =           0.004 seconds
+ time elapsed since job start =           0.005 seconds
 
  Calculation of the force constants:
 
- time elapsed since job start =           0.013 seconds
+ time elapsed since job start =           0.014 seconds
 
  Writing DYNMAT

@@ -16,7 +16,6 @@ import numpy as np
 def calculate_conductivity(system, gamma, k_mesh):
     n_kpoints = np.prod(k_mesh)
     tau_zero = np.empty_like (gamma)
-    
     tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0])
     f_be = np.empty_like (phonons.frequencies)
     f_be[phonons.frequencies != 0] = 1. / (
@@ -58,7 +57,7 @@ if __name__ == "__main__":
     # we create our system
     temperature = 300
     system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature)
-    
+
     # our phonon object built on the system
     k_mesh = np.array ([5, 5, 5])
     is_classical = False
@@ -80,17 +79,26 @@ if __name__ == "__main__":
         k_point = k_list[index_k]
         freqs_plot[index_k], _, _ ,vel_to_plot[index_k] = phonons.diagonalize_second_order_single_k (k_point)
 
-    # Let's plot
+    # Let's plot the energies
     plot_vc = PlotViewController (system)
     plot_vc.plot_in_brillouin_zone (freqs_plot, 'fcc', n_k_points=NKPOINTS_TO_PLOT)
     omega_e, dos_e = phonons.density_of_states (phonons.frequencies)
     plot_vc.plot_dos (omega_e, dos_e)
     plot_vc.show ()
 
+
+    # Let's plot the velocities
+    rms_velocity_to_plot = np.linalg.norm(vel_to_plot, axis=-1)
+    plt.scatter(freqs_plot, rms_velocity_to_plot)
+    plt.ylabel ("$v$ (10m/s)", fontsize=16, fontweight='bold')
+    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    plt.show ()
+
+
     # Import the calculated third
     system.third_order = ioh.import_third_order_dlpoly('THIRD', geometry, replicas)
     gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma()
-    
+
     # Plot gamma
     plt.ylim([0,0.30])
     plt.scatter (phonons.frequencies.flatten (), gamma_plus.flatten ())
@@ -108,6 +116,6 @@ if __name__ == "__main__":
     plt.ylabel ("Phase Space", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     plt.show ()
-    
+
     # Calculate conductivity
     print(calculate_conductivity(system, gamma_plus + gamma_minus, k_mesh))
