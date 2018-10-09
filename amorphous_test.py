@@ -60,8 +60,6 @@ if __name__ == "__main__":
 	
 	geometry = ase.io.read ('reference.xyz')
 	
-	# forcefield = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
-	
 	replicas = np.array ([1, 1, 1])
 	system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=300.)
 	n_phonons = system.configuration.get_positions ().shape[0] * 3
@@ -95,13 +93,12 @@ if __name__ == "__main__":
 	
 	gamma_plus = np.zeros (n_phonons)
 	gamma_minus = np.zeros (n_phonons)
-	file = open ("Decay.ballistico", "w+")
 	
 	sigma = .05
 	
 	print ('sigma', sigma)
 	
-	for index_phonons in range (in_ph, 10):
+	for index_phonons in range (in_ph, 20):
 		gamma_plus[index_phonons], gamma_minus[index_phonons] = ph_system.calculate_single_gamma (sigma, index_phonons,
 		                                                                                          in_ph, 'triangular')
 		
@@ -109,17 +106,15 @@ if __name__ == "__main__":
 		
 		gamma_to_plot = (gamma_plus + gamma_minus)
 		print (index_phonons, energies[index_phonons], gamma_plus[index_phonons])
-		# file.write (str (index_phonons) + ', ' + str (energies[index_phonons]) + ', ' + str (
-		#     gamma_to_plot[index_phonons]))
 	
 	plt.scatter (energies[in_ph:index_phonons], gamma_to_plot[in_ph:index_phonons])
 	
 	plt.xlabel ('$\\nu$/THz', fontsize='14', fontweight='bold')
 	plt.ylabel ("$2\Gamma$/meV", fontsize='14', fontweight='bold')
+	plt.ylim([0,5])
 	
-	# for i in range (1):
-	#     plot_file ('Decay.' + str (i), is_classic=is_classic)
+	for i in range (1):
+	    plot_file ('Decay.' + str (i), is_classic=is_classic)
 	
 	plt.show ()
-	file.close ()
 	print ('End of calculations')
