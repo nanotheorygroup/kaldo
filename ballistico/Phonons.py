@@ -427,21 +427,10 @@ class Phonons (object):
         n_phonons = energies.shape[0]
         n_atoms = int (n_phonons / 3)
         evects = self.eigenvectors.squeeze()
-        n_replicas = np.prod(self.replicas)
 
-        
-        sparse_third = self.system.third_order.dot (evects[:, phonon_index])
-        
-        # TODO: Maybe we need to replace (phonon_index % n_atoms) with int(phonon_index / 3)
-        atom_mass = self.system.configuration.get_masses ()[phonon_index / n_replicas]
-        sparse_third /= np.sqrt (atom_mass)
-        sparse_third = sparse_third.reshape ((n_atoms, 3, n_atoms, 3))
-        
-        masses_i = self.system.configuration.get_masses ()[:, np.newaxis]
-        masses_j = self.system.configuration.get_masses ()[np.newaxis, :]
-        sqrt_masses = np.sqrt (masses_i * masses_j)
-        sparse_third[:, :, :, :] /= sqrt_masses[:, np.newaxis, :, np.newaxis]
-        sparse_third = sparse_third.reshape ((n_phonons, n_phonons))
+        sparse_third = self.system.third_order.reshape ((n_atoms * 3, n_atoms * 3, n_atoms * 3))
+
+        sparse_third = sparse_third.dot (evects[:, phonon_index])
         
         sparse_third = evects.T.dot (sparse_third).dot (evects)
         coords_minus = (coords_minus[0], coords_minus[1])

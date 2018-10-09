@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 from sparse import COO
 from scipy.sparse import save_npz, load_npz
+import ase
+
 
 
 def plot_file(filename, is_classic=False):
@@ -49,23 +51,31 @@ def import_third_order(ndim):
 	coords = np.vstack ((third_order[0:5] - 1, 2 * np.ones ((third_order.shape[1]))))
 	sparse_z = COO (coords, v3ijk[:, 2], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
 	sparse = sparse_x + sparse_y + sparse_z
-	return sparse.reshape ((ndim, ndim, ndim))
+	sparse = sparse.reshape ((n_particles, 3, n_particles, 3, n_particles, 3))
+	return sparse
 
 
 if __name__ == "__main__":
 	is_classic = True
-	geometry = ath.from_filename ('reference.xyz')
+	
+	geometry = ase.io.read ('reference.xyz')
+	
 	# forcefield = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
 	
 	replicas = np.array ([1, 1, 1])
-	system = MolecularSystem (geometry, replicas=replicas, temperature=300., optimize=False, lammps_cmd=None)
+	system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=300.)
 	n_phonons = system.configuration.get_positions ().shape[0] * 3
 	
-	system.dynamical_matrix = import_dynamical_matrix (system.replicas)
+	system.second_order = import_dynamical_matrix (system.replicas)
+	system.second_order *= np.sqrt(geometry.get_masses())[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+	system.second_order *= np.sqrt(geometry.get_masses())[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 	
 	print ('second order loaded')
-	system.third_order = import_third_order (n_phonons)
-	
+	system.third_order = import_third_order (n_phonons).todense()
+	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
+	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+
 	print ('third order loaded')
 	
 	ph_system = Phonons (system, np.array ([1, 1, 1]), is_classic=is_classic)
@@ -91,7 +101,7 @@ if __name__ == "__main__":
 	
 	print ('sigma', sigma)
 	
-	for index_phonons in range (in_ph, n_phonons):
+	for index_phonons in range (in_ph, 10):
 		gamma_plus[index_phonons], gamma_minus[index_phonons] = ph_system.calculate_single_gamma (sigma, index_phonons,
 		                                                                                          in_ph, 'triangular')
 		
