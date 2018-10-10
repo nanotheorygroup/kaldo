@@ -1,20 +1,12 @@
 import numpy as np
 import pandas as pd
-import ballistico.atoms_helper as ath
-
-import ballistico.geometry_helper as ghl
 from ballistico.Phonons import Phonons
 from ballistico.MolecularSystem import MolecularSystem
-from ballistico.PlotViewController import PlotViewController
-from ballistico.ShengbteHelper import ShengbteHelper
-from ballistico.interpolation_controller import interpolator
-from ballistico.constants import *
-
 import matplotlib.pyplot as plt
-from scipy.interpolate import RegularGridInterpolator
 from sparse import COO
-from scipy.sparse import save_npz, load_npz
+from ballistico.constants import evoverdlpoly
 import ase
+from ballistico.io_helper import import_second_dlpoly, import_third_order_dlpoly
 
 
 
@@ -30,31 +22,6 @@ def plot_file(filename, is_classic=False):
 	plt.scatter (freqs_to_plot, gamma_to_plot, marker='.', color='red')
 
 
-def import_dynamical_matrix(replicas):
-	dynamical_matrix_file = 'Dyn.form'
-	dynamical_matrix_frame = pd.read_csv (dynamical_matrix_file, header=None, delim_whitespace=True)
-	dynamical_matrix_vector = dynamical_matrix_frame.values
-	n_replicas = replicas[0] * replicas[1] * replicas[2]
-	n_particles = int ((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.) / n_replicas)
-	return dynamical_matrix_vector.reshape (n_replicas, n_particles, 3, n_replicas, n_particles, 3)
-
-
-def import_third_order(ndim):
-	third_order_frame = pd.read_csv ('THIRD', header=None, delim_whitespace=True)
-	third_order = third_order_frame.values.T
-	v3ijk = third_order[5:8].T
-	n_particles = int (ndim / 3)
-	coords = np.vstack ((third_order[0:5] - 1, 0 * np.ones ((third_order.shape[1]))))
-	sparse_x = COO (coords, v3ijk[:, 0], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
-	coords = np.vstack ((third_order[0:5] - 1, 1 * np.ones ((third_order.shape[1]))))
-	sparse_y = COO (coords, v3ijk[:, 1], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
-	coords = np.vstack ((third_order[0:5] - 1, 2 * np.ones ((third_order.shape[1]))))
-	sparse_z = COO (coords, v3ijk[:, 2], shape=(n_particles, 3, n_particles, 3, n_particles, 3))
-	sparse = sparse_x + sparse_y + sparse_z
-	sparse = sparse.reshape ((n_particles, 3, n_particles, 3, n_particles, 3))
-	return sparse
-
-
 if __name__ == "__main__":
 	is_classic = True
 	
@@ -64,12 +31,11 @@ if __name__ == "__main__":
 	system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=300.)
 	n_phonons = system.configuration.get_positions ().shape[0] * 3
 	
-	system.second_order = import_dynamical_matrix (system.replicas)
-	system.second_order *= np.sqrt(geometry.get_masses())[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-	system.second_order *= np.sqrt(geometry.get_masses())[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+	system.second_order = import_second_dlpoly('Dyn.form', geometry, replicas)
 	
 	print ('second order loaded')
-	system.third_order = import_third_order (n_phonons).todense()
+	system.third_order = import_third_order_dlpoly('THIRD', geometry, replicas)
+	system.third_order = system.third_order[0,:,:,0,:,:,0,:,:] * evoverdlpoly
 	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
 	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
 	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
@@ -79,8 +45,6 @@ if __name__ == "__main__":
 	ph_system = Phonons (system, np.array ([1, 1, 1]), is_classic=is_classic)
 	energies = ph_system.frequencies.squeeze ()
 	
-	# ph = MolecularSystemPhonons (ph_system, np.array ([1, 1, 1]))
-	# ph.calculate_second_all_grid()
 	
 	plt.plot (energies)
 	
@@ -98,7 +62,7 @@ if __name__ == "__main__":
 	
 	print ('sigma', sigma)
 	
-	for index_phonons in range (in_ph, 20):
+	for index_phonons in range (in_ph, 10):
 		gamma_plus[index_phonons], gamma_minus[index_phonons] = ph_system.calculate_single_gamma (sigma, index_phonons,
 		                                                                                          in_ph, 'triangular')
 		
