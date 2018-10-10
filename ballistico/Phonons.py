@@ -2,7 +2,6 @@ import ballistico.atoms_helper as ath
 from ballistico.tools import is_folder_present
 import ballistico.constants as constants
 import numpy as np
-from ballistico.constants import *
 import scipy
 import scipy.special
 from sparse import COO
@@ -201,9 +200,9 @@ class Phonons (object):
         ddyn_s /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
         ddyn_s *= massfactor
 
-        prefactor = 1 / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
+        prefactor = 1 / constants.evoverdlpoly / constants.rydbergoverev * (constants.bohroverangstrom ** 2)
         dyn = prefactor * dyn_s.reshape(n_particles * 3, n_particles * 3)
-        ddyn = prefactor * ddyn_s.reshape(3, n_particles * 3, n_particles * 3) / bohroverangstrom
+        ddyn = prefactor * ddyn_s.reshape(3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
 
         out = calculate_eigenvec(dyn.reshape(n_particles * 3, n_particles * 3))
         eigenvals, eigenvects = out[0], out[1]
@@ -283,11 +282,7 @@ class Phonons (object):
     
     
     def calculate_occupations(self):
-
-        # 1 / cm --> K
         temp = self.system.temperature
-        
-        # thz to 1/cm
         energies = self.frequencies.squeeze()
         eigenvalues = energies / constants.speed_of_light * 1e10
         ndim = eigenvalues.shape[0]
@@ -304,7 +299,7 @@ class Phonons (object):
     
     def calculate_gamma_amorphous(self, in_ph, max_index, sigma):
         # sigma input in meV
-        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
+        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * constants.evoverdlpoly
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
@@ -474,7 +469,7 @@ class Phonons (object):
     
         density = np.empty_like (omega)
     
-        density[omega != 0] = 1. / (np.exp (hbar * omega[omega != 0] / k_b / self.system.temperature) - 1.)
+        density[omega != 0] = 1. / (np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
     
         omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
         
