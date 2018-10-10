@@ -38,8 +38,8 @@ if __name__ == "__main__":
     system.third_order = import_third_order_dlpoly('THIRD', geometry, replicas)
     print ('third order loaded')
     
-    ph_system = Phonons (system, np.array ([1, 1, 1]), is_classic=is_classic)
-    energies = ph_system.frequencies.squeeze ()
+    phonons = Phonons (system, np.array ([1, 1, 1]), is_classic=is_classic)
+    energies = phonons.frequencies.squeeze ()
     
     
     plt.plot (energies)
@@ -47,11 +47,12 @@ if __name__ == "__main__":
     plt.ylabel ('$\\nu$/THz', fontsize='14', fontweight='bold')
     plt.xlabel ("phonon id", fontsize='14', fontweight='bold')
     plt.show ()
-    
+    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(sigma=0.005)
+
     in_ph = 3
     n_phonons = energies.shape[0]
     max_ph = 10
-    gamma_plus, gamma_minus = ph_system.calculate_gamma_anharmonic(in_ph, max_ph)
+    gamma_plus, gamma_minus = phonons.calculate_gamma_anharmonic(in_ph, max_ph)
     gamma_to_plot = (gamma_plus + gamma_minus)
     
     plt.scatter (energies[in_ph:max_ph], gamma_to_plot[in_ph:max_ph])

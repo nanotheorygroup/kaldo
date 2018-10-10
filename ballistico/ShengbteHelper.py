@@ -664,7 +664,7 @@ class ShengbteHelper (object):
     
     def __str__(self):
         # string = 'S_'
-        # string += str(self.ph_system)
+        # string += str(self.phonons)
         # string += '_k' + str (self.k_mesh).replace (" ", "").replace ('[', "").replace (']', "")
         # if (self.length.any() != 0):
         # 	string += '_l'

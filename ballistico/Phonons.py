@@ -3,16 +3,11 @@ from ballistico.tools import is_folder_present
 import numpy as np
 from ballistico.constants import *
 import scipy
+import scipy.special
 from sparse import COO
 import spglib as spg
 
-
-FREQUENCY_K_FILE = 'frequency_k.npy'
-VELOCITY_K_FILE = 'velocity_k.npy'
-EIGENVALUES_FILE = 'eigenvalues.npy'
-EIGENVECTORS_FILE = 'eigenvectors.npy'
-BUFFER_PLOT = .2
-
+DELTA_THRESHOLD = 2
 
 class Phonons (object):
     def __init__(self, system, k_size, is_classic=False):
@@ -421,7 +416,7 @@ class Phonons (object):
         sparse_minus = COO (coords_minus, sparse_third[coords_minus], shape=(n_phonons, n_phonons))
         return sparse_plus, sparse_minus
     
-    def calculate_gamma(self):
+    def calculate_gamma(self, sigma=None):
         hbarp = 1.05457172647
     
         print ('Lifetime:')
@@ -496,11 +491,10 @@ class Phonons (object):
         density[omega != 0] = 1. / (np.exp (hbar * omega[omega != 0] / k_b / self.system.temperature) - 1.)
     
         omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
-    
-        sigma = self.calculate_broadening (
-            self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
-    
-        DELTA_THRESHOLD = 2
+        
+        if sigma is None:
+            sigma_tensor = self.calculate_broadening (
+                self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
         delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
         # delta_correction = 1
     
@@ -531,6 +525,7 @@ class Phonons (object):
                 for mu in range (n_modes):
                     if omega[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
+                        # TODO: replace this with a dot
                         projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
                     
                         if is_plus:
@@ -547,8 +542,10 @@ class Phonons (object):
                         i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
                         index_kpp_vec = self.ravel_multi_index (i_kpp_vec)
                         delta_energy = energy_diff[index_kp_vec, :, index_kpp_vec, :]
-                    
-                        sigma_small = sigma[index_kp_vec, :, index_kpp_vec, :]
+                        if sigma is None:
+                            sigma_small = sigma_tensor[index_kp_vec, :, index_kpp_vec, :]
+                        else:
+                            sigma_small = sigma
                         condition = (delta_energy < DELTA_THRESHOLD * sigma_small) & (
                                 omega[index_kp_vec, :, np.newaxis] != 0) & (omega[index_kpp_vec, np.newaxis, :] != 0)
                     
@@ -564,12 +561,18 @@ class Phonons (object):
                             dirac_delta = density_fact[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
                         
                             dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-                        
-                            dirac_delta *= np.exp (
-                                - energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma[
+                            if sigma is None:
+                                gaussian = np.exp (
+                                - energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma_tensor[
                                     index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2) / \
-                                           sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (
+                                           sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (
                                 np.pi) / delta_correction
+                            else:
+                                gaussian = np.exp (
+                                - energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma ** 2) / \
+                                           sigma / np.sqrt (np.pi) / delta_correction
+
+                            dirac_delta *= gaussian
                         
                             ps[is_plus, index_k, mu] += np.sum (dirac_delta)
                         
