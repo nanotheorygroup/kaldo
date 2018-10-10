@@ -283,20 +283,19 @@ class Phonons (object):
     
     
     def calculate_occupations(self):
-        omegaK = 1.4387752
 
         # 1 / cm --> K
         temp = self.system.temperature
         
         # thz to 1/cm
         energies = self.frequencies.squeeze()
-        eigenvalues = energies / 2.997924580e-2
+        eigenvalues = energies / constants.speed_of_light * 1e10
         ndim = eigenvalues.shape[0]
         occupation = np.zeros (ndim)
         occupaclas = np.zeros (ndim)
         for i in range (ndim):
-            occupation[i] = 1. / (np.exp (eigenvalues[i] * omegaK / temp) - 1.)
-            occupaclas[i] = temp / eigenvalues[i] / omegaK
+            occupation[i] = 1. / (np.exp (eigenvalues[i] * constants.omegaK / temp) - 1.)
+            occupaclas[i] = temp / eigenvalues[i] / constants.omegaK
         if self.is_classic == True:
             self.occupations = occupaclas
         else:
@@ -426,14 +425,6 @@ class Phonons (object):
         # TODO: remove acoustic sum rule
         self.frequencies[0, :3] = 0
         self.velocities[0, :3, :] = 0
-    
-        # TODO: change this
-        # At this point, Gamma's units are
-        # (1.d-34J*s)*(1.d12/s)^(-4)*1amu^(-3)*(ev/angstrom**3)^2,
-        # that is, 5.60626442*1.d8 THz
-        
-        
-        
         
         prefactor = constants.avogadro ** 3 * constants.charge_of_electron ** 2 * 1e-25 / nptk
         cellinv = self.system.configuration.cell_inv
