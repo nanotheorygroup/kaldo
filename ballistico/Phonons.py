@@ -300,8 +300,9 @@ class Phonons (object):
             self.occupations = occupaclas
         else:
             self.occupations = occupation
-
-    def calculate_gamma_anharmonic(self, in_ph, max_index):
+            
+    
+    def calculate_gamma_amorphous(self, in_ph, max_index):
         third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
@@ -318,7 +319,7 @@ class Phonons (object):
     
         print ('sigma', domega)
         delta = 'triangular'
-        for index_phonons in range (in_ph, max_index):
+        for phonon_index in range (in_ph, max_index):
             
             if delta == 'triangular':
                 conservation_delta = self.triangular_delta
@@ -330,7 +331,7 @@ class Phonons (object):
             sigma = domega / 4.135
             
             # print (index_phonons)
-            single_en = energies[index_phonons]
+            single_en = energies[phonon_index]
             en_p = energies[:, np.newaxis]
             en_pp = energies[np.newaxis, :]
             dens_p = self.occupations[:, np.newaxis]
@@ -345,8 +346,22 @@ class Phonons (object):
             coords_minus = coords_minus[((coords_minus[:, 0] >= in_ph) & (coords_minus[:, 1] >= in_ph))].T
             
             if (coords_plus.size != 0) | (coords_minus.size != 0):
-                third_sparse_plus, third_sparse_minus = self.project_third (third_order, index_phonons, coords_plus, coords_minus)
-            
+                energies = self.frequencies.squeeze ()
+                n_phonons = energies.shape[0]
+                n_atoms = int (n_phonons / 3)
+                evects = self.eigenvectors.squeeze ()
+    
+                sparse_third = third_order.reshape ((n_atoms * 3, n_atoms * 3, n_atoms * 3))
+    
+                sparse_third = sparse_third.dot (evects[:, phonon_index])
+    
+                sparse_third = evects.T.dot (sparse_third).dot (evects)
+                coords_minus_vec = (coords_minus[0], coords_minus[1])
+                coords_plus_vec = (coords_plus[0], coords_plus[1])
+                third_sparse_plus = COO (coords_plus_vec, sparse_third[coords_plus_vec], shape=(n_phonons, n_phonons))
+                third_sparse_minus = COO (coords_minus_vec, sparse_third[coords_minus_vec],
+                                          shape=(n_phonons, n_phonons))
+
             if (coords_plus.size != 0):
                 phase_space_value_plus = conservation_delta ([delta_e_plus, sigma])
                 indexes = (coords_plus[0], coords_plus[1])
@@ -366,10 +381,10 @@ class Phonons (object):
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
             hbar = 6.35075751
-            coeff = hbar ** 2 * np.pi / 4. / 9.648538 / energies[index_phonons]
-            gamma_plus_vec[index_phonons] = gamma_minus * coeff
-            gamma_minus_vec[index_phonons] = gamma_plus * coeff
-            print (index_phonons, energies[index_phonons], gamma_plus_vec[index_phonons])
+            coeff = hbar ** 2 * np.pi / 4. / 9.648538 / energies[phonon_index]
+            gamma_plus_vec[phonon_index] = gamma_minus * coeff
+            gamma_minus_vec[phonon_index] = gamma_plus * coeff
+            print (phonon_index, energies[phonon_index], gamma_plus_vec[phonon_index])
         return gamma_plus_vec, gamma_minus_vec
 
     def gaussian_delta(self, params):
@@ -398,23 +413,6 @@ class Phonons (object):
         gauss = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
         gauss /= np.erf (2 / np.sqrt (2))
         return gauss
-
-    def project_third(self, third_order, phonon_index, coords_plus, coords_minus):
-        energies = self.frequencies.squeeze ()
-        n_phonons = energies.shape[0]
-        n_atoms = int (n_phonons / 3)
-        evects = self.eigenvectors.squeeze ()
-    
-        sparse_third = third_order.reshape ((n_atoms * 3, n_atoms * 3, n_atoms * 3))
-    
-        sparse_third = sparse_third.dot (evects[:, phonon_index])
-    
-        sparse_third = evects.T.dot (sparse_third).dot (evects)
-        coords_minus = (coords_minus[0], coords_minus[1])
-        coords_plus = (coords_plus[0], coords_plus[1])
-        sparse_plus = COO (coords_plus, sparse_third[coords_plus], shape=(n_phonons, n_phonons))
-        sparse_minus = COO (coords_minus, sparse_third[coords_minus], shape=(n_phonons, n_phonons))
-        return sparse_plus, sparse_minus
     
     def calculate_gamma(self, sigma=None):
         hbarp = 1.05457172647
