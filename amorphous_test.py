@@ -21,6 +21,7 @@ def plot_file(filename, is_classic=False):
 	gamma_to_plot = data[:, column_id]
 	plt.scatter (freqs_to_plot, gamma_to_plot, marker='.', color='red')
 
+	
 
 if __name__ == "__main__":
 	is_classic = True
@@ -35,11 +36,6 @@ if __name__ == "__main__":
 	
 	print ('second order loaded')
 	system.third_order = import_third_order_dlpoly('THIRD', geometry, replicas)
-	system.third_order = system.third_order[0,:,:,0,:,:,0,:,:] * evoverdlpoly
-	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
-	system.third_order = system.third_order / np.sqrt(system.configuration.get_masses ()[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-
 	print ('third order loaded')
 	
 	ph_system = Phonons (system, np.array ([1, 1, 1]), is_classic=is_classic)
@@ -54,24 +50,11 @@ if __name__ == "__main__":
 	
 	in_ph = 3
 	n_phonons = energies.shape[0]
+	max_ph = 10
+	gamma_plus, gamma_minus = ph_system.calculate_gamma(in_ph, max_ph)
+	gamma_to_plot = (gamma_plus + gamma_minus)
 	
-	gamma_plus = np.zeros (n_phonons)
-	gamma_minus = np.zeros (n_phonons)
-	
-	sigma = .05
-	
-	print ('sigma', sigma)
-	
-	for index_phonons in range (in_ph, 10):
-		gamma_plus[index_phonons], gamma_minus[index_phonons] = ph_system.calculate_single_gamma (sigma, index_phonons,
-		                                                                                          in_ph, 'triangular')
-		
-		hbar = 6.35075751
-		
-		gamma_to_plot = (gamma_plus + gamma_minus)
-		print (index_phonons, energies[index_phonons], gamma_plus[index_phonons])
-	
-	plt.scatter (energies[in_ph:index_phonons], gamma_to_plot[in_ph:index_phonons])
+	plt.scatter (energies[in_ph:max_ph], gamma_to_plot[in_ph:max_ph])
 	
 	plt.xlabel ('$\\nu$/THz', fontsize='14', fontweight='bold')
 	plt.ylabel ("$2\Gamma$/meV", fontsize='14', fontweight='bold')

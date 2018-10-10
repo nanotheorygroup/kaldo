@@ -354,7 +354,7 @@ class Phonons (object):
         else:
             self.occupations = occupation
     
-    def calculate_single_gamma(self, domega, index_phonons, in_ph, delta='triangular'):
+    def calculate_single_gamma(self, third_order, domega, index_phonons, in_ph, delta='triangular'):
         if delta == 'triangular':
             conservation_delta = self.triangular_delta
         else:
@@ -381,7 +381,7 @@ class Phonons (object):
         coords_minus = coords_minus[((coords_minus[:, 0] >= in_ph) & (coords_minus[:, 1] >= in_ph))].T
         
         if (coords_plus.size != 0) | (coords_minus.size != 0):
-            third_sparse_plus, third_sparse_minus = self.project_third (index_phonons, coords_plus, coords_minus)
+            third_sparse_plus, third_sparse_minus = self.project_third (third_order, index_phonons, coords_plus, coords_minus)
         
         if (coords_plus.size != 0):
             phase_space_value_plus = conservation_delta ([delta_e_plus, sigma])
@@ -422,13 +422,13 @@ class Phonons (object):
         return 1. / domega * (1 - deltaa / domega)
     
     
-    def project_third(self, phonon_index, coords_plus, coords_minus):
+    def project_third(self, third_order, phonon_index, coords_plus, coords_minus):
         energies = self.frequencies.squeeze()
         n_phonons = energies.shape[0]
         n_atoms = int (n_phonons / 3)
         evects = self.eigenvectors.squeeze()
 
-        sparse_third = self.system.third_order.reshape ((n_atoms * 3, n_atoms * 3, n_atoms * 3))
+        sparse_third = third_order.reshape ((n_atoms * 3, n_atoms * 3, n_atoms * 3))
 
         sparse_third = sparse_third.dot (evects[:, phonon_index])
         
@@ -438,3 +438,28 @@ class Phonons (object):
         sparse_plus = COO (coords_plus, sparse_third[coords_plus], shape=(n_phonons, n_phonons))
         sparse_minus = COO (coords_minus, sparse_third[coords_minus], shape=(n_phonons, n_phonons))
         return sparse_plus, sparse_minus
+
+
+    def calculate_gamma(self, in_ph, max_index):
+        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
+        masses = self.system.configuration.get_masses ()
+        third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
+        third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+        
+
+        energies = self.frequencies.squeeze()
+        n_phonons = energies.shape[0]
+
+        gamma_plus = np.zeros (n_phonons)
+        gamma_minus = np.zeros (n_phonons)
+        
+        sigma = .05
+        
+        print ('sigma', sigma)
+        
+        for index_phonons in range (in_ph, max_index):
+            gamma_plus[index_phonons], gamma_minus[index_phonons] = self.calculate_single_gamma (third_order, sigma, index_phonons,
+                                                                                                      in_ph, 'triangular')
+            print (index_phonons, energies[index_phonons], gamma_plus[index_phonons])
+        return gamma_plus, gamma_minus
