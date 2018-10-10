@@ -353,59 +353,79 @@ class Phonons (object):
             self.occupations = occupaclas
         else:
             self.occupations = occupation
+
+    def calculate_gamma(self, in_ph, max_index):
+        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
+        masses = self.system.configuration.get_masses ()
+        third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
+        third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
     
-    def calculate_single_gamma(self, third_order, domega, index_phonons, in_ph, delta='triangular'):
-        if delta == 'triangular':
-            conservation_delta = self.triangular_delta
-        else:
-            conservation_delta = self.gaussian_delta
-        energies = self.frequencies.squeeze()
+        energies = self.frequencies.squeeze ()
         n_phonons = energies.shape[0]
-        gamma_plus = 0
-        gamma_minus = 0
-        sigma = domega / 4.135
-        
-        # print (index_phonons)
-        single_en = energies[index_phonons]
-        en_p = energies[:, np.newaxis]
-        en_pp = energies[np.newaxis, :]
-        dens_p = self.occupations[:, np.newaxis]
-        dens_pp = self.occupations[np.newaxis, :]
-        
-        delta_e_plus = np.abs (single_en - en_p - en_pp)
-        coords_plus = np.array (np.argwhere ((delta_e_plus < sigma)), dtype=int)
-        coords_plus = coords_plus[((coords_plus[:, 0] >= in_ph) & (coords_plus[:, 1] >= in_ph))].T
-        
-        delta_e_minus = np.abs (single_en + en_p - en_pp)
-        coords_minus = np.array (np.argwhere ((delta_e_minus < sigma)), dtype=int)
-        coords_minus = coords_minus[((coords_minus[:, 0] >= in_ph) & (coords_minus[:, 1] >= in_ph))].T
-        
-        if (coords_plus.size != 0) | (coords_minus.size != 0):
-            third_sparse_plus, third_sparse_minus = self.project_third (third_order, index_phonons, coords_plus, coords_minus)
-        
-        if (coords_plus.size != 0):
-            phase_space_value_plus = conservation_delta ([delta_e_plus, sigma])
-            indexes = (coords_plus[0], coords_plus[1])
-            vol_plus = 0.5 * ((1 + dens_p + dens_pp) / (en_p * en_pp))
-            delta_plus = COO (coords_plus, vol_plus[indexes] * phase_space_value_plus[indexes],
-                              shape=(n_phonons, n_phonons))
-            third_sparse_plus = third_sparse_plus ** 2 * delta_plus / 16 / np.pi ** 4
-            gamma_plus += third_sparse_plus.sum (axis=1).sum (axis=0)
-        
-        if (coords_minus.size != 0):
-            phase_space_value_minus = conservation_delta ([delta_e_minus, sigma])
-            indexes = (coords_minus[0], coords_minus[1])
-            vol_minus = ((dens_p - dens_pp) / (en_p * en_pp))
-            delta_minus = COO (coords_minus, vol_minus[indexes] * phase_space_value_minus[indexes],
-                               shape=(n_phonons, n_phonons))
-            third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
-            gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
-        
-        hbar = 6.35075751
-        coeff = hbar ** 2 * np.pi / 4. / 9.648538 / energies[index_phonons]
-        return gamma_minus * coeff, gamma_plus * coeff
     
+        gamma_plus_vec = np.zeros (n_phonons)
+        gamma_minus_vec = np.zeros (n_phonons)
+
+        domega = .05
     
+        print ('sigma', domega)
+        delta = 'triangular'
+        for index_phonons in range (in_ph, max_index):
+            
+            if delta == 'triangular':
+                conservation_delta = self.triangular_delta
+            else:
+                conservation_delta = self.gaussian_delta
+            energies = self.frequencies.squeeze()
+            n_phonons = energies.shape[0]
+            gamma_plus = 0
+            gamma_minus = 0
+            sigma = domega / 4.135
+            
+            # print (index_phonons)
+            single_en = energies[index_phonons]
+            en_p = energies[:, np.newaxis]
+            en_pp = energies[np.newaxis, :]
+            dens_p = self.occupations[:, np.newaxis]
+            dens_pp = self.occupations[np.newaxis, :]
+            
+            delta_e_plus = np.abs (single_en - en_p - en_pp)
+            coords_plus = np.array (np.argwhere ((delta_e_plus < sigma)), dtype=int)
+            coords_plus = coords_plus[((coords_plus[:, 0] >= in_ph) & (coords_plus[:, 1] >= in_ph))].T
+            
+            delta_e_minus = np.abs (single_en + en_p - en_pp)
+            coords_minus = np.array (np.argwhere ((delta_e_minus < sigma)), dtype=int)
+            coords_minus = coords_minus[((coords_minus[:, 0] >= in_ph) & (coords_minus[:, 1] >= in_ph))].T
+            
+            if (coords_plus.size != 0) | (coords_minus.size != 0):
+                third_sparse_plus, third_sparse_minus = self.project_third (third_order, index_phonons, coords_plus, coords_minus)
+            
+            if (coords_plus.size != 0):
+                phase_space_value_plus = conservation_delta ([delta_e_plus, sigma])
+                indexes = (coords_plus[0], coords_plus[1])
+                vol_plus = 0.5 * ((1 + dens_p + dens_pp) / (en_p * en_pp))
+                delta_plus = COO (coords_plus, vol_plus[indexes] * phase_space_value_plus[indexes],
+                                  shape=(n_phonons, n_phonons))
+                third_sparse_plus = third_sparse_plus ** 2 * delta_plus / 16 / np.pi ** 4
+                gamma_plus += third_sparse_plus.sum (axis=1).sum (axis=0)
+            
+            if (coords_minus.size != 0):
+                phase_space_value_minus = conservation_delta ([delta_e_minus, sigma])
+                indexes = (coords_minus[0], coords_minus[1])
+                vol_minus = ((dens_p - dens_pp) / (en_p * en_pp))
+                delta_minus = COO (coords_minus, vol_minus[indexes] * phase_space_value_minus[indexes],
+                                   shape=(n_phonons, n_phonons))
+                third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
+                gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
+            
+            hbar = 6.35075751
+            coeff = hbar ** 2 * np.pi / 4. / 9.648538 / energies[index_phonons]
+            gamma_plus_vec[index_phonons] = gamma_minus * coeff
+            gamma_minus_vec[index_phonons] = gamma_plus * coeff
+            print (index_phonons, energies[index_phonons], gamma_plus_vec[index_phonons])
+        return gamma_plus_vec, gamma_minus_vec
+
     def gaussian_delta(self, params):
         # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
         alpha = 2
@@ -439,27 +459,3 @@ class Phonons (object):
         sparse_minus = COO (coords_minus, sparse_third[coords_minus], shape=(n_phonons, n_phonons))
         return sparse_plus, sparse_minus
 
-
-    def calculate_gamma(self, in_ph, max_index):
-        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
-        masses = self.system.configuration.get_masses ()
-        third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
-        third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-        
-
-        energies = self.frequencies.squeeze()
-        n_phonons = energies.shape[0]
-
-        gamma_plus = np.zeros (n_phonons)
-        gamma_minus = np.zeros (n_phonons)
-        
-        sigma = .05
-        
-        print ('sigma', sigma)
-        
-        for index_phonons in range (in_ph, max_index):
-            gamma_plus[index_phonons], gamma_minus[index_phonons] = self.calculate_single_gamma (third_order, sigma, index_phonons,
-                                                                                                      in_ph, 'triangular')
-            print (index_phonons, energies[index_phonons], gamma_plus[index_phonons])
-        return gamma_plus, gamma_minus
