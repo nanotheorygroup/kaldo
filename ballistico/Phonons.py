@@ -1,5 +1,6 @@
 import ballistico.atoms_helper as ath
 from ballistico.tools import is_folder_present
+import ballistico.constants as constants
 import numpy as np
 from ballistico.constants import *
 import scipy
@@ -302,7 +303,8 @@ class Phonons (object):
             self.occupations = occupation
             
     
-    def calculate_gamma_amorphous(self, in_ph, max_index):
+    def calculate_gamma_amorphous(self, in_ph, max_index, sigma):
+        # sigma input in meV
         third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
@@ -314,10 +316,9 @@ class Phonons (object):
     
         gamma_plus_vec = np.zeros (n_phonons)
         gamma_minus_vec = np.zeros (n_phonons)
-
-        domega = .05
-    
-        print ('sigma', domega)
+        print ('sigma meV ', sigma)
+        sigma = sigma / constants.thzovermev
+        print ('sigma THz ', sigma)
         delta = 'triangular'
         for phonon_index in range (in_ph, max_index):
             
@@ -328,7 +329,6 @@ class Phonons (object):
             n_phonons = energies.shape[0]
             gamma_plus = 0
             gamma_minus = 0
-            sigma = domega / 4.135
             
             # print (index_phonons)
             single_en = energies[phonon_index]
@@ -380,8 +380,7 @@ class Phonons (object):
                 third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            hbar = 6.35075751
-            coeff = hbar ** 2 * np.pi / 4. / 9.648538 / energies[phonon_index]
+            coeff = constants.hbar_dlpoly ** 2 * np.pi / 4. / constants.mevoverdlpoly / energies[phonon_index]
             gamma_plus_vec[phonon_index] = gamma_minus * coeff
             gamma_minus_vec[phonon_index] = gamma_plus * coeff
             print (phonon_index, energies[phonon_index], gamma_plus_vec[phonon_index])
@@ -415,7 +414,6 @@ class Phonons (object):
         return gauss
     
     def calculate_gamma(self, sigma=None):
-        hbarp = 1.05457172647
     
         print ('Lifetime:')
         nptk = np.prod (self.k_size)
@@ -429,15 +427,10 @@ class Phonons (object):
         self.frequencies[0, :3] = 0
         self.velocities[0, :3, :] = 0
     
-        # for index_kp in range (np.prod (self.k_mesh)):
-        #     for index_kpp in range (np.prod (self.k_mesh)):
-        #         if (tensor_k[0, :, index_kp, index_kpp].sum () > 1):
-        #             print (tensor_k[0, :, index_kp, index_kpp].sum ())
-    
-        # for index_kp in range (np.prod (self.k_mesh)):
-        #     for index_kpp in range (np.prod (self.k_mesh)):
-        #         print (np.argwhere (tensor_k[1, :, index_kp, index_kpp] == True))
-    
+        # TODO: change this
+        # At this point, Gamma's units are
+        # (1.d-34J*s)*(1.d12/s)^(-4)*1amu^(-3)*(ev/angstrom**3)^2,
+        # that is, 5.60626442*1.d8 THz
         prefactor = 5.60626442 * 10 ** 8 / nptk
         cellinv = self.system.configuration.cell_inv
         masses = self.system.configuration.get_masses ()
@@ -589,7 +582,7 @@ class Phonons (object):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
     
-        return gamma[1] * prefactor * hbarp * np.pi / 4., gamma[0] * prefactor * hbarp * np.pi / 4., ps[1] / nptk, ps[
+        return gamma[1] * prefactor * constants.hbarp * np.pi / 4., gamma[0] * prefactor * constants.hbarp * np.pi / 4., ps[1] / nptk, ps[
             0] / nptk
 
     def calculate_broadening(self, velocity):
