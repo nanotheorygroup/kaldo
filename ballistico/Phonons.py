@@ -282,15 +282,21 @@ class Phonons (object):
     
     
     def calculate_occupations(self):
+        # density[omega != 0] = 1. / (np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
+
+        
         temp = self.system.temperature
         energies = self.frequencies.squeeze()
         eigenvalues = energies / constants.speed_of_light * 1e10
         ndim = eigenvalues.shape[0]
         occupation = np.zeros (ndim)
         occupaclas = np.zeros (ndim)
+        
+        omegaK = constants.hbar * 2 * np.pi * constants.speed_of_light / constants.k_b *1e-10
+        
         for i in range (ndim):
-            occupation[i] = 1. / (np.exp (eigenvalues[i] * constants.omegaK / temp) - 1.)
-            occupaclas[i] = temp / eigenvalues[i] / constants.omegaK
+            occupation[i] = 1. / (np.exp (eigenvalues[i] * omegaK / temp) - 1.)
+            occupaclas[i] = temp / eigenvalues[i] / omegaK
         if self.is_classic == True:
             self.occupations = occupaclas
         else:
