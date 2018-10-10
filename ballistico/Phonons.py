@@ -1,12 +1,11 @@
-import numpy as np
-from ballistico.constants import *
-from ballistico.interpolation_controller import interpolator #,fourier_interpolator
 import ballistico.atoms_helper as ath
 from ballistico.tools import is_folder_present
+import numpy as np
 from ballistico.constants import *
-from ballistico.ShengbteHelper import ShengbteHelper
-from sparse import tensordot,COO
 import scipy
+from sparse import COO
+import spglib as spg
+
 
 FREQUENCY_K_FILE = 'frequency_k.npy'
 VELOCITY_K_FILE = 'velocity_k.npy'
@@ -143,38 +142,6 @@ class Phonons (object):
     def ravel_multi_index(self, multi_index):
         single_index = np.ravel_multi_index (multi_index, self.k_size, order='F',  mode='wrap')
         return single_index
-
-    def lorentzian_line_broadening(self, delta, width, threshold=2.):
-        # TODO: maybe we want to normalize the energy among the used states. In order to conserve that
-        
-        # threshold is the number of widths that we keep as interacting
-        out = np.zeros (delta.shape)
-        out[delta < threshold * width] = 0.5 / np.pi * width / (
-        delta[delta < threshold * width] ** 2 + (.5 * width) ** 2)
-        if out.size == 0:
-            return 0.
-        return out
-    
-    def triangle_line_broadening(self, delta, width):
-        out = np.zeros (delta.shape)
-        out[delta < width] = 1. / width * (1 - delta[delta < width] / width)
-        if out.size == 0:
-            return 0.
-        return out
-    
-    def delta_energy(self, eigthz_0, eigthz_1, eigthz_2, width=.1, is_plus=True):
-        if is_plus:
-            delta = np.abs (eigthz_0 - eigthz_1 - eigthz_2)
-        else:
-            delta = np.abs (eigthz_0 + eigthz_1 - eigthz_2)
-        return self.lorentzian_line_broadening (delta, width)
-    
-    def interpolate_second_order_k(self, k_list):
-        n_modes = self.system.configuration.positions.shape[0] * 3
-        frequency = np.zeros ((k_list.shape[0], n_modes))
-        for mode in range (n_modes):
-            frequency[:, mode] = interpolator (k_list, self.frequencies[:, :, :, mode])
-        return frequency
     
     def diagonalize_second_order_k(self, klist):
         frequencies = []
@@ -198,32 +165,17 @@ class Phonons (object):
         geometry = self.system.configuration.positions
         cell_inv = self.system.configuration.cell_inv
 
-        # k_mesh = self.k_mesh
-        # nptk = np.prod(k_mesh)
-        # n_replicas = list_of_replicas.shape[0]
-        # # TODO: I don't know why there's a 10 here, copied by sheng bte
-        # rlattvec = cell_inv * 2 * np.pi * 10.
-        # chi = np.zeros ((nptk, n_replicas)).astype (complex)
-        #
-        # for index_k in range (np.prod (k_mesh)):
-        #     i_k = np.array (np.unravel_index (index_k, k_mesh, order='F'))
-        #     k_point = i_k / k_mesh
-        #     realq = np.matmul (rlattvec, k_point)
-        #     for l in range (n_replicas):
-        #         sxij = list_of_replicas[l]
-        #         chi[index_k, l] = np.exp (1j * sxij.dot (realq))
-        
         kpoint = 2 * np.pi * (cell_inv).dot (qvec)
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
         ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
 
         if (qvec[0] == 0 and qvec[1] == 0 and qvec[2] == 0):
-            calculate_eigenvec = scipy.linalg.lapack.zheev
-            # calculate_eigenvec = np.linalg.eigh
+            # calculate_eigenvec = scipy.linalg.lapack.zheev
+            calculate_eigenvec = np.linalg.eigh
         else:
-            calculate_eigenvec = scipy.linalg.lapack.zheev
-            # calculate_eigenvec = np.linalg.eigh
+            # calculate_eigenvec = scipy.linalg.lapack.zheev
+            calculate_eigenvec = np.linalg.eigh
         second_order = self.system.second_order[0]
         chi_k = np.zeros (n_replicas).astype (complex)
         for id_replica in range (n_replicas):
@@ -354,7 +306,7 @@ class Phonons (object):
         else:
             self.occupations = occupation
 
-    def calculate_gamma(self, in_ph, max_index):
+    def calculate_gamma_anharmonic(self, in_ph, max_index):
         third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * evoverdlpoly
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
@@ -377,7 +329,6 @@ class Phonons (object):
                 conservation_delta = self.triangular_delta
             else:
                 conservation_delta = self.gaussian_delta
-            energies = self.frequencies.squeeze()
             n_phonons = energies.shape[0]
             gamma_plus = 0
             gamma_minus = 0
@@ -441,21 +392,211 @@ class Phonons (object):
         domega = params[1]
         return 1. / domega * (1 - deltaa / domega)
     
+
+    def gaussian_delta(self, params):
+        # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
+        alpha = 2
     
+        delta_energy = params[0]
+        # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
+        sigma = params[1] / alpha
+        gauss = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
+        gauss /= np.erf (2 / np.sqrt (2))
+        return gauss
+
     def project_third(self, third_order, phonon_index, coords_plus, coords_minus):
-        energies = self.frequencies.squeeze()
+        energies = self.frequencies.squeeze ()
         n_phonons = energies.shape[0]
         n_atoms = int (n_phonons / 3)
-        evects = self.eigenvectors.squeeze()
-
+        evects = self.eigenvectors.squeeze ()
+    
         sparse_third = third_order.reshape ((n_atoms * 3, n_atoms * 3, n_atoms * 3))
-
+    
         sparse_third = sparse_third.dot (evects[:, phonon_index])
-        
+    
         sparse_third = evects.T.dot (sparse_third).dot (evects)
         coords_minus = (coords_minus[0], coords_minus[1])
         coords_plus = (coords_plus[0], coords_plus[1])
         sparse_plus = COO (coords_plus, sparse_third[coords_plus], shape=(n_phonons, n_phonons))
         sparse_minus = COO (coords_minus, sparse_third[coords_minus], shape=(n_phonons, n_phonons))
         return sparse_plus, sparse_minus
+    
+    def calculate_gamma(self):
+        hbarp = 1.05457172647
+    
+        print ('Lifetime:')
+        nptk = np.prod (self.k_size)
+    
+        n_particles = self.system.configuration.positions.shape[0]
+        n_modes = n_particles * 3
+        gamma = np.zeros ((2, np.prod (self.k_size), n_modes))
+        ps = np.zeros ((2, np.prod (self.k_size), n_modes))
+    
+        # TODO: remove acoustic sum rule
+        self.frequencies[0, :3] = 0
+        self.velocities[0, :3, :] = 0
+    
+        # for index_kp in range (np.prod (self.k_mesh)):
+        #     for index_kpp in range (np.prod (self.k_mesh)):
+        #         if (tensor_k[0, :, index_kp, index_kpp].sum () > 1):
+        #             print (tensor_k[0, :, index_kp, index_kpp].sum ())
+    
+        # for index_kp in range (np.prod (self.k_mesh)):
+        #     for index_kpp in range (np.prod (self.k_mesh)):
+        #         print (np.argwhere (tensor_k[1, :, index_kp, index_kpp] == True))
+    
+        prefactor = 5.60626442 * 10 ** 8 / nptk
+        cellinv = self.system.configuration.cell_inv
+        masses = self.system.configuration.get_masses ()
+    
+        list_of_replicas = self.list_of_replicas
+        n_modes = n_particles * 3
+        k_size = self.k_size
+        n_replicas = list_of_replicas.shape[0]
+    
+        # TODO: I don't know why there's a 10 here, copied by sheng bte
+        rlattvec = cellinv * 2 * np.pi
+        chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
+    
+        for index_k in range (np.prod (k_size)):
+            i_k = np.array (self.unravel_index (index_k))
+            k_point = i_k / k_size
+            realq = np.matmul (rlattvec, k_point)
+            for l in range (n_replicas):
+                chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
+    
+        scaled_potential = self.system.third_order[0] / np.sqrt (
+            masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        scaled_potential /= np.sqrt (
+            masses[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        scaled_potential /= np.sqrt (
+            masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+    
+        scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
+        print ('Projection started')
+        #
+        # second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
+        # second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
+        # transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
+    
+        gamma = np.zeros ((2, nptk, n_modes))
+        n_particles = self.system.configuration.positions.shape[0]
+        n_modes = n_particles * 3
+        k_size = self.k_size
+        nptk = np.prod (k_size)
+    
+        # TODO: remove acoustic sum rule
+        # self.frequencies[0, :3] = 0
+        # self.velocities[0, :3, :] = 0
+    
+        omega = 2 * np.pi * self.frequencies
+    
+        density = np.empty_like (omega)
+    
+        density[omega != 0] = 1. / (np.exp (hbar * omega[omega != 0] / k_b / self.system.temperature) - 1.)
+    
+        omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
+    
+        sigma = self.calculate_broadening (
+            self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
+    
+        DELTA_THRESHOLD = 2
+        delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
+        # delta_correction = 1
+    
+        mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
+        # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
+        unique_points, degeneracy = np.unique (mapping, return_counts=True)
+        list_of_k = unique_points
+    
+        print (unique_points)
+        third_eigenv = self.eigenvectors.conj ()
+        third_chi = chi.conj ()
+    
+        for is_plus in (1, 0):
+        
+            if is_plus:
+                density_fact = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
+                second_eigenv = self.eigenvectors
+                second_chi = chi
+            else:
+                density_fact = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
+                second_eigenv = self.eigenvectors.conj ()
+                second_chi = chi.conj ()
+        
+            for index_k in (list_of_k):
+                print (is_plus, index_k)
+            
+                i_k = np.array (self.unravel_index (index_k))
+                for mu in range (n_modes):
+                    if omega[index_k, mu] != 0:
+                        first = self.eigenvectors[index_k, :, mu]
+                        projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
+                    
+                        if is_plus:
+                            energy_diff = np.abs (
+                                omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis,
+                                                                                           :, :])
+                        else:
+                            energy_diff = np.abs (
+                                omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis,
+                                                                                           :, :])
+                    
+                        index_kp_vec = np.arange (np.prod (self.k_size))
+                        i_kp_vec = np.array (self.unravel_index (index_kp_vec))
+                        i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
+                        index_kpp_vec = self.ravel_multi_index (i_kpp_vec)
+                        delta_energy = energy_diff[index_kp_vec, :, index_kpp_vec, :]
+                    
+                        sigma_small = sigma[index_kp_vec, :, index_kpp_vec, :]
+                        condition = (delta_energy < DELTA_THRESHOLD * sigma_small) & (
+                                omega[index_kp_vec, :, np.newaxis] != 0) & (omega[index_kpp_vec, np.newaxis, :] != 0)
+                    
+                        interactions = np.array (np.where (condition)).T
+                        # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+                        if interactions.size != 0:
+                            print ('interactions: ', index_k, interactions.size)
+                            index_kp_vec = interactions[:, 0]
+                            index_kpp_vec = index_kpp_vec[index_kp_vec]
+                            mup_vec = interactions[:, 1]
+                            mupp_vec = interactions[:, 2]
+                        
+                            dirac_delta = density_fact[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                        
+                            dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                        
+                            dirac_delta *= np.exp (
+                                - energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma[
+                                    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2) / \
+                                           sigma[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (
+                                np.pi) / delta_correction
+                        
+                            ps[is_plus, index_k, mu] += np.sum (dirac_delta)
+                        
+                            third = third_eigenv[index_kpp_vec, :, mupp_vec]
+                            second = second_eigenv[index_kp_vec, :, mup_vec]
+                        
+                            projected_potential = np.einsum ('litj,al,at,aj,ai->a', projected_potential,
+                                                             second_chi[index_kp_vec], third_chi[index_kpp_vec], third,
+                                                             second, optimize='greedy')
+                        
+                            gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
+                        gamma[is_plus, index_k, mu] /= (omega[index_k, mu])
+                        ps[is_plus, index_k, mu] /= (omega[index_k, mu])
+    
+        for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
+            ps[:, index_k, :] = ps[:, associated_index, :]
+            gamma[:, index_k, :] = gamma[:, associated_index, :]
+    
+        return gamma[1] * prefactor * hbarp * np.pi / 4., gamma[0] * prefactor * hbarp * np.pi / 4., ps[1] / nptk, ps[
+            0] / nptk
 
+    def calculate_broadening(self, velocity):
+        cellinv = self.system.configuration.cell_inv
+        rlattvec = cellinv * 2 * np.pi
+    
+        # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
+        # 10 = armstrong to nanometers
+        base_sigma = ((np.tensordot (velocity * 10., rlattvec / self.k_size, [-1, 1])) ** 2).sum (axis=-1)
+        base_sigma = np.sqrt (base_sigma / 6.)
+        return base_sigma

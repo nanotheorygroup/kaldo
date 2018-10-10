@@ -1,8 +1,8 @@
 import ballistico.geometry_helper as ghl
 import ballistico.ase_helper as ash
-from ballistico.PhononsAnharmonic import PhononsAnharmonic
 from ballistico.MolecularSystem import MolecularSystem
 from ballistico.PlotViewController import PlotViewController
+from ballistico.Phonons import Phonons
 from ballistico.interpolation_controller import interpolator
 from ballistico.constants import hbar, k_b, evoverdlpoly
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # our phonon object built on the system
     k_mesh = np.array ([5, 5, 5])
     is_classical = False
-    phonons = PhononsAnharmonic (system, k_mesh, is_classic=is_classical)
+    phonons = Phonons (system, k_mesh, is_classic=is_classical)
 
     # import the calculated second order
     system.second_order = ioh.import_second_dlpoly ('Dyn.form', geometry, replicas)

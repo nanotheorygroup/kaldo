@@ -51,7 +51,7 @@ if __name__ == "__main__":
     in_ph = 3
     n_phonons = energies.shape[0]
     max_ph = 10
-    gamma_plus, gamma_minus = ph_system.calculate_gamma(in_ph, max_ph)
+    gamma_plus, gamma_minus = ph_system.calculate_gamma_anharmonic(in_ph, max_ph)
     gamma_to_plot = (gamma_plus + gamma_minus)
     
     plt.scatter (energies[in_ph:max_ph], gamma_to_plot[in_ph:max_ph])
