@@ -22,7 +22,7 @@ rydbergoverev = 13.6056980
 evoverK = 8.6173303e-5
 
 hbarp = 1.05457172647 # hbar=1.05457172647d-22 ! J*THz
-
+charge_of_electron = 1.60217662e-19  # coulombs
 
 avogadro = 6.022140857e23
 

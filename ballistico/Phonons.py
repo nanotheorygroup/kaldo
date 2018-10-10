@@ -431,7 +431,11 @@ class Phonons (object):
         # At this point, Gamma's units are
         # (1.d-34J*s)*(1.d12/s)^(-4)*1amu^(-3)*(ev/angstrom**3)^2,
         # that is, 5.60626442*1.d8 THz
-        prefactor = 5.60626442 * 10 ** 8 / nptk
+        
+        
+        
+        
+        prefactor = constants.avogadro ** 3 * constants.charge_of_electron ** 2 * 1e-25 / nptk
         cellinv = self.system.configuration.cell_inv
         masses = self.system.configuration.get_masses ()
     
