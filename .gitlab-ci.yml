@@ -41,5 +41,4 @@ docs_test:
 
 Test SSH:
   script:
-    - ssh git@chemac196.ucdavis.edu
-    - echo "Hello from workstation"
+    - ssh -T git@chemac196.ucdavis.edu
