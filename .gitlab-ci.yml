@@ -1,7 +1,12 @@
 before_script:
   - echo "Testing the before script :) "
 
-doc:
-  script: 
-    - apt-get update -qq && apt-get install -y -qq python python-sphinx
-    - sphinx-build -b html ./ ./doc
+docs_test:
+  image: python:3
+  script:
+    # 'pip install' pulls in all required packages (include docs)
+    - pip install .[docs]
+    # build the docs
+    - which sphinx-build
+    - cd $CI_PROJECT_DIR/doc
+    - sphinx-build -W . build
