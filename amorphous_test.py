@@ -52,7 +52,7 @@ if __name__ == "__main__":
     in_ph = 3
     n_phonons = energies.shape[0]
     max_ph = 10
-    gamma_plus, gamma_minus = phonons.calculate_gamma_amorphous(in_ph, max_ph, sigma=.05)
+    gamma_plus, gamma_minus = phonons.calculate_gamma_amorphous(in_ph, max_ph, sigma=0.05)
     gamma_to_plot = (gamma_plus + gamma_minus)
     
     plt.scatter (energies[in_ph:max_ph], gamma_to_plot[in_ph:max_ph])

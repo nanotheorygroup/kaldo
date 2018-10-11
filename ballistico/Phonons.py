@@ -300,43 +300,38 @@ class Phonons (object):
         third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
         third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
     
-        energies = self.frequencies.squeeze ()
-        n_phonons = energies.shape[0]
+        frequencies = self.frequencies.squeeze ()
+        n_phonons = frequencies.shape[0]
     
         gamma_plus_vec = np.zeros (n_phonons)
         gamma_minus_vec = np.zeros (n_phonons)
         print ('sigma meV ', sigma)
         sigma = sigma / constants.thzovermev
         print ('sigma THz ', sigma)
-        delta = 'triangular'
         for phonon_index in range (in_ph, max_index):
-            
-            if delta == 'triangular':
-                conservation_delta = self.triangular_delta
-            else:
-                conservation_delta = self.gaussian_delta
-            n_phonons = energies.shape[0]
+            n_phonons = frequencies.shape[0]
             gamma_plus = 0
             gamma_minus = 0
             
             # print (index_phonons)
-            single_en = energies[phonon_index]
-            en_p = energies[:, np.newaxis]
-            en_pp = energies[np.newaxis, :]
+            single_en = frequencies[phonon_index]
+            en_p = frequencies[:, np.newaxis]
+            en_pp = frequencies[np.newaxis, :]
             dens_p = self.occupations[:, np.newaxis]
             dens_pp = self.occupations[np.newaxis, :]
             
             delta_e_plus = np.abs (single_en - en_p - en_pp)
-            coords_plus = np.array (np.argwhere ((delta_e_plus < sigma)), dtype=int)
+            THRESHOLD_SIGMA = 2
+            coords_plus = np.array (np.argwhere ((delta_e_plus < THRESHOLD_SIGMA * sigma)), dtype=int)
             coords_plus = coords_plus[((coords_plus[:, 0] >= in_ph) & (coords_plus[:, 1] >= in_ph))].T
             
             delta_e_minus = np.abs (single_en + en_p - en_pp)
-            coords_minus = np.array (np.argwhere ((delta_e_minus < sigma)), dtype=int)
+            coords_minus = np.array (np.argwhere ((delta_e_minus < THRESHOLD_SIGMA * sigma)), dtype=int)
             coords_minus = coords_minus[((coords_minus[:, 0] >= in_ph) & (coords_minus[:, 1] >= in_ph))].T
             
             if (coords_plus.size != 0) | (coords_minus.size != 0):
-                energies = self.frequencies.squeeze ()
-                n_phonons = energies.shape[0]
+                frequencies = self.frequencies.squeeze ()
+                n_phonons = frequencies.shape[0]
                 n_atoms = int (n_phonons / 3)
                 evects = self.eigenvectors.squeeze ()
     
@@ -352,7 +347,7 @@ class Phonons (object):
                                           shape=(n_phonons, n_phonons))
 
             if (coords_plus.size != 0):
-                phase_space_value_plus = conservation_delta ([delta_e_plus, sigma])
+                phase_space_value_plus = self.gaussian_delta ([delta_e_plus, sigma, THRESHOLD_SIGMA])
                 indexes = (coords_plus[0], coords_plus[1])
                 vol_plus = 0.5 * ((1 + dens_p + dens_pp) / (en_p * en_pp))
                 delta_plus = COO (coords_plus, vol_plus[indexes] * phase_space_value_plus[indexes],
@@ -361,7 +356,7 @@ class Phonons (object):
                 gamma_plus += third_sparse_plus.sum (axis=1).sum (axis=0)
             
             if (coords_minus.size != 0):
-                phase_space_value_minus = conservation_delta ([delta_e_minus, sigma])
+                phase_space_value_minus = self.gaussian_delta ([delta_e_minus, sigma, THRESHOLD_SIGMA])
                 indexes = (coords_minus[0], coords_minus[1])
                 vol_minus = ((dens_p - dens_pp) / (en_p * en_pp))
                 delta_minus = COO (coords_minus, vol_minus[indexes] * phase_space_value_minus[indexes],
@@ -369,15 +364,15 @@ class Phonons (object):
                 third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            coeff = constants.hbar_dlpoly ** 2 * np.pi / 4. / constants.mevoverdlpoly / energies[phonon_index]
+            coeff = constants.hbar_dlpoly ** 2 * np.pi / 4. / constants.mevoverdlpoly / frequencies[phonon_index]
             gamma_plus_vec[phonon_index] = gamma_minus * coeff
             gamma_minus_vec[phonon_index] = gamma_plus * coeff
-            print (phonon_index, energies[phonon_index], gamma_plus_vec[phonon_index])
+            print (phonon_index, frequencies[phonon_index], gamma_plus_vec[phonon_index], gamma_minus_vec[phonon_index])
         return gamma_plus_vec, gamma_minus_vec
 
     def gaussian_delta(self, params):
         # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
-        alpha = 2
+        alpha = params[3]
         
         delta_energy = params[0]
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
@@ -399,7 +394,7 @@ class Phonons (object):
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
         sigma = params[1] / alpha
         gauss = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
-        gauss /= np.erf (2 / np.sqrt (2))
+        gauss /= scipy.special.erf (2 / np.sqrt (2))
         return gauss
     
     def calculate_gamma(self, sigma=None):
@@ -461,10 +456,7 @@ class Phonons (object):
         # self.velocities[0, :3, :] = 0
     
         omega = 2 * np.pi * self.frequencies
-    
-        density = np.empty_like (omega)
-    
-        density[omega != 0] = 1. / (np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
+        
         density = self.calculate_occupations()
         omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
         
@@ -482,7 +474,11 @@ class Phonons (object):
         print (unique_points)
         third_eigenv = self.eigenvectors.conj ()
         third_chi = chi.conj ()
-    
+
+        print ('sigma meV ', sigma)
+        sigma = sigma / constants.thzovermev
+        print ('sigma THz ', sigma)
+        
         for is_plus in (1, 0):
         
             if is_plus:
@@ -505,11 +501,11 @@ class Phonons (object):
                         projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
                     
                         if is_plus:
-                            energy_diff = np.abs (
+                            omega_diff = np.abs (
                                 omega[index_k, mu] + omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis,
                                                                                            :, :])
                         else:
-                            energy_diff = np.abs (
+                            omega_diff = np.abs (
                                 omega[index_k, mu] - omega[:, :, np.newaxis, np.newaxis] - omega[np.newaxis, np.newaxis,
                                                                                            :, :])
                     
@@ -517,12 +513,12 @@ class Phonons (object):
                         i_kp_vec = np.array (self.unravel_index (index_kp_vec))
                         i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
                         index_kpp_vec = self.ravel_multi_index (i_kpp_vec)
-                        delta_energy = energy_diff[index_kp_vec, :, index_kpp_vec, :]
+                        delta_omega = omega_diff[index_kp_vec, :, index_kpp_vec, :]
                         if sigma is None:
                             sigma_small = sigma_tensor[index_kp_vec, :, index_kpp_vec, :]
                         else:
-                            sigma_small = sigma
-                        condition = (delta_energy < DELTA_THRESHOLD * sigma_small) & (
+                            sigma_small = 2 * np.pi * sigma
+                        condition = (delta_omega < DELTA_THRESHOLD * sigma_small) & (
                                 omega[index_kp_vec, :, np.newaxis] != 0) & (omega[index_kpp_vec, np.newaxis, :] != 0)
                     
                         interactions = np.array (np.where (condition)).T
@@ -539,13 +535,13 @@ class Phonons (object):
                             dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
                             if sigma is None:
                                 gaussian = np.exp (
-                                - energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma_tensor[
+                                - omega_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma_tensor[
                                     index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2) / \
                                            sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] / np.sqrt (
                                 np.pi) / delta_correction
                             else:
                                 gaussian = np.exp (
-                                - energy_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma ** 2) / \
+                                - omega_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma ** 2) / \
                                            sigma / np.sqrt (np.pi) / delta_correction
 
                             dirac_delta *= gaussian
@@ -562,6 +558,8 @@ class Phonons (object):
                             gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (omega[index_k, mu])
                         ps[is_plus, index_k, mu] /= (omega[index_k, mu])
+                        print("is_plus, index_k, mu, omega[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu]")
+                        print(is_plus, index_k, mu, omega[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu])
     
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
