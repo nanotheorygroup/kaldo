@@ -8,7 +8,6 @@ before_script:
   ##
   ## Run ssh-agent (inside the build environment)
   ##
-  - eval $(ssh-agent -s)
 
   ##
   ## Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
@@ -16,13 +15,11 @@ before_script:
   ## without extra base64 encoding.
   ## https://gitlab.com/gitlab-examples/ssh-private-key/issues/1#note_48526556
   ##
-  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+  - chmode 600 ~/.ssh/id_rsa
+  - eval $(ssh-agent -s)
+  - ssh-add ~/.ssh/id_rsa
 
-  ##
-  ## Create the SSH directory and give it the right permissions
-  ##
-  - mkdir -p ~/.ssh
-  - chmod 700 ~/.ssh
 
   ##
   ## Optionally, if you will be using any Git commands, set the user name and
