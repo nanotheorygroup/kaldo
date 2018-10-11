@@ -28,7 +28,6 @@ avogadro = 6.022140857e23
 # TODO: rename the following as jouleoverthz, etc
 hbar_dlpoly = 6.35075751 # 10 j/mol ps
 
-speed_of_light = 299792458 # m / s
 hbar = 1.05457172647e-22  # J / THz
 k_b = 1.380648813e-23  # J / K
 

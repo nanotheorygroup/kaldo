@@ -287,16 +287,17 @@ class Phonons (object):
         
         temp = self.system.temperature
         energies = self.frequencies.squeeze()
-        eigenvalues = energies / constants.speed_of_light * 1e10
+
+        eigenvalues = energies * constants.hbar * 2 * np.pi / constants.k_b
+        
         ndim = eigenvalues.shape[0]
         occupation = np.zeros (ndim)
         occupaclas = np.zeros (ndim)
         
-        omegaK = constants.hbar * 2 * np.pi * constants.speed_of_light / constants.k_b *1e-10
         
         for i in range (ndim):
-            occupation[i] = 1. / (np.exp (eigenvalues[i] * omegaK / temp) - 1.)
-            occupaclas[i] = temp / eigenvalues[i] / omegaK
+            occupation[i] = 1. / (np.exp (eigenvalues[i] / temp) - 1.)
+            occupaclas[i] = temp / eigenvalues[i]
         if self.is_classic == True:
             self.occupations = occupaclas
         else:
