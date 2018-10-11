@@ -1,10 +1,9 @@
-log.out
-fig*
+.DS_Store
 *.pyc
 .idea
-minimized*
 /*/
 !/forcefields/
 !/others/
 !/ballistico/
 !/examples/
+test.py
