@@ -153,8 +153,6 @@ class Phonons (object):
         return np.array(frequencies), np.array(eigenvals), np.array(eigenvects), np.array(velocities)
     
     def diagonalize_second_order_single_k(self, qvec):
-        toTHz = 20670.687
-        bohr2nm = 0.052917721092
         
         list_of_replicas = self.list_of_replicas
         geometry = self.system.configuration.positions
@@ -190,7 +188,8 @@ class Phonons (object):
                                 ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * (second_order[i_at, i_pol, id_replica, j_at, j_pol])
 
         mass = np.sqrt(self.system.configuration.get_masses ())
-        massfactor = 1.8218779 * 6.022e-4
+        massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
+        
 
         dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
         dyn_s /= mass[np.newaxis, np.newaxis, :, np.newaxis]
@@ -221,7 +220,7 @@ class Phonons (object):
                 if frequencies[i] != 0:
                     velocities[i, alpha] = vel / (2 * (2 * np.pi) * frequencies[i])
     
-        return frequencies * toTHz, eigenvals, eigenvects, velocities*toTHz*bohr2nm
+        return frequencies * constants.toTHz, eigenvals, eigenvects, velocities*constants.toTHz*constants.bohr2nm
 
     
     def density_of_states(self, frequencies):

@@ -33,5 +33,7 @@ k_b = 1.380648813e-23  # J / K
 
 hbarp = hbar* 1e22 # hbar=1.05457172647d-22 ! J*THz
 
+toTHz = 20670.687
+bohr2nm = 0.052917721092
 
-
+electron_mass = 9.10938356e-31
