@@ -123,7 +123,7 @@ class Phonons (object):
     @occupations.getter
     def occupations(self):
         if self._occupations is None:
-            self.calculate_occupations ()
+            self._occupations = self.calculate_occupations ().squeeze()
         return self._occupations
     
     @occupations.setter
@@ -282,26 +282,15 @@ class Phonons (object):
     
     
     def calculate_occupations(self):
-        # density[omega != 0] = 1. / (np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
-
-        
         temp = self.system.temperature
-        energies = self.frequencies.squeeze()
-
-        eigenvalues = energies * constants.hbar * 2 * np.pi / constants.k_b
-        
-        ndim = eigenvalues.shape[0]
-        occupation = np.zeros (ndim)
-        occupaclas = np.zeros (ndim)
-        
-        
-        for i in range (ndim):
-            occupation[i] = 1. / (np.exp (eigenvalues[i] / temp) - 1.)
-            occupaclas[i] = temp / eigenvalues[i]
-        if self.is_classic == True:
-            self.occupations = occupaclas
+        omega = 2 * np.pi * self.frequencies
+        eigenvalues = omega * constants.hbar / constants.k_b
+        density = np.zeros_like(eigenvalues)
+        if self.is_classic == False:
+            density[omega != 0] = 1. / (np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
         else:
-            self.occupations = occupation
+            density[omega != 0] = temp / omega[omega != 0] / constants.hbar * constants.k_b
+        return density
             
     
     def calculate_gamma_amorphous(self, in_ph, max_index, sigma):
@@ -477,7 +466,7 @@ class Phonons (object):
         density = np.empty_like (omega)
     
         density[omega != 0] = 1. / (np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
-    
+        density = self.calculate_occupations()
         omega_product = omega[:, :, np.newaxis, np.newaxis] * omega[np.newaxis, np.newaxis, :, :]
         
         if sigma is None:
