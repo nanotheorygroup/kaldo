@@ -8,3 +8,12 @@
 !/examples/
 !/doc/
 test.py
+
+CONFIG
+CONTROL
+Dyn.form
+DYNMAT
+FIELD
+OUTPUT
+REFERENCE
+THIRD
