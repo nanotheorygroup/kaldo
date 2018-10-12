@@ -9,6 +9,7 @@ import spglib as spg
 
 DELTA_THRESHOLD = 2
 
+
 class Phonons (object):
     def __init__(self, system, k_size, is_classic=False):
         
@@ -294,7 +295,7 @@ class Phonons (object):
     
     def calculate_gamma_amorphous(self, in_ph, max_index, sigma):
         # sigma input in meV
-        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * constants.evoverdlpoly
+        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * constants.charge_of_electron * constants.avogadro / 10
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
@@ -321,12 +322,11 @@ class Phonons (object):
             dens_pp = self.occupations[np.newaxis, :]
             
             delta_freq_plus = np.abs (freq - freq_p - freq_pp)
-            THRESHOLD_SIGMA = 2
-            coords_plus = np.array (np.argwhere ((delta_freq_plus < THRESHOLD_SIGMA * sigma)), dtype=int)
+            coords_plus = np.array (np.argwhere ((delta_freq_plus < DELTA_THRESHOLD * sigma)), dtype=int)
             coords_plus = coords_plus[((coords_plus[:, 0] >= in_ph) & (coords_plus[:, 1] >= in_ph))].T
             
             delta_freq_minus = np.abs (freq + freq_p - freq_pp)
-            coords_minus = np.array (np.argwhere ((delta_freq_minus < THRESHOLD_SIGMA * sigma)), dtype=int)
+            coords_minus = np.array (np.argwhere ((delta_freq_minus < DELTA_THRESHOLD * sigma)), dtype=int)
             coords_minus = coords_minus[((coords_minus[:, 0] >= in_ph) & (coords_minus[:, 1] >= in_ph))].T
             
             if (coords_plus.size != 0) | (coords_minus.size != 0):
@@ -347,7 +347,7 @@ class Phonons (object):
                                           shape=(n_phonons, n_phonons))
 
             if (coords_plus.size != 0):
-                phase_space_value_plus = self.gaussian_delta ([delta_freq_plus, sigma, THRESHOLD_SIGMA])
+                phase_space_value_plus = self.gaussian_delta ([delta_freq_plus, sigma, DELTA_THRESHOLD])
                 indexes = (coords_plus[0], coords_plus[1])
                 vol_plus = 0.5 * ((1 + dens_p + dens_pp) / (freq_p * freq_pp))
                 delta_plus = COO (coords_plus, vol_plus[indexes] * phase_space_value_plus[indexes],
@@ -356,7 +356,7 @@ class Phonons (object):
                 gamma_plus += third_sparse_plus.sum (axis=1).sum (axis=0)
             
             if (coords_minus.size != 0):
-                phase_space_value_minus = self.gaussian_delta ([delta_freq_minus, sigma, THRESHOLD_SIGMA])
+                phase_space_value_minus = self.gaussian_delta ([delta_freq_minus, sigma])
                 indexes = (coords_minus[0], coords_minus[1])
                 vol_minus = ((dens_p - dens_pp) / (freq_p * freq_pp))
                 delta_minus = COO (coords_minus, vol_minus[indexes] * phase_space_value_minus[indexes],
@@ -364,7 +364,7 @@ class Phonons (object):
                 third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            coeff = constants.hbar_dlpoly ** 2 * np.pi / 4. / constants.mevoverdlpoly / frequencies[phonon_index]
+            coeff = constants.hbar_dlpoly ** 2 * np.pi / 4. / constants.evoverdlpoly / frequencies[phonon_index] * 1e3
             gamma_plus_vec[phonon_index] = gamma_minus * coeff
             gamma_minus_vec[phonon_index] = gamma_plus * coeff
             print (phonon_index, frequencies[phonon_index], gamma_plus_vec[phonon_index], gamma_minus_vec[phonon_index])
@@ -372,12 +372,11 @@ class Phonons (object):
 
     def gaussian_delta(self, params):
         # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
-        alpha = params[3]
         
         delta_energy = params[0]
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
-        sigma = params[1] / alpha
-        return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / scipy.special.erf(alpha / np.sqrt(2))
+        sigma = params[1] / DELTA_THRESHOLD
+        return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
     
     
     def triangular_delta(self, params):
@@ -404,7 +403,6 @@ class Phonons (object):
     
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
-        gamma = np.zeros ((2, np.prod (self.k_size), n_modes))
         ps = np.zeros ((2, np.prod (self.k_size), n_modes))
     
         # TODO: remove acoustic sum rule
@@ -419,7 +417,6 @@ class Phonons (object):
         k_size = self.k_size
         n_replicas = list_of_replicas.shape[0]
     
-        # TODO: I don't know why there's a 10 here, copied by sheng bte
         rlattvec = cellinv * 2 * np.pi
         chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
     
@@ -439,22 +436,12 @@ class Phonons (object):
     
         scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
         print ('Projection started')
-        #
-        # second_eigenv = np.zeros((2, nptk, n_modes, n_modes), dtype=np.complex)
-        # second_chi = np.zeros((2, nptk, n_replicas), dtype=np.complex)
-        # transformed_potential = np.zeros((2, n_modes, nptk, n_modes, nptk, n_modes), dtype=np.complex)
-    
+        
         gamma = np.zeros ((2, nptk, n_modes))
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
         k_size = self.k_size
         nptk = np.prod (k_size)
-    
-        # TODO: remove acoustic sum rule
-        # self.frequencies[0, :3] = 0
-        # self.velocities[0, :3, :] = 0
-    
-        omega = 2 * np.pi * self.frequencies
         
         density = self.calculate_occupations()
         omega_product = (2 * np.pi) ** 2 * self.frequencies[:, :, np.newaxis, np.newaxis] * self.frequencies[np.newaxis, np.newaxis, :, :]
@@ -463,7 +450,6 @@ class Phonons (object):
             sigma_tensor = self.calculate_broadening (
                 self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
         delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
-        # delta_correction = 1
     
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
         # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
@@ -551,8 +537,8 @@ class Phonons (object):
                             gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (2 * np.pi * self.frequencies[index_k, mu])
                         ps[is_plus, index_k, mu] /= (2 * np.pi * self.frequencies[index_k, mu])
-                        print("is_plus, index_k, mu, omega[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu]")
-                        print(is_plus, index_k, mu, 2 * np.pi * self.frequencies[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu])
+                        # print("is_plus, index_k, mu, omega[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu]")
+                        # print(is_plus, index_k, mu, 2 * np.pi * self.frequencies[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu])
     
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]

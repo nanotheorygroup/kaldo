@@ -9,12 +9,6 @@ thzoverinversecm = 1. / inversecmoverthz
 evoverthz = 241.79893
 thzoverev = 1. / evoverthz
 
-evoverdlpoly = 9648.5
-dlpolyoverev = 1. / evoverdlpoly
-
-# 1 meV = 9.648538 * 10 j / mol
-mevoverdlpoly = 9.648532892
-dlpolyovermev = 0.1036427
 
 
 bohroverangstrom = 0.529177
@@ -37,3 +31,7 @@ toTHz = 20670.687
 bohr2nm = 0.052917721092
 
 electron_mass = 9.10938356e-31
+
+
+
+evoverdlpoly = charge_of_electron * avogadro / 10
