@@ -296,7 +296,7 @@ class Phonons (object):
     def calculate_gamma_amorphous(self, in_ph, max_index, sigma):
         # the input is sigma already in thz
         print ('sigma THz ', sigma)
-        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * constants.charge_of_electron * constants.avogadro / 10
+        third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :]
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         third_order = third_order / np.sqrt (masses[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis])
@@ -362,9 +362,9 @@ class Phonons (object):
                 third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            coeff = constants.hbar ** 2 * constants.avogadro  / constants.charge_of_electron * np.pi / 4. / frequencies[phonon_index] * 1e2
-            gamma_plus_vec[phonon_index] = gamma_minus * coeff
-            gamma_minus_vec[phonon_index] = gamma_plus * coeff
+            coeff = np.pi / 4. * constants.charge_of_electron**2 * constants.avogadro**2 * constants.hbar ** 2 * constants.avogadro  / constants.charge_of_electron
+            gamma_plus_vec[phonon_index] = gamma_minus * coeff / frequencies[phonon_index]
+            gamma_minus_vec[phonon_index] = gamma_plus * coeff / frequencies[phonon_index]
             print (phonon_index, frequencies[phonon_index], gamma_plus_vec[phonon_index], gamma_minus_vec[phonon_index])
         return gamma_plus_vec, gamma_minus_vec
 
@@ -539,8 +539,8 @@ class Phonons (object):
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
-        prefactor = constants.avogadro ** 3 * constants.charge_of_electron ** 2 * 1e-25 / nptk
-        gamma = gamma * prefactor * constants.hbar* 1e22 * np.pi / 4.
+        prefactor =  1e-3 * np.pi / 4. * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
+        gamma = gamma * prefactor / nptk
         ps = ps / nptk
         return gamma[1], gamma[0] , ps[1], ps[0]
 
