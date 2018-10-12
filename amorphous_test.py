@@ -3,6 +3,7 @@ import pandas as pd
 from ballistico.Phonons import Phonons
 from ballistico.MolecularSystem import MolecularSystem
 import matplotlib.pyplot as plt
+import ballistico.constants as constants
 from sparse import COO
 from ballistico.constants import evoverdlpoly
 import ase
@@ -47,12 +48,18 @@ if __name__ == "__main__":
     plt.ylabel ('$\\nu$/THz', fontsize='14', fontweight='bold')
     plt.xlabel ("phonon id", fontsize='14', fontweight='bold')
     plt.show ()
-    # gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(sigma=0.05)
+
+    width = 0.05 # mev
+
+    print ('sigma meV ', width)
+    width = width * constants.mevoverthz
+    
+    # gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(sigma=width)
 
     in_ph = 3
     n_phonons = energies.shape[0]
     max_ph = 10
-    gamma_plus, gamma_minus = phonons.calculate_gamma_amorphous(in_ph, max_ph, sigma=0.05)
+    gamma_plus, gamma_minus = phonons.calculate_gamma_amorphous(in_ph, max_ph, sigma=width)
     gamma_to_plot = (gamma_plus + gamma_minus)
     
     plt.scatter (energies[in_ph:max_ph], gamma_to_plot[in_ph:max_ph])

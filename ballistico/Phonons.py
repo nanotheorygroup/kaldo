@@ -294,7 +294,8 @@ class Phonons (object):
             
     
     def calculate_gamma_amorphous(self, in_ph, max_index, sigma):
-        # sigma input in meV
+        # the input is sigma already in thz
+        print ('sigma THz ', sigma)
         third_order = self.system.third_order[0, :, :, 0, :, :, 0, :, :] * constants.charge_of_electron * constants.avogadro / 10
         masses = self.system.configuration.get_masses ()
         third_order = third_order / np.sqrt (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
@@ -306,9 +307,6 @@ class Phonons (object):
     
         gamma_plus_vec = np.zeros (n_phonons)
         gamma_minus_vec = np.zeros (n_phonons)
-        print ('sigma meV ', sigma)
-        sigma = sigma * constants.mevoverthz
-        print ('sigma THz ', sigma)
         for phonon_index in range (in_ph, max_index):
             n_phonons = frequencies.shape[0]
             gamma_plus = 0
@@ -364,7 +362,7 @@ class Phonons (object):
                 third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            coeff =(constants.hbar * constants.avogadro / 10) ** 2 * np.pi / 4. / (constants.charge_of_electron * constants.avogadro / 10) / frequencies[phonon_index] * 1e3
+            coeff = constants.hbar ** 2 * constants.avogadro  / constants.charge_of_electron * np.pi / 4. / frequencies[phonon_index] * 1e2
             gamma_plus_vec[phonon_index] = gamma_minus * coeff
             gamma_minus_vec[phonon_index] = gamma_plus * coeff
             print (phonon_index, frequencies[phonon_index], gamma_plus_vec[phonon_index], gamma_minus_vec[phonon_index])
@@ -497,7 +495,7 @@ class Phonons (object):
                         if sigma is None:
                             sigma_small = sigma_tensor[index_kp_vec, :, index_kpp_vec, :]
                         else:
-                            sigma_small = 2 * np.pi * sigma * constants.mevoverthz
+                            sigma_small = 2 * np.pi * sigma
                         condition = (2 * np.pi * delta_freq < DELTA_THRESHOLD * sigma_small) & (
                                 self.frequencies[index_kp_vec, :, np.newaxis] != 0) & (self.frequencies[index_kpp_vec, np.newaxis, :] != 0)
                     
@@ -537,16 +535,14 @@ class Phonons (object):
                             gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
                         gamma[is_plus, index_k, mu] /= (2 * np.pi * self.frequencies[index_k, mu])
                         ps[is_plus, index_k, mu] /= (2 * np.pi * self.frequencies[index_k, mu])
-                        # print("is_plus, index_k, mu, omega[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu]")
-                        # print(is_plus, index_k, mu, 2 * np.pi * self.frequencies[index_k, mu], gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu])
-    
+                        print (mu, self._frequencies[index_k, mu],ps[is_plus, index_k, mu], gamma[is_plus, index_k, mu])
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
         prefactor = constants.avogadro ** 3 * constants.charge_of_electron ** 2 * 1e-25 / nptk
-
-        return gamma[1] * prefactor * constants.hbar* 1e22 * np.pi / 4., gamma[0] * prefactor * constants.hbar* 1e22 * np.pi / 4., ps[1] / nptk, ps[
-            0] / nptk
+        gamma = gamma * prefactor * constants.hbar* 1e22 * np.pi / 4.
+        ps = ps / nptk
+        return gamma[1], gamma[0] , ps[1], ps[0]
 
     def calculate_broadening(self, velocity):
         cellinv = self.system.configuration.cell_inv
