@@ -200,7 +200,7 @@ class Phonons (object):
         ddyn_s /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
         ddyn_s *= massfactor
 
-        prefactor = 1 / constants.evoverdlpoly / constants.rydbergoverev * (constants.bohroverangstrom ** 2)
+        prefactor = 1 / (constants.charge_of_electron * constants.avogadro / 10) / constants.rydbergoverev * (constants.bohroverangstrom ** 2)
         dyn = prefactor * dyn_s.reshape(n_particles * 3, n_particles * 3)
         ddyn = prefactor * ddyn_s.reshape(3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
 
@@ -364,7 +364,7 @@ class Phonons (object):
                 third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            coeff = constants.hbar_dlpoly ** 2 * np.pi / 4. / constants.evoverdlpoly / frequencies[phonon_index] * 1e3
+            coeff =(constants.hbar * constants.avogadro / 10) ** 2 * np.pi / 4. / (constants.charge_of_electron * constants.avogadro / 10) / frequencies[phonon_index] * 1e3
             gamma_plus_vec[phonon_index] = gamma_minus * coeff
             gamma_minus_vec[phonon_index] = gamma_plus * coeff
             print (phonon_index, frequencies[phonon_index], gamma_plus_vec[phonon_index], gamma_minus_vec[phonon_index])
@@ -545,7 +545,7 @@ class Phonons (object):
             gamma[:, index_k, :] = gamma[:, associated_index, :]
         prefactor = constants.avogadro ** 3 * constants.charge_of_electron ** 2 * 1e-25 / nptk
 
-        return gamma[1] * prefactor * constants.hbarp * np.pi / 4., gamma[0] * prefactor * constants.hbarp * np.pi / 4., ps[1] / nptk, ps[
+        return gamma[1] * prefactor * constants.hbar* 1e22 * np.pi / 4., gamma[0] * prefactor * constants.hbar* 1e22 * np.pi / 4., ps[1] / nptk, ps[
             0] / nptk
 
     def calculate_broadening(self, velocity):
