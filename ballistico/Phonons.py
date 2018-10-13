@@ -345,7 +345,7 @@ class Phonons (object):
                                           shape=(n_phonons, n_phonons))
 
             if (coords_plus.size != 0):
-                phase_space_value_plus = self.gaussian_delta ([delta_freq_plus, sigma, DELTA_THRESHOLD])
+                phase_space_value_plus = self.gaussian_delta ([delta_freq_plus, sigma])
                 indexes = (coords_plus[0], coords_plus[1])
                 vol_plus = 0.5 * ((1 + dens_p + dens_pp) / (freq_p * freq_pp))
                 delta_plus = COO (coords_plus, vol_plus[indexes] * phase_space_value_plus[indexes],
@@ -370,7 +370,6 @@ class Phonons (object):
 
     def gaussian_delta(self, params):
         # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
-        
         delta_energy = params[0]
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
         sigma = params[1] / DELTA_THRESHOLD
@@ -383,17 +382,6 @@ class Phonons (object):
         return 1. / domega * (1 - deltaa / domega)
     
 
-    def gaussian_delta(self, params):
-        # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
-        alpha = 2
-    
-        delta_energy = params[0]
-        # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
-        sigma = params[1] / alpha
-        gauss = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
-        gauss /= scipy.special.erf (2 / np.sqrt (2))
-        return gauss
-    
     def calculate_gamma(self, sigma=None):
     
         print ('Lifetime:')
@@ -447,9 +435,9 @@ class Phonons (object):
         if sigma is None:
             sigma_tensor = self.calculate_broadening (
                 self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
-            sigma_tensor = sigma_tensor / (2 * np.pi)
+            sigma_tensor = sigma_tensor
         else:
-            sigma = sigma / (2.0 * np.pi)
+            sigma = sigma
 
         delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
     
@@ -518,14 +506,11 @@ class Phonons (object):
                         
                             dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
                             if sigma is None:
-                                gaussian = np.exp (
-                                - freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma_tensor[
-                                    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2) / \
-                                           (sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] * 2. * np.pi) / np.sqrt(np.pi) / delta_correction
+                                gaussian = self.gaussian_delta ([freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]])
+
                             else:
-                                gaussian = np.exp (
-                                - freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec] ** 2 / sigma ** 2) / \
-                                           (sigma * 2. * np.pi) / np.sqrt(np.pi) / delta_correction
+                                gaussian = self.gaussian_delta ([freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma])
+                                
 
                             dirac_delta *= gaussian
                         
@@ -545,7 +530,7 @@ class Phonons (object):
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
-        prefactor =  1e-3 / 8. * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
+        prefactor =  1e-3 / 8. / (2. * np.pi) * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
         gamma = gamma * prefactor / nptk
         ps = ps / nptk / (2 * np.pi)
         return gamma[1], gamma[0] , ps[1], ps[0]
@@ -558,4 +543,4 @@ class Phonons (object):
         # 10 = armstrong to nanometers
         base_sigma = ((np.tensordot (velocity * 10., rlattvec / self.k_size, [-1, 1])) ** 2).sum (axis=-1)
         base_sigma = np.sqrt (base_sigma / 6.)
-        return base_sigma
+        return base_sigma / (2 * np.pi)
