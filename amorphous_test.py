@@ -54,7 +54,7 @@ if __name__ == "__main__":
     print ('sigma meV ', width)
     width = width * constants.mevoverthz
     
-    # gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(sigma=width)
+    gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(sigma=width)
 
     in_ph = 3
     n_phonons = energies.shape[0]
