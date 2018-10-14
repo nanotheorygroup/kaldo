@@ -350,7 +350,7 @@ class Phonons (object):
                 vol_plus = 0.5 * ((1 + dens_p + dens_pp) / (freq_p * freq_pp))
                 delta_plus = COO (coords_plus, vol_plus[indexes] * phase_space_value_plus[indexes],
                                   shape=(n_phonons, n_phonons))
-                third_sparse_plus = third_sparse_plus ** 2 * delta_plus / 16 / np.pi ** 4
+                third_sparse_plus = third_sparse_plus ** 2 * delta_plus
                 gamma_plus += third_sparse_plus.sum (axis=1).sum (axis=0)
             
             if (coords_minus.size != 0):
@@ -359,10 +359,10 @@ class Phonons (object):
                 vol_minus = ((dens_p - dens_pp) / (freq_p * freq_pp))
                 delta_minus = COO (coords_minus, vol_minus[indexes] * phase_space_value_minus[indexes],
                                    shape=(n_phonons, n_phonons))
-                third_sparse_minus = third_sparse_minus ** 2 * delta_minus / 16 / np.pi ** 4
+                third_sparse_minus = third_sparse_minus ** 2 * delta_minus
                 gamma_minus += third_sparse_minus.sum (axis=1).sum (axis=0)
             
-            coeff = np.pi / 4. * constants.avogadro ** 3 * constants.charge_of_electron * constants.hbar ** 2
+            coeff = 1 / (4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron * constants.hbar ** 2
             gamma_plus_vec[phonon_index] = gamma_minus * coeff / frequencies[phonon_index]
             gamma_minus_vec[phonon_index] = gamma_plus * coeff / frequencies[phonon_index]
             print (phonon_index, frequencies[phonon_index], gamma_plus_vec[phonon_index], gamma_minus_vec[phonon_index])
@@ -430,7 +430,7 @@ class Phonons (object):
         nptk = np.prod (k_size)
         
         density = self.calculate_occupations()
-        omega_product = (2 * np.pi) ** 2 * self.frequencies[:, :, np.newaxis, np.newaxis] * self.frequencies[np.newaxis, np.newaxis, :, :]
+        freq_product = self.frequencies[:, :, np.newaxis, np.newaxis] * self.frequencies[np.newaxis, np.newaxis, :, :]
         
         if sigma is None:
             sigma_tensor = self.calculate_broadening (
@@ -438,8 +438,6 @@ class Phonons (object):
             sigma_tensor = sigma_tensor
         else:
             sigma = sigma
-
-        delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
     
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
         # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
@@ -449,7 +447,7 @@ class Phonons (object):
         print (unique_points)
         third_eigenv = self.eigenvectors.conj ()
         third_chi = chi.conj ()
-        coeff = np.pi / 4. * constants.avogadro ** 3 * constants.charge_of_electron * constants.hbar ** 2
+        coeff = 1 / (4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron * constants.hbar ** 2
 
         for is_plus in (1, 0):
         
@@ -467,6 +465,7 @@ class Phonons (object):
             
                 i_k = np.array (self.unravel_index (index_k))
                 for mu in range (n_modes):
+                    # TODO: add a threshold instead of 0
                     if self.frequencies[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
                         # TODO: replace this with a dot
@@ -504,7 +503,7 @@ class Phonons (object):
                         
                             dirac_delta = density_fact[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
                         
-                            dirac_delta /= omega_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                            dirac_delta /= freq_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
                             if sigma is None:
                                 gaussian = self.gaussian_delta ([freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]])
 
@@ -530,9 +529,9 @@ class Phonons (object):
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
-        prefactor =  1e-3 / 8. / (2. * np.pi) * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
+        prefactor =  1e-3 / 8. / (2. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
         gamma = gamma * prefactor / nptk
-        ps = ps / nptk / (2 * np.pi)
+        ps = ps / nptk / (2 * np.pi) ** 3
         return gamma[1], gamma[0] , ps[1], ps[0]
 
     def calculate_broadening(self, velocity):
