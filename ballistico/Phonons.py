@@ -338,7 +338,7 @@ class Phonons (object):
                 print (is_plus, index_k)
                 i_k = np.array (self.unravel_index (index_k))
                 # for mu in range (n_modes):
-                for mu in range (10):
+                for mu in range (n_modes):
                     # TODO: add a threshold instead of 0
                     if self.frequencies[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
