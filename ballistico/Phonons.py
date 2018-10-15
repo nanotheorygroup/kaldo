@@ -1,4 +1,5 @@
 import os
+import tensorflow as tf
 
 import numpy as np
 import scipy
@@ -312,12 +313,16 @@ class Phonons (object):
         nptk = np.prod (k_size)
         density = self.calculate_occupations()
         freq_product = self.frequencies[:, :, np.newaxis, np.newaxis] * self.frequencies[np.newaxis, np.newaxis, :, :]
+        freq_product_tf = freq_product.reshape (nptk * n_modes, nptk * n_modes)
         if sigma is None:
             sigma_tensor = self.calculate_broadening (
                 self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
             sigma_tensor = sigma_tensor
+            sigma_tf = sigma_tensor.reshape(nptk * n_modes, nptk * n_modes)
+
         else:
             sigma = sigma
+            sigma_tf = sigma
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
         # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
@@ -325,6 +330,12 @@ class Phonons (object):
         print (unique_points)
         third_eigenv = self.eigenvectors.conj ()
         third_chi = chi.conj ()
+        delta_correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
+        
+
+        third_eigenv_tf = third_eigenv.swapaxes (1, 2).reshape (
+            third_eigenv.shape[0] * third_eigenv.shape[1], third_eigenv.shape[2])
+        
         for is_plus in (1, 0):
             if is_plus:
                 density_fact = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
@@ -334,6 +345,11 @@ class Phonons (object):
                 density_fact = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
                 second_eigenv = self.eigenvectors.conj ()
                 second_chi = chi.conj ()
+            density_fact_tf = density_fact.reshape (nptk * n_modes, nptk * n_modes).astype('float32')
+
+            second_eigenv_tf = second_eigenv.swapaxes (1, 2).reshape (
+                second_eigenv.shape[0] * second_eigenv.shape[1], second_eigenv.shape[2])
+
             for index_k in (list_of_k):
                 print (is_plus, index_k)
                 i_k = np.array (self.unravel_index (index_k))
@@ -352,6 +368,7 @@ class Phonons (object):
                             freq_diff = np.abs (
                                 self.frequencies[index_k, mu] - self.frequencies[:, :, np.newaxis, np.newaxis] - self.frequencies[np.newaxis, np.newaxis,
                                                                                                                  :, :])
+                        freq_diff_tf = freq_diff.reshape (nptk * n_modes, nptk * n_modes)
                         index_kp_vec = np.arange (np.prod (self.k_size))
                         i_kp_vec = np.array (self.unravel_index (index_kp_vec))
                         i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
@@ -366,34 +383,77 @@ class Phonons (object):
 
                         interactions = np.array (np.where (condition)).T
                         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+
                         if interactions.size != 0:
-                            print ('interactions: ', index_k, interactions.size)
                             index_kp_vec = interactions[:, 0]
                             index_kpp_vec = index_kpp_vec[index_kp_vec]
                             mup_vec = interactions[:, 1]
                             mupp_vec = interactions[:, 2]
 
-                            dirac_delta = density_fact[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                            print ('interactions: ', index_k, index_kp_vec.size)
+                            # index_kpp_vec = index_kpp_vec[index_kp_vec]
+                            
 
-                            dirac_delta /= freq_product[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
-                            if sigma is None:
-                                gaussian = self.gaussian_delta ([freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]])
-
-                            else:
-                                gaussian = self.gaussian_delta ([freq_diff[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma])
-
-                            dirac_delta *= gaussian
-
+                            nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
+                                                            np.array ([np.prod (self.k_size), n_modes]), order='C')
+                            nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
+                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
+    
+                            nup_ph = tf.placeholder ('int64', (None))
+                            nupp_ph = tf.placeholder ('int64', (None))
+                            density_fact_ph = tf.placeholder ('float32', (None, None))
+                            coords = tf.stack ((nup_ph, nup_ph), axis=-1)
+    
+                            dirac_delta_ph = tf.gather_nd (density_fact_ph, coords)
+    
+                            with tf.Session () as sess:
+                                dirac_delta = sess.run (dirac_delta_ph, feed_dict={
+                                    density_fact_ph: density_fact_tf,
+                                    nup_ph: nup_vec,
+                                    nupp_ph: nupp_vec})
+                            dirac_delta = density_fact_tf[nup_vec, nupp_vec]
+                            dirac_delta /= freq_product_tf[nup_vec, nupp_vec]
+    
+                            dirac_delta *= np.exp (
+                                - freq_diff_tf[nup_vec, nupp_vec] ** 2 / sigma_tf[nup_vec, nupp_vec] ** 2) / \
+                                           sigma_tf[nup_vec, nupp_vec] / np.sqrt (np.pi) / delta_correction
+    
                             ps[is_plus, index_k, mu] += np.sum (dirac_delta)
-
-                            third = third_eigenv[index_kpp_vec, :, mupp_vec]
-                            second = second_eigenv[index_kp_vec, :, mup_vec]
-
-                            projected_potential = np.einsum ('litj,al,at,aj,ai->a', projected_potential,
-                                                             second_chi[index_kp_vec], third_chi[index_kpp_vec], third,
-                                                             second, optimize='greedy')
-
+    
+                            second_eigenv_ph = tf.placeholder ('complex64', (None, None))
+                            third_eigenv_ph = tf.placeholder ('complex64', (None, None))
+                            projected_potential_ph = tf.placeholder ('complex64', (None, None, None, None))
+                            second_chi_ph = tf.placeholder ('complex64', (None, None))
+                            third_chi_ph = tf.placeholder ('complex64', (None, None))
+    
+                            second_ph = tf.gather (second_eigenv_ph, nup_ph, axis=0)
+                            third_ph = tf.gather (third_eigenv_ph, nupp_ph, axis=0)
+                            second_ph.set_shape ((None, None))
+                            third_ph.set_shape ((None, None))
+                            result = tf.einsum ('litj,al,at,aj,ai->a', projected_potential_ph, second_chi_ph,
+                                                third_chi_ph, third_ph, second_ph)
+    
+                            with tf.Session () as sess:
+                                # writer = tf.summary.FileWriter (
+                                #     "/Users/giuseppe/Development/research-dev/ballistico-tensorflow/temp/",
+                                #     sess.graph)
+        
+                                second = sess.run (second_ph, feed_dict={
+                                    second_eigenv_ph: second_eigenv_tf,
+                                    nup_ph: nup_vec})
+                                third = sess.run (third_ph, feed_dict={
+                                    third_eigenv_ph: third_eigenv_tf,
+                                    nupp_ph: nupp_vec})
+                                projected_potential = sess.run (result, feed_dict={
+                                    projected_potential_ph: projected_potential,
+                                    second_chi_ph: second_chi[index_kp_vec],
+                                    third_chi_ph: third_chi[index_kpp_vec],
+                                    third_ph: third,
+                                    second_ph: second})
+                            # projected_potential = r
+    
                             gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
+
                         gamma[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         print (mu, self._frequencies[index_k, mu], ps[is_plus, index_k, mu],
