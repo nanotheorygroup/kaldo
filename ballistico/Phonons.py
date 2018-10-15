@@ -391,8 +391,6 @@ class Phonons (object):
                             mupp_vec = interactions[:, 2]
 
                             print ('interactions: ', index_k, index_kp_vec.size)
-                            # index_kpp_vec = index_kpp_vec[index_kp_vec]
-                            
 
                             nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
@@ -402,16 +400,18 @@ class Phonons (object):
                             nup_ph = tf.placeholder ('int64', (None))
                             nupp_ph = tf.placeholder ('int64', (None))
                             density_fact_ph = tf.placeholder ('float32', (None, None))
-                            coords = tf.stack ((nup_ph, nup_ph), axis=-1)
+                            coords_ph = tf.stack ((nup_ph, nupp_ph), axis=-1)
     
-                            dirac_delta_ph = tf.gather_nd (density_fact_ph, coords)
+                            dirac_delta_ph = tf.gather_nd (density_fact_ph, coords_ph)
     
                             with tf.Session () as sess:
-                                dirac_delta = sess.run (dirac_delta_ph, feed_dict={
-                                    density_fact_ph: density_fact_tf,
+                                
+                                coords = sess.run (coords_ph, feed_dict={
                                     nup_ph: nup_vec,
                                     nupp_ph: nupp_vec})
-                            dirac_delta = density_fact_tf[nup_vec, nupp_vec]
+                                dirac_delta = sess.run (dirac_delta_ph, feed_dict={
+                                    density_fact_ph: density_fact_tf,
+                                    coords_ph: coords})
                             dirac_delta /= freq_product_tf[nup_vec, nupp_vec]
     
                             dirac_delta *= np.exp (
