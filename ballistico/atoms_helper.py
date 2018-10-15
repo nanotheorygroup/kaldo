@@ -1,11 +1,12 @@
-import ballistico.geometry_helper as geh
-import ase.io as io
-from ase import Atoms
-from ase.build import bulk
 import numpy as np
+from ase import Atoms
 
 
 def replicate_configuration(atoms, replicas):
+	"""
+
+	:rtype: Atoms,
+	"""
 	replicas = np.array(replicas)
 	list_of_replicas = create_list_of_replicas (atoms, replicas)
 	replicated_symbols = []

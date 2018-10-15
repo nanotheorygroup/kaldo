@@ -1,7 +1,9 @@
-import subprocess
 import os
+import subprocess
+
 import numpy as np
 import pandas as pd
+
 
 def run_script(cmd, folder=None):
 	# print 'Executing: ' + cmd
@@ -14,6 +16,10 @@ def run_script(cmd, folder=None):
 	return output.decode('ascii')
 	
 def is_folder_present(file_path):
+	"""
+
+	:rtype: bool
+	"""
 	directory = os.path.dirname (file_path)
 	is_present = True
 	if not os.path.exists (directory):

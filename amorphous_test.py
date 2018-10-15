@@ -1,14 +1,12 @@
+import ase
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from ballistico.Phonons import Phonons
-from ballistico.MolecularSystem import MolecularSystem
-import matplotlib.pyplot as plt
-import ballistico.constants as constants
-from sparse import COO
-from ballistico.constants import evoverdlpoly
-import ase
-from ballistico.io_helper import import_second_dlpoly, import_third_order_dlpoly
 
+import ballistico.constants as constants
+from ballistico.MolecularSystem import MolecularSystem
+from ballistico.Phonons import Phonons
+from ballistico.io_helper import import_second_dlpoly, import_third_order_dlpoly
 
 
 def plot_file(filename, is_classic=False):
@@ -56,13 +54,13 @@ if __name__ == "__main__":
     
     gamma_plus, gamma_minus, ps_plus, ps_minus = phonons.calculate_gamma(sigma=width)
 
-    in_ph = 3
-    n_phonons = energies.shape[0]
-    max_ph = 10
-    gamma_plus, gamma_minus = phonons.calculate_gamma_amorphous(in_ph, max_ph, sigma=width)
+    coeff = 1000 * constants.hbar / constants.charge_of_electron
+    gamma_plus = coeff * gamma_plus
+    gamma_minus = coeff * gamma_minus
+    print (gamma_plus, gamma_minus)
     gamma_to_plot = (gamma_plus + gamma_minus)
-    
-    plt.scatter (energies[in_ph:max_ph], gamma_to_plot[in_ph:max_ph])
+
+    plt.scatter (energies, gamma_to_plot.squeeze ())
     
     plt.xlabel ('$\\nu$/THz', fontsize='14', fontweight='bold')
     plt.ylabel ("$2\Gamma$/meV", fontsize='14', fontweight='bold')
