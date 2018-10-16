@@ -323,10 +323,13 @@ class Phonons (object):
         third_chi_tf.set_shape ((None, None))
         second.set_shape ((None, None))
         third.set_shape ((None, None))
-        potential_proj_tf = tf.einsum \
-            ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
+        # potential_proj_tf = tf.einsum \
+        #     ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
+        potential_proj_tf = tf.tensordot(potential, second_chi_tf, (0, 1))
+        potential_full_proj_tf = tf.einsum('itja,at,aj,ai->a', potential_proj_tf, third_chi_tf, third, second)
+        
         phase_space_tf = tf.reduce_sum (dirac_delta)
-        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_proj_tf) ** 2, \
+        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
                                            tf.float64) * dirac_delta)
         print ('Lifetime calculation')
         nptk = np.prod (self.k_size)
