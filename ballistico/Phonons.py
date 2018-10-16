@@ -323,10 +323,13 @@ class Phonons (object):
         third_chi_tf.set_shape ((None, None))
         second.set_shape ((None, None))
         third.set_shape ((None, None))
-        potential_proj_tf = tf.einsum \
-            ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
+        # potential_proj_tf = tf.einsum \
+        #     ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
+        potential_proj_tf = tf.tensordot(potential, second_chi_tf, (0, 1))
+        potential_full_proj_tf = tf.einsum('itja,at,aj,ai->a', potential_proj_tf, third_chi_tf, third, second)
+        
         phase_space_tf = tf.reduce_sum (dirac_delta)
-        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_proj_tf) ** 2, \
+        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
                                            tf.float64) * dirac_delta)
         print ('Lifetime calculation')
         nptk = np.prod (self.k_size)
@@ -397,7 +400,7 @@ class Phonons (object):
                 second_eigenv_np.shape[0] * second_eigenv_np.shape[1], second_eigenv_np.shape[2])
             for index_k in (list_of_k):
                 i_k = np.array (self.unravel_index (index_k))
-                for mu in range (8):
+                for mu in range (n_modes):
                     # TODO: add a threshold instead of 0
                     if self.frequencies[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
