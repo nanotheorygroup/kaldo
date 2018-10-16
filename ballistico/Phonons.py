@@ -397,7 +397,7 @@ class Phonons (object):
                 second_eigenv_np.shape[0] * second_eigenv_np.shape[1], second_eigenv_np.shape[2])
             for index_k in (list_of_k):
                 i_k = np.array (self.unravel_index (index_k))
-                for mu in range (8):
+                for mu in range (n_modes):
                     # TODO: add a threshold instead of 0
                     if self.frequencies[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
