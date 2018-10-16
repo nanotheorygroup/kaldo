@@ -1,5 +1,3 @@
-import numpy as np
-
 # 1 thz = 0.00414 mev
 thzovermev = 4.13566553853599
 mevoverthz = 1. / thzovermev

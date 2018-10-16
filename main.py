@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # we create our system
     temperature = 300
-    system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=temperature)
+    system = MolecularSystem (configuration=geometry, temperature=temperature, replicas=replicas)
 
     # our phonon object built on the system
     k_mesh = np.array ([5, 5, 5])

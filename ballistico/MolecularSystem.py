@@ -6,8 +6,8 @@ import os
 
 
 class MolecularSystem (object):
-    def __init__(self, configuration, replicas, temperature):
-        self.replicas = replicas
+    def __init__(self, configuration, temperature, replicas=(1, 1, 1)):
+        self.replicas = np.array(replicas)
         self.temperature = temperature
         self.configuration = configuration
         self.configuration.cell_inv = np.linalg.inv (self.configuration.cell)

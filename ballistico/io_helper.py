@@ -6,14 +6,16 @@ import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 
 
-def import_second_charlie(dynamical_matrix_file, configuration, replicas):
-    dyn_mat = import_dynamical_matrix_charlie(dynamical_matrix_file, replicas)
+def import_second_charlie(configuration, replicas=(1, 1, 1), dynamical_matrix_file='dynmat.dat'):
+    replicas = np.array(replicas)
+    dyn_mat = import_dynamical_matrix_charlie(replicas, dynamical_matrix_file)
     mass = np.sqrt (configuration.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] \
            * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
 
-def import_dynamical_matrix_charlie(replicas, dynamical_matrix_file='dynmat.dat'):
+def import_dynamical_matrix_charlie(replicas=(1, 1, 1), dynamical_matrix_file='dynmat.dat'):
+    replicas = np.array(replicas)
     dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, skiprows=1, \
                                          delim_whitespace=True)
     dynamical_matrix_vector = dynamical_matrix_frame.values
@@ -22,14 +24,16 @@ def import_dynamical_matrix_charlie(replicas, dynamical_matrix_file='dynmat.dat'
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3) * \
            constants.evoverdlpoly
 
-def import_second_dlpoly(configuration, replicas, dynamical_matrix_file='Dyn.form'):
+def import_second_dlpoly(configuration, replicas=(1, 1, 1), dynamical_matrix_file='Dyn.form'):
+    replicas = np.array(replicas)
     dyn_mat = import_dynamical_matrix_dlpoly(replicas, dynamical_matrix_file)
     mass = np.sqrt (configuration.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] \
            * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
 
-def import_dynamical_matrix_dlpoly(replicas, dynamical_matrix_file='Dyn.form'):
+def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='Dyn.form'):
+    replicas = np.array(replicas)
     dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, delim_whitespace=True)
     dynamical_matrix_vector = dynamical_matrix_frame.values
     n_replicas = replicas[0] * replicas[1] * replicas[2]
@@ -37,7 +41,8 @@ def import_dynamical_matrix_dlpoly(replicas, dynamical_matrix_file='Dyn.form'):
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
 
-def import_third_order_dlpoly(configuration, replicas, file='THIRD'):
+def import_third_order_dlpoly(configuration, replicas=(1, 1, 1), file='THIRD'):
+    replicas = np.array(replicas)
     replicated_configuration, list_of_replicas = ath.replicate_configuration (
         configuration, replicas)
     n_particles = replicated_configuration.get_positions().shape[0]

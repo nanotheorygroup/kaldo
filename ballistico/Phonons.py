@@ -15,10 +15,10 @@ DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 
 class Phonons (object):
 
-    def __init__(self, system, k_size, is_classic=False):
+    def __init__(self, system, k_size=(1, 1, 1), is_classic=False):
         self.system = system
         self.is_classic = is_classic
-        self.k_size = k_size
+        self.k_size = np.array(k_size)
         self.folder = str(self.system) + '/'
         [self.replicated_configuration, self.list_of_replicas] = \
             ath.replicate_configuration (self.system.configuration, self.system.replicas)
@@ -289,28 +289,32 @@ class Phonons (object):
         return 1. / domega * (1 - deltaa / domega)
 
     def calculate_gamma(self, sigma_in=None):
+        prefactor = 1e-3 / (
+                4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
     
+        coeff = 1000 * constants.hbar / constants.charge_of_electron
         nup = tf.placeholder ('int64', (None), name='nup')
         nupp = tf.placeholder ('int64', (None), name='nupp')
         index_kp = tf.placeholder ('int64', (None), name='index_kp')
         index_kpp = tf.placeholder ('int64', (None), name='index_kpp')
-        
         second_eigenv = tf.placeholder ('complex64', (None, None), name='second_eigenv')
         third_eigenv = tf.placeholder ('complex64', (None, None), name='third_eigenv')
         potential = tf.placeholder ('complex64', (None, None, None, None), name='potential')
         second_chi = tf.placeholder ('complex64', (None, None), name='second_chi')
         third_chi = tf.placeholder ('complex64', (None, None), name='third_chi')
-
         sigma = tf.placeholder ('float64', (None, None), name='sigma')
         density_fact = tf.placeholder ('float64', (None, None), name='density')
         freq_product = tf.placeholder ('float64', (None, None), name='freq_product')
         freq_diff = tf.placeholder ('float64', (None, None), name='freq_diff')
-    
         coords = tf.stack ((nup, nupp), axis=-1)
         sparsify = lambda operator: tf.cast (tf.gather_nd (operator, coords), tf.float64)
         dirac_delta = sparsify (density_fact) / sparsify (freq_product)
-        dirac_delta *= tf.exp (- sparsify (freq_diff) ** 2 / (2 * sparsify (sigma) ** 2)) / (
-                    sparsify (sigma) * np.sqrt (2 * np.pi)) / DELTA_CORRECTION
+        if sigma_in == None:
+            sigma_to_plug = sparsify (sigma)
+        else:
+            sigma_to_plug = sigma_in
+        dirac_delta *= tf.exp (- sparsify (freq_diff) ** 2 / (2 * sigma_to_plug ** 2)) \
+                       / (sigma_to_plug * np.sqrt (2 * np.pi)) / DELTA_CORRECTION
         second = tf.gather (second_eigenv, nup, axis=0)
         third = tf.gather (third_eigenv, nupp, axis=0)
         third_chi_tf = tf.gather (third_chi, index_kpp, axis=0)
@@ -319,13 +323,12 @@ class Phonons (object):
         third_chi_tf.set_shape ((None, None))
         second.set_shape ((None, None))
         third.set_shape ((None, None))
-        potential_proj_tf = tf.einsum ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
-
+        potential_proj_tf = tf.einsum \
+            ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
         phase_space_tf = tf.reduce_sum (dirac_delta)
-        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_proj_tf) ** 2, tf.float64) * dirac_delta)
-        
-
-        print ('Lifetime:')
+        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_proj_tf) ** 2, \
+                                           tf.float64) * dirac_delta)
+        print ('Lifetime calculation')
         nptk = np.prod (self.k_size)
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -347,12 +350,13 @@ class Phonons (object):
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
-        scaled_potential = self.system.third_order[0] / np.sqrt (
-            masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        scaled_potential /= np.sqrt (
-            masses[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        scaled_potential /= np.sqrt (
-            masses[np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+        scaled_potential = self.system.third_order[0] / np.sqrt \
+            (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, \
+             np.newaxis, np.newaxis, np.newaxis])
+        scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
+                                     np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
+                                     np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
         print ('Projection started')
         gamma = np.zeros ((2, nptk, n_modes))
@@ -361,27 +365,23 @@ class Phonons (object):
         k_size = self.k_size
         nptk = np.prod (k_size)
         density = self.calculate_occupations()
-        freq_product_np = self.frequencies[:, :, np.newaxis, np.newaxis] * self.frequencies[np.newaxis, np.newaxis, :, :]
+        freq_product_np = self.frequencies[:, :, np.newaxis, np.newaxis] * \
+                          self.frequencies[np.newaxis, np.newaxis, :, :]
         freq_product_tf = freq_product_np.reshape (nptk * n_modes, nptk * n_modes)
         if sigma_in is None:
-            sigma_tensor = self.calculate_broadening (
-                self.velocities[:, :, np.newaxis, np.newaxis, :] - self.velocities[np.newaxis, np.newaxis, :, :, :])
+            sigma_tensor = self.calculate_broadening ( \
+                self.velocities[:, :, np.newaxis, np.newaxis, :] - \
+                self.velocities[np.newaxis, np.newaxis, :, :, :])
             sigma_tensor = sigma_tensor
             sigma_tf = sigma_tensor.reshape(nptk * n_modes, nptk * n_modes)
-
-        else:
-            sigma_tf = sigma_in
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
-        print ('Irreps q points: ', unique_points)
+        print ('Symmetries: ', unique_points)
         third_eigenv_np = self.eigenvectors.conj ()
         third_chi_tf = chi.conj ()
-        
-
-        third_eigenv_tf = third_eigenv_np.swapaxes (1, 2).reshape (
+        third_eigenv_tf = third_eigenv_np.swapaxes (1, 2).reshape ( \
             third_eigenv_np.shape[0] * third_eigenv_np.shape[1], third_eigenv_np.shape[2])
-        
         for is_plus in (1, 0):
             if is_plus:
                 density_fact_np = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
@@ -396,9 +396,8 @@ class Phonons (object):
             second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (
                 second_eigenv_np.shape[0] * second_eigenv_np.shape[1], second_eigenv_np.shape[2])
             for index_k in (list_of_k):
-                print('Current q:', index_k, 'is plus?', is_plus)
                 i_k = np.array (self.unravel_index (index_k))
-                for mu in range (n_modes):
+                for mu in range (8):
                     # TODO: add a threshold instead of 0
                     if self.frequencies[index_k, mu] != 0:
                         first = self.eigenvectors[index_k, :, mu]
@@ -428,14 +427,11 @@ class Phonons (object):
                         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
 
                         if interactions.size != 0:
-
+    
                             index_kp_vec = interactions[:, 0]
                             index_kpp_vec = index_kpp_vec[index_kp_vec]
                             mup_vec = interactions[:, 1]
                             mupp_vec = interactions[:, 2]
-
-                            print ('interactions: ', index_k, index_kp_vec.size)
-
                             nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
                             nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
@@ -445,8 +441,7 @@ class Phonons (object):
                                 tf.summary.FileWriter (
                                     "temp/",
                                     sess.graph)
-
-                                gamma_value = sess.run (gamma_tf, feed_dict={
+                                feed_dict = {
                                     nup: nup_vec,
                                     nupp: nupp_vec,
                                     index_kp: index_kp_vec,
@@ -456,24 +451,26 @@ class Phonons (object):
                                     potential: projected_potential,
                                     second_chi: second_chi_tf,
                                     third_chi: third_chi_tf,
-                                    sigma: sigma_tf,
                                     density_fact: density_fact_tf,
                                     freq_product: freq_product_tf,
-                                    freq_diff: freq_diff_tf})
+                                    freq_diff: freq_diff_tf}
+                                if sigma_in == None:
+                                    feed_dict[sigma] = sigma_tf
+                                gamma_value = sess.run (gamma_tf, feed_dict=feed_dict)
 
                             # ps[is_plus, index_k, mu] = phase_space_tf
                             gamma[is_plus, index_k, mu] = gamma_value
                             
                         gamma[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
-                        print (mu, self._frequencies[index_k, mu], ps[is_plus, index_k, mu],
-                               gamma[is_plus, index_k, mu])
+                        print ('Current q, mu:', index_k, mu, 'is plus?', is_plus)
+                        print (self._frequencies[index_k, mu], ps[is_plus, index_k, mu])
+                        print (gamma[is_plus, index_k, mu], coeff * prefactor * gamma[is_plus, index_k, mu])
+
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]
             gamma[:, index_k, :] = gamma[:, associated_index, :]
-        prefactor = 1e-3 / (
-                4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
-        
+
         gamma = gamma * prefactor / nptk
         ps = ps / nptk / (2 * np.pi) ** 3
         return gamma
