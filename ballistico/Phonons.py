@@ -439,8 +439,10 @@ class Phonons (object):
                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
                             nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
                                                              np.array ([np.prod (self.k_size), n_modes]), order='C')
-    
-                            with tf.Session () as sess:
+                            config = tf.ConfigProto (
+                                device_count={'GPU': 0}
+                            )
+                            with tf.Session (config=config) as sess:
                                 tf.summary.FileWriter (
                                     "temp/",
                                     sess.graph)
