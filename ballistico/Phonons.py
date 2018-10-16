@@ -27,6 +27,7 @@ class Phonons (object):
         self._eigenvalues = None
         self._eigenvectors = None
         self._occupations = None
+        self._gamma = None
         directory = os.path.dirname (self.folder)
         if not os.path.exists (directory):
             os.makedirs (directory)
@@ -110,10 +111,6 @@ class Phonons (object):
             #     np.save (self.folder + EIGENVECTORS_FILE, self._eigenvectors)
         return self._eigenvectors
 
-    @eigenvectors.setter
-    def eigenvectors(self, new_eigenvectors):
-        self._eigenvectors = new_eigenvectors
-
     @property
     def occupations(self):
         return self._occupations
@@ -127,6 +124,20 @@ class Phonons (object):
     @occupations.setter
     def occupations(self, new_occupations):
         self._occupations = new_occupations
+
+    @property
+    def gamma(self):
+        return self._gamma
+
+    @gamma.getter
+    def gamma(self):
+        if self._gamma is None:
+            self._gamma = self.calculate_gamma ()
+        return self._gamma
+
+    @gamma.setter
+    def gamma(self, new_gamma):
+        self._gamma = new_gamma
 
     def unravel_index(self, index):
         multi_index = np.unravel_index (index, self.k_size, order='F')
@@ -207,7 +218,8 @@ class Phonons (object):
                     velocities[i, alpha] = vel / (2 * (2 * np.pi) * frequencies[i])
         return frequencies * constants.toTHz, eigenvals, eigenvects, velocities*constants.toTHz*constants.bohr2nm
 
-    def density_of_states(self, frequencies):
+    def density_of_states(self, delta=1):
+        frequencies = self.frequencies
         k_mesh = self.k_size
         n_modes = frequencies.shape[-1]
         frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
@@ -219,7 +231,6 @@ class Phonons (object):
                 omega_kl[:, mode] = frequencies[...,mode].flatten()
             except IndexError as err:
                 print(err)
-        delta = 2
         # Energy axis and dos
         omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
         dos_e = np.zeros_like (omega_e)
@@ -244,7 +255,7 @@ class Phonons (object):
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
-            velocities[index_k, :, :] = vels
+            velocities[index_k, :, :] = vels.real
         self._frequencies = frequencies
         self._eigenvalues = eigenvalues
         # self._velocities = np.flip(velocities, axis=2)
@@ -361,10 +372,9 @@ class Phonons (object):
         else:
             sigma_tf = sigma_in
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
-        # print ("Number of ir-kpoints: %d" % len (np.unique (mapping)))
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
-        print (unique_points)
+        print ('Irreps q points: ', unique_points)
         third_eigenv_np = self.eigenvectors.conj ()
         third_chi_tf = chi.conj ()
         
@@ -385,11 +395,9 @@ class Phonons (object):
 
             second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (
                 second_eigenv_np.shape[0] * second_eigenv_np.shape[1], second_eigenv_np.shape[2])
-
             for index_k in (list_of_k):
-                print (is_plus, index_k)
+                print('Current q:', index_k, 'is plus?', is_plus)
                 i_k = np.array (self.unravel_index (index_k))
-                # for mu in range (n_modes):
                 for mu in range (n_modes):
                     # TODO: add a threshold instead of 0
                     if self.frequencies[index_k, mu] != 0:
@@ -434,6 +442,10 @@ class Phonons (object):
                                                              np.array ([np.prod (self.k_size), n_modes]), order='C')
     
                             with tf.Session () as sess:
+                                tf.summary.FileWriter (
+                                    "temp/",
+                                    sess.graph)
+
                                 gamma_value = sess.run (gamma_tf, feed_dict={
                                     nup: nup_vec,
                                     nupp: nupp_vec,
@@ -451,8 +463,7 @@ class Phonons (object):
 
                             # ps[is_plus, index_k, mu] = phase_space_tf
                             gamma[is_plus, index_k, mu] = gamma_value
-
-
+                            
                         gamma[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         print (mu, self._frequencies[index_k, mu], ps[is_plus, index_k, mu],
@@ -465,7 +476,7 @@ class Phonons (object):
         
         gamma = gamma * prefactor / nptk
         ps = ps / nptk / (2 * np.pi) ** 3
-        return gamma[1], gamma[0] , ps[1], ps[0]
+        return gamma
 
     def calculate_broadening(self, velocity):
         cellinv = self.system.configuration.cell_inv

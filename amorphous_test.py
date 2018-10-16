@@ -31,10 +31,10 @@ if __name__ == "__main__":
     system = MolecularSystem (configuration=geometry, replicas=replicas, temperature=300.)
     n_phonons = system.configuration.get_positions ().shape[0] * 3
     
-    system.second_order = import_second_dlpoly('Dyn.form', geometry, replicas)
+    system.second_order = import_second_dlpoly(geometry, replicas)
     
     print ('second order loaded')
-    system.third_order = import_third_order_dlpoly('THIRD', geometry, replicas)
+    system.third_order = import_third_order_dlpoly(geometry, replicas)
     print ('third order loaded')
     
     phonons = Phonons (system, np.array ([1, 1, 1]), is_classic=is_classic)
