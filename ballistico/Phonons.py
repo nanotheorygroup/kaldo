@@ -266,8 +266,9 @@ class Phonons (object):
         # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
         delta_energy = params[0]
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
-        sigma = params[1] / DELTA_THRESHOLD
-        return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+        sigma = params[1]
+        correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+        return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
     
     
     def triangular_delta(self, params):
@@ -404,11 +405,10 @@ class Phonons (object):
                                 sparsify = lambda operator: tf.cast(tf.gather_nd (operator, coords), tf.float64)
     
                                 dirac_delta = sparsify(density_fact_tf) / sparsify(freq_product_tf)
-                                
+
+                                correction = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
         
-                                dirac_delta *= tf.exp (
-                                    - sparsify (freq_diff_tf) ** 2 / (sparsify (sigma_tf) ** 2)) / \
-                                               ( sparsify (sigma_tf) * np.sqrt (np.pi)) / scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
+                                dirac_delta *= tf.exp ( - sparsify (freq_diff_tf) ** 2 / (2 * sparsify (sigma_tf) ** 2)) / ( sparsify (sigma_tf) * np.sqrt (2 * np.pi)) / correction
                                 
                                 second = tf.gather (second_eigenv_tf, nup_vec, axis=0)
                                 third = tf.gather (third_eigenv_tf, nupp_vec, axis=0)
