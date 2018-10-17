@@ -29,7 +29,7 @@ if __name__ == "__main__":
     system = MolecularSystem (configuration=geometry, temperature=temperature, replicas=replicas)
 
     # our phonon object built on the system
-    k_mesh = np.array ([5, 5, 5])
+    k_mesh = np.array ([3, 3, 3])
     is_classical = False
     phonons = Phonons (system, k_mesh, is_classic=is_classical)
 

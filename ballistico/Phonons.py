@@ -1,20 +1,16 @@
 import os
 import tensorflow as tf
-
 import numpy as np
 import scipy
 import scipy.special
 import spglib as spg
-
 import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 
 DELTA_THRESHOLD = 2
 DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 
-
 class Phonons (object):
-
     def __init__(self, system, k_size=(1, 1, 1), is_classic=False):
         self.system = system
         self.is_classic = is_classic
@@ -439,10 +435,8 @@ class Phonons (object):
                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
                             nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
                                                              np.array ([np.prod (self.k_size), n_modes]), order='C')
-                            config = tf.ConfigProto (
-                                device_count={'GPU': 0}
-                            )
-                            with tf.Session (config=config) as sess:
+                            
+                            with tf.Session () as sess:
                                 tf.summary.FileWriter (
                                     "temp/",
                                     sess.graph)
