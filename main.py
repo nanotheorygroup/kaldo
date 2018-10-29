@@ -5,7 +5,7 @@ import ballistico.atoms_helper as atoms_helper
 import ballistico.io_helper as io_helper
 from ballistico.MolecularSystem import MolecularSystem
 from ballistico.Phonons import Phonons
-from ballistico.ConductivityController import ConductivityController
+from ballistico.ConductivityController_old import ConductivityController
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
@@ -28,8 +28,8 @@ if __name__ == "__main__":
     temperature = 300
     system = MolecularSystem (configuration=geometry, temperature=temperature, replicas=replicas)
 
-    # our phonon object built on the system
-    k_mesh = np.array ([3, 3, 3])
+    # our Phonons object built on the system
+    k_mesh = np.array ([3,3,3])
     is_classical = False
     phonons = Phonons (system, k_mesh, is_classic=is_classical)
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     n_modes = system.configuration.positions.shape[0] * 3
     n_k_points_to_plot = k_list.shape[0]
     freqs_to_plot = np.zeros ((n_k_points_to_plot, n_modes))
-    vel_to_plot = np.zeros ((n_k_points_to_plot, n_modes, 3))
+    vel_to_plot = np.zeros ((n_k_points_to_plot, n_modes, 3), dtype=np.complex)
 
     # Second order quantity calculated first
     for index_k in range(k_list.shape[0]):

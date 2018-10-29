@@ -1,11 +1,15 @@
 import os
-import tensorflow as tf
 import numpy as np
 import scipy
 import scipy.special
 import spglib as spg
 import ballistico.atoms_helper as ath
 import ballistico.constants as constants
+import tensorflow as tf
+
+# from memory_profiler import profile
+# tf.enable_eager_execution ()
+
 
 DELTA_THRESHOLD = 2
 DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
@@ -284,11 +288,13 @@ class Phonons (object):
         domega = params[1]
         return 1. / domega * (1 - deltaa / domega)
 
+    # @profile
     def calculate_gamma(self, sigma_in=None):
         prefactor = 1e-3 / (
                 4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
-    
         coeff = 1000 * constants.hbar / constants.charge_of_electron
+
+        # TODO: remove this when done debugging
         nup = tf.placeholder ('int64', (None), name='nup')
         nupp = tf.placeholder ('int64', (None), name='nupp')
         index_kp = tf.placeholder ('int64', (None), name='index_kp')
@@ -364,16 +370,19 @@ class Phonons (object):
         k_size = self.k_size
         nptk = np.prod (k_size)
         density = self.calculate_occupations()
-        freq_product_np = self.frequencies[:, :, np.newaxis, np.newaxis] * \
-                          self.frequencies[np.newaxis, np.newaxis, :, :]
-        freq_product_tf = freq_product_np.reshape (nptk * n_modes, nptk * n_modes)
+        freq_product_tf = (self.frequencies[:, :, np.newaxis, np.newaxis] * \
+                          self.frequencies[np.newaxis, np.newaxis, :, :]) \
+                              .reshape (nptk * n_modes, nptk * n_modes)
         if sigma_in is None:
             sigma_tensor = self.calculate_broadening ( \
                 self.velocities[:, :, np.newaxis, np.newaxis, :] - \
                 self.velocities[np.newaxis, np.newaxis, :, :, :])
             sigma_tensor = sigma_tensor
-            sigma_tf = sigma_tensor.reshape(nptk * n_modes, nptk * n_modes)
-        mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size, self.system.configuration, is_shift=[0, 0, 0])
+            sigma_tf = sigma_tensor.reshape(nptk * n_modes,
+                                            nptk * n_modes)
+        mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size,
+                                                    self.system.configuration,
+                                                    is_shift=[0, 0, 0])
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
         print ('Symmetries: ', unique_points)
@@ -435,7 +444,8 @@ class Phonons (object):
                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
                             nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
                                                              np.array ([np.prod (self.k_size), n_modes]), order='C')
-                            
+
+
                             with tf.Session () as sess:
                                 tf.summary.FileWriter (
                                     "temp/",
@@ -453,9 +463,11 @@ class Phonons (object):
                                     density_fact: density_fact_tf,
                                     freq_product: freq_product_tf,
                                     freq_diff: freq_diff_tf}
+                                
                                 if sigma_in == None:
                                     feed_dict[sigma] = sigma_tf
                                 gamma_value = sess.run (gamma_tf, feed_dict=feed_dict)
+                                
 
                             # ps[is_plus, index_k, mu] = phase_space_tf
                             gamma[is_plus, index_k, mu] = gamma_value
@@ -473,7 +485,8 @@ class Phonons (object):
         gamma = gamma * prefactor / nptk
         ps = ps / nptk / (2 * np.pi) ** 3
         return gamma
-
+    
+    # @profile
     def calculate_broadening(self, velocity):
         cellinv = self.system.configuration.cell_inv
         rlattvec = cellinv * 2 * np.pi
