@@ -5,14 +5,13 @@ import ballistico.atoms_helper as atoms_helper
 import ballistico.io_helper as io_helper
 from ballistico.MolecularSystem import MolecularSystem
 from ballistico.Phonons import Phonons
-from ballistico.ConductivityController_old import ConductivityController
+from ballistico.ConductivityController import ConductivityController
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import logging
 import sys
 
 NKPOINTS_TO_PLOT = 100
-
 
 def setup_custom_logger():
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
@@ -112,5 +111,4 @@ if __name__ == "__main__":
     plt.show ()
 
     # Calculate conductivity
-    cond = ConductivityController(phonons).calculate_conductivity(is_classical=is_classical)
-    logging.info ('conductivity = \n' + str(cond))
+    ConductivityController(phonons).calculate_conductivity(is_classical=is_classical)
