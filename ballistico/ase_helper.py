@@ -1,5 +1,5 @@
 import numpy as np
-
+import logging
 from ballistico.constants import *
 from ballistico.atoms_helper import replicate_configuration
 from scipy.optimize import minimize
@@ -38,14 +38,14 @@ def gradient(x, input_atoms):
 
 def optimize(configuration, method='BFGS'):
     # Mimimization of the sructure
-    print('Initial max force: ', max_force(configuration.positions, configuration))
+    logging.info('Initial max force: ', max_force(configuration.positions, configuration))
     if not ((method == 'none') or (method == False)):
-        print ('Optimization method ' + method)
+        logging.info('Optimization method ' + method)
         result = minimize (max_force, configuration.positions, args=configuration, jac=gradient, method=method)
-        print (result.message)
+        logging.info(result.message)
         configuration.positions = result.x.reshape((int(result.x.size / 3), 3))
         io.write ('minimized_' + '.xyz', configuration, format='extxyz')
-    print ('Final max force: ', max_force(configuration.positions, configuration))
+    logging.info('Final max force: ', max_force(configuration.positions, configuration))
     return configuration
 
 
@@ -55,7 +55,7 @@ def calculate_second(configuration, replicas):
     :return:
     tensor with second derivative in eV/A^2
     '''
-    print('Calculating second order potential derivatives')
+    logging.info('Calculating second order potential derivatives')
     n_in_unit_cell = len (configuration.numbers)
     replicated_configuration, list_of_replicas = replicate_configuration(configuration, replicas)
 
@@ -81,7 +81,7 @@ def calculate_third(configuration, replicas):
 
             
     # TODO: Here we should create it sparse
-    print('Calculating third order')
+    logging.info('Calculating third order')
     n_in_unit_cell = len (configuration.numbers)
     atoms = replicated_configuration
     n_atoms = len (atoms.numbers)

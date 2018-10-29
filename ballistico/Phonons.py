@@ -6,7 +6,7 @@ import spglib as spg
 import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 import tensorflow as tf
-
+import logging
 # from memory_profiler import profile
 # tf.enable_eager_execution ()
 
@@ -227,10 +227,7 @@ class Phonons (object):
         # increase_factor = 3
         omega_kl = np.zeros(( n_k_points, n_modes))
         for mode in range(n_modes):
-            try:
-                omega_kl[:, mode] = frequencies[...,mode].flatten()
-            except IndexError as err:
-                print(err)
+            omega_kl[:, mode] = frequencies[...,mode].flatten()
         # Energy axis and dos
         omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
         dos_e = np.zeros_like (omega_e)
@@ -333,7 +330,7 @@ class Phonons (object):
         phase_space_tf = tf.reduce_sum (dirac_delta)
         gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
                                            tf.float64) * dirac_delta)
-        print ('Lifetime calculation')
+        logging.info('Lifetime calculation')
         nptk = np.prod (self.k_size)
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -363,7 +360,7 @@ class Phonons (object):
         scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
                                      np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
-        print ('Projection started')
+        logging.info('Projection started')
         gamma = np.zeros ((2, nptk, n_modes))
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -385,7 +382,7 @@ class Phonons (object):
                                                     is_shift=[0, 0, 0])
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
-        print ('Symmetries: ', unique_points)
+        logging.info('Symmetries: ' + str(unique_points))
         third_eigenv_np = self.eigenvectors.conj ()
         third_chi_tf = chi.conj ()
         third_eigenv_tf = third_eigenv_np.swapaxes (1, 2).reshape ( \
@@ -474,9 +471,9 @@ class Phonons (object):
                             
                         gamma[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
-                        print ('Current q, mu:', index_k, mu, 'is plus?', is_plus)
-                        print (self._frequencies[index_k, mu], ps[is_plus, index_k, mu])
-                        print (gamma[is_plus, index_k, mu], coeff * prefactor * gamma[is_plus, index_k, mu])
+                        logging.info('Current q, mu:' + str(index_k) + str(mu) + 'is plus?' + str(is_plus))
+                        logging.info(str(self._frequencies[index_k, mu]) + str(ps[is_plus, index_k, mu]))
+                        logging.info(str(gamma[is_plus, index_k, mu]) + str(coeff * prefactor * gamma[is_plus, index_k, mu]))
 
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]

@@ -1,9 +1,11 @@
+import logging
 
 import ballistico.geometry_helper as ghl
 from ballistico.constants import *
 from ballistico.tools import *
 import matplotlib.pyplot as plt
 import ballistico.atoms_helper as ath
+
 
 # np.set_printoptions(suppress=True)
 from scipy.interpolate import RegularGridInterpolator
@@ -247,7 +249,7 @@ class ShengbteHelper (object):
                             file.write ('\t %.11E' % matrix_element)
                             file.write ('\n')
         file.close ()
-        print('second order saved')
+        logging.info('second order saved')
     
     
     def save_third_order_matrix_new(self):
@@ -294,7 +296,7 @@ class ShengbteHelper (object):
             data = original.read ()
         with open (filename, 'w') as modified:
             modified.write ('  ' + str (block_counter) + '\n' + data)
-        print('third order saved')
+        logging.info('third order saved')
     
     def save_third_order_matrix(self, filename='FORCE_CONSTANTS_3RD'):
         shenbte_folder = self.folder
@@ -564,7 +566,7 @@ class ShengbteHelper (object):
         filename = filename + ".csv"
 
         filename = self.folder + filename
-        print('saving ' + filename)
+        logging.info('saving ' + filename)
         with open (filename, "w") as csv:
             str_to_write = 'k_x,k_y,k_z,'
             for i in range (n_modes):
@@ -643,7 +645,7 @@ class ShengbteHelper (object):
         filename = filename + '.csv'
         conductivity = conductivity_array.reshape (3, 3)
         np.savetxt(filename , conductivity, delimiter=',')
-        print('saving ' + filename)
+        logging.info('saving ' + filename)
         return conductivity
     
     def energy_easy_plot(self, nanowire=False):

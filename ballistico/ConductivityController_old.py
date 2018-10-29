@@ -139,7 +139,7 @@ class ConductivityController (object):
         trans = (1 - kn * (1 - np.exp (- 1. / kn))) * kn
         return trans * length / abs (velocity)
     
-    def calculate_conductivity(self, is_classical=False, post_processing=None, length=None, converged=False):
+    def calculate_conductivity(self, is_classical, post_processing=None, length=None, converged=False):
         conductivity_per_mode = np.zeros ((self.n_k_points, self.n_modes, 3, 3))
         if (is_classical):
             c_v = k_b

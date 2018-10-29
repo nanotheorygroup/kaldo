@@ -8,11 +8,29 @@ from ballistico.Phonons import Phonons
 from ballistico.ConductivityController_old import ConductivityController
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import logging
+import sys
 
 NKPOINTS_TO_PLOT = 100
 
+
+def setup_custom_logger():
+    formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S')
+    handler = logging.FileHandler('output.log', mode='w')
+    handler.setFormatter(formatter)
+    screen_handler = logging.StreamHandler(stream=sys.stdout)
+    screen_handler.setFormatter(formatter)
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    logger.addHandler(screen_handler)
+    return logger
+
 if __name__ == "__main__":
-    
+    # We store the output in a file
+    logger = setup_custom_logger()
+
     # We start from a geometry
     geometry = ase.io.read ('examples/si-bulk.xyz')
     
@@ -20,7 +38,7 @@ if __name__ == "__main__":
     replicas = np.array ([3, 3, 3])
     n_replicas = np.prod(replicas)
     replicated_geometry, list_of_replicas = atoms_helper.replicate_configuration(geometry, replicas)
-
+    
     # then we store it
     ase.io.write ('CONFIG', replicated_geometry, format='dlp4')
 
@@ -94,4 +112,5 @@ if __name__ == "__main__":
     plt.show ()
 
     # Calculate conductivity
-    print(ConductivityController(phonons).calculate_conductivity())
+    cond = ConductivityController(phonons).calculate_conductivity(is_classical=is_classical)
+    logging.info ('conductivity = \n' + str(cond))

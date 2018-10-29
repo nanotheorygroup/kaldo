@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 import seekpath
 from ase.dft.kpoints import ibz_points, bandpath
 
@@ -18,8 +19,8 @@ def create_k_space_with_path(system, resolution, time_refersal=True):
 	
 	kpath = explicit_data['explicit_kpoints_rel']
 	new_data = seekpath.get_path(inp)
-	print('Spacegroup: {} ({})'.format(new_data['spacegroup_international'], new_data['spacegroup_number']))
-	print('Inversion symmetry?: {}'.format(new_data['has_inversion_symmetry']))
+	logging.info('Spacegroup: {} ({})'.format(new_data['spacegroup_international'], new_data['spacegroup_number']))
+	logging.info('Inversion symmetry?: {}'.format(new_data['has_inversion_symmetry']))
 	
 	explicit_segments = np.array (explicit_data['explicit_segments'])[:, 0]
 	to_append = np.array([np.array (explicit_data['explicit_segments'])[:, 1][-1]])
@@ -69,24 +70,17 @@ def filter_modes_and_k_points(k_list, modes):
 	k_x = k_list[:, 0]
 	k_y = k_list[:, 1]
 	k_z = k_list[:, 2]
-	
 	# gamma to x
 	first_filt = (k_x >= 0.) & ((k_y == 0.) & (k_z == k_x))
-
-	# print k_list[first_filt]
 	return k_list[first_filt], modes[first_filt]
 
 
 def filter_k_points(k_list):
 	k_list -= np.round (k_list)
-	
 	k_x = k_list[:, 0]
 	k_y = k_list[:, 1]
 	k_z = k_list[:, 2]
-	
 	# gamma to x
 	first_filt = (k_x >= 0.) & ((k_y == 0.) & (k_z == k_x)) & (k_x <= 0.5)
-
 	second_filt = (k_x >= 0.5) & ((k_y > 0.) & (k_z == k_x))
-	# print k_list[first_filt]
 	return k_list[first_filt]
