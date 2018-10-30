@@ -6,7 +6,8 @@ import spglib as spg
 import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 import tensorflow as tf
-import logging
+from ballistico.Logger import Logger
+import sys
 # from memory_profiler import profile
 # tf.enable_eager_execution ()
 EIGENVALUES_FILE = 'eigenvalues.npy'
@@ -136,7 +137,6 @@ class Phonons (object):
     @gamma.getter
     def gamma(self):
         if self._gamma is None:
-
             try:
                 self._gamma = np.load (self.folder + GAMMA_FILE)
             except IOError as e:
@@ -339,7 +339,7 @@ class Phonons (object):
         phase_space_tf = tf.reduce_sum (dirac_delta)
         gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
                                            tf.float64) * dirac_delta)
-        logging.info('Lifetime calculation')
+        Logger().info ('Lifetime calculation')
         nptk = np.prod (self.k_size)
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -369,7 +369,7 @@ class Phonons (object):
         scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
                                      np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
-        logging.info('Projection started')
+        Logger().info ('Projection started')
         gamma = np.zeros ((2, nptk, n_modes))
         n_particles = self.system.configuration.positions.shape[0]
         n_modes = n_particles * 3
@@ -391,17 +391,19 @@ class Phonons (object):
                                                     is_shift=[0, 0, 0])
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
-        logging.info('Symmetries: ' + str(unique_points))
+        Logger().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
         third_eigenv_np = self.eigenvectors.conj ()
         third_chi_tf = chi.conj ()
         third_eigenv_tf = third_eigenv_np.swapaxes (1, 2).reshape ( \
             third_eigenv_np.shape[0] * third_eigenv_np.shape[1], third_eigenv_np.shape[2])
         for is_plus in (1, 0):
             if is_plus:
+                Logger().info ('\nCreation processes')
                 density_fact_np = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
                 second_eigenv_np = self.eigenvectors
                 second_chi_tf = chi
             else:
+                Logger().info ('\nAnnihilation processes')
                 density_fact_np = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
                 second_eigenv_np = self.eigenvectors.conj ()
                 second_chi_tf = chi.conj ()
@@ -480,9 +482,9 @@ class Phonons (object):
                             
                         gamma[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
-                        logging.info('Current q, mu:' + str(index_k) + str(mu) + 'is plus?' + str(is_plus))
-                        logging.info(str(self._frequencies[index_k, mu]) + str(ps[is_plus, index_k, mu]))
-                        logging.info(str(gamma[is_plus, index_k, mu]) + str(coeff * prefactor * gamma[is_plus, index_k, mu]))
+                        Logger().info ('q-point   = ' + str(index_k))
+                        Logger().info ('mu-branch = ' + str(mu))
+
 
         for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
             ps[:, index_k, :] = ps[:, associated_index, :]

@@ -1,5 +1,5 @@
 import numpy as np
-import logging
+from ballistico.Logger import Logger
 import seekpath
 from ase.dft.kpoints import ibz_points, bandpath
 
@@ -19,8 +19,8 @@ def create_k_space_with_path(system, resolution, time_refersal=True):
 	
 	kpath = explicit_data['explicit_kpoints_rel']
 	new_data = seekpath.get_path(inp)
-	logging.info('Spacegroup: {} ({})'.format(new_data['spacegroup_international'], new_data['spacegroup_number']))
-	logging.info('Inversion symmetry?: {}'.format(new_data['has_inversion_symmetry']))
+	Logger().info ('Spacegroup: {} ({})'.format(new_data['spacegroup_international'], new_data['spacegroup_number']))
+	Logger().info ('Inversion symmetry?: {}'.format(new_data['has_inversion_symmetry']))
 	
 	explicit_segments = np.array (explicit_data['explicit_segments'])[:, 0]
 	to_append = np.array([np.array (explicit_data['explicit_segments'])[:, 1][-1]])

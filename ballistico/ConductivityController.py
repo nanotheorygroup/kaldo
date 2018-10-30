@@ -1,14 +1,13 @@
 from ballistico.constants import *
 import ballistico.constants as constants
-import logging
-
-# np.set_printoptions (suppress=True)
+from ballistico.Logger import Logger
 import numpy as np
 from scipy.sparse import csc_matrix
-
+import sys
 
 LENGTH_THREESHOLD = 1e20
 THREESHOLD = 1e-20
+
 
 class ConductivityController (object):
     def __init__(self, phonons):
@@ -22,7 +21,7 @@ class ConductivityController (object):
         self.folder = phonons.folder
         self.volume = np.linalg.det(phonons.system.configuration.cell) / 1000.
         # self.import_scattering_matrix()
-    
+        
     @classmethod
     def from_sheng_bte_helper(self, shl):
         n_k_points = shl.n_k_points ()
@@ -33,20 +32,17 @@ class ConductivityController (object):
         temperature = shl.system.temperature
         volume = np.linalg.det (shl.system.configuration.cell) / 1000.
         return self (energies, velocities, n_k_points, n_modes, temperature, volume, folder)
-    
+
+
     def import_scattering_matrix(self):
-        
         temperature = str (int (self.temperature))
         filename_gamma = self.folder + 'T' + temperature + 'K/GGG.Gamma_Tensor'
-        
         gamma_value = []
         row = []
         col = []
-        
         with open (filename_gamma, "rw+") as f:
             for line in f:
                 items = line.split ()
-                
                 n0 = int (items[0]) - 1
                 k0 = int (items[1]) - 1
                 n1 = int (items[2]) - 1
@@ -163,6 +159,6 @@ class ConductivityController (object):
         conductivity_per_mode *= 1.E21 / (self.volume * self.n_k_points)
         conductivity_per_mode = conductivity_per_mode.sum (axis=0)
         cond = conductivity_per_mode.sum (axis=0)
-        logging.info ('conductivity = \n' + str (cond))
+        Logger().info ('\nconductivity = \n' + str (cond))
         return
     
