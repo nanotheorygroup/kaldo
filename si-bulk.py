@@ -95,15 +95,6 @@ if __name__ == "__main__":
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     fig.savefig ('velocity.pdf')
     
-    # Plot gamma
-    fig = plt.figure ()
-    plt.ylim([0,0.30])
-    plt.scatter (phonons.frequencies.flatten (), phonons.gamma[1].flatten ())
-    plt.scatter (phonons.frequencies.flatten (), phonons.gamma[0].flatten ())
-    plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig ('gamma.pdf')
-
     # Calculate conductivity
     ConductivityController(phonons).calculate_conductivity(is_classical=is_classical)
     
@@ -112,15 +103,26 @@ if __name__ == "__main__":
     shl.third_order = third_order
     shl.save_second_order_matrix()
     shl.save_third_order_matrix()
-    shl.run()
+    print(shl.run())
     frequency = shl.frequencies
     gamma = shl.decay_rates
 
-    # Plot gamma sheng
+
+    # Plot gamma
     fig = plt.figure ()
     plt.ylim([0,0.30])
+    plt.scatter (phonons.frequencies.flatten (), (phonons.gamma[1] +  phonons.gamma[0]).flatten ())
+    # plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
+    # plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    
+    # fig.savefig ('gamma.pdf')
+
+    # Plot gamma sheng
+    # fig = plt.figure ()
+    # plt.ylim([0,0.30])
     plt.scatter (frequency.flatten (), gamma.flatten ())
     plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig ('gamma-sheng.pdf')
+    # fig.savefig ('gamma-sheng.pdf')
     print('done')
+    plt.show()

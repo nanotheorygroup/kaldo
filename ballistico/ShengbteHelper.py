@@ -188,15 +188,11 @@ class ShengbteHelper (object):
                         file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1) + '\t' + str (j + 1) + '\n')
                         for id_replica in range(list_of_indices.shape[0]):
                             index = list_of_indices[id_replica]
-                            l_1 = int (index[0]) % self.replicas[0] + 1
-                            l_2 = int (index[1]) % self.replicas[1] + 1
-                            l_3 = int (index[2]) % self.replicas[2] + 1
-                            
-                            
-                            file.write ('\t' + str (l_1) + '\t' + str (l_2) + '\t' + str (l_3))
+                            l_vec = np.array(index % self.replicas + 1).astype(np.int)
+                            file.write ('\t' + str (l_vec[0]) + '\t' + str (l_vec[1]) + '\t' + str (l_vec[2]))
                             
                             # TODO: WHy are they flipped?
-                            matrix_element = self.second_order[0, j, beta, id_replica, i, alpha]
+                            matrix_element = self.second_order[0, i, alpha, id_replica, j, beta]
                             
                             matrix_element = matrix_element / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
                             file.write ('\t %.11E' % matrix_element)
@@ -221,9 +217,7 @@ class ShengbteHelper (object):
                         for i_2 in range (n_in_unit_cell):
                             
                             three_particles_interaction = system.third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
-                            # three_particles_interaction = system.third_order[system.index_first_cell, i_0, :, n_1, i_1, :, n_2, i_2, :]
-                            # three_particles_interaction = system.third_order[i_0, :, n_1, i_1, :, n_2, i_2, :]
-
+                            
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
                                 replica = system.list_of_replicas#
@@ -561,5 +555,4 @@ class ShengbteHelper (object):
         plt.xlim(0,.5)
         # modes so far are in rad/ps, here we change them to rad/ps
         plt.plot (q_points_filtered, modes_filtered, "-", color='black')
-    
     

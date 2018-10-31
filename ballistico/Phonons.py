@@ -306,7 +306,8 @@ class Phonons (object):
         delta_energy = params[0]
         # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
         sigma = params[1]
-        correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+        # correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+        correction = 1
         return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
     
     
@@ -397,15 +398,15 @@ class Phonons (object):
         k_size = self.k_size
         nptk = np.prod (k_size)
         density = self.calculate_occupations()
-        freq_product_tf = (self.frequencies[:, :, np.newaxis, np.newaxis] * \
-                          self.frequencies[np.newaxis, np.newaxis, :, :]) \
-                              .reshape (nptk * n_modes, nptk * n_modes)
+        freq_product_np = (self.frequencies[:, :, np.newaxis, np.newaxis] * \
+                          self.frequencies[np.newaxis, np.newaxis, :, :])
+        freq_product_tf = freq_product_np.reshape (nptk * n_modes, nptk * n_modes)
         if sigma_in is None:
-            sigma_tensor = self.calculate_broadening ( \
+            sigma_tensor_np = self.calculate_broadening ( \
                 self.velocities[:, :, np.newaxis, np.newaxis, :] - \
                 self.velocities[np.newaxis, np.newaxis, :, :, :])
-            sigma_tensor = sigma_tensor
-            sigma_tf = sigma_tensor.reshape(nptk * n_modes,
+            sigma_tensor = sigma_tensor_np
+            sigma_tf = sigma_tensor_np.reshape(nptk * n_modes,
                                             nptk * n_modes)
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size,
                                                     self.configuration,
@@ -455,51 +456,70 @@ class Phonons (object):
                         index_kpp_vec = self.ravel_multi_index (i_kpp_vec)
                         delta_freq = freq_diff_np[index_kp_vec, :, index_kpp_vec, :]
                         if sigma_in is None:
-                            sigma_small = sigma_tensor[index_kp_vec, :, index_kpp_vec, :]
+                            sigma_small = sigma_tensor_np[index_kp_vec, :, index_kpp_vec, :]
                         else:
                             sigma_small = sigma_in
                         condition = (delta_freq < DELTA_THRESHOLD * sigma_small) & (
                                 self.frequencies[index_kp_vec, :, np.newaxis] != 0) & (self.frequencies[index_kpp_vec, np.newaxis, :] != 0)
                         interactions = np.array (np.where (condition)).T
                         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-
                         if interactions.size != 0:
-    
+                            print ('interactions: ', index_k, interactions.size)
                             index_kp_vec = interactions[:, 0]
                             index_kpp_vec = index_kpp_vec[index_kp_vec]
                             mup_vec = interactions[:, 1]
                             mupp_vec = interactions[:, 2]
-                            nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
-                                                            np.array ([np.prod (self.k_size), n_modes]), order='C')
-                            nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
-                                                             np.array ([np.prod (self.k_size), n_modes]), order='C')
 
+                            dirac_delta = density_fact_np[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
 
-                            with tf.Session () as sess:
-                                tf.summary.FileWriter (
-                                    "tensorboard/",
-                                    sess.graph)
-                                feed_dict = {
-                                    nup: nup_vec,
-                                    nupp: nupp_vec,
-                                    index_kp: index_kp_vec,
-                                    index_kpp: index_kpp_vec,
-                                    second_eigenv: second_eigenv_tf,
-                                    third_eigenv: third_eigenv_tf,
-                                    potential: projected_potential,
-                                    second_chi: second_chi_tf,
-                                    third_chi: third_chi_tf,
-                                    density_fact: density_fact_tf,
-                                    freq_product: freq_product_tf,
-                                    freq_diff: freq_diff_tf}
-                                
-                                if sigma_in == None:
-                                    feed_dict[sigma] = sigma_tf
-                                gamma_value = sess.run (gamma_tf, feed_dict=feed_dict)
-                                
+                            dirac_delta /= freq_product_np[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]
+                            if sigma_in is None:
+                                gaussian = self.gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma_tensor[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec]])
 
-                            # ps[is_plus, index_k, mu] = phase_space_tf
-                            gamma[is_plus, index_k, mu] = gamma_value
+                            else:
+                                gaussian = self.gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma])
+
+                            dirac_delta *= gaussian
+
+                            ps[is_plus, index_k, mu] += np.sum (dirac_delta)
+
+                            third = third_eigenv_np[index_kpp_vec, :, mupp_vec]
+                            second = second_eigenv_np[index_kp_vec, :, mup_vec]
+
+                            projected_potential = np.einsum ('litj,al,at,aj,ai->a', projected_potential,
+                                                             second_chi_tf[index_kp_vec], third_chi_tf[index_kpp_vec], third,
+                                                             second, optimize='greedy')
+
+                            gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
+                        #     index_kp_vec = interactions[:, 0]
+                        #     index_kpp_vec = index_kpp_vec[index_kp_vec]
+                        #     mup_vec = interactions[:, 1]
+                        #     mupp_vec = interactions[:, 2]
+                        #     nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
+                        #                                     np.array ([np.prod (self.k_size), n_modes]), order='C')
+                        #     nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
+                        #                                      np.array ([np.prod (self.k_size), n_modes]), order='C')
+                        #     with tf.Session () as sess:
+                        #         tf.summary.FileWriter (
+                        #             "tensorboard/",
+                        #             sess.graph)
+                        #         feed_dict = {
+                        #             nup: nup_vec,
+                        #             nupp: nupp_vec,
+                        #             index_kp: index_kp_vec,
+                        #             index_kpp: index_kpp_vec,
+                        #             second_eigenv: second_eigenv_tf,
+                        #             third_eigenv: third_eigenv_tf,
+                        #             potential: projected_potential,
+                        #             second_chi: second_chi_tf,
+                        #             third_chi: third_chi_tf,
+                        #             density_fact: density_fact_tf,
+                        #             freq_product: freq_product_tf,
+                        #             freq_diff: freq_diff_tf}
+                        #         if sigma_in == None:
+                        #             feed_dict[sigma] = sigma_tf
+                        #         gamma_value = sess.run (gamma_tf, feed_dict=feed_dict)
+                        #     gamma[is_plus, index_k, mu] = gamma_value
                             
                         gamma[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= self.frequencies[index_k, mu]
