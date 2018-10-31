@@ -17,9 +17,9 @@ class ConductivityController (object):
         self.gamma = phonons.gamma[0] + phonons.gamma[1]
         self.n_modes = self.energies.shape[-1]
         self.n_phonons = self.n_k_points * self.n_modes
-        self.temperature = phonons.system.temperature
+        self.temperature = phonons.temperature
         self.folder = phonons.folder
-        self.volume = np.linalg.det(phonons.system.configuration.cell) / 1000.
+        self.volume = np.linalg.det(phonons.configuration.cell) / 1000.
         # self.import_scattering_matrix()
         
     @classmethod

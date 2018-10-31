@@ -12,28 +12,34 @@ import sys
 # tf.enable_eager_execution ()
 EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
-FREQUENCY_K_FILE = 'frequenceis.npy'
+FREQUENCY_K_FILE = 'frequencies.npy'
 VELOCITY_K_FILE = 'velocities.npy'
-GAMMA_FILE = 'gamma.npy'
+GAMMA_FILE = 'gammas.npy'
 
 DELTA_THRESHOLD = 2
 # DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 DELTA_CORRECTION = 1
 
 class Phonons (object):
-    def __init__(self, system, k_size=(1, 1, 1), is_classic=False):
-        self.system = system
-        self.is_classic = is_classic
+    def __init__(self, configuration, replicas=(1,1,1), k_size=(1,1,1), second_order=None, third_order=None, is_classic=False, temperature=300):
+        # TODO: Keep only the relevant default initializations
+        self.configuration = configuration
+        self.replicas = np.array(replicas)
         self.k_size = np.array(k_size)
+        self.is_classic = is_classic
         self.folder = 'phonons/'
         [self.replicated_configuration, self.list_of_replicas] = \
-            ath.replicate_configuration (self.system.configuration, self.system.replicas)
+            ath.replicate_configuration (self.configuration, self.replicas)
         self._frequencies = None
         self._velocities = None
         self._eigenvalues = None
         self._eigenvectors = None
         self._occupations = None
         self._gamma = None
+        self._cell_inv = None
+        self.second_order = second_order
+        self.third_order = third_order
+        self.temperature = temperature
         directory = os.path.dirname (self.folder)
         if not os.path.exists (directory):
             os.makedirs (directory)
@@ -149,6 +155,20 @@ class Phonons (object):
     def gamma(self, new_gamma):
         self._gamma = new_gamma
 
+    @property
+    def cell_inv(self):
+        return self._cell_inv
+
+    @cell_inv.getter
+    def cell_inv(self):
+        if self._cell_inv is None:
+            self._cell_inv = np.linalg.inv(self.configuration.cell)
+        return self._cell_inv
+
+    @cell_inv.setter
+    def cell_inv(self, new_cell_inv):
+        self._cell_inv = new_cell_inv
+
     def unravel_index(self, index):
         multi_index = np.unravel_index (index, self.k_size, order='F')
         return multi_index
@@ -173,8 +193,8 @@ class Phonons (object):
 
     def diagonalize_second_order_single_k(self, qvec):
         list_of_replicas = self.list_of_replicas
-        geometry = self.system.configuration.positions
-        cell_inv = self.system.configuration.cell_inv
+        geometry = self.configuration.positions
+        cell_inv = self.cell_inv
         kpoint = 2 * np.pi * (cell_inv).dot (qvec)
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
@@ -185,7 +205,7 @@ class Phonons (object):
         else:
             # calculate_eigenvec = scipy.linalg.lapack.zheev
             calculate_eigenvec = np.linalg.eigh
-        second_order = self.system.second_order[0]
+        second_order = self.second_order[0]
         chi_k = np.zeros (n_replicas).astype (complex)
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
@@ -203,7 +223,7 @@ class Phonons (object):
                                 ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * \
                                                                            (second_order[
                                                                                i_at, i_pol, id_replica, j_at, j_pol])
-        mass = np.sqrt(self.system.configuration.get_masses ())
+        mass = np.sqrt(self.configuration.get_masses ())
         massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
         dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
         dyn_s /= mass[np.newaxis, np.newaxis, :, np.newaxis]
@@ -251,7 +271,7 @@ class Phonons (object):
     
     def calculate_second_all_grid(self):
         n_k_points = np.prod(self.k_size)
-        n_unit_cell = self.system.second_order.shape[1]
+        n_unit_cell = self.second_order.shape[1]
         frequencies = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
@@ -270,13 +290,13 @@ class Phonons (object):
         self._eigenvectors = eigenvectors
     
     def calculate_occupations(self):
-        temp = self.system.temperature
+        temp = self.temperature
         omega = 2 * np.pi * self.frequencies
         eigenvalues = omega * constants.hbar / constants.k_b
         density = np.zeros_like(eigenvalues)
         if self.is_classic == False:
             density[omega != 0] = 1. / (
-                    np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.system.temperature) - 1.)
+                    np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.temperature) - 1.)
         else:
             density[omega != 0] = temp / omega[omega != 0] / constants.hbar * constants.k_b
         return density
@@ -342,14 +362,14 @@ class Phonons (object):
                                            tf.float64) * dirac_delta)
         Logger().info ('Lifetime calculation')
         nptk = np.prod (self.k_size)
-        n_particles = self.system.configuration.positions.shape[0]
+        n_particles = self.configuration.positions.shape[0]
         n_modes = n_particles * 3
         ps = np.zeros ((2, np.prod (self.k_size), n_modes))
         # TODO: remove acoustic sum rule
         self.frequencies[0, :3] = 0
         self.velocities[0, :3, :] = 0
-        cellinv = self.system.configuration.cell_inv
-        masses = self.system.configuration.get_masses ()
+        cellinv = self.cell_inv
+        masses = self.configuration.get_masses ()
         list_of_replicas = self.list_of_replicas
         n_modes = n_particles * 3
         k_size = self.k_size
@@ -362,7 +382,7 @@ class Phonons (object):
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
-        scaled_potential = self.system.third_order[0] / np.sqrt \
+        scaled_potential = self.third_order[0] / np.sqrt \
             (masses[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis, \
              np.newaxis, np.newaxis, np.newaxis])
         scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
@@ -372,7 +392,7 @@ class Phonons (object):
         scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
         Logger().info ('Projection started')
         gamma = np.zeros ((2, nptk, n_modes))
-        n_particles = self.system.configuration.positions.shape[0]
+        n_particles = self.configuration.positions.shape[0]
         n_modes = n_particles * 3
         k_size = self.k_size
         nptk = np.prod (k_size)
@@ -388,7 +408,7 @@ class Phonons (object):
             sigma_tf = sigma_tensor.reshape(nptk * n_modes,
                                             nptk * n_modes)
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size,
-                                                    self.system.configuration,
+                                                    self.configuration,
                                                     is_shift=[0, 0, 0])
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
@@ -497,7 +517,7 @@ class Phonons (object):
     
     # @profile
     def calculate_broadening(self, velocity):
-        cellinv = self.system.configuration.cell_inv
+        cellinv = self.cell_inv
         rlattvec = cellinv * 2 * np.pi
 
         # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec

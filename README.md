@@ -1,4 +1,4 @@
-![alt text](others/ballistico.png "Ballistico Logo")
+![alt text](assets/ballistico.png "Ballistico Logo")
 
 # Introduction
 Ballistico is a Python app which allows to calculate phonons dispersion relations and density of states using finite difference.

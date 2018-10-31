@@ -11,8 +11,7 @@ def normalize_geometry(geometry, sizes):
 	return np.dot (inverted_matrix, geometry.T).T
 
 
-def create_k_space_with_path(system, resolution, time_refersal=True):
-	structure = system.configuration
+def create_k_space_with_path(structure, resolution, time_refersal=True):
 	numbers = structure.get_atomic_numbers ()
 	inp = (structure.cell, structure.get_scaled_positions (), numbers)
 	explicit_data = seekpath.get_explicit_k_path (inp, reference_distance=resolution, with_time_reversal=time_refersal)
@@ -37,12 +36,11 @@ def create_k_space_with_path(system, resolution, time_refersal=True):
 	return kpath, np.arange(0., explicit_segments.max(), dx), 1. * explicit_segments, point_names
 
 
-def create_k_and_symmetry_space(system, symmetry='fcc', n_k_points=50):
+def create_k_and_symmetry_space(structure, symmetry='fcc', n_k_points=50):
 	
 	# TODO: implement symmetry here
 	# import spglib as spg
-	# spacegroup = spg.get_spacegroup (system.configuration, symprec=1e-5)
-	structure = system.configuration
+	# spacegroup = spg.get_spacegroup (configuration, symprec=1e-5)
 
 	# High-symmetry points in the Brillouin zone
 	points = ibz_points[symmetry]

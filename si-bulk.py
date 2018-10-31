@@ -1,9 +1,9 @@
 import numpy as np
 import ase
+import ase.io
 import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
 import ballistico.io_helper as io_helper
-from ballistico.MolecularSystem import MolecularSystem
 from ballistico.Phonons import Phonons
 from ballistico.ConductivityController import ConductivityController
 import matplotlib.gridspec as gridspec
@@ -28,20 +28,29 @@ if __name__ == "__main__":
 
     # we create our system
     temperature = 300
-    system = MolecularSystem (configuration=geometry, temperature=temperature, replicas=replicas)
-
-    # our Phonons object built on the system
-    k_mesh = np.array ([5, 5, 5])
-    is_classical = False
-    phonons = Phonons (system, k_mesh, is_classic=is_classical)
 
     # import the calculated second order
-    system.second_order = io_helper.import_second_dlpoly (geometry, replicas)
+    # Import the calculated third to calculate third order quantities
+
+    # our Phonons object built on the system
+    k_mesh = np.array ([3, 3, 3])
+    is_classical = False
+    second_order = io_helper.import_second_dlpoly (geometry, replicas)
+    third_order = io_helper.import_third_order_dlpoly(geometry, replicas)
+    phonons = Phonons (configuration=geometry,
+                       replicas=replicas,
+                       k_size=k_mesh,
+                       second_order=second_order,
+                       third_order=third_order,
+                       is_classic=is_classical,
+                       temperature=temperature)
+
+    configuration = geometry
 
     # pick some k_points to plot
-    k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (phonons.system, symmetry='fcc',
+    k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (configuration, symmetry='fcc',
                                                                              n_k_points=NKPOINTS_TO_PLOT)
-    n_modes = system.configuration.positions.shape[0] * 3
+    n_modes = configuration.positions.shape[0] * 3
     n_k_points_to_plot = k_list.shape[0]
     freqs_to_plot = np.zeros ((n_k_points_to_plot, n_modes))
     vel_to_plot = np.zeros ((n_k_points_to_plot, n_modes, 3), dtype=np.complex)
@@ -55,7 +64,7 @@ if __name__ == "__main__":
     grid = gridspec.GridSpec (ncols=4, nrows=3)
 
     # Crate a path in teh brillioun
-    k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (system, symmetry='fcc', n_k_points=100)
+    k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (configuration, symmetry='fcc', n_k_points=100)
     
     # Calculate density of state, this is currently a method (called with parentesis), soon will be an attribute
     omega_e, dos_e = phonons.density_of_states ()
@@ -85,10 +94,6 @@ if __name__ == "__main__":
     plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     fig.savefig ('velocity.pdf')
-
-
-    # Import the calculated third to calculate third order quantities
-    system.third_order = io_helper.import_third_order_dlpoly(geometry, replicas)
     
     # Plot gamma
     fig = plt.figure ()
@@ -102,8 +107,20 @@ if __name__ == "__main__":
     # Calculate conductivity
     ConductivityController(phonons).calculate_conductivity(is_classical=is_classical)
     
-    shl = ShengbteHelper(system, k_mesh)
-    shl.calculate_broadening()
-    frequency = shl.frequencies()
-    gamma = shl.decay_rates()
+    shl = ShengbteHelper(configuration, k_mesh, replicas, temperature)
+    shl.second_order = second_order
+    shl.third_order = third_order
+    shl.save_second_order_matrix()
+    shl.save_third_order_matrix()
+    shl.run()
+    frequency = shl.frequencies
+    gamma = shl.decay_rates
+
+    # Plot gamma sheng
+    fig = plt.figure ()
+    plt.ylim([0,0.30])
+    plt.scatter (frequency.flatten (), gamma.flatten ())
+    plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
+    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    fig.savefig ('gamma-sheng.pdf')
     print('done')

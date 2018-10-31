@@ -8,10 +8,16 @@ import ballistico.atoms_helper as ath
 BUFFER_PLOT = .2
 
 class ShengbteHelper (object):
-    def __init__(self, system, k_size, parameters={}):
-        self.system = system
+    def __init__(self, configuration, k_size, replicas, temperature, parameters={}):
+        self.configuration = configuration
+        self.replicas = replicas
         self.k_size = k_size
-        
+
+        self.replicas = replicas
+
+        [self.replicated_configuration, self.list_of_replicas] = \
+            ath.replicate_configuration (self.configuration, self.replicas)
+        self.temperature = temperature
         self._qpoints_mapper = None
         self._energies = None
         self._decay_rate_data = None
@@ -160,16 +166,18 @@ class ShengbteHelper (object):
         return self.energies.shape[0]
     
     def save_second_order_matrix(self):
-        
+        second_order = self.second_order
         shenbte_folder = self.folder
-        harmonic_system = self.system
         filename = 'espresso.ifc2'
-        n_particles = harmonic_system.second_order.shape[1]
+        n_particles = second_order.shape[1]
         
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'a+')
-        
-        # harmonic_system.second_order.shape
+        cell_inv = np.linalg.inv(self.configuration.cell)
+        list_of_indices = np.zeros_like(self.list_of_replicas, dtype=np.int)
+        for replica_id in range(self.list_of_replicas.shape[0]):
+            list_of_indices[replica_id] = cell_inv.dot(self.list_of_replicas[replica_id])
+
         file.write (self.header ())
 
         for alpha in range (3):
@@ -178,18 +186,17 @@ class ShengbteHelper (object):
                 for i in range (n_particles):
                     for j in range (n_particles):
                         file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1) + '\t' + str (j + 1) + '\n')
-                        for id_replica in range(harmonic_system.list_of_indices.shape[0]):
-                            index = harmonic_system.list_of_indices[id_replica]
-                            l_1 = int (index[0]) % self.system.replicas[0] + 1
-                            l_2 = int (index[1]) % self.system.replicas[1] + 1
-                            l_3 = int (index[2]) % self.system.replicas[2] + 1
+                        for id_replica in range(list_of_indices.shape[0]):
+                            index = list_of_indices[id_replica]
+                            l_1 = int (index[0]) % self.replicas[0] + 1
+                            l_2 = int (index[1]) % self.replicas[1] + 1
+                            l_3 = int (index[2]) % self.replicas[2] + 1
                             
                             
                             file.write ('\t' + str (l_1) + '\t' + str (l_2) + '\t' + str (l_3))
                             
-                            # TODO: Swap indices, index_first_cell should also be removed
-                            matrix_element = harmonic_system.second_order[self.system.index_first_cell, j, beta, id_replica, i, alpha]
-                            # matrix_element = harmonic_system.second_order[id_replica, j, beta, index_first_cell, i, alpha]
+                            # TODO: WHy are they flipped?
+                            matrix_element = self.second_order[0, j, beta, id_replica, i, alpha]
                             
                             matrix_element = matrix_element / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
                             file.write ('\t %.11E' % matrix_element)
@@ -199,7 +206,7 @@ class ShengbteHelper (object):
     
     
     def save_third_order_matrix(self):
-        system = self.system
+        system = self
         filename = 'FORCE_CONSTANTS_3RD'
         filename = self.folder + filename
         file = open ('%s' % filename, 'w')
@@ -244,7 +251,7 @@ class ShengbteHelper (object):
             modified.write ('  ' + str (block_counter) + '\n' + data)
         Logger().info ('third order saved')
     
-    def run_sheng_bte(self, n_processors=1):
+    def run(self, n_processors=1):
         if n_processors == 1:
             cmd = 'ShengBTE'
         else:
@@ -254,9 +261,8 @@ class ShengbteHelper (object):
     
     def create_control_file_string(self):
         k_points = self.k_size
-        system = self.system
-        elements = self.system.configuration.get_chemical_symbols ()
-        unique_elements = np.unique (self.system.configuration.get_chemical_symbols ())
+        elements = self.configuration.get_chemical_symbols ()
+        unique_elements = np.unique (self.configuration.get_chemical_symbols ())
         string = ''
         string += '&allocations\n'
         string += '\tnelements=' + str(len(unique_elements)) + '\n'
@@ -265,31 +271,31 @@ class ShengbteHelper (object):
         string += '&end\n'
         string += '&crystal\n'
         string += '\tlfactor=0.1,\n'
-        for i in range (system.configuration.cell.shape[0]):
-            vector = system.configuration.cell[i]
+        for i in range (self.configuration.cell.shape[0]):
+            vector = self.configuration.cell[i]
             string += '\tlattvec(:,' + str (i + 1) + ')= ' + str (vector[0]) + ' ' + str (vector[1]) + ' ' + str (
                 vector[2]) + '\n'
         string += '\telements= '
-        for element in np.unique(system.configuration.get_chemical_symbols()):
+        for element in np.unique(self.configuration.get_chemical_symbols()):
             string += '\"' + element + '\",'
         string +='\n'
         string += '\ttypes='
-        for element in system.configuration.get_chemical_symbols():
-            string += str(ath.type_element_id(system.configuration, element) + 1) + ' '
+        for element in self.configuration.get_chemical_symbols():
+            string += str(ath.type_element_id(self.configuration, element) + 1) + ' '
         string += ',\n'
-        for i in range (system.configuration.positions.shape[0]):
+        for i in range (self.configuration.positions.shape[0]):
             # TODO: double check this for more complicated geometries
-            cellinv = np.linalg.inv (system.configuration.cell)
-            vector = cellinv.dot(system.configuration.positions[i])
+            cellinv = np.linalg.inv (self.configuration.cell)
+            vector = cellinv.dot(self.configuration.positions[i])
             string += '\tpositions(:,' + str (i + 1) + ')= ' + str (vector[0]) + ' ' + str (vector[1]) + ' ' + str (
                 vector[2]) + '\n'
-        string += '\tscell(:)=' + str (system.replicas[0]) + ' ' + str (system.replicas[1]) + ' ' + str (
-            system.replicas[2]) + '\n'
+        string += '\tscell(:)=' + str (self.replicas[0]) + ' ' + str (self.replicas[1]) + ' ' + str (
+            self.replicas[2]) + '\n'
         # if (self.length).any():
         # 	string += '\tlength(:)=' + str(self.length[0]) + ' ' + str(self.length[1]) + ' ' + str(self.length[2]) + '\n'
         string += '&end\n'
         string += '&parameters\n'
-        string += '\tT=' + str (system.temperature) + '\n'
+        string += '\tT=' + str (self.temperature) + '\n'
         string += '\tscalebroad=1.0\n'
         string += '&end\n'
         string += '&flags\n'
@@ -353,7 +359,7 @@ class ShengbteHelper (object):
             file = 'BTE.WP3_minus'
         else:
             file = 'BTE.WP3'
-        temperature = str (int (self.system.temperature))
+        temperature = str (int (self.temperature))
         decay = pd.read_csv (self.folder + 'T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
         # decay = pd.read_csv (self.folder + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
@@ -373,7 +379,7 @@ class ShengbteHelper (object):
             file = 'BTE.w_anharmonic_minus'
         else:
             file = 'BTE.w_anharmonic'
-        temperature = str(int(self.system.temperature))
+        temperature = str(int(self.temperature))
         decay = pd.read_csv (self.folder + 'T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
         # decay = pd.read_csv (self.folder + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
@@ -407,18 +413,17 @@ class ShengbteHelper (object):
    
     
     def header(self):
-        system = self.system
         
         # this convert masses to qm masses
         mass_factor = 1.8218779 * 6.022e-4
     
-        nat = len(self.system.configuration.get_chemical_symbols ())
+        nat = len(self.configuration.get_chemical_symbols ())
         
         # TODO: The dielectric calculation is not implemented yet
         dielectric_constant = 1.
         born_eff_charge = 0.000000
         
-        ntype = len(np.unique(self.system.configuration.get_chemical_symbols ()))
+        ntype = len(np.unique(self.configuration.get_chemical_symbols ()))
         # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
         ibrav = 0
         header_str = ''
@@ -428,24 +433,24 @@ class ShengbteHelper (object):
         
         # TODO: I'd like to have ibrav = 1 and put the actual positions here
         header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
-        header_str += matrix_to_string (system.configuration.cell)
+        header_str += matrix_to_string (self.configuration.cell)
 
         for i in range (ntype):
-            mass = np.unique(self.system.replicated_configuration.get_masses())[i] / mass_factor
-            label = np.unique(self.system.replicated_configuration.get_chemical_symbols())[i]
+            mass = np.unique(self.replicated_configuration.get_masses())[i] / mass_factor
+            label = np.unique(self.replicated_configuration.get_chemical_symbols())[i]
             header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
         
         # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
         for i in range (nat):
-            header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (system.configuration.positions[i])
+            header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (self.configuration.positions[i])
         header_str += 'T \n'
         header_str += matrix_to_string (np.diag (np.ones (3)) * dielectric_constant)
         for i in range (nat):
             header_str += str (i + 1) + '\n'
             header_str += matrix_to_string (np.diag (np.ones (3)) * born_eff_charge * (-1) ** i)
-        header_str += str (system.replicas[0]) + ' '
-        header_str += str (system.replicas[1]) + ' '
-        header_str += str (system.replicas[2]) + '\n'
+        header_str += str (self.replicas[0]) + ' '
+        header_str += str (self.replicas[1]) + ' '
+        header_str += str (self.replicas[2]) + '\n'
         return header_str
     
     def save_data(self):
@@ -456,7 +461,7 @@ class ShengbteHelper (object):
             filename = "data_classic"
         else:
             filename = "data_quantum"
-        filename = filename + '_' + str(self.system.temperature)
+        filename = filename + '_' + str(self.temperature)
         filename = filename + ".csv"
 
         filename = self.folder + filename
@@ -534,7 +539,7 @@ class ShengbteHelper (object):
             filename = filename + 'classical_'
         else:
             filename = filename + 'quantum_'
-        filename = filename + str (self.system.temperature)
+        filename = filename + str (self.temperature)
         
         filename = filename + '.csv'
         conductivity = conductivity_array.reshape (3, 3)
@@ -557,21 +562,4 @@ class ShengbteHelper (object):
         # modes so far are in rad/ps, here we change them to rad/ps
         plt.plot (q_points_filtered, modes_filtered, "-", color='black')
     
-    
-    def __str__(self):
-        # string = 'S_'
-        # string += str(self.phonons)
-        # string += '_k' + str (self.k_mesh).replace (" ", "").replace ('[', "").replace (']', "")
-        # if (self.length.any() != 0):
-        # 	string += '_l'
-        # 	for length in self.length:
-        # 		if length < THREESHOLD:
-        # 			string += str(length)
-        string = str(self.system)
-        # if self.is_classical:
-        #     string += '_c'
-        # else:
-        #     string += '_q'
-        # return string
-        return string
     
