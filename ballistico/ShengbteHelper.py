@@ -1,18 +1,10 @@
 from ballistico.Logger import Logger
-
 import ballistico.geometry_helper as ghl
 from ballistico.constants import *
 from ballistico.tools import *
 import matplotlib.pyplot as plt
 import ballistico.atoms_helper as ath
 
-
-# np.set_printoptions(suppress=True)
-from scipy.interpolate import RegularGridInterpolator
-#from ballistico.interpolation_controller import resample_fourier
-
-# LENGTH_THREESHOLD = 1e31
-# THREESHOLD = 1e-31
 BUFFER_PLOT = .2
 
 class ShengbteHelper (object):
@@ -64,21 +56,14 @@ class ShengbteHelper (object):
             
         if 'classical' in parameters:
             self.is_classical = parameters['classical']
-        # else:
-            # self.is_classical = LENGTH_THREESHOLD
+        else:
+            self.is_classical = False
         
-        self.folder = get_current_folder () + '/' + str(self) + '/'
+        self.folder = 'shengbte/'
         is_fold_present = is_folder_present(self.folder)
-        
-        # if not is_fold_present:
-        # TODO: n_processors shouldnt be hardcoded
 
         self.create_control_file ()
-        
-
-
-
-    
+	    
     @property
     def qpoints_mapper(self):
         return self._qpoints_mapper
@@ -165,55 +150,16 @@ class ShengbteHelper (object):
     def velocities(self, new_velocity_data):
         self._velocity_data = new_velocity_data
 
-
-    # def read_file(self, filename):
-        
-        # file = pd.read_csv (self.folder + filename, header=None, delim_whitespace=True)
-        # read_array = file.values
-        # read_array = read_array.reshape (read_array.size)
-        # # check for nan
-        # # read_array = read_array[~np.isnan (read_array)]
-        # if read_array.size == 1:
-        #     read_array = int (read_array)
-        # return read_array
-
-    def read_file(self):
-        filename = 'fort.11101'
-        file = pd.read_csv (self.folder + filename, header=None, delim_whitespace=True)
-        n_particles = int(self.n_modes()/3)
-        dynmat = np.zeros( (n_particles* 3, n_particles*  3)).astype(np.complex)
-        for i in range(self.n_modes() ** 2):
-            record = file.iloc[i]
-            dynmat[int(record[0])-1, int(record[1])-1] = record[2] + 1j * record[3]
-
-        filename = 'fort.11102'
-
-        file = pd.read_csv (self.folder + filename, header=None, delim_whitespace=True)
-        n_particles = int (self.n_modes () / 3)
-        ddynmat = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (np.complex)
-        for i in range (self.n_modes () ** 2):
-            record = file.iloc[i]
-            ddynmat[int (record[0]) - 1, int (record[1]) - 1, int (record[2]) - 1, int (record[3]) - 1, int(record[4]) - 1] = record[
-                                                                                                             5] + 1j * \
-                                                                                                         record[6]
-
-        return dynmat, ddynmat
-
-
-
     def n_phonons(self):
         return self.n_modes() * self.n_k_points()
-
 
     def n_modes(self):
         return self.energies.shape[1]
     
     def n_k_points(self):
         return self.energies.shape[0]
-
     
-    
-    def save_second_order_qe_matrix(self):
+    def save_second_order_matrix(self):
         
         shenbte_folder = self.folder
         harmonic_system = self.system
@@ -252,7 +198,7 @@ class ShengbteHelper (object):
         Logger().info ('second order saved')
     
     
-    def save_third_order_matrix_new(self):
+    def save_third_order_matrix(self):
         system = self.system
         filename = 'FORCE_CONSTANTS_3RD'
         filename = self.folder + filename
@@ -297,46 +243,6 @@ class ShengbteHelper (object):
         with open (filename, 'w') as modified:
             modified.write ('  ' + str (block_counter) + '\n' + data)
         Logger().info ('third order saved')
-    
-    def save_third_order_matrix(self, filename='FORCE_CONSTANTS_3RD'):
-        shenbte_folder = self.folder
-        anharmonic_system = self.system
-        filename = shenbte_folder + filename
-        file = open ('%s' % filename, 'a+')
-        
-        block_counter = 0
-        for j_0, j_1, j_2 in (self.system._third_order_indices[:]):
-            i_0, n_0 = anharmonic_system.atom_and_replica_index(j_0)
-            i_1, n_1 = anharmonic_system.atom_and_replica_index(j_1)
-            i_2, n_2 = anharmonic_system.atom_and_replica_index(j_2)
-            if n_0 == 0:
-                three_particles_interaction = anharmonic_system.third_order_with_indices (j_0, j_1, j_2)
-                block_counter += 1
-    
-                file.write ('\n  ' + str (block_counter))
-                rep_position = ath.apply_boundary(anharmonic_system.replicated_configuration, anharmonic_system.list_of_replicas[n_1])
-                file.write (
-                    '\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
-                        rep_position[2]))
-                rep_position = ath.apply_boundary(anharmonic_system.replicated_configuration, anharmonic_system.list_of_replicas[n_2])
-                file.write (
-                    '\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
-                        rep_position[2]))
-                file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
-                
-                for alpha_0 in range (3):
-                    for alpha_1 in range (3):
-                        for alpha_2 in range (3):
-                            file.write (
-                                '\n  ' + str (alpha_0 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
-                                    alpha_2 + 1) + "  %.11E" %
-                                three_particles_interaction[alpha_0, alpha_1, alpha_2])
-                file.write ('\n')
-        file.close ()
-        with open (filename, 'r') as original:
-            data = original.read ()
-        with open (filename, 'w') as modified:
-            modified.write ('  ' + str (block_counter) + '\n' + data)
     
     def run_sheng_bte(self, n_processors=1):
         if n_processors == 1:
@@ -499,16 +405,6 @@ class ShengbteHelper (object):
                     z += 1
         
    
-    def calculate_broadening(self, velocity, n_grid):
-        # TODO: I don't know why there's a 10 here, copied by sheng bte
-        cellinv = np.linalg.inv (self.system.cell)
-        rlattvec = cellinv * 2 * np.pi * 10.
-        base_sigma = 0.
-        for nu in range(3):
-            base_sigma += (np.dot(rlattvec[nu, :], velocity)/n_grid[nu]) ** 2
-        base_sigma = np.sqrt(base_sigma / 6.)
-        # sigma = scalebroad *
-        return base_sigma
     
     def header(self):
         system = self.system
@@ -523,8 +419,6 @@ class ShengbteHelper (object):
         born_eff_charge = 0.000000
         
         ntype = len(np.unique(self.system.configuration.get_chemical_symbols ()))
-
-        
         # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
         ibrav = 0
         header_str = ''

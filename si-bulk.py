@@ -8,6 +8,7 @@ from ballistico.Phonons import Phonons
 from ballistico.ConductivityController import ConductivityController
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+from ballistico.ShengbteHelper import ShengbteHelper
 import logging
 import sys
 
@@ -15,7 +16,7 @@ NKPOINTS_TO_PLOT = 100
 
 if __name__ == "__main__":
     # We start from a geometry
-    geometry = ase.io.read ('examples/si-bulk.xyz')
+    geometry = ase.io.read ('si-bulk.xyz')
     
     # and replicate it
     replicas = np.array ([3, 3, 3])
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     system = MolecularSystem (configuration=geometry, temperature=temperature, replicas=replicas)
 
     # our Phonons object built on the system
-    k_mesh = np.array ([3,3,3])
+    k_mesh = np.array ([5, 5, 5])
     is_classical = False
     phonons = Phonons (system, k_mesh, is_classic=is_classical)
 
@@ -77,22 +78,32 @@ if __name__ == "__main__":
     plt.xticks ([], [])
     plt.grid ()
     plt.xlim (0, dos_e.max () * (1.2))
-    plt.show()
-    plt.scatter(freqs_to_plot[rms_velocity_to_plot != 0], rms_velocity_to_plot[rms_velocity_to_plot != 0])
+    fig.savefig ('omega.pdf')
+
+    fig = plt.figure ()
+    plt.scatter(freqs_to_plot[rms_velocity_to_plot > 0.001], rms_velocity_to_plot[rms_velocity_to_plot > 0.001])
     plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show ()
+    fig.savefig ('velocity.pdf')
+
 
     # Import the calculated third to calculate third order quantities
     system.third_order = io_helper.import_third_order_dlpoly(geometry, replicas)
     
     # Plot gamma
+    fig = plt.figure ()
     plt.ylim([0,0.30])
     plt.scatter (phonons.frequencies.flatten (), phonons.gamma[1].flatten ())
     plt.scatter (phonons.frequencies.flatten (), phonons.gamma[0].flatten ())
     plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show ()
+    fig.savefig ('gamma.pdf')
 
     # Calculate conductivity
     ConductivityController(phonons).calculate_conductivity(is_classical=is_classical)
+    
+    shl = ShengbteHelper(system, k_mesh)
+    shl.calculate_broadening()
+    frequency = shl.frequencies()
+    gamma = shl.decay_rates()
+    print('done')

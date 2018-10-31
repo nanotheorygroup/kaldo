@@ -17,14 +17,15 @@ VELOCITY_K_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
 
 DELTA_THRESHOLD = 2
-DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
+# DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
+DELTA_CORRECTION = 1
 
 class Phonons (object):
     def __init__(self, system, k_size=(1, 1, 1), is_classic=False):
         self.system = system
         self.is_classic = is_classic
         self.k_size = np.array(k_size)
-        self.folder = str(self.system) + '/'
+        self.folder = 'phonons/'
         [self.replicated_configuration, self.list_of_replicas] = \
             ath.replicate_configuration (self.system.configuration, self.system.replicas)
         self._frequencies = None
@@ -456,7 +457,7 @@ class Phonons (object):
 
                             with tf.Session () as sess:
                                 tf.summary.FileWriter (
-                                    "temp/",
+                                    "tensorboard/",
                                     sess.graph)
                                 feed_dict = {
                                     nup: nup_vec,

@@ -12,7 +12,7 @@ class MolecularSystem (object):
         self.configuration = configuration
         self.configuration.cell_inv = np.linalg.inv (self.configuration.cell)
 
-        self.folder = str (self) + '/'
+        self.folder = 'system/'
         if not os.path.exists (self.folder):
             os.makedirs (self.folder)
         
