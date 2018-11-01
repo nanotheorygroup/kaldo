@@ -51,14 +51,13 @@ class Phonons (object):
     @frequencies.getter
     def frequencies(self):
         if self._frequencies is None:
+            # try:
+            #     self._frequencies = np.load (self.folder + FREQUENCY_K_FILE)
+            # except FileNotFoundError as e:
+            #     print(e)
             self.calculate_second_all_grid ()
-            try:
-                self._frequencies = np.load (self.folder + FREQUENCY_K_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self.calculate_second_all_grid ()
-                np.save (self.folder + FREQUENCY_K_FILE, self._frequencies)
-                np.save (self.folder + VELOCITY_K_FILE, self._velocities)
+                # np.save (self.folder + FREQUENCY_K_FILE, self._frequencies)
+                # np.save (self.folder + VELOCITY_K_FILE, self._velocities)
         return self._frequencies
 
     @frequencies.setter
@@ -72,13 +71,12 @@ class Phonons (object):
     @velocities.getter
     def velocities(self):
         if self._velocities is None:
+            # try:
+            #     self._velocities = np.load (self.folder + VELOCITY_K_FILE)
+            # except IOError as e:
             self.calculate_second_all_grid ()
-            try:
-                self._velocities = np.load (self.folder + VELOCITY_K_FILE)
-            except IOError as e:
-                self.calculate_second_all_grid ()
-                np.save (self.folder + VELOCITY_K_FILE, self._velocities)
-                np.save (self.folder + FREQUENCY_K_FILE, self._frequencies)
+                # np.save (self.folder + VELOCITY_K_FILE, self._velocities)
+                # np.save (self.folder + FREQUENCY_K_FILE, self._frequencies)
         return self._velocities
 
     @velocities.setter
@@ -92,12 +90,12 @@ class Phonons (object):
     @eigenvalues.getter
     def eigenvalues(self):
         if self._eigenvalues is None:
+            # self.calculate_second_all_grid ()
+            # try:
+            #     self._eigenvalues = np.load (self.folder + EIGENVALUES_FILE)
+            # except IOError as e:
             self.calculate_second_all_grid ()
-            try:
-                self._eigenvalues = np.load (self.folder + EIGENVALUES_FILE)
-            except IOError as e:
-                self.calculate_second_all_grid ()
-                np.save (self.folder + EIGENVALUES_FILE, self._eigenvalues)
+                # np.save (self.folder + EIGENVALUES_FILE, self._eigenvalues)
         return self._eigenvalues
 
     @eigenvalues.setter
@@ -115,12 +113,11 @@ class Phonons (object):
     @eigenvectors.getter
     def eigenvectors(self):
         if self._eigenvectors is None:
+            # try:
+            #     self._eigenvectors = np.load (self.folder + EIGENVECTORS_FILE)
+            # except IOError as e:
             self.calculate_second_all_grid ()
-            try:
-                self._eigenvectors = np.load (self.folder + EIGENVECTORS_FILE)
-            except IOError as e:
-                self.calculate_second_all_grid ()
-                np.save (self.folder + EIGENVECTORS_FILE, self._eigenvectors)
+                # np.save (self.folder + EIGENVECTORS_FILE, self._eigenvectors)
         return self._eigenvectors
 
     @property
@@ -144,11 +141,11 @@ class Phonons (object):
     @gamma.getter
     def gamma(self):
         if self._gamma is None:
-            try:
-                self._gamma = np.load (self.folder + GAMMA_FILE)
-            except IOError as e:
-                self._gamma = self.calculate_gamma ()
-                np.save (self.folder + GAMMA_FILE, self._gamma)
+            # try:
+            #     self._gamma = np.load (self.folder + GAMMA_FILE)
+            # except IOError as e:
+            self._gamma = self.calculate_gamma ()
+            #     np.save (self.folder + GAMMA_FILE, self._gamma)
         return self._gamma
 
     @gamma.setter

@@ -129,20 +129,6 @@ class ShengbteHelper (object):
         self._decay_rate_data = new_decay_rate_data
     
     @property
-    def decay_rates_2(self):
-        return self._decay_rates_2
-    
-    @decay_rates_2.getter
-    def decay_rates_2(self):
-        if self._decay_rates_2 is None:
-            self.import_scattering_matrix ()
-        return self._decay_rates_2 #+ THREESHOLD
-    
-    @decay_rates_2.setter
-    def decay_rates_2(self, new_decay_rate_data):
-        self._decay_rates_2 = new_decay_rate_data
-    
-    @property
     def velocities(self):
         return self._velocity_data
     
@@ -192,7 +178,7 @@ class ShengbteHelper (object):
                             file.write ('\t' + str (l_vec[0]) + '\t' + str (l_vec[1]) + '\t' + str (l_vec[2]))
                             
                             # TODO: WHy are they flipped?
-                            matrix_element = self.second_order[0, i, alpha, id_replica, j, beta]
+                            matrix_element = self.second_order[0, j, beta, id_replica, i, alpha]
                             
                             matrix_element = matrix_element / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
                             file.write ('\t %.11E' % matrix_element)
