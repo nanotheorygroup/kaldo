@@ -25,19 +25,19 @@ def replicate_configuration(atoms, replicas):
 	return replicated_configuration, list_of_replicas
 
 def create_list_of_replicas(atoms, replicas):
-	# TODO: replicas[i] needs to be odd, throw an exception otherwise
+	# TODO: supercell[i] needs to be odd, throw an exception otherwise
 	n_replicas = replicas[0] * replicas[1] * replicas[2]
 	replica_id = 0
 	list_of_replicas = np.zeros ((n_replicas, 3))
 	
-	# range_0 = np.linspace(-int(replicas[0]/2),int(replicas[0]/2),int(replicas[0]))
-	# range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
+	# range_0 = np.linspace(-int(supercell[0]/2),int(supercell[0]/2),int(supercell[0]))
+	# range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
 	#
-	# range_1 = np.linspace(-int(replicas[1]/2),int(replicas[1]/2),int(replicas[1]))
-	# range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
+	# range_1 = np.linspace(-int(supercell[1]/2),int(supercell[1]/2),int(supercell[1]))
+	# range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
 	#
-	# range_2 = np.linspace(-int(replicas[2]/2),int(replicas[2]/2),int(replicas[2]))
-	# range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
+	# range_2 = np.linspace(-int(supercell[2]/2),int(supercell[2]/2),int(supercell[2]))
+	# range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
 
 	range_0 = np.arange(int(replicas[0]))
 	range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
@@ -49,7 +49,7 @@ def create_list_of_replicas(atoms, replicas):
 	for lx in range_0:
 		for ly in range_1:
 			for lz in range_2:
-				index = np.array ([lx, ly, lz])#%replicas
+				index = np.array ([lx, ly, lz])#%supercell
 				list_of_replicas[replica_id] = index.dot(atoms.cell)
 				replica_id += 1
 	return list_of_replicas

@@ -1,6 +1,6 @@
 from ballistico.constants import *
 import ballistico.constants as constants
-from ballistico.Logger import Logger
+from ballistico.logger import Logger
 import numpy as np
 from scipy.sparse import csc_matrix
 import sys
@@ -14,7 +14,7 @@ class ConductivityController (object):
         self.energies = phonons.frequencies
         self.velocities = phonons.velocities
         self.n_k_points = np.prod (phonons.k_size)
-        self.gamma = phonons.gamma[0] + phonons.gamma[1]
+        self.gamma = phonons.gamma
         self.n_modes = self.energies.shape[-1]
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = phonons.temperature
@@ -160,5 +160,5 @@ class ConductivityController (object):
         conductivity_per_mode = conductivity_per_mode.sum (axis=0)
         cond = conductivity_per_mode.sum (axis=0)
         Logger().info ('\nconductivity = \n' + str (cond))
-        return
+        return cond
     

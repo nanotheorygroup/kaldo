@@ -1,5 +1,5 @@
 import numpy as np
-from ballistico.Logger import Logger
+from ballistico.logger import Logger
 from ballistico.constants import *
 from ballistico.atoms_helper import replicate_configuration
 from scipy.optimize import minimize

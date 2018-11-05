@@ -6,7 +6,7 @@ import spglib as spg
 import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 import tensorflow as tf
-from ballistico.Logger import Logger
+from ballistico.logger import Logger
 import sys
 # from memory_profiler import profile
 # tf.enable_eager_execution ()
@@ -20,14 +20,14 @@ DELTA_THRESHOLD = 2
 # DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 DELTA_CORRECTION = 1
 
-class Phonons (object):
-    def __init__(self, configuration, replicas=(1,1,1), k_size=(1,1,1), second_order=None, third_order=None, is_classic=False, temperature=300):
+class Ballistico (object):
+    def __init__(self, atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), second_order=None, third_order=None, is_classic=False, temperature=300):
         # TODO: Keep only the relevant default initializations
-        self.configuration = configuration
-        self.replicas = np.array(replicas)
-        self.k_size = np.array(k_size)
+        self.configuration = atoms
+        self.replicas = np.array(supercell)
+        self.k_size = np.array(kpts)
         self.is_classic = is_classic
-        self.folder = 'phonons/'
+        self.folder = 'ballistico_phonons/'
         [self.replicated_configuration, self.list_of_replicas] = \
             ath.replicate_configuration (self.configuration, self.replicas)
         self._frequencies = None
@@ -146,7 +146,7 @@ class Phonons (object):
             # except IOError as e:
             self._gamma = self.calculate_gamma ()
             #     np.save (self.folder + GAMMA_FILE, self._gamma)
-        return self._gamma
+        return np.sum(self._gamma, axis=0)
 
     @gamma.setter
     def gamma(self, new_gamma):
@@ -213,8 +213,8 @@ class Phonons (object):
                     for j_at in range (n_particles):
                         for i_pol in range (3):
                             for j_pol in range (3):
-                                # dxij = ath.apply_boundary(self.replicated_configuration, geometry[i_at] - \
-                                # (geometry[j_at] + list_of_replicas[id_replica]))
+                                # dxij = ath.apply_boundary(self.replicated_configuration, atoms[i_at] - \
+                                # (atoms[j_at] + list_of_replicas[id_replica]))
                                 dxij = list_of_replicas[id_replica]
                                 prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
                                 ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * \

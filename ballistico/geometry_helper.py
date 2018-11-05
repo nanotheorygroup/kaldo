@@ -1,5 +1,5 @@
 import numpy as np
-from ballistico.Logger import Logger
+from ballistico.logger import Logger
 import seekpath
 from ase.dft.kpoints import ibz_points, bandpath
 

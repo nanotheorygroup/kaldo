@@ -1,4 +1,4 @@
-from ballistico.Logger import Logger
+from ballistico.logger import Logger
 import ballistico.geometry_helper as ghl
 from ballistico.constants import *
 from ballistico.tools import *
@@ -7,13 +7,13 @@ import ballistico.atoms_helper as ath
 
 BUFFER_PLOT = .2
 
-class ShengbteHelper (object):
-    def __init__(self, configuration, k_size, replicas, temperature, parameters={}):
-        self.configuration = configuration
-        self.replicas = replicas
-        self.k_size = k_size
+class Shengbte (object):
+    def __init__(self, atoms, supercell, kpts, temperature, is_classic=False, parameters={}):
+        self.configuration = atoms
+        self.replicas = supercell
+        self.k_size = kpts
 
-        self.replicas = replicas
+        self.replicas = supercell
 
         [self.replicated_configuration, self.list_of_replicas] = \
             ath.replicate_configuration (self.configuration, self.replicas)
@@ -24,7 +24,8 @@ class ShengbteHelper (object):
         self._decay_rates_2 = None
         self._velocity_data = None
         self._frequencies = None
-        
+        self.is_classical = is_classic
+
         
         # TODO: move these initializations into a getter
         if 'convergence' in parameters:
@@ -60,10 +61,6 @@ class ShengbteHelper (object):
         # else:
             # self.length[2] = LENGTH_THREESHOLD
             
-        if 'classical' in parameters:
-            self.is_classical = parameters['classical']
-        else:
-            self.is_classical = False
         
         self.folder = 'shengbte/'
         is_fold_present = is_folder_present(self.folder)
@@ -105,7 +102,7 @@ class ShengbteHelper (object):
     @frequencies.getter
     def frequencies(self):
         if self._frequencies is None:
-            # self._frequencies = self.energies.reshape ((self.k_mesh[0], self.k_mesh[1], self.k_mesh[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
+            # self._frequencies = self.energies.reshape ((self.kpts[0], self.kpts[1], self.kpts[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
             self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])) / 2. / np.pi
         return self._frequencies
     
@@ -118,14 +115,14 @@ class ShengbteHelper (object):
         return self._decay_rate_data
     
     @decay_rates.getter
-    def decay_rates(self):
+    def gamma(self):
         if self._decay_rate_data is None:
             self._decay_rate_data = self.read_decay_rate_data ()
             # self._decay_rate_data[np.where (np.isnan (self._decay_rate_data))] = THREESHOLD
         return self._decay_rate_data
     
-    @decay_rates.setter
-    def decay_rates(self, new_decay_rate_data):
+    @gamma.setter
+    def gamma(self, new_decay_rate_data):
         self._decay_rate_data = new_decay_rate_data
     
     @property
@@ -232,6 +229,8 @@ class ShengbteHelper (object):
         Logger().info ('third order saved')
     
     def run(self, n_processors=1):
+        self.save_second_order_matrix ()
+        self.save_third_order_matrix ()
         if n_processors == 1:
             cmd = 'ShengBTE'
         else:
@@ -435,7 +434,7 @@ class ShengbteHelper (object):
     
     def save_data(self):
         omega = self.energies
-        lifetime = 1. / self.decay_rates
+        lifetime = 1. / self.gamma
         n_modes = omega.shape[1]
         if self.is_classical:
             filename = "data_classic"
@@ -479,7 +478,7 @@ class ShengbteHelper (object):
         
     def decay_plot(self):
         omega = self.energies
-        lifetime = 1. / self.decay_rates
+        lifetime = 1. / self.gamma
 
         fig = plt.figure ()
         ax = plt.gca ()
