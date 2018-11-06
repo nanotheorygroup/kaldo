@@ -5,7 +5,7 @@ import scipy.special
 import spglib as spg
 import ballistico.atoms_helper as ath
 import ballistico.constants as constants
-import tensorflow as tf
+# import tensorflow as tf
 from ballistico.logger import Logger
 import sys
 # from memory_profiler import profile
@@ -320,44 +320,44 @@ class Ballistico (object):
         coeff = 1000 * constants.hbar / constants.charge_of_electron
 
         # TODO: remove this when done debugging
-        nup = tf.placeholder ('int64', (None), name='nup')
-        nupp = tf.placeholder ('int64', (None), name='nupp')
-        index_kp = tf.placeholder ('int64', (None), name='index_kp')
-        index_kpp = tf.placeholder ('int64', (None), name='index_kpp')
-        second_eigenv = tf.placeholder ('complex64', (None, None), name='second_eigenv')
-        third_eigenv = tf.placeholder ('complex64', (None, None), name='third_eigenv')
-        potential = tf.placeholder ('complex64', (None, None, None, None), name='potential')
-        second_chi = tf.placeholder ('complex64', (None, None), name='second_chi')
-        third_chi = tf.placeholder ('complex64', (None, None), name='third_chi')
-        sigma = tf.placeholder ('float64', (None, None), name='sigma')
-        density_fact = tf.placeholder ('float64', (None, None), name='density')
-        freq_product = tf.placeholder ('float64', (None, None), name='freq_product')
-        freq_diff = tf.placeholder ('float64', (None, None), name='freq_diff')
-        coords = tf.stack ((nup, nupp), axis=-1)
-        sparsify = lambda operator: tf.cast (tf.gather_nd (operator, coords), tf.float64)
-        dirac_delta = sparsify (density_fact) / sparsify (freq_product)
-        if sigma_in == None:
-            sigma_to_plug = sparsify (sigma)
-        else:
-            sigma_to_plug = sigma_in
-        dirac_delta *= tf.exp (- sparsify (freq_diff) ** 2 / (2 * sigma_to_plug ** 2)) \
-                       / (sigma_to_plug * np.sqrt (2 * np.pi)) / DELTA_CORRECTION
-        second = tf.gather (second_eigenv, nup, axis=0)
-        third = tf.gather (third_eigenv, nupp, axis=0)
-        third_chi_tf = tf.gather (third_chi, index_kpp, axis=0)
-        second_chi_tf = tf.gather (second_chi, index_kp, axis=0)
-        second_chi_tf.set_shape ((None, None))
-        third_chi_tf.set_shape ((None, None))
-        second.set_shape ((None, None))
-        third.set_shape ((None, None))
-        # potential_proj_tf = tf.einsum \
-        #     ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
-        potential_proj_tf = tf.tensordot(potential, second_chi_tf, (0, 1))
-        potential_full_proj_tf = tf.einsum('itja,at,aj,ai->a', potential_proj_tf, third_chi_tf, third, second)
-        
-        phase_space_tf = tf.reduce_sum (dirac_delta)
-        gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
-                                           tf.float64) * dirac_delta)
+        # nup = tf.placeholder ('int64', (None), name='nup')
+        # nupp = tf.placeholder ('int64', (None), name='nupp')
+        # index_kp = tf.placeholder ('int64', (None), name='index_kp')
+        # index_kpp = tf.placeholder ('int64', (None), name='index_kpp')
+        # second_eigenv = tf.placeholder ('complex64', (None, None), name='second_eigenv')
+        # third_eigenv = tf.placeholder ('complex64', (None, None), name='third_eigenv')
+        # potential = tf.placeholder ('complex64', (None, None, None, None), name='potential')
+        # second_chi = tf.placeholder ('complex64', (None, None), name='second_chi')
+        # third_chi = tf.placeholder ('complex64', (None, None), name='third_chi')
+        # sigma = tf.placeholder ('float64', (None, None), name='sigma')
+        # density_fact = tf.placeholder ('float64', (None, None), name='density')
+        # freq_product = tf.placeholder ('float64', (None, None), name='freq_product')
+        # freq_diff = tf.placeholder ('float64', (None, None), name='freq_diff')
+        # coords = tf.stack ((nup, nupp), axis=-1)
+        # sparsify = lambda operator: tf.cast (tf.gather_nd (operator, coords), tf.float64)
+        # dirac_delta = sparsify (density_fact) / sparsify (freq_product)
+        # if sigma_in == None:
+        #     sigma_to_plug = sparsify (sigma)
+        # else:
+        #     sigma_to_plug = sigma_in
+        # dirac_delta *= tf.exp (- sparsify (freq_diff) ** 2 / (2 * sigma_to_plug ** 2)) \
+        #                / (sigma_to_plug * np.sqrt (2 * np.pi)) / DELTA_CORRECTION
+        # second = tf.gather (second_eigenv, nup, axis=0)
+        # third = tf.gather (third_eigenv, nupp, axis=0)
+        # third_chi_tf = tf.gather (third_chi, index_kpp, axis=0)
+        # second_chi_tf = tf.gather (second_chi, index_kp, axis=0)
+        # second_chi_tf.set_shape ((None, None))
+        # third_chi_tf.set_shape ((None, None))
+        # second.set_shape ((None, None))
+        # third.set_shape ((None, None))
+        # # potential_proj_tf = tf.einsum \
+        # #     ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
+        # potential_proj_tf = tf.tensordot(potential, second_chi_tf, (0, 1))
+        # potential_full_proj_tf = tf.einsum('itja,at,aj,ai->a', potential_proj_tf, third_chi_tf, third, second)
+        #
+        # phase_space_tf = tf.reduce_sum (dirac_delta)
+        # gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
+        #                                    tf.float64) * dirac_delta)
         Logger().info ('Lifetime calculation')
         nptk = np.prod (self.k_size)
         n_particles = self.configuration.positions.shape[0]

@@ -35,6 +35,7 @@ if __name__ == "__main__":
     # Import the calculated third to calculate third order quantities
     second_order = io_helper.import_second_dlpoly (atoms, supercell)
     third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
+    
     ballistico_phonons = Ballistico (atoms=atoms,
                                      supercell=supercell,
                                      kpts=kpts,
@@ -49,6 +50,7 @@ if __name__ == "__main__":
                                 kpts=kpts,
                                 is_classic=is_classical,
                                 temperature=temperature)
+    
     shengbte_phonons.second_order = second_order
     shengbte_phonons.third_order = third_order
     print(shengbte_phonons.run())
