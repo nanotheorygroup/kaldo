@@ -8,7 +8,7 @@ import ballistico.constants as constants
 # import tensorflow as tf
 from ballistico.logger import Logger
 import sys
-# from memory_profiler import profile
+from memory_profiler import profile
 # tf.enable_eager_execution ()
 EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
@@ -265,7 +265,8 @@ class Ballistico (object):
             dos_e += dos_el.sum (axis=1)
         dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
         return omega_e, dos_e
-    
+
+    @profile
     def calculate_second_all_grid(self):
         n_k_points = np.prod(self.k_size)
         n_unit_cell = self.second_order.shape[1]
@@ -313,7 +314,7 @@ class Ballistico (object):
         domega = params[1]
         return 1. / domega * (1 - deltaa / domega)
 
-    # @profile
+    @profile
     def calculate_gamma(self, sigma_in=None):
         prefactor = 1e-3 / (
                 4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
@@ -461,7 +462,7 @@ class Ballistico (object):
                         interactions = np.array (np.where (condition)).T
                         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
                         if interactions.size != 0:
-                            print ('interactions: ', index_k, interactions.size)
+                            Logger ().info ('interactions: ' + str(index_k) +  str(interactions.size))
                             index_kp_vec = interactions[:, 0]
                             index_kpp_vec = index_kpp_vec[index_kp_vec]
                             mup_vec = interactions[:, 1]
