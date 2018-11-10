@@ -9,14 +9,14 @@ BUFFER_PLOT = .2
 
 class Shengbte (object):
     def __init__(self, atoms, supercell, kpts, temperature, is_classic=False, parameters={}):
-        self.configuration = atoms
+        self.atoms = atoms
         self.replicas = supercell
         self.k_size = kpts
 
         self.replicas = supercell
 
-        [self.replicated_configuration, self.list_of_replicas] = \
-            ath.replicate_configuration (self.configuration, self.replicas)
+        [self.replicated_atoms, self.list_of_replicas] = \
+            ath.replicate_atoms (self.atoms, self.replicas)
         self.temperature = temperature
         self.is_classical = is_classic
 
@@ -55,8 +55,7 @@ class Shengbte (object):
             self.length[0] = parameters['l_x']
         # else:
             # self.length[0] = LENGTH_THREESHOLD
-            
-            
+
         if 'l_y' in parameters:
             self.length[1] = parameters['l_y']
         # else:
@@ -71,7 +70,7 @@ class Shengbte (object):
         self.folder = 'shengbte/'
         is_fold_present = is_folder_present(self.folder)
 
-	    
+        
     @property
     def qpoints_mapper(self):
         return self._qpoints_mapper
@@ -81,10 +80,6 @@ class Shengbte (object):
         if self._qpoints_mapper is None:
             self.read_qpoints_mapper ()
         return self._qpoints_mapper
-    
-    @qpoints_mapper.setter
-    def qpoints_mapper(self, new_qpoints_mapper):
-        self._qpoints_mapper = new_qpoints_mapper
     
     @property
     def energies(self):
@@ -120,7 +115,7 @@ class Shengbte (object):
     @property
     def velocities(self):
         return self._velocities
-    
+
     @velocities.getter
     def velocities(self):
         if self._velocities is None:
@@ -137,7 +132,6 @@ class Shengbte (object):
             return self.n_modes() * self.n_k_points()
         return self._n_phonons
     
-
     @property
     def n_modes(self):
         return self._n_modes
@@ -157,25 +151,21 @@ class Shengbte (object):
         if self._n_k_points is None:
             return self.energies.shape[0]
         return self._n_k_points
-    
+        
     def save_second_order_matrix(self):
         second_order = self.second_order
         shenbte_folder = self.folder
         filename = 'espresso.ifc2'
         n_particles = second_order.shape[1]
-        
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'a+')
-        cell_inv = np.linalg.inv(self.configuration.cell)
+        cell_inv = np.linalg.inv(self.atoms.cell)
         list_of_indices = np.zeros_like(self.list_of_replicas, dtype=np.int)
         for replica_id in range(self.list_of_replicas.shape[0]):
             list_of_indices[replica_id] = cell_inv.dot(self.list_of_replicas[replica_id])
-
         file.write (self.header ())
-
         for alpha in range (3):
             for beta in range (3):
-                
                 for i in range (n_particles):
                     for j in range (n_particles):
                         file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1) + '\t' + str (j + 1) + '\n')
@@ -199,7 +189,7 @@ class Shengbte (object):
         filename = 'FORCE_CONSTANTS_3RD'
         filename = self.folder + filename
         file = open ('%s' % filename, 'w')
-        n_in_unit_cell = len (system.configuration.numbers)
+        n_in_unit_cell = len (system.atoms.numbers)
         n_replicas = np.prod (system.replicas)
         block_counter = 0
         # third_order = system.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))
@@ -215,10 +205,10 @@ class Shengbte (object):
                                 block_counter += 1
                                 replica = system.list_of_replicas#
                                 file.write ('\n  ' + str (block_counter))
-                                rep_position = ath.apply_boundary (system.replicated_configuration,replica[n_1])
+                                rep_position = ath.apply_boundary (system.replicated_atoms,replica[n_1])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                     rep_position[2]))
-                                rep_position = ath.apply_boundary (system.replicated_configuration,replica[n_2])
+                                rep_position = ath.apply_boundary (system.replicated_atoms,replica[n_2])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                     rep_position[2]))
                                 file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -250,8 +240,8 @@ class Shengbte (object):
     
     def create_control_file_string(self):
         k_points = self.k_size
-        elements = self.configuration.get_chemical_symbols ()
-        unique_elements = np.unique (self.configuration.get_chemical_symbols ())
+        elements = self.atoms.get_chemical_symbols ()
+        unique_elements = np.unique (self.atoms.get_chemical_symbols ())
         string = ''
         string += '&allocations\n'
         string += '\tnelements=' + str(len(unique_elements)) + '\n'
@@ -260,22 +250,22 @@ class Shengbte (object):
         string += '&end\n'
         string += '&crystal\n'
         string += '\tlfactor=0.1,\n'
-        for i in range (self.configuration.cell.shape[0]):
-            vector = self.configuration.cell[i]
+        for i in range (self.atoms.cell.shape[0]):
+            vector = self.atoms.cell[i]
             string += '\tlattvec(:,' + str (i + 1) + ')= ' + str (vector[0]) + ' ' + str (vector[1]) + ' ' + str (
                 vector[2]) + '\n'
         string += '\telements= '
-        for element in np.unique(self.configuration.get_chemical_symbols()):
+        for element in np.unique(self.atoms.get_chemical_symbols()):
             string += '\"' + element + '\",'
         string +='\n'
         string += '\ttypes='
-        for element in self.configuration.get_chemical_symbols():
-            string += str(ath.type_element_id(self.configuration, element) + 1) + ' '
+        for element in self.atoms.get_chemical_symbols():
+            string += str(ath.type_element_id(self.atoms, element) + 1) + ' '
         string += ',\n'
-        for i in range (self.configuration.positions.shape[0]):
+        for i in range (self.atoms.positions.shape[0]):
             # TODO: double check this for more complicated geometries
-            cellinv = np.linalg.inv (self.configuration.cell)
-            vector = cellinv.dot(self.configuration.positions[i])
+            cellinv = np.linalg.inv (self.atoms.cell)
+            vector = cellinv.dot(self.atoms.positions[i])
             string += '\tpositions(:,' + str (i + 1) + ')= ' + str (vector[0]) + ' ' + str (vector[1]) + ' ' + str (
                 vector[2]) + '\n'
         string += '\tscell(:)=' + str (self.replicas[0]) + ' ' + str (self.replicas[1]) + ' ' + str (
@@ -320,13 +310,13 @@ class Shengbte (object):
         # this convert masses to qm masses
         mass_factor = 1.8218779 * 6.022e-4
     
-        nat = len (self.configuration.get_chemical_symbols ())
+        nat = len (self.atoms.get_chemical_symbols ())
     
         # TODO: The dielectric calculation is not implemented yet
         dielectric_constant = 1.
         born_eff_charge = 0.000000
     
-        ntype = len (np.unique (self.configuration.get_chemical_symbols ()))
+        ntype = len (np.unique (self.atoms.get_chemical_symbols ()))
         # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
         ibrav = 0
         header_str = ''
@@ -336,16 +326,16 @@ class Shengbte (object):
     
         # TODO: I'd like to have ibrav = 1 and put the actual positions here
         header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
-        header_str += matrix_to_string (self.configuration.cell)
+        header_str += matrix_to_string (self.atoms.cell)
     
         for i in range (ntype):
-            mass = np.unique (self.replicated_configuration.get_masses ())[i] / mass_factor
-            label = np.unique (self.replicated_configuration.get_chemical_symbols ())[i]
+            mass = np.unique (self.replicated_atoms.get_masses ())[i] / mass_factor
+            label = np.unique (self.replicated_atoms.get_chemical_symbols ())[i]
             header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
     
         # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
         for i in range (nat):
-            header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (self.configuration.positions[i])
+            header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (self.atoms.positions[i])
         header_str += 'T \n'
         header_str += matrix_to_string (np.diag (np.ones (3)) * dielectric_constant)
         for i in range (nat):
@@ -402,7 +392,7 @@ class Shengbte (object):
         
     def read_qpoints_mapper(self):
         q_points = pd.read_csv (self.folder + 'BTE.qpoints_full', header=None, delim_whitespace=True)
-        self.qpoints_mapper = q_points.values
+        self._qpoints_mapper = q_points.values
     
     def irreducible_indices(self):
         return np.unique(self.qpoints_mapper[:,1])

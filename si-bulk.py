@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # and replicate it
     supercell = np.array ([3, 3, 3])
     n_replicas = np.prod(supercell)
-    replicated_geometry, _ = atoms_helper.replicate_configuration(atoms, supercell)
+    replicated_geometry, _ = atoms_helper.replicate_atoms(atoms, supercell)
     
     # then we store it
     ase.io.write ('CONFIG', replicated_geometry, format='dlp4')
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array ([3, 3, 3])
+    kpts = np.array ([5, 5, 5])
     is_classical = False
 
     # import the calculated second order

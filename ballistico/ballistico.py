@@ -23,26 +23,23 @@ DELTA_CORRECTION = 1
 class Ballistico (object):
     def __init__(self, atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), second_order=None, third_order=None, is_classic=False, temperature=300):
         # TODO: Keep only the relevant default initializations
-        self.configuration = atoms
-        self.replicas = np.array(supercell)
+        self.atoms = atoms
+        self.supercell = np.array(supercell)
         self.k_size = np.array(kpts)
         self.is_classic = is_classic
         self.folder = 'phonons/'
-        [self.replicated_configuration, self.list_of_replicas] = \
-            ath.replicate_configuration (self.configuration, self.replicas)
+        [self.replicated_atoms, self.list_of_replicas] = \
+            ath.replicate_atoms (self.atoms, self.supercell)
 
         self.n_k_points = np.prod (self.k_size)
-        self.n_modes = self.configuration.get_masses().shape[0] * 3
+        self.n_modes = self.atoms.get_masses().shape[0] * 3
         self.n_phonons = self.n_k_points * self.n_modes
-        
-        
         self._frequencies = None
         self._velocities = None
         self._eigenvalues = None
         self._eigenvectors = None
         self._occupations = None
         self._gamma = None
-        self._cell_inv = None
         self._n_modes = None
         self.second_order = second_order
         self.third_order = third_order
@@ -159,20 +156,6 @@ class Ballistico (object):
     def gamma(self, new_gamma):
         self._gamma = new_gamma
 
-    @property
-    def cell_inv(self):
-        return self._cell_inv
-
-    @cell_inv.getter
-    def cell_inv(self):
-        if self._cell_inv is None:
-            self._cell_inv = np.linalg.inv(self.configuration.cell)
-        return self._cell_inv
-
-    @cell_inv.setter
-    def cell_inv(self, new_cell_inv):
-        self._cell_inv = new_cell_inv
-
     def unravel_index(self, index):
         multi_index = np.unravel_index (index, self.k_size, order='F')
         return multi_index
@@ -197,8 +180,8 @@ class Ballistico (object):
 
     def diagonalize_second_order_single_k(self, qvec):
         list_of_replicas = self.list_of_replicas
-        geometry = self.configuration.positions
-        cell_inv = self.cell_inv
+        geometry = self.atoms.positions
+        cell_inv = np.linalg.inv (self.atoms.cell)
         kpoint = 2 * np.pi * (cell_inv).dot (qvec)
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
@@ -220,14 +203,14 @@ class Ballistico (object):
                     for j_at in range (n_particles):
                         for i_pol in range (3):
                             for j_pol in range (3):
-                                # dxij = ath.apply_boundary(self.replicated_configuration, atoms[i_at] - \
+                                # dxij = ath.apply_boundary(self.replicated_atoms, atoms[i_at] - \
                                 # (atoms[j_at] + list_of_replicas[id_replica]))
                                 dxij = list_of_replicas[id_replica]
                                 prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
                                 ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * \
                                                                            (second_order[
                                                                                i_at, i_pol, id_replica, j_at, j_pol])
-        mass = np.sqrt(self.configuration.get_masses ())
+        mass = np.sqrt(self.atoms.get_masses ())
         massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
         dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
         dyn_s /= mass[np.newaxis, np.newaxis, :, np.newaxis]
@@ -368,19 +351,19 @@ class Ballistico (object):
         #                                    tf.float64) * dirac_delta)
         Logger().info ('Lifetime calculation')
         nptk = np.prod (self.k_size)
-        n_particles = self.configuration.positions.shape[0]
+        n_particles = self.atoms.positions.shape[0]
         n_modes = n_particles * 3
         ps = np.zeros ((2, np.prod (self.k_size), n_modes))
         # TODO: remove acoustic sum rule
         self.frequencies[0, :3] = 0
         self.velocities[0, :3, :] = 0
-        cellinv = self.cell_inv
-        masses = self.configuration.get_masses ()
+        cell_inv = np.linalg.inv (self.atoms.cell)
+        masses = self.atoms.get_masses ()
         list_of_replicas = self.list_of_replicas
         n_modes = n_particles * 3
         k_size = self.k_size
         n_replicas = list_of_replicas.shape[0]
-        rlattvec = cellinv * 2 * np.pi
+        rlattvec = cell_inv * 2 * np.pi
         chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
         for index_k in range (np.prod (k_size)):
             i_k = np.array (self.unravel_index (index_k))
@@ -398,7 +381,7 @@ class Ballistico (object):
         scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
         Logger().info ('Projection started')
         gamma = np.zeros ((2, nptk, n_modes))
-        n_particles = self.configuration.positions.shape[0]
+        n_particles = self.atoms.positions.shape[0]
         n_modes = n_particles * 3
         k_size = self.k_size
         nptk = np.prod (k_size)
@@ -409,12 +392,12 @@ class Ballistico (object):
         if sigma_in is None:
             sigma_tensor_np = self.calculate_broadening ( \
                 self.velocities[:, :, np.newaxis, np.newaxis, :] - \
-                self.velocities[np.newaxis, np.newaxis, :, :, :])
+                self.velocities[np.newaxis, np.newaxis, :, :, :], cell_inv)
             sigma_tensor = sigma_tensor_np
             sigma_tf = sigma_tensor_np.reshape(nptk * n_modes,
                                             nptk * n_modes)
         mapping, grid = spg.get_ir_reciprocal_mesh (self.k_size,
-                                                    self.configuration,
+                                                    self.atoms,
                                                     is_shift=[0, 0, 0])
         unique_points, degeneracy = np.unique (mapping, return_counts=True)
         list_of_k = unique_points
@@ -541,8 +524,7 @@ class Ballistico (object):
         return gamma
     
     # @profile
-    def calculate_broadening(self, velocity):
-        cellinv = self.cell_inv
+    def calculate_broadening(self, velocity, cellinv):
         rlattvec = cellinv * 2 * np.pi
 
         # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec

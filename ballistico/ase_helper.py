@@ -1,7 +1,7 @@
 import numpy as np
 from ballistico.logger import Logger
 from ballistico.constants import *
-from ballistico.atoms_helper import replicate_configuration
+from ballistico.atoms_helper import replicate_atoms
 from scipy.optimize import minimize
 from ase.calculators.lammpslib import LAMMPSlib
 import ase.io as io
@@ -36,30 +36,30 @@ def gradient(x, input_atoms):
     return grad
 
 
-def optimize(configuration, method='BFGS'):
+def optimize(atoms, method='BFGS'):
     # Mimimization of the sructure
-    Logger().info ('Initial max force: ', max_force(configuration.positions, configuration))
+    Logger().info ('Initial max force: ', max_force(atoms.positions, atoms))
     if not ((method == 'none') or (method == False)):
         Logger().info ('Optimization method ' + method)
-        result = minimize (max_force, configuration.positions, args=configuration, jac=gradient, method=method)
+        result = minimize (max_force, atoms.positions, args=atoms, jac=gradient, method=method)
         Logger().info (result.message)
-        configuration.positions = result.x.reshape((int(result.x.size / 3), 3))
-        io.write ('minimized_' + '.xyz', configuration, format='extxyz')
-    Logger().info ('Final max force: ', max_force(configuration.positions, configuration))
-    return configuration
+        atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
+        io.write ('minimized_' + '.xyz', atoms, format='extxyz')
+    Logger().info ('Final max force: ', max_force(atoms.positions, atoms))
+    return atoms
 
 
-def calculate_second(configuration, replicas):
+def calculate_second(atoms, replicas):
     '''
     Calculate the second order derivative of the force using finite differences
     :return:
     tensor with second derivative in eV/A^2
     '''
     Logger().info ('Calculating second order potential derivatives')
-    n_in_unit_cell = len (configuration.numbers)
-    replicated_configuration, list_of_replicas = replicate_configuration(configuration, replicas)
+    n_in_unit_cell = len (atoms.numbers)
+    replicated_atoms, list_of_replicas = replicate_atoms(atoms, replicas)
 
-    atoms = replicated_configuration
+    atoms = replicated_atoms
     n_atoms = len (atoms.numbers)
     dx = 1e-5
     second = np.zeros ((n_atoms * 3, n_atoms * 3))
@@ -76,14 +76,14 @@ def calculate_second(configuration, replicas):
     np.save(SECOND_ORDER_FILE, second)
     return second
 
-def calculate_third(configuration, replicas):
-    replicated_configuration, list_of_replicas = replicate_configuration(configuration, replicas)
+def calculate_third(atoms, replicas):
+    replicated_atoms, list_of_replicas = replicate_atoms(atoms, replicas)
 
             
     # TODO: Here we should create it sparse
     Logger().info ('Calculating third order')
-    n_in_unit_cell = len (configuration.numbers)
-    atoms = replicated_configuration
+    n_in_unit_cell = len (atoms.numbers)
+    atoms = replicated_atoms
     n_atoms = len (atoms.numbers)
     n_replicas = list_of_replicas.shape[0]
     dx = 1e-6 * evoverdlpoly

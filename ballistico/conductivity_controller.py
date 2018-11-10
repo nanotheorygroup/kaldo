@@ -90,7 +90,7 @@ class ConductivityController (object):
         return 1e21 * c_v
     
     def exact_conductivity(self, is_classical=False, l_x=LENGTH_THREESHOLD, l_y=LENGTH_THREESHOLD, l_z=LENGTH_THREESHOLD, alpha=0, beta=0):
-        volume = np.linalg.det(self.phonons.configuration.cell) / 1000.
+        volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
 
         length = np.array([l_x, l_y, l_z])
         conductivity_per_mode = np.zeros ((self.phonons.n_phonons))
@@ -120,7 +120,7 @@ class ConductivityController (object):
         return trans * length / abs (velocity)
     
     def calculate_conductivity(self, is_classical, post_processing=None, length=None, converged=False):
-        volume = np.linalg.det(self.phonons.configuration.cell) / 1000.
+        volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
         conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3))
         if (is_classical):
             c_v = k_b

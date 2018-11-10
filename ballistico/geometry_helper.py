@@ -40,7 +40,7 @@ def create_k_and_symmetry_space(structure, symmetry='fcc', n_k_points=50):
 	
 	# TODO: implement symmetry here
 	# import spglib as spg
-	# spacegroup = spg.get_spacegroup (configuration, symprec=1e-5)
+	# spacegroup = spg.get_spacegroup (atoms, symprec=1e-5)
 
 	# High-symmetry points in the Brillouin zone
 	points = ibz_points[symmetry]

@@ -2,7 +2,7 @@ import numpy as np
 from ase import Atoms
 
 
-def replicate_configuration(atoms, replicas):
+def replicate_atoms(atoms, replicas):
 	"""
 
 	:rtype: Atoms,
@@ -20,9 +20,9 @@ def replicate_configuration(atoms, replicas):
 		replicated_geometry[i, :,:] = atoms.positions + vector
 	replicated_geometry = replicated_geometry.reshape((n_replicas * n_unit_atoms, 3))
 	replicated_cell = atoms.cell * replicas
-	replicated_configuration = Atoms(positions=replicated_geometry - np.min(list_of_replicas, axis=0), symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
+	replicated_atoms = Atoms(positions=replicated_geometry - np.min(list_of_replicas, axis=0), symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
 	
-	return replicated_configuration, list_of_replicas
+	return replicated_atoms, list_of_replicas
 
 def create_list_of_replicas(atoms, replicas):
 	# TODO: supercell[i] needs to be odd, throw an exception otherwise

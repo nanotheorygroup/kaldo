@@ -6,10 +6,10 @@ import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 
 
-def import_second_charlie(configuration, replicas=(1, 1, 1), dynamical_matrix_file='dynmat.dat'):
+def import_second_charlie(atoms, replicas=(1, 1, 1), dynamical_matrix_file='dynmat.dat'):
     replicas = np.array(replicas)
     dyn_mat = import_dynamical_matrix_charlie(replicas, dynamical_matrix_file)
-    mass = np.sqrt (configuration.get_masses ())
+    mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] \
            * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
@@ -24,10 +24,10 @@ def import_dynamical_matrix_charlie(replicas=(1, 1, 1), dynamical_matrix_file='d
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3) * \
            constants.evoverdlpoly
 
-def import_second_dlpoly(configuration, replicas=(1, 1, 1), dynamical_matrix_file='Dyn.form'):
+def import_second_dlpoly(atoms, replicas=(1, 1, 1), dynamical_matrix_file='Dyn.form'):
     replicas = np.array(replicas)
     dyn_mat = import_dynamical_matrix_dlpoly(replicas, dynamical_matrix_file)
-    mass = np.sqrt (configuration.get_masses ())
+    mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] \
            * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
@@ -41,11 +41,11 @@ def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='Dy
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
 
-def import_third_order_dlpoly(configuration, replicas=(1, 1, 1), file='THIRD'):
+def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), file='THIRD'):
     replicas = np.array(replicas)
-    replicated_configuration, list_of_replicas = ath.replicate_configuration (
-        configuration, replicas)
-    n_particles = replicated_configuration.get_positions().shape[0]
+    replicated_atoms, list_of_replicas = ath.replicate_atoms (
+        atoms, replicas)
+    n_particles = replicated_atoms.get_positions().shape[0]
     third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
     third_order = third_order_frame.values.T
     v3ijk = third_order[5:8].T
