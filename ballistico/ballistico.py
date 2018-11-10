@@ -27,9 +27,15 @@ class Ballistico (object):
         self.replicas = np.array(supercell)
         self.k_size = np.array(kpts)
         self.is_classic = is_classic
-        self.folder = 'ballistico_phonons/'
+        self.folder = 'phonons/'
         [self.replicated_configuration, self.list_of_replicas] = \
             ath.replicate_configuration (self.configuration, self.replicas)
+
+        self.n_k_points = np.prod (self.k_size)
+        self.n_modes = self.configuration.get_masses().shape[0] * 3
+        self.n_phonons = self.n_k_points * self.n_modes
+        
+        
         self._frequencies = None
         self._velocities = None
         self._eigenvalues = None
@@ -37,6 +43,7 @@ class Ballistico (object):
         self._occupations = None
         self._gamma = None
         self._cell_inv = None
+        self._n_modes = None
         self.second_order = second_order
         self.third_order = third_order
         self.temperature = temperature
@@ -197,11 +204,11 @@ class Ballistico (object):
         n_replicas = list_of_replicas.shape[0]
         ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
         if (qvec[0] == 0 and qvec[1] == 0 and qvec[2] == 0):
-            # calculate_eigenvec = scipy.linalg.lapack.zheev
-            calculate_eigenvec = np.linalg.eigh
+            calculate_eigenvec = scipy.linalg.lapack.zheev
+            # calculate_eigenvec = np.linalg.eigh
         else:
-            # calculate_eigenvec = scipy.linalg.lapack.zheev
-            calculate_eigenvec = np.linalg.eigh
+            calculate_eigenvec = scipy.linalg.lapack.zheev
+            # calculate_eigenvec = np.linalg.eigh
         second_order = self.second_order[0]
         chi_k = np.zeros (n_replicas).astype (complex)
         for id_replica in range (n_replicas):
@@ -266,7 +273,7 @@ class Ballistico (object):
         dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
         return omega_e, dos_e
 
-    @profile
+    # @profile
     def calculate_second_all_grid(self):
         n_k_points = np.prod(self.k_size)
         n_unit_cell = self.second_order.shape[1]
@@ -314,7 +321,7 @@ class Ballistico (object):
         domega = params[1]
         return 1. / domega * (1 - deltaa / domega)
 
-    @profile
+    # @profile
     def calculate_gamma(self, sigma_in=None):
         prefactor = 1e-3 / (
                 4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar

@@ -18,13 +18,19 @@ class Shengbte (object):
         [self.replicated_configuration, self.list_of_replicas] = \
             ath.replicate_configuration (self.configuration, self.replicas)
         self.temperature = temperature
+        self.is_classical = is_classic
+
+
         self._qpoints_mapper = None
         self._energies = None
-        self._decay_rate_data = None
-        self._decay_rates_2 = None
-        self._velocity_data = None
+        self._gamma = None
+        self._velocities = None
         self._frequencies = None
-        self.is_classical = is_classic
+
+        self._n_k_points = None
+        self._n_modes = None
+        self._n_phonons = None
+        
 
         
         # TODO: move these initializations into a getter
@@ -65,7 +71,6 @@ class Shengbte (object):
         self.folder = 'shengbte/'
         is_fold_present = is_folder_present(self.folder)
 
-        self.create_control_file ()
 	    
     @property
     def qpoints_mapper(self):
@@ -88,65 +93,70 @@ class Shengbte (object):
     @energies.getter
     def energies(self):
         if self._energies is None:
-            self.read_energy_data ()
+            self._energies = self.read_energy_data ()
         return self._energies
-    
-    @energies.setter
-    def energies(self, new_energy_data):
-        self._energies = new_energy_data
-    
+
     @property
     def frequencies(self):
         return self._frequencies
-    
+
     @frequencies.getter
     def frequencies(self):
         if self._frequencies is None:
-            # self._frequencies = self.energies.reshape ((self.kpts[0], self.kpts[1], self.kpts[2], self.energies.shape[1])).swapaxes (0, 2) / 2. / np.pi
-            self._frequencies = self.energies.reshape ((self.k_size[0], self.k_size[1], self.k_size[2], self.energies.shape[1])) / 2. / np.pi
+            self._frequencies = self.read_energy_data () / (2 * np.pi)
         return self._frequencies
     
-    @frequencies.setter
-    def frequencies(self, new_frequencies_data):
-        self._frequencies = new_frequencies_data
-    
     @property
-    def decay_rates(self):
-        return self._decay_rate_data
-    
-    @decay_rates.getter
     def gamma(self):
-        if self._decay_rate_data is None:
-            self._decay_rate_data = self.read_decay_rate_data ()
-            # self._decay_rate_data[np.where (np.isnan (self._decay_rate_data))] = THREESHOLD
-        return self._decay_rate_data
+        return self._gamma
     
-    @gamma.setter
-    def gamma(self, new_decay_rate_data):
-        self._decay_rate_data = new_decay_rate_data
+    @gamma.getter
+    def gamma(self):
+        if self._gamma is None:
+            self._gamma = self.read_decay_rate_data ()
+            # self._gamma[np.where (np.isnan (self._gamma))] = THREESHOLD
+        return self._gamma
     
     @property
     def velocities(self):
-        return self._velocity_data
+        return self._velocities
     
     @velocities.getter
     def velocities(self):
-        if self._velocity_data is None:
-            self.read_velocity_data ()
-        return self._velocity_data #+ THREESHOLD
-    
-    @velocities.setter
-    def velocities(self, new_velocity_data):
-        self._velocity_data = new_velocity_data
+        if self._velocities is None:
+            self._velocities = self.read_velocity_data ()
+        return self._velocities #+ THREESHOLD
 
+    @property
     def n_phonons(self):
-        return self.n_modes() * self.n_k_points()
+        return self._n_phonons
 
-    def n_modes(self):
-        return self.energies.shape[1]
+    @n_phonons.getter
+    def n_phonons(self):
+        if self._n_phonons is None:
+            return self.n_modes() * self.n_k_points()
+        return self._n_phonons
     
+
+    @property
+    def n_modes(self):
+        return self._n_modes
+
+    @n_modes.getter
+    def n_modes(self):
+        if self._n_modes is None:
+            return self.energies.shape[1]
+        return self._n_modes
+
+    @property
     def n_k_points(self):
-        return self.energies.shape[0]
+        return self._n_k_points
+
+    @n_k_points.getter
+    def n_k_points(self):
+        if self._n_k_points is None:
+            return self.energies.shape[0]
+        return self._n_k_points
     
     def save_second_order_matrix(self):
         second_order = self.second_order
@@ -304,7 +314,91 @@ class Shengbte (object):
         
         with open (filename, 'w') as file:
             file.write (string)
+
+    def header(self):
     
+        # this convert masses to qm masses
+        mass_factor = 1.8218779 * 6.022e-4
+    
+        nat = len (self.configuration.get_chemical_symbols ())
+    
+        # TODO: The dielectric calculation is not implemented yet
+        dielectric_constant = 1.
+        born_eff_charge = 0.000000
+    
+        ntype = len (np.unique (self.configuration.get_chemical_symbols ()))
+        # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
+        ibrav = 0
+        header_str = ''
+        header_str += str (ntype) + ' '
+        header_str += str (nat) + ' '
+        header_str += str (ibrav) + ' '
+    
+        # TODO: I'd like to have ibrav = 1 and put the actual positions here
+        header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
+        header_str += matrix_to_string (self.configuration.cell)
+    
+        for i in range (ntype):
+            mass = np.unique (self.replicated_configuration.get_masses ())[i] / mass_factor
+            label = np.unique (self.replicated_configuration.get_chemical_symbols ())[i]
+            header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
+    
+        # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
+        for i in range (nat):
+            header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (self.configuration.positions[i])
+        header_str += 'T \n'
+        header_str += matrix_to_string (np.diag (np.ones (3)) * dielectric_constant)
+        for i in range (nat):
+            header_str += str (i + 1) + '\n'
+            header_str += matrix_to_string (np.diag (np.ones (3)) * born_eff_charge * (-1) ** i)
+        header_str += str (self.replicas[0]) + ' '
+        header_str += str (self.replicas[1]) + ' '
+        header_str += str (self.replicas[2]) + '\n'
+        return header_str
+
+    def save_data(self):
+        omega = self.energies
+        lifetime = 1. / self.gamma
+        n_modes = omega.shape[1]
+        if self.is_classical:
+            filename = "data_classic"
+        else:
+            filename = "data_quantum"
+        filename = filename + '_' + str (self.temperature)
+        filename = filename + ".csv"
+    
+        filename = self.folder + filename
+        Logger ().info ('saving ' + filename)
+        with open (filename, "w") as csv:
+            str_to_write = 'k_x,k_y,k_z,'
+            for i in range (n_modes):
+                str_to_write += 'omega_' + str (i) + ' (rad/ps),'
+            for i in range (n_modes):
+                str_to_write += 'tau_' + str (i) + ' (ps),'
+            for alpha in range (3):
+                coord = 'x'
+                if alpha == 1:
+                    coord = 'y'
+                if alpha == 2:
+                    coord = 'z'
+            
+                for i in range (n_modes):
+                    str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
+            str_to_write += '\n'
+            csv.write (str_to_write)
+            for k in range (self.q_points ().shape[0]):
+                str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
+                    self.q_points ()[k, 2]) + ','
+                for i in range (n_modes):
+                    str_to_write += str (self.energies[k, i]) + ','
+                for i in range (n_modes):
+                    str_to_write += str (lifetime[k, i]) + ','
+            
+                for alpha in range (3):
+                    for i in range (n_modes):
+                        str_to_write += str (self.velocities[k, i, alpha]) + ','
+                str_to_write += '\n'
+                csv.write (str_to_write)
         
     def read_qpoints_mapper(self):
         q_points = pd.read_csv (self.folder + 'BTE.qpoints_full', header=None, delim_whitespace=True)
@@ -321,6 +415,7 @@ class Shengbte (object):
         equivalent_q_points = self.qpoints_mapper[indices_per_q]
         return np.delete(equivalent_q_points, 1, 1)
     
+    
     def read_energy_data(self):
         # We read in rad/ps
         omega = pd.read_csv (self.folder + 'BTE.omega', header=None, delim_whitespace=True)
@@ -329,7 +424,7 @@ class Shengbte (object):
         energy_data = np.zeros ((n_qpoints, n_branches))
         for index, reduced_index, q_point_x, q_point_y, q_point_z in self.qpoints_mapper:
             energy_data[int (index - 1)] = omega.loc[[int (reduced_index - 1)]].values
-        self.energies = energy_data
+        return energy_data
 
     def read_ps_data(self, type=None):
         if type == 'plus':
@@ -380,125 +475,18 @@ class Shengbte (object):
         
         velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
 
-        self.velocities =  np.zeros((self.k_size[0], self.k_size[1], self.k_size[2], n_modes, 3))
+        velocities =  np.zeros((self.k_size[0], self.k_size[1], self.k_size[2], n_modes, 3))
 
         z = 0
         for k in range (self.k_size[2]):
             for j in range(self.k_size[1]):
                 for i in range (self.k_size[0]):
-                    self.velocities[i,j,k,:,:] = velocity_array[:, z, :]
+                    velocities[i,j,k,:,:] = velocity_array[:, z, :]
                     z += 1
+        return velocities
         
    
-    
-    def header(self):
         
-        # this convert masses to qm masses
-        mass_factor = 1.8218779 * 6.022e-4
-    
-        nat = len(self.configuration.get_chemical_symbols ())
-        
-        # TODO: The dielectric calculation is not implemented yet
-        dielectric_constant = 1.
-        born_eff_charge = 0.000000
-        
-        ntype = len(np.unique(self.configuration.get_chemical_symbols ()))
-        # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
-        ibrav = 0
-        header_str = ''
-        header_str += str (ntype) + ' '
-        header_str += str (nat) + ' '
-        header_str += str (ibrav) + ' '
-        
-        # TODO: I'd like to have ibrav = 1 and put the actual positions here
-        header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
-        header_str += matrix_to_string (self.configuration.cell)
-
-        for i in range (ntype):
-            mass = np.unique(self.replicated_configuration.get_masses())[i] / mass_factor
-            label = np.unique(self.replicated_configuration.get_chemical_symbols())[i]
-            header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
-        
-        # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
-        for i in range (nat):
-            header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (self.configuration.positions[i])
-        header_str += 'T \n'
-        header_str += matrix_to_string (np.diag (np.ones (3)) * dielectric_constant)
-        for i in range (nat):
-            header_str += str (i + 1) + '\n'
-            header_str += matrix_to_string (np.diag (np.ones (3)) * born_eff_charge * (-1) ** i)
-        header_str += str (self.replicas[0]) + ' '
-        header_str += str (self.replicas[1]) + ' '
-        header_str += str (self.replicas[2]) + '\n'
-        return header_str
-    
-    def save_data(self):
-        omega = self.energies
-        lifetime = 1. / self.gamma
-        n_modes = omega.shape[1]
-        if self.is_classical:
-            filename = "data_classic"
-        else:
-            filename = "data_quantum"
-        filename = filename + '_' + str(self.temperature)
-        filename = filename + ".csv"
-
-        filename = self.folder + filename
-        Logger().info ('saving ' + filename)
-        with open (filename, "w") as csv:
-            str_to_write = 'k_x,k_y,k_z,'
-            for i in range (n_modes):
-                str_to_write += 'omega_' + str (i) + ' (rad/ps),'
-            for i in range (n_modes):
-                str_to_write += 'tau_' + str (i) + ' (ps),'
-            for alpha in range (3):
-                coord = 'x'
-                if alpha == 1:
-                    coord = 'y'
-                if alpha == 2:
-                    coord = 'z'
-                    
-                for i in range (n_modes):
-                    str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
-            str_to_write += '\n'
-            csv.write (str_to_write)
-            for k in range (self.q_points ().shape[0]):
-                str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
-                    self.q_points ()[k, 2]) + ','
-                for i in range (n_modes):
-                    str_to_write += str (self.energies[k, i]) + ','
-                for i in range (n_modes):
-                    str_to_write += str (lifetime[k, i]) + ','
-                
-                for alpha in range (3):
-                    for i in range (n_modes):
-                        str_to_write += str (self.velocities[k, i, alpha]) + ','
-                str_to_write += '\n'
-                csv.write (str_to_write)
-        
-    def decay_plot(self):
-        omega = self.energies
-        lifetime = 1. / self.gamma
-
-        fig = plt.figure ()
-        ax = plt.gca ()
-        # full_data = np.array((omega.flatten(), lifetime.flatten()))
-        # np.savetxt ('energy_vs_lifetime.csv', full_data.T, delimiter=',')
-        
-        
-        
-        ax.scatter (omega, lifetime)
-        plt.grid ()
-        plt.xlabel ("frequency (Thz)")
-        plt.ylabel ("lifetime (ps)")
-        # ax.set_xlim(10-2,omega.max()*1.05)
-        # ax.set_ylim(10-2,(lifetime[1:,:]).max()*1.05)
-        
-        ax.set_xscale ('log')
-        ax.set_yscale ('log')
-        
-        plt.show ()
-    
     def read_conductivity(self, converged=True, is_classical=False):
         folder = self.folder
         if converged:
@@ -525,19 +513,4 @@ class Shengbte (object):
         np.savetxt(filename , conductivity, delimiter=',')
         Logger().info ('saving ' + filename)
         return conductivity
-    
-    def energy_easy_plot(self, nanowire=False):
-        if not nanowire:
-            q_points_filtered, modes_filtered = ghl.filter_modes_and_k_points (self.q_points(), self.energies)
-        else:
-            q_points_filtered = self.q_points()[:,2]
-            modes_filtered = self.energies
-        plt.ylabel ("frequency (rad/ps)")
-        plt.xlabel ("wavevector")
-        plt.ylim (0, self.energies.max () * 1.05)
-
-        plt.grid ('on')
-        plt.xlim(0,.5)
-        # modes so far are in rad/ps, here we change them to rad/ps
-        plt.plot (q_points_filtered, modes_filtered, "-", color='black')
     

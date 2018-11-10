@@ -32,56 +32,77 @@ if __name__ == "__main__":
     is_classical = False
 
     # import the calculated second order
-    # Import the calculated third to calculate third order quantities
     second_order = io_helper.import_second_dlpoly (atoms, supercell)
+
+    # import the calculated third order
     third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
     
-    ballistico_phonons = Ballistico (atoms=atoms,
-                                     supercell=supercell,
-                                     kpts=kpts,
-                                     second_order=second_order,
-                                     third_order=third_order,
-                                     is_classic=is_classical,
-                                     temperature=temperature)
-
-    
-    shengbte_phonons = Shengbte(atoms=atoms,
-                                supercell=supercell,
-                                kpts=kpts,
-                                is_classic=is_classical,
-                                temperature=temperature)
-    
-    shengbte_phonons.second_order = second_order
-    shengbte_phonons.third_order = third_order
-    print(shengbte_phonons.run())
     
 
+    phonons = Shengbte(atoms=atoms,
+                       supercell=supercell,
+                       kpts=kpts,
+                       is_classic=is_classical,
+                       temperature=temperature)
+    phonons.second_order = second_order
+    phonons.third_order = third_order
+    phonons.create_control_file ()
 
+    print(phonons.run())
     # Plot velocity
     fig = plt.figure ()
-    plt.scatter (ballistico_phonons.frequencies.flatten (), (np.linalg.norm(ballistico_phonons.velocities, axis=-1)).flatten ())
-    plt.scatter(shengbte_phonons.frequencies.flatten(), np.linalg.norm(shengbte_phonons.velocities,axis=-1).flatten(), marker='.')
+    plt.scatter (phonons.frequencies.flatten (), (np.linalg.norm (phonons.velocities, axis=-1)).flatten (),
+                 label='ballistico')
     plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show()
-    fig.savefig ('velocity.pdf')
+    plt.show ()
 
-
-    
     # Plot gamma
     fig = plt.figure ()
-    plt.scatter (ballistico_phonons.frequencies.flatten (), ballistico_phonons.gamma.flatten ())
-    plt.scatter (shengbte_phonons.frequencies.flatten (), shengbte_phonons.gamma.flatten (), marker='.')
+    plt.scatter (phonons.frequencies.flatten (), phonons.gamma.flatten (), label='ballistico')
     plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     plt.show ()
-    fig.savefig ('gamma.pdf')
-
-
-    # read the Shengbte conductivity
-    print(shengbte_phonons.read_conductivity(converged=False))
 
     # Calculate conductivity
-    ConductivityController (ballistico_phonons).calculate_conductivity (is_classical=is_classical)
-    
+    ConductivityController (phonons).calculate_conductivity (is_classical=is_classical)
+
+    print(phonons.read_conductivity(converged=False))
+
     print('Calculation completed!')
+    
+    
+    
+    
+    
+    
+    
+    
+    phonons = Ballistico (atoms=atoms,
+                          supercell=supercell,
+                          kpts=kpts,
+                          second_order=second_order,
+                          third_order=third_order,
+                          is_classic=is_classical,
+                          temperature=temperature)
+
+    # Plot velocity
+    fig = plt.figure ()
+    plt.scatter (phonons.frequencies.flatten (), (np.linalg.norm(phonons.velocities, axis=-1)).flatten (), label='ballistico')
+    plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
+    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    plt.show ()
+
+    # Plot gamma
+    fig = plt.figure ()
+    plt.scatter (phonons.frequencies.flatten (), phonons.gamma.flatten (), label='ballistico')
+    plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
+    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    plt.show ()
+
+
+    # Calculate conductivity
+    ConductivityController (phonons).calculate_conductivity (is_classical=is_classical)
+    
+    
+    

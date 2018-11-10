@@ -10,6 +10,8 @@ def resample_fourier(observable, increase_factor):
 	half_length_plus = int((matrix.shape[0] + 1) / 2)
 	half_length = int(half_length)
 	half_length_plus = int(half_length_plus)
+	
+	# TODO: replace with numpy fourier shift
 	bigger_matrix[0:half_length, 0:half_length, 0:half_length] = matrix[0:half_length, 0:half_length, 0:half_length]
 	bigger_matrix[-half_length:, 0:half_length, 0:half_length] = matrix[-half_length:, 0:half_length, 0:half_length]
 	bigger_matrix[0:half_length, -half_length:, 0:half_length] = matrix[0:half_length, -half_length:, 0:half_length]
