@@ -20,24 +20,11 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
 	n_particles = geometry.shape[0]
 	n_replicas = list_of_replicas.shape[0]
-	ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
 	chi_k = np.zeros (n_replicas).astype (complex)
 	for id_replica in range (n_replicas):
 		chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
 	dyn_s = np.einsum('ialjb,l->iajb', second_order, chi_k)
-	for id_replica in range (n_replicas):
-		for alpha in range(3):
-			for i_at in range (n_particles):
-				for j_at in range (n_particles):
-					for i_pol in range (3):
-						for j_pol in range (3):
-							# dxij = ath.apply_boundary(self.replicated_atoms, atoms[i_at] - \
-							# (atoms[j_at] + list_of_replicas[id_replica]))
-							dxij = list_of_replicas[id_replica]
-							prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
-							ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * \
-							                                           (second_order[
-								                                           i_at, i_pol, id_replica, j_at, j_pol])
+	ddyn_s = 1j * np.einsum('ialjb,l,lc->ciajb', second_order, chi_k, list_of_replicas)
 	mass = np.sqrt(atoms.get_masses ())
 	massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
 	dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
@@ -57,11 +44,11 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 	# eigenvects = eigenvects[:, idx]
 	frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 	velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
+	vel = np.einsum('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
 	for alpha in range (3):
-		for i in range (3 * n_particles):
-			vel = (eigenvects[:, i].conj ()).dot (np.matmul (ddyn[alpha, :, :], eigenvects[:, i]))
-			if frequencies[i] != 0:
-				velocities[i, alpha] = vel / (2 * (2 * np.pi) * frequencies[i])
+		for mu in range (n_particles * 3):
+			if frequencies[mu] != 0:
+				velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
 	return frequencies * constants.toTHz, eigenvals, eigenvects, velocities * constants.toTHz * constants.bohr2nm
 
 def calculate_second_all_grid(k_size, atoms, second_order, list_of_replicas):
