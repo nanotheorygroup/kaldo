@@ -10,6 +10,33 @@ DELTA_THRESHOLD = 2
 # DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 DELTA_CORRECTION = 1
 
+def calculate_density_of_states(frequencies, k_mesh, delta=1):
+	n_modes = frequencies.shape[-1]
+	frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
+	n_k_points = np.prod (k_mesh)
+	# increase_factor = 3
+	omega_kl = np.zeros ((n_k_points, n_modes))
+	for mode in range (n_modes):
+		omega_kl[:, mode] = frequencies[..., mode].flatten ()
+	# Energy axis and dos
+	omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
+	dos_e = np.zeros_like (omega_e)
+	# Sum up contribution from all q-points and branches
+	for omega_l in omega_kl:
+		diff_el = (omega_e[:, np.newaxis] - omega_l[np.newaxis, :]) ** 2
+		dos_el = 1. / (diff_el + (0.5 * delta) ** 2)
+		dos_e += dos_el.sum (axis=1)
+	dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
+	return omega_e, dos_e
+
+def calculate_occupations(frequencies, temp, is_classic):
+	density = np.zeros_like (frequencies)
+	if is_classic == False:
+		density = 1. / (
+				np.exp (constants.hbar * 2 * np.pi * frequencies / constants.k_b / temp) - 1.)
+	else:
+		density[frequencies != 0] = temp / (2 * np.pi * frequencies[frequencies != 0]) / constants.hbar * constants.k_b
+	return density
 
 def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas):
 	list_of_replicas = list_of_replicas

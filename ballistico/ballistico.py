@@ -34,6 +34,7 @@ class Ballistico (object):
         self._velocities = None
         self._eigenvalues = None
         self._eigenvectors = None
+        self._dos = None
         self._occupations = None
         self._gamma = None
         self._n_k_points = None
@@ -123,18 +124,25 @@ class Ballistico (object):
         return self._eigenvectors
 
     @property
+    def dos(self):
+        return self._dos
+
+    @dos.getter
+    def dos(self):
+        if self._dos is None:
+            self.calculate_dos ()
+        return self._dos
+
+
+    @property
     def occupations(self):
         return self._occupations
 
     @occupations.getter
     def occupations(self):
         if self._occupations is None:
-            self._occupations = self.calculate_occupations ().squeeze()
+            self.calculate_occupations ()
         return self._occupations
-
-    @occupations.setter
-    def occupations(self, new_occupations):
-        self._occupations = new_occupations
 
     @property
     def gamma(self):
@@ -154,26 +162,9 @@ class Ballistico (object):
     def gamma(self, new_gamma):
         self._gamma = new_gamma
 
-    def density_of_states(self, delta=1):
-        frequencies = self.frequencies
-        k_mesh = self.k_size
-        n_modes = frequencies.shape[-1]
-        frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
-        n_k_points = np.prod (k_mesh)
-        # increase_factor = 3
-        omega_kl = np.zeros(( n_k_points, n_modes))
-        for mode in range(n_modes):
-            omega_kl[:, mode] = frequencies[...,mode].flatten()
-        # Energy axis and dos
-        omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
-        dos_e = np.zeros_like (omega_e)
-        # Sum up contribution from all q-points and branches
-        for omega_l in omega_kl:
-            diff_el = (omega_e[:, np.newaxis] - omega_l[np.newaxis, :]) ** 2
-            dos_el = 1. / (diff_el + (0.5 * delta) ** 2)
-            dos_e += dos_el.sum (axis=1)
-        dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
-        return omega_e, dos_e
+    def calculate_dos(self, delta=1):
+        self._dos = ballistico.calculator.calculate_density_of_states(self.frequencies, self.k_size, delta)
+
 
     # @profile
     def calculate_second_all_grid(self):
@@ -188,16 +179,7 @@ class Ballistico (object):
         self._eigenvectors = eigenvectors
     
     def calculate_occupations(self):
-        temp = self.temperature
-        omega = 2 * np.pi * self.frequencies
-        eigenvalues = omega * constants.hbar / constants.k_b
-        density = np.zeros_like(eigenvalues)
-        if self.is_classic == False:
-            density[omega != 0] = 1. / (
-                    np.exp (constants.hbar * omega[omega != 0] / constants.k_b / self.temperature) - 1.)
-        else:
-            density[omega != 0] = temp / omega[omega != 0] / constants.hbar * constants.k_b
-        return density
+        self._occupations = ballistico.calculator.calculate_occupations(self.frequencies, self.temperature, self.is_classic)
 
     def calculate_gamma(self, sigma_in=None):
         self._gamma = ballistico.calculator.calculate_gamma(
@@ -210,5 +192,3 @@ class Ballistico (object):
             self.list_of_replicas,
             self.third_order,
             sigma_in)
-
-    
