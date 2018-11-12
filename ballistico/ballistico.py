@@ -124,7 +124,7 @@ class Ballistico (Phonons):
         if super (self.__class__, self).gamma is not None:
             return super (self.__class__, self).gamma
         self.calculate_gamma ()
-        return np.sum(self._gamma, axis=0)
+        return self._gamma
 
     def calculate_dos(self, delta=1):
         self.dos = ballistico.calculator.calculate_density_of_states(

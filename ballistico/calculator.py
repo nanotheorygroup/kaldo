@@ -335,4 +335,5 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	
 	gamma = gamma * prefactor / nptk
 	ps = ps / nptk / (2 * np.pi) ** 3
+	gamma = np.sum (gamma, axis=0)
 	return gamma
