@@ -37,40 +37,6 @@ if __name__ == "__main__":
     # import the calculated third order
     third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
     
-    
-
-    phonons = Shengbte(atoms=atoms,
-                       supercell=supercell,
-                       kpts=kpts,
-                       is_classic=is_classical,
-                       temperature=temperature)
-    phonons.second_order = second_order
-    phonons.third_order = third_order
-    phonons.create_control_file ()
-
-    print(phonons.run())
-    # Plot velocity
-    fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), (np.linalg.norm (phonons.velocities, axis=-1)).flatten (),
-                 label='ballistico')
-    plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show ()
-
-    # Plot gamma
-    fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), phonons.gamma.flatten (), label='ballistico')
-    plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show ()
-
-    # Calculate conductivity
-    ConductivityController (phonons).calculate_conductivity (is_classical=is_classical)
-
-    print(phonons.read_conductivity(converged=False))
-
-    print('Calculation completed!')
-    
     phonons = Ballistico_phonons (atoms=atoms,
                                   supercell=supercell,
                                   kpts=kpts,
@@ -78,21 +44,29 @@ if __name__ == "__main__":
                                   temperature=temperature,
                                   second_order=second_order,
                                   third_order=third_order,
-                                  sigma_in=1.)
+                                  sigma_in=.1)
+
 
     # Plot velocity
     fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), (np.linalg.norm(phonons.velocities, axis=-1)).flatten (), label='ballistico')
+    plt.scatter (phonons.dos[0].flatten (), phonons.dos[1].flatten ())
+    plt.ylabel ("dos", fontsize=16, fontweight='bold')
+    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    fig.savefig ('dos.pdf')
+
+    # Plot velocity
+    fig = plt.figure ()
+    plt.scatter (phonons.frequencies.flatten (), np.linalg.norm(phonons.velocities, axis=-1).flatten ())
     plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show ()
+    fig.savefig ('velocities.pdf')
 
     # Plot gamma
     fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), phonons.gamma.flatten (), label='ballistico')
+    plt.scatter (phonons.frequencies.flatten (), phonons.gamma.flatten ())
     plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.show ()
+    fig.savefig ('gamma.pdf')
 
     # Calculate conductivity
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classical)

@@ -242,7 +242,7 @@ class Phonons (object):
 			try:
 				folder = type(self).__name__
 				folder += '/'
-				self._dos = np.load (DOS_FILE)
+				self._dos = np.load (folder + DOS_FILE)
 			except FileNotFoundError as e:
 				print (e)
 		return self._dos
