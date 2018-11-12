@@ -9,7 +9,7 @@ GAMMA_FILE = 'gamma.npy'
 DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 
-IS_PERSISTENCY_ENABLED = True
+IS_PERSISTENCY_ENABLED = False
 
 class Phonons (object):
 	def __init__(self, atoms, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300):
@@ -139,7 +139,11 @@ class Phonons (object):
 		if self._gamma is None and IS_PERSISTENCY_ENABLED:
 			try:
 				folder = type(self).__name__
-				folder += '/'
+				folder += '/' + str(self.temperature) + '/'
+				if self.is_classic:
+					folder += 'classic/'
+				else:
+					folder += 'quantum/'
 				self._gamma = np.load (folder + GAMMA_FILE)
 			except FileNotFoundError as e:
 				print (e)
@@ -150,7 +154,11 @@ class Phonons (object):
 		#TODO separate gamma classic and quantum
 		if IS_PERSISTENCY_ENABLED:
 			folder = type (self).__name__
-			folder += '/'
+			folder += '/' + str(self.temperature) + '/'
+			if self.is_classic:
+				folder += 'classic/'
+			else:
+				folder += 'quantum/'
 			np.save (folder + GAMMA_FILE, new_gamma)
 		self._gamma = new_gamma
 	
@@ -187,7 +195,11 @@ class Phonons (object):
 		if self._occupations is None and IS_PERSISTENCY_ENABLED:
 			try:
 				folder = type(self).__name__
-				folder += '/'
+				folder += '/' + str(self.temperature) + '/'
+				if self.is_classic:
+					folder += 'classic/'
+				else:
+					folder += 'quantum/'
 				self._occupations = np.load (folder + OCCUPATIONS_FILE)
 			except FileNotFoundError as e:
 				print (e)
@@ -198,6 +210,10 @@ class Phonons (object):
 		#TODO:add a temperature subfolder here
 		if IS_PERSISTENCY_ENABLED:
 			folder = type (self).__name__
-			folder += '/'
+			folder += '/' + str(self.temperature) + '/'
+			if self.is_classic:
+				folder += 'classic/'
+			else:
+				folder += 'quantum/'
 			np.save (folder + OCCUPATIONS_FILE, new_occupations)
 		self._occupations = new_occupations

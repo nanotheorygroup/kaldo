@@ -13,12 +13,19 @@ from memory_profiler import profile
 
 class Ballistico (Phonons):
     def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None):
-        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts)
+        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature)
         self.second_order = second_order
         self.third_order = third_order
-        folder = type (self).__name__
-        if not os.path.exists (folder):
-            os.makedirs (folder)
+        #TODO: move this folder creation logic somewhere else
+        class_name = type (self).__name__
+        if self.is_classic:
+            folder_name = 'classic'
+        else:
+            folder_name = 'quantum'
+        folders = [class_name, class_name + '/' + str(self.temperature) +'/' + folder_name + '/']
+        for folder in folders:
+            if not os.path.exists (folder):
+                os.makedirs (folder)
 
 
     @property
