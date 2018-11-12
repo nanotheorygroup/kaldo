@@ -81,10 +81,10 @@ if __name__ == "__main__":
     phonons = Ballistico (atoms=atoms,
                           supercell=supercell,
                           kpts=kpts,
-                          second_order=second_order,
-                          third_order=third_order,
                           is_classic=is_classical,
-                          temperature=temperature)
+                          temperature=temperature,
+                          second_order=second_order,
+                          third_order=third_order)
 
     # Plot velocity
     fig = plt.figure ()
@@ -99,7 +99,6 @@ if __name__ == "__main__":
     plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     plt.show ()
-
 
     # Calculate conductivity
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classical)

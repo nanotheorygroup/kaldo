@@ -6,183 +6,149 @@ import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 # import tensorflow as tf
 import ballistico.calculator
+from ballistico.phonons import Phonons
 import sys
 from memory_profiler import profile
 # tf.enable_eager_execution ()
-EIGENVALUES_FILE = 'eigenvalues.npy'
-EIGENVECTORS_FILE = 'eigenvectors.npy'
-FREQUENCY_K_FILE = 'frequencies.npy'
-VELOCITY_K_FILE = 'velocities.npy'
-GAMMA_FILE = 'gammas.npy'
 
-
-class Ballistico (object):
-    def __init__(self, atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), second_order=None, third_order=None, is_classic=False, temperature=300):
-        # TODO: Keep only the relevant default initializations
-        self.atoms = atoms
-        self.supercell = np.array(supercell)
-        self.k_size = np.array(kpts)
-        self.is_classic = is_classic
-        self.folder = 'phonons/'
-        [self.replicated_atoms, self.list_of_replicas] = \
-            ath.replicate_atoms (self.atoms, self.supercell)
-
-        self.n_k_points = np.prod (self.k_size)
-        self.n_modes = self.atoms.get_masses().shape[0] * 3
-        self.n_phonons = self.n_k_points * self.n_modes
-        self._frequencies = None
-        self._velocities = None
-        self._eigenvalues = None
-        self._eigenvectors = None
-        self._dos = None
-        self._occupations = None
-        self._gamma = None
-        self._n_k_points = None
-        self._n_modes = None
-        self._n_phonons = None
+class Ballistico (Phonons):
+    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None):
+        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts)
         self.second_order = second_order
         self.third_order = third_order
-        self.temperature = temperature
         directory = os.path.dirname (self.folder)
         if not os.path.exists (directory):
             os.makedirs (directory)
 
     @property
     def frequencies(self):
-        return self._frequencies
+        return super().frequencies
 
     @frequencies.getter
     def frequencies(self):
-        if self._frequencies is None:
-            # try:
-            #     self._frequencies = np.load (self.folder + FREQUENCY_K_FILE)
-            # except FileNotFoundError as e:
-            #     print(e)
-            self.calculate_second_all_grid ()
-                # np.save (self.folder + FREQUENCY_K_FILE, self._frequencies)
-                # np.save (self.folder + VELOCITY_K_FILE, self._velocities)
+        if super (self.__class__, self).frequencies is not None:
+            return super (self.__class__, self).frequencies
+        self.calculate_second_all_grid ()
         return self._frequencies
 
     @frequencies.setter
     def frequencies(self, new_frequencies):
-        self._frequencies = new_frequencies
-
+        Phonons.frequencies.fset(self, new_frequencies)
+        
     @property
     def velocities(self):
-        return self._velocities
-
+        return super().velocities
+    
     @velocities.getter
     def velocities(self):
-        if self._velocities is None:
-            # try:
-            #     self._velocities = np.load (self.folder + VELOCITY_K_FILE)
-            # except IOError as e:
-            self.calculate_second_all_grid ()
-                # np.save (self.folder + VELOCITY_K_FILE, self._velocities)
-                # np.save (self.folder + FREQUENCY_K_FILE, self._frequencies)
+        if super (self.__class__, self).velocities is not None:
+            return super (self.__class__, self).velocities
+        self.calculate_second_all_grid ()
         return self._velocities
 
     @velocities.setter
     def velocities(self, new_velocities):
-        self._velocities = new_velocities
+        Phonons.velocities.fset(self, new_velocities)
 
     @property
     def eigenvalues(self):
-        return self._eigenvalues
-
+        return super().eigenvalues
+    
     @eigenvalues.getter
     def eigenvalues(self):
-        if self._eigenvalues is None:
-            # self.calculate_second_all_grid ()
-            # try:
-            #     self._eigenvalues = np.load (self.folder + EIGENVALUES_FILE)
-            # except IOError as e:
-            self.calculate_second_all_grid ()
-                # np.save (self.folder + EIGENVALUES_FILE, self._eigenvalues)
+        if super (self.__class__, self).eigenvalues is not None:
+            return super (self.__class__, self).eigenvalues
+        self.calculate_second_all_grid ()
         return self._eigenvalues
 
     @eigenvalues.setter
     def eigenvalues(self, new_eigenvalues):
-        self._eigenvalues = new_eigenvalues
+        Phonons.eigenvalues.fset(self, new_eigenvalues)
 
     @property
     def eigenvectors(self):
-        return self._eigenvectors
-
+        return super().eigenvectors
+    
     @eigenvectors.setter
     def eigenvectors(self, new_eigenvectors):
-        self._eigenvectors = new_eigenvectors
-
+        Phonons.eigenvectors.fset(self, new_eigenvectors)
+        
     @eigenvectors.getter
     def eigenvectors(self):
-        if self._eigenvectors is None:
-            # try:
-            #     self._eigenvectors = np.load (self.folder + EIGENVECTORS_FILE)
-            # except IOError as e:
+        if super (self.__class__, self).eigenvectors is not None:
+            return super (self.__class__, self).eigenvectors
+        else:
             self.calculate_second_all_grid ()
-                # np.save (self.folder + EIGENVECTORS_FILE, self._eigenvectors)
         return self._eigenvectors
 
     @property
     def dos(self):
-        return self._dos
+        return super().dos
+    
+    @dos.setter
+    def dos(self, new_dos):
+        Phonons.dos.fset(self, new_dos)
 
     @dos.getter
     def dos(self):
-        if self._dos is None:
-            self.calculate_dos ()
+        if super (self.__class__, self).dos is not None:
+            return super (self.__class__, self).dos
+        self.calculate_dos ()
         return self._dos
-
 
     @property
     def occupations(self):
-        return self._occupations
+        return super().occupations
+    
+    @occupations.setter
+    def occupations(self, new_occupations):
+        Phonons.occupations.fset(self, new_occupations)
 
     @occupations.getter
     def occupations(self):
-        if self._occupations is None:
-            self.calculate_occupations ()
+        if super (self.__class__, self).occupations is not None:
+            return super (self.__class__, self).occupations
+        self.calculate_occupations ()
         return self._occupations
 
     @property
     def gamma(self):
-        return self._gamma
-
-    @gamma.getter
-    def gamma(self):
-        if self._gamma is None:
-            # try:
-            #     self._gamma = np.load (self.folder + GAMMA_FILE)
-            # except IOError as e:
-            self.calculate_gamma ()
-            #     np.save (self.folder + GAMMA_FILE, self._gamma)
-        return np.sum(self._gamma, axis=0)
+        return super ().gamma
 
     @gamma.setter
     def gamma(self, new_gamma):
-        self._gamma = new_gamma
+        Phonons.gamma.fset(self, new_gamma)
+        
+    @gamma.getter
+    def gamma(self):
+        if super (self.__class__, self).gamma is not None:
+            return super (self.__class__, self).gamma
+        self.calculate_gamma ()
+        return np.sum(self._gamma, axis=0)
 
     def calculate_dos(self, delta=1):
-        self._dos = ballistico.calculator.calculate_density_of_states(self.frequencies, self.k_size, delta)
-
+        self.dos = ballistico.calculator.calculate_density_of_states(
+            self.frequencies,
+            self.k_size,
+            delta)
 
     # @profile
     def calculate_second_all_grid(self):
-        k_size = self.k_size
-        atoms = self.atoms
-        second_order = self.second_order
-        list_of_replicas = self.list_of_replicas
-        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(k_size, atoms, second_order, list_of_replicas)
-        self._frequencies = frequencies
-        self._eigenvalues = eigenvalues
-        self._velocities = velocities
-        self._eigenvectors = eigenvectors
+        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
+            self.k_size,
+            self.atoms,
+            self.second_order,
+            self.list_of_replicas)
+        self.frequencies = frequencies
+        self.eigenvalues = eigenvalues
+        self.velocities = velocities
+        self.eigenvectors = eigenvectors
     
     def calculate_occupations(self):
-        self._occupations = ballistico.calculator.calculate_occupations(self.frequencies, self.temperature, self.is_classic)
+        self.occupations = ballistico.calculator.calculate_occupations(self.frequencies, self.temperature, self.is_classic)
 
     def calculate_gamma(self, sigma_in=None):
-        self._gamma = ballistico.calculator.calculate_gamma(
+        self.gamma = ballistico.calculator.calculate_gamma(
             self.atoms,
             self.frequencies,
             self.velocities,
