@@ -1,15 +1,18 @@
 import numpy as np
 import ballistico.atoms_helper as atom_helper
+import ase.io
 
-FREQUENCIES_FILE = 'frequencies.npy'
-EIGENVALUES_FILE = 'eigenvalues.npy'
-EIGENVECTORS_FILE = 'eigenvectors.npy'
-VELOCITIES_FILE = 'velocities.npy'
-GAMMA_FILE = 'gamma.npy'
-DOS_FILE = 'dos.npy'
-OCCUPATIONS_FILE = 'occupations.npy'
+REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
+LIST_OF_REPLICAS_FILE = 'list_of_replicas'
+FREQUENCIES_FILE = 'frequencies'
+EIGENVALUES_FILE = 'eigenvalues'
+EIGENVECTORS_FILE = 'eigenvectors'
+VELOCITIES_FILE = 'velocities'
+GAMMA_FILE = 'gamma'
+DOS_FILE = 'dos'
+OCCUPATIONS_FILE = 'occupations'
 
-IS_PERSISTENCY_ENABLED = False
+IS_PERSISTENCY_ENABLED = True
 
 class Phonons (object):
 	def __init__(self, atoms, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300):
@@ -17,14 +20,14 @@ class Phonons (object):
 		self.supercell = np.array (supercell)
 		self.k_size = np.array (kpts)
 		self.is_classic = is_classic
-		[self.replicated_atoms, self.list_of_replicas] = \
-			atom_helper.replicate_atoms (self.atoms, self.supercell)
 		
 		self.n_k_points = np.prod (self.k_size)
 		self.n_modes = self.atoms.get_masses ().shape[0] * 3
 		self.n_phonons = self.n_k_points * self.n_modes
 		self.temperature = temperature
 
+		self._replicated_atoms = None
+		self._list_of_replicas = None
 		self._frequencies = None
 		self._velocities = None
 		self._eigenvalues = None
@@ -35,6 +38,62 @@ class Phonons (object):
 		self._n_k_points = None
 		self._n_modes = None
 		self._n_phonons = None
+	
+	@property
+	def replicated_atoms(self):
+		return self._replicated_atoms
+	
+	@replicated_atoms.getter
+	def replicated_atoms(self):
+		if self._replicated_atoms is None :
+			if IS_PERSISTENCY_ENABLED:
+				try:
+					folder = type (self).__name__
+					folder += '/'
+					self._replicated_atoms = ase.io.read (folder + REPLICATED_ATOMS_FILE, format='extxyz')
+				except FileNotFoundError as e:
+					print (e)
+			if self._replicated_atoms is None:
+				self.replicated_atoms, self.list_of_replicas = atom_helper.replicate_atoms (
+					self.atoms,
+					self.supercell)
+		return self._replicated_atoms
+	
+	@replicated_atoms.setter
+	def replicated_atoms(self, new_replicated_atoms):
+		if IS_PERSISTENCY_ENABLED:
+			folder = type (self).__name__
+			folder += '/'
+			ase.io.write (folder + REPLICATED_ATOMS_FILE, new_replicated_atoms, format='extxyz')
+		self._replicated_atoms = new_replicated_atoms
+	
+	@property
+	def list_of_replicas(self):
+		return self._list_of_replicas
+	
+	@list_of_replicas.getter
+	def list_of_replicas(self):
+		if self._list_of_replicas is None:
+			if IS_PERSISTENCY_ENABLED:
+				try:
+					folder = type (self).__name__
+					folder += '/'
+					self._list_of_replicas= np.load (folder + LIST_OF_REPLICAS_FILE)
+				except FileNotFoundError as e:
+					print (e)
+			if self._list_of_replicas is None:
+				self.replicated_atoms, self.list_of_replicas = atom_helper.replicate_atoms (
+					self.atoms,
+					self.supercell)
+		return self._list_of_replicas
+	
+	@list_of_replicas.setter
+	def list_of_replicas(self, new_list_of_replicas):
+		if IS_PERSISTENCY_ENABLED:
+			folder = type (self).__name__
+			folder += '/'
+			np.save (folder + LIST_OF_REPLICAS_FILE, new_list_of_replicas)
+		self._list_of_replicas = new_list_of_replicas
 	
 	@property
 	def frequencies(self):
