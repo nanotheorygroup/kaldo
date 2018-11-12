@@ -1,33 +1,13 @@
-import os
-import numpy as np
-import scipy
-import scipy.special
-import ballistico.atoms_helper as ath
-import ballistico.constants as constants
-# import tensorflow as tf
 import ballistico.calculator
 from ballistico.phonons import Phonons
-import sys
-from memory_profiler import profile
-# tf.enable_eager_execution ()
 
-class Ballistico (Phonons):
-    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, sigma_in=None):
-        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature)
+class Ballistico_phonons (Phonons):
+    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, sigma_in=None, is_persistency_enabled=True):
+        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
         self.second_order = second_order
         self.third_order = third_order
         #TODO: Find a more meaningful name for sigma_in (used in gamma calc)
         self.sigma_in = sigma_in
-        #TODO: move this folder creation logic somewhere else
-        class_name = type (self).__name__
-        if self.is_classic:
-            folder_name = 'classic'
-        else:
-            folder_name = 'quantum'
-        folders = [class_name, class_name + '/' + str(self.temperature) +'/' + folder_name + '/']
-        for folder in folders:
-            if not os.path.exists (folder):
-                os.makedirs (folder)
 
 
     @property

@@ -5,7 +5,7 @@ import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
 import ballistico.io_helper as io_helper
 from ase.phonons import Phonons
-from ballistico.ballistico import Ballistico
+from ballistico.ballistico_phonons import Ballistico_phonons
 from ballistico.conductivity_controller import ConductivityController
 import matplotlib.pyplot as plt
 from ballistico.shengbte import Shengbte
@@ -71,21 +71,14 @@ if __name__ == "__main__":
 
     print('Calculation completed!')
     
-    
-    
-    
-    
-    
-    
-    
-    phonons = Ballistico (atoms=atoms,
-                          supercell=supercell,
-                          kpts=kpts,
-                          is_classic=is_classical,
-                          temperature=temperature,
-                          second_order=second_order,
-                          third_order=third_order,
-                          sigma_in=1.)
+    phonons = Ballistico_phonons (atoms=atoms,
+                                  supercell=supercell,
+                                  kpts=kpts,
+                                  is_classic=is_classical,
+                                  temperature=temperature,
+                                  second_order=second_order,
+                                  third_order=third_order,
+                                  sigma_in=1.)
 
     # Plot velocity
     fig = plt.figure ()
