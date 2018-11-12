@@ -113,7 +113,7 @@ def gaussian_delta(params):
 	correction = 1
 	return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
-def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in=None):
+def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
 	prefactor = 1e-3 / (
 			4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
 	coeff = 1000 * constants.hbar / constants.charge_of_electron
@@ -158,7 +158,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	# gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
 	#                                    tf.float64) * dirac_delta)
 	
-	n_particles = atoms.positions.shape[0]
 	nptk = np.prod (k_size)
 	n_particles = atoms.positions.shape[0]
 	cell_inv = np.linalg.inv (atoms.cell)
@@ -279,7 +278,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 						
 						else:
 							gaussian = gaussian_delta (
-								[freq_diff_np[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma])
+								[freq_diff_np[index_kp_vec, mup_vec, index_kpp_vec, mupp_vec], sigma_in])
 						
 						dirac_delta *= gaussian
 						

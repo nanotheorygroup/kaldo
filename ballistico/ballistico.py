@@ -12,10 +12,12 @@ from memory_profiler import profile
 # tf.enable_eager_execution ()
 
 class Ballistico (Phonons):
-    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None):
+    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, sigma_in=None):
         super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature)
         self.second_order = second_order
         self.third_order = third_order
+        #TODO: Find a more meaningful name for sigma_in (used in gamma calc)
+        self.sigma_in = sigma_in
         #TODO: move this folder creation logic somewhere else
         class_name = type (self).__name__
         if self.is_classic:
@@ -169,7 +171,6 @@ class Ballistico (Phonons):
     def gamma(self):
         if super (self.__class__, self).gamma is not None:
             return super (self.__class__, self).gamma
-        #TODO: Find a way to pass sigma in when needed
         gamma = ballistico.calculator.calculate_gamma(
             self.atoms,
             self.frequencies,
@@ -178,7 +179,9 @@ class Ballistico (Phonons):
             self.k_size,
             self.eigenvectors,
             self.list_of_replicas,
-            self.third_order)
+            self.third_order,
+            self.sigma_in
+        )
         self.gamma = gamma
         return gamma
     

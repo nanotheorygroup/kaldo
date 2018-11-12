@@ -84,7 +84,8 @@ if __name__ == "__main__":
                           is_classic=is_classical,
                           temperature=temperature,
                           second_order=second_order,
-                          third_order=third_order)
+                          third_order=third_order,
+                          sigma_in=1.)
 
     # Plot velocity
     fig = plt.figure ()
