@@ -128,9 +128,9 @@ class ConductivityController (object):
     
             f_be = np.empty_like (self.phonons.frequencies)
             f_be[self.phonons.frequencies != 0] = 1. / (
-                    np.exp (constants.hbar * self.phonons.frequencies[self.phonons.frequencies != 0] / (
+                    np.exp (constants.hbar * 2 * np.pi * self.phonons.frequencies[self.phonons.frequencies != 0] / (
                                 constants.k_b * self.phonons.temperature)) - 1.)
-            c_v = hbar ** 2 * f_be * (f_be + 1) * self.phonons.frequencies ** 2 / (k_b * self.phonons.temperature ** 2)
+            c_v = hbar ** 2 * f_be * (f_be + 1) * (2 * np.pi *self.phonons.frequencies) ** 2 / (k_b * self.phonons.temperature ** 2)
 
         gamma = self.phonons.gamma
         tau_zero = np.empty_like (gamma)
