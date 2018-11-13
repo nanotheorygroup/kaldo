@@ -421,16 +421,6 @@ class Shengbte_phonons (Phonons):
             n_steps = int (conductivity_array[-1])
             conductivity_array = np.delete (conductivity_array, -1)
             
-        filename = folder + 'conductivity_'
-        if is_classical:
-            filename = filename + 'classical_'
-        else:
-            filename = filename + 'quantum_'
-        filename = filename + str (self.temperature)
-        
-        filename = filename + '.csv'
         conductivity = conductivity_array.reshape (3, 3)
-        np.savetxt(filename , conductivity, delimiter=',')
-        Logger().info ('saving ' + filename)
         return conductivity
     

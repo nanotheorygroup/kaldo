@@ -95,11 +95,10 @@ def calculate_second_all_grid(k_size, atoms, second_order, list_of_replicas):
 	return frequencies, eigenvalues, eigenvectors, velocities
 
 def calculate_broadening(velocity, cellinv, k_size):
-	rlattvec = cellinv * 2 * np.pi
-	
 	# we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
 	# 10 = armstrong to nanometers
-	base_sigma = ((np.tensordot (velocity * 10., rlattvec / k_size, [-1, 1])) ** 2).sum (axis=-1)
+	delta_k = cellinv / k_size * 2 * np.pi
+	base_sigma = ((np.tensordot (velocity * 10., delta_k, [-1, 1])) ** 2).sum (axis=-1)
 	base_sigma = np.sqrt (base_sigma / 6.)
 	return base_sigma / (2 * np.pi)
 
