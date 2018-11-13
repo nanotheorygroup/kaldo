@@ -122,20 +122,11 @@ class ConductivityController (object):
     def calculate_conductivity(self, is_classical, post_processing=None, length=None, converged=False):
         volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
         conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3))
-        frequencies = self.phonons.frequencies
-        c_v = np.zeros_like(frequencies)
-        if (is_classical):
-            c_v[:] = k_b
-        else:
-    
-            f_be = self.phonons.occupations
-            c_v[frequencies != 0] = constants.hbar ** 2 * f_be[frequencies != 0] * (f_be[frequencies != 0] + 1) * (
-                        2 * np.pi * frequencies[frequencies != 0]) ** 2 / (
-                                            constants.k_b * self.phonons.temperature ** 2)
         gamma = self.phonons.gamma
         tau_zero = np.empty_like (gamma)
         tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0])
         velocities = self.phonons.velocities.reshape(self.phonons.n_k_points, self.phonons.n_modes, 3)
+        c_v = self.phonons.c_v
         c_v = c_v.reshape(self.phonons.n_k_points, self.phonons.n_modes)
         for alpha in range (3):
             for beta in range (3):

@@ -14,6 +14,7 @@ VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
 DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
+C_V_FILE = 'c_v.npy'
 
 
 class Phonons (object):
@@ -41,6 +42,7 @@ class Phonons (object):
 		self._n_modes = None
 		self._n_phonons = None
 		self.folder_name = folder_name
+		self._c_v = None
 		if self.is_classic:
 			classic_string = 'classic'
 		else:
@@ -298,6 +300,53 @@ class Phonons (object):
 				folder += 'quantum/'
 			np.save (folder + OCCUPATIONS_FILE, new_occupations)
 		self._occupations = new_occupations
+	
+	@property
+	def c_v(self):
+		return self._c_v
+	
+	@c_v.getter
+	def c_v(self):
+		#TODO:add a temperature subfolder here
+		if self._c_v is None and self.is_persistency_enabled:
+			try:
+				folder = type(self).__name__
+				folder += '/' + str(self.temperature) + '/'
+				if self.is_classic:
+					folder += 'classic/'
+				else:
+					folder += 'quantum/'
+				self._c_v = np.load (folder + C_V_FILE)
+			except FileNotFoundError as e:
+				print(e)
+		if self._c_v is None:
+			frequencies = self.frequencies
+			c_v = np.zeros_like (frequencies)
+			if (self.is_classic):
+				c_v[:] = constants.k_b
+			else:
+				f_be = self.occupations
+				c_v[frequencies != 0] = constants.hbar ** 2 * f_be[frequencies != 0] * (f_be[frequencies != 0] + 1) * (
+						2 * np.pi * frequencies[frequencies != 0]) ** 2 / (
+						                        constants.k_b * self.temperature ** 2)
+			self.c_v = c_v
+		return self._c_v
+	
+	@c_v.setter
+	def c_v(self, new_c_v):
+		#TODO:add a temperature subfolder here
+		if self.is_persistency_enabled:
+			folder = self.folder_name
+			folder += '/' + str(self.temperature) + '/'
+			if self.is_classic:
+				folder += 'classic/'
+			else:
+				folder += 'quantum/'
+			np.save (folder + OCCUPATIONS_FILE, new_c_v)
+		self._c_v = new_c_v
+	
+	
+	
 	
 	def save_csv_data(self):
 		frequencies = self.frequencies
