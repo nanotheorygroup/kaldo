@@ -8,7 +8,7 @@ from ase.phonons import Phonons
 from ballistico.ballistico_phonons import Ballistico_phonons
 from ballistico.conductivity_controller import ConductivityController
 import matplotlib.pyplot as plt
-from ballistico.shengbte import Shengbte_phonons
+from ballistico.shengbte_phonons import Shengbte_phonons
 
 np.set_printoptions(suppress=True)
 
@@ -45,15 +45,6 @@ if __name__ == "__main__":
                             third_order=third_order,
                             is_classic=is_classic)
     
-    # phonons = Ballistico_phonons (atoms=atoms,
-    #                               supercell=supercell,
-    #                               kpts=kpts,
-    #                               is_classic=is_classic,
-    #                               temperature=temperature,
-    #                               second_order=second_order,
-    #                               third_order=third_order,
-    #                               sigma_in=.1,
-    #                               is_persistency_enabled=False)
 
 
     # Plot dos
@@ -78,7 +69,18 @@ if __name__ == "__main__":
     fig.savefig ('gamma.pdf')
 
     # Calculate conductivity
-    ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
+    print(ConductivityController (phonons).calculate_conductivity (is_classical=is_classic))
+    print(phonons.read_conductivity(converged=False))
     
     
-    
+
+    phonons = Ballistico_phonons (atoms=atoms,
+                                  supercell=supercell,
+                                  kpts=kpts,
+                                  is_classic=is_classic,
+                                  temperature=temperature,
+                                  second_order=second_order,
+                                  third_order=third_order,
+                                  # sigma_in=.1,
+                                  is_persistency_enabled=False)
+    print(ConductivityController (phonons).calculate_conductivity (is_classical=is_classic))
