@@ -55,6 +55,13 @@ if __name__ == "__main__":
     # plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     # fig.savefig ('dos.pdf')
 
+    # Plot c_v
+    fig = plt.figure ()
+    plt.scatter (phonons.frequencies[phonons.frequencies!=0].flatten (), phonons.c_v[phonons.frequencies!=0].flatten ())
+    plt.ylabel ("$c_V$", fontsize=16, fontweight='bold')
+    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    fig.savefig ('c_v.pdf')
+    
     # Plot velocity
     fig = plt.figure ()
     plt.scatter (phonons.frequencies.flatten (), np.linalg.norm(phonons.velocities, axis=-1).flatten ())

@@ -320,13 +320,13 @@ class Phonons (object):
 			frequencies = self.frequencies
 			c_v = np.zeros_like (frequencies)
 			if (self.is_classic):
-				c_v[:] = constants.k_b
+				c_v[:] = constants.k_b * 1e21
 			else:
 				f_be = self.occupations
 				c_v[frequencies != 0] = constants.hbar ** 2 * f_be[frequencies != 0] * (f_be[frequencies != 0] + 1) * (
 						2 * np.pi * frequencies[frequencies != 0]) ** 2 / (
 						                        constants.k_b * self.temperature ** 2)
-			self.c_v = c_v
+			self.c_v = c_v * 1e21
 		return self._c_v
 	
 	@c_v.setter
