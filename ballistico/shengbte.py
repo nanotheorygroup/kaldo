@@ -319,49 +319,6 @@ class Shengbte_phonons (Phonons):
         header_str += str (self.supercell[2]) + '\n'
         return header_str
 
-    def save_data(self):
-        omega = self.energies
-        lifetime = 1. / self.gamma
-        n_modes = omega.shape[1]
-        if self.is_classic:
-            filename = "data_classic"
-        else:
-            filename = "data_quantum"
-        filename = filename + '_' + str (self.temperature)
-        filename = filename + ".csv"
-    
-        filename = self.folder_name + filename
-        Logger ().info ('saving ' + filename)
-        with open (filename, "w") as csv:
-            str_to_write = 'k_x,k_y,k_z,'
-            for i in range (n_modes):
-                str_to_write += 'omega_' + str (i) + ' (rad/ps),'
-            for i in range (n_modes):
-                str_to_write += 'tau_' + str (i) + ' (ps),'
-            for alpha in range (3):
-                coord = 'x'
-                if alpha == 1:
-                    coord = 'y'
-                if alpha == 2:
-                    coord = 'z'
-            
-                for i in range (n_modes):
-                    str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
-            str_to_write += '\n'
-            csv.write (str_to_write)
-            for k in range (self.q_points ().shape[0]):
-                str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
-                    self.q_points ()[k, 2]) + ','
-                for i in range (n_modes):
-                    str_to_write += str (self.energies[k, i]) + ','
-                for i in range (n_modes):
-                    str_to_write += str (lifetime[k, i]) + ','
-            
-                for alpha in range (3):
-                    for i in range (n_modes):
-                        str_to_write += str (self.velocities[k, i, alpha]) + ','
-                str_to_write += '\n'
-                csv.write (str_to_write)
         
     def read_qpoints_mapper(self):
         q_points = pd.read_csv (self.folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)

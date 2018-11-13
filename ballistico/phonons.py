@@ -285,3 +285,47 @@ class Phonons (object):
 				folder += 'quantum/'
 			np.save (folder + OCCUPATIONS_FILE, new_occupations)
 		self._occupations = new_occupations
+	
+	def save_csv_data(self):
+		frequencies = self.frequencies
+		lifetime = 1. / self.gamma
+		n_modes = frequencies.shape[1]
+		if self.is_classic:
+			filename = "data_classic"
+		else:
+			filename = "data_quantum"
+		filename = filename + '_' + str (self.temperature)
+		filename = filename + ".csv"
+		
+		filename = self.folder_name + filename
+		Logger ().info ('saving ' + filename)
+		with open (filename, "w") as csv:
+			str_to_write = 'k_x,k_y,k_z,'
+			for i in range (n_modes):
+				str_to_write += 'frequencies_' + str (i) + ' (THz),'
+			for i in range (n_modes):
+				str_to_write += 'tau_' + str (i) + ' (ps),'
+			for alpha in range (3):
+				coord = 'x'
+				if alpha == 1:
+					coord = 'y'
+				if alpha == 2:
+					coord = 'z'
+				
+				for i in range (n_modes):
+					str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
+			str_to_write += '\n'
+			csv.write (str_to_write)
+			for k in range (self.q_points ().shape[0]):
+				str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
+					self.q_points ()[k, 2]) + ','
+				for i in range (n_modes):
+					str_to_write += str (self.energies[k, i]) + ','
+				for i in range (n_modes):
+					str_to_write += str (lifetime[k, i]) + ','
+				
+				for alpha in range (3):
+					for i in range (n_modes):
+						str_to_write += str (self.velocities[k, i, alpha]) + ','
+				str_to_write += '\n'
+				csv.write (str_to_write)
