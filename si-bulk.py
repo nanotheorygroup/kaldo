@@ -4,6 +4,7 @@ import ase.io
 import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
 import ballistico.io_helper as io_helper
+import ballistico.constants as constants
 from ase.phonons import Phonons
 from ballistico.ballistico_phonons import Ballistico_phonons
 from ballistico.conductivity_controller import ConductivityController

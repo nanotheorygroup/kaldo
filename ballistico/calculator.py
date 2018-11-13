@@ -2,6 +2,8 @@ import ballistico.constants as constants
 import numpy as np
 from ballistico.logger import Logger
 import spglib as spg
+import ballistico.atoms_helper as atoms_helper
+
 
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
@@ -10,7 +12,7 @@ DELTA_THRESHOLD = 2
 # DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 DELTA_CORRECTION = 1
 
-def calculate_density_of_states(frequencies, k_mesh, delta=1):
+def calculate_density_of_states(frequencies, k_mesh, delta=1, num=100):
 	n_modes = frequencies.shape[-1]
 	frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
 	n_k_points = np.prod (k_mesh)
@@ -19,7 +21,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta=1):
 	for mode in range (n_modes):
 		omega_kl[:, mode] = frequencies[..., mode].flatten ()
 	# Energy axis and dos
-	omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=100)
+	omega_e = np.linspace (0., np.amax (omega_kl) + 5e-3, num=num)
 	dos_e = np.zeros_like (omega_e)
 	# Sum up contribution from all q-points and branches
 	for omega_l in omega_kl:
@@ -29,16 +31,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta=1):
 	dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
 	return omega_e, dos_e
 
-def calculate_occupations(frequencies, temp, is_classic):
-	density = np.zeros_like (frequencies)
-	if is_classic == False:
-		density = 1. / (
-				np.exp (constants.hbar * 2 * np.pi * frequencies / constants.k_b / temp) - 1.)
-	else:
-		density[frequencies != 0] = temp / (2 * np.pi * frequencies[frequencies != 0]) / constants.hbar * constants.k_b
-	return density
-
-def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas):
+def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms):
 	list_of_replicas = list_of_replicas
 	geometry = atoms.positions
 	cell_inv = np.linalg.inv (atoms.cell)
@@ -47,11 +40,28 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
 	n_particles = geometry.shape[0]
 	n_replicas = list_of_replicas.shape[0]
+	ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
 	chi_k = np.zeros (n_replicas).astype (complex)
 	for id_replica in range (n_replicas):
 		chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
 	dyn_s = np.einsum('ialjb,l->iajb', second_order, chi_k)
-	ddyn_s = 1j * np.einsum('ialjb,l,lc->ciajb', second_order, chi_k, list_of_replicas)
+
+	for id_replica in range (n_replicas):
+		for alpha in range(3):
+			for i_at in range (n_particles):
+				for j_at in range (n_particles):
+					for i_pol in range (3):
+						for j_pol in range (3):
+							dxij = atoms_helper.apply_boundary(replicated_atoms, geometry[i_at] - \
+							(geometry[j_at] + list_of_replicas[id_replica]))
+							# dxij = list_of_replicas[id_replica]
+							prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
+							ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * \
+							                                           (second_order[
+								                                           i_at, i_pol, id_replica, j_at, j_pol])
+
+		
+		
 	mass = np.sqrt(atoms.get_masses ())
 	massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
 	dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
@@ -78,21 +88,21 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 				velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
 	return frequencies * constants.toTHz, eigenvals, eigenvects, velocities * constants.toTHz * constants.bohr2nm
 
-def calculate_second_all_grid(k_size, atoms, second_order, list_of_replicas):
+def calculate_second_all_grid(k_size, atoms, second_order, list_of_replicas, replicated_atoms):
 	n_unit_cell = second_order.shape[1]
 	n_k_points = np.prod (k_size)
 	frequencies = np.zeros ((n_k_points, n_unit_cell * 3))
 	eigenvalues = np.zeros ((n_k_points, n_unit_cell * 3))
 	eigenvectors = np.zeros ((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype (np.complex)
-	velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3))
+	velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3)).astype(np.complex)
 	for index_k in range (n_k_points):
 		k_point = np.unravel_index (index_k, k_size, order='F')
-		freq, eval, evect, vels = diagonalize_second_order_single_k (k_point / k_size, atoms, second_order, list_of_replicas)
+		freq, eval, evect, vels = diagonalize_second_order_single_k (k_point / k_size, atoms, second_order, list_of_replicas, replicated_atoms)
 		frequencies[index_k, :] = freq
 		eigenvalues[index_k, :] = eval
 		eigenvectors[index_k, :, :] = evect
 		velocities[index_k, :, :] = vels
-	return frequencies, eigenvalues, eigenvectors, velocities
+	return frequencies, eigenvalues, eigenvectors, velocities.real
 
 def calculate_broadening(velocity, cellinv, k_size):
 	# we want the last index of velocity (the coordinate index to dot from the right to rlattice vec

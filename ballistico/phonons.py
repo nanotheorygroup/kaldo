@@ -2,6 +2,8 @@ import numpy as np
 import ballistico.atoms_helper as atom_helper
 import ase.io
 import os
+import ballistico.constants as constants
+
 
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 LIST_OF_REPLICAS_FILE = 'list_of_replicas.npy'
@@ -270,7 +272,18 @@ class Phonons (object):
 					folder += 'quantum/'
 				self._occupations = np.load (folder + OCCUPATIONS_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				print(e)
+		if self._occupations is None:
+			frequencies = self.frequencies
+			temp = self.temperature
+			density = np.zeros_like (frequencies)
+			if self.is_classic == False:
+				density = 1. / (
+						np.exp (constants.hbar * 2 * np.pi * frequencies / constants.k_b / temp) - 1.)
+			else:
+				density[frequencies != 0] = temp / (
+						2 * np.pi * frequencies[frequencies != 0]) / constants.hbar * constants.k_b
+			self.occupations = density
 		return self._occupations
 	
 	@occupations.setter

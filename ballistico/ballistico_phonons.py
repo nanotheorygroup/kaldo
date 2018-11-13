@@ -22,7 +22,8 @@ class Ballistico_phonons (Phonons):
             self.kpts,
             self.atoms,
             self.second_order,
-            self.list_of_replicas)
+            self.list_of_replicas,
+            self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -45,7 +46,8 @@ class Ballistico_phonons (Phonons):
             self.kpts,
             self.atoms,
             self.second_order,
-            self.list_of_replicas)
+            self.list_of_replicas,
+            self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -68,7 +70,8 @@ class Ballistico_phonons (Phonons):
             self.kpts,
             self.atoms,
             self.second_order,
-            self.list_of_replicas)
+            self.list_of_replicas,
+            self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -95,7 +98,8 @@ class Ballistico_phonons (Phonons):
             self.kpts,
             self.atoms,
             self.second_order,
-            self.list_of_replicas)
+            self.list_of_replicas,
+            self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -122,22 +126,6 @@ class Ballistico_phonons (Phonons):
             delta)
         self.dos = dos
         return dos
-
-    @property
-    def occupations(self):
-        return super().occupations
-    
-    @occupations.setter
-    def occupations(self, new_occupations):
-        Phonons.occupations.fset(self, new_occupations)
-
-    @occupations.getter
-    def occupations(self):
-        if super (self.__class__, self).occupations is not None:
-            return super (self.__class__, self).occupations
-        occupations = ballistico.calculator.calculate_occupations(self.frequencies, self.temperature, self.is_classic)
-        self.occupations = occupations
-        return occupations
 
     @property
     def gamma(self):
