@@ -17,10 +17,6 @@ class Shengbte_phonons (Phonons):
         self.third_order = third_order
         self._qpoints_mapper = None
         self._energies = None
-
-        
-
-        
         # TODO: move these initializations into a getter
         if 'convergence' in parameters:
             self.convergence = parameters['convergence']

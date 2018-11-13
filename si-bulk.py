@@ -70,7 +70,7 @@ if __name__ == "__main__":
     fig.savefig ('gamma.pdf')
 
     # Calculate conductivity
-    print(ConductivityController (phonons).calculate_conductivity (is_classical=is_classic))
+    ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
     print(phonons.read_conductivity(converged=False))
     
     
@@ -84,4 +84,4 @@ if __name__ == "__main__":
                                   third_order=third_order,
                                   # sigma_in=.1,
                                   is_persistency_enabled=False)
-    print(ConductivityController (phonons).calculate_conductivity (is_classical=is_classic))
+    ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)

@@ -263,7 +263,6 @@ class Phonons (object):
 	
 	@occupations.getter
 	def occupations(self):
-		#TODO:add a temperature subfolder here
 		if self._occupations is None and self.is_persistency_enabled:
 			try:
 				folder = type(self).__name__
@@ -290,7 +289,6 @@ class Phonons (object):
 	
 	@occupations.setter
 	def occupations(self, new_occupations):
-		#TODO:add a temperature subfolder here
 		if self.is_persistency_enabled:
 			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
@@ -307,7 +305,6 @@ class Phonons (object):
 	
 	@c_v.getter
 	def c_v(self):
-		#TODO:add a temperature subfolder here
 		if self._c_v is None and self.is_persistency_enabled:
 			try:
 				folder = type(self).__name__
@@ -334,7 +331,6 @@ class Phonons (object):
 	
 	@c_v.setter
 	def c_v(self, new_c_v):
-		#TODO:add a temperature subfolder here
 		if self.is_persistency_enabled:
 			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
@@ -342,11 +338,8 @@ class Phonons (object):
 				folder += 'classic/'
 			else:
 				folder += 'quantum/'
-			np.save (folder + OCCUPATIONS_FILE, new_c_v)
+			np.save (folder + C_V_FILE, new_c_v)
 		self._c_v = new_c_v
-	
-	
-	
 	
 	def save_csv_data(self):
 		frequencies = self.frequencies
