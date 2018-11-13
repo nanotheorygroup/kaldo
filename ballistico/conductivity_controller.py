@@ -131,6 +131,7 @@ class ConductivityController (object):
         for alpha in range (3):
             for beta in range (3):
                 conductivity_per_mode[:, :, alpha, beta] += c_v[:, :] * velocities[:, :, beta] * tau_zero[:, :] * velocities[:, :, alpha]
+ 
         
         conductivity_per_mode *= 1 / (volume * self.phonons.n_k_points)
         conductivity_per_mode = conductivity_per_mode.sum (axis=0)

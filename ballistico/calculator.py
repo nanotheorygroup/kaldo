@@ -36,11 +36,15 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 	geometry = atoms.positions
 	cell_inv = np.linalg.inv (atoms.cell)
 	kpoint = 2 * np.pi * (cell_inv).dot (qvec)
-	second_order = second_order[0]
+	second_order = second_order[0].copy()
 
 	n_particles = geometry.shape[0]
 	n_replicas = list_of_replicas.shape[0]
-	ddyn_s = np.zeros ((3, n_particles, 3, n_particles, 3)).astype (complex)
+
+	mass = np.sqrt(atoms.get_masses ())
+	second_order /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+	second_order /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+	
 	chi_k = np.zeros (n_replicas).astype (complex)
 	for id_replica in range (n_replicas):
 		chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
@@ -51,16 +55,8 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 		               dxij,
 		               chi_k,
 		               second_order, optimize='greedy')
-	mass = np.sqrt(atoms.get_masses ())
-	massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
-	dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]
-	dyn_s /= mass[np.newaxis, np.newaxis, :, np.newaxis]
-	dyn_s *= massfactor
-	ddyn_s /= mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis]
-	ddyn_s /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-	ddyn_s *= massfactor
-	prefactor = 1 / (constants.charge_of_electron * constants.avogadro / 10) / constants.rydbergoverev * \
-				(constants.bohroverangstrom ** 2)
+	prefactor = 1 / (constants.charge_of_electron) / constants.rydbergoverev * \
+				(constants.bohroverangstrom ** 2) * 2 * constants.electron_mass * 1e4
 	dyn = prefactor * dyn_s.reshape (n_particles * 3, n_particles * 3)
 	ddyn = prefactor * ddyn_s.reshape (3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
 	out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
@@ -70,7 +66,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 	# eigenvects = eigenvects[:, idx]
 	frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 	velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-	vel = np.einsum('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
+	vel = np.einsum('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects, optimize='greedy')
 	for alpha in range (3):
 		for mu in range (n_particles * 3):
 			if frequencies[mu] != 0:

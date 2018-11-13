@@ -300,8 +300,8 @@ class Phonons (object):
 			temp = self.temperature
 			density = np.zeros_like (frequencies)
 			if self.is_classic == False:
-				density = 1. / (
-						np.exp (constants.hbar * 2 * np.pi * frequencies / constants.k_b / temp) - 1.)
+				density[frequencies != 0] = 1. / (
+						np.exp (constants.hbar * 2 * np.pi * frequencies[frequencies != 0] / constants.k_b / temp) - 1.)
 			else:
 				density[frequencies != 0] = temp / (
 						2 * np.pi * frequencies[frequencies != 0]) / constants.hbar * constants.k_b
