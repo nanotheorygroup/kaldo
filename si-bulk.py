@@ -44,7 +44,8 @@ if __name__ == "__main__":
                             temperature=temperature,
                             second_order=second_order,
                             third_order=third_order,
-                            is_classic=is_classic)
+                            is_classic=is_classic,
+                            is_persistency_enabled=False)
     
 
 

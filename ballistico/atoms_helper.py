@@ -8,7 +8,7 @@ def replicate_atoms(atoms, replicas):
 	:rtype: Atoms,
 	"""
 	replicas = np.array(replicas)
-	list_of_replicas = create_list_of_replicas (atoms, replicas)
+	list_of_replicas = create_list_of_index (atoms, replicas).dot(atoms.cell)
 	replicated_symbols = []
 	n_replicas = list_of_replicas.shape[0]
 	n_unit_atoms = len(atoms.numbers)
@@ -24,11 +24,11 @@ def replicate_atoms(atoms, replicas):
 	
 	return replicated_atoms, list_of_replicas
 
-def create_list_of_replicas(atoms, replicas):
+def create_list_of_index(atoms, replicas):
 	# TODO: supercell[i] needs to be odd, throw an exception otherwise
 	n_replicas = replicas[0] * replicas[1] * replicas[2]
 	replica_id = 0
-	list_of_replicas = np.zeros ((n_replicas, 3))
+	list_of_index = np.zeros ((n_replicas, 3))
 	
 	# range_0 = np.linspace(-int(supercell[0]/2),int(supercell[0]/2),int(supercell[0]))
 	# range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
@@ -46,13 +46,16 @@ def create_list_of_replicas(atoms, replicas):
 	range_2 = np.arange(int(replicas[2]))
 	range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
 	
+	# list_of_index = np.array (np.unravel_index (np.arange (np.prod (replicas)), replicas, order='F')).T
+	# list_of_index
 	for lx in range_0:
 		for ly in range_1:
 			for lz in range_2:
 				index = np.array ([lx, ly, lz])#%supercell
-				list_of_replicas[replica_id] = index.dot(atoms.cell)
+				list_of_index[replica_id] = index
 				replica_id += 1
-	return list_of_replicas
+	# np.prod(replicas)
+	return list_of_index
 
 def apply_boundary(atoms, dxij):
 	cellinv = np.linalg.inv (atoms.cell)

@@ -88,16 +88,15 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 				velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
 	return frequencies * constants.toTHz, eigenvals, eigenvects, velocities * constants.toTHz * constants.bohr2nm
 
-def calculate_second_all_grid(k_size, atoms, second_order, list_of_replicas, replicated_atoms):
+def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms):
 	n_unit_cell = second_order.shape[1]
-	n_k_points = np.prod (k_size)
+	n_k_points = k_points.shape[0]
 	frequencies = np.zeros ((n_k_points, n_unit_cell * 3))
 	eigenvalues = np.zeros ((n_k_points, n_unit_cell * 3))
 	eigenvectors = np.zeros ((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype (np.complex)
 	velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3)).astype(np.complex)
 	for index_k in range (n_k_points):
-		k_point = np.unravel_index (index_k, k_size, order='F')
-		freq, eval, evect, vels = diagonalize_second_order_single_k (k_point / k_size, atoms, second_order, list_of_replicas, replicated_atoms)
+		freq, eval, evect, vels = diagonalize_second_order_single_k (k_points[index_k], atoms, second_order, list_of_replicas, replicated_atoms)
 		frequencies[index_k, :] = freq
 		eigenvalues[index_k, :] = eval
 		eigenvectors[index_k, :, :] = evect

@@ -50,7 +50,7 @@ class Shengbte_phonons (Phonons):
         # else:
             # self.length[2] = LENGTH_THREESHOLD
             
-        self.run()
+        Logger().info(self.run())
 
         
     @property
@@ -130,9 +130,9 @@ class Shengbte_phonons (Phonons):
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'a+')
         cell_inv = np.linalg.inv(self.atoms.cell)
-        list_of_indices = np.zeros_like(self.list_of_replicas, dtype=np.int)
-        for replica_id in range(self.list_of_replicas.shape[0]):
-            list_of_indices[replica_id] = cell_inv.dot(self.list_of_replicas[replica_id])
+        list_of_indices = np.zeros_like(self.list_of_index, dtype=np.int)
+        for replica_id in range(self.list_of_index.shape[0]):
+            list_of_indices[replica_id] = cell_inv.dot(self.list_of_index[replica_id])
         file.write (self.header ())
         for alpha in range (3):
             for beta in range (3):
@@ -171,7 +171,7 @@ class Shengbte_phonons (Phonons):
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
-                                replica = self.list_of_replicas#
+                                replica = self.list_of_index
                                 file.write ('\n  ' + str (block_counter))
                                 rep_position = ath.apply_boundary (self.replicated_atoms,replica[n_1])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
@@ -197,6 +197,9 @@ class Shengbte_phonons (Phonons):
         Logger().info ('third order saved')
     
     def run(self, n_processors=1):
+        folder = self.folder_name
+        if not os.path.exists (folder):
+            os.makedirs (folder)
         self.create_control_file()
         self.save_second_order_matrix ()
         self.save_third_order_matrix ()

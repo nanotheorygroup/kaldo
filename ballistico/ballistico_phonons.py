@@ -19,10 +19,10 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).frequencies is not None:
             return super (self.__class__, self).frequencies
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.kpts,
+            self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_replicas,
+            self.list_of_index,
             self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
@@ -43,10 +43,10 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).velocities is not None:
             return super (self.__class__, self).velocities
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.kpts,
+            self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_replicas,
+            self.list_of_index,
             self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
@@ -67,10 +67,10 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).eigenvalues is not None:
             return super (self.__class__, self).eigenvalues
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.kpts,
+            self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_replicas,
+            self.list_of_index,
             self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
@@ -95,10 +95,10 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).eigenvectors is not None:
             return super (self.__class__, self).eigenvectors
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.kpts,
+            self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_replicas,
+            self.list_of_index,
             self.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
@@ -146,7 +146,7 @@ class Ballistico_phonons (Phonons):
             self.occupations,
             self.kpts,
             self.eigenvectors,
-            self.list_of_replicas,
+            self.list_of_index,
             self.third_order,
             self.sigma_in
         )
