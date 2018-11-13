@@ -45,23 +45,12 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 	for id_replica in range (n_replicas):
 		chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
 	dyn_s = np.einsum('ialjb,l->iajb', second_order, chi_k)
-
-	for id_replica in range (n_replicas):
-		for alpha in range(3):
-			for i_at in range (n_particles):
-				for j_at in range (n_particles):
-					for i_pol in range (3):
-						for j_pol in range (3):
-							dxij = atoms_helper.apply_boundary(replicated_atoms, geometry[i_at] - \
-							(geometry[j_at] + list_of_replicas[id_replica]))
-							# dxij = list_of_replicas[id_replica]
-							prefactor = 1j * (dxij[alpha] * chi_k[id_replica])
-							ddyn_s[alpha, i_at, i_pol, j_at, j_pol] += prefactor * \
-							                                           (second_order[
-								                                           i_at, i_pol, id_replica, j_at, j_pol])
-
-		
-		
+	dxij = atoms_helper.apply_boundary (replicated_atoms, geometry[:, np.newaxis, np.newaxis] - (
+			geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+	ddyn_s = 1j * np.einsum('ijla,l,ibljc->aibjc',
+		               dxij,
+		               chi_k,
+		               second_order, optimize='greedy')
 	mass = np.sqrt(atoms.get_masses ())
 	massfactor = 2 * constants.electron_mass * constants.avogadro * 1e3
 	dyn_s /= mass[:, np.newaxis, np.newaxis, np.newaxis]

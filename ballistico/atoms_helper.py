@@ -60,9 +60,9 @@ def create_list_of_index(atoms, replicas):
 def apply_boundary(atoms, dxij):
 	cellinv = np.linalg.inv (atoms.cell)
 	# exploit periodicity to calculate the shortest distance, which may not be the one we have
-	sxij = cellinv.dot (dxij)
+	sxij = dxij.dot(cellinv)
 	sxij = sxij - np.round (sxij)
-	dxij = atoms.cell.dot (sxij)
+	dxij = sxij.dot(atoms.cell)
 	return dxij
 
 def type_element_id(atoms, element_name):
