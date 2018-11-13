@@ -8,7 +8,7 @@ from ase.phonons import Phonons
 from ballistico.ballistico_phonons import Ballistico_phonons
 from ballistico.conductivity_controller import ConductivityController
 import matplotlib.pyplot as plt
-from ballistico.shengbte import Shengbte
+from ballistico.shengbte import Shengbte_phonons
 
 np.set_printoptions(suppress=True)
 
@@ -29,30 +29,39 @@ if __name__ == "__main__":
 
     # our Phonons object built on the system
     kpts = np.array ([5, 5, 5])
-    is_classical = False
+    is_classic = False
 
     # import the calculated second order
     second_order = io_helper.import_second_dlpoly (atoms, supercell)
 
     # import the calculated third order
     third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
+
+    phonons = Shengbte_phonons(atoms=atoms,
+                            supercell=supercell,
+                            kpts=kpts,
+                            temperature=temperature,
+                            second_order=second_order,
+                            third_order=third_order,
+                            is_classic=is_classic)
     
-    phonons = Ballistico_phonons (atoms=atoms,
-                                  supercell=supercell,
-                                  kpts=kpts,
-                                  is_classic=is_classical,
-                                  temperature=temperature,
-                                  second_order=second_order,
-                                  third_order=third_order,
-                                  sigma_in=.1)
+    # phonons = Ballistico_phonons (atoms=atoms,
+    #                               supercell=supercell,
+    #                               kpts=kpts,
+    #                               is_classic=is_classic,
+    #                               temperature=temperature,
+    #                               second_order=second_order,
+    #                               third_order=third_order,
+    #                               sigma_in=.1,
+    #                               is_persistency_enabled=False)
 
 
-    # Plot velocity
-    fig = plt.figure ()
-    plt.scatter (phonons.dos[0].flatten (), phonons.dos[1].flatten ())
-    plt.ylabel ("dos", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig ('dos.pdf')
+    # Plot dos
+    # fig = plt.figure ()
+    # plt.scatter (phonons.dos[0].flatten (), phonons.dos[1].flatten ())
+    # plt.ylabel ("dos", fontsize=16, fontweight='bold')
+    # plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    # fig.savefig ('dos.pdf')
 
     # Plot velocity
     fig = plt.figure ()
@@ -69,7 +78,7 @@ if __name__ == "__main__":
     fig.savefig ('gamma.pdf')
 
     # Calculate conductivity
-    ConductivityController (phonons).calculate_conductivity (is_classical=is_classical)
+    ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
     
     
     

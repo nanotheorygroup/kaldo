@@ -3,7 +3,7 @@ from ballistico.phonons import Phonons
 
 class Ballistico_phonons (Phonons):
     def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, sigma_in=None, is_persistency_enabled=True):
-        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
+        super(self.__class__, self).__init__(atoms=atoms, folder_name=type(self).__name__, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
         self.second_order = second_order
         self.third_order = third_order
         #TODO: Find a more meaningful name for sigma_in (used in gamma calc)
@@ -19,7 +19,7 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).frequencies is not None:
             return super (self.__class__, self).frequencies
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.k_size,
+            self.kpts,
             self.atoms,
             self.second_order,
             self.list_of_replicas)
@@ -42,7 +42,7 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).velocities is not None:
             return super (self.__class__, self).velocities
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.k_size,
+            self.kpts,
             self.atoms,
             self.second_order,
             self.list_of_replicas)
@@ -65,7 +65,7 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).eigenvalues is not None:
             return super (self.__class__, self).eigenvalues
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.k_size,
+            self.kpts,
             self.atoms,
             self.second_order,
             self.list_of_replicas)
@@ -92,7 +92,7 @@ class Ballistico_phonons (Phonons):
         if super (self.__class__, self).eigenvectors is not None:
             return super (self.__class__, self).eigenvectors
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
-            self.k_size,
+            self.kpts,
             self.atoms,
             self.second_order,
             self.list_of_replicas)
@@ -118,7 +118,7 @@ class Ballistico_phonons (Phonons):
         delta = 1
         dos = ballistico.calculator.calculate_density_of_states(
             self.frequencies,
-            self.k_size,
+            self.kpts,
             delta)
         self.dos = dos
         return dos
@@ -156,7 +156,7 @@ class Ballistico_phonons (Phonons):
             self.frequencies,
             self.velocities,
             self.occupations,
-            self.k_size,
+            self.kpts,
             self.eigenvectors,
             self.list_of_replicas,
             self.third_order,

@@ -15,13 +15,13 @@ OCCUPATIONS_FILE = 'occupations.npy'
 
 
 class Phonons (object):
-	def __init__(self, atoms, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True):
+	def __init__(self, atoms, folder_name, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True):
 		self.atoms = atoms
 		self.supercell = np.array (supercell)
-		self.k_size = np.array (kpts)
+		self.kpts = np.array (kpts)
 		self.is_classic = is_classic
 		
-		self.n_k_points = np.prod (self.k_size)
+		self.n_k_points = np.prod (self.kpts)
 		self.n_modes = self.atoms.get_masses ().shape[0] * 3
 		self.n_phonons = self.n_k_points * self.n_modes
 		self.temperature = temperature
@@ -38,14 +38,12 @@ class Phonons (object):
 		self._n_k_points = None
 		self._n_modes = None
 		self._n_phonons = None
-		
-		# TODO: move this folder creation logic somewhere else
-		class_name = type (self).__name__
+		self.folder_name = folder_name
 		if self.is_classic:
-			folder_name = 'classic'
+			classic_string = 'classic'
 		else:
-			folder_name = 'quantum'
-		folders = [class_name, class_name + '/' + str (self.temperature) + '/' + folder_name + '/']
+			classic_string = 'quantum'
+		folders = [self.folder_name, self.folder_name + '/' + str (self.temperature) + '/' + classic_string + '/']
 		for folder in folders:
 			if not os.path.exists (folder):
 				os.makedirs (folder)
@@ -59,7 +57,7 @@ class Phonons (object):
 		if self._replicated_atoms is None :
 			if self.is_persistency_enabled:
 				try:
-					folder = type (self).__name__
+					folder = self.folder_name
 					folder += '/'
 					self._replicated_atoms = ase.io.read (folder + REPLICATED_ATOMS_FILE, format='extxyz')
 				except FileNotFoundError as e:
@@ -73,7 +71,7 @@ class Phonons (object):
 	@replicated_atoms.setter
 	def replicated_atoms(self, new_replicated_atoms):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			ase.io.write (folder + REPLICATED_ATOMS_FILE, new_replicated_atoms, format='extxyz')
 		self._replicated_atoms = new_replicated_atoms
@@ -87,7 +85,7 @@ class Phonons (object):
 		if self._list_of_replicas is None:
 			if self.is_persistency_enabled:
 				try:
-					folder = type (self).__name__
+					folder = self.folder_name
 					folder += '/'
 					self._list_of_replicas= np.load (folder + LIST_OF_REPLICAS_FILE)
 				except FileNotFoundError as e:
@@ -101,7 +99,7 @@ class Phonons (object):
 	@list_of_replicas.setter
 	def list_of_replicas(self, new_list_of_replicas):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			np.save (folder + LIST_OF_REPLICAS_FILE, new_list_of_replicas)
 		self._list_of_replicas = new_list_of_replicas
@@ -125,7 +123,7 @@ class Phonons (object):
 	@frequencies.setter
 	def frequencies(self, new_frequencies):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			np.save (folder + FREQUENCIES_FILE, new_frequencies)
 		self._frequencies = new_frequencies
@@ -148,7 +146,7 @@ class Phonons (object):
 	@velocities.setter
 	def velocities(self, new_velocities):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			np.save (folder + VELOCITIES_FILE, new_velocities)
 		self._velocities = new_velocities
@@ -171,7 +169,7 @@ class Phonons (object):
 	@eigenvectors.setter
 	def eigenvectors(self, new_eigenvectors):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			np.save (folder + EIGENVECTORS_FILE, new_eigenvectors)
 		self._eigenvectors = new_eigenvectors
@@ -194,7 +192,7 @@ class Phonons (object):
 	@eigenvalues.setter
 	def eigenvalues(self, new_eigenvalues):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			np.save (folder + EIGENVALUES_FILE, new_eigenvalues)
 		self._eigenvalues = new_eigenvalues
@@ -223,7 +221,7 @@ class Phonons (object):
 	def gamma(self, new_gamma):
 		#TODO separate gamma classic and quantum
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
 			if self.is_classic:
 				folder += 'classic/'
@@ -250,7 +248,7 @@ class Phonons (object):
 	@dos.setter
 	def dos(self, new_dos):
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/'
 			np.save (folder + DOS_FILE, new_dos)
 		self._dos = new_dos
@@ -279,7 +277,7 @@ class Phonons (object):
 	def occupations(self, new_occupations):
 		#TODO:add a temperature subfolder here
 		if self.is_persistency_enabled:
-			folder = type (self).__name__
+			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
 			if self.is_classic:
 				folder += 'classic/'

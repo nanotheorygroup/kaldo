@@ -298,9 +298,9 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 					#     mup_vec = interactions[:, 1]
 					#     mupp_vec = interactions[:, 2]
 					#     nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
-					#                                     np.array ([np.prod (self.k_size), n_modes]), order='C')
+					#                                     np.array ([np.prod (self.kpts), n_modes]), order='C')
 					#     nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
-					#                                      np.array ([np.prod (self.k_size), n_modes]), order='C')
+					#                                      np.array ([np.prod (self.kpts), n_modes]), order='C')
 					#     with tf.Session () as sess:
 					#         tf.summary.FileWriter (
 					#             "tensorboard/",

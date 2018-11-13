@@ -1,4 +1,5 @@
 from ballistico.logger import Logger
+from ballistico.phonons import Phonons
 import ballistico.geometry_helper as ghl
 from ballistico.constants import *
 from ballistico.tools import *
@@ -7,29 +8,16 @@ import ballistico.atoms_helper as ath
 
 BUFFER_PLOT = .2
 
-class Shengbte (object):
-    def __init__(self, atoms, supercell, kpts, temperature, is_classic=False, parameters={}):
-        self.atoms = atoms
-        self.replicas = supercell
-        self.k_size = kpts
 
-        self.replicas = supercell
+class Shengbte_phonons (Phonons):
+    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
+        super(self.__class__, self).__init__(atoms=atoms, folder_name=type(self).__name__, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
 
-        [self.replicated_atoms, self.list_of_replicas] = \
-            ath.replicate_atoms (self.atoms, self.replicas)
-        self.temperature = temperature
-        self.is_classical = is_classic
-
-
+        self.second_order = second_order
+        self.third_order = third_order
         self._qpoints_mapper = None
         self._energies = None
-        self._gamma = None
-        self._velocities = None
-        self._frequencies = None
 
-        self._n_k_points = None
-        self._n_modes = None
-        self._n_phonons = None
         
 
         
@@ -66,9 +54,7 @@ class Shengbte (object):
         # else:
             # self.length[2] = LENGTH_THREESHOLD
             
-        
-        self.folder = 'shengbte/'
-        is_fold_present = is_folder_present(self.folder)
+        self.run()
 
         
     @property
@@ -93,68 +79,56 @@ class Shengbte (object):
 
     @property
     def frequencies(self):
-        return self._frequencies
+        return super ().frequencies
 
     @frequencies.getter
     def frequencies(self):
-        if self._frequencies is None:
-            self._frequencies = self.read_energy_data () / (2 * np.pi)
-        return self._frequencies
-    
-    @property
-    def gamma(self):
-        return self._gamma
-    
-    @gamma.getter
-    def gamma(self):
-        if self._gamma is None:
-            self._gamma = self.read_decay_rate_data ()
-            # self._gamma[np.where (np.isnan (self._gamma))] = THREESHOLD
-        return self._gamma
-    
+        if super (self.__class__, self).frequencies is not None:
+            return super (self.__class__, self).frequencies
+        frequencies = self.read_energy_data () / (2 * np.pi)
+        self.frequencies = frequencies
+        return frequencies
+
+    @frequencies.setter
+    def frequencies(self, new_frequencies):
+        Phonons.frequencies.fset (self, new_frequencies)
+
     @property
     def velocities(self):
-        return self._velocities
+        return super ().velocities
 
     @velocities.getter
     def velocities(self):
-        if self._velocities is None:
-            self._velocities = self.read_velocity_data ()
-        return self._velocities #+ THREESHOLD
+        if super (self.__class__, self).velocities is not None:
+            return super (self.__class__, self).velocities
+        velocities = self.read_velocity_data ()
+        self.velocities = velocities
+        return velocities
+
+    @velocities.setter
+    def velocities(self, new_velocities):
+        Phonons.velocities.fset (self, new_velocities)
 
     @property
-    def n_phonons(self):
-        return self._n_phonons
+    def gamma(self):
+        return super ().gamma
 
-    @n_phonons.getter
-    def n_phonons(self):
-        if self._n_phonons is None:
-            return self.n_modes() * self.n_k_points()
-        return self._n_phonons
-    
-    @property
-    def n_modes(self):
-        return self._n_modes
+    @gamma.getter
+    def gamma(self):
+        if super (self.__class__, self).gamma is not None:
+            return super (self.__class__, self).gamma
+        gamma = self.read_decay_rate_data ()
+        self.gamma = gamma
+        return gamma
 
-    @n_modes.getter
-    def n_modes(self):
-        if self._n_modes is None:
-            return self.energies.shape[1]
-        return self._n_modes
-
-    @property
-    def n_k_points(self):
-        return self._n_k_points
-
-    @n_k_points.getter
-    def n_k_points(self):
-        if self._n_k_points is None:
-            return self.energies.shape[0]
-        return self._n_k_points
+    @gamma.setter
+    def gamma(self, new_gamma):
+        Phonons.gamma.fset (self, new_gamma)
+        
         
     def save_second_order_matrix(self):
         second_order = self.second_order
-        shenbte_folder = self.folder
+        shenbte_folder = self.folder_name + '/'
         filename = 'espresso.ifc2'
         n_particles = second_order.shape[1]
         filename = shenbte_folder + filename
@@ -171,7 +145,7 @@ class Shengbte (object):
                         file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1) + '\t' + str (j + 1) + '\n')
                         for id_replica in range(list_of_indices.shape[0]):
                             index = list_of_indices[id_replica]
-                            l_vec = np.array(index % self.replicas + 1).astype(np.int)
+                            l_vec = np.array(index % self.supercell + 1).astype(np.int)
                             file.write ('\t' + str (l_vec[0]) + '\t' + str (l_vec[1]) + '\t' + str (l_vec[2]))
                             
                             # TODO: WHy are they flipped?
@@ -185,30 +159,28 @@ class Shengbte (object):
     
     
     def save_third_order_matrix(self):
-        system = self
         filename = 'FORCE_CONSTANTS_3RD'
-        filename = self.folder + filename
+        filename = self.folder_name + '/' + filename
         file = open ('%s' % filename, 'w')
-        n_in_unit_cell = len (system.atoms.numbers)
-        n_replicas = np.prod (system.replicas)
+        n_in_unit_cell = len (self.atoms.numbers)
+        n_replicas = np.prod (self.supercell)
         block_counter = 0
-        # third_order = system.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))
         for i_0 in range (n_in_unit_cell):
             for n_1 in range (n_replicas):
                 for i_1 in range (n_in_unit_cell):
                     for n_2 in range (n_replicas):
                         for i_2 in range (n_in_unit_cell):
                             
-                            three_particles_interaction = system.third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
+                            three_particles_interaction = self.third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
-                                replica = system.list_of_replicas#
+                                replica = self.list_of_replicas#
                                 file.write ('\n  ' + str (block_counter))
-                                rep_position = ath.apply_boundary (system.replicated_atoms,replica[n_1])
+                                rep_position = ath.apply_boundary (self.replicated_atoms,replica[n_1])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                     rep_position[2]))
-                                rep_position = ath.apply_boundary (system.replicated_atoms,replica[n_2])
+                                rep_position = ath.apply_boundary (self.replicated_atoms,replica[n_2])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                     rep_position[2]))
                                 file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -229,17 +201,18 @@ class Shengbte (object):
         Logger().info ('third order saved')
     
     def run(self, n_processors=1):
+        self.create_control_file()
         self.save_second_order_matrix ()
         self.save_third_order_matrix ()
         if n_processors == 1:
             cmd = 'ShengBTE'
         else:
             cmd = 'mpirun -np ' + str(n_processors) + ' ShengBTE'
-        return run_script (cmd, self.folder)
+        return run_script (cmd, self.folder_name)
     
     
     def create_control_file_string(self):
-        k_points = self.k_size
+        k_points = self.kpts
         elements = self.atoms.get_chemical_symbols ()
         unique_elements = np.unique (self.atoms.get_chemical_symbols ())
         string = ''
@@ -268,8 +241,8 @@ class Shengbte (object):
             vector = cellinv.dot(self.atoms.positions[i])
             string += '\tpositions(:,' + str (i + 1) + ')= ' + str (vector[0]) + ' ' + str (vector[1]) + ' ' + str (
                 vector[2]) + '\n'
-        string += '\tscell(:)=' + str (self.replicas[0]) + ' ' + str (self.replicas[1]) + ' ' + str (
-            self.replicas[2]) + '\n'
+        string += '\tscell(:)=' + str (self.supercell[0]) + ' ' + str (self.supercell[1]) + ' ' + str (
+            self.supercell[2]) + '\n'
         # if (self.length).any():
         # 	string += '\tlength(:)=' + str(self.length[0]) + ' ' + str(self.length[1]) + ' ' + str(self.length[2]) + '\n'
         string += '&end\n'
@@ -283,7 +256,7 @@ class Shengbte (object):
         if self.only_gamma:
             string += '\tonly_gamma=.true.\n'
             
-        if self.is_classical:
+        if self.is_classic:
             string += '\tclassical=.true.\n'
         
         if self.convergence:
@@ -298,7 +271,7 @@ class Shengbte (object):
         return string
     
     def create_control_file(self):
-        folder = self.folder
+        folder = self.folder_name
         filename = folder + '/CONTROL'
         string = self.create_control_file_string ()
         
@@ -341,23 +314,23 @@ class Shengbte (object):
         for i in range (nat):
             header_str += str (i + 1) + '\n'
             header_str += matrix_to_string (np.diag (np.ones (3)) * born_eff_charge * (-1) ** i)
-        header_str += str (self.replicas[0]) + ' '
-        header_str += str (self.replicas[1]) + ' '
-        header_str += str (self.replicas[2]) + '\n'
+        header_str += str (self.supercell[0]) + ' '
+        header_str += str (self.supercell[1]) + ' '
+        header_str += str (self.supercell[2]) + '\n'
         return header_str
 
     def save_data(self):
         omega = self.energies
         lifetime = 1. / self.gamma
         n_modes = omega.shape[1]
-        if self.is_classical:
+        if self.is_classic:
             filename = "data_classic"
         else:
             filename = "data_quantum"
         filename = filename + '_' + str (self.temperature)
         filename = filename + ".csv"
     
-        filename = self.folder + filename
+        filename = self.folder_name + filename
         Logger ().info ('saving ' + filename)
         with open (filename, "w") as csv:
             str_to_write = 'k_x,k_y,k_z,'
@@ -391,7 +364,7 @@ class Shengbte (object):
                 csv.write (str_to_write)
         
     def read_qpoints_mapper(self):
-        q_points = pd.read_csv (self.folder + 'BTE.qpoints_full', header=None, delim_whitespace=True)
+        q_points = pd.read_csv (self.folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)
         self._qpoints_mapper = q_points.values
     
     def irreducible_indices(self):
@@ -408,7 +381,7 @@ class Shengbte (object):
     
     def read_energy_data(self):
         # We read in rad/ps
-        omega = pd.read_csv (self.folder + 'BTE.omega', header=None, delim_whitespace=True)
+        omega = pd.read_csv (self.folder_name + '/BTE.omega', header=None, delim_whitespace=True)
         n_qpoints = self.qpoints_mapper.shape[0]
         n_branches = omega.shape[1]
         energy_data = np.zeros ((n_qpoints, n_branches))
@@ -424,8 +397,8 @@ class Shengbte (object):
         else:
             file = 'BTE.WP3'
         temperature = str (int (self.temperature))
-        decay = pd.read_csv (self.folder + 'T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
-        # decay = pd.read_csv (self.folder + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        decay = pd.read_csv (self.folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
+        # decay = pd.read_csv (self.folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
         n_qpoints_reduced = int (decay.shape[0] / n_branches)
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -444,8 +417,8 @@ class Shengbte (object):
         else:
             file = 'BTE.w_anharmonic'
         temperature = str(int(self.temperature))
-        decay = pd.read_csv (self.folder + 'T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
-        # decay = pd.read_csv (self.folder + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        decay = pd.read_csv (self.folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
+        # decay = pd.read_csv (self.folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
         n_qpoints_reduced = int (decay.shape[0] / n_branches)
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -457,20 +430,20 @@ class Shengbte (object):
         return decay_data
     
     def read_velocity_data(self):
-        shenbte_folder = self.folder
-        velocities = pd.read_csv (shenbte_folder + 'BTE.v_full', header=None, delim_whitespace=True)
+        shenbte_folder = self.folder_name
+        velocities = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
         n_velocities = velocities.shape[0]
         n_qpoints = self.qpoints_mapper.shape[0]
         n_modes = int(n_velocities / n_qpoints)
         
         velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
 
-        velocities =  np.zeros((self.k_size[0], self.k_size[1], self.k_size[2], n_modes, 3))
+        velocities =  np.zeros((self.kpts[0], self.kpts[1], self.kpts[2], n_modes, 3))
 
         z = 0
-        for k in range (self.k_size[2]):
-            for j in range(self.k_size[1]):
-                for i in range (self.k_size[0]):
+        for k in range (self.kpts[2]):
+            for j in range(self.kpts[1]):
+                for i in range (self.kpts[0]):
                     velocities[i,j,k,:,:] = velocity_array[:, z, :]
                     z += 1
         return velocities
@@ -478,11 +451,11 @@ class Shengbte (object):
    
         
     def read_conductivity(self, converged=True, is_classical=False):
-        folder = self.folder
+        folder = self.folder_name
         if converged:
-            conduct_file = 'BTE.KappaTensorVsT_CONV'
+            conduct_file = '/BTE.KappaTensorVsT_CONV'
         else:
-            conduct_file = 'BTE.KappaTensorVsT_RTA'
+            conduct_file = '/BTE.KappaTensorVsT_RTA'
         
         conductivity_array = np.loadtxt (folder + conduct_file)
         conductivity_array = np.delete (conductivity_array, 0)
