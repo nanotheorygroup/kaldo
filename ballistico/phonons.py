@@ -47,6 +47,7 @@ class Phonons (object):
 		self._n_phonons = None
 		self._k_points = None
 		self.folder_name = folder_name
+		self.sigma_in = None
 		self._c_v = None
 		if self.is_classic:
 			classic_string = 'classic'
@@ -248,6 +249,8 @@ class Phonons (object):
 		if self.is_persistency_enabled:
 			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
+			if self.sigma_in is not None:
+				folder += 'sigma_in_' + str(self.sigma_in).replace('.','_') + '/'
 			if self.is_classic:
 				folder += 'classic/'
 			else:

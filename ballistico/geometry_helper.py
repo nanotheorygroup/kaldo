@@ -36,7 +36,7 @@ def create_k_space_with_path(structure, resolution, time_refersal=True):
 	return kpath, np.arange(0., explicit_segments.max(), dx), 1. * explicit_segments, point_names
 
 
-def create_k_and_symmetry_space(structure, symmetry='fcc', n_k_points=50):
+def create_k_and_symmetry_space(cell, symmetry='fcc', n_k_points=50):
 	
 	# TODO: implement symmetry here
 	# import spglib as spg
@@ -55,7 +55,7 @@ def create_k_and_symmetry_space(structure, symmetry='fcc', n_k_points=50):
 	path = [G, X, U, L, G, K]
 	
 	# Band structure in meV
-	path_kc, q, Q = bandpath (path, structure.cell, n_k_points)
+	path_kc, q, Q = bandpath (path, cell, n_k_points)
 	return path_kc, q, Q, point_names
 
 def save_k_space(k_list):
