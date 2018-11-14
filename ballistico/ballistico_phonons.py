@@ -120,10 +120,13 @@ class Ballistico_phonons (Phonons):
             return super (self.__class__, self).dos
         # TODO: delta needs to be set by the instance
         delta = 1
+        num = 100
         dos = ballistico.calculator.calculate_density_of_states(
             self.frequencies,
             self.kpts,
-            delta)
+            delta,
+            num
+        )
         self.dos = dos
         return dos
 

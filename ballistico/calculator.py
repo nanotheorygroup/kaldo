@@ -12,7 +12,7 @@ DELTA_THRESHOLD = 2
 # DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
 DELTA_CORRECTION = 1
 
-def calculate_density_of_states(frequencies, k_mesh, delta=1, num=100):
+def calculate_density_of_states(frequencies, k_mesh, delta, num):
 	n_modes = frequencies.shape[-1]
 	frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
 	n_k_points = np.prod (k_mesh)
@@ -161,11 +161,9 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	Logger ().info ('Lifetime calculation')
 	n_modes = n_particles * 3
 	ps = np.zeros ((2, np.prod (k_size), n_modes))
-	velocities = velocities.real
 	
 	# TODO: remove acoustic sum rule
 	frequencies[0, :3] = 0
-	velocities[0, :3, :] = 0
 	
 	n_replicas = list_of_replicas.shape[0]
 	rlattvec = cell_inv * 2 * np.pi
@@ -192,6 +190,9 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	                   frequencies[np.newaxis, np.newaxis, :, :])
 	freq_product_tf = freq_product_np.reshape (nptk * n_modes, nptk * n_modes)
 	if sigma_in is None:
+		velocities = velocities.real
+		velocities[0, :3, :] = 0
+		
 		sigma_tensor_np = calculate_broadening ( \
 			velocities[:, :, np.newaxis, np.newaxis, :] - \
 			velocities[np.newaxis, np.newaxis, :, :, :], cell_inv, k_size)

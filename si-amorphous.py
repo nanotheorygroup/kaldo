@@ -30,7 +30,13 @@ if __name__ == "__main__":
 
     # Plot velocity
     fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), np.linalg.norm(phonons.velocities, axis=-1).flatten ())
+    x_data = phonons.frequencies.flatten ()
+    y_data = np.linalg.norm(phonons.velocities, axis=-1).flatten ()
+    
+    ax = plt.gca ()
+    ax.set_yscale ('log')
+
+    plt.scatter (x_data, y_data)
     plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     fig.savefig ('velocities.pdf')
