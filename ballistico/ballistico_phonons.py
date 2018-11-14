@@ -3,12 +3,9 @@ from ballistico.phonons import Phonons
 
 class Ballistico_phonons (Phonons):
     def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, sigma_in=None, is_persistency_enabled=True):
-        super(self.__class__, self).__init__(atoms=atoms, folder_name=type(self).__name__, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
+        super(self.__class__, self).__init__(atoms=atoms, folder_name=type(self).__name__, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in)
         self.second_order = second_order
         self.third_order = third_order
-        #TODO: Find a more meaningful name for sigma_in (used in gamma calc)
-        self.sigma_in = sigma_in
-
 
     @property
     def frequencies(self):

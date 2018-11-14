@@ -15,7 +15,7 @@ class PlotViewController (object):
 		self.phonons = phonons
 		self.system = phonons.atoms
 
-	def project_to_path(self, observable, symmetry, n_k_points=100):
+	def project_to_path(self, observable, symmetry, n_k_points=100, with_fourier=True):
 
 		atoms = self.phonons.atoms
 		k_size = self.phonons.kpts
@@ -27,13 +27,13 @@ class PlotViewController (object):
 		obs_plot = np.zeros ((k_list.shape[0], n_modes))
 
 		for mode in range (n_modes):
-			obs_plot[:, mode] = interpolator (k_list, obs[:, :, :, mode])
+			obs_plot[:, mode] = interpolator (k_list, obs[:, :, :, mode], with_fourier=with_fourier)
 		return q, Q, point_names, obs_plot
 	
-	def plot_in_brillouin_zone(self, observable, symmetry,  n_k_points=100):
+	def plot_in_brillouin_zone(self, observable, symmetry,  n_k_points=100, with_fourier=True):
 		phonons = self.phonons
 		fig = plt.figure ()
-		q, Q, point_names, freqs_plot = self.project_to_path(observable, symmetry, n_k_points)
+		q, Q, point_names, freqs_plot = self.project_to_path(observable, symmetry, n_k_points, with_fourier=with_fourier)
 		plt.ylabel ("frequency ($\mathrm{Thz}$)")
 		plt.xticks (Q, point_names)
 		plt.xlim (q[0], q[-1])

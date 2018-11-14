@@ -22,7 +22,7 @@ C_V_FILE = 'c_v.npy'
 
 
 class Phonons (object):
-	def __init__(self, atoms, folder_name, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True):
+	def __init__(self, atoms, folder_name, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None):
 		self.atoms = atoms
 		self.supercell = np.array (supercell)
 		self.kpts = np.array (kpts)
@@ -47,13 +47,16 @@ class Phonons (object):
 		self._n_phonons = None
 		self._k_points = None
 		self.folder_name = folder_name
-		self.sigma_in = None
+		self.sigma_in = sigma_in
 		self._c_v = None
 		if self.is_classic:
 			classic_string = 'classic'
 		else:
 			classic_string = 'quantum'
-		folders = [self.folder_name, self.folder_name + '/' + str (self.temperature) + '/' + classic_string + '/']
+		folder = self.folder_name + '/' + str (self.temperature) + '/' + classic_string + '/'
+		if self.sigma_in is not None:
+			folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
+		folders = [self.folder_name, folder]
 		if self.is_persistency_enabled:
 			for folder in folders:
 				if not os.path.exists (folder):

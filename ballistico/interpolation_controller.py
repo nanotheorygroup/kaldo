@@ -32,8 +32,9 @@ def fourier_interpolator(k_list, observable, increase_factor=8):
 	return resample_fourier (observable, increase_factor).real
 	
 	
-def interpolator(k_list, observable):
+def interpolator(k_list, observable, with_fourier=True):
 	# Here we can put a pipeline of several interpolator
-	observable = fourier_interpolator(k_list, observable)
+	if with_fourier:
+		observable = fourier_interpolator(k_list, observable)
 	observable = map_interpolator(k_list, observable)
 	return observable

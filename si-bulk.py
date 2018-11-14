@@ -55,4 +55,9 @@ if __name__ == "__main__":
 
 
     PlotViewController (phonons).plot_in_brillouin_zone (phonons.frequencies, 'fcc')
+    PlotViewController (phonons).plot_in_brillouin_zone (phonons.frequencies, 'fcc', with_fourier=False)
+    PlotViewController (phonons).plot_in_brillouin_zone (phonons.velocities[...,0], 'fcc')
+    PlotViewController (phonons).plot_in_brillouin_zone (phonons.velocities[...,0], 'fcc', with_fourier=False)
+    PlotViewController (phonons).plot_in_brillouin_zone (phonons.gamma, 'fcc')
+    PlotViewController (phonons).plot_in_brillouin_zone (phonons.gamma, 'fcc', with_fourier=False)
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
