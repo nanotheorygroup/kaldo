@@ -9,8 +9,9 @@ from ase.phonons import Phonons
 from ballistico.ballistico_phonons import Ballistico_phonons
 from ballistico.conductivity_controller import ConductivityController
 import matplotlib.pyplot as plt
+from ballistico.PlotViewController import PlotViewController
 from ballistico.shengbte_phonons import Shengbte_phonons
-
+from ballistico.interpolation_controller import interpolator
 np.set_printoptions(suppress=True)
 
 if __name__ == "__main__":
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array ([5, 5, 5])
+    kpts = np.array ([9, 9, 9])
     is_classic = False
 
     # import the calculated second order
@@ -48,26 +49,10 @@ if __name__ == "__main__":
                                   # sigma_in=.1,
                                   is_persistency_enabled=True)
 
-    # Plot c_v
-    fig = plt.figure ()
-    plt.scatter (phonons.frequencies[phonons.frequencies != 0].flatten (),
-                 phonons.c_v[phonons.frequencies != 0].flatten ())
-    plt.ylabel ("$c_V$", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig ('c_v.pdf')
+    PlotViewController(phonons).plot_c_v()
+    PlotViewController(phonons).plot_velocities()
+    PlotViewController(phonons).plot_gamma()
 
-    # Plot velocity
-    fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), np.linalg.norm (phonons.velocities, axis=-1).flatten ())
-    plt.ylabel ("$v_{rms}$ (10m/s)", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig ('velocities.pdf')
 
-    # Plot gamma
-    fig = plt.figure ()
-    plt.scatter (phonons.frequencies.flatten (), phonons.gamma.flatten ())
-    plt.ylabel ("$\gamma$ (Thz)", fontsize=16, fontweight='bold')
-    plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig ('gamma.pdf')
-    
+    PlotViewController (phonons).plot_in_brillouin_zone (phonons.frequencies, 'fcc')
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
