@@ -121,21 +121,18 @@ class ConductivityController (object):
     
     def calculate_conductivity(self, is_classical, post_processing=None, length=None, converged=False):
         volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
-        conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3))
+        conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.complex)
         gamma = self.phonons.gamma
         tau_zero = np.empty_like (gamma)
-        tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0])
+        tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0]).astype(np.complex)
         velocities = self.phonons.velocities.reshape(self.phonons.n_k_points, self.phonons.n_modes, 3)
-        c_v = self.phonons.c_v
+        c_v = self.phonons.c_v.astype(np.complex)
         c_v = c_v.reshape(self.phonons.n_k_points, self.phonons.n_modes)
         for alpha in range (3):
             for beta in range (3):
-                conductivity_per_mode[:, :, alpha, beta] += c_v[:, :] * velocities[:, :, beta] * tau_zero[:, :] * velocities[:, :, alpha]
- 
-        
+                conductivity_per_mode[:, :, alpha, beta] += c_v[:, :] * velocities[:, :, beta].conj() * tau_zero[:, :] * velocities[:, :, alpha]
         conductivity_per_mode *= 1 / (volume * self.phonons.n_k_points)
         conductivity_per_mode = conductivity_per_mode.sum (axis=0)
-        cond = conductivity_per_mode.sum (axis=0)
-        Logger().info ('\nconductivity = \n' + str (cond))
-        return cond
+        Logger().info ('\nconductivity = \n' + str (conductivity_per_mode.sum (axis=0)))
+        return conductivity_per_mode.sum (axis=0)
     

@@ -36,6 +36,8 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 	geometry = atoms.positions
 	cell_inv = np.linalg.inv (atoms.cell)
 	kpoint = 2 * np.pi * (cell_inv).dot (qvec)
+	
+	# TODO: remove this copy()
 	second_order = second_order[0].copy()
 
 	n_particles = geometry.shape[0]
@@ -86,7 +88,7 @@ def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, r
 		eigenvalues[index_k, :] = eval
 		eigenvectors[index_k, :, :] = evect
 		velocities[index_k, :, :] = vels
-	return frequencies, eigenvalues, eigenvectors, velocities.real
+	return frequencies, eigenvalues, eigenvectors, velocities
 
 def calculate_broadening(velocity, cellinv, k_size):
 	# we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
@@ -159,6 +161,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	Logger ().info ('Lifetime calculation')
 	n_modes = n_particles * 3
 	ps = np.zeros ((2, np.prod (k_size), n_modes))
+	velocities = velocities.real
 	
 	# TODO: remove acoustic sum rule
 	frequencies[0, :3] = 0
