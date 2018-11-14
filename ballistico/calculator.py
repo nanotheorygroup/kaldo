@@ -113,45 +113,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 			4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
 	coeff = 1000 * constants.hbar / constants.charge_of_electron
 	
-	# TODO: remove this when done debugging
-	# nup = tf.placeholder ('int64', (None), name='nup')
-	# nupp = tf.placeholder ('int64', (None), name='nupp')
-	# index_kp = tf.placeholder ('int64', (None), name='index_kp')
-	# index_kpp = tf.placeholder ('int64', (None), name='index_kpp')
-	# second_eigenv = tf.placeholder ('complex64', (None, None), name='second_eigenv')
-	# third_eigenv = tf.placeholder ('complex64', (None, None), name='third_eigenv')
-	# potential = tf.placeholder ('complex64', (None, None, None, None), name='potential')
-	# second_chi = tf.placeholder ('complex64', (None, None), name='second_chi')
-	# third_chi = tf.placeholder ('complex64', (None, None), name='third_chi')
-	# sigma = tf.placeholder ('float64', (None, None), name='sigma')
-	# density_fact = tf.placeholder ('float64', (None, None), name='density')
-	# freq_product = tf.placeholder ('float64', (None, None), name='freq_product')
-	# freq_diff = tf.placeholder ('float64', (None, None), name='freq_diff')
-	# coords = tf.stack ((nup, nupp), axis=-1)
-	# sparsify = lambda operator: tf.cast (tf.gather_nd (operator, coords), tf.float64)
-	# dirac_delta = sparsify (density_fact) / sparsify (freq_product)
-	# if sigma_in == None:
-	#     sigma_to_plug = sparsify (sigma)
-	# else:
-	#     sigma_to_plug = sigma_in
-	# dirac_delta *= tf.exp (- sparsify (freq_diff) ** 2 / (2 * sigma_to_plug ** 2)) \
-	#                / (sigma_to_plug * np.sqrt (2 * np.pi)) / DELTA_CORRECTION
-	# second = tf.gather (second_eigenv, nup, axis=0)
-	# third = tf.gather (third_eigenv, nupp, axis=0)
-	# third_chi_tf = tf.gather (third_chi, index_kpp, axis=0)
-	# second_chi_tf = tf.gather (second_chi, index_kp, axis=0)
-	# second_chi_tf.set_shape ((None, None))
-	# third_chi_tf.set_shape ((None, None))
-	# second.set_shape ((None, None))
-	# third.set_shape ((None, None))
-	# # potential_proj_tf = tf.einsum \
-	# #     ('litj,al,at,aj,ai->a', potential, second_chi_tf, third_chi_tf, third, second)
-	# potential_proj_tf = tf.tensordot(potential, second_chi_tf, (0, 1))
-	# potential_full_proj_tf = tf.einsum('itja,at,aj,ai->a', potential_proj_tf, third_chi_tf, third, second)
-	#
-	# phase_space_tf = tf.reduce_sum (dirac_delta)
-	# gamma_tf = tf.reduce_sum (tf.cast (tf.abs (potential_full_proj_tf) ** 2, \
-	#                                    tf.float64) * dirac_delta)
 	
 	nptk = np.prod (k_size)
 	n_particles = atoms.positions.shape[0]
@@ -163,7 +124,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	ps = np.zeros ((2, np.prod (k_size), n_modes))
 	
 	# TODO: remove acoustic sum rule
-	frequencies[0, :3] = 0
+	# frequencies[0, :3] = 0
 	
 	n_replicas = list_of_replicas.shape[0]
 	rlattvec = cell_inv * 2 * np.pi
@@ -188,7 +149,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	nptk = np.prod (k_size)
 	freq_product_np = (frequencies[:, :, np.newaxis, np.newaxis] * \
 	                   frequencies[np.newaxis, np.newaxis, :, :])
-	freq_product_tf = freq_product_np.reshape (nptk * n_modes, nptk * n_modes)
 	if sigma_in is None:
 		velocities = velocities.real
 		velocities[0, :3, :] = 0
@@ -207,8 +167,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	Logger ().info ('n_irreducible_q_points = ' + str (int (len (unique_points))) + ' : ' + str (unique_points))
 	third_eigenv_np = eigenvectors.conj ()
 	third_chi_tf = chi.conj ()
-	third_eigenv_tf = third_eigenv_np.swapaxes (1, 2).reshape ( \
-		third_eigenv_np.shape[0] * third_eigenv_np.shape[1], third_eigenv_np.shape[2])
 	for is_plus in (1, 0):
 		if is_plus:
 			Logger ().info ('\nCreation processes')
@@ -220,10 +178,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 			density_fact_np = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
 			second_eigenv_np = eigenvectors.conj ()
 			second_chi_tf = chi.conj ()
-		density_fact_tf = density_fact_np.reshape (nptk * n_modes, nptk * n_modes)
-		
-		second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (
-			second_eigenv_np.shape[0] * second_eigenv_np.shape[1], second_eigenv_np.shape[2])
 		for index_k in (list_of_k):
 			i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
 			for mu in range (n_modes):
@@ -244,7 +198,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 							                                                                       np.newaxis,
 							                                                                       np.newaxis,
 							                                                                       :, :])
-					freq_diff_tf = freq_diff_np.reshape (nptk * n_modes, nptk * n_modes)
 					index_kp_vec = np.arange (np.prod (k_size))
 					i_kp_vec = np.array (np.unravel_index (index_kp_vec, k_size, order='F'))
 					i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
@@ -258,9 +211,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 							frequencies[index_kp_vec, :, np.newaxis] != 0) & (
 								            frequencies[index_kpp_vec, np.newaxis, :] != 0)
 					interactions = np.array (np.where (condition)).T
-					# interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
 					if interactions.size != 0:
-						Logger ().info ('interactions: ' + str (index_k) + str (interactions.size))
+						Logger ().info ('interactions: ' + str (interactions.size))
 						index_kp_vec = interactions[:, 0]
 						index_kpp_vec = index_kpp_vec[index_kp_vec]
 						mup_vec = interactions[:, 1]
@@ -290,35 +242,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 						                                 second, optimize='greedy')
 						
 						gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
-					#     index_kp_vec = interactions[:, 0]
-					#     index_kpp_vec = index_kpp_vec[index_kp_vec]
-					#     mup_vec = interactions[:, 1]
-					#     mupp_vec = interactions[:, 2]
-					#     nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
-					#                                     np.array ([np.prod (self.kpts), n_modes]), order='C')
-					#     nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
-					#                                      np.array ([np.prod (self.kpts), n_modes]), order='C')
-					#     with tf.Session () as sess:
-					#         tf.summary.FileWriter (
-					#             "tensorboard/",
-					#             sess.graph)
-					#         feed_dict = {
-					#             nup: nup_vec,
-					#             nupp: nupp_vec,
-					#             index_kp: index_kp_vec,
-					#             index_kpp: index_kpp_vec,
-					#             second_eigenv: second_eigenv_tf,
-					#             third_eigenv: third_eigenv_tf,
-					#             potential: projected_potential,
-					#             second_chi: second_chi_tf,
-					#             third_chi: third_chi_tf,
-					#             density_fact: density_fact_tf,
-					#             freq_product: freq_product_tf,
-					#             freq_diff: freq_diff_tf}
-					#         if sigma_in == None:
-					#             feed_dict[sigma] = sigma_tf
-					#         gamma_value = sess.run (gamma_tf, feed_dict=feed_dict)
-					#     gamma[is_plus, index_k, mu] = gamma_value
 					
 					gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
 					ps[is_plus, index_k, mu] /= frequencies[index_k, mu]

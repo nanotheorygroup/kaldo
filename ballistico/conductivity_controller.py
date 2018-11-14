@@ -123,8 +123,8 @@ class ConductivityController (object):
         volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
         conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.complex)
         gamma = self.phonons.gamma
-        tau_zero = np.empty_like (gamma)
-        tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0]).astype(np.complex)
+        tau_zero = np.empty_like (gamma).astype(np.complex)
+        tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0])
         velocities = self.phonons.velocities.reshape(self.phonons.n_k_points, self.phonons.n_modes, 3)
         c_v = self.phonons.c_v.astype(np.complex)
         c_v = c_v.reshape(self.phonons.n_k_points, self.phonons.n_modes)
