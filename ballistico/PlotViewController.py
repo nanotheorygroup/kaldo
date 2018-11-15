@@ -12,7 +12,7 @@ BUFFER_PLOT = .2
 
 
 class PlotViewController (object):
-	def __init__(self, phonons, is_showing=True, is_persistent=True, folder='plots/'):
+	def __init__(self, phonons, folder='plots', is_showing=True, is_persistent=True):
 		self.phonons = phonons
 		self.system = phonons.atoms
 		self.folder = folder
@@ -63,11 +63,12 @@ class PlotViewController (object):
 		fig.savefig (self.folder + observable_name + '.pdf')
 		plt.show ()
 
-	def plot_everything(self):
+	def plot_everything(self, with_dispersion=True):
 		phonons = self.phonons
 		self.plot_vs_frequency (phonons.c_v, 'cv')
 		vel = np.linalg.norm (phonons.velocities, axis=-1)
-		PlotViewController (phonons).plot_vs_frequency (vel, 'vel')
-		PlotViewController (phonons).plot_vs_frequency (phonons.gamma, 'gamma')
-		PlotViewController (phonons).plot_in_brillouin_zone (observable_name='disp_rel', )
-		PlotViewController (phonons).plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=False)
+		self.plot_vs_frequency (vel, 'vel')
+		self.plot_vs_frequency (phonons.gamma, 'gamma')
+		if with_dispersion:
+			self.plot_in_brillouin_zone (observable_name='disp_rel', )
+			self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=False)

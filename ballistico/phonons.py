@@ -243,6 +243,8 @@ class Phonons (object):
 					folder += 'classic/'
 				else:
 					folder += 'quantum/'
+				if self.sigma_in is not None:
+					folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
 				self._gamma = np.load (folder + GAMMA_FILE)
 			except FileNotFoundError as e:
 				print (e)
@@ -254,12 +256,12 @@ class Phonons (object):
 		if self.is_persistency_enabled:
 			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
-			if self.sigma_in is not None:
-				folder += 'sigma_in_' + str(self.sigma_in).replace('.','_') + '/'
 			if self.is_classic:
 				folder += 'classic/'
 			else:
 				folder += 'quantum/'
+			if self.sigma_in is not None:
+				folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
 			np.save (folder + GAMMA_FILE, new_gamma)
 		self._gamma = new_gamma
 	

@@ -63,7 +63,7 @@ if __name__ == "__main__":
                                   second_order=second_order,
                                   third_order=third_order,
                                   # sigma_in=.1,
-                                  is_persistency_enabled=False)
+                                  is_persistency_enabled=True)
     print (shen_phonons.run ())
     PlotViewController(shen_phonons, folder='plot/sheng/').plot_everything()
     ConductivityController (shen_phonons).calculate_conductivity (is_classical=is_classic)

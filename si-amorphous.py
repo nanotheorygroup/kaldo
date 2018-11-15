@@ -30,6 +30,4 @@ if __name__ == "__main__":
     
 
 
-    PlotViewController(phonons).plot_c_v()
-    PlotViewController(phonons).plot_velocities()
-    PlotViewController(phonons).plot_gamma()
+    PlotViewController(phonons).plot_everything(with_dispersion=False)
