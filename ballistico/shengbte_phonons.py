@@ -7,16 +7,16 @@ import matplotlib.pyplot as plt
 import ballistico.atoms_helper as ath
 
 BUFFER_PLOT = .2
-
+SHENG_FOLDER_NAME = 'sheng_bte'
 
 class Shengbte_phonons (Phonons):
-    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
-        super(self.__class__, self).__init__(atoms=atoms, folder_name=type(self).__name__, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
-
+    def __init__(self, atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
+        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
         self.second_order = second_order
         self.third_order = third_order
         self._qpoints_mapper = None
         self._energies = None
+        self.sheng_folder_name = SHENG_FOLDER_NAME
         # TODO: move these initializations into a getter
         if 'convergence' in parameters:
             self.convergence = parameters['convergence']
@@ -50,8 +50,6 @@ class Shengbte_phonons (Phonons):
         # else:
             # self.length[2] = LENGTH_THREESHOLD
             
-        Logger().info(self.run())
-
         
     @property
     def qpoints_mapper(self):
@@ -124,7 +122,7 @@ class Shengbte_phonons (Phonons):
         
     def save_second_order_matrix(self):
         second_order = self.second_order
-        shenbte_folder = self.folder_name + '/'
+        shenbte_folder = self.sheng_folder_name + '/'
         filename = 'espresso.ifc2'
         n_particles = second_order.shape[1]
         filename = shenbte_folder + filename
@@ -156,7 +154,7 @@ class Shengbte_phonons (Phonons):
     
     def save_third_order_matrix(self):
         filename = 'FORCE_CONSTANTS_3RD'
-        filename = self.folder_name + '/' + filename
+        filename = self.sheng_folder_name + '/' + filename
         file = open ('%s' % filename, 'w')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
@@ -197,7 +195,7 @@ class Shengbte_phonons (Phonons):
         Logger().info ('third order saved')
     
     def run(self, n_processors=1):
-        folder = self.folder_name
+        folder = self.sheng_folder_name
         if not os.path.exists (folder):
             os.makedirs (folder)
         self.create_control_file()
@@ -207,7 +205,7 @@ class Shengbte_phonons (Phonons):
             cmd = 'ShengBTE'
         else:
             cmd = 'mpirun -np ' + str(n_processors) + ' ShengBTE'
-        return run_script (cmd, self.folder_name)
+        return run_script (cmd, self.sheng_folder_name)
     
     
     def create_control_file_string(self):
@@ -270,7 +268,7 @@ class Shengbte_phonons (Phonons):
         return string
     
     def create_control_file(self):
-        folder = self.folder_name
+        folder = self.sheng_folder_name
         filename = folder + '/CONTROL'
         string = self.create_control_file_string ()
         
@@ -320,7 +318,7 @@ class Shengbte_phonons (Phonons):
 
         
     def read_qpoints_mapper(self):
-        q_points = pd.read_csv (self.folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)
+        q_points = pd.read_csv (self.sheng_folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)
         self._qpoints_mapper = q_points.values
     
     def irreducible_indices(self):
@@ -337,7 +335,7 @@ class Shengbte_phonons (Phonons):
     
     def read_energy_data(self):
         # We read in rad/ps
-        omega = pd.read_csv (self.folder_name + '/BTE.omega', header=None, delim_whitespace=True)
+        omega = pd.read_csv (self.sheng_folder_name + '/BTE.omega', header=None, delim_whitespace=True)
         n_qpoints = self.qpoints_mapper.shape[0]
         n_branches = omega.shape[1]
         energy_data = np.zeros ((n_qpoints, n_branches))
@@ -353,8 +351,8 @@ class Shengbte_phonons (Phonons):
         else:
             file = 'BTE.WP3'
         temperature = str (int (self.temperature))
-        decay = pd.read_csv (self.folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
-        # decay = pd.read_csv (self.folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        decay = pd.read_csv (self.sheng_folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
+        # decay = pd.read_csv (self.sheng_folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
         n_qpoints_reduced = int (decay.shape[0] / n_branches)
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -373,8 +371,8 @@ class Shengbte_phonons (Phonons):
         else:
             file = 'BTE.w_anharmonic'
         temperature = str(int(self.temperature))
-        decay = pd.read_csv (self.folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
-        # decay = pd.read_csv (self.folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        decay = pd.read_csv (self.sheng_folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
+        # decay = pd.read_csv (self.sheng_folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
         n_qpoints_reduced = int (decay.shape[0] / n_branches)
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -386,7 +384,7 @@ class Shengbte_phonons (Phonons):
         return decay_data
     
     def read_velocity_data(self):
-        shenbte_folder = self.folder_name
+        shenbte_folder = self.sheng_folder_name
         velocities = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
         n_velocities = velocities.shape[0]
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -406,8 +404,8 @@ class Shengbte_phonons (Phonons):
         
    
         
-    def read_conductivity(self, converged=True, is_classical=False):
-        folder = self.folder_name
+    def read_conductivity(self, converged=True):
+        folder = self.sheng_folder_name
         if converged:
             conduct_file = '/BTE.KappaTensorVsT_CONV'
         else:

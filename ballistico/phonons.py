@@ -20,19 +20,21 @@ OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
 C_V_FILE = 'c_v.npy'
 
+FOLDER_NAME = 'ballistico'
+
 
 class Phonons (object):
-	def __init__(self, atoms, folder_name, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None):
+	def __init__(self, atoms, folder_name=FOLDER_NAME, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None):
 		self.atoms = atoms
 		self.supercell = np.array (supercell)
 		self.kpts = np.array (kpts)
 		self.is_classic = is_classic
-		
 		self.n_k_points = np.prod (self.kpts)
 		self.n_modes = self.atoms.get_masses ().shape[0] * 3
 		self.n_phonons = self.n_k_points * self.n_modes
 		self.temperature = temperature
 		self.is_persistency_enabled = is_persistency_enabled
+		
 		self._replicated_atoms = None
 		self._list_of_index = None
 		self._frequencies = None

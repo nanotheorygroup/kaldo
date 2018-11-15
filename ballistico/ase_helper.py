@@ -12,10 +12,9 @@ SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE = 'third.npy'
 
 # TODO: this should be an imput somehow
-# LAMMPS_CMD = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
-# CALCULATOR = LAMMPSlib (lmpcmds=LAMMPS_CMD, log_file='log_lammps.out')
-CALCULATOR = TIP3P(rc=7.)
-
+LAMMPS_CMD = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
+CALCULATOR = LAMMPSlib (lmpcmds=LAMMPS_CMD, log_file='log_lammps.out')
+# CALCULATOR = TIP3P(rc=7.)
 
 def max_force(x, atoms):
     grad = gradient (x, atoms)
@@ -69,6 +68,7 @@ def calculate_second(atoms, replicas):
                 shift = np.zeros ((n_atoms, 3))
                 shift[i, alpha] += move * dx
                 second[i * 3 + alpha, :] += move * gradient (atoms.positions + shift, atoms)
+                
     n_replicas = list_of_replicas.shape[0]
     second = second.reshape ((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))
     second = second / (2. * dx)

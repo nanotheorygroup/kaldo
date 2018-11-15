@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#  thirdorder, help compute anharmonic IFCs from minimal sets of displacements
+#  thirdorder, help is_computed anharmonic IFCs from minimal sets of displacements
 #  Copyright (C) 2012-2018 Wu Li <wu.li.phys2011@gmail.com>
 #  Copyright (C) 2012-2018 Jesús Carrete Montaña <jcarrete@gmail.com>
 #  Copyright (C) 2012-2018 Natalio Mingo Bisquert <natalio.mingo@cea.fr>
