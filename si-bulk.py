@@ -3,7 +3,7 @@ import ase
 import ase.io
 import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
-import ballistico.ase_helper as ase_helper
+from ballistico.ase_helper import Displacement
 import ballistico.io_helper as io_helper
 import ballistico.constants as constants
 from ase.phonons import Phonons
@@ -35,36 +35,39 @@ if __name__ == "__main__":
     is_classic = False
 
     # import the calculated second order
-    second_order = io_helper.import_second_dlpoly (atoms, supercell)
+    # second_order = io_helper.import_second_dlpoly (atoms, supercell)
     # second_order = ase_helper.calculate_second(atoms, supercell)
 
     # import the calculated third order
-    third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
+    # third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
     # third_order = ase_helper.calculate_third(atoms, supercell)
+
+    disp = Displacement(atoms, supercell)
+    
 
     phonons = Ballistico_phonons (atoms=atoms,
                                   supercell=supercell,
                                   kpts=kpts,
                                   is_classic=is_classic,
                                   temperature=temperature,
-                                  second_order=second_order,
-                                  third_order=third_order,
+                                  second_order=disp.calculate_second(),
+                                  third_order=disp.calculate_third(),
                                   # sigma_in=.1,
                                   is_persistency_enabled=False)
 
 
     PlotViewController (phonons, folder='plot/ballistico/').plot_everything()
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
-    shen_phonons = Shengbte_phonons (atoms=atoms,
-                                  supercell=supercell,
-                                  kpts=kpts,
-                                  is_classic=is_classic,
-                                  temperature=temperature,
-                                  second_order=second_order,
-                                  third_order=third_order,
-                                  # sigma_in=.1,
-                                  is_persistency_enabled=False)
-    print (shen_phonons.run ())
-    PlotViewController(shen_phonons, folder='plot/sheng/').plot_everything()
-    ConductivityController (shen_phonons).calculate_conductivity (is_classical=is_classic)
-    print (shen_phonons.read_conductivity(converged=False))
+    # shen_phonons = Shengbte_phonons (atoms=atoms,
+    #                               supercell=supercell,
+    #                               kpts=kpts,
+    #                               is_classic=is_classic,
+    #                               temperature=temperature,
+    #                               second_order=second_order,
+    #                               third_order=third_order,
+    #                               # sigma_in=.1,
+    #                               is_persistency_enabled=False)
+    # print (shen_phonons.run ())
+    # PlotViewController(shen_phonons, folder='plot/sheng/').plot_everything()
+    # ConductivityController (shen_phonons).calculate_conductivity (is_classical=is_classic)
+    # print (shen_phonons.read_conductivity(converged=False))
