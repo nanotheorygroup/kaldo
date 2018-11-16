@@ -115,6 +115,10 @@ class Shengbte_phonons (Phonons):
         self.gamma = gamma
         return gamma
 
+    @gamma.setter
+    def gamma(self, new_gamma):
+        Phonons.gamma.fset (self, new_gamma)
+        
     def save_second_order_matrix(self):
         second_order = self.second_order
         shenbte_folder = self.sheng_folder_name + '/'

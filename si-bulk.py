@@ -31,7 +31,7 @@ if __name__ == "__main__":
     temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array ([3, 3, 3])
+    kpts = np.array ([5, 5, 5])
     is_classic = False
 
     # import the calculated second order
@@ -63,7 +63,7 @@ if __name__ == "__main__":
                                   second_order=second_order,
                                   third_order=third_order,
                                   # sigma_in=.1,
-                                  is_persistency_enabled=True)
+                                  is_persistency_enabled=False)
     print (shen_phonons.run ())
     PlotViewController(shen_phonons, folder='plot/sheng/').plot_everything()
     ConductivityController (shen_phonons).calculate_conductivity (is_classical=is_classic)

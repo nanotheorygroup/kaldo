@@ -139,7 +139,7 @@ class Ballistico_phonons (Phonons):
     def gamma(self):
         if super (self.__class__, self).gamma is not None:
             return super (self.__class__, self).gamma
-        gamma = ballistico.calculator.calculate_gamma(
+        gamma, scattering_matrix = ballistico.calculator.calculate_gamma(
             self.atoms,
             self.frequencies,
             self.velocities,
@@ -151,7 +151,36 @@ class Ballistico_phonons (Phonons):
             self.sigma_in
         )
         self.gamma = gamma
+        self.scattering_matrix = scattering_matrix
         return gamma
-    
-    
+
+    @property
+    def scattering_matrix(self):
+        return super ().scattering_matrix
+
+    @scattering_matrix.setter
+    def scattering_matrix(self, new_scattering_matrix):
+        Phonons.scattering_matrix.fset (self, new_scattering_matrix)
+
+    @scattering_matrix.getter
+    def scattering_matrix(self):
+        if super (self.__class__, self).scattering_matrix is not None:
+            return super (self.__class__, self).scattering_matrix
+        gamma, scattering_matrix = ballistico.calculator.calculate_gamma (
+            self.atoms,
+            self.frequencies,
+            self.velocities,
+            self.occupations,
+            self.kpts,
+            self.eigenvectors,
+            self.list_of_index,
+            self.third_order,
+            self.sigma_in
+        )
+        self.scattering_matrix = scattering_matrix
+        self.gamma = gamma
+        return scattering_matrix
+
+
+
     

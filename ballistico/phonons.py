@@ -15,6 +15,7 @@ EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
+SCATTERING_MATRIX_FILE = 'scattering_matrix.npy'
 DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
@@ -44,6 +45,7 @@ class Phonons (object):
 		self._dos = None
 		self._occupations = None
 		self._gamma = None
+		self._scattering_matrix = None
 		self._n_k_points = None
 		self._n_modes = None
 		self._n_phonons = None
@@ -234,11 +236,11 @@ class Phonons (object):
 	
 	@gamma.getter
 	def gamma(self):
-		#TODO separate gamma classic and quantum
+		# TODO separate gamma classic and quantum
 		if self._gamma is None and self.is_persistency_enabled:
 			try:
 				folder = self.folder_name
-				folder += '/' + str(self.temperature) + '/'
+				folder += '/' + str (self.temperature) + '/'
 				if self.is_classic:
 					folder += 'classic/'
 				else:
@@ -252,7 +254,44 @@ class Phonons (object):
 	
 	@gamma.setter
 	def gamma(self, new_gamma):
-		#TODO separate gamma classic and quantum
+		# TODO separate gamma classic and quantum
+		if self.is_persistency_enabled:
+			folder = self.folder_name
+			folder += '/' + str (self.temperature) + '/'
+			if self.is_classic:
+				folder += 'classic/'
+			else:
+				folder += 'quantum/'
+			if self.sigma_in is not None:
+				folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
+			np.save (folder + GAMMA_FILE, new_gamma)
+		self._gamma = new_gamma
+	
+	@property
+	def scattering_matrix(self):
+		return self._scattering_matrix
+	
+	@scattering_matrix.getter
+	def scattering_matrix(self):
+		#TODO separate scattering_matrix classic and quantum
+		if self._scattering_matrix is None and self.is_persistency_enabled:
+			try:
+				folder = self.folder_name
+				folder += '/' + str(self.temperature) + '/'
+				if self.is_classic:
+					folder += 'classic/'
+				else:
+					folder += 'quantum/'
+				if self.sigma_in is not None:
+					folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
+				self._scattering_matrix = np.load (folder + SCATTERING_MATRIX_FILE)
+			except FileNotFoundError as e:
+				print (e)
+		return self._scattering_matrix
+	
+	@scattering_matrix.setter
+	def scattering_matrix(self, new_scattering_matrix):
+		#TODO separate scattering_matrix classic and quantum
 		if self.is_persistency_enabled:
 			folder = self.folder_name
 			folder += '/' + str(self.temperature) + '/'
@@ -262,8 +301,8 @@ class Phonons (object):
 				folder += 'quantum/'
 			if self.sigma_in is not None:
 				folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
-			np.save (folder + GAMMA_FILE, new_gamma)
-		self._gamma = new_gamma
+			np.save (folder + SCATTERING_MATRIX_FILE, new_scattering_matrix)
+		self._scattering_matrix = new_scattering_matrix
 	
 	@property
 	def dos(self):

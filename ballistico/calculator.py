@@ -124,7 +124,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	ps = np.zeros ((2, np.prod (k_size), n_modes))
 	
 	# TODO: remove acoustic sum rule
-	# frequencies[0, :3] = 0
+	frequencies[0, :3] = 0
 	
 	n_replicas = list_of_replicas.shape[0]
 	rlattvec = cell_inv * 2 * np.pi
@@ -184,7 +184,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 				# TODO: add a threshold instead of 0
 				if frequencies[index_k, mu] != 0:
 					first = eigenvectors[index_k, :, mu]
-					# TODO: replace this with a dot
 					projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
 					if is_plus:
 						freq_diff_np = np.abs (
@@ -212,7 +211,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 								            frequencies[index_kpp_vec, np.newaxis, :] != 0)
 					interactions = np.array (np.where (condition)).T
 					if interactions.size != 0:
-						Logger ().info ('interactions: ' + str (interactions.size))
+						# Logger ().info ('interactions: ' + str (interactions.size))
 						index_kp_vec = interactions[:, 0]
 						index_kpp_vec = index_kpp_vec[index_kp_vec]
 						mup_vec = interactions[:, 1]
@@ -245,8 +244,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 					
 					gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
 					ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
-					Logger ().info ('q-point   = ' + str (index_k))
-					Logger ().info ('mu-branch = ' + str (mu))
+					# Logger ().info ('q-point   = ' + str (index_k))
+					# Logger ().info ('mu-branch = ' + str (mu))
 	
 	for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
 		ps[:, index_k, :] = ps[:, associated_index, :]
@@ -255,4 +254,4 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	gamma = gamma * prefactor / nptk
 	ps = ps / nptk / (2 * np.pi) ** 3
 	gamma = np.sum (gamma, axis=0)
-	return gamma
+	return gamma, ps
