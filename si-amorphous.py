@@ -31,3 +31,4 @@ if __name__ == "__main__":
 
 
     PlotViewController(phonons).plot_everything(with_dispersion=False)
+    print('done')

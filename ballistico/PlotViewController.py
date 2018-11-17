@@ -56,8 +56,8 @@ class PlotViewController (object):
 		frequencies = self.phonons.frequencies.flatten ()
 		observable = observable.flatten ()
 		fig = plt.figure ()
-		plt.scatter (frequencies[frequencies != 0],
-		             observable[frequencies != 0])
+		plt.scatter (frequencies[3:],
+		             observable[3:])
 		plt.ylabel (observable_name, fontsize=16, fontweight='bold')
 		plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
 		fig.savefig (self.folder + observable_name + '.pdf')
