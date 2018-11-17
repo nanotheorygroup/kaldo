@@ -145,6 +145,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
+    gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
     freq_product_np = (frequencies[:, :, np.newaxis, np.newaxis] * \
@@ -243,25 +244,31 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         
                         ps[is_plus, index_k, mu] += np.sum (dirac_delta)
 
-
-                        projected_potential = np.einsum ('litj,al,at,aj,ai->a', first_projected_potential,
+						# TODO: find a better name
+                        temp = np.einsum ('litj,al,at,aj,ai->a', first_projected_potential,
                                                          second_chi[index_kp_vec],
                                                          chi.conj()[index_kpp_vec],
                                                          third_eigenv_tf[nupp_vec],
                                                          second_eigenv_tf[nup_vec], optimize='greedy')
                         
-                        gamma[is_plus, index_k, mu] += np.sum (np.abs (projected_potential) ** 2 * dirac_delta)
+                        
+                        for i in range(nup_vec.shape[0]):
+	                        nu_p = nup_vec[i]
+	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
+                        gamma[is_plus, index_k, mu] = np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
                     
-                    gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                    ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
+                        gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
+                        ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
                     # Logger ().info ('q-point   = ' + str (index_k))
                     # Logger ().info ('mu-branch = ' + str (mu))
     
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
         gamma[:, index_k, :] = gamma[:, associated_index, :]
+        gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
     
     gamma = gamma * prefactor / nptk
+    gamma_tensor = gamma_tensor * prefactor / nptk
     ps = ps / nptk / (2 * np.pi) ** 3
     gamma = np.sum (gamma, axis=0)
-    return gamma, ps
+    return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
