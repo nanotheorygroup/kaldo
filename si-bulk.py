@@ -24,10 +24,6 @@ if __name__ == "__main__":
     # and replicate it
     supercell = np.array ([3, 3, 3])
     n_replicas = np.prod(supercell)
-    replicated_geometry, _ = atoms_helper.replicate_atoms(atoms, supercell)
-    
-    # then we store it
-    ase.io.write ('CONFIG', replicated_geometry, format='dlp4')
 
     # we create our system
     temperature = 300
@@ -50,15 +46,15 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=LAMMPSlib,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=False)
+                                         is_persistency_enabled=True)
     
 
     phonons = BallisticoPhonons (finite_difference=finite_difference,
                                  kpts=kpts,
                                  is_classic=is_classic,
                                  temperature=temperature,
-                                 # sigma_in=.1,
-                                 is_persistency_enabled=False)
+                                 sigma_in=None,
+                                 is_persistency_enabled=True)
 
 
     Plotter (phonons, folder='plot/ballistico/').plot_everything()

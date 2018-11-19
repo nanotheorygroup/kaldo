@@ -32,7 +32,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta, num):
     return omega_e, dos_e
 
 def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms):
-    list_of_replicas = list_of_replicas
+
     geometry = atoms.positions
     cell_inv = np.linalg.inv (atoms.cell)
     kpoint = 2 * np.pi * (cell_inv).dot (qvec)
