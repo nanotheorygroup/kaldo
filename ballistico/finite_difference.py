@@ -5,14 +5,16 @@ from ballistico.atoms_helper import replicate_atoms
 from scipy.optimize import minimize
 import ase.io as io
 import os
-import ballistico.atoms_helper as atom_helper
+import ballistico.atoms_helper as atoms_helper
 import numpy as np
 import ase.io
 import os
 import ballistico.constants as constants
 from ase import Atoms
 from ballistico.logger import Logger
-
+import thirdorder_core
+from thirdorder_common import *
+from thirdorder_espresso import gen_supercell, calc_frange, calc_dists
 
 SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE = 'third.npy'
@@ -28,16 +30,6 @@ class FiniteDifference (object):
 
         self._replicated_atoms = None
         self._list_of_index = None
-        list_of_types = []
-        for symbol in atoms.get_chemical_symbols ():
-            for i in range (np.unique (atoms.get_chemical_symbols ()).shape[0]):
-                if np.unique (atoms.get_chemical_symbols ())[i] == symbol:
-                    list_of_types.append(str (i + 1))
-
-        self.poscar = {'lattvec': atoms.cell/10,
-                       'positions': atoms.positions.T,
-                       'elements': atoms.get_chemical_symbols(),
-                       'types': list_of_types}
         self.calculator = calculator
         self.calculator_inputs = calculator_inputs
         self._second_order = None
@@ -51,6 +43,41 @@ class FiniteDifference (object):
             self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
+        poscar = atoms_helper.convert_to_poscar(self.atoms)
+        sposcar = atoms_helper.convert_to_poscar(self.replicated_atoms, self.supercell)
+        
+        
+        SYMPREC = 1e-5  # Tolerance for symmetry search
+        NNEIGH = 4
+        FRANGE = None
+
+        na, nb, nc = self.supercell
+        natoms = len (poscar["types"])
+        print ("Analyzing symmetries")
+        symops = thirdorder_core.SymmetryOperations (
+            poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
+        print ("- Symmetry group {0} detected".format (symops.symbol))
+        print ("- {0} symmetry operations".format (symops.translations.shape[0]))
+        print ("Creating the supercell")
+        sposcar = gen_supercell (poscar, na, nb, nc)
+        ntot = natoms * na * nb * nc
+        print ("Computing all distances in the supercell")
+        dmin, nequi, shifts = calc_dists (sposcar)
+        if NNEIGH != None:
+            frange = calc_frange (poscar, sposcar, NNEIGH, dmin)
+            print ("- Automatic cutoff: {0} nm".format (frange))
+        else:
+            frange = FRANGE
+            print ("- User-defined cutoff: {0} nm".format (frange))
+        print ("Looking for an irreducible set of third-order IFCs")
+        wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
+                                       frange)
+        print ("- {0} triplet equivalence classes found".format (wedge.nlist))
+        list4 = wedge.build_list4 ()
+
+
+        print('object created')
+        
                 
     @property
     def second_order(self):
@@ -161,7 +188,7 @@ class FiniteDifference (object):
                 except FileNotFoundError as e:
                     print (e)
             if self._list_of_index is None:
-                self.list_of_index = atom_helper.create_list_of_index (
+                self.list_of_index = atoms_helper.create_list_of_index (
                     self.atoms,
                     self.supercell)
                 self.list_of_index = self.list_of_index.dot (self.atoms.cell)
@@ -260,3 +287,27 @@ class FiniteDifference (object):
         third /= (4. * dx * dx)
         np.save(THIRD_ORDER_FILE, third)
         return third
+
+    def check(self):
+        
+        poscar = atoms_helper.convert_to_poscar(self.atoms)
+        sposcar = atoms_helper.convert_to_poscar(self.replicated_atoms, self.supercell)
+        natoms = len (poscar["types"])
+        print ("Analyzing symmetries")
+        symops = thirdorder_core.SymmetryOperations (
+            poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
+        print ("- Symmetry group {0} detected".format (symops.symbol))
+        print ("- {0} symmetry operations".format (symops.translations.shape[0]))
+        print ("Creating the supercell")
+        sposcar = gen_supercell (poscar, na, nb, nc)
+        ntot = natoms * na * nb * nc
+        print ("Computing all distances in the supercell")
+        dmin, nequi, shifts = calc_dists (sposcar)
+        if nneigh != None:
+            frange = calc_frange (poscar, sposcar, nneigh, dmin)
+            print ("- Automatic cutoff: {0} nm".format (frange))
+        else:
+            print ("- User-defined cutoff: {0} nm".format (frange))
+        print ("Looking for an irreducible set of third-order IFCs")
+        wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
+                                       frange)

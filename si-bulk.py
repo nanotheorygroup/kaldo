@@ -49,7 +49,8 @@ if __name__ == "__main__":
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
                                          calculator=LAMMPSlib,
-                                         calculator_inputs=calculator_inputs)
+                                         calculator_inputs=calculator_inputs,
+                                         is_persistency_enabled=False)
     
 
     phonons = BallisticoPhonons (finite_difference=finite_difference,
