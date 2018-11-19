@@ -11,7 +11,7 @@ import os
 BUFFER_PLOT = .2
 
 
-class PlotViewController (object):
+class Plotter (object):
 	def __init__(self, phonons, folder='plots', is_showing=True, is_persistent=True):
 		self.phonons = phonons
 		self.system = phonons.atoms

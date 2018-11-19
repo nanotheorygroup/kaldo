@@ -1,5 +1,4 @@
 import numpy as np
-import ballistico.atoms_helper as atom_helper
 import ase.io
 import os
 import ballistico.constants as constants
@@ -7,9 +6,6 @@ from ase import Atoms
 from ballistico.logger import Logger
 
 
-
-REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
-LIST_OF_INDEX_FILE = 'list_of_index.npy'
 FREQUENCIES_FILE = 'frequencies.npy'
 EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
@@ -24,10 +20,11 @@ C_V_FILE = 'c_v.npy'
 FOLDER_NAME = 'ballistico'
 
 
-class Phonons (object):
-	def __init__(self, atoms, folder_name=FOLDER_NAME, supercell = (1, 1, 1), kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None):
-		self.atoms = atoms
-		self.supercell = np.array (supercell)
+class PhononsController (object):
+	def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None):
+		self.finite_difference = finite_difference
+		self.atoms = finite_difference.atoms
+		self.supercell = np.array (finite_difference.supercell)
 		self.kpts = np.array (kpts)
 		self.is_classic = is_classic
 		self.n_k_points = np.prod (self.kpts)
@@ -36,8 +33,6 @@ class Phonons (object):
 		self.temperature = temperature
 		self.is_persistency_enabled = is_persistency_enabled
 		
-		self._replicated_atoms = None
-		self._list_of_index = None
 		self._frequencies = None
 		self._velocities = None
 		self._eigenvalues = None
@@ -65,77 +60,6 @@ class Phonons (object):
 			for folder in folders:
 				if not os.path.exists (folder):
 					os.makedirs (folder)
-	
-	@property
-	def replicated_atoms(self):
-		return self._replicated_atoms
-	
-	@replicated_atoms.getter
-	def replicated_atoms(self):
-		if self._replicated_atoms is None :
-			if self.is_persistency_enabled:
-				try:
-					folder = self.folder_name
-					folder += '/'
-					self._replicated_atoms = ase.io.read (folder + REPLICATED_ATOMS_FILE, format='extxyz')
-				except FileNotFoundError as e:
-					print (e)
-			if self._replicated_atoms is None:
-				atoms = self.atoms
-				supercell = self.supercell
-				list_of_index = self.list_of_index
-				replicated_symbols = []
-				n_replicas = list_of_index.shape[0]
-				n_unit_atoms = len (atoms.numbers)
-				replicated_geometry = np.zeros ((n_replicas, n_unit_atoms, 3))
-				
-				for i in range (n_replicas):
-					vector = list_of_index[i]
-					replicated_symbols.extend (atoms.get_chemical_symbols ())
-					replicated_geometry[i, :, :] = atoms.positions + vector
-				replicated_geometry = replicated_geometry.reshape ((n_replicas * n_unit_atoms, 3))
-				replicated_cell = atoms.cell * supercell
-				replicated_atoms = Atoms (positions=replicated_geometry,
-				                          symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
-				self.replicated_atoms = replicated_atoms
-		return self._replicated_atoms
-	
-	@replicated_atoms.setter
-	def replicated_atoms(self, new_replicated_atoms):
-		if self.is_persistency_enabled:
-			folder = self.folder_name
-			folder += '/'
-			ase.io.write (folder + REPLICATED_ATOMS_FILE, new_replicated_atoms, format='extxyz')
-		self._replicated_atoms = new_replicated_atoms
-	
-	@property
-	def list_of_index(self):
-		return self._list_of_index
-	
-	@list_of_index.getter
-	def list_of_index(self):
-		if self._list_of_index is None:
-			if self.is_persistency_enabled:
-				try:
-					folder = self.folder_name
-					folder += '/'
-					self._list_of_index= np.load (folder + LIST_OF_INDEX_FILE)
-				except FileNotFoundError as e:
-					print (e)
-			if self._list_of_index is None:
-				self.list_of_index = atom_helper.create_list_of_index (
-					self.atoms,
-					self.supercell)
-				self.list_of_index = self.list_of_index.dot(self.atoms.cell)
-		return self._list_of_index
-	
-	@list_of_index.setter
-	def list_of_index(self, new_list_of_index):
-		if self.is_persistency_enabled:
-			folder = self.folder_name
-			folder += '/'
-			np.save (folder + LIST_OF_INDEX_FILE, new_list_of_index)
-		self._list_of_index = new_list_of_index
 	
 	@property
 	def frequencies(self):

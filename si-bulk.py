@@ -3,15 +3,17 @@ import ase
 import ase.io
 import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
-from ballistico.ase_helper import Displacement
+from ballistico.finite_difference import FiniteDifference
+from ase.calculators.lammpslib import LAMMPSlib
+
 import ballistico.io_helper as io_helper
 import ballistico.constants as constants
 from ase.phonons import Phonons
-from ballistico.ballistico_phonons import Ballistico_phonons
+from ballistico.ballistico_phonons import BallisticoPhonons
 from ballistico.conductivity_controller import ConductivityController
 import matplotlib.pyplot as plt
-from ballistico.PlotViewController import PlotViewController
-from ballistico.shengbte_phonons import Shengbte_phonons
+from ballistico.plotter import Plotter
+from ballistico.shengbte_phonons_controller import ShengbtePhononsController
 from ballistico.interpolation_controller import interpolator
 np.set_printoptions(suppress=True)
 
@@ -42,21 +44,23 @@ if __name__ == "__main__":
     # third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
     # third_order = ase_helper.calculate_third(atoms, supercell)
 
-    disp = Displacement(atoms, supercell)
+    calculator_inputs = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
+
+    finite_difference = FiniteDifference(atoms=atoms,
+                                         supercell=supercell,
+                                         calculator=LAMMPSlib,
+                                         calculator_inputs=calculator_inputs)
     
 
-    phonons = Ballistico_phonons (atoms=atoms,
-                                  supercell=supercell,
-                                  kpts=kpts,
-                                  is_classic=is_classic,
-                                  temperature=temperature,
-                                  second_order=disp.calculate_second(),
-                                  third_order=disp.calculate_third(),
-                                  # sigma_in=.1,
-                                  is_persistency_enabled=False)
+    phonons = BallisticoPhonons (finite_difference=finite_difference,
+                                 kpts=kpts,
+                                 is_classic=is_classic,
+                                 temperature=temperature,
+                                 # sigma_in=.1,
+                                 is_persistency_enabled=False)
 
 
-    PlotViewController (phonons, folder='plot/ballistico/').plot_everything()
+    Plotter (phonons, folder='plot/ballistico/').plot_everything()
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)
     # shen_phonons = Shengbte_phonons (atoms=atoms,
     #                               supercell=supercell,

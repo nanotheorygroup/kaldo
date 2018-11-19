@@ -1,11 +1,12 @@
 import ballistico.calculator
-from ballistico.phonons import Phonons
+from ballistico.finite_difference import FiniteDifference
+from ballistico.phonons_controller import PhononsController
 
-class Ballistico_phonons (Phonons):
-    def __init__(self,  atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, sigma_in=None, is_persistency_enabled=True):
-        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in)
-        self.second_order = second_order
-        self.third_order = third_order
+class BallisticoPhonons (PhononsController):
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True):
+        super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in)
+        self.second_order = finite_difference.second_order
+        self.third_order = finite_difference.third_order
 
     @property
     def frequencies(self):
@@ -19,8 +20,8 @@ class Ballistico_phonons (Phonons):
             self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_index,
-            self.replicated_atoms)
+            self.finite_difference.list_of_index,
+            self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -29,7 +30,7 @@ class Ballistico_phonons (Phonons):
 
     @frequencies.setter
     def frequencies(self, new_frequencies):
-        Phonons.frequencies.fset(self, new_frequencies)
+        PhononsController.frequencies.fset(self, new_frequencies)
         
     @property
     def velocities(self):
@@ -43,8 +44,8 @@ class Ballistico_phonons (Phonons):
             self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_index,
-            self.replicated_atoms)
+            self.finite_difference.list_of_index,
+            self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -53,7 +54,7 @@ class Ballistico_phonons (Phonons):
 
     @velocities.setter
     def velocities(self, new_velocities):
-        Phonons.velocities.fset(self, new_velocities)
+        PhononsController.velocities.fset(self, new_velocities)
 
     @property
     def eigenvalues(self):
@@ -67,8 +68,8 @@ class Ballistico_phonons (Phonons):
             self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_index,
-            self.replicated_atoms)
+            self.finite_difference.list_of_index,
+            self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -77,7 +78,7 @@ class Ballistico_phonons (Phonons):
 
     @eigenvalues.setter
     def eigenvalues(self, new_eigenvalues):
-        Phonons.eigenvalues.fset(self, new_eigenvalues)
+        PhononsController.eigenvalues.fset(self, new_eigenvalues)
 
     @property
     def eigenvectors(self):
@@ -85,7 +86,7 @@ class Ballistico_phonons (Phonons):
     
     @eigenvectors.setter
     def eigenvectors(self, new_eigenvectors):
-        Phonons.eigenvectors.fset(self, new_eigenvectors)
+        PhononsController.eigenvectors.fset(self, new_eigenvectors)
         
     @eigenvectors.getter
     def eigenvectors(self):
@@ -95,8 +96,8 @@ class Ballistico_phonons (Phonons):
             self.k_points,
             self.atoms,
             self.second_order,
-            self.list_of_index,
-            self.replicated_atoms)
+            self.finite_difference.list_of_index,
+            self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -109,7 +110,7 @@ class Ballistico_phonons (Phonons):
     
     @dos.setter
     def dos(self, new_dos):
-        Phonons.dos.fset(self, new_dos)
+        PhononsController.dos.fset(self, new_dos)
 
     @dos.getter
     def dos(self):
@@ -133,7 +134,7 @@ class Ballistico_phonons (Phonons):
 
     @gamma.setter
     def gamma(self, new_gamma):
-        Phonons.gamma.fset(self, new_gamma)
+        PhononsController.gamma.fset(self, new_gamma)
         
     @gamma.getter
     def gamma(self):
@@ -146,7 +147,7 @@ class Ballistico_phonons (Phonons):
             self.occupations,
             self.kpts,
             self.eigenvectors,
-            self.list_of_index,
+            self.finite_difference.list_of_index,
             self.third_order,
             self.sigma_in
         )
@@ -160,7 +161,7 @@ class Ballistico_phonons (Phonons):
 
     @scattering_matrix.setter
     def scattering_matrix(self, new_scattering_matrix):
-        Phonons.scattering_matrix.fset (self, new_scattering_matrix)
+        PhononsController.scattering_matrix.fset (self, new_scattering_matrix)
 
     @scattering_matrix.getter
     def scattering_matrix(self):
@@ -173,7 +174,7 @@ class Ballistico_phonons (Phonons):
             self.occupations,
             self.kpts,
             self.eigenvectors,
-            self.list_of_index,
+            self.finite_difference.list_of_index,
             self.third_order,
             self.sigma_in
         )

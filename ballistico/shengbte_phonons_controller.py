@@ -1,5 +1,5 @@
 from ballistico.logger import Logger
-from ballistico.phonons import Phonons
+from ballistico.phonons_controller import PhononsController
 import ballistico.geometry_helper as ghl
 from ballistico.constants import *
 from ballistico.tools import *
@@ -9,11 +9,11 @@ import ballistico.atoms_helper as ath
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
 
-class Shengbte_phonons (Phonons):
-    def __init__(self, atoms, supercell=(1, 1, 1), kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
+class ShengbtePhononsController (PhononsController):
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
         super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
-        self.second_order = second_order
-        self.third_order = third_order
+        self.second_order = finite_difference.second_order
+        self.third_order = finite_difference.third_order
         self._qpoints_mapper = None
         self._energies = None
         self.sheng_folder_name = SHENG_FOLDER_NAME
@@ -85,7 +85,7 @@ class Shengbte_phonons (Phonons):
 
     @frequencies.setter
     def frequencies(self, new_frequencies):
-        Phonons.frequencies.fset (self, new_frequencies)
+        PhononsController.frequencies.fset (self, new_frequencies)
 
     @property
     def velocities(self):
@@ -101,7 +101,7 @@ class Shengbte_phonons (Phonons):
 
     @velocities.setter
     def velocities(self, new_velocities):
-        Phonons.velocities.fset (self, new_velocities)
+        PhononsController.velocities.fset (self, new_velocities)
 
     @property
     def gamma(self):
@@ -117,7 +117,7 @@ class Shengbte_phonons (Phonons):
 
     @gamma.setter
     def gamma(self, new_gamma):
-        Phonons.gamma.fset (self, new_gamma)
+        PhononsController.gamma.fset (self, new_gamma)
         
     def save_second_order_matrix(self):
         second_order = self.second_order
@@ -127,9 +127,9 @@ class Shengbte_phonons (Phonons):
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'a+')
         cell_inv = np.linalg.inv(self.atoms.cell)
-        list_of_indices = np.zeros_like(self.list_of_index, dtype=np.int)
-        for replica_id in range(self.list_of_index.shape[0]):
-            list_of_indices[replica_id] = cell_inv.dot(self.list_of_index[replica_id])
+        list_of_indices = np.zeros_like(self.finite_difference.list_of_index, dtype=np.int)
+        for replica_id in range(self.finite_difference.list_of_index.shape[0]):
+            list_of_indices[replica_id] = cell_inv.dot(self.finite_differencelist_of_index[replica_id])
         file.write (self.header ())
         for alpha in range (3):
             for beta in range (3):
@@ -168,12 +168,12 @@ class Shengbte_phonons (Phonons):
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
-                                replica = self.list_of_index
+                                replica = self.finite_difference.list_of_index
                                 file.write ('\n  ' + str (block_counter))
-                                rep_position = ath.apply_boundary (self.replicated_atoms,replica[n_1])
+                                rep_position = ath.apply_boundary (self.finite_difference.replicated_atoms,replica[n_1])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                     rep_position[2]))
-                                rep_position = ath.apply_boundary (self.replicated_atoms,replica[n_2])
+                                rep_position = ath.apply_boundary (self.finite_difference.replicated_atoms,replica[n_2])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                     rep_position[2]))
                                 file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -298,8 +298,8 @@ class Shengbte_phonons (Phonons):
         header_str += matrix_to_string (self.atoms.cell)
     
         for i in range (ntype):
-            mass = np.unique (self.replicated_atoms.get_masses ())[i] / mass_factor
-            label = np.unique (self.replicated_atoms.get_chemical_symbols ())[i]
+            mass = np.unique (self.finite_difference.replicated_atoms.get_masses ())[i] / mass_factor
+            label = np.unique (self.finite_difference.replicated_atoms.get_chemical_symbols ())[i]
             header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
     
         # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species

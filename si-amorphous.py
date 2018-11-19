@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 import ballistico.constants as constants
 import ballistico.io_helper as io_helper
-from ballistico.ballistico_phonons import Ballistico_phonons
-from ballistico.PlotViewController import PlotViewController
+from ballistico.ballistico_phonons import BallisticoPhonons
+from ballistico.plotter import Plotter
 
 
 if __name__ == "__main__":
@@ -20,15 +20,15 @@ if __name__ == "__main__":
     logging.info('sigma meV ', width)
     width = width * constants.mevoverthz
     
-    phonons = Ballistico_phonons (atoms=atoms,
-                                  is_classic=is_classic,
-                                  temperature=temperature,
-                                  second_order=second_order,
-                                  third_order=third_order,
-                                  sigma_in=width,
-                                  is_persistency_enabled=True)
+    phonons = BallisticoPhonons (atoms=atoms,
+                                 is_classic=is_classic,
+                                 temperature=temperature,
+                                 second_order=second_order,
+                                 third_order=third_order,
+                                 sigma_in=width,
+                                 is_persistency_enabled=True)
     
 
 
-    PlotViewController(phonons).plot_everything(with_dispersion=False)
+    Plotter(phonons).plot_everything(with_dispersion=False)
     print('done')
