@@ -9,7 +9,7 @@ def convert_to_poscar(atoms, supercell=None):
 				list_of_types.append (str (i))
 	
 	poscar = {'lattvec': atoms.cell / 10,
-	               'positions': atoms.positions.T,
+	               'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
 	               'elements': atoms.get_chemical_symbols (),
 	               'types': list_of_types}
 	if supercell is not None:
@@ -19,9 +19,11 @@ def convert_to_poscar(atoms, supercell=None):
 	return poscar
 
 def convert_to_atoms_and_super_cell(poscar):
+	cell = poscar['lattvec'] * 10
 	atoms = Atoms(symbols=poscar['elements'],
-	              positions=poscar['positions'].T,
-	              cell=poscar['lattvec'] * 10
+	              positions=poscar['positions'].T.dot(cell),
+	              cell=cell,
+	              pbc=(1,1,1)
 	              )
 	supercell = np.ones(3)
 	if poscar['na'] is not None:

@@ -46,7 +46,7 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=LAMMPSlib,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=False)
+                                         is_persistency_enabled=True)
     
 
     phonons = BallisticoPhonons (finite_difference=finite_difference,

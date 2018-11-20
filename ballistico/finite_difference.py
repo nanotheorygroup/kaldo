@@ -47,7 +47,6 @@ class FiniteDifference (object):
         NNEIGH = 4
         FRANGE = None
 
-        na, nb, nc = self.supercell
         natoms = len (poscar["types"])
         print ("Analyzing symmetries")
         symops = thirdorder_core.SymmetryOperations (
@@ -55,8 +54,8 @@ class FiniteDifference (object):
         print ("- Symmetry group {0} detected".format (symops.symbol))
         print ("- {0} symmetry operations".format (symops.translations.shape[0]))
         print ("Creating the supercell")
-        sposcar = gen_supercell (poscar, na, nb, nc)
-        # self.replicated_poscar = sposcar
+        na, nb, nc = self.supercell
+        sposcar = self.replicated_poscar
         ntot = natoms * na * nb * nc
         print ("Computing all distances in the supercell")
         dmin, nequi, shifts = calc_dists (sposcar)
@@ -95,15 +94,12 @@ class FiniteDifference (object):
 
     @replicated_poscar.getter
     def replicated_poscar(self):
-        self._replicated_poscar = atoms_helper.convert_to_poscar(self.replicated_atoms, self.supercell)
+        na, nb, nc = self.supercell
+        # self._replicated_poscar = gen_supercell (self.poscar, na, nb, nc)
+        self._replicated_poscar = self.gen_supercell ()
+
         return self._replicated_poscar
 
-    @replicated_poscar.setter
-    def replicated_poscar(self, new_replicated_poscar):
-        replicated_atoms, supercell = atoms_helper.convert_to_atoms_and_super_cell (new_replicated_poscar)
-        self._replicated_poscar = new_replicated_poscar
-        self.replicated_atoms = replicated_atoms
-        self.supercell = supercell
 
     @property
     def second_order(self):
@@ -174,41 +170,9 @@ class FiniteDifference (object):
                 except FileNotFoundError as e:
                     print (e)
             if self._replicated_atoms is None:
-                atoms = self.atoms
-                supercell = self.supercell
+                replicated_poscar = self.replicated_poscar
+                self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell (replicated_poscar)
 
-                replicas = self.supercell
-                # TODO: refactor removing atoms object
-                n_replicas = replicas[0] * replicas[1] * replicas[2]
-                replica_id = 0
-                replica_positions = np.zeros ((n_replicas, 3))
-
-                range_0 = np.arange (int (replicas[0]))
-                range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
-                range_1 = np.arange (int (replicas[1]))
-                range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
-                range_2 = np.arange (int (replicas[2]))
-                range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
-
-                for lx in range_0:
-                    for ly in range_1:
-                        for lz in range_2:
-                            index = np.array ([lx, ly, lz])
-                            replica_positions[replica_id] = index
-                            replica_id += 1
-                replica_positions = replica_positions.dot (self.atoms.cell)
-                replicated_symbols = []
-                n_replicas = replica_positions.shape[0]
-                n_unit_atoms = len (atoms.numbers)
-            
-                for i in range (n_replicas):
-                    replicated_symbols.extend (atoms.get_chemical_symbols ())
-                replicated_positions = atoms.positions[np.newaxis, :, :] + replica_positions[:, np.newaxis, np.newaxis]
-                replicated_positions = replicated_positions.reshape ((n_replicas * n_unit_atoms, 3))
-                replicated_cell = atoms.cell * supercell
-                replicated_atoms = Atoms (positions=replicated_positions,
-                                          symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
-                self.replicated_atoms = replicated_atoms
         return self._replicated_atoms
 
     @replicated_atoms.setter
@@ -234,6 +198,42 @@ class FiniteDifference (object):
         return self._list_of_index
 
 
+    def gen_supercell(self):
+        atoms = self.atoms
+        supercell = self.supercell
+        n_replicas = supercell[0] * supercell[1] * supercell[2]
+        replica_id = 0
+        replica_positions = np.zeros ((n_replicas, 3))
+    
+        range_0 = np.arange (int (supercell[0]))
+        range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
+        range_1 = np.arange (int (supercell[1]))
+        range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
+        range_2 = np.arange (int (supercell[2]))
+        range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
+    
+        for lx in range_0:
+            for ly in range_1:
+                for lz in range_2:
+                    index = np.array ([lx, ly, lz])
+                    replica_positions[replica_id] = index
+                    replica_id += 1
+        print('replica ID')
+        replica_positions = replica_positions.dot (self.atoms.cell)
+        replicated_symbols = []
+        n_replicas = replica_positions.shape[0]
+        n_unit_atoms = len (atoms.numbers)
+    
+        for i in range (n_replicas):
+            replicated_symbols.extend (atoms.get_chemical_symbols ())
+        replicated_positions = atoms.positions[np.newaxis, :, :] + replica_positions[:, np.newaxis, np.newaxis]
+        replicated_positions = replicated_positions.reshape ((n_replicas * n_unit_atoms, 3))
+        replicated_cell = atoms.cell * supercell
+        replicated_atoms = Atoms (positions=replicated_positions,
+                                  symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
+        
+        return atoms_helper.convert_to_poscar(replicated_atoms, supercell)
+
     def optimize(self, method):
         # Mimimization of the sructure
         print('Initial max force: ', self.max_force(self.atoms.positions, self.atoms))
@@ -256,8 +256,7 @@ class FiniteDifference (object):
         calc = self.calculator(lmpcmds=self.calculator_inputs, log_file='log_lammps.out')
         atoms.set_calculator (calc)
         gr = -1. * atoms.get_forces ()
-        grad = np.reshape (gr, gr.size)
-        return grad
+        return gr.flatten()
     
         
     def calculate_second(self):
@@ -311,26 +310,36 @@ class FiniteDifference (object):
 
         phipart = np.zeros((3, nirred, ntot))
         cell_inv = np.linalg.inv(self.replicated_atoms.cell)
-        for i, e in enumerate(list4):
-            shift = np.zeros ((ntot, 3))
-            jat, iat, jcoord, icoord = e
-            for n in range(4):
-                isign = (-1)**(n // 2)
-                jsign = -(-1)**(n % 2)
-                icoord_shift = np.zeros(3)
-                icoord_shift[icoord] += dx * isign
-                jcoord_shift = np.zeros(3)
-                jcoord_shift[jcoord] += dx * jsign
+        phifull = np.zeros((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3))
+       
+        # for i, e in enumerate(list4):
+        #     shift = np.zeros ((ntot, 3))
+        #     jat, iat, jcoord, icoord = e
+        for iat in range(n_in_unit_cell):
+            for icoord in range(3):
+                for jat in range(n_supercell * n_in_unit_cell):
+                    for jcoord in range(3):
+                        shift = np.zeros((ntot, 3))
+                        for n in range(4):
+                            isign = (-1)**(n // 2)
+                            jsign = -(-1)**(n % 2)
+                            icoord_shift = np.zeros(3)
+                            icoord_shift[icoord] += dx * isign
+                            jcoord_shift = np.zeros(3)
+                            jcoord_shift[jcoord] += dx * jsign
+            
+                            shift[iat, :] += cell_inv.dot(icoord_shift)
+                            shift[jat, :] += cell_inv.dot(jcoord_shift)
+                            phifull[iat, icoord, jat, jcoord] += isign * jsign * (
+                                        -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms).reshape(replicated_atoms.positions.shape))
 
-                shift[iat, :] += cell_inv.dot(icoord_shift)
-                shift[jat, :] += cell_inv.dot(jcoord_shift)
-                phipart[:, i, :] -= isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms)).reshape((ntot, 3)).T
-        phifull = np.array(thirdorder_core.reconstruct_ifcs (phipart, self.wedge, list4,
-                                          self.poscar, self.replicated_poscar))
-        phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
-        phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
-        phifull = phifull.swapaxes(5, 4)
-
+                            # phipart[:, i, :] += isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
+        # phifull = np.array(thirdorder_core.reconstruct_ifcs (phipart, self.wedge, list4,
+        #                                   self.poscar, self.replicated_poscar))
+        # phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
+        # phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
+        # phifull = phifull.swapaxes(5, 4)
+        #
         phifull = phifull.reshape ((n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         phifull = phifull[np.newaxis, :, :, :, :, :]/(4000 * dx * dx)
         return phifull
