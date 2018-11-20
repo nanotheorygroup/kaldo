@@ -12,14 +12,14 @@ BUFFER_PLOT = .2
 
 
 class Plotter (object):
-	def __init__(self, phonons, folder='plots', is_showing=True, is_persistent=True):
+	def __init__(self, phonons, folder='plots', is_showing=True, is_persistency_enabled=True):
 		self.phonons = phonons
 		self.system = phonons.atoms
 		self.folder = folder
-		self.is_persistent = is_persistent
+		self.is_persistency_enabled = is_persistency_enabled
 		self.is_showing = is_showing
 
-		if self.is_persistent:
+		if self.is_persistency_enabled:
 			if not os.path.exists (self.folder):
 				os.makedirs (self.folder)
 
@@ -48,9 +48,11 @@ class Plotter (object):
 		plt.plot (q, freqs_plot, "-")
 		plt.grid ()
 		plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
-		fig.savefig (self.folder + observable_name + '.pdf')
-		plt.show ()
-
+		if self.is_persistency_enabled:
+			fig.savefig (self.folder + observable_name + '.pdf')
+		if self.is_showing:
+			plt.show ()
+	
 	def plot_vs_frequency(self, observable, observable_name):
 		# TODO: We should check if the flattn is C-like and still compatible with Sheng 'F' like
 		frequencies = self.phonons.frequencies.flatten ()
@@ -60,8 +62,10 @@ class Plotter (object):
 		             observable[3:])
 		plt.ylabel (observable_name, fontsize=16, fontweight='bold')
 		plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-		fig.savefig (self.folder + observable_name + '.pdf')
-		plt.show ()
+		if self.is_persistency_enabled:
+			fig.savefig (self.folder + observable_name + '.pdf')
+		if self.is_showing:
+			plt.show ()
 
 	def plot_everything(self, with_dispersion=True):
 		phonons = self.phonons
