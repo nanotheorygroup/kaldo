@@ -129,7 +129,7 @@ class ShengbtePhononsController (PhononsController):
         cell_inv = np.linalg.inv(self.atoms.cell)
         list_of_indices = np.zeros_like(self.finite_difference.list_of_index, dtype=np.int)
         for replica_id in range(self.finite_difference.list_of_index.shape[0]):
-            list_of_indices[replica_id] = cell_inv.dot(self.finite_difference.list_of_index[replica_id])
+            list_of_indices[replica_id] = cell_inv.dot(self.finite_differencelist_of_index[replica_id])
         file.write (self.header ())
         for alpha in range (3):
             for beta in range (3):

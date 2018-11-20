@@ -24,6 +24,10 @@ if __name__ == "__main__":
     # and replicate it
     supercell = np.array ([3, 3, 3])
     n_replicas = np.prod(supercell)
+    replicated_geometry, _ = atoms_helper.replicate_atoms(atoms, supercell)
+    
+    # then we store it
+    ase.io.write ('CONFIG', replicated_geometry, format='dlp4')
 
     # we create our system
     temperature = 300
@@ -45,15 +49,14 @@ if __name__ == "__main__":
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
                                          calculator=LAMMPSlib,
-                                         calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=True)
+                                         calculator_inputs=calculator_inputs)
     
 
     phonons = BallisticoPhonons (finite_difference=finite_difference,
                                  kpts=kpts,
                                  is_classic=is_classic,
                                  temperature=temperature,
-                                 sigma_in=None,
+                                 # sigma_in=.1,
                                  is_persistency_enabled=False)
 
 

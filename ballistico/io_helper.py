@@ -32,26 +32,6 @@ def import_second_dlpoly(atoms, replicas=(1, 1, 1), dynamical_matrix_file='Dyn.f
            * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
 
-
-def replicate_atoms(atoms, replicas, list_of_replicas):
-    replicas = np.array (replicas)
-    replicated_symbols = []
-    n_replicas = list_of_replicas.shape[0]
-    n_unit_atoms = len (atoms.numbers)
-    replicated_geometry = np.zeros ((n_replicas, n_unit_atoms, 3))
-    
-    for i in range (n_replicas):
-        vector = list_of_replicas[i]
-        replicated_symbols.extend (atoms.get_chemical_symbols ())
-        replicated_geometry[i, :, :] = atoms.positions + vector
-    replicated_geometry = replicated_geometry.reshape ((n_replicas * n_unit_atoms, 3))
-    replicated_cell = atoms.cell * replicas
-    replicated_atoms = Atoms (positions=replicated_geometry - np.min (list_of_replicas, axis=0),
-                              symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
-    
-    return replicated_atoms, list_of_replicas
-
-
 def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='Dyn.form'):
     replicas = np.array(replicas)
     dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, delim_whitespace=True)
@@ -61,10 +41,10 @@ def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='Dy
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
 
-def import_third_order_dlpoly(atoms, replicas, list_of_replicas, file='THIRD'):
+def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), file='THIRD'):
     replicas = np.array(replicas)
-    replicated_atoms, list_of_replicas = replicate_atoms (
-        atoms, replicas, list_of_replicas)
+    replicated_atoms, list_of_replicas = ath.replicate_atoms (
+        atoms, replicas)
     n_particles = replicated_atoms.get_positions().shape[0]
     third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
     third_order = third_order_frame.values.T
