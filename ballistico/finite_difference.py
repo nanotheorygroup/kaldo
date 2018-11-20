@@ -69,6 +69,7 @@ class FiniteDifference (object):
         print ("Looking for an irreducible set of third-order IFCs")
         wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
                                        frange)
+        self.wedge = wedge
         print ("- {0} triplet equivalence classes found".format (wedge.nlist))
         self.list4 = wedge.build_list4 ()
         print('object created')
@@ -286,7 +287,6 @@ class FiniteDifference (object):
         second = second.reshape ((n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         second = second / (2. * dx)
         second *= evoverdlpoly
-        np.save(SECOND_ORDER_FILE, second)
         return second
     
     def calculate_third(self):
@@ -297,26 +297,42 @@ class FiniteDifference (object):
         # TODO: Here we should create it sparse
         Logger().info ('Calculating third order potential derivatives')
         n_in_unit_cell = len (atoms.numbers)
-        atoms = replicated_atoms
         n_atoms = len (atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        dx = 1e-6 * evoverdlpoly
+        # dx = 1e-5
+        dx = 1e-10  # Magnitude of the finite displacements, in nm.
+
         third = np.zeros ((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3))
-        for alpha in range (3):
-            for i in range (n_in_unit_cell):
-                for beta in range (3):
-                    for j in range (n_supercell * n_in_unit_cell):
-                        for move_1 in (-1, 1):
-                            for move_2 in (-1, 1):
-                                shift = np.zeros ((n_atoms, 3))
-                                shift[i, alpha] += move_1 * dx
-                                
-                                shift[j, beta] += move_2 * dx
-                                third[i, alpha, j, beta, :] += move_1 * move_2 * (
-                                    -1. * self.gradient (atoms.positions + shift, atoms))
-        third = third.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
-        third /= (4. * dx * dx)
-        np.save(THIRD_ORDER_FILE, third)
-        return third
+        
+        list4 = self.list4
+        nirred = len(self.list4)
+        na, nb, nc = self.supercell
+        ntot = n_atoms * na * nb * nc
+
+        phipart = np.zeros((3, nirred, ntot))
+        cell_inv = np.linalg.inv(self.replicated_atoms.cell)
+        for i, e in enumerate(list4):
+            shift = np.zeros ((ntot, 3))
+            jat, iat, jcoord, icoord = e
+            for n in range(4):
+                isign = (-1)**(n // 2)
+                jsign = -(-1)**(n % 2)
+                icoord_shift = np.zeros(3)
+                icoord_shift[icoord] += dx * isign
+                jcoord_shift = np.zeros(3)
+                jcoord_shift[jcoord] += dx * jsign
+
+                shift[iat, :] += cell_inv.dot(icoord_shift)
+                shift[jat, :] += cell_inv.dot(jcoord_shift)
+                phipart[:, i, :] -= isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms)).reshape((ntot, 3)).T
+        phifull = np.array(thirdorder_core.reconstruct_ifcs (phipart, self.wedge, list4,
+                                          self.poscar, self.replicated_poscar))
+        phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
+        phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
+        phifull = phifull.swapaxes(5, 4)
+
+        phifull = phifull.reshape ((n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
+        phifull = phifull[np.newaxis, :, :, :, :, :]/(4000 * dx * dx)
+        return phifull
 
     

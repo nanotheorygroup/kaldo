@@ -46,7 +46,7 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=LAMMPSlib,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=True)
+                                         is_persistency_enabled=False)
     
 
     phonons = BallisticoPhonons (finite_difference=finite_difference,
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                                  is_classic=is_classic,
                                  temperature=temperature,
                                  sigma_in=None,
-                                 is_persistency_enabled=True)
+                                 is_persistency_enabled=False)
 
 
     Plotter (phonons, folder='plot/ballistico/').plot_everything()
