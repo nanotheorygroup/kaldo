@@ -163,12 +163,10 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     for is_plus in (1, 0):
         if is_plus:
             Logger ().info ('\nCreation processes')
-            density_fact_np = density[:, :, np.newaxis, np.newaxis] - density[np.newaxis, np.newaxis, :, :]
             second_eigenv_np = eigenvectors
             second_chi = chi
         else:
             Logger ().info ('\nAnnihilation processes')
-            density_fact_np = .5 * (1 + density[:, :, np.newaxis, np.newaxis] + density[np.newaxis, np.newaxis, :, :])
             second_eigenv_np = eigenvectors.conj ()
             second_chi = chi.conj ()
         second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (n_phonons, n_modes)
@@ -204,11 +202,15 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         freq_diff_np = np.abs (
                             frequencies[index_k, mu] + frequencies[index_kp_vec, :, np.newaxis] -\
                             frequencies[index_kpp_vec, np.newaxis, :])
+                        density_fact_np = density[index_kp_vec, :, np.newaxis] - density[index_kpp_vec, np.newaxis, :]
+
                     else:
                         freq_diff_np = np.abs (
                             frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] -\
                             frequencies[index_kpp_vec, np.newaxis, :])
-                    
+                        density_fact_np = .5 * (
+                                1 + density[index_kp_vec, :, np.newaxis] + density[index_kpp_vec, np.newaxis, :])
+
                     condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (
                             frequencies[index_kp_vec, :, np.newaxis] != 0) & (
                                             frequencies[index_kpp_vec, np.newaxis, :] != 0)
@@ -226,7 +228,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
                                                          np.array ([nptk, n_modes]), order='C')
                         
-                        dirac_delta = density_fact_np.reshape(n_phonons, n_phonons)[nup_vec, nupp_vec]
+                        dirac_delta = density_fact_np[index_kp_vec, mup_vec, mupp_vec]
                         
                         dirac_delta /= freq_product_np[index_kp_vec, mup_vec, mupp_vec]
                         if sigma_in is None:
