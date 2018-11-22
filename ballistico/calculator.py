@@ -175,11 +175,12 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             
             for mu in range (n_modes):
     
-                first = eigenvectors[index_k, :, mu]
-                first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
                 # TODO: add a threshold instead of 0
                 if frequencies[index_k, mu] != 0:
     
+                    first = eigenvectors[index_k, :, mu]
+                    first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
+                    
                     index_kp_vec = np.arange (np.prod (k_size))
                     i_kp_vec = np.array (np.unravel_index (index_kp_vec, k_size, order='F'))
                     i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
@@ -202,14 +203,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         freq_diff_np = np.abs (
                             frequencies[index_k, mu] + frequencies[index_kp_vec, :, np.newaxis] -\
                             frequencies[index_kpp_vec, np.newaxis, :])
-                        density_fact_np = density[index_kp_vec, :, np.newaxis] - density[index_kpp_vec, np.newaxis, :]
 
                     else:
                         freq_diff_np = np.abs (
                             frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] -\
                             frequencies[index_kpp_vec, np.newaxis, :])
-                        density_fact_np = .5 * (
-                                1 + density[index_kp_vec, :, np.newaxis] + density[index_kpp_vec, np.newaxis, :])
 
                     condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (
                             frequencies[index_kp_vec, :, np.newaxis] != 0) & (
@@ -227,19 +225,25 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                         np.array ([nptk, n_modes]), order='C')
                         nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
                                                          np.array ([nptk, n_modes]), order='C')
-                        
-                        dirac_delta = density_fact_np[index_kp_vec, mup_vec, mupp_vec]
+
+                        if is_plus:
+                            density_fact_np = density[index_kp_vec, mup_vec] - density[index_kpp_vec,mupp_vec]
+
+                        else:
+                            density_fact_np = .5 * (
+                                    1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
+
+                        dirac_delta = density_fact_np
                         
                         dirac_delta /= freq_product_np[index_kp_vec, mup_vec, mupp_vec]
                         if sigma_in is None:
-                            gaussian = gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
+                            dirac_delta *= gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
                                                         sigma_small[index_kp_vec, mup_vec, mupp_vec]])
                         
                         else:
-                            gaussian = gaussian_delta (
+                            dirac_delta *= gaussian_delta (
                                 [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
                         
-                        dirac_delta *= gaussian
                         
 
 						# TODO: find a better name
@@ -258,8 +262,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
                         gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                    # Logger ().info ('q-point   = ' + str (index_k))
-                    # Logger ().info ('mu-branch = ' + str (mu))
+                    Logger ().info ('q-point   = ' + str (index_k))
+                    Logger ().info ('mu-branch = ' + str (mu))
                 
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
