@@ -11,7 +11,7 @@ np.set_printoptions(suppress=True)
 
 if __name__ == "__main__":
     # We start from a atoms
-    atoms = ase.io.read ('cubic-si.xyz')
+    atoms = ase.io.read ('si-bulk.xyz')
     
     # and replicate it
     supercell = np.array ([3, 3, 3])
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                        is_classic=is_classic,
                        temperature=temperature,
                        sigma_in=None,
-                       is_persistency_enabled=True)
+                       is_persistency_enabled=False)
     
     # Create a plot helper object
     plotter = Plotter (phonons=phonons,

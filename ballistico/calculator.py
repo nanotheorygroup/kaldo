@@ -148,18 +148,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
-    freq_product_np = (frequencies[:, :, np.newaxis, np.newaxis] * \
-                       frequencies[np.newaxis, np.newaxis, :, :])
-    if sigma_in is None:
-        velocities = velocities.real
-        velocities[0, :3, :] = 0
-        
-        sigma_tensor_np = calculate_broadening ( \
-            velocities[:, :, np.newaxis, np.newaxis, :] - \
-            velocities[np.newaxis, np.newaxis, :, :, :], cell_inv, k_size)
-        sigma_tensor = sigma_tensor_np
-        sigma_tf = sigma_tensor_np.reshape (nptk * n_modes,
-                                            nptk * n_modes)
     mapping, grid = spg.get_ir_reciprocal_mesh (k_size,
                                                 atoms,
                                                 is_shift=[0, 0, 0])
@@ -186,33 +174,42 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (n_phonons, n_modes)
         for index_k in (list_of_k):
             i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
+            
             for mu in range (n_modes):
+    
+                first = eigenvectors[index_k, :, mu]
+                first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
                 # TODO: add a threshold instead of 0
                 if frequencies[index_k, mu] != 0:
-                    first = eigenvectors[index_k, :, mu]
-                    first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
-                    if is_plus:
-                        freq_diff_np = np.abs (
-                            frequencies[index_k, mu] + frequencies[:, :, np.newaxis, np.newaxis] - frequencies[
-                                                                                                   np.newaxis,
-                                                                                                   np.newaxis,
-                                                                                                   :, :])
-                    else:
-                        freq_diff_np = np.abs (
-                            frequencies[index_k, mu] - frequencies[:, :, np.newaxis, np.newaxis] - frequencies[
-                                                                                                   np.newaxis,
-                                                                                                   np.newaxis,
-                                                                                                   :, :])
+    
                     index_kp_vec = np.arange (np.prod (k_size))
                     i_kp_vec = np.array (np.unravel_index (index_kp_vec, k_size, order='F'))
                     i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
                     index_kpp_vec = np.ravel_multi_index (i_kpp_vec, k_size, order='F', mode='wrap')
-                    delta_freq = freq_diff_np[index_kp_vec, :, index_kpp_vec, :]
+
+                    freq_product_np = (frequencies[index_kp_vec, :, np.newaxis] * \
+                                       frequencies[index_kpp_vec, np.newaxis, :])
                     if sigma_in is None:
-                        sigma_small = sigma_tensor_np[index_kp_vec, :, index_kpp_vec, :]
+                        velocities = velocities.real
+                        velocities[0, :3, :] = 0
+    
+                        sigma_tensor_np = calculate_broadening ( \
+                            velocities[index_kp_vec, :, np.newaxis, :] - \
+                            velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
+                        sigma_small = sigma_tensor_np
                     else:
                         sigma_small = sigma_in
-                    condition = (delta_freq < DELTA_THRESHOLD * sigma_small) & (
+                        
+                    if is_plus:
+                        freq_diff_np = np.abs (
+                            frequencies[index_k, mu] + frequencies[index_kp_vec, :, np.newaxis] -\
+                            frequencies[index_kpp_vec, np.newaxis, :])
+                    else:
+                        freq_diff_np = np.abs (
+                            frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] -\
+                            frequencies[index_kpp_vec, np.newaxis, :])
+                    
+                    condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (
                             frequencies[index_kp_vec, :, np.newaxis] != 0) & (
                                             frequencies[index_kpp_vec, np.newaxis, :] != 0)
                     interactions = np.array (np.where (condition)).T
@@ -231,18 +228,17 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         
                         dirac_delta = density_fact_np.reshape(n_phonons, n_phonons)[nup_vec, nupp_vec]
                         
-                        dirac_delta /= freq_product_np.reshape(n_phonons, n_phonons)[nup_vec, nupp_vec]
+                        dirac_delta /= freq_product_np[index_kp_vec, mup_vec, mupp_vec]
                         if sigma_in is None:
-                            gaussian = gaussian_delta ([freq_diff_np.reshape(n_phonons, n_phonons)[nup_vec, nupp_vec],
-                                                        sigma_tensor.reshape(n_phonons, n_phonons)[nup_vec, nupp_vec]])
+                            gaussian = gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
+                                                        sigma_small[index_kp_vec, mup_vec, mupp_vec]])
                         
                         else:
                             gaussian = gaussian_delta (
-                                [freq_diff_np.reshape(n_phonons, n_phonons)[nup_vec, nupp_vec], sigma_in])
+                                [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
                         
                         dirac_delta *= gaussian
                         
-                        ps[is_plus, index_k, mu] += np.sum (dirac_delta)
 
 						# TODO: find a better name
                         temp = np.einsum ('litj,al,at,aj,ai->a', first_projected_potential,
@@ -256,12 +252,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 	                        nu_p = nup_vec[i]
 	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
                         gamma[is_plus, index_k, mu] = np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
-                    
+                        ps[is_plus, index_k, mu] += np.sum (dirac_delta)
+
                         gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
                     # Logger ().info ('q-point   = ' + str (index_k))
                     # Logger ().info ('mu-branch = ' + str (mu))
-    
+                
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
         gamma[:, index_k, :] = gamma[:, associated_index, :]
