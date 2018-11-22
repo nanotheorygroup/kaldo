@@ -3,7 +3,7 @@ import numpy as np
 from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
-
+from memory_profiler import profile
 
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
@@ -108,6 +108,7 @@ def gaussian_delta(params):
     correction = 1
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
+@profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
     prefactor = 1e-3 / (
             4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
@@ -186,8 +187,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                     i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
                     index_kpp_vec = np.ravel_multi_index (i_kpp_vec, k_size, order='F', mode='wrap')
 
-                    freq_product_np = (frequencies[index_kp_vec, :, np.newaxis] * \
-                                       frequencies[index_kpp_vec, np.newaxis, :])
                     if sigma_in is None:
                         velocities = velocities.real
                         velocities[0, :3, :] = 0
@@ -227,15 +226,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                          np.array ([nptk, n_modes]), order='C')
 
                         if is_plus:
-                            density_fact_np = density[index_kp_vec, mup_vec] - density[index_kpp_vec,mupp_vec]
+                            dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec,mupp_vec]
 
                         else:
-                            density_fact_np = .5 * (
+                            dirac_delta = .5 * (
                                     1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
-
-                        dirac_delta = density_fact_np
                         
-                        dirac_delta /= freq_product_np[index_kp_vec, mup_vec, mupp_vec]
+                        dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
                         if sigma_in is None:
                             dirac_delta *= gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
                                                         sigma_small[index_kp_vec, mup_vec, mupp_vec]])
@@ -257,13 +254,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         for i in range(nup_vec.shape[0]):
 	                        nu_p = nup_vec[i]
 	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
-                        gamma[is_plus, index_k, mu] = np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
+                        gamma[is_plus, index_k, mu] += np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
                         ps[is_plus, index_k, mu] += np.sum (dirac_delta)
 
-                        gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                        ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                    Logger ().info ('q-point   = ' + str (index_k))
-                    Logger ().info ('mu-branch = ' + str (mu))
+                    gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
+                    ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
+                    # Logger ().info ('q-point   = ' + str (index_k))
+                    # Logger ().info ('mu-branch = ' + str (mu))
                 
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
