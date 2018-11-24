@@ -23,7 +23,7 @@ LIST_OF_INDEX_FILE = 'list_of_index.npy'
 
 
 class FiniteDifference (object):
-    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, is_persistency_enabled=True, folder='displacement'):
+    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement'):
         self.atoms = atoms
         self.supercell = supercell
 
@@ -42,6 +42,8 @@ class FiniteDifference (object):
             self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
+        self.second_order_delta = delta_shift
+        self.third_order_delta = delta_shift
         # poscar = self.poscar
         # SYMPREC = 1e-5  # Tolerance for symmetry search
         # NNEIGH = 4
@@ -185,6 +187,9 @@ class FiniteDifference (object):
                 replicated_atoms = Atoms (positions=replicated_geometry,
                                           symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
                 self.replicated_atoms = replicated_atoms
+                # replicated_poscar = self.replicated_poscar
+                # self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell (replicated_poscar)
+
         return self._replicated_atoms
 
     @replicated_atoms.setter
@@ -212,6 +217,11 @@ class FiniteDifference (object):
             if self._list_of_index is None:
                 self.list_of_index = self.create_list_of_index ()
                 self.list_of_index = self.list_of_index.dot (self.atoms.cell)
+        # n_replicas = np.prod(self.supercell)
+        # atoms = self.atoms
+        # n_unit_atoms = self.atoms.positions.shape[0]
+        # list_of_replicas = (self.replicated_atoms.positions.reshape ((n_replicas, n_unit_atoms, 3)) - atoms.positions[np.newaxis,:, :])
+        # self._list_of_index =  list_of_replicas[:,0,:]
         return self._list_of_index
 
     @list_of_index.setter
@@ -311,17 +321,17 @@ class FiniteDifference (object):
         Logger().info ('Calculating second order potential derivatives')
         n_in_unit_cell = len (atoms.numbers)
         replicated_atoms = self.replicated_atoms
-    
-        atoms = replicated_atoms
-        n_atoms = len (atoms.numbers)
-        dx = 1e-5
+
+        n_atoms = len (replicated_atoms.numbers)
+        
+        dx = self.second_order_delta
         second = np.zeros ((n_atoms * 3, n_atoms * 3))
         for alpha in range (3):
             for i in range (n_atoms):
                 for move in (-1, 1):
                     shift = np.zeros ((n_atoms, 3))
                     shift[i, alpha] += move * dx
-                    second[i * 3 + alpha, :] += move * self.gradient (atoms.positions + shift, atoms)
+                    second[i * 3 + alpha, :] += move * self.gradient (replicated_atoms.positions + shift, replicated_atoms)
                     
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         second = second.reshape ((n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
@@ -340,19 +350,25 @@ class FiniteDifference (object):
         atoms = replicated_atoms
         n_atoms = len (atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        dx = 1e-6 * evoverdlpoly
+        # dx = 1e-5
+        dx = self.third_order_delta  # Magnitude of the finite displacements, in nm.
+        # dx = 1e-6 * evoverdlpoly
+
         third = np.zeros ((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3))
-        for alpha in range (3):
-            for i in range (n_in_unit_cell):
-                for beta in range (3):
-                    for j in range (n_supercell * n_in_unit_cell):
+        for icoord in range (3):
+            for iat in range (n_in_unit_cell):
+                for jcoord in range (3):
+                    for jat in range (n_supercell * n_in_unit_cell):
                         for move_1 in (-1, 1):
                             for move_2 in (-1, 1):
                                 shift = np.zeros ((n_atoms, 3))
-                                shift[i, alpha] += move_1 * dx
-                                
-                                shift[j, beta] += move_2 * dx
-                                third[i, alpha, j, beta, :] += move_1 * move_2 * (
+                                delta = np.zeros(3)
+                                delta[icoord] = move_1 * dx
+                                shift[iat, :] += delta
+                                delta = np.zeros(3)
+                                delta[jcoord] = move_2 * dx
+                                shift[jat, :] += delta
+                                third[iat, icoord, jat, jcoord, :] += move_1 * move_2 * (
                                     -1. * self.gradient (atoms.positions + shift, atoms))
         third = third.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         third /= (4. * dx * dx)
@@ -383,14 +399,14 @@ class FiniteDifference (object):
         #                     jcoord_shift = np.zeros(3)
         #                     jcoord_shift[jcoord] += dx * jsign
         #
-        #                     # shift[iat, :] += cell_inv.dot(icoord_shift)
+        #                     shift[iat, :] += cell_inv.dot(icoord_shift)
         #                     shift[iat, :] += (icoord_shift)
-        #                     # shift[jat, :] += cell_inv.dot(jcoord_shift)
-        #                     shift[jat, :] += (jcoord_shift)
-        #                     phifull[iat, icoord, jat, jcoord] += isign * jsign * (
-        #                                 -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms).reshape(replicated_atoms.positions.shape))
-        #
-        #                     phipart[:, i, :] += isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
+        #                     shift[jat, :] += cell_inv.dot(jcoord_shift)
+                            # shift[jat, :] += (jcoord_shift)
+                            # phifull[iat, icoord, jat, jcoord] += isign * jsign * (
+                            #             -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms).reshape(replicated_atoms.positions.shape))
+                            #
+                            # phipart[:, i, :] += isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
         # phifull = np.array(thirdorder_core.reconstruct_ifcs (phipart, self.wedge, list4,
         #                                   self.poscar, self.replicated_poscar))
         # phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)

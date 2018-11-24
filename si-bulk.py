@@ -45,7 +45,7 @@ if __name__ == "__main__":
     
     # Create a plot helper object
     plotter = Plotter (phonons=phonons,
-                       is_showing=False,
+                       is_showing=True,
                        folder='plot/ballistico/',
                        is_persistency_enabled=True)
 
