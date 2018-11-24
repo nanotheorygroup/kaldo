@@ -6,11 +6,6 @@ from ase.dft.kpoints import ibz_points, bandpath
 k_space_file = 'QPLIST'
 
 
-def normalize_geometry(geometry, sizes):
-	inverted_matrix = np.linalg.inv (sizes)
-	return np.dot (inverted_matrix, geometry.T).T
-
-
 def create_k_space_with_path(structure, resolution, time_refersal=True):
 	numbers = structure.get_atomic_numbers ()
 	inp = (structure.cell, structure.get_scaled_positions (), numbers)
@@ -57,9 +52,6 @@ def create_k_and_symmetry_space(cell, symmetry='fcc', n_k_points=50):
 	# Band structure in meV
 	path_kc, q, Q = bandpath (path, cell, n_k_points)
 	return path_kc, q, Q, point_names
-
-def save_k_space(k_list):
-	np.savetxt (k_space_file, k_list, header=str (k_list.shape[0]), comments='')
 
 
 def filter_modes_and_k_points(k_list, modes):

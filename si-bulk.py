@@ -1,5 +1,7 @@
 import numpy as np
+import ase
 import ase.io
+import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
 from ballistico.finite_difference import FiniteDifference
 from ase.calculators.lammpslib import LAMMPSlib
@@ -16,11 +18,7 @@ if __name__ == "__main__":
     # and replicate it
     supercell = np.array ([3, 3, 3])
     n_replicas = np.prod(supercell)
-    replicated_geometry, _ = atoms_helper.replicate_atoms(atoms, supercell)
     
-    # then we store it
-    ase.io.write ('dlpoly_files/CONFIG', replicated_geometry, format='dlp4')
-
     # we create our system
     temperature = 300
 
@@ -28,19 +26,14 @@ if __name__ == "__main__":
     kpts = np.array ([5, 5, 5])
     is_classic = False
 
-    # import the calculated second order
-    second_order = io_helper.import_second_dlpoly (atoms, supercell)
-
-    # import the calculated third order
-    third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
-
+    calculator_inputs = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
-                                         second_order=second_order,
-                                         third_order=third_order,
-                                         is_persistency_enabled=True)
+                                         calculator=LAMMPSlib,
+                                         calculator_inputs=calculator_inputs,
+                                         is_persistency_enabled=False)
     
     # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,
@@ -55,6 +48,7 @@ if __name__ == "__main__":
                        is_showing=False,
                        folder='plot/ballistico/',
                        is_persistency_enabled=True)
+
 
     # call the method plot everything
     plotter.plot_everything()

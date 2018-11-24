@@ -32,7 +32,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta, num):
     return omega_e, dos_e
 
 def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms):
-    list_of_replicas = list_of_replicas
+
     geometry = atoms.positions
     cell_inv = np.linalg.inv (atoms.cell)
     kpoint = 2 * np.pi * (cell_inv).dot (qvec)
@@ -108,7 +108,7 @@ def gaussian_delta(params):
     correction = 1
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
-@profile
+# @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
     prefactor = 1e-3 / (
             4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar

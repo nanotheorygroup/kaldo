@@ -32,6 +32,7 @@ def import_second_dlpoly(atoms, replicas=(1, 1, 1), dynamical_matrix_file='dlpol
            * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
 
+
 def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='dlpoly_files/Dyn.form'):
     replicas = np.array(replicas)
     dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, delim_whitespace=True)
@@ -41,7 +42,7 @@ def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='dl
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
 
-def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), file='dlpoly_files/THIRD'):
+def import_third_order_dlpoly(atoms, replicas, list_of_replicas, file='dlpoly_files/THIRD'):
     replicas = np.array(replicas)
     replicated_atoms, list_of_replicas = ath.replicate_atoms (
         atoms, replicas)
