@@ -28,6 +28,7 @@ class FiniteDifference (object):
         self.supercell = supercell
 
         self._replicated_atoms = None
+        #TODO: move list of index in phonon class
         self._list_of_index = None
         self.calculator = calculator
         self.calculator_inputs = calculator_inputs
@@ -172,12 +173,31 @@ class FiniteDifference (object):
             if self._replicated_atoms is None:
                 atoms = self.atoms
                 supercell = self.supercell
-                list_of_index = self.list_of_index
+                # TODO: refactor removing atoms object
+                n_replicas = supercell[0] * supercell[1] * supercell[2]
+                replica_id = 0
+                list_of_index = np.zeros ((n_replicas, 3))
+
+                range_0 = np.arange (int (supercell[0]))
+                range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
+                range_1 = np.arange (int (supercell[1]))
+                range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
+                range_2 = np.arange (int (supercell[2]))
+                range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
+
+                for lx in range_0:
+                    for ly in range_1:
+                        for lz in range_2:
+                            index = np.array ([lx, ly, lz])
+                            list_of_index[replica_id] = index
+                            replica_id += 1
+
+                list_of_index = list_of_index.dot (self.atoms.cell)
+                
                 replicated_symbols = []
                 n_replicas = list_of_index.shape[0]
                 n_unit_atoms = len (atoms.numbers)
                 replicated_geometry = np.zeros ((n_replicas, n_unit_atoms, 3))
-            
                 for i in range (n_replicas):
                     vector = list_of_index[i]
                     replicated_symbols.extend (atoms.get_chemical_symbols ())
@@ -187,8 +207,8 @@ class FiniteDifference (object):
                 replicated_atoms = Atoms (positions=replicated_geometry,
                                           symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
                 self.replicated_atoms = replicated_atoms
-                # replicated_poscar = self.replicated_poscar
-                # self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell (replicated_poscar)
+                replicated_poscar = self.replicated_poscar
+                self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell (replicated_poscar)
 
         return self._replicated_atoms
 
@@ -215,13 +235,11 @@ class FiniteDifference (object):
                 except FileNotFoundError as e:
                     print (e)
             if self._list_of_index is None:
-                self.list_of_index = self.create_list_of_index ()
-                self.list_of_index = self.list_of_index.dot (self.atoms.cell)
-        # n_replicas = np.prod(self.supercell)
-        # atoms = self.atoms
-        # n_unit_atoms = self.atoms.positions.shape[0]
-        # list_of_replicas = (self.replicated_atoms.positions.reshape ((n_replicas, n_unit_atoms, 3)) - atoms.positions[np.newaxis,:, :])
-        # self._list_of_index =  list_of_replicas[:,0,:]
+                n_replicas = np.prod(self.supercell)
+                atoms = self.atoms
+                n_unit_atoms = self.atoms.positions.shape[0]
+                list_of_replicas = (self.replicated_atoms.positions.reshape ((n_replicas, n_unit_atoms, 3)) - atoms.positions[np.newaxis,:, :])
+                self.list_of_index =  list_of_replicas[:,0,:]
         return self._list_of_index
 
     @list_of_index.setter
@@ -232,35 +250,10 @@ class FiniteDifference (object):
             np.save (folder + LIST_OF_INDEX_FILE, new_list_of_index)
         self._list_of_index = new_list_of_index
 
-    def create_list_of_index(self):
-        atoms = self.atoms
-        replicas = self.supercell
-        # TODO: refactor removing atoms object
-        n_replicas = replicas[0] * replicas[1] * replicas[2]
-        replica_id = 0
-        list_of_index = np.zeros ((n_replicas, 3))
-    
-        range_0 = np.arange(int(replicas[0]))
-        range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
-        range_1 = np.arange(int(replicas[1]))
-        range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
-        range_2 = np.arange(int(replicas[2]))
-        range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
-        
-        for lx in range_0:
-            for ly in range_1:
-                for lz in range_2:
-                    index = np.array ([lx, ly, lz])
-                    list_of_index[replica_id] = index
-                    replica_id += 1
-                    
-        return list_of_index
-
     def gen_supercell(self):
         atoms = self.atoms
         supercell = self.supercell
         n_replicas = supercell[0] * supercell[1] * supercell[2]
-        replica_positions = np.zeros ((n_replicas, 3))
     
         range_0 = np.arange (int (supercell[0]))
         range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
@@ -268,7 +261,17 @@ class FiniteDifference (object):
         range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
         range_2 = np.arange (int (supercell[2]))
         range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
-    
+
+        replica_id = 0
+        replica_positions = np.zeros ((n_replicas, 3))
+
+        for lx in range_0:
+            for ly in range_1:
+                for lz in range_2:
+                    index = np.array ([lx, ly, lz])
+                    replica_positions[replica_id] = index
+                    replica_id += 1
+
         replica_positions = replica_positions.dot (self.atoms.cell)
         replicated_symbols = []
         n_replicas = replica_positions.shape[0]
