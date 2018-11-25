@@ -98,8 +98,8 @@ class FiniteDifference (object):
     @replicated_poscar.getter
     def replicated_poscar(self):
         na, nb, nc = self.supercell
-        # self._replicated_poscar = gen_supercell (self.poscar, na, nb, nc)
-        self._replicated_poscar = self.gen_supercell ()
+        # self._replicated_poscar = self.gen_supercell ()
+        self._replicated_poscar = gen_supercell (self.poscar, na, nb, nc)
 
         return self._replicated_poscar
 
@@ -171,42 +171,42 @@ class FiniteDifference (object):
                 except FileNotFoundError as e:
                     print (e)
             if self._replicated_atoms is None:
-                atoms = self.atoms
-                supercell = self.supercell
-                # TODO: refactor removing atoms object
-                n_replicas = supercell[0] * supercell[1] * supercell[2]
-                replica_id = 0
-                list_of_index = np.zeros ((n_replicas, 3))
-
-                range_0 = np.arange (int (supercell[0]))
-                range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
-                range_1 = np.arange (int (supercell[1]))
-                range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
-                range_2 = np.arange (int (supercell[2]))
-                range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
-
-                for lx in range_0:
-                    for ly in range_1:
-                        for lz in range_2:
-                            index = np.array ([lx, ly, lz])
-                            list_of_index[replica_id] = index
-                            replica_id += 1
-
-                list_of_index = list_of_index.dot (self.atoms.cell)
-                
-                replicated_symbols = []
-                n_replicas = list_of_index.shape[0]
-                n_unit_atoms = len (atoms.numbers)
-                replicated_geometry = np.zeros ((n_replicas, n_unit_atoms, 3))
-                for i in range (n_replicas):
-                    vector = list_of_index[i]
-                    replicated_symbols.extend (atoms.get_chemical_symbols ())
-                    replicated_geometry[i, :, :] = atoms.positions + vector
-                replicated_geometry = replicated_geometry.reshape ((n_replicas * n_unit_atoms, 3))
-                replicated_cell = atoms.cell * supercell
-                replicated_atoms = Atoms (positions=replicated_geometry,
-                                          symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
-                self.replicated_atoms = replicated_atoms
+                # atoms = self.atoms
+                # supercell = self.supercell
+                # # TODO: refactor removing atoms object
+                # n_replicas = supercell[0] * supercell[1] * supercell[2]
+                # replica_id = 0
+                # list_of_index = np.zeros ((n_replicas, 3))
+                #
+                # range_0 = np.arange (int (supercell[0]))
+                # range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
+                # range_1 = np.arange (int (supercell[1]))
+                # range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
+                # range_2 = np.arange (int (supercell[2]))
+                # range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
+                #
+                # for lx in range_0:
+                #     for ly in range_1:
+                #         for lz in range_2:
+                #             index = np.array ([lx, ly, lz])
+                #             list_of_index[replica_id] = index
+                #             replica_id += 1
+                #
+                # list_of_index = list_of_index.dot (self.atoms.cell)
+                #
+                # replicated_symbols = []
+                # n_replicas = list_of_index.shape[0]
+                # n_unit_atoms = len (atoms.numbers)
+                # replicated_geometry = np.zeros ((n_replicas, n_unit_atoms, 3))
+                # for i in range (n_replicas):
+                #     vector = list_of_index[i]
+                #     replicated_symbols.extend (atoms.get_chemical_symbols ())
+                #     replicated_geometry[i, :, :] = atoms.positions + vector
+                # replicated_geometry = replicated_geometry.reshape ((n_replicas * n_unit_atoms, 3))
+                # replicated_cell = atoms.cell * supercell
+                # replicated_atoms = Atoms (positions=replicated_geometry,
+                #                           symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
+                # self.replicated_atoms = replicated_atoms
                 replicated_poscar = self.replicated_poscar
                 self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell (replicated_poscar)
 
@@ -264,9 +264,8 @@ class FiniteDifference (object):
 
         replica_id = 0
         replica_positions = np.zeros ((n_replicas, 3))
-
-        for lx in range_0:
-            for ly in range_1:
+        for ly in range_1:
+            for lx in range_0:
                 for lz in range_2:
                     index = np.array ([lx, ly, lz])
                     replica_positions[replica_id] = index

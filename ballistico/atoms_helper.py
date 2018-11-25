@@ -21,7 +21,7 @@ def convert_to_poscar(atoms, supercell=None):
 def convert_to_atoms_and_super_cell(poscar):
 	cell = poscar['lattvec'] * 10
 	atoms = Atoms(symbols=poscar['elements'],
-	              positions=poscar['positions'].T.dot(cell),
+	              positions=apply_boundary_with_cell (cell, poscar['positions'].T.dot(cell)),
 	              cell=cell,
 	              pbc=(1,1,1)
 	              )
@@ -32,14 +32,17 @@ def convert_to_atoms_and_super_cell(poscar):
 		supercell[2] = poscar['nc']
 	return atoms, supercell
 
-
-
-def apply_boundary(atoms, dxij):
+def apply_boundary_with_cell(cell, dxij):
 	# exploit periodicity to calculate the shortest distance, which may not be the one we have
-	cellinv = np.linalg.inv (atoms.cell)
+	cellinv = np.linalg.inv (cell)
 	sxij = dxij.dot(cellinv)
 	sxij = sxij - np.round (sxij)
-	dxij = sxij.dot(atoms.cell)
+	dxij = sxij.dot(cell)
+	return dxij
+
+def apply_boundary(atoms, dxij):
+	# TODO: remove this method
+	dxij = apply_boundary_with_cell(atoms.cell, dxij)
 	return dxij
 
 def type_element_id(atoms, element_name):
