@@ -51,7 +51,8 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
     dyn_s = np.einsum('ialjb,l->iajb', second_order, chi_k)
-    dxij = atoms_helper.apply_boundary (replicated_atoms, geometry[:, np.newaxis, np.newaxis] - (
+    replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
+    dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
             geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
     ddyn_s = 1j * np.einsum('ijla,l,ibljc->aibjc',
                        dxij,
@@ -63,6 +64,8 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     ddyn = prefactor * ddyn_s.reshape (3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
     out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
     eigenvals, eigenvects = out[0], out[1]
+    
+    # TODO: do we want to sort eigenvalues
     # idx = eigenvals.argsort ()
     # eigenvals = eigenvals[idx]
     # eigenvects = eigenvects[:, idx]

@@ -343,35 +343,34 @@ class FiniteDifference (object):
     
     def calculate_third(self):
         atoms = self.atoms
-        supercell = self.supercell
         replicated_atoms = self.replicated_atoms
         
         # TODO: Here we should create it sparse
         Logger().info ('Calculating third order potential derivatives')
         n_in_unit_cell = len (atoms.numbers)
-        atoms = replicated_atoms
-        n_atoms = len (atoms.numbers)
+        replicated_atoms = replicated_atoms
+        n_replicated_atoms = len (replicated_atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        # dx = 1e-5
-        dx = self.third_order_delta  # Magnitude of the finite displacements, in nm.
-        # dx = 1e-6 * evoverdlpoly
-
+        dx = self.third_order_delta
         third = np.zeros ((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3))
-        for icoord in range (3):
-            for iat in range (n_in_unit_cell):
-                for jcoord in range (3):
-                    for jat in range (n_supercell * n_in_unit_cell):
-                        for move_1 in (-1, 1):
-                            for move_2 in (-1, 1):
-                                shift = np.zeros ((n_atoms, 3))
-                                delta = np.zeros(3)
-                                delta[icoord] = move_1 * dx
-                                shift[iat, :] += delta
-                                delta = np.zeros(3)
-                                delta[jcoord] = move_2 * dx
-                                shift[jat, :] += delta
-                                third[iat, icoord, jat, jcoord, :] += move_1 * move_2 * (
-                                    -1. * self.gradient (atoms.positions + shift, atoms))
+
+
+        for iat in range(n_in_unit_cell):
+            for icoord in range(3):
+                for jat in range(n_supercell * n_in_unit_cell):
+                    for jcoord in range(3):
+                        for n in range(4):
+                            shift = np.zeros ((n_replicated_atoms, 3))
+                            isign = (-1)**(n // 2)
+                            jsign = -(-1)**(n % 2)
+                            delta = np.zeros(3)
+                            delta[icoord] = isign * dx
+                            shift[iat, :] += delta
+                            delta = np.zeros(3)
+                            delta[jcoord] = jsign * dx
+                            shift[jat, :] += delta
+                            third[iat, icoord, jat, jcoord, :] += isign * jsign * (
+                                -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
         third = third.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         third /= (4. * dx * dx)
         return third
@@ -392,8 +391,8 @@ class FiniteDifference (object):
         #     for icoord in range(3):
         #         for jat in range(n_supercell * n_in_unit_cell):
         #             for jcoord in range(3):
-        #                 shift = np.zeros((ntot, 3))
         #                 for n in range(4):
+        #                     shift = np.zeros((ntot, 3))
         #                     isign = (-1)**(n // 2)
         #                     jsign = -(-1)**(n % 2)
         #                     icoord_shift = np.zeros(3)
