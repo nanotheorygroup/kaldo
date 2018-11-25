@@ -31,4 +31,4 @@ if __name__ == "__main__":
 
 
     Plotter(phonons).plot_everything(with_dispersion=False)
-    print('done')
+    Logger().info('done')

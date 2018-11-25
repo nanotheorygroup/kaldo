@@ -87,7 +87,7 @@ class FiniteDifference (object):
                     folder += '/'
                     self._second_order = np.load (folder + SECOND_ORDER_FILE)
                 except FileNotFoundError as e:
-                    print (e)
+                    Logger().info(e)
             if self._second_order is None:
                 self.second_order = self.calculate_second ()
         return self._second_order
@@ -113,7 +113,7 @@ class FiniteDifference (object):
                     folder += '/'
                     self._third_order = np.load (folder + THIRD_ORDER_FILE)
                 except FileNotFoundError as e:
-                    print (e)
+                    Logger().info(e)
             if self._third_order is None:
                 self.third_order = self.calculate_third ()
         return self._third_order
@@ -139,7 +139,7 @@ class FiniteDifference (object):
                     folder += '/'
                     self._replicated_atoms = ase.io.read (folder + REPLICATED_ATOMS_FILE, format='extxyz')
                 except FileNotFoundError as e:
-                    print (e)
+                    Logger().info(e)
             if self._replicated_atoms is None:
                 # atoms = self.atoms
                 # supercell = self.supercell
@@ -203,7 +203,7 @@ class FiniteDifference (object):
                     folder += '/'
                     self._list_of_index = np.load (folder + LIST_OF_INDEX_FILE)
                 except FileNotFoundError as e:
-                    print (e)
+                    Logger().info(e)
             if self._list_of_index is None:
                 n_replicas = np.prod(self.supercell)
                 atoms = self.atoms
@@ -258,11 +258,11 @@ class FiniteDifference (object):
 
     def optimize(self, method):
         # Mimimization of the sructure
-        print('Initial max force: ', self.max_force(self.atoms.positions, self.atoms))
+        Logger().info('Initial max force: ', self.max_force(self.atoms.positions, self.atoms))
         if not ((method == 'none') or (method == False)):
-            print ('Optimization method ' + method)
+            Logger().info('Optimization method ' + method)
             result = minimize (self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method)
-            print (result.message)
+            Logger().info(result.message)
             self.atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
             io.write ('mInimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
         return self.atoms, self.max_force(self.atoms.positions)
@@ -316,7 +316,6 @@ class FiniteDifference (object):
         replicated_atoms = self.replicated_atoms
         
         # TODO: Here we should create it sparse
-        Logger().info ('Calculating third order potential derivatives')
         n_in_unit_cell = len (atoms.numbers)
         replicated_atoms = replicated_atoms
         n_replicated_atoms = len (replicated_atoms.numbers)
@@ -332,38 +331,34 @@ class FiniteDifference (object):
         FRANGE = None
 
         natoms = len (poscar["types"])
-        print ("Analyzing symmetries")
+        Logger().info("Analyzing symmetries")
         symops = thirdorder_core.SymmetryOperations (
             poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
-        print ("- Symmetry group {0} detected".format (symops.symbol))
-        print ("- {0} symmetry operations".format (symops.translations.shape[0]))
-        print ("Creating the supercell")
+        Logger().info("- Symmetry group {0} detected".format (symops.symbol))
+        Logger().info("- {0} symmetry operations".format (symops.translations.shape[0]))
+        Logger().info("Creating the supercell")
         na, nb, nc = self.supercell
         sposcar = self.replicated_poscar
         ntot = natoms * na * nb * nc
-        print ("Computing all distances in the supercell")
+        Logger().info("Computing all distances in the supercell")
         dmin, nequi, shifts = calc_dists (sposcar)
         if NNEIGH != None:
             frange = calc_frange (poscar, sposcar, NNEIGH, dmin)
-            print ("- Automatic cutoff: {0} nm".format (frange))
+            Logger().info("- Automatic cutoff: {0} nm".format (frange))
         else:
             frange = FRANGE
-            print ("- User-defined cutoff: {0} nm".format (frange))
-        print ("Looking for an irreducible set of third-order IFCs")
+            Logger().info("- User-defined cutoff: {0} nm".format (frange))
+        Logger().info("Looking for an irreducible set of third-order IFCs")
         wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
                                        frange)
         self.wedge = wedge
-        print ("- {0} triplet equivalence classes found".format (wedge.nlist))
+        Logger().info("- {0} triplet equivalence classes found".format (wedge.nlist))
         self.list4 = wedge.build_list4 ()
-        print('object created')
-
-
-
+        Logger().info('object created')
+        Logger().info ('Calculating third order potential derivatives')
         nirred = len(self.list4)
         na, nb, nc = self.supercell
-
         phipart = np.zeros((3, nirred, n_replicated_atoms))
-
         for i, e in enumerate(self.list4):
             jat, iat, jcoord, icoord = e
         # for iat in range(n_in_unit_cell):

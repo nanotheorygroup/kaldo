@@ -467,42 +467,42 @@ if __name__ == "__main__":
             sys.exit("Error: invalid cutoff")
         if frange == 0.:
             sys.exit("Error: invalid cutoff")
-    print("Reading {0}".format(ufilename))
+    Logger().info("Reading {0}".format(ufilename))
     poscar = read_qe_in(ufilename)
     natoms = len(poscar["types"])
-    print("Analyzing symmetries")
+    Logger().info("Analyzing symmetries")
     symops = thirdorder_core.SymmetryOperations(
         poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
-    print("- Symmetry group {0} detected".format(symops.symbol))
-    print("- {0} symmetry operations".format(symops.translations.shape[0]))
-    print("Creating the supercell")
+    Logger().info("- Symmetry group {0} detected".format(symops.symbol))
+    Logger().info("- {0} symmetry operations".format(symops.translations.shape[0]))
+    Logger().info("Creating the supercell")
     sposcar = gen_supercell(poscar, na, nb, nc)
     ntot = natoms * na * nb * nc
-    print("Computing all distances in the supercell")
+    Logger().info("Computing all distances in the supercell")
     dmin, nequi, shifts = calc_dists(sposcar)
     if nneigh != None:
         frange = calc_frange(poscar, sposcar, nneigh, dmin)
-        print("- Automatic cutoff: {0} nm".format(frange))
+        Logger().info("- Automatic cutoff: {0} nm".format(frange))
     else:
-        print("- User-defined cutoff: {0} nm".format(frange))
-    print("Looking for an irreducible set of third-order IFCs")
+        Logger().info("- User-defined cutoff: {0} nm".format(frange))
+    Logger().info("Looking for an irreducible set of third-order IFCs")
     wedge = thirdorder_core.Wedge(poscar, sposcar, symops, dmin, nequi, shifts,
                                   frange)
-    print("- {0} triplet equivalence classes found".format(wedge.nlist))
+    Logger().info("- {0} triplet equivalence classes found".format(wedge.nlist))
     list4 = wedge.build_list4()
     nirred = len(list4)
     nruns = 4 * nirred
-    print("- {0} DFT runs are needed".format(nruns))
+    Logger().info("- {0} DFT runs are needed".format(nruns))
     if action == "sow":
-        print(sowblock)
-        print("Writing undisplaced coordinates to BASE.{0}".format(
+        Logger().info(sowblock)
+        Logger().info("Writing undisplaced coordinates to BASE.{0}".format(
             os.path.basename(sfilename)))
         write_supercell(sfilename, sposcar,
                         "BASE.{0}".format(os.path.basename(sfilename)), 0)
         width = len(str(4 * (len(list4) + 1)))
         namepattern = "DISP.{0}.{{0:0{1}d}}".format(
             os.path.basename(sfilename), width)
-        print("Writing displaced coordinates to DISP.{0}.*".format(
+        Logger().info("Writing displaced coordinates to DISP.{0}.*".format(
             os.path.basename(sfilename)))
         for i, e in enumerate(list4):
             for n in xrange(4):
@@ -516,8 +516,8 @@ if __name__ == "__main__":
                 filename = namepattern.format(number)
                 write_supercell(sfilename, dsposcar, filename, number)
     else:
-        print(reapblock)
-        print("Waiting for a list of QE output files on stdin")
+        Logger().info(reapblock)
+        Logger().info("Waiting for a list of QE output files on stdin")
         filelist = []
         for l in sys.stdin:
             s = l.strip()
@@ -525,21 +525,21 @@ if __name__ == "__main__":
                 continue
             filelist.append(s)
         nfiles = len(filelist)
-        print("- {0} filenames read".format(nfiles))
+        Logger().info("- {0} filenames read".format(nfiles))
         if nfiles != nruns:
             sys.exit("Error: {0} filenames were expected".format(nruns))
         for i in filelist:
             if not os.path.isfile(i):
                 sys.exit("Error: {0} is not a regular file".format(i))
-        print("Reading the forces")
+        Logger().info("Reading the forces")
         forces = []
         for i in filelist:
             forces.append(read_forces(i))
-            print("- {0} read successfully".format(i))
+            Logger().info("- {0} read successfully".format(i))
             res = forces[-1].mean(axis=0)
-            print("- \t Average residual force:")
-            print("- \t {0} eV/(nm * atom)".format(res))
-        print("Computing an irreducible set of anharmonic force constants")
+            Logger().info("- \t Average residual force:")
+            Logger().info("- \t {0} eV/(nm * atom)".format(res))
+        Logger().info("Computing an irreducible set of anharmonic force constants")
         phipart = np.zeros((3, nirred, ntot))
         for i, e in enumerate(list4):
             for n in xrange(4):
@@ -548,10 +548,10 @@ if __name__ == "__main__":
                 number = nirred * n + i
                 phipart[:, i, :] -= isign * jsign * forces[number].T
         phipart /= (4000. * H * H)
-        print("Reconstructing the full matrix")
+        Logger().info("Reconstructing the full matrix")
         phifull = thirdorder_core.reconstruct_ifcs(phipart, wedge, list4,
                                                    poscar, sposcar)
-        print("Writing the constants to FORCE_CONSTANTS_3RD")
+        Logger().info("Writing the constants to FORCE_CONSTANTS_3RD")
         write_ifcs(phifull, poscar, sposcar, dmin, nequi, shifts, frange,
                    "FORCE_CONSTANTS_3RD")
-    print(doneblock)
+    Logger().info(doneblock)

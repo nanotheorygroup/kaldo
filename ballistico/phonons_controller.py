@@ -73,7 +73,7 @@ class PhononsController (object):
 				folder += '/'
 				self._frequencies = np.load (folder + FREQUENCIES_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._frequencies
 	
 
@@ -97,7 +97,7 @@ class PhononsController (object):
 				folder += '/'
 				self._velocities = np.load (folder + VELOCITIES_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._velocities
 	
 	@velocities.setter
@@ -120,7 +120,7 @@ class PhononsController (object):
 				folder += '/'
 				self._eigenvectors = np.load (folder + EIGENVECTORS_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._eigenvectors
 	
 	@eigenvectors.setter
@@ -143,7 +143,7 @@ class PhononsController (object):
 				folder += '/'
 				self._eigenvalues = np.load (folder + EIGENVALUES_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._eigenvalues
 	
 	@eigenvalues.setter
@@ -173,7 +173,7 @@ class PhononsController (object):
 					folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
 				self._gamma = np.load (folder + GAMMA_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._gamma
 	
 	@gamma.setter
@@ -210,7 +210,7 @@ class PhononsController (object):
 					folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
 				self._scattering_matrix = np.load (folder + SCATTERING_MATRIX_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._scattering_matrix
 	
 	@scattering_matrix.setter
@@ -240,7 +240,7 @@ class PhononsController (object):
 				folder += '/'
 				self._dos = np.load (folder + DOS_FILE)
 			except FileNotFoundError as e:
-				print (e)
+				Logger().info(e)
 		return self._dos
 	
 	@dos.setter
@@ -267,7 +267,7 @@ class PhononsController (object):
 					folder += 'quantum/'
 				self._occupations = np.load (folder + OCCUPATIONS_FILE)
 			except FileNotFoundError as e:
-				print(e)
+				Logger().info(e)
 		if self._occupations is None:
 			frequencies = self.frequencies
 			temp = self.temperature
@@ -305,7 +305,7 @@ class PhononsController (object):
 				folder += '/'
 				self._k_points = np.load (folder + K_POINTS_FILE)
 			except FileNotFoundError as e:
-				print(e)
+				Logger().info(e)
 		if self._k_points is None:
 			k_size = self.kpts
 			n_k_points = np.prod (k_size)
@@ -339,7 +339,7 @@ class PhononsController (object):
 					folder += 'quantum/'
 				self._c_v = np.load (folder + C_V_FILE)
 			except FileNotFoundError as e:
-				print(e)
+				Logger().info(e)
 		if self._c_v is None:
 			frequencies = self.frequencies
 			c_v = np.zeros_like (frequencies)
