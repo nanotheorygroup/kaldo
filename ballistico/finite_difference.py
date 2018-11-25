@@ -45,36 +45,6 @@ class FiniteDifference (object):
             self.third_order = third_order
         self.second_order_delta = delta_shift
         self.third_order_delta = delta_shift
-        # poscar = self.poscar
-        # SYMPREC = 1e-5  # Tolerance for symmetry search
-        # NNEIGH = 4
-        # FRANGE = None
-        #
-        # natoms = len (poscar["types"])
-        # print ("Analyzing symmetries")
-        # symops = thirdorder_core.SymmetryOperations (
-        #     poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
-        # print ("- Symmetry group {0} detected".format (symops.symbol))
-        # print ("- {0} symmetry operations".format (symops.translations.shape[0]))
-        # print ("Creating the supercell")
-        # na, nb, nc = self.supercell
-        # sposcar = self.replicated_poscar
-        # ntot = natoms * na * nb * nc
-        # print ("Computing all distances in the supercell")
-        # dmin, nequi, shifts = calc_dists (sposcar)
-        # if NNEIGH != None:
-        #     frange = calc_frange (poscar, sposcar, NNEIGH, dmin)
-        #     print ("- Automatic cutoff: {0} nm".format (frange))
-        # else:
-        #     frange = FRANGE
-        #     print ("- User-defined cutoff: {0} nm".format (frange))
-        # print ("Looking for an irreducible set of third-order IFCs")
-        # wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
-        #                                frange)
-        # self.wedge = wedge
-        # print ("- {0} triplet equivalence classes found".format (wedge.nlist))
-        # self.list4 = wedge.build_list4 ()
-        # print('object created')
 
     @property
     def poscar(self):
@@ -353,26 +323,77 @@ class FiniteDifference (object):
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         dx = self.third_order_delta
         third = np.zeros ((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3))
+        # cell_inv = np.linalg.inv (self.replicated_atoms.cell)#*1000
 
 
-        for iat in range(n_in_unit_cell):
-            for icoord in range(3):
-                for jat in range(n_supercell * n_in_unit_cell):
-                    for jcoord in range(3):
-                        for n in range(4):
-                            shift = np.zeros ((n_replicated_atoms, 3))
-                            isign = (-1)**(n // 2)
-                            jsign = -(-1)**(n % 2)
-                            delta = np.zeros(3)
-                            delta[icoord] = isign * dx
-                            shift[iat, :] += delta
-                            delta = np.zeros(3)
-                            delta[jcoord] = jsign * dx
-                            shift[jat, :] += delta
-                            third[iat, icoord, jat, jcoord, :] += isign * jsign * (
-                                -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
-        third = third.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
-        third /= (4. * dx * dx)
+        poscar = self.poscar
+        SYMPREC = 1e-5  # Tolerance for symmetry search
+        NNEIGH = 4
+        FRANGE = None
+
+        natoms = len (poscar["types"])
+        print ("Analyzing symmetries")
+        symops = thirdorder_core.SymmetryOperations (
+            poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
+        print ("- Symmetry group {0} detected".format (symops.symbol))
+        print ("- {0} symmetry operations".format (symops.translations.shape[0]))
+        print ("Creating the supercell")
+        na, nb, nc = self.supercell
+        sposcar = self.replicated_poscar
+        ntot = natoms * na * nb * nc
+        print ("Computing all distances in the supercell")
+        dmin, nequi, shifts = calc_dists (sposcar)
+        if NNEIGH != None:
+            frange = calc_frange (poscar, sposcar, NNEIGH, dmin)
+            print ("- Automatic cutoff: {0} nm".format (frange))
+        else:
+            frange = FRANGE
+            print ("- User-defined cutoff: {0} nm".format (frange))
+        print ("Looking for an irreducible set of third-order IFCs")
+        wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
+                                       frange)
+        self.wedge = wedge
+        print ("- {0} triplet equivalence classes found".format (wedge.nlist))
+        self.list4 = wedge.build_list4 ()
+        print('object created')
+
+
+
+        nirred = len(self.list4)
+        na, nb, nc = self.supercell
+
+        phipart = np.zeros((3, nirred, n_replicated_atoms))
+
+        for i, e in enumerate(self.list4):
+            jat, iat, jcoord, icoord = e
+        # for iat in range(n_in_unit_cell):
+        #     for icoord in range(3):
+        #         for jat in range(n_supercell * n_in_unit_cell):
+        #             for jcoord in range(3):
+            for n in range(4):
+                shift = np.zeros ((n_replicated_atoms, 3))
+                isign = (-1)**(n // 2)
+                jsign = -(-1)**(n % 2)
+                delta = np.zeros(3)
+                delta[icoord] = isign * dx
+                shift[iat, :] += delta
+                delta = np.zeros(3)
+                delta[jcoord] = jsign * dx
+                shift[jat, :] += delta
+                phipart[:, i, :] += isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms)
+                                                     .reshape(replicated_atoms.positions.shape).T)
+
+                # third[iat, icoord, jat, jcoord, :] += isign * jsign * (
+                #     -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
+        phifull = np.array(thirdorder_core.reconstruct_ifcs (phipart, self.wedge, self.list4,
+                                          self.poscar, self.replicated_poscar))
+        phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
+        phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
+        phifull = phifull.swapaxes(5, 4)
+
+        phifull = phifull.reshape ((n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
+        phifull = phifull[np.newaxis, :, :, :, :, :]/(4 * dx * dx)
+        return phifull
         return third
         # third = np.zeros ((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3))
         # list4 = self.list4
