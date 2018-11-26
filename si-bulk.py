@@ -10,6 +10,7 @@ from ballistico.conductivity_controller import ConductivityController
 from ballistico.plotter import Plotter
 import ballistico.io_helper as io_helper
 np.set_printoptions(suppress=True)
+from ase.calculators.espresso import Espresso
 
 if __name__ == "__main__":
     # We start from a atoms
@@ -26,13 +27,21 @@ if __name__ == "__main__":
     kpts = np.array ([5, 5, 5])
     is_classic = False
 
-    calculator_inputs = ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"]
+    calculator = LAMMPSlib
+    calculator_inputs = ["pair_style tersoff",
+                              "pair_coeff * * forcefields/Si.tersoff Si"]
+    pseudopotentials = None
+    
+    # calculator = Espresso
+    # calculator_inputs = {'system': {'ecutwfc': 16.0}, 'disk_io': 'low'}
+    # pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
                                          calculator=LAMMPSlib,
                                          calculator_inputs=calculator_inputs,
+                                         pseudopotentials=pseudopotentials,
                                          is_persistency_enabled=False)
     
     # Create a phonon object

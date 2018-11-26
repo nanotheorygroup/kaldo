@@ -14,6 +14,10 @@ from ballistico.logger import Logger
 import thirdorder_core
 from thirdorder_common import *
 from thirdorder_espresso import gen_supercell, calc_frange, calc_dists
+from ase.calculators.espresso import Espresso
+
+
+import ase.io as io
 
 SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE = 'third.npy'
@@ -23,7 +27,7 @@ LIST_OF_INDEX_FILE = 'list_of_index.npy'
 
 
 class FiniteDifference (object):
-    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement'):
+    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement'):
         self.atoms = atoms
         self.supercell = supercell
 
@@ -32,6 +36,7 @@ class FiniteDifference (object):
         self._list_of_index = None
         self.calculator = calculator
         self.calculator_inputs = calculator_inputs
+        self.pseudopotentials = pseudopotentials
         self._second_order = None
         self._third_order = None
         self.is_persistency_enabled = is_persistency_enabled
@@ -274,8 +279,13 @@ class FiniteDifference (object):
     def gradient(self, x, input_atoms):
         atoms = input_atoms.copy ()
         atoms.positions = np.reshape (x, (int (x.size / 3.), 3))
-
-        calc = self.calculator(lmpcmds=self.calculator_inputs, log_file='log_lammps.out')
+        if self.calculator == ase.calculators.lammpslib.LAMMPSlib:
+            calc = self.calculator(lmpcmds=self.calculator_inputs, log_file='log_lammps.out')
+        else:
+    
+            calc = Espresso (pseudopotentials=self.pseudopotentials,
+                             tstress=True, tprnfor=True,  # kwargs added to parameters
+                             input_data=self.calculator_inputs)
         atoms.set_calculator (calc)
         gr = -1. * atoms.get_forces ()
         grad = np.reshape (gr, gr.size)
