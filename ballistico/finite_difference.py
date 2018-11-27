@@ -27,7 +27,7 @@ LIST_OF_INDEX_FILE = 'list_of_index.npy'
 
 
 class FiniteDifference (object):
-    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement'):
+    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement', optimization_method=None):
         self.atoms = atoms
         self.supercell = supercell
 
@@ -50,6 +50,10 @@ class FiniteDifference (object):
             self.third_order = third_order
         self.second_order_delta = delta_shift
         self.third_order_delta = delta_shift
+        
+        if optimization_method is not None:
+            self.optimize(optimization_method)
+            
 
     @property
     def poscar(self):
@@ -261,16 +265,17 @@ class FiniteDifference (object):
         
         return atoms_helper.convert_to_poscar(replicated_atoms, supercell)
 
-    def optimize(self, method):
+    def optimize(self, method, tol=None):
         # Mimimization of the sructure
-        Logger().info('Initial max force: ', self.max_force(self.atoms.positions, self.atoms))
         if not ((method == 'none') or (method == False)):
+            Logger ().info ('Initial max force: ' + str(self.max_force (self.atoms.positions, self.atoms)))
             Logger().info('Optimization method ' + method)
-            result = minimize (self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method)
+            result = minimize (self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method, tol=tol)
             Logger().info(result.message)
             self.atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
-            io.write ('mInimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
-        return self.atoms, self.max_force(self.atoms.positions)
+            io.write ('minimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
+            Logger ().info ('Final max force: ' + str(self.max_force (self.atoms.positions, self.atoms)))
+            return self.max_force(self.atoms.positions, self.atoms)
 
     def max_force(self, x, atoms):
         grad = self.gradient (x, atoms)
@@ -282,7 +287,6 @@ class FiniteDifference (object):
         if self.calculator == ase.calculators.lammpslib.LAMMPSlib:
             calc = self.calculator(lmpcmds=self.calculator_inputs, log_file='log_lammps.out')
         else:
-    
             calc = Espresso (pseudopotentials=self.pseudopotentials,
                              tstress=True, tprnfor=True,  # kwargs added to parameters
                              input_data=self.calculator_inputs)
@@ -310,6 +314,8 @@ class FiniteDifference (object):
         second = np.zeros ((n_atoms * 3, n_atoms * 3))
         for alpha in range (3):
             for i in range (n_atoms):
+                Logger().info('atom ' + str(i) + ', direction ' + str(alpha))
+
                 for move in (-1, 1):
                     shift = np.zeros ((n_atoms, 3))
                     shift[i, alpha] += move * dx
@@ -371,6 +377,8 @@ class FiniteDifference (object):
         phipart = np.zeros((3, nirred, n_replicated_atoms))
         for i, e in enumerate(self.list4):
             jat, iat, jcoord, icoord = e
+            Logger().info('atoms ' + str(iat) + ',' + str(jat) + ', direction ' + str(icoord) + ',' + str(jcoord))
+
         # for iat in range(n_in_unit_cell):
         #     for icoord in range(3):
         #         for jat in range(n_supercell * n_in_unit_cell):

@@ -10,12 +10,14 @@ from ballistico.conductivity_controller import ConductivityController
 from ballistico.plotter import Plotter
 import ballistico.io_helper as io_helper
 np.set_printoptions(suppress=True)
+from ase.build import bulk
 from ase.calculators.espresso import Espresso
 
 if __name__ == "__main__":
     # We start from a atoms
     atoms = ase.io.read ('si-bulk.xyz')
-    
+    atoms = bulk ('Si', 'diamond', a=5.399370043)
+
     # and replicate it
     supercell = np.array ([3, 3, 3])
     n_replicas = np.prod(supercell)
@@ -33,16 +35,20 @@ if __name__ == "__main__":
     pseudopotentials = None
     
     # calculator = Espresso
-    # calculator_inputs = {'system': {'ecutwfc': 16.0}, 'disk_io': 'low'}
+    # calculator_inputs = {'system': {'ecutwfc': 16.0},
+    #                      'electrons': {'conv_thr': 1e-8},
+    #                      'disk_io': 'low',
+    #                      'pseudo_dir': '/home/giuseppe/espresso/pseudo/'}
     # pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
-                                         calculator=LAMMPSlib,
+                                         calculator=calculator,
                                          calculator_inputs=calculator_inputs,
                                          pseudopotentials=pseudopotentials,
-                                         is_persistency_enabled=False)
+                                         is_persistency_enabled=True,
+                                         optimization_method='BFGS')
     
     # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,

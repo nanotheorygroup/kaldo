@@ -3,6 +3,7 @@ import numpy as np
 from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
+import tensorflow as tf
 # from memory_profiler import profile
 
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
@@ -116,8 +117,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     prefactor = 1e-3 / (
             4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
     coeff = 1000 * constants.hbar / constants.charge_of_electron
-    
-    
+
+    density = density.flatten()
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
     cell_inv = np.linalg.inv (atoms.cell)
@@ -181,7 +182,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     
                 # TODO: add a threshold instead of 0
                 if frequencies[index_k, mu] != 0:
-    
+                    
                     first = eigenvectors[index_k, :, mu]
                     first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
                     
@@ -223,17 +224,18 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         index_kpp_vec = index_kpp_vec[index_kp_vec]
                         mup_vec = interactions[:, 1]
                         mupp_vec = interactions[:, 2]
+                        nu = np.ravel_multi_index([index_k, mu],[nptk, n_modes], order='C')
                         nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
                                                         np.array ([nptk, n_modes]), order='C')
                         nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
                                                          np.array ([nptk, n_modes]), order='C')
 
                         if is_plus:
-                            dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec,mupp_vec]
+                            dirac_delta = density[nup_vec] - density[nupp_vec]
 
                         else:
                             dirac_delta = .5 * (
-                                    1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
+                                    1 + density[nup_vec] + density[nupp_vec])
                         
                         dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
                         if sigma_in is None:
@@ -253,15 +255,15 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                          third_eigenv_tf[nupp_vec],
                                                          second_eigenv_tf[nup_vec], optimize='greedy')
                         
-                        
+                        # TODO: use tensorflow sparse here
                         for i in range(nup_vec.shape[0]):
 	                        nu_p = nup_vec[i]
 	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
-                        gamma[is_plus, index_k, mu] += np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
-                        ps[is_plus, index_k, mu] += np.sum (dirac_delta)
+                        gamma[is_plus, index_k, mu] = np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
+                        ps[is_plus, index_k, mu] = np.sum (dirac_delta)
 
-                    gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                    ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
+                        gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
+                        ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
                     # Logger ().info ('q-point   = ' + str (index_k))
                     # Logger ().info ('mu-branch = ' + str (mu))
                 

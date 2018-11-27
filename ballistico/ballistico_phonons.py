@@ -5,8 +5,6 @@ from ballistico.phonons_controller import PhononsController
 class BallisticoPhonons (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True):
         super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in)
-        self.second_order = finite_difference.second_order
-        self.third_order = finite_difference.third_order
 
     @property
     def frequencies(self):
@@ -19,7 +17,7 @@ class BallisticoPhonons (PhononsController):
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
             self.k_points,
             self.atoms,
-            self.second_order,
+            self.finite_difference.second_order,
             self.finite_difference.list_of_index,
             self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
@@ -43,7 +41,7 @@ class BallisticoPhonons (PhononsController):
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
             self.k_points,
             self.atoms,
-            self.second_order,
+            self.finite_difference.second_order,
             self.finite_difference.list_of_index,
             self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
@@ -67,7 +65,7 @@ class BallisticoPhonons (PhononsController):
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
             self.k_points,
             self.atoms,
-            self.second_order,
+            self.finite_difference.second_order,
             self.finite_difference.list_of_index,
             self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
@@ -95,7 +93,7 @@ class BallisticoPhonons (PhononsController):
         frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
             self.k_points,
             self.atoms,
-            self.second_order,
+            self.finite_difference.second_order,
             self.finite_difference.list_of_index,
             self.finite_difference.replicated_atoms)
         self.frequencies = frequencies
@@ -148,7 +146,7 @@ class BallisticoPhonons (PhononsController):
             self.kpts,
             self.eigenvectors,
             self.finite_difference.list_of_index,
-            self.third_order,
+            self.finite_difference.third_order,
             self.sigma_in
         )
         self.gamma = gamma
@@ -175,7 +173,7 @@ class BallisticoPhonons (PhononsController):
             self.kpts,
             self.eigenvectors,
             self.finite_difference.list_of_index,
-            self.third_order,
+            self.finite_difference.third_order,
             self.sigma_in
         )
         self.scattering_matrix = scattering_matrix
