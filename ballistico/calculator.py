@@ -3,7 +3,6 @@ import numpy as np
 from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
-import tensorflow as tf
 # from memory_profiler import profile
 
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
