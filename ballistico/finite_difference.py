@@ -314,7 +314,7 @@ class FiniteDifference (object):
         second = np.zeros ((n_atoms * 3, n_atoms * 3))
         for alpha in range (3):
             for i in range (n_atoms):
-                Logger().info('atom ' + str(i) + ', direction ' + str(alpha))
+                Logger().info('Moving atom ' + str(i) + ', direction ' + str(alpha))
 
                 for move in (-1, 1):
                     shift = np.zeros ((n_atoms, 3))
@@ -377,7 +377,7 @@ class FiniteDifference (object):
         phipart = np.zeros((3, nirred, n_replicated_atoms))
         for i, e in enumerate(self.list4):
             jat, iat, jcoord, icoord = e
-            Logger().info('atoms ' + str(iat) + ',' + str(jat) + ', direction ' + str(icoord) + ',' + str(jcoord))
+            Logger().info('Moving atoms ' + str(iat) + ',' + str(jat) + ', direction ' + str(icoord) + ',' + str(jcoord))
 
         # for iat in range(n_in_unit_cell):
         #     for icoord in range(3):

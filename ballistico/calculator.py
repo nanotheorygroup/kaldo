@@ -151,7 +151,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
-    gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
+    if IS_SCATTERING_MATRIX_ENABLED:
+        gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
     mapping, grid = spg.get_ir_reciprocal_mesh (k_size,
@@ -168,11 +169,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     for is_plus in (1, 0):
         if is_plus:
-            Logger ().info ('\nCreation processes')
+            process = 'Creation: '
             second_eigenv_np = eigenvectors
             second_chi = chi
         else:
-            Logger ().info ('\nAnnihilation processes')
+            process = 'annihilation: '
             second_eigenv_np = eigenvectors.conj ()
             second_chi = chi.conj ()
         second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (n_phonons, n_modes)
@@ -217,7 +218,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                             frequencies[index_kp_vec, :, np.newaxis] != 0) & (
                                             frequencies[index_kpp_vec, np.newaxis, :] != 0)
                     interactions = np.array (np.where (condition)).T
-					# TODO: Benchmark something fast like
+                    # TODO: Benchmark something fast like
                     # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
                     if interactions.size != 0:
                         # Logger ().info ('interactions: ' + str (interactions.size))
@@ -249,7 +250,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         
                         
 
-						# TODO: find a better name
+                        # TODO: find a better name
                         temp = np.einsum ('litj,al,at,aj,ai->a', first_projected_potential,
                                                          second_chi[index_kp_vec],
                                                          chi.conj()[index_kpp_vec],
@@ -260,14 +261,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         if IS_SCATTERING_MATRIX_ENABLED:
                             for i in range(nup_vec.shape[0]):
                                 nu_p = nup_vec[i]
-    	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
+                                gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
                         gamma[is_plus, index_k, mu] = np.sum(np.abs (temp) ** 2 * dirac_delta)
                         ps[is_plus, index_k, mu] = np.sum (dirac_delta)
 
                         gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                    # Logger ().info ('q-point   = ' + str (index_k))
-                    # Logger ().info ('mu-branch = ' + str (mu))
+                Logger ().info (process + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
 
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
