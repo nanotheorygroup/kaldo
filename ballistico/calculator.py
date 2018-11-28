@@ -5,6 +5,8 @@ import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 # from memory_profiler import profile
 
+IS_SCATTERING_MATRIX_ENABLED = False
+
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 
@@ -255,24 +257,30 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                          second_eigenv_tf[nup_vec], optimize='greedy')
                         
                         # TODO: use tensorflow sparse here
-                        for i in range(nup_vec.shape[0]):
-	                        nu_p = nup_vec[i]
-	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
-                        gamma[is_plus, index_k, mu] = np.sum (gamma_tensor[is_plus, index_k, mu], axis=-1)
+                        if IS_SCATTERING_MATRIX_ENABLED:
+                            for i in range(nup_vec.shape[0]):
+                                nu_p = nup_vec[i]
+    	                        gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
+                        gamma[is_plus, index_k, mu] = np.sum(np.abs (temp) ** 2 * dirac_delta)
                         ps[is_plus, index_k, mu] = np.sum (dirac_delta)
 
                         gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
                         ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
                     # Logger ().info ('q-point   = ' + str (index_k))
                     # Logger ().info ('mu-branch = ' + str (mu))
-                
+
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
         gamma[:, index_k, :] = gamma[:, associated_index, :]
-        gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
-    
+        if IS_SCATTERING_MATRIX_ENABLED:
+            gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
+
     gamma = gamma * prefactor / nptk
-    gamma_tensor = gamma_tensor * prefactor / nptk
+    if IS_SCATTERING_MATRIX_ENABLED:
+        gamma_tensor = gamma_tensor * prefactor / nptk
     ps = ps / nptk / (2 * np.pi) ** 3
     gamma = np.sum (gamma, axis=0)
-    return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
+    if IS_SCATTERING_MATRIX_ENABLED:
+        return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
+    else:
+        return gamma, ps
