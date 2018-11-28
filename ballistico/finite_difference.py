@@ -268,13 +268,13 @@ class FiniteDifference (object):
     def optimize(self, method, tol=None):
         # Mimimization of the sructure
         if not ((method == 'none') or (method == False)):
-            Logger ().info ('Initial max force: ' + str(self.max_force (self.atoms.positions, self.atoms)))
+            Logger ().info ('Initial max force: ' + "{0:.4e}".format(self.max_force (self.atoms.positions, self.atoms)))
             Logger().info('Optimization method ' + method)
             result = minimize (self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method, tol=tol)
             Logger().info(result.message)
             self.atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
             io.write ('minimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
-            Logger ().info ('Final max force: ' + str(self.max_force (self.atoms.positions, self.atoms)))
+            Logger ().info ('Final max force: ' + "{0:.4e}".format(self.max_force (self.atoms.positions, self.atoms)))
             return self.max_force(self.atoms.positions, self.atoms)
 
     def max_force(self, x, atoms):
