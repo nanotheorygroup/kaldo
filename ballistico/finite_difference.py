@@ -27,7 +27,7 @@ LIST_OF_INDEX_FILE = 'list_of_index.npy'
 
 
 class FiniteDifference (object):
-    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement', optimization_method=None):
+    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-5, folder='displacement', optimization_method=None, tolerance=None):
         self.atoms = atoms
         self.supercell = supercell
 
@@ -52,7 +52,7 @@ class FiniteDifference (object):
         self.third_order_delta = delta_shift
         
         if optimization_method is not None:
-            self.optimize(optimization_method)
+            self.optimize(optimization_method, tolerance)
             
 
     @property
