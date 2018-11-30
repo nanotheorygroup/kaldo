@@ -268,13 +268,13 @@ class FiniteDifference (object):
     def optimize(self, method, tol=None):
         # Mimimization of the sructure
         if not ((method == 'none') or (method == False)):
-            Logger ().info ('Initial max force: ' + "{0:.4e}".format(self.max_force (self.atoms.positions, self.atoms)))
+            Logger ().info ('Initial max force: ' + "{0:.10e}".format(self.max_force (self.atoms.positions, self.atoms)))
             Logger().info('Optimization method ' + method)
             result = minimize (self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method, tol=tol)
             Logger().info(result.message)
             self.atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
             io.write ('minimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
-            Logger ().info ('Final max force: ' + "{0:.4e}".format(self.max_force (self.atoms.positions, self.atoms)))
+            Logger ().info ('Final max force: ' + "{0:.10e}".format(self.max_force (self.atoms.positions, self.atoms)))
             return self.max_force(self.atoms.positions, self.atoms)
 
     def max_force(self, x, atoms):
@@ -319,8 +319,9 @@ class FiniteDifference (object):
                 for move in (-1, 1):
                     shift = np.zeros ((n_atoms, 3))
                     shift[i, alpha] += move * dx
-                    second[i * 3 + alpha, :] += move * self.gradient (replicated_atoms.positions + shift, replicated_atoms)
-                    
+                    grad =  move * self.gradient (replicated_atoms.positions + shift, replicated_atoms)
+                    Logger().info('Max Force : ' + str(np.linalg.norm(grad, 2)))
+                    second[i * 3 + alpha, :] += grad
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         second = second.reshape ((n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         second = second / (2. * dx)
