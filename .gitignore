@@ -17,3 +17,10 @@ FIELD
 OUTPUT
 REFERENCE
 THIRD
+espresso.pwi
+espresso.pwo
+log_lammps.out
+pwscf.mix1
+pwscf.wfc1
+pwscf.xml
+Si.tersoff
