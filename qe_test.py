@@ -1,31 +1,37 @@
+import numpy as np
 from ase.build import bulk
+import matplotlib.pyplot as plt
+
 from ase.calculators.espresso import Espresso
-from ase.constraints import UnitCellFilter
-from ase.optimize import LBFGS
 import os
 
-os.environ['ASE_ESPRESSO_COMMAND'] = '/Users/giuse/bin/pw.x -in PREFIX.pwi > PREFIX.pwo'
+if __name__ == "__main__":
 
-pseudopotentials = {'Na': 'na_pbe_v1.5.uspp.F.UPF',
-                    'Cl': 'cl_pbe_v1.4.uspp.F.UPF'}
-
-input_data = {
-    'system': {
-        'ecutwfc': 64,
-        'ecutrho': 576},
-    'pseudo_dir': '/Users/giuse/espresso/pseudo/',
-    'disk_io': 'low'}  # automatically put into 'control'
+    os.environ['ASE_ESPRESSO_COMMAND'] = '/Users/giuse/bin/pw.x -in PREFIX.pwi > PREFIX.pwo'
 
 
+    calculator = Espresso
+    calculator_inputs = {'system': {'ecutwfc': 20.0},
+                         'electrons': {'conv_thr': 1e-10},
+                         'disk_io': 'low',
+                         'pseudo_dir': '/Users/giuse/espresso/pseudo/'}
+    pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
 
-rocksalt = bulk('NaCl', crystalstructure='rocksalt', a=6.0)
-calc = Espresso(pseudopotentials=pseudopotentials,
-                tstress=True, tprnfor=True, kpts=(3, 3, 3), input_data=input_data)
-rocksalt.set_calculator(calc)
+    calc = Espresso(pseudopotentials=pseudopotentials,
+                    tstress=True,
+                    tprnfor=True,  # kwargs added to parameters
+                    input_data=calculator_inputs,
+                    koffset=(1, 1, 1),
+                    kpoints=(2, 2, 2)
+                    )
 
-ucf = UnitCellFilter(rocksalt)
-opt = LBFGS(ucf)
-opt.run(fmax=0.005)
+    lattice_constants = np.arange(5.516, 5.517, 0.0001)
+    potential = np.zeros_like(lattice_constants)
+    for i in range(lattice_constants.shape[0]):
+        lattice_constant = lattice_constants[i]
+        atoms = bulk ('Si', 'diamond', a=lattice_constant)
+        atoms.set_calculator(calc)
 
-# cubic lattic constant
-print((8*rocksalt.get_volume()/len(rocksalt))**(1.0/3.0))
+        potential[i] = atoms.get_potential_energy()
+    plt.plot(lattice_constants, potential)
+    plt.show()

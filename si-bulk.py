@@ -19,7 +19,7 @@ if __name__ == "__main__":
     os.environ['ASE_ESPRESSO_COMMAND'] = '/Users/giuse/bin/pw.x -in PREFIX.pwi > PREFIX.pwo'
 
     # We start from a atoms
-    atoms = bulk ('Si', 'diamond', a=5.399370043)
+    atoms = bulk ('Si', 'diamond', a=5.51665)
 
     # and replicate it
     supercell = np.array ([3, 3, 3])
@@ -50,12 +50,11 @@ if __name__ == "__main__":
                                          calculator_inputs=calculator_inputs,
                                          pseudopotentials=pseudopotentials,
                                          is_persistency_enabled=False,
-                                         delta_shift=1e-8
-                                         )
-                                         # ,
-                                         # optimization_method='BFGS',
-                                         # tolerance=1e-8)
-    
+                                         delta_shift=1e-8,
+                                         qe_koffset=(1, 1, 1),
+                                         qe_kpoints=(2, 2, 2),
+                                         is_third_order_symmetry_enabled=True
+                                        )
     # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,
                        kpts=kpts,
