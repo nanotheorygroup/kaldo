@@ -12,18 +12,16 @@ import ballistico.io_helper as io_helper
 np.set_printoptions(suppress=True)
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
-import os
 
 if __name__ == "__main__":
-
-    os.environ['ASE_ESPRESSO_COMMAND'] = '/Users/giuse/bin/pw.x -in PREFIX.pwi > PREFIX.pwo'
-
     # We start from a atoms
-    atoms = bulk ('Si', 'diamond', a=5.51665)
+    # atoms = ase.io.read ('si-bulk.xyz')
+    atoms = bulk ('Si', 'diamond', a=5.43)
 
     # and replicate it
     supercell = np.array ([3, 3, 3])
-
+    n_replicas = np.prod(supercell)
+    
     # we create our system
     temperature = 300
 
@@ -35,13 +33,13 @@ if __name__ == "__main__":
     calculator_inputs = ["pair_style tersoff",
                               "pair_coeff * * forcefields/Si.tersoff Si"]
     pseudopotentials = None
-
-    calculator = Espresso
-    calculator_inputs = {'system': {'ecutwfc': 20.0},
-                         'electrons': {'conv_thr': 1e-10, 'mixing_beta' : 0.5},
-                         'disk_io': 'low',
-                         'pseudo_dir': '/Users/giuse/espresso/pseudo/'}
-    pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
+    
+    # calculator = Espresso
+    # calculator_inputs = {'system': {'ecutwfc': 16.0},
+    #                      'electrons': {'conv_thr': 1e-8},
+    #                      'disk_io': 'low',
+    #                      'pseudo_dir': '/home/giuseppe/espresso/pseudo/'}
+    # pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
@@ -49,12 +47,8 @@ if __name__ == "__main__":
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
                                          pseudopotentials=pseudopotentials,
-                                         is_persistency_enabled=False,
-                                         delta_shift=1e-8,
-                                         qe_koffset=(1, 1, 1),
-                                         qe_kpoints=(2, 2, 2),
-                                         is_third_order_symmetry_enabled=True
-                                        )
+                                         is_persistency_enabled=True)
+    
     # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,
                        kpts=kpts,

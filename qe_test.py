@@ -1,37 +1,23 @@
-import numpy as np
 from ase.build import bulk
-import matplotlib.pyplot as plt
-
 from ase.calculators.espresso import Espresso
-import os
+from ase.constraints import UnitCellFilter
+from ase.optimize import LBFGS
 
-if __name__ == "__main__":
+import ase.io as io
 
-    os.environ['ASE_ESPRESSO_COMMAND'] = '/Users/giuse/bin/pw.x -in PREFIX.pwi > PREFIX.pwo'
+pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
 
+si_bulk = io.read('si-bulk.xyz',format='extxyz')
+input_data = {'system': {'ecutwfc':16.0}, 'disk_io': 'low'}
 
-    calculator = Espresso
-    calculator_inputs = {'system': {'ecutwfc': 20.0},
-                         'electrons': {'conv_thr': 1e-10},
-                         'disk_io': 'low',
-                         'pseudo_dir': '/Users/giuse/espresso/pseudo/'}
-    pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
+calc = Espresso(pseudopotentials=pseudopotentials,
+                tstress=True, tprnfor=True,  # kwargs added to parameters
+                input_data=input_data)
 
-    calc = Espresso(pseudopotentials=pseudopotentials,
-                    tstress=True,
-                    tprnfor=True,  # kwargs added to parameters
-                    input_data=calculator_inputs,
-                    koffset=(1, 1, 1),
-                    kpoints=(2, 2, 2)
-                    )
+si_bulk.set_calculator(calc)
+ucf = UnitCellFilter(si_bulk)
+opt = LBFGS(ucf)
+opt.run(fmax=0.005)
 
-    lattice_constants = np.arange(5.516, 5.517, 0.0001)
-    potential = np.zeros_like(lattice_constants)
-    for i in range(lattice_constants.shape[0]):
-        lattice_constant = lattice_constants[i]
-        atoms = bulk ('Si', 'diamond', a=lattice_constant)
-        atoms.set_calculator(calc)
-
-        potential[i] = atoms.get_potential_energy()
-    plt.plot(lattice_constants, potential)
-    plt.show()
+# cubic lattic constant
+print((8*si_bulk.get_volume()/len(si_bulk))**(1.0/3.0))

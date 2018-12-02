@@ -5,6 +5,8 @@ import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 # from memory_profiler import profile
 
+
+ENERGY_THRESHOLD = 0.001
 IS_SCATTERING_MATRIX_ENABLED = False
 
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
@@ -129,9 +131,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     n_modes = n_particles * 3
     ps = np.zeros ((2, np.prod (k_size), n_modes))
     
-    # TODO: remove acoustic sum rule
-    frequencies[0, :3] = 0
-    
     n_replicas = list_of_replicas.shape[0]
     rlattvec = cell_inv * 2 * np.pi
     chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
@@ -181,9 +180,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
             
             for mu in range (n_modes):
-    
-                # TODO: add a threshold instead of 0
-                if frequencies[index_k, mu] != 0:
+                if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
                     
                     first = eigenvectors[index_k, :, mu]
                     first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
@@ -196,7 +193,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                     if sigma_in is None:
                         velocities = velocities.real
                         velocities[0, :3, :] = 0
-    
                         sigma_tensor_np = calculate_broadening ( \
                             velocities[index_kp_vec, :, np.newaxis, :] - \
                             velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
@@ -214,9 +210,9 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                             frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] -\
                             frequencies[index_kpp_vec, np.newaxis, :])
 
-                    condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (
-                            frequencies[index_kp_vec, :, np.newaxis] != 0) & (
-                                            frequencies[index_kpp_vec, np.newaxis, :] != 0)
+                    condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
+                                (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > ENERGY_THRESHOLD) & \
+                                (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > ENERGY_THRESHOLD)
                     interactions = np.array (np.where (condition)).T
                     # TODO: Benchmark something fast like
                     # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
