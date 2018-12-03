@@ -9,7 +9,6 @@ from ballistico.ballistico_phonons import BallisticoPhonons as Phonons
 from ballistico.conductivity_controller import ConductivityController
 from ballistico.plotter import Plotter
 import ballistico.io_helper as io_helper
-np.set_printoptions(suppress=True)
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
 
