@@ -3,8 +3,7 @@ import numpy as np
 from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
-# from memory_profiler import profile
-
+import scipy.special
 
 ENERGY_THRESHOLD = 0.001
 IS_SCATTERING_MATRIX_ENABLED = False
@@ -111,9 +110,90 @@ def gaussian_delta(params):
     delta_energy = params[0]
     # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
     sigma = params[1]
-    # correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+    correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
     correction = 1
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
+
+def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk,  eigenvectors, second_eigenv_tf, third_eigenv_tf,second_chi, chi, scaled_potential, sigma_in=None):
+    gamma = 0
+    ps = 0
+    if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
+
+        first = eigenvectors[index_k, :, mu]
+        first_projected_potential = np.einsum('wlitj,w->litj', scaled_potential, first, optimize='greedy')
+
+        index_kp_vec = np.arange(np.prod(k_size))
+        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
+        i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
+        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='F', mode='wrap')
+
+        if sigma_in is None:
+            velocities = velocities.real
+            velocities[0, :3, :] = 0
+            sigma_tensor_np = calculate_broadening( \
+                velocities[index_kp_vec, :, np.newaxis, :] - \
+                velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
+            sigma_small = sigma_tensor_np
+        else:
+            sigma_small = sigma_in
+
+        if is_plus:
+            freq_diff_np = np.abs(
+                frequencies[index_k, mu] + frequencies[index_kp_vec, :, np.newaxis] - \
+                frequencies[index_kpp_vec, np.newaxis, :])
+
+        else:
+            freq_diff_np = np.abs(
+                frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] - \
+                frequencies[index_kpp_vec, np.newaxis, :])
+
+        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
+                    (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > ENERGY_THRESHOLD) & \
+                    (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > ENERGY_THRESHOLD)
+        interactions = np.array(np.where(condition)).T
+        # TODO: Benchmark something fast like
+        # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+        if interactions.size != 0:
+            # Logger ().info ('interactions: ' + str (interactions.size))
+            index_kp_vec = interactions[:, 0]
+            index_kpp_vec = index_kpp_vec[index_kp_vec]
+            mup_vec = interactions[:, 1]
+            mupp_vec = interactions[:, 2]
+            nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+            nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
+                                           np.array([nptk, n_modes]), order='C')
+            nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
+                                            np.array([nptk, n_modes]), order='C')
+
+            if is_plus:
+                dirac_delta = density[nup_vec] - density[nupp_vec]
+
+            else:
+                dirac_delta = .5 * (
+                        1 + density[nup_vec] + density[nupp_vec])
+
+            dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
+            if sigma_in is None:
+                dirac_delta *= gaussian_delta([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
+                                               sigma_small[index_kp_vec, mup_vec, mupp_vec]])
+
+            else:
+                dirac_delta *= gaussian_delta(
+                    [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
+
+            # TODO: find a better name
+            temp = np.einsum('litj,al,at,aj,ai->a', first_projected_potential,
+                             second_chi[index_kp_vec],
+                             chi.conj()[index_kpp_vec],
+                             third_eigenv_tf[nupp_vec],
+                             second_eigenv_tf[nup_vec], optimize='greedy')
+            gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
+            ps = np.sum(dirac_delta)
+
+    return gamma / frequencies[index_k, mu], ps / frequencies[index_k, mu]
+
+
+
 
 # @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
@@ -129,8 +209,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     
     Logger ().info ('Lifetime calculation')
     n_modes = n_particles * 3
-    ps = np.zeros ((2, np.prod (k_size), n_modes))
-    
+
     n_replicas = list_of_replicas.shape[0]
     rlattvec = cell_inv * 2 * np.pi
     chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
@@ -150,6 +229,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
+    ps = np.zeros ((2, np.prod (k_size), n_modes))
+
     if IS_SCATTERING_MATRIX_ENABLED:
         gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
     n_modes = n_particles * 3
@@ -168,11 +249,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     for is_plus in (1, 0):
         if is_plus:
-            process = 'Creation: '
+            process = 'Plus processes: '
             second_eigenv_np = eigenvectors
             second_chi = chi
         else:
-            process = 'annihilation: '
+            process = 'Minus processes: '
             second_eigenv_np = eigenvectors.conj ()
             second_chi = chi.conj ()
         second_eigenv_tf = second_eigenv_np.swapaxes (1, 2).reshape (n_phonons, n_modes)
@@ -180,103 +261,25 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
             
             for mu in range (n_modes):
-                if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
-                    
-                    first = eigenvectors[index_k, :, mu]
-                    first_projected_potential = np.einsum ('wlitj,w->litj', scaled_potential, first, optimize='greedy')
-                    
-                    index_kp_vec = np.arange (np.prod (k_size))
-                    i_kp_vec = np.array (np.unravel_index (index_kp_vec, k_size, order='F'))
-                    i_kpp_vec = i_k[:, np.newaxis] + (int (is_plus) * 2 - 1) * i_kp_vec[:, :]
-                    index_kpp_vec = np.ravel_multi_index (i_kpp_vec, k_size, order='F', mode='wrap')
+                gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv,
+                                           k_size, n_modes, nptk, eigenvectors, second_eigenv_tf, third_eigenv_tf,
+                                           second_chi, chi, scaled_potential, sigma_in)
 
-                    if sigma_in is None:
-                        velocities = velocities.real
-                        velocities[0, :3, :] = 0
-                        sigma_tensor_np = calculate_broadening ( \
-                            velocities[index_kp_vec, :, np.newaxis, :] - \
-                            velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
-                        sigma_small = sigma_tensor_np
-                    else:
-                        sigma_small = sigma_in
-                        
-                    if is_plus:
-                        freq_diff_np = np.abs (
-                            frequencies[index_k, mu] + frequencies[index_kp_vec, :, np.newaxis] -\
-                            frequencies[index_kpp_vec, np.newaxis, :])
-
-                    else:
-                        freq_diff_np = np.abs (
-                            frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] -\
-                            frequencies[index_kpp_vec, np.newaxis, :])
-
-                    condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
-                                (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > ENERGY_THRESHOLD) & \
-                                (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > ENERGY_THRESHOLD)
-                    interactions = np.array (np.where (condition)).T
-                    # TODO: Benchmark something fast like
-                    # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-                    if interactions.size != 0:
-                        # Logger ().info ('interactions: ' + str (interactions.size))
-                        index_kp_vec = interactions[:, 0]
-                        index_kpp_vec = index_kpp_vec[index_kp_vec]
-                        mup_vec = interactions[:, 1]
-                        mupp_vec = interactions[:, 2]
-                        nu = np.ravel_multi_index([index_k, mu],[nptk, n_modes], order='C')
-                        nup_vec = np.ravel_multi_index (np.array ([index_kp_vec, mup_vec]),
-                                                        np.array ([nptk, n_modes]), order='C')
-                        nupp_vec = np.ravel_multi_index (np.array ([index_kpp_vec, mupp_vec]),
-                                                         np.array ([nptk, n_modes]), order='C')
-
-                        if is_plus:
-                            dirac_delta = density[nup_vec] - density[nupp_vec]
-
-                        else:
-                            dirac_delta = .5 * (
-                                    1 + density[nup_vec] + density[nupp_vec])
-                        
-                        dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
-                        if sigma_in is None:
-                            dirac_delta *= gaussian_delta ([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
-                                                        sigma_small[index_kp_vec, mup_vec, mupp_vec]])
-                        
-                        else:
-                            dirac_delta *= gaussian_delta (
-                                [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
-                        
-                        
-
-                        # TODO: find a better name
-                        temp = np.einsum ('litj,al,at,aj,ai->a', first_projected_potential,
-                                                         second_chi[index_kp_vec],
-                                                         chi.conj()[index_kpp_vec],
-                                                         third_eigenv_tf[nupp_vec],
-                                                         second_eigenv_tf[nup_vec], optimize='greedy')
-                        
-                        # TODO: use tensorflow sparse here
-                        if IS_SCATTERING_MATRIX_ENABLED:
-                            for i in range(nup_vec.shape[0]):
-                                nu_p = nup_vec[i]
-                                gamma_tensor[is_plus, index_k, mu, nu_p] += np.abs (temp[i]) ** 2 * dirac_delta[i]
-                        gamma[is_plus, index_k, mu] = np.sum(np.abs (temp) ** 2 * dirac_delta)
-                        ps[is_plus, index_k, mu] = np.sum (dirac_delta)
-
-                        gamma[is_plus, index_k, mu] /= frequencies[index_k, mu]
-                        ps[is_plus, index_k, mu] /= frequencies[index_k, mu]
                 Logger ().info (process + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
+                Logger ().info ('gamma = ' + str (gamma[is_plus, index_k, mu]/4.868263032388671e-06) )
 
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
         gamma[:, index_k, :] = gamma[:, associated_index, :]
-        if IS_SCATTERING_MATRIX_ENABLED:
-            gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
+        # if IS_SCATTERING_MATRIX_ENABLED:
+        #     gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
 
     gamma = gamma * prefactor / nptk
-    if IS_SCATTERING_MATRIX_ENABLED:
-        gamma_tensor = gamma_tensor * prefactor / nptk
+    # if IS_SCATTERING_MATRIX_ENABLED:
+    #     gamma_tensor = gamma_tensor * prefactor / nptk
     ps = ps / nptk / (2 * np.pi) ** 3
     gamma = np.sum (gamma, axis=0)
-    if IS_SCATTERING_MATRIX_ENABLED:
-        return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
-    else:
-        return gamma, ps
+    # if IS_SCATTERING_MATRIX_ENABLED:
+    #     return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
+    # else:
+    return gamma, ps
