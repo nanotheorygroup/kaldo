@@ -42,11 +42,14 @@ def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='dl
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
 
 
-def import_third_order_dlpoly(atoms, replicas, list_of_replicas, file='dlpoly_files/THIRD'):
+def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), file='dlpoly_files/THIRD'):
     replicas = np.array(replicas)
-    replicated_atoms, list_of_replicas = ath.replicate_atoms (
-        atoms, replicas)
-    n_particles = replicated_atoms.get_positions().shape[0]
+    n_particles = atoms.get_positions().shape[0]
+
+    # TODO: remove this method
+    if not (replicas == (1, 1, 1)).all():
+        replicated_atoms, _ = ath.replicate_atoms (atoms, replicas)
+        n_particles = replicated_atoms.get_positions().shape[0]
     third_order_frame = pd.read_csv (file, header=None, delim_whitespace=True)
     third_order = third_order_frame.values.T
     v3ijk = third_order[5:8].T

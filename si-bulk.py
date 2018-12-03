@@ -15,7 +15,7 @@ from ase.calculators.espresso import Espresso
 if __name__ == "__main__":
     # We start from a atoms
     # atoms = ase.io.read ('si-bulk.xyz')
-    atoms = bulk ('Si', 'diamond', a=5.43)
+    atoms = bulk ('Si', 'diamond', a=5.432)
 
     # and replicate it
     supercell = np.array ([3, 3, 3])
