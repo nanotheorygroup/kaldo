@@ -70,8 +70,8 @@ class Plotter (object):
 	def plot_everything(self, with_dispersion=True):
 		phonons = self.phonons
 		if with_dispersion:
-			self.plot_in_brillouin_zone (observable_name='disp_rel', )
-			self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=False)
+			self.plot_in_brillouin_zone (observable_name='disp_rel', with_fourier=False)
+			# self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
 		self.plot_vs_frequency (phonons.c_v, 'cv')
 		vel = np.linalg.norm (phonons.velocities, axis=-1)
 		self.plot_vs_frequency (vel, 'vel')
