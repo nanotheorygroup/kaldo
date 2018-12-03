@@ -115,8 +115,8 @@ def gaussian_delta(params):
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk,  eigenvectors, second_eigenv_tf, third_eigenv_tf,second_chi, chi, scaled_potential, sigma_in=None):
-    gamma = 0
-    ps = 0
+    gamma = np.zeros(2)
+    ps = np.zeros(2)
     if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
 
         first = eigenvectors[index_k, :, mu]
@@ -129,7 +129,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
         if sigma_in is None:
             velocities = velocities.real
-            velocities[0, :3, :] = 0
+            # velocities[0, :3, :] = 0
             sigma_tensor_np = calculate_broadening( \
                 velocities[index_kp_vec, :, np.newaxis, :] - \
                 velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
@@ -187,10 +187,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                              chi.conj()[index_kpp_vec],
                              third_eigenv_tf[nupp_vec],
                              second_eigenv_tf[nup_vec], optimize='greedy')
-            gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
-            ps = np.sum(dirac_delta)
+            gamma[is_plus] = np.sum(np.abs(temp) ** 2 * dirac_delta)
+            ps[is_plus] = np.sum(dirac_delta)
 
-    return gamma / frequencies[index_k, mu], ps / frequencies[index_k, mu]
+    return gamma.sum() / frequencies[index_k, mu], ps.sum() / frequencies[index_k, mu]
 
 
 
