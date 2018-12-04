@@ -124,18 +124,18 @@ def lorentzian_delta(params):
     delta_nu = params[0]
     gamma = params[1]
     # correction = 1
-    corrections = { 1 :0.704833,
-      2 :0.844042,
-      3 :0.894863,
-      4 :0.920833,
-      5 :0.936549,
-      6 :0.947071,
-      7 :0.954604,
-      8 :0.960263,
-      9 :0.964669,
-     10 :0.968195}
+    corrections = {
+        1 :0.704833,
+        2 :0.844042,
+        3 :0.894863,
+        4 :0.920833,
+        5 :0.936549,
+        6 :0.947071,
+        7 :0.954604,
+        8 :0.960263,
+        9 :0.964669,
+       10 :0.968195}
     correction = corrections[DELTA_THRESHOLD]
-
     lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_nu ** 2 + (gamma / 2) ** 2)
     return lorentzian / correction
 
@@ -244,7 +244,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                  np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
     scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
                                  np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-    scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
+    scaled_potential = scaled_potential.reshape ((n_modes, n_replicas, n_modes, n_replicas, n_modes))
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
     ps = np.zeros ((2, np.prod (k_size), n_modes))
