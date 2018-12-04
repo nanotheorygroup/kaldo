@@ -261,7 +261,10 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                            k_size, n_modes, nptk, eigenvectors, second_eigenv_tf, third_eigenv_tf,
                                            second_chi, chi, scaled_potential, sigma_in)
                 hbar = 6.35075751
+
                 coeff = hbar ** 2 * np.pi / 4. / 9.648538 / 16 / np.pi ** 4
+                coeff *= (constants.evoverdlpoly)**2
+
                 Logger().info('gamma = ' + str(gamma[is_plus, index_k, mu] * coeff))
                 Logger ().info (process + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
 
