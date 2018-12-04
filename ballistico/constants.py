@@ -35,3 +35,4 @@ hbar_new = 6.35075751
 
 davide_coeff = hbar_new ** 2 * np.pi / 4. / 9.648538 / 16 / np.pi ** 4 * (evoverdlpoly) ** 2
 
+gamma_coeff = 1e-3 / (4. * np.pi) ** 3 * avogadro ** 3 * charge_of_electron ** 2 * hbar

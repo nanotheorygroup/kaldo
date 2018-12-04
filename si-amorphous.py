@@ -18,28 +18,35 @@ if __name__ == "__main__":
     second_order = io_helper.import_second_dlpoly (atoms)
     third_order = io_helper.import_third_order_dlpoly (atoms)
 
-    width = 0.05 # mev
-    logging.info('sigma meV ', width)
-    width = width * constants.mevoverthz
-
 
     finite_difference = FiniteDifference(atoms=atoms,
                                          second_order=second_order,
                                          third_order=third_order,
                                          is_persistency_enabled=True)
+    fig = plt.figure()
 
-    # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference,
-                      is_classic=is_classic,
-                      temperature=temperature,
-                      sigma_in=width,
-                      is_persistency_enabled=True)
+    for width in (0.02, 0.05, 0.10, 0.20):
+        logging.info('sigma meV ', width)
+        width_thz = width * constants.mevoverthz
 
-    # Create a plot helper object
-    plotter = Plotter(phonons=phonons,
-                      is_showing=True,
-                      folder='plot/ballistico/',
-                      is_persistency_enabled=True)
+        # Create a phonon object
+        phonons = Phonons(finite_difference=finite_difference,
+                          is_classic=is_classic,
+                          temperature=temperature,
+                          sigma_in=width_thz,
+                          is_persistency_enabled=True)
 
-    # call the method plot everything
-    plotter.plot_everything()
+
+        frequencies = phonons.frequencies.flatten()
+        observable = phonons.gamma.flatten() #* 0.2418
+        observable *= constants.davide_coeff / constants.gamma_coeff
+        # print(observable)
+        plt.scatter(frequencies[3:],
+                    observable[3:], marker=".", label='gaussian, ' + str(width) + 'meV')
+
+    plt.ylabel('$\Gamma$ (meV)', fontsize=16, fontweight='bold')
+    plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    plt.ylim([0,5])
+    plt.legend()
+    fig.savefig('comparison-bandwidths.pdf')
+    plt.show()

@@ -152,9 +152,7 @@ class BallisticoPhonons (PhononsController):
             self.sigma_in
         )
 
-        gamma *= 1e-3 / (
-                4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
-
+        gamma *= constants.gamma_coeff
         self.gamma = gamma
         self.scattering_matrix = scattering_matrix
         return gamma
@@ -182,6 +180,7 @@ class BallisticoPhonons (PhononsController):
             self.finite_difference.third_order,
             self.sigma_in
         )
+        gamma *= constants.gamma_coeff
         self.scattering_matrix = scattering_matrix
         self.gamma = gamma
         return scattering_matrix

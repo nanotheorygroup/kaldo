@@ -4,6 +4,8 @@ from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 import scipy.special
+from opt_einsum import contract
+
 
 ENERGY_THRESHOLD = 0.001
 IS_SCATTERING_MATRIX_ENABLED = False
@@ -54,14 +56,14 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     chi_k = np.zeros (n_replicas).astype (complex)
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-    dyn_s = np.einsum('ialjb,l->iajb', second_order, chi_k)
+    dyn_s = contract('ialjb,l->iajb', second_order, chi_k)
     replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
     dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
             geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-    ddyn_s = 1j * np.einsum('ijla,l,ibljc->aibjc',
+    ddyn_s = 1j * contract('ijla,l,ibljc->aibjc',
                        dxij,
                        chi_k,
-                       second_order, optimize='greedy')
+                       second_order)
     dyn = dyn_s.reshape (n_particles * 3, n_particles * 3)
     ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
     out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
@@ -73,7 +75,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     # eigenvects = eigenvects[:, idx]
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
     velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-    vel = np.einsum('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects, optimize='greedy')
+    vel = contract('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
             if frequencies[mu] != 0:
@@ -147,7 +149,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
     if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
 
         first = eigenvectors[index_k, :, mu]
-        first_projected_potential = np.einsum('wlitj,w->litj', scaled_potential, first, optimize='greedy')
+        first_projected_potential = contract('wlitj,w->litj', scaled_potential, first)
 
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
@@ -204,11 +206,11 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                     [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
 
             # TODO: find a better name
-            temp = np.einsum('litj,al,at,aj,ai->a', first_projected_potential,
+            temp = contract('litj,al,at,aj,ai->a', first_projected_potential,
                              second_chi[index_kp_vec],
                              chi.conj()[index_kpp_vec],
                              third_eigenv_tf[nupp_vec],
-                             second_eigenv_tf[nup_vec], optimize='greedy')
+                             second_eigenv_tf[nup_vec])
             gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
             ps = np.sum(dirac_delta)
 
