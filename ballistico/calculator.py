@@ -3,7 +3,7 @@ import numpy as np
 from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
-# from memory_profiler import profile
+from memory_profiler import profile
 
 
 ENERGY_THRESHOLD = 0.001
@@ -115,7 +115,7 @@ def gaussian_delta(params):
     correction = 1
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
-# @profile
+@profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
     prefactor = 1e-3 / (
             4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
@@ -147,7 +147,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                  np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
     scaled_potential /= np.sqrt (masses[np.newaxis, np.newaxis, \
                                  np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-    scaled_potential = scaled_potential.reshape (n_modes, n_replicas, n_modes, n_replicas, n_modes)
+    scaled_potential = scaled_potential.reshape ((n_modes, n_replicas, n_modes, n_replicas, n_modes))
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
     if IS_SCATTERING_MATRIX_ENABLED:

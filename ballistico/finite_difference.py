@@ -15,11 +15,13 @@ import thirdorder_core
 from thirdorder_common import *
 from thirdorder_espresso import gen_supercell, calc_frange, calc_dists
 from ase.calculators.espresso import Espresso
-
+from sparse import COO
+from scipy.sparse import load_npz, save_npz
 
 import ase.io as io
 
 SECOND_ORDER_FILE = 'second.npy'
+THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
@@ -30,6 +32,8 @@ class FiniteDifference (object):
     def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-6 * constants.evoverdlpoly, folder='displacement', qe_koffset=None, qe_kpoints=None, is_third_order_symmetry_enabled=False):
         self.atoms = atoms
         self.supercell = supercell
+        self.n_atoms = self.atoms.get_masses().shape[0]
+        self.n_replicas = np.prod(supercell)
 
         self._replicated_atoms = None
         #TODO: move list of index in phonon class
@@ -120,20 +124,33 @@ class FiniteDifference (object):
                 try:
                     folder = self.folder_name
                     folder += '/'
-                    self._third_order = np.load (folder + THIRD_ORDER_FILE)
+                    self._third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE))\
+                        .reshape((1, self.n_atoms, 3, self.n_replicas, self.n_atoms, 3, self.n_replicas, self.n_atoms, 3))
                 except FileNotFoundError as e:
                     Logger().info(e)
+                    try:
+                        # TODO: remove this non sparse migration
+                        self._third_order = np.load(folder + THIRD_ORDER_FILE)
+                        # here we force the migration to the sparse version
+                        self.third_order = self._third_order
+                    except FileNotFoundError as e:
+                        Logger().info(e)
             if self._third_order is None:
                 self.third_order = self.calculate_third ()
         return self._third_order
 
     @third_order.setter
     def third_order(self, new_third_order):
+        if type(new_third_order)==np.ndarray:
+            self._third_order = COO.from_numpy(new_third_order)
+        else:
+            self._third_order = new_third_order
+
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
-            np.save (folder + THIRD_ORDER_FILE, new_third_order)
-        self._third_order = new_third_order
+            save_npz(folder + THIRD_ORDER_FILE_SPARSE, self._third_order.reshape((self.n_atoms * 3 * self.n_replicas * \
+                                                                                  self.n_atoms * 3, self.n_replicas * self.n_atoms * 3)).to_scipy_sparse())
 
     @property
     def replicated_atoms(self):

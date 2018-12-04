@@ -2,7 +2,6 @@ import numpy as np
 import ase.io
 import os
 import ballistico.constants as constants
-from ase import Atoms
 from ballistico.logger import Logger
 
 

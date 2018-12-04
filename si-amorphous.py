@@ -11,7 +11,7 @@ from ballistico.plotter import Plotter
 
 if __name__ == "__main__":
     is_classic = True
-    atoms = ase.io.read ('reference.xyz')
+    atoms = ase.io.read ('aSi.xyz')
     temperature = 300
     second_order = io_helper.import_second_dlpoly (atoms)
     third_order = io_helper.import_third_order_dlpoly (atoms)

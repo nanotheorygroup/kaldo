@@ -46,7 +46,7 @@ if __name__ == "__main__":
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
                                          pseudopotentials=pseudopotentials,
-                                         is_persistency_enabled=False,
+                                         is_persistency_enabled=True,
                                          is_third_order_symmetry_enabled=True)
     
     # Create a phonon object
