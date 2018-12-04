@@ -1,6 +1,8 @@
 import ballistico.calculator
 from ballistico.finite_difference import FiniteDifference
 from ballistico.phonons_controller import PhononsController
+import numpy as np
+import ballistico.constants as constants
 
 class BallisticoPhonons (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True):
@@ -149,6 +151,10 @@ class BallisticoPhonons (PhononsController):
             self.finite_difference.third_order,
             self.sigma_in
         )
+
+        gamma *= 1e-3 / (
+                4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
+
         self.gamma = gamma
         self.scattering_matrix = scattering_matrix
         return gamma

@@ -33,7 +33,7 @@ if __name__ == "__main__":
                       is_classic=is_classic,
                       temperature=temperature,
                       sigma_in=width,
-                      is_persistency_enabled=False)
+                      is_persistency_enabled=True)
 
     # Create a plot helper object
     plotter = Plotter(phonons=phonons,

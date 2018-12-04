@@ -9,6 +9,7 @@ ENERGY_THRESHOLD = 0.001
 IS_SCATTERING_MATRIX_ENABLED = False
 
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+# DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 
 DELTA_THRESHOLD = 2
@@ -61,14 +62,12 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
                        dxij,
                        chi_k,
                        second_order, optimize='greedy')
-    prefactor = 1 / (constants.charge_of_electron) / constants.rydbergoverev * \
-                (constants.bohroverangstrom ** 2) * 2 * constants.electron_mass * 1e4
-    dyn = prefactor * dyn_s.reshape (n_particles * 3, n_particles * 3)
-    ddyn = prefactor * ddyn_s.reshape (3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
+    dyn = dyn_s.reshape (n_particles * 3, n_particles * 3)
+    ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
     out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
     eigenvals, eigenvects = out[0], out[1]
     
-    # TODO: do we want to sort eigenvalues
+    # TODO: do we want to sort eigenvalues?
     # idx = eigenvals.argsort ()
     # eigenvals = eigenvals[idx]
     # eigenvects = eigenvects[:, idx]
@@ -79,7 +78,13 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
         for mu in range (n_particles * 3):
             if frequencies[mu] != 0:
                 velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
-    return frequencies * constants.toTHz, eigenvals, eigenvects, velocities * constants.toTHz * constants.bohr2nm
+
+    prefactor = (1 / (constants.charge_of_electron) / constants.rydbergoverev * \
+                (constants.bohroverangstrom ** 2) * 2 * constants.electron_mass * 1e4 ) ** 0.5
+    prefactor1 = constants.toTHz * prefactor
+    prefactor2 = constants.toTHz * constants.bohr2nm * prefactor
+
+    return frequencies * prefactor1, eigenvals, eigenvects, velocities * prefactor2
 
 def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms):
     n_unit_cell = second_order.shape[1]
@@ -111,12 +116,12 @@ def gaussian_delta(params):
     # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
     sigma = params[1]
     correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
-    correction = 1
+    # correction = 1
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk,  eigenvectors, second_eigenv_tf, third_eigenv_tf,second_chi, chi, scaled_potential, sigma_in=None):
-    gamma = np.zeros(2)
-    ps = np.zeros(2)
+    gamma = 0
+    ps = 0
     if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
 
         first = eigenvectors[index_k, :, mu]
@@ -126,7 +131,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
         i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
         index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='F', mode='wrap')
-
+        # +1 if is_plus, -1 if not is_plus
+        second_sign = (int(is_plus) * 2 - 1)
         if sigma_in is None:
             velocities = velocities.real
             # velocities[0, :3, :] = 0
@@ -137,15 +143,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         else:
             sigma_small = sigma_in
 
-        if is_plus:
-            freq_diff_np = np.abs(
-                frequencies[index_k, mu] + frequencies[index_kp_vec, :, np.newaxis] - \
-                frequencies[index_kpp_vec, np.newaxis, :])
-
-        else:
-            freq_diff_np = np.abs(
-                frequencies[index_k, mu] - frequencies[index_kp_vec, :, np.newaxis] - \
-                frequencies[index_kpp_vec, np.newaxis, :])
+        freq_diff_np = np.abs(
+            frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] - \
+            frequencies[index_kpp_vec, np.newaxis, :])
 
         condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
                     (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > ENERGY_THRESHOLD) & \
@@ -187,20 +187,16 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                              chi.conj()[index_kpp_vec],
                              third_eigenv_tf[nupp_vec],
                              second_eigenv_tf[nup_vec], optimize='greedy')
-            gamma[is_plus] = np.sum(np.abs(temp) ** 2 * dirac_delta)
-            ps[is_plus] = np.sum(dirac_delta)
+            gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
+            ps = np.sum(dirac_delta)
 
-    return gamma.sum() / frequencies[index_k, mu], ps.sum() / frequencies[index_k, mu]
+    return gamma / frequencies[index_k, mu], ps / frequencies[index_k, mu]
 
 
 
 
 # @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
-    prefactor = 1e-3 / (
-            4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
-    coeff = 1000 * constants.hbar / constants.charge_of_electron
-
     density = density.flatten()
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
@@ -264,9 +260,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                 gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv,
                                            k_size, n_modes, nptk, eigenvectors, second_eigenv_tf, third_eigenv_tf,
                                            second_chi, chi, scaled_potential, sigma_in)
-
+                hbar = 6.35075751
+                coeff = hbar ** 2 * np.pi / 4. / 9.648538 / 16 / np.pi ** 4
+                Logger().info('gamma = ' + str(gamma[is_plus, index_k, mu] * coeff))
                 Logger ().info (process + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
-                Logger ().info ('gamma = ' + str (gamma[is_plus, index_k, mu]/4.868263032388671e-06) )
+
 
     for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
@@ -274,7 +272,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         # if IS_SCATTERING_MATRIX_ENABLED:
         #     gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
 
-    gamma = gamma * prefactor / nptk
+    gamma = gamma / nptk
     # if IS_SCATTERING_MATRIX_ENABLED:
     #     gamma_tensor = gamma_tensor * prefactor / nptk
     ps = ps / nptk / (2 * np.pi) ** 3

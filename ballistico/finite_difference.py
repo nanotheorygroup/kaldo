@@ -1,6 +1,6 @@
 import numpy as np
 from ballistico.logger import Logger
-from ballistico.constants import *
+
 from scipy.optimize import minimize
 import ase.io as io
 import os
@@ -326,7 +326,7 @@ class FiniteDifference (object):
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         second = second.reshape ((n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         second = second / (2. * dx)
-        second *= evoverdlpoly
+        second *= constants.evoverdlpoly
         return second
     
     def calculate_third(self):
