@@ -12,9 +12,9 @@ IS_SCATTERING_MATRIX_ENABLED = False
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 
-DELTA_THRESHOLD = 2
+DELTA_THRESHOLD = 3
 # DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
-DELTA_CORRECTION = 1
+# DELTA_CORRECTION = 1
 
 def calculate_density_of_states(frequencies, k_mesh, delta, num):
     n_modes = frequencies.shape[-1]
@@ -119,7 +119,29 @@ def gaussian_delta(params):
     # correction = 1
     return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
 
+
+def lorentzian_delta(params):
+    delta_nu = params[0]
+    gamma = params[1]
+    # correction = 1
+    corrections = { 1 :0.704833,
+      2 :0.844042,
+      3 :0.894863,
+      4 :0.920833,
+      5 :0.936549,
+      6 :0.947071,
+      7 :0.954604,
+      8 :0.960263,
+      9 :0.964669,
+     10 :0.968195}
+    correction = corrections[DELTA_THRESHOLD]
+
+    lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_nu ** 2 + (gamma / 2) ** 2)
+    return lorentzian / correction
+
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk,  eigenvectors, second_eigenv_tf, third_eigenv_tf,second_chi, chi, scaled_potential, sigma_in=None):
+    broadening_function = lorentzian_delta
+
     gamma = 0
     ps = 0
     if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
@@ -174,11 +196,11 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
             dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
             if sigma_in is None:
-                dirac_delta *= gaussian_delta([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
+                dirac_delta *= broadening_function([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
                                                sigma_small[index_kp_vec, mup_vec, mupp_vec]])
 
             else:
-                dirac_delta *= gaussian_delta(
+                dirac_delta *= broadening_function(
                     [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
 
             # TODO: find a better name
@@ -260,12 +282,9 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                 gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv,
                                            k_size, n_modes, nptk, eigenvectors, second_eigenv_tf, third_eigenv_tf,
                                            second_chi, chi, scaled_potential, sigma_in)
-                hbar = 6.35075751
 
-                coeff = hbar ** 2 * np.pi / 4. / 9.648538 / 16 / np.pi ** 4
-                coeff *= (constants.evoverdlpoly)**2
 
-                Logger().info('gamma = ' + str(gamma[is_plus, index_k, mu] * coeff))
+                Logger().info('gamma = ' + str(gamma[is_plus, index_k, mu] * constants.davide_coeff))
                 Logger ().info (process + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
 
 

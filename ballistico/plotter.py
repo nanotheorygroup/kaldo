@@ -6,6 +6,7 @@ import numpy as np
 import time
 from ballistico.interpolation_controller import interpolator
 import os
+import ballistico.constants as constants
 
 
 BUFFER_PLOT = .2
@@ -76,3 +77,4 @@ class Plotter (object):
 		vel = np.linalg.norm (phonons.velocities, axis=-1)
 		self.plot_vs_frequency (vel, 'vel')
 		self.plot_vs_frequency (phonons.gamma, 'gamma')
+		self.plot_vs_frequency (phonons.gamma * constants.davide_coeff, 'gamma')

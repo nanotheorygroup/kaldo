@@ -1,3 +1,5 @@
+import numpy as np
+
 # 1 thz = 0.00414 mev
 thzovermev = 4.13566553853599
 mevoverthz = 1. / thzovermev
@@ -28,3 +30,8 @@ bohr2nm = 0.052917721092
 electron_mass = 9.10938356e-31
 
 evoverdlpoly = charge_of_electron * avogadro / 10
+
+hbar_new = 6.35075751
+
+davide_coeff = hbar_new ** 2 * np.pi / 4. / 9.648538 / 16 / np.pi ** 4 * (evoverdlpoly) ** 2
+
