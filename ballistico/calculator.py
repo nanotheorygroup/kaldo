@@ -143,32 +143,32 @@ def lorentzian_delta(params):
     return lorentzian / correction
 
 # @profile
-def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, masses, cell_inv, k_size, n_modes, nptk,  eigenvectors, chi, scaled_potential, sigma_in=None):
+def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, masses, cell_inv, k_size, n_modes, nptk,  eigenvectors, chi, scaled_potential, sigma_in=None, broadening='gauss'):
     n_phonons = nptk * n_modes
     n_particles = int(n_modes / 3)
-    broadening_function = lorentzian_delta
+    if broadening == 'gauss':
+        broadening_function = gaussian_delta
+    elif broadening == 'lorentz':
+        broadening_function = lorentzian_delta
 
-    first_eigenv = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) \
+    eigenvect = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) \
             / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
-    first_eigenv = first_eigenv.reshape((nptk, n_particles * 3, n_modes))
+    eigenvect = eigenvect.reshape((nptk, n_particles * 3, n_modes))
 
-    first_eigenv = first_eigenv.swapaxes(1, 2).reshape(n_phonons, n_modes)
+    eigenvect = eigenvect.swapaxes(1, 2).reshape(n_phonons, n_modes)
 
 
     if is_plus:
-        second_eigenv = first_eigenv
         second_chi = chi
     else:
-        second_eigenv = first_eigenv.conj()
         second_chi = chi.conj()
 
-    third_eigenv = first_eigenv.conj ()
 
     gamma = 0
     ps = 0
     if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-        first_projected_potential = contract('wlitj,w->litj', scaled_potential, first_eigenv[nu, :])
+        first_projected_potential = contract('wlitj,w->litj', scaled_potential, eigenvect[nu, :])
 
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
@@ -224,11 +224,19 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                     [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
 
             # TODO: find a better name
-            temp = contract('litj,al,at,aj,ai->a', first_projected_potential,
-                             second_chi[index_kp_vec],
-                             chi.conj()[index_kpp_vec],
-                             third_eigenv[nupp_vec],
-                             second_eigenv[nup_vec])
+            if is_plus:
+
+                temp = contract('litj,al,at,aj,ai->a', first_projected_potential,
+                                 second_chi[index_kp_vec],
+                                 chi.conj()[index_kpp_vec],
+                                 eigenvect.conj()[nupp_vec],
+                                 eigenvect[nup_vec])
+            else:
+                temp = contract('litj,al,at,aj,ai->a', first_projected_potential,
+                                 second_chi[index_kp_vec],
+                                 chi.conj()[index_kpp_vec],
+                                 eigenvect.conj()[nupp_vec],
+                                 eigenvect.conj()[nup_vec])
             gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
             ps = np.sum(dirac_delta)
 
@@ -238,25 +246,28 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
 
 # @profile
-def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
+def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in, broadening='gauss'):
 
     density = density.flatten()
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
-    cell_inv = np.linalg.inv (atoms.cell)
 
     Logger ().info ('Lifetime calculation')
     n_modes = n_particles * 3
 
     n_replicas = list_of_replicas.shape[0]
-    rlattvec = cell_inv * 2 * np.pi
-    chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
-    for index_k in range (np.prod (k_size)):
-        i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
-        k_point = i_k / k_size
-        realq = np.matmul (rlattvec, k_point)
-        for l in range (n_replicas):
-            chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
+
+    # TODO: maybe here we should do the check for k = (0, 0, 0)
+    if k_size.sum() > 1:
+        cell_inv = np.linalg.inv (atoms.cell)
+        rlattvec = cell_inv * 2 * np.pi
+        chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
+        for index_k in range (np.prod (k_size)):
+            i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
+            k_point = i_k / k_size
+            realq = np.matmul (rlattvec, k_point)
+            for l in range (n_replicas):
+                chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
     scaled_potential = third_order.reshape ((n_modes, n_replicas, n_modes, n_replicas, n_modes))
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
@@ -281,7 +292,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             
             for mu in range (n_modes):
                 gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, atoms.get_masses (), cell_inv,
-                                           k_size, n_modes, nptk, eigenvectors, chi, scaled_potential, sigma_in)
+                                           k_size, n_modes, nptk, eigenvectors, chi, scaled_potential, sigma_in, broadening)
 
 
                 Logger().info('gamma = ' + str(gamma[is_plus, index_k, mu] * constants.davide_coeff))
