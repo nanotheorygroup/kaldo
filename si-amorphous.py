@@ -24,25 +24,23 @@ if __name__ == "__main__":
                                          third_order=third_order,
                                          is_persistency_enabled=True)
     fig = plt.figure()
+    width = 0.05
+    width_thz = width * constants.mevoverthz
 
-    for width in (0.02, 0.05, 0.10, 0.20):
-        logging.info('sigma meV ', width)
-        width_thz = width * constants.mevoverthz
-
-        # Create a phonon object
-        phonons = Phonons(finite_difference=finite_difference,
-                          is_classic=is_classic,
-                          temperature=temperature,
-                          sigma_in=width_thz,
-                          is_persistency_enabled=True)
+    # Create a phonon object
+    phonons = Phonons(finite_difference=finite_difference,
+                      is_classic=is_classic,
+                      temperature=temperature,
+                      sigma_in=width_thz,
+                      is_persistency_enabled=False)
 
 
-        frequencies = phonons.frequencies.flatten()
-        observable = phonons.gamma.flatten() #* 0.2418
-        observable *= constants.davide_coeff / constants.gamma_coeff
-        # print(observable)
-        plt.scatter(frequencies[3:],
-                    observable[3:], marker=".", label='gaussian, ' + str(width) + 'meV')
+    frequencies = phonons.frequencies.flatten()
+    observable = phonons.gamma.flatten() #* 0.2418
+    observable *= constants.davide_coeff / constants.gamma_coeff
+    # print(observable)
+    plt.scatter(frequencies[3:],
+                observable[3:], marker=".", label='gaussian, ' + str(width) + 'meV')
 
     plt.ylabel('$\Gamma$ (meV)', fontsize=16, fontweight='bold')
     plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')

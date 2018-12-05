@@ -5,6 +5,7 @@ import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 import scipy.special
 from opt_einsum import contract
+from memory_profiler import profile
 
 
 ENERGY_THRESHOLD = 0.001
@@ -141,6 +142,7 @@ def lorentzian_delta(params):
     lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_nu ** 2 + (gamma / 2) ** 2)
     return lorentzian / correction
 
+@profile
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk,  eigenvectors, second_eigenv_tf, third_eigenv_tf,second_chi, chi, scaled_potential, sigma_in=None):
     broadening_function = lorentzian_delta
 
@@ -219,8 +221,12 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
 
 
-# @profile
+@profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in):
+    prefactor = 1e-3 / (
+            4. * np.pi) ** 3 * constants.avogadro ** 3 * constants.charge_of_electron ** 2 * constants.hbar
+    coeff = 1000 * constants.hbar / constants.charge_of_electron
+
     density = density.flatten()
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
