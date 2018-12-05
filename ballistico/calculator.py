@@ -148,27 +148,27 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
     n_particles = int(n_modes / 3)
     broadening_function = lorentzian_delta
 
-    first = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) \
+    first_eigenv = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) \
             / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
+    first_eigenv = first_eigenv.reshape((nptk, n_particles * 3, n_modes))
 
-    first = first.reshape((nptk, n_particles * 3, n_modes))
+    first_eigenv = first_eigenv.swapaxes(1, 2).reshape(n_phonons, n_modes)
+
 
     if is_plus:
-        second_eigenv_np = first
+        second_eigenv = first_eigenv
         second_chi = chi
     else:
-        second_eigenv_np = first.conj()
+        second_eigenv = first_eigenv.conj()
         second_chi = chi.conj()
-    second_eigenv_tf = second_eigenv_np.swapaxes(1, 2).reshape(n_phonons, n_modes)
 
-    third_eigenv_np = first.conj ()
-    third_eigenv_tf = third_eigenv_np.swapaxes (1, 2).reshape (n_phonons, n_modes)
+    third_eigenv = first_eigenv.conj ()
 
     gamma = 0
     ps = 0
     if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
-
-        first_projected_potential = contract('wlitj,w->litj', scaled_potential, first[index_k, :, mu])
+        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+        first_projected_potential = contract('wlitj,w->litj', scaled_potential, first_eigenv[nu, :])
 
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
@@ -202,7 +202,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             index_kpp_vec = index_kpp_vec[index_kp_vec]
             mup_vec = interactions[:, 1]
             mupp_vec = interactions[:, 2]
-            nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
             nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
                                            np.array([nptk, n_modes]), order='C')
             nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
@@ -228,8 +227,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             temp = contract('litj,al,at,aj,ai->a', first_projected_potential,
                              second_chi[index_kp_vec],
                              chi.conj()[index_kpp_vec],
-                             third_eigenv_tf[nupp_vec],
-                             second_eigenv_tf[nup_vec])
+                             third_eigenv[nupp_vec],
+                             second_eigenv[nup_vec])
             gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
             ps = np.sum(dirac_delta)
 
