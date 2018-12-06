@@ -343,7 +343,7 @@ class PhononsController (object):
 			frequencies = self.frequencies
 			c_v = np.zeros_like (frequencies)
 			if (self.is_classic):
-				c_v[:] = constants.k_b * 1e21
+				c_v[:] = constants.k_b
 			else:
 				f_be = self.occupations
 				c_v[frequencies != 0] = constants.hbar ** 2 * f_be[frequencies != 0] * (f_be[frequencies != 0] + 1) * (
