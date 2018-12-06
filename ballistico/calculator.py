@@ -212,21 +212,24 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             # TODO: find a better name
             if is_plus:
 
-                temp = contract('litj,aj,ai->alt', first_projected_potential,
+                potential = contract('litj,aj,ai->alt', first_projected_potential,
                                  rescaled_eigenvectors.conj()[nupp_vec],
                                  rescaled_eigenvectors[nup_vec])
-                temp = contract('alt,al,at->a', temp,
-                                 chi[index_kp_vec],
-                                 chi.conj()[index_kpp_vec])
-
+                if not (k_size == (1, 1, 1)).any():
+                    potential = contract('alt,al,at->a', potential,
+                                     chi[index_kp_vec],
+                                     chi.conj()[index_kpp_vec])
             else:
-                temp = contract('litj,aj,ai->alt', first_projected_potential,
+                potential = contract('litj,aj,ai->alt', first_projected_potential,
                                  rescaled_eigenvectors.conj()[nupp_vec],
                                  rescaled_eigenvectors.conj()[nup_vec])
-                temp = contract('alt,al,at->a', temp,
-                                 chi.conj()[index_kp_vec],
-                                 chi.conj()[index_kpp_vec])
-            gamma = np.sum(np.abs(temp) ** 2 * dirac_delta)
+
+                if not (k_size == (1, 1, 1)).any():
+                    potential = contract('alt,al,at->a', potential,
+                                     chi.conj()[index_kp_vec],
+                                     chi.conj()[index_kpp_vec])
+            potential = potential.flatten()
+            gamma = np.sum(np.abs(potential) ** 2 * dirac_delta)
             ps = np.sum(dirac_delta)
 
     return gamma / frequencies[index_k, mu], ps / frequencies[index_k, mu]
