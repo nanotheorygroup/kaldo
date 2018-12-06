@@ -14,10 +14,9 @@ IS_SCATTERING_MATRIX_ENABLED = False
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
+IS_DELTA_CORRECTION_ENABLED = False
+DELTA_THRESHOLD = 2
 
-DELTA_THRESHOLD = 3
-# DELTA_CORRECTION = scipy.special.erf (DELTA_THRESHOLD / np.sqrt (2))
-# DELTA_CORRECTION = 1
 
 def calculate_density_of_states(frequencies, k_mesh, delta, num):
     n_modes = frequencies.shape[-1]
@@ -118,28 +117,34 @@ def gaussian_delta(params):
     delta_energy = params[0]
     # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
     sigma = params[1]
-    correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
-    # correction = 1
-    return 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2)) / correction
+    if IS_DELTA_CORRECTION_ENABLED:
+        correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+    else:
+        correction = 1
+    gaussian = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
+    return gaussian / correction
 
 
 def lorentzian_delta(params):
-    delta_nu = params[0]
+    delta_energy = params[0]
     gamma = params[1]
-    # correction = 1
-    corrections = {
-        1 :0.704833,
-        2 :0.844042,
-        3 :0.894863,
-        4 :0.920833,
-        5 :0.936549,
-        6 :0.947071,
-        7 :0.954604,
-        8 :0.960263,
-        9 :0.964669,
-       10 :0.968195}
-    correction = corrections[DELTA_THRESHOLD]
-    lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_nu ** 2 + (gamma / 2) ** 2)
+    if IS_DELTA_CORRECTION_ENABLED:
+        # numerical value of the integral of a lorentzian over +- DELTA_TRESHOLD * gamma
+        corrections = {
+            1 :0.704833,
+            2 :0.844042,
+            3 :0.894863,
+            4 :0.920833,
+            5 :0.936549,
+            6 :0.947071,
+            7 :0.954604,
+            8 :0.960263,
+            9 :0.964669,
+           10 :0.968195}
+        correction = corrections[DELTA_THRESHOLD]
+    else:
+        correction = 1
+    lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_energy ** 2 + (gamma / 2) ** 2)
     return lorentzian / correction
 
 # @profile

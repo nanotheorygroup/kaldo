@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import ballistico.geometry_helper as ghl
+import ballistico.geometry_helper as geometry_helper
 import datetime
 import numpy as np
 import time
@@ -31,7 +31,7 @@ class Plotter (object):
 		obs = observable.reshape ((k_size[0], k_size[1], k_size[2], n_modes))
 
 		cell = atoms.cell
-		k_list, q, Q, point_names = ghl.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
+		k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
 		obs_plot = np.zeros ((k_list.shape[0], n_modes))
 
 		for mode in range (n_modes):
