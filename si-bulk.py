@@ -11,6 +11,7 @@ from ballistico.plotter import Plotter
 import ballistico.io_helper as io_helper
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     # We start from a atoms
@@ -25,30 +26,36 @@ if __name__ == "__main__":
     temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array ([5, 5, 5])
+    kpts = np.array ([9, 9, 9])
     is_classic = False
 
     calculator = LAMMPSlib
-    calculator_inputs = ["pair_style tersoff",
-                              "pair_coeff * * forcefields/Si.tersoff Si"]
-    pseudopotentials = None
-    
+    calculator_inputs = {'lmpcmds':["pair_style tersoff","pair_coeff * * forcefields/Si.tersoff Si"],
+                         'log_file':'log_lammps.out'}
+
     # calculator = Espresso
-    # calculator_inputs = {'system': {'ecutwfc': 16.0},
-    #                      'electrons': {'conv_thr': 1e-8},
-    #                      'disk_io': 'low',
-    #                      'pseudo_dir': '/home/giuseppe/espresso/pseudo/'}
-    # pseudopotentials = {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'}
+    # calculator_inputs = {'pseudopotentials':{'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'},
+    #                 'tstress':True,
+    #                 'tprnfor':True,
+    #                 'input_data':
+    #                      {'system': {'ecutwfc': 16.0},
+    #                                            'electrons': {'conv_thr': 1e-8},
+    #                                            'disk_io': 'low',
+    #                                            'pseudo_dir': '/home/giuseppe/espresso/pseudo/'},
+    #                 'koffset':(2, 2, 2),
+    #                 'kpoints':(1, 1, 1)}
+
+
+    third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
-                                         pseudopotentials=pseudopotentials,
                                          is_persistency_enabled=False,
-                                         is_third_order_symmetry_enabled=True)
-    
+                                         third_order_symmerty_inputs=third_order_symmerty_inputs)
+
     # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,
                        kpts=kpts,
@@ -56,17 +63,16 @@ if __name__ == "__main__":
                        temperature=temperature,
                        sigma_in=None,
                        is_persistency_enabled=False)
-    
+
     # Create a plot helper object
     plotter = Plotter (phonons=phonons,
                        is_showing=True,
                        folder='plot/ballistico/',
                        is_persistency_enabled=True)
 
-
     # call the method plot everything
     plotter.plot_everything()
-    
+
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
     ConductivityController (phonons).calculate_conductivity (is_classical=is_classic)

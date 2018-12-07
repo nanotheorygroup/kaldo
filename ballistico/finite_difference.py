@@ -1,63 +1,63 @@
-import numpy as np
-from ballistico.logger import Logger
-
 from scipy.optimize import minimize
-import ase.io as io
 import os
-import ballistico.atoms_helper as atoms_helper
 import numpy as np
-import ase.io
-import os
-import ballistico.constants as constants
-from ase import Atoms
-from ballistico.logger import Logger
-import thirdorder_core
-from thirdorder_common import *
-from thirdorder_espresso import gen_supercell, calc_frange, calc_dists
-from ase.calculators.espresso import Espresso
 from sparse import COO
 from scipy.sparse import load_npz, save_npz
 
-import ase.io as io
+from ase import Atoms
+import ase.io
 
+from ballistico.logger import Logger
+import ballistico.constants as constants
+import ballistico.atoms_helper as atoms_helper
+
+DELTA_SHIFT = 1e-6 * constants.evoverdlpoly
+MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
-
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 LIST_OF_INDEX_FILE = 'list_of_index.npy'
 
+# Tolerance for symmetry search
+SYMPREC_THIRD_ORDER = 1e-5
 
 class FiniteDifference (object):
-    def __init__(self, atoms, supercell=(1,1,1), second_order=None, third_order=None, calculator=None, calculator_inputs=None, pseudopotentials=None, is_persistency_enabled=True, delta_shift=1e-6 * constants.evoverdlpoly, folder='displacement', qe_koffset=None, qe_kpoints=None, is_third_order_symmetry_enabled=False):
+    def __init__(self,
+                 atoms,
+                 supercell=(1,1,1),
+                 second_order=None,
+                 third_order=None,
+                 calculator=None,
+                 calculator_inputs=None,
+                 is_persistency_enabled=True,
+                 delta_shift=DELTA_SHIFT,
+                 folder=MAIN_FOLDER,
+                 third_order_symmerty_inputs=None):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
         self.n_replicas = np.prod(supercell)
-
         self._replicated_atoms = None
+
         #TODO: move list of index in phonon class
         self._list_of_index = None
         self.calculator = calculator
         self.calculator_inputs = calculator_inputs
-        self.pseudopotentials = pseudopotentials
         self._second_order = None
         self._third_order = None
         self.is_persistency_enabled = is_persistency_enabled
         self.folder_name = folder
-        if self.is_persistency_enabled:
-            if not os.path.exists (folder):
-                os.makedirs (folder)
+        self.second_order_delta = delta_shift
+        self.third_order_delta = delta_shift
+        self.third_order_symmerty_inputs = third_order_symmerty_inputs
         if second_order is not None:
             self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
-        self.second_order_delta = delta_shift
-        self.third_order_delta = delta_shift
-        self.qe_koffset = qe_koffset
-        self.qe_kpoints = qe_kpoints
-        self.optimize_third = is_third_order_symmetry_enabled
-            
+        if self.is_persistency_enabled:
+            if not os.path.exists (folder):
+                os.makedirs (folder)
 
     @property
     def poscar(self):
@@ -81,11 +81,18 @@ class FiniteDifference (object):
     @replicated_poscar.getter
     def replicated_poscar(self):
         na, nb, nc = self.supercell
-        # self._replicated_poscar = self.gen_supercell ()
-        self._replicated_poscar = gen_supercell (self.poscar, na, nb, nc)
+        if self.third_order_symmerty_inputs is not None:
+            try:
+                from thirdorder_espresso import gen_supercell
+                self._replicated_poscar = gen_supercell (self.poscar, na, nb, nc)
+            except NameError and ModuleNotFoundError as err:
+                Logger().info(err)
+                self._replicated_poscar = self.gen_supercell ()
+                self.third_order_symmerty_inputs = None
 
+        else:
+            self._replicated_poscar = self.gen_supercell()
         return self._replicated_poscar
-
 
     @property
     def second_order(self):
@@ -131,6 +138,7 @@ class FiniteDifference (object):
                     try:
                         # TODO: remove this non sparse migration
                         self._third_order = np.load(folder + THIRD_ORDER_FILE)
+
                         # here we force the migration to the sparse version
                         self.third_order = self._third_order
                     except FileNotFoundError as e:
@@ -145,7 +153,6 @@ class FiniteDifference (object):
             self._third_order = COO.from_numpy(new_third_order)
         else:
             self._third_order = new_third_order
-
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
@@ -167,45 +174,8 @@ class FiniteDifference (object):
                 except FileNotFoundError as e:
                     Logger().info(e)
             if self._replicated_atoms is None:
-                # atoms = self.atoms
-                # supercell = self.supercell
-                # # TODO: refactor removing atoms object
-                # n_replicas = supercell[0] * supercell[1] * supercell[2]
-                # replica_id = 0
-                # list_of_index = np.zeros ((n_replicas, 3))
-                #
-                # range_0 = np.arange (int (supercell[0]))
-                # range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
-                # range_1 = np.arange (int (supercell[1]))
-                # range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
-                # range_2 = np.arange (int (supercell[2]))
-                # range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
-                #
-                # for lx in range_0:
-                #     for ly in range_1:
-                #         for lz in range_2:
-                #             index = np.array ([lx, ly, lz])
-                #             list_of_index[replica_id] = index
-                #             replica_id += 1
-                #
-                # list_of_index = list_of_index.dot (self.atoms.cell)
-                #
-                # replicated_symbols = []
-                # n_replicas = list_of_index.shape[0]
-                # n_unit_atoms = len (atoms.numbers)
-                # replicated_geometry = np.zeros ((n_replicas, n_unit_atoms, 3))
-                # for i in range (n_replicas):
-                #     vector = list_of_index[i]
-                #     replicated_symbols.extend (atoms.get_chemical_symbols ())
-                #     replicated_geometry[i, :, :] = atoms.positions + vector
-                # replicated_geometry = replicated_geometry.reshape ((n_replicas * n_unit_atoms, 3))
-                # replicated_cell = atoms.cell * supercell
-                # replicated_atoms = Atoms (positions=replicated_geometry,
-                #                           symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
-                # self.replicated_atoms = replicated_atoms
                 replicated_poscar = self.replicated_poscar
                 self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell (replicated_poscar)
-
         return self._replicated_atoms
 
     @replicated_atoms.setter
@@ -283,14 +253,13 @@ class FiniteDifference (object):
         return atoms_helper.convert_to_poscar(replicated_atoms, supercell)
 
     def optimize(self, method, tol=None):
-        # Mimimization of the sructure
         if not ((method == 'none') or (method == False)):
             Logger ().info ('Initial max force: ' + "{0:.4e}".format(self.max_force (self.atoms.positions, self.atoms)))
             Logger().info('Optimization method ' + method)
             result = minimize (self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method, tol=tol)
             Logger().info(result.message)
             self.atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
-            io.write ('minimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
+            ase.io.write ('minimized_' + str(self) + '.xyz', self.atoms, format='extxyz')
             Logger ().info ('Final max force: ' + "{0:.4e}".format(self.max_force (self.atoms.positions, self.atoms)))
             return self.max_force(self.atoms.positions, self.atoms)
 
@@ -301,45 +270,27 @@ class FiniteDifference (object):
     def gradient(self, x, input_atoms):
         atoms = input_atoms.copy ()
         atoms.positions = np.reshape (x, (int (x.size / 3.), 3))
-        if self.calculator == ase.calculators.lammpslib.LAMMPSlib:
-            calc = self.calculator(lmpcmds=self.calculator_inputs, log_file='log_lammps.out')
-        else:
-            calc = Espresso (pseudopotentials=self.pseudopotentials,
-                             tstress=True, tprnfor=True,  # kwargs added to parameters
-                             input_data=self.calculator_inputs,
-                             koffset=self.qe_koffset,
-                             kpoints=self.qe_kpoints)
+        calc = self.calculator(**self.calculator_inputs)
         atoms.set_calculator (calc)
         gr = -1. * atoms.get_forces ()
         grad = np.reshape (gr, gr.size)
         return grad
-    
         
     def calculate_second(self):
-        '''
-        Calculate the second order derivative of the force using finite differences
-        :return:
-        tensor with second derivative in eV/A^2
-        '''
-        supercell = self.supercell
         atoms = self.atoms
         Logger().info ('Calculating second order potential derivatives')
         n_in_unit_cell = len (atoms.numbers)
         replicated_atoms = self.replicated_atoms
-
         n_atoms = len (replicated_atoms.numbers)
-        
         dx = self.second_order_delta
         second = np.zeros ((n_atoms * 3, n_atoms * 3))
         for alpha in range (3):
             for i in range (n_atoms):
                 Logger().info('Moving atom ' + str(i) + ', direction ' + str(alpha))
-
                 for move in (-1, 1):
                     shift = np.zeros ((n_atoms, 3))
                     shift[i, alpha] += move * dx
                     second[i * 3 + alpha, :] += move * self.gradient (replicated_atoms.positions + shift, replicated_atoms)
-                    
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         second = second.reshape ((n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         second = second / (2. * dx)
@@ -356,32 +307,43 @@ class FiniteDifference (object):
         n_replicated_atoms = len (replicated_atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         dx = self.third_order_delta
-
-
         Logger().info ('Calculating third order potential derivatives')
-        if self.optimize_third:
-            poscar = self.poscar
-            SYMPREC = 1e-5  # Tolerance for symmetry search
-            NNEIGH = 4
-            FRANGE = None
 
+
+        if self.third_order_symmerty_inputs is not None:
+            from thirdorder_core import SymmetryOperations, Wedge, reconstruct_ifcs
+            from thirdorder_espresso import calc_frange, calc_dists
+            if self.third_order_symmerty_inputs['SYMPREC']:
+                symprec = self.third_order_symmerty_inputs['SYMPREC']
+            else:
+                symprec = SYMPREC_THIRD_ORDER
+
+            if self.third_order_symmerty_inputs['NNEIGH']:
+                nneigh = self.third_order_symmerty_inputs['NNEIGH']
+            else:
+                # default on full calculation
+                self.third_order_symmerty_inputs = None
+
+        if self.third_order_symmerty_inputs is not None:
+            poscar = self.poscar
+            f_range = None
             Logger().info("Analyzing symmetries")
-            symops = thirdorder_core.SymmetryOperations (
-                poscar["lattvec"], poscar["types"], poscar["positions"].T, SYMPREC)
+            symops = SymmetryOperations (
+                poscar["lattvec"], poscar["types"], poscar["positions"].T, symprec)
             Logger().info("- Symmetry group {0} detected".format (symops.symbol))
             Logger().info("- {0} symmetry operations".format (symops.translations.shape[0]))
             Logger().info("Creating the supercell")
             sposcar = self.replicated_poscar
             Logger().info("Computing all distances in the supercell")
             dmin, nequi, shifts = calc_dists (sposcar)
-            if NNEIGH != None:
-                frange = calc_frange (poscar, sposcar, NNEIGH, dmin)
+            if nneigh != None:
+                frange = calc_frange (poscar, sposcar, nneigh, dmin)
                 Logger().info("- Automatic cutoff: {0} nm".format (frange))
             else:
-                frange = FRANGE
+                frange = f_range
                 Logger().info("- User-defined cutoff: {0} nm".format (frange))
             Logger().info("Looking for an irreducible set of third-order IFCs")
-            wedge = thirdorder_core.Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
+            wedge = Wedge (poscar, sposcar, symops, dmin, nequi, shifts,
                                            frange)
             self.wedge = wedge
             Logger().info("- {0} triplet equivalence classes found".format (wedge.nlist))
@@ -392,7 +354,6 @@ class FiniteDifference (object):
             for i, e in enumerate(self.list4):
                 jat, iat, jcoord, icoord = e
                 Logger().info('Moving atoms ' + str(iat) + ',' + str(jat) + ', direction ' + str(icoord) + ',' + str(jcoord))
-
                 for n in range(4):
                     shift = np.zeros ((n_replicated_atoms, 3))
                     isign = (-1)**(n // 2)
@@ -405,16 +366,13 @@ class FiniteDifference (object):
                     shift[jat, :] += delta
                     phipart[:, i, :] += isign * jsign * (-1 * self.gradient (replicated_atoms.positions + shift, replicated_atoms)
                                                          .reshape(replicated_atoms.positions.shape).T)
-
-            phifull = np.array(thirdorder_core.reconstruct_ifcs (phipart, self.wedge, self.list4,
+            phifull = np.array(reconstruct_ifcs (phipart, self.wedge, self.list4,
                                               self.poscar, self.replicated_poscar))
             phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
             phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
             phifull = phifull.swapaxes(5, 4)
-
         else:
             phifull = np.zeros((n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3))
-
             for iat in range(n_in_unit_cell):
                 for icoord in range(3):
                     for jat in range(n_supercell * n_in_unit_cell):
@@ -424,6 +382,7 @@ class FiniteDifference (object):
                                     jcoord))
                             for n in range(4):
                                 shift = np.zeros ((n_replicated_atoms, 3))
+                                # TODO: change this silly way to do isign and jsign
                                 isign = (-1)**(n // 2)
                                 jsign = -(-1)**(n % 2)
                                 delta = np.zeros(3)
