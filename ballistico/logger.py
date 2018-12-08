@@ -26,4 +26,5 @@ class Logger:
             Logger.instance = Logger.__Logger()
             
     def info(self, message):
-        logging.info(message)
+        # logging.info(message)
+        pass

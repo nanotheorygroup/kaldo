@@ -278,7 +278,7 @@ class FiniteDifference (object):
         
     def calculate_second(self):
         atoms = self.atoms
-        Logger().info ('Calculating second order potential derivatives')
+        Logger().info('Calculating second order potential derivatives')
         n_in_unit_cell = len (atoms.numbers)
         replicated_atoms = self.replicated_atoms
         n_atoms = len (replicated_atoms.numbers)
@@ -307,7 +307,7 @@ class FiniteDifference (object):
         n_replicated_atoms = len (replicated_atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         dx = self.third_order_delta
-        Logger().info ('Calculating third order potential derivatives')
+        Logger().info('Calculating third order potential derivatives')
 
 
         if self.third_order_symmerty_inputs is not None:
@@ -396,3 +396,4 @@ class FiniteDifference (object):
         phifull = phifull.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         phifull /= (4. * dx * dx)
         return phifull
+

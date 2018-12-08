@@ -5,8 +5,8 @@ import numpy as np
 import ballistico.constants as constants
 
 class BallisticoPhonons (PhononsController):
-    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True):
-        super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in)
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True, energy_threshold=None):
+        super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in, energy_threshold=energy_threshold)
 
     @property
     def frequencies(self):
@@ -21,7 +21,8 @@ class BallisticoPhonons (PhononsController):
             self.atoms,
             self.finite_difference.second_order,
             self.finite_difference.list_of_index,
-            self.finite_difference.replicated_atoms)
+            self.finite_difference.replicated_atoms,
+            self.energy_threshold)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -45,7 +46,8 @@ class BallisticoPhonons (PhononsController):
             self.atoms,
             self.finite_difference.second_order,
             self.finite_difference.list_of_index,
-            self.finite_difference.replicated_atoms)
+            self.finite_difference.replicated_atoms,
+            self.energy_threshold)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -69,7 +71,8 @@ class BallisticoPhonons (PhononsController):
             self.atoms,
             self.finite_difference.second_order,
             self.finite_difference.list_of_index,
-            self.finite_difference.replicated_atoms)
+            self.finite_difference.replicated_atoms,
+            self.energy_threshold)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -97,7 +100,8 @@ class BallisticoPhonons (PhononsController):
             self.atoms,
             self.finite_difference.second_order,
             self.finite_difference.list_of_index,
-            self.finite_difference.replicated_atoms)
+            self.finite_difference.replicated_atoms,
+            self.energy_threshold)
         self.frequencies = frequencies
         self.eigenvalues = eigenvalues
         self.velocities = velocities
@@ -149,7 +153,9 @@ class BallisticoPhonons (PhononsController):
             self.eigenvectors,
             self.finite_difference.list_of_index,
             self.finite_difference.third_order,
-            self.sigma_in
+            self.sigma_in,
+            'gauss',
+            self.energy_threshold
         )
 
         gamma *= constants.gamma_coeff
@@ -178,7 +184,9 @@ class BallisticoPhonons (PhononsController):
             self.eigenvectors,
             self.finite_difference.list_of_index,
             self.finite_difference.third_order,
-            self.sigma_in
+            self.sigma_in,
+            'gauss',
+            self.energy_threshold
         )
         gamma *= constants.gamma_coeff
         self.scattering_matrix = scattering_matrix

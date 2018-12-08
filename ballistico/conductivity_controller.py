@@ -124,12 +124,14 @@ class ConductivityController (object):
         conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.complex)
         gamma = self.phonons.gamma
         tau_zero = np.empty_like (gamma).astype(np.complex)
-        tau_zero[(gamma) != 0] = 1 / (gamma[gamma != 0])
+        physical_modes = np.abs(self.phonons.frequencies) > self.phonons.energy_threshold
+
+        tau_zero[physical_modes] = 1 / (gamma[physical_modes])
         velocities = self.phonons.velocities.reshape(self.phonons.n_k_points, self.phonons.n_modes, 3)
         
         # TODO: this needs to go, generalizing for complex flux as per Leyla's project
         velocities = velocities.real
-        c_v = self.phonons.c_v.astype(np.complex)
+        c_v = self.phonons.c_v
         c_v = c_v.reshape(self.phonons.n_k_points, self.phonons.n_modes)
         for alpha in range (3):
             for beta in range (3):
@@ -138,4 +140,3 @@ class ConductivityController (object):
         conductivity_per_mode = conductivity_per_mode.sum (axis=0)
         Logger().info ('\nconductivity = \n' + str (conductivity_per_mode.sum (axis=0)))
         return conductivity_per_mode.sum (axis=0)
-    

@@ -8,9 +8,8 @@ from opt_einsum import contract
 from memory_profiler import profile
 
 
-ENERGY_THRESHOLD = 0.001
 IS_SCATTERING_MATRIX_ENABLED = False
-
+IS_SORTING_EIGENVALUES = False
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
@@ -37,58 +36,52 @@ def calculate_density_of_states(frequencies, k_mesh, delta, num):
     dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
     return omega_e, dos_e
 
-def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms):
+def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
 
     geometry = atoms.positions
     cell_inv = np.linalg.inv (atoms.cell)
     kpoint = 2 * np.pi * (cell_inv).dot (qvec)
-    
-    # TODO: remove this copy()
-    second_order = second_order[0].copy()
 
     n_particles = geometry.shape[0]
     n_replicas = list_of_replicas.shape[0]
 
+    #TODO: remove this copy()
+    dynmat = second_order[0].copy()
     mass = np.sqrt(atoms.get_masses ())
-    second_order /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-    second_order /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+    dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     
     chi_k = np.zeros (n_replicas).astype (complex)
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-    dyn_s = contract('ialjb,l->iajb', second_order, chi_k)
+    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
     replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
     dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
             geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
     ddyn_s = 1j * contract('ijla,l,ibljc->aibjc',
-                       dxij,
-                       chi_k,
-                       second_order)
+                           dxij,
+                           chi_k,
+                           dynmat)
     dyn = dyn_s.reshape (n_particles * 3, n_particles * 3)
-    ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3) / constants.bohroverangstrom
+    ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3)
     out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
     eigenvals, eigenvects = out[0], out[1]
-    
-    # TODO: do we want to sort eigenvalues?
-    # idx = eigenvals.argsort ()
-    # eigenvals = eigenvals[idx]
-    # eigenvects = eigenvects[:, idx]
+    if IS_SORTING_EIGENVALUES:
+        idx = eigenvals.argsort ()
+        eigenvals = eigenvals[idx]
+        eigenvects = eigenvects[:, idx]
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
     velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
     vel = contract('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
-            if frequencies[mu] != 0:
+            if np.abs(frequencies[mu]) > energy_threshold:
                 velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
 
-    prefactor = (1 / (constants.charge_of_electron) / constants.rydbergoverev * \
-                (constants.bohroverangstrom ** 2) * 2 * constants.electron_mass * 1e4 ) ** 0.5
-    prefactor1 = constants.toTHz * prefactor
-    prefactor2 = constants.toTHz * constants.bohr2nm * prefactor
 
-    return frequencies * prefactor1, eigenvals, eigenvects, velocities * prefactor2
+    return frequencies * constants.prefactor_freq, eigenvals, eigenvects, velocities * constants.prefactor_vel
 
-def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms):
+def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
     n_unit_cell = second_order.shape[1]
     n_k_points = k_points.shape[0]
     frequencies = np.zeros ((n_k_points, n_unit_cell * 3))
@@ -96,7 +89,8 @@ def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, r
     eigenvectors = np.zeros ((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype (np.complex)
     velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3)).astype(np.complex)
     for index_k in range (n_k_points):
-        freq, eval, evect, vels = diagonalize_second_order_single_k (k_points[index_k], atoms, second_order, list_of_replicas, replicated_atoms)
+        freq, eval, evect, vels = diagonalize_second_order_single_k (k_points[index_k], atoms, second_order,
+                                                                     list_of_replicas, replicated_atoms, energy_threshold)
         frequencies[index_k, :] = freq
         eigenvalues[index_k, :] = eval
         eigenvectors[index_k, :, :] = evect
@@ -148,7 +142,7 @@ def lorentzian_delta(params):
     return lorentzian / correction
 
 # @profile
-def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk,  rescaled_eigenvectors, chi, scaled_potential, sigma_in=None, broadening='gauss'):
+def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening, energy_threshold):
 
     if broadening == 'gauss':
         broadening_function = gaussian_delta
@@ -157,7 +151,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
     gamma = 0
     ps = 0
-    if np.abs(frequencies[index_k, mu]) > ENERGY_THRESHOLD:
+    if np.abs(frequencies[index_k, mu]) > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
         first_projected_potential = contract('wlitj,w->litj', scaled_potential, rescaled_eigenvectors[nu, :])
 
@@ -182,8 +176,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             frequencies[index_kpp_vec, np.newaxis, :])
 
         condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
-                    (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > ENERGY_THRESHOLD) & \
-                    (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > ENERGY_THRESHOLD)
+                    (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > energy_threshold) & \
+                    (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > energy_threshold)
         interactions = np.array(np.where(condition)).T
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
@@ -243,7 +237,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
 
 # @profile
-def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in, broadening='gauss'):
+def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in, broadening, energy_threshold):
 
     density = density.flatten()
     nptk = np.prod (k_size)
@@ -296,10 +290,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             
             for mu in range (n_modes):
                 gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv,
-                                           k_size, n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening)
+                                           k_size, n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening, energy_threshold)
 
-
-                Logger().info('gamma = ' + str(gamma[is_plus, index_k, mu] * constants.davide_coeff))
                 Logger ().info (process[is_plus] + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
 
 
