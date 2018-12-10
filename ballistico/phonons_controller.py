@@ -278,10 +278,10 @@ class PhononsController (object):
 
             if self.is_classic is False:
                 density[physical_modes] = 1. / (
-                        np.exp(constants.thzoverjoule * 2 * np.pi * frequencies[physical_modes] / constants.kelvinoverjoule / temp) - 1.)
+                        np.exp((constants.thzoverjoule / (2 * np.pi)) * 2 * np.pi * frequencies[physical_modes] / constants.kelvinoverjoule / temp) - 1.)
             else:
                 density[physical_modes] = constants.kelvinoverjoule * temp / (
-                        2 * np.pi * frequencies[physical_modes]) / constants.thzoverjoule
+                        2 * np.pi * frequencies[physical_modes]) / (constants.thzoverjoule / (2 * np.pi))
             self.occupations = density
         return self._occupations
 
@@ -352,7 +352,7 @@ class PhononsController (object):
                 c_v[:] = constants.kelvinoverjoule
             else:
                 f_be = self.occupations
-                c_v[physical_modes] = constants.thzoverjoule ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * (
+                c_v[physical_modes] = (constants.thzoverjoule / (2 * np.pi)) ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * (
                         2 * np.pi * frequencies[physical_modes]) ** 2 / (
                                               constants.kelvinoverjoule * self.temperature ** 2)
             self.c_v = c_v * 1e21

@@ -1,4 +1,3 @@
-import ballistico.constants as constants
 import numpy as np
 from ballistico.logger import Logger
 import spglib as spg

@@ -76,14 +76,14 @@ class ConductivityController (object):
         return (transmission / length)
     
     def specific_heat(self, is_classical=False):
-        f_be = 1. / (np.exp (constants.thzoverjoule * self.phonons.frequencies / constants.kelvinoverjoule /
+        f_be = 1. / (np.exp ((constants.thzoverjoule / (2 * np.pi)) * self.phonons.frequencies / constants.kelvinoverjoule /
                              self.phonons.temperature) - 1.
                      + THREESHOLD)
         c_v = np.zeros ((self.phonons.n_phonons))
         if (is_classical):
             c_v[:] = constants.kelvinoverjoule
         else:
-            c_v[:] = constants.thzoverjoule ** 2 * f_be[:] * (f_be[:] + 1) * self.phonons.frequencies[:] ** 2 / \
+            c_v[:] = (constants.thzoverjoule / (2 * np.pi)) ** 2 * f_be[:] * (f_be[:] + 1) * self.phonons.frequencies[:] ** 2 / \
                      (constants.kelvinoverjoule * self.phonons.temperature ** 2)
             
         # TODO: get rid of this prefactor
