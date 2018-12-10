@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # and replicate it
     supercell = np.array([3, 3, 3])
     n_replicas = np.prod(supercell)
-    temperatures = np.array([2, 10, 40, 100, 200, 300, 500, 1000])
+    temperatures = np.array([300])
     conductivities = np.zeros_like(temperatures, dtype=np.float)
     heat_capacities = np.zeros_like(conductivities)
 
@@ -63,21 +63,22 @@ if __name__ == "__main__":
         phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                           temperature=temperature, is_persistency_enabled=False)
         # Create a plot helper object
-        # plotter = Plotter (phonons=phonons,
-        #                    is_showing=True,
-        #                    folder='plot/ballistico/',
-        #                    is_persistency_enabled=True)
+        plotter = Plotter (phonons=phonons,
+                           is_showing=True,
+                           folder='plot/ballistico/',
+                           is_persistency_enabled=True)
 
         # call the method plot everything
-        # plotter.plot_everything()
+        plotter.plot_everything()
 
         # calculate the conductivity creating a conductivity object and calling the
         # calculate_conductivity method
         heat_capacities[i] = phonons.c_v.mean()
         conductivities[i] = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
-
-    plt.plot(temperatures, conductivities)
-    plt.show()
-
-    plt.plot(temperatures, heat_capacities)
-    plt.show()
+    #
+    # plt.plot(temperatures, conductivities)
+    # plt.show()
+    #
+    # plt.plot(temperatures, heat_capacities)
+    # plt.show()
+print(conductivities)

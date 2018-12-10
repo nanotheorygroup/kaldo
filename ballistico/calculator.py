@@ -36,6 +36,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta, num):
     dos_e *= 1. / (n_k_points * np.pi) * 0.5 * delta
     return omega_e, dos_e
 
+
 def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
 
     geometry = atoms.positions
@@ -78,8 +79,8 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
             if np.abs(frequencies[mu]) > energy_threshold:
                 velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
 
-
     return frequencies * constants.prefactor_freq, eigenvals, eigenvects, velocities * constants.prefactor_vel
+
 
 def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
     n_unit_cell = second_order.shape[1]
@@ -97,6 +98,7 @@ def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, r
         velocities[index_k, :, :] = vels
     return frequencies, eigenvalues, eigenvectors, velocities
 
+
 def calculate_broadening(velocity, cellinv, k_size):
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
     # 10 = armstrong to nanometers
@@ -107,9 +109,11 @@ def calculate_broadening(velocity, cellinv, k_size):
 
 
 def gaussian_delta(params):
-    # alpha is a factor that tells whats the ration between the width of the gaussian and the width of allowed phase space
+    # alpha is a factor that tells whats the ration between the width of the gaussian
+    # and the width of allowed phase space
     delta_energy = params[0]
-    # allowing processes with width sigma and creating a gaussian with width sigma/2 we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
+    # allowing processes with width sigma and creating a gaussian with width sigma/2
+    # we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
     sigma = params[1]
     if IS_DELTA_CORRECTION_ENABLED:
         correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
@@ -141,6 +145,7 @@ def lorentzian_delta(params):
     lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_energy ** 2 + (gamma / 2) ** 2)
     return lorentzian / correction
 
+
 # @profile
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size, n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening, energy_threshold):
 
@@ -164,20 +169,16 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         if sigma_in is None:
             velocities = velocities.real
             # velocities[0, :3, :] = 0
-            sigma_tensor_np = calculate_broadening( \
-                velocities[index_kp_vec, :, np.newaxis, :] - \
-                velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
+            sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
+                                                   velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
             sigma_small = sigma_tensor_np
         else:
             sigma_small = sigma_in
 
-        freq_diff_np = np.abs(
-            frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] - \
-            frequencies[index_kpp_vec, np.newaxis, :])
+        freq_diff_np = np.abs(frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] -
+                              frequencies[index_kpp_vec, np.newaxis, :])
 
-        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
-                    (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > energy_threshold) & \
-                    (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > energy_threshold)
+        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > energy_threshold) & (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > energy_threshold)
         interactions = np.array(np.where(condition)).T
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
@@ -201,8 +202,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
             dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
             if sigma_in is None:
-                dirac_delta *= broadening_function([freq_diff_np[index_kp_vec, mup_vec, mupp_vec],
-                                               sigma_small[index_kp_vec, mup_vec, mupp_vec]])
+                dirac_delta *= broadening_function([freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_small[
+                    index_kp_vec, mup_vec, mupp_vec]])
 
             else:
                 dirac_delta *= broadening_function(
@@ -211,29 +212,21 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             # TODO: find a better name
             if is_plus:
 
-                potential = contract('litj,aj,ai->alt', first_projected_potential,
-                                 rescaled_eigenvectors.conj()[nupp_vec],
-                                 rescaled_eigenvectors[nup_vec])
+                potential = contract('litj,aj,ai->alt', first_projected_potential, rescaled_eigenvectors.conj()[
+                    nupp_vec], rescaled_eigenvectors[nup_vec])
                 if not (k_size == (1, 1, 1)).any():
-                    potential = contract('alt,al,at->a', potential,
-                                     chi[index_kp_vec],
-                                     chi.conj()[index_kpp_vec])
+                    potential = contract('alt,al,at->a', potential, chi[index_kp_vec], chi.conj()[index_kpp_vec])
             else:
-                potential = contract('litj,aj,ai->alt', first_projected_potential,
-                                 rescaled_eigenvectors.conj()[nupp_vec],
-                                 rescaled_eigenvectors.conj()[nup_vec])
+                potential = contract('litj,aj,ai->alt', first_projected_potential, rescaled_eigenvectors.conj()[
+                    nupp_vec], rescaled_eigenvectors.conj()[nup_vec])
 
                 if not (k_size == (1, 1, 1)).any():
-                    potential = contract('alt,al,at->a', potential,
-                                     chi.conj()[index_kp_vec],
-                                     chi.conj()[index_kpp_vec])
-            potential = potential.flatten()
-            gamma = np.sum(np.abs(potential) ** 2 * dirac_delta)
+                    potential = contract('alt,al,at->a', potential, chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
+            potential = potential.flatten() * np.sqrt(dirac_delta.flatten())
+            gamma = np.sum(np.abs(potential) ** 2)
             ps = np.sum(dirac_delta)
 
     return gamma / frequencies[index_k, mu], ps / frequencies[index_k, mu]
-
-
 
 
 # @profile
@@ -273,12 +266,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                 is_shift=[0, 0, 0])
     unique_points, degeneracy = np.unique (mapping, return_counts=True)
     list_of_k = unique_points
-    Logger ().info ('n_irreducible_q_points = ' + str (int (len (unique_points))) + ' : ' + str (unique_points))
+    Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
 
     process = ['Minus processes: ', 'Plus processes: ']
     masses = atoms.get_masses()
-    rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) \
-            / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
+    rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes))
 
     n_phonons = nptk * n_modes
@@ -286,16 +278,21 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(n_phonons, n_modes)
     for is_plus in (1, 0):
         for index_k in (list_of_k):
-            i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
+            i_k = np.array (np.unravel_index(index_k, k_size, order='F'))
             
             for mu in range (n_modes):
-                gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv,
-                                           k_size, n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening, energy_threshold)
+                gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus, index_k, mu,
+                                                                                               i_k, frequencies,
+                                                                                               velocities, density,
+                                                                                               cell_inv, k_size,
+                                                                                               n_modes, nptk,
+                                                                                               rescaled_eigenvectors,
+                                                                                               chi, scaled_potential,
+                                                                                               sigma_in, broadening,
+                                                                                               energy_threshold)
+                Logger ().info (process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str (mu))
 
-                Logger ().info (process[is_plus] + 'q-point = ' + str (index_k) + ', mu-branch = ' + str (mu))
-
-
-    for index_k, (associated_index, gp) in enumerate (zip (mapping, grid)):
+    for index_k, (associated_index, gp) in enumerate(zip(mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
         gamma[:, index_k, :] = gamma[:, associated_index, :]
         # if IS_SCATTERING_MATRIX_ENABLED:
