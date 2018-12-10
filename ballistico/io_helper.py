@@ -6,30 +6,11 @@ import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 
 
-def import_second_charlie(atoms, replicas=(1, 1, 1), dynamical_matrix_file='dynmat.dat'):
-    replicas = np.array(replicas)
-    dyn_mat = import_dynamical_matrix_charlie(replicas, dynamical_matrix_file)
-    mass = np.sqrt (atoms.get_masses ())
-    mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] \
-           * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    return dyn_mat * mass
-
-def import_dynamical_matrix_charlie(replicas=(1, 1, 1), dynamical_matrix_file='dynmat.dat'):
-    replicas = np.array(replicas)
-    dynamical_matrix_frame = pd.read_csv(dynamical_matrix_file, header=None, skiprows=1, \
-                                         delim_whitespace=True)
-    dynamical_matrix_vector = dynamical_matrix_frame.values
-    n_replicas = replicas[0] * replicas[1] * replicas[2]
-    n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
-    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3) * \
-           constants.evoverdlpoly
-
 def import_second_dlpoly(atoms, replicas=(1, 1, 1), dynamical_matrix_file='dlpoly_files/Dyn.form'):
     replicas = np.array(replicas)
     dyn_mat = import_dynamical_matrix_dlpoly(replicas, dynamical_matrix_file)
     mass = np.sqrt (atoms.get_masses ())
-    mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] \
-           * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
 
 

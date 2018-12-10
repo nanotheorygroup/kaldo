@@ -1,4 +1,3 @@
-from ballistico.constants import *
 import ballistico.constants as constants
 from ballistico.logger import Logger
 import numpy as np
@@ -13,7 +12,6 @@ class ConductivityController (object):
     def __init__(self, phonons):
         self.phonons = phonons
         # self.import_scattering_matrix()
-        
 
     def import_scattering_matrix(self):
         temperature = str (int (self.phonons.temperature))
@@ -38,7 +36,6 @@ class ConductivityController (object):
         
         self.phonons.gamma = csc_matrix ((gamma_value, (row, col)), shape=(self.phonons.n_phonons, self.phonons.n_phonons),
                                  dtype=np.float32)
-
     
     def read_conductivity(self, converged=True):
         folder = self.phonons.folder
@@ -79,22 +76,27 @@ class ConductivityController (object):
         return (transmission / length)
     
     def specific_heat(self, is_classical=False):
-        f_be = 1. / (np.exp (hbar * self.phonons.frequencies / k_b / self.phonons.temperature) - 1. + THREESHOLD)
+        f_be = 1. / (np.exp (constants.thzoverjoule * self.phonons.frequencies / constants.kelvinoverjoule /
+                             self.phonons.temperature) - 1.
+                     + THREESHOLD)
         c_v = np.zeros ((self.phonons.n_phonons))
         if (is_classical):
-            c_v[:] = k_b
+            c_v[:] = constants.kelvinoverjoule
         else:
-            c_v[:] = hbar ** 2 * f_be[:] * (f_be[:] + 1) * self.phonons.frequencies[:] ** 2 / (k_b * self.phonons.temperature ** 2)
+            c_v[:] = constants.thzoverjoule ** 2 * f_be[:] * (f_be[:] + 1) * self.phonons.frequencies[:] ** 2 / \
+                     (constants.kelvinoverjoule * self.phonons.temperature ** 2)
             
         # TODO: get rid of this prefactor
         return 1e21 * c_v
     
-    def exact_conductivity(self, is_classical=False, l_x=LENGTH_THREESHOLD, l_y=LENGTH_THREESHOLD, l_z=LENGTH_THREESHOLD, alpha=0, beta=0):
+    def exact_conductivity(self, is_classical=False, l_x=LENGTH_THREESHOLD, l_y=LENGTH_THREESHOLD,
+                           l_z=LENGTH_THREESHOLD, alpha=0, beta=0):
         volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
 
         length = np.array([l_x, l_y, l_z])
         conductivity_per_mode = np.zeros ((self.phonons.n_phonons))
-        # gamma_full = np.diag (1. / (self.tau_zero + THREESHOLD)) - np.array (self.phonons.gamma.toarray ()) + THREESHOLD
+        # gamma_full = np.diag (1. / (self.tau_zero + THREESHOLD)) - np.array (self.phonons.gamma.toarray ()) +
+        # THREESHOLD
         # gamma_full = np.array (self.phonons.gamma.toarray ())
         
         transmission = self.calculate_transmission (self.phonons.velocities[:, alpha], length[alpha]) * length[alpha]

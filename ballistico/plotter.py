@@ -76,5 +76,5 @@ class Plotter (object):
         self.plot_vs_frequency (phonons.c_v, 'cv')
         vel = np.linalg.norm (phonons.velocities, axis=-1)
         self.plot_vs_frequency (vel, 'vel')
-        self.plot_vs_frequency (phonons.gamma, 'gamma_THz')
-        self.plot_vs_frequency (phonons.gamma * constants.davide_coeff / constants.gamma_coeff, 'gamma_meV')
+        self.plot_vs_frequency (phonons.gamma * constants.gamma_coeff, 'gamma_THz')
+        self.plot_vs_frequency (phonons.gamma * constants.davide_coeff, 'gamma_meV')

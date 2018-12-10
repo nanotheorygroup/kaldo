@@ -22,6 +22,7 @@ LIST_OF_INDEX_FILE = 'list_of_index.npy'
 # Tolerance for symmetry search
 SYMPREC_THIRD_ORDER = 1e-5
 
+
 class FiniteDifference (object):
     def __init__(self,
                  atoms,
