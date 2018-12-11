@@ -395,5 +395,6 @@ class FiniteDifference (object):
                                             -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
         phifull = phifull.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         phifull /= (4. * dx * dx)
-        return phifull
+        return COO.from_numpy(phifull.reshape((self.n_atoms * 3 , self.n_replicas * self.n_atoms * 3, self.n_replicas *
+                                               self.n_atoms * 3)))
 
