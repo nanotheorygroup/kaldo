@@ -12,7 +12,7 @@ IS_SCATTERING_MATRIX_ENABLED = False
 IS_SORTING_EIGENVALUES = False
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
-DIAGONALIZATION_ALGORITHM = np.linalg.eigh
+# DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
 
@@ -50,20 +50,26 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    
-    chi_k = np.zeros (n_replicas).astype (complex)
-    for id_replica in range (n_replicas):
-        chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-    replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
-    dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
-            geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-    ddyn_s = 1j * contract('ijla,l,ibljc->aibjc',
-                           dxij,
-                           chi_k,
-                           dynmat)
+
+    is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
+    if is_calculation_at_gamma:
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
+        dyn_s = np.sum(dynmat, axis=2)
+    else:
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+        chi_k = np.zeros (n_replicas).astype (complex)
+        for id_replica in range (n_replicas):
+            chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
+        dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+        replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
+        dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+                geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+        ddyn_s = 1j * contract('ijla,l,ibljc->aibjc',
+                               dxij,
+                               chi_k,
+                               dynmat)
+
     dyn = dyn_s.reshape (n_particles * 3, n_particles * 3)
-    ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3)
     out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
     eigenvals, eigenvects = out[0], out[1]
     if IS_SORTING_EIGENVALUES:
@@ -71,12 +77,17 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
         eigenvals = eigenvals[idx]
         eigenvects = eigenvects[:, idx]
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
-    velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-    vel = contract('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
-    for alpha in range (3):
-        for mu in range (n_particles * 3):
-            if np.abs(frequencies[mu]) > energy_threshold:
-                velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
+
+    if is_calculation_at_gamma:
+        velocities = None
+    else:
+        ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3)
+        velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
+        vel = contract('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
+        for alpha in range (3):
+            for mu in range (n_particles * 3):
+                if np.abs(frequencies[mu]) > energy_threshold:
+                    velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
 
     return frequencies, eigenvals, eigenvects, velocities
 
