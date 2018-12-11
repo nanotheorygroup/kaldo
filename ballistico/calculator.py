@@ -3,6 +3,7 @@ from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 import scipy.special
+import ballistico.constants as constants
 from opt_einsum import contract
 from memory_profiler import profile
 from sparse import COO
@@ -45,8 +46,9 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
     n_particles = geometry.shape[0]
     n_replicas = list_of_replicas.shape[0]
+    n_phonons = n_particles * 3
 
-    dynmat = second_order[0]
+    dynmat = second_order[0] * constants.evoverdlpoly
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
@@ -64,13 +66,9 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
         replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
         dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
                 geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-        ddyn_s = 1j * contract('ijla,l,ibljc->aibjc',
-                               dxij,
-                               chi_k,
-                               dynmat)
+        ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
-    dyn = dyn_s.reshape (n_particles * 3, n_particles * 3)
-    out = DIAGONALIZATION_ALGORITHM (dyn.reshape (n_particles * 3, n_particles * 3))
+    out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape (n_phonons, n_phonons))
     eigenvals, eigenvects = out[0], out[1]
     if IS_SORTING_EIGENVALUES:
         idx = eigenvals.argsort ()
@@ -81,13 +79,13 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     if is_calculation_at_gamma:
         velocities = None
     else:
-        ddyn = ddyn_s.reshape (3, n_particles * 3, n_particles * 3)
+        ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
         velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-        vel = contract('ki,aij,jq->akq',eigenvects.conj().T, ddyn, eigenvects)
+        vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
         for alpha in range (3):
             for mu in range (n_particles * 3):
                 if np.abs(frequencies[mu]) > energy_threshold:
-                    velocities[mu, alpha] = vel[alpha, mu, mu] / (2 * (2 * np.pi) * frequencies[mu])
+                    velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
     return frequencies, eigenvals, eigenvects, velocities
 
@@ -323,10 +321,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     n_modes = n_particles * 3
 
     n_replicas = list_of_replicas.shape[0]
+    cell_inv = np.linalg.inv(atoms.cell)
 
-    # TODO: maybe here we should do the check for k = (0, 0, 0)
-    if k_size.sum() > 1:
-        cell_inv = np.linalg.inv (atoms.cell)
+    is_amorphous = (k_size == (1, 1, 1)).all()
+
+    if is_amorphous:
+        chi = 1
+    else:
         rlattvec = cell_inv * 2 * np.pi
         chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
         for index_k in range (np.prod (k_size)):

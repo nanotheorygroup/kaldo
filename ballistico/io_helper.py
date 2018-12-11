@@ -11,7 +11,7 @@ def import_second_dlpoly(atoms, replicas=(1, 1, 1), dynamical_matrix_file='dlpol
     dyn_mat = import_dynamical_matrix_dlpoly(replicas, dynamical_matrix_file)
     mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    return dyn_mat * mass
+    return dyn_mat * mass / constants.evoverdlpoly
 
 
 def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), dynamical_matrix_file='dlpoly_files/Dyn.form'):
