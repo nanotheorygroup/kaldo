@@ -31,7 +31,7 @@ if __name__ == "__main__":
         # temperature = 300
 
         # our Phonons object built on the system
-        kpts = np.array([7, 7, 7])
+        kpts = np.array([11, 11, 11])
         is_classic = False
 
         calculator = LAMMPSlib
@@ -63,10 +63,10 @@ if __name__ == "__main__":
         phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                           temperature=temperature, is_persistency_enabled=False)
         # Create a plot helper object
-        plotter = Plotter (phonons=phonons,
-                           is_showing=True,
-                           folder='plot/ballistico/',
-                           is_persistency_enabled=True)
+        plotter = Plotter(phonons=phonons,
+                          is_showing=True,
+                          folder='plot/ballistico/',
+                          is_persistency_enabled=True)
 
         # call the method plot everything
         plotter.plot_everything()

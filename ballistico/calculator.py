@@ -157,8 +157,11 @@ def lorentzian_delta(params):
 
 
 # @profile
-def calculate_single_gamma(dirac_delta, is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
-                           n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening, energy_threshold):
+def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
+                           n_modes, nptk, n_replicas, rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
+                           energy_threshold):
+
+    is_amorphous = nptk == 1
 
     if broadening == 'gauss':
         broadening_function = gaussian_delta
@@ -170,6 +173,23 @@ def calculate_single_gamma(dirac_delta, is_plus, index_k, mu, i_k, frequencies, 
     if np.abs(frequencies[index_k, mu]) > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
 
+        # scaled_potential = COO.from_numpy(contract('wlitj,w->litj', third_order.reshape((n_modes, n_replicas, n_modes,
+        #                                                                                  n_replicas, n_modes)),
+        #                                            rescaled_eigenvectors[nu, :]))
+        #
+        # scaled_potential = third_order.reshape((total_n_phonons, total_n_phonons * total_n_phonons)).to_scipy_sparse()
+        # .T.dot(
+        #     rescaled_eigenvectors[nu, :]).T.reshape((n_replicas, n_modes, n_replicas, n_modes))
+        #
+        # third_order.reshape((third_order.shape[0], np.prod(third_order.shape[1:]))).to_scipy_sparse().T.dot(
+        #     rescaled_eigenvectors[nu, :])
+        # interaction_counter = 1
+        # w, j, i = third_order.coords
+        # third_order.data[interaction_counter] * rescaled_eigenvectors[nu, w] * rescaled_eigenvectors.conj()[
+        #     :, j] * rescaled_eigenvectors[:, i]
+        scaled_potential = third_order.reshape((third_order.shape[0], np.prod(third_order.shape[1:]))).to_scipy_sparse().T.dot(
+            rescaled_eigenvectors[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
+        scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
         i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
@@ -221,26 +241,56 @@ def calculate_single_gamma(dirac_delta, is_plus, index_k, mu, i_k, frequencies, 
 
             if is_plus:
 
-                potential = contract('wlitj,w,aj,ai->alt', scaled_potential, rescaled_eigenvectors[nu, :],
+                potential = contract('litj,aj,ai->alt', scaled_potential,
                                      rescaled_eigenvectors.conj()[nupp_vec], rescaled_eigenvectors[nup_vec])
                 if not (k_size == (1, 1, 1)).any():
                     potential = contract('alt,al,at->a', potential, chi[index_kp_vec], chi.conj()[index_kpp_vec])
             else:
-                potential = contract('wlitj,w,aj,ai->alt', scaled_potential, rescaled_eigenvectors[nu, :],
+                potential = contract('litj,aj,ai->alt', scaled_potential,
                                      rescaled_eigenvectors.conj()[nupp_vec], rescaled_eigenvectors.conj()[nup_vec])
 
                 if not (k_size == (1, 1, 1)).any():
                     potential = contract('alt,al,at->a', potential, chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
-            potential = potential.flatten() * np.sqrt(dirac_delta.flatten())
-            gamma = np.sum(np.abs(potential) ** 2)
-            ps = np.sum(dirac_delta)
 
-    return gamma / frequencies[index_k, mu], ps / frequencies[index_k, mu]
+            # for interaction_counter in range(scaled_potential.coords.T.shape[0]):
+            #     w, l, i, t, j = scaled_potential.coords.T[interaction_counter]
+            #     # print(w,l,i,t,j)
+            #
+            #     if is_plus:
+            #         if is_amorphous:
+            #
+            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
+            #                         rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors[nup_vec, i]
+            #         else:
+            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
+            #                         rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors[nup_vec, i] * \
+            #                         chi[index_kp_vec, l] * chi.conj()[index_kpp_vec, t]
+            #     else:
+            #         if is_amorphous:
+            #
+            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
+            #                     rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors.conj()[nup_vec, i]
+            #
+            #         else:
+            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
+            #                     rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors.conj()[nup_vec, i] * \
+            #                     chi.conj()[index_kp_vec, l] * chi.conj()[index_kpp_vec, t]
+            potential = potential * np.sqrt(dirac_delta.flatten())
+            gamma = np.sum(np.abs(potential) ** 2)
+            print(gamma)
+            ps = np.sum(dirac_delta)
+        gamma = gamma / frequencies[index_k, mu]
+        ps = ps / frequencies[index_k, mu]
+    return gamma, ps
 
 
 # @profile
 def calculate_single_phase_space(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
-                                 n_modes, nptk, rescaled_eigenvectors, chi, scaled_potential, sigma_in, broadening, energy_threshold):
+                                 n_modes, nptk, n_replicas, rescaled_eigenvectors, chi, third_order, sigma_in,
+                                 broadening,
+                                 energy_threshold):
+    scaled_potential = third_order.reshape ((n_modes, n_replicas, n_modes, n_replicas, n_modes))
+
     dirac_delta = 0
     if broadening == 'gauss':
         broadening_function = gaussian_delta
@@ -311,7 +361,8 @@ def calculate_single_phase_space(is_plus, index_k, mu, i_k, frequencies, velocit
 
 
 # @profile
-def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order, sigma_in, broadening, energy_threshold):
+def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
+                    sigma_in, broadening, energy_threshold):
 
     density = density.flatten()
     nptk = np.prod (k_size)
@@ -320,7 +371,12 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     Logger ().info ('Lifetime calculation')
     n_modes = n_particles * 3
 
-    n_replicas = list_of_replicas.shape[0]
+    # TODO: We should write this in a better way
+    if list_of_replicas.shape == (3,):
+        n_replicas = 1
+    else:
+        n_replicas = list_of_replicas.shape[0]
+
     cell_inv = np.linalg.inv(atoms.cell)
 
     is_amorphous = (k_size == (1, 1, 1)).all()
@@ -336,7 +392,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
-    scaled_potential = third_order.reshape ((n_modes, n_replicas, n_modes, n_replicas, n_modes))
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
     ps = np.zeros ((2, np.prod (k_size), n_modes))
@@ -350,8 +405,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                 is_shift=[0, 0, 0])
     unique_points, degeneracy = np.unique (mapping, return_counts=True)
     list_of_k = unique_points
-    Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
 
+    Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
     process = ['Minus processes: ', 'Plus processes: ']
     masses = atoms.get_masses()
     rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
@@ -360,39 +415,20 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     n_phonons = nptk * n_modes
     n_particles = int(n_modes / 3)
     rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(n_phonons, n_modes)
-
-    for is_plus in (1, 0):
-        for index_k in (list_of_k):
-            i_k = np.array(np.unravel_index(index_k, k_size, order='F'))
-
-            for mu in range(n_modes):
-                try:
-                    dirac_delta = dirac_delta + calculate_single_phase_space(is_plus, index_k, mu, i_k, frequencies,
-                                                                             velocities,
-                                                                             density, cell_inv, k_size, n_modes, nptk,
-                                                                             rescaled_eigenvectors, chi,
-                                                                             scaled_potential, sigma_in,
-                                                                             broadening, energy_threshold)
-                except UnboundLocalError as err:
-                    dirac_delta = calculate_single_phase_space(is_plus, index_k, mu, i_k, frequencies,
-                                                               velocities,
-                                                               density, cell_inv, k_size, n_modes, nptk,
-                                                               rescaled_eigenvectors, chi, scaled_potential, sigma_in,
-                                                               broadening, energy_threshold)
-                    print(err)
     for is_plus in (1, 0):
         for index_k in (list_of_k):
             i_k = np.array (np.unravel_index(index_k, k_size, order='F'))
 
             for mu in range(n_modes):
-                gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(dirac_delta, is_plus,
+                gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus,
                                                                                                index_k, mu,
                                                                                                i_k, frequencies,
                                                                                                velocities, density,
                                                                                                cell_inv, k_size,
                                                                                                n_modes, nptk,
+                                                                                               n_replicas,
                                                                                                rescaled_eigenvectors,
-                                                                                               chi, scaled_potential,
+                                                                                               chi, third_order,
                                                                                                sigma_in, broadening,
                                                                                                energy_threshold)
                 Logger ().info (process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str (mu))

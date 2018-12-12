@@ -43,7 +43,7 @@ def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), file='dlpoly_files/THIR
     sparse = sparse_x + sparse_y + sparse_z
     n_replicas = np.prod(replicas)
     n_particles_small = int(n_particles / n_replicas)
-    sparse = sparse.reshape ((n_replicas, n_particles_small, 3, n_replicas, n_particles_small, \
-                              3, n_replicas, n_particles_small, 3,))
+    sparse = sparse.reshape ((n_replicas * n_particles_small * 3, n_replicas * n_particles_small * \
+                              3, n_replicas * n_particles_small * 3))
     return sparse / constants.evoverdlpoly
 

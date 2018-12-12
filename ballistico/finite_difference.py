@@ -133,7 +133,8 @@ class FiniteDifference (object):
                     folder = self.folder_name
                     folder += '/'
                     self._third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE))\
-                        .reshape((1, self.n_atoms, 3, self.n_replicas, self.n_atoms, 3, self.n_replicas, self.n_atoms, 3))
+                        .reshape((1 * self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
+                                  self.n_atoms * 3))
                 except FileNotFoundError as e:
                     Logger().info(e)
                     try:

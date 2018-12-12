@@ -34,7 +34,7 @@ class ConductivityController (object):
                 gamma = float (items[4]) * self.phonons.frequencies[nu1] / (self.phonons.frequencies[nu0] + THREESHOLD) + THREESHOLD
                 gamma_value.append (gamma)
         
-        self.phonons.gamma = csc_matrix ((gamma_value, (row, col)), shape=(self.phonons.n_phonons, self.phonons.n_phonons),
+        return csc_matrix ((gamma_value, (row, col)), shape=(self.phonons.n_phonons, self.phonons.n_phonons),
                                  dtype=np.float32)
     
     def read_conductivity(self, converged=True):
