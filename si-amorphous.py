@@ -13,15 +13,15 @@ from ballistico.finite_difference import FiniteDifference
 if __name__ == "__main__":
     is_classic = True
     # atoms = ase.io.read ('aSi.xyz', format='extxyz')
-    atoms = ase.io.read('CONFIG', format='dlp4')
+    atoms = ase.io.read('reference.xyz', format='extxyz')
     temperature = 300
-    second_order = io_helper.import_second_dlpoly(atoms)
-    third_order = io_helper.import_third_order_dlpoly(atoms)
+    second_order = io_helper.import_second_dlpoly(atoms, filename='Dyn.form')
+    third_order = io_helper.import_third_order_dlpoly(atoms, filename='THIRD')
 
     finite_difference = FiniteDifference(atoms=atoms,
                                          second_order=second_order,
                                          third_order=third_order,
-                                         is_persistency_enabled=True)
+                                         is_persistency_enabled=False)
     fig = plt.figure()
     width = 0.05
     width_thz = width * constants.mevoverthz
@@ -33,17 +33,10 @@ if __name__ == "__main__":
                       sigma_in=width_thz,
                       is_persistency_enabled=False)
 
-    frequencies = phonons.frequencies.flatten()
-    observable = phonons.gamma.flatten()
-    observable *= constants.davide_coeff / constants.gamma_coeff
+    plotter = Plotter(phonons=phonons,
+                      is_showing=True,
+                      folder='plot/ballistico/',
+                      is_persistency_enabled=True)
 
-    # print(observable)
-    plt.scatter(frequencies[3:],
-                observable[3:], marker=".", label='gaussian, ' + str(width) + 'meV')
-
-    plt.ylabel('$\Gamma$ (meV)', fontsize=16, fontweight='bold')
-    plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    plt.ylim([0,5])
-    plt.legend()
-    fig.savefig('comparison-bandwidths.pdf')
-    plt.show()
+    # call the method plot everything
+    plotter.plot_everything()

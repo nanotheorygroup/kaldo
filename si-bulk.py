@@ -31,7 +31,7 @@ if __name__ == "__main__":
         # temperature = 300
 
         # our Phonons object built on the system
-        kpts = np.array([11, 11, 11])
+        kpts = np.array([7, 7, 7])
         is_classic = False
 
         calculator = LAMMPSlib
@@ -55,9 +55,12 @@ if __name__ == "__main__":
         # Create a finite difference object
         finite_difference = FiniteDifference(atoms=atoms,
                                              supercell=supercell,
-                                             calculator=calculator,
-                                             calculator_inputs=calculator_inputs,
-                                             is_persistency_enabled=True)
+                                             is_persistency_enabled=False)
+        replicated_atoms = finite_difference.replicated_atoms
+        # ase.io.write('CONFIG', replicated_atoms, 'dlp4')
+
+        finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
+        finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
 
         # Create a phonon object
         phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,

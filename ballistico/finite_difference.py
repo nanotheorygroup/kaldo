@@ -56,9 +56,7 @@ class FiniteDifference (object):
             self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
-        if self.is_persistency_enabled:
-            if not os.path.exists (folder):
-                os.makedirs (folder)
+
 
     @property
     def poscar(self):
@@ -118,6 +116,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             np.save (folder + SECOND_ORDER_FILE, new_second_order)
         self._second_order = new_second_order
 
@@ -158,6 +158,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             save_npz(folder + THIRD_ORDER_FILE_SPARSE, self._third_order.reshape((self.n_atoms * 3 * self.n_replicas * \
                                                                                   self.n_atoms * 3, self.n_replicas * self.n_atoms * 3)).to_scipy_sparse())
 

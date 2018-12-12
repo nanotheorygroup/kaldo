@@ -48,14 +48,16 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     n_replicas = list_of_replicas.shape[0]
     n_phonons = n_particles * 3
 
-    dynmat = second_order[0] * constants.evoverdlpoly
+    dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0] * constants.evoverdlpoly
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 
     is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
     if is_calculation_at_gamma:
-        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
+        # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+
         dyn_s = np.sum(dynmat, axis=2)
     else:
         DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
@@ -91,7 +93,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
 
 def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
-    n_unit_cell = second_order.shape[1]
+    n_unit_cell = atoms.positions.shape[0]
     n_k_points = k_points.shape[0]
 
     frequencies = np.zeros ((n_k_points, n_unit_cell * 3))
@@ -187,8 +189,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         # w, j, i = third_order.coords
         # third_order.data[interaction_counter] * rescaled_eigenvectors[nu, w] * rescaled_eigenvectors.conj()[
         #     :, j] * rescaled_eigenvectors[:, i]
-        scaled_potential = third_order.reshape((third_order.shape[0], np.prod(third_order.shape[1:]))).to_scipy_sparse().T.dot(
-            rescaled_eigenvectors[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
+
+        # TODO: next espression is unreadable and needs to be broken down
+        scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes))[0]\
+            .to_scipy_sparse().T.dot(rescaled_eigenvectors[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
         scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
