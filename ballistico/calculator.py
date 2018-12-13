@@ -53,12 +53,11 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 
     is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
-    # if is_calculation_at_gamma:
-    #     DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
-    #
-    #     dyn_s = np.sum(dynmat, axis=2)
-    # else:
-    DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+    if is_calculation_at_gamma:
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
+        dyn_s = np.sum(dynmat, axis=2)
+    else:
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
     if is_calculation_at_gamma:
         dyn_s = np.sum(dynmat, axis=2)
 
@@ -138,6 +137,14 @@ def gaussian_delta(params):
     return gaussian / correction
 
 
+def triangular_delta(params):
+    domega = np.abs(params[0])
+    deltaa = np.abs(params[1])
+    out = np.zeros_like(domega)
+    out[domega < deltaa] = 1. / deltaa * (1 - domega[domega < deltaa] / deltaa)
+    return out
+
+
 def lorentzian_delta(params):
     delta_energy = params[0]
     gamma = params[1]
@@ -163,7 +170,7 @@ def lorentzian_delta(params):
 
 # @profile
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
-                           n_modes, nptk, n_replicas, rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
+                           n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
                            energy_threshold):
 
     is_amorphous = nptk == 1
@@ -172,33 +179,19 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         broadening_function = gaussian_delta
     elif broadening == 'lorentz':
         broadening_function = lorentzian_delta
+    elif broadening == 'triangle':
+        broadening_function = triangular_delta
 
     gamma = 0
     ps = 0
     if np.abs(frequencies[index_k, mu]) > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-
-        # scaled_potential = COO.from_numpy(contract('wlitj,w->litj', third_order.reshape((n_modes, n_replicas, n_modes,
-        #                                                                                  n_replicas, n_modes)),
-        #                                            rescaled_eigenvectors[nu, :]))
-        #
-        # scaled_potential = third_order.reshape((total_n_phonons, total_n_phonons * total_n_phonons)).to_scipy_sparse()
-        # .T.dot(
-        #     rescaled_eigenvectors[nu, :]).T.reshape((n_replicas, n_modes, n_replicas, n_modes))
-        #
-        # third_order.reshape((third_order.shape[0], np.prod(third_order.shape[1:]))).to_scipy_sparse().T.dot(
-        #     rescaled_eigenvectors[nu, :])
-        # interaction_counter = 1
-        # w, j, i = third_order.coords
-        # third_order.data[interaction_counter] * rescaled_eigenvectors[nu, w] * rescaled_eigenvectors.conj()[
-        #     :, j] * rescaled_eigenvectors[:, i]
-
-        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes)
-        rescaled_eigenvectors_T = rescaled_eigenvectors.reshape(nptk * n_modes, n_modes)
+        evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes)
+        evect_dagger = evect.reshape(nptk * n_modes, n_modes).conj()
 
         # TODO: next espression is unreadable and needs to be broken down
         scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes))[0]\
-            .to_scipy_sparse().T.dot(rescaled_eigenvectors[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
+            .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
         scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
@@ -252,12 +245,12 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             if is_plus:
 
                 potential = contract('litj,aj,ai->alt', scaled_potential,
-                                     rescaled_eigenvectors_T.conj()[nupp_vec], rescaled_eigenvectors[nup_vec])
+                                     evect_dagger[nupp_vec], evect[nup_vec])
                 if not (k_size == (1, 1, 1)).any():
                     potential = contract('alt,al,at->a', potential, chi[index_kp_vec], chi.conj()[index_kpp_vec])
             else:
                 potential = contract('litj,aj,ai->alt', scaled_potential,
-                                     rescaled_eigenvectors_T.conj()[nupp_vec], rescaled_eigenvectors_T.conj()[nup_vec])
+                                     evect_dagger[nupp_vec], evect_dagger[nup_vec])
 
                 if not (k_size == (1, 1, 1)).any():
                     potential = contract('alt,al,at->a', potential, chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
@@ -287,11 +280,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             #                     chi.conj()[index_kp_vec, l] * chi.conj()[index_kpp_vec, t]
             gamma = np.sum(np.abs(potential.flatten()) ** 2 * dirac_delta.flatten())
 
-            hbar = 6.35075751
-            mevoverdlpoly = 9.648538
-            coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
-
-            print(gamma * coeff)
             ps = np.sum(dirac_delta)
         gamma = gamma / frequencies[index_k, mu]
         ps = ps / frequencies[index_k, mu]
@@ -371,6 +359,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                                                                sigma_in, broadening,
                                                                                                energy_threshold)
                 Logger ().info (process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str (mu))
+
+                hbar = 6.35075751
+                mevoverdlpoly = 9.648538
+                coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
+                Logger ().info (str(frequencies[index_k,mu]) + ' - ' + str(coeff * gamma[is_plus, index_k, mu]))
 
     for index_k, (associated_index, gp) in enumerate(zip(mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]

@@ -3,6 +3,8 @@ from ballistico.finite_difference import FiniteDifference
 from ballistico.phonons_controller import PhononsController
 import numpy as np
 
+DELTA_SHAPE = 'triangle'
+
 class BallisticoPhonons (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True, energy_threshold=None):
         super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in, energy_threshold=energy_threshold)
@@ -153,7 +155,7 @@ class BallisticoPhonons (PhononsController):
             self.finite_difference.list_of_index,
             self.finite_difference.third_order,
             self.sigma_in,
-            'gauss',
+            DELTA_SHAPE,
             self.energy_threshold
         )
         self.gamma = gamma
@@ -182,13 +184,9 @@ class BallisticoPhonons (PhononsController):
             self.finite_difference.list_of_index,
             self.finite_difference.third_order,
             self.sigma_in,
-            'gauss',
+            DELTA_SHAPE,
             self.energy_threshold
         )
         self.scattering_matrix = scattering_matrix
         self.gamma = gamma
         return scattering_matrix
-
-
-
-    

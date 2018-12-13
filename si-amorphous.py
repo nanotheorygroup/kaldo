@@ -13,7 +13,8 @@ from ballistico.finite_difference import FiniteDifference
 if __name__ == "__main__":
     is_classic = True
     # atoms = ase.io.read ('aSi.xyz', format='extxyz')
-    atoms = ase.io.read('reference.xyz', format='extxyz')
+    # atoms = ase.io.read('reference.xyz', format='extxyz')
+    atoms = ase.io.read('CONFIG', format='dlp4')
     temperature = 300
     second_order = io_helper.import_second_dlpoly(atoms, filename='Dyn.form')
     third_order = io_helper.import_third_order_dlpoly(atoms, filename='THIRD')
