@@ -11,7 +11,7 @@ from ballistico.logger import Logger
 import ballistico.constants as constants
 import ballistico.atoms_helper as atoms_helper
 
-DELTA_SHIFT = 1e-6 * constants.evoverdlpoly
+DELTA_SHIFT = 1e-6
 MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'

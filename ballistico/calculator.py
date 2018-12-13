@@ -3,7 +3,6 @@ from ballistico.logger import Logger
 import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 import scipy.special
-import ballistico.constants as constants
 from opt_einsum import contract
 from memory_profiler import profile
 from sparse import COO
@@ -48,20 +47,23 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     n_replicas = list_of_replicas.shape[0]
     n_phonons = n_particles * 3
 
-    dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0] * constants.evoverdlpoly
+    dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 
     is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
+    # if is_calculation_at_gamma:
+    #     DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
+    #
+    #     dyn_s = np.sum(dynmat, axis=2)
+    # else:
+    DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
     if is_calculation_at_gamma:
-        # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
-        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
-
         dyn_s = np.sum(dynmat, axis=2)
+
     else:
-        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
-        chi_k = np.zeros (n_replicas).astype (complex)
+        chi_k = np.zeros(n_replicas).astype(complex)
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
         dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
@@ -79,6 +81,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 
     if is_calculation_at_gamma:
+        # TODO: here we should add the imaginary components of the velocities
         velocities = None
     else:
         ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
@@ -190,6 +193,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         # third_order.data[interaction_counter] * rescaled_eigenvectors[nu, w] * rescaled_eigenvectors.conj()[
         #     :, j] * rescaled_eigenvectors[:, i]
 
+        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes)
+        rescaled_eigenvectors_T = rescaled_eigenvectors.reshape(nptk * n_modes, n_modes)
+
         # TODO: next espression is unreadable and needs to be broken down
         scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes))[0]\
             .to_scipy_sparse().T.dot(rescaled_eigenvectors[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
@@ -246,12 +252,12 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             if is_plus:
 
                 potential = contract('litj,aj,ai->alt', scaled_potential,
-                                     rescaled_eigenvectors.conj()[nupp_vec], rescaled_eigenvectors[nup_vec])
+                                     rescaled_eigenvectors_T.conj()[nupp_vec], rescaled_eigenvectors[nup_vec])
                 if not (k_size == (1, 1, 1)).any():
                     potential = contract('alt,al,at->a', potential, chi[index_kp_vec], chi.conj()[index_kpp_vec])
             else:
                 potential = contract('litj,aj,ai->alt', scaled_potential,
-                                     rescaled_eigenvectors.conj()[nupp_vec], rescaled_eigenvectors.conj()[nup_vec])
+                                     rescaled_eigenvectors_T.conj()[nupp_vec], rescaled_eigenvectors_T.conj()[nup_vec])
 
                 if not (k_size == (1, 1, 1)).any():
                     potential = contract('alt,al,at->a', potential, chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
@@ -279,89 +285,19 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
             #                     rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors.conj()[nup_vec, i] * \
             #                     chi.conj()[index_kp_vec, l] * chi.conj()[index_kpp_vec, t]
-            potential = potential * np.sqrt(dirac_delta.flatten())
-            gamma = np.sum(np.abs(potential) ** 2)
-            print(gamma)
+            gamma = np.sum(np.abs(potential.flatten()) ** 2 * dirac_delta.flatten())
+
+            hbar = 6.35075751
+            mevoverdlpoly = 9.648538
+            coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
+
+            print(gamma * coeff)
             ps = np.sum(dirac_delta)
         gamma = gamma / frequencies[index_k, mu]
         ps = ps / frequencies[index_k, mu]
     return gamma, ps
 
 
-# @profile
-def calculate_single_phase_space(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
-                                 n_modes, nptk, n_replicas, rescaled_eigenvectors, chi, third_order, sigma_in,
-                                 broadening,
-                                 energy_threshold):
-    scaled_potential = third_order.reshape ((n_modes, n_replicas, n_modes, n_replicas, n_modes))
-
-    dirac_delta = 0
-    if broadening == 'gauss':
-        broadening_function = gaussian_delta
-    elif broadening == 'lorentz':
-        broadening_function = lorentzian_delta
-
-    gamma = 0
-    ps = 0
-    if np.abs(frequencies[index_k, mu]) > energy_threshold:
-        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-
-        index_kp_vec = np.arange(np.prod(k_size))
-        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
-        i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='F', mode='wrap')
-        # +1 if is_plus, -1 if not is_plus
-        second_sign = (int(is_plus) * 2 - 1)
-        if sigma_in is None:
-            velocities = velocities.real
-            # velocities[0, :3, :] = 0
-            sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
-                                                   velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
-            sigma_small = sigma_tensor_np
-        else:
-            sigma_small = sigma_in
-
-        freq_diff_np = np.abs(frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] -
-                              frequencies[index_kpp_vec, np.newaxis, :])
-
-        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > energy_threshold) & (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > energy_threshold)
-        interactions = np.array(np.where(condition)).T
-        # TODO: Benchmark something fast like
-        # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-        n_interactions = interactions.shape[0]
-        if n_interactions != 0:
-            # Logger ().info ('interactions: ' + str (interactions.size))
-            index_kp_vec = interactions[:, 0]
-            index_kpp_vec = index_kpp_vec[index_kp_vec]
-            mup_vec = interactions[:, 1]
-            mupp_vec = interactions[:, 2]
-            nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
-                                           np.array([nptk, n_modes]), order='C')
-            nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
-                                            np.array([nptk, n_modes]), order='C')
-
-            if is_plus:
-                dirac_delta = density[nup_vec] - density[nupp_vec]
-
-            else:
-                dirac_delta = .5 * (
-                        1 + density[nup_vec] + density[nupp_vec])
-
-            dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
-            if sigma_in is None:
-                dirac_delta *= broadening_function([freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_small[
-                    index_kp_vec, mup_vec, mupp_vec]])
-
-            else:
-                dirac_delta *= broadening_function(
-                    [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
-            coords = (np.array(
-                [index_k * np.zeros(n_interactions), mu * np.zeros(n_interactions), index_kp_vec, mup_vec,
-                 index_kpp_vec, mupp_vec]
-                ))
-            return COO(coords, dirac_delta, shape=(nptk, n_modes, nptk, n_modes, nptk, n_modes))
-
-    return dirac_delta
 
 
 # @profile
@@ -418,7 +354,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     n_phonons = nptk * n_modes
     n_particles = int(n_modes / 3)
-    rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(n_phonons, n_modes)
     for is_plus in (1, 0):
         for index_k in (list_of_k):
             i_k = np.array (np.unravel_index(index_k, k_size, order='F'))

@@ -8,7 +8,6 @@ bohroverangstrom = 0.529177
 rydbergoverev = 13.6056980
 
 evoverjoule = 1.60217662e-19  # coulombs
-
 avogadro = 6.022140857e23
 
 mass_factor = 1.8218779 * 6.022e-4

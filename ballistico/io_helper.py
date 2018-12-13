@@ -11,7 +11,7 @@ def import_second_dlpoly(atoms, replicas=(1, 1, 1), filename='dlpoly_files/Dyn.f
     dyn_mat = import_dynamical_matrix_dlpoly(replicas, filename)
     mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    return dyn_mat * mass / constants.evoverdlpoly
+    return dyn_mat * mass
 
 
 def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), filename='dlpoly_files/Dyn.form'):
@@ -45,5 +45,5 @@ def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), filename='dlpoly_files/
     n_particles_small = int(n_particles / n_replicas)
     sparse = sparse.reshape ((n_replicas * n_particles_small * 3, n_replicas * n_particles_small * \
                               3, n_replicas * n_particles_small * 3))
-    return sparse / constants.evoverdlpoly
+    return sparse
 
