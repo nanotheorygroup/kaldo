@@ -243,17 +243,20 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                     [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
 
             if is_plus:
-
-                potential = contract('litj,aj,ai->alt', scaled_potential,
-                                     evect_dagger[nupp_vec], evect[nup_vec])
-                if not (k_size == (1, 1, 1)).any():
-                    potential = contract('alt,al,at->a', potential, chi[index_kp_vec], chi.conj()[index_kpp_vec])
+                if (k_size == (1, 1, 1)).any():
+                    potential = contract('litj,aj,ai->alt', scaled_potential,
+                                         evect_dagger[nupp_vec], evect[nup_vec])
+                else:
+                    potential = contract('litj,aj,ai,al,at->a', scaled_potential,
+                                         evect_dagger[nupp_vec], evect[nup_vec], chi[index_kp_vec], chi.conj()
+                                         [index_kpp_vec])
             else:
-                potential = contract('litj,aj,ai->alt', scaled_potential,
-                                     evect_dagger[nupp_vec], evect_dagger[nup_vec])
-
-                if not (k_size == (1, 1, 1)).any():
-                    potential = contract('alt,al,at->a', potential, chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
+                if (k_size == (1, 1, 1)).any():
+                    potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[
+                        nup_vec], chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
+                else:
+                    potential = contract('litj,al,at->alt', scaled_potential,  evect_dagger[nupp_vec], evect_dagger[
+                        nup_vec], chi.conj()[index_kp_vec])
 
             # for interaction_counter in range(scaled_potential.coords.T.shape[0]):
             #     w, l, i, t, j = scaled_potential.coords.T[interaction_counter]

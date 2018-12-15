@@ -12,16 +12,17 @@ import ballistico.io_helper as io_helper
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
-import seaborn as sns
-
 
 if __name__ == "__main__":
     # We start from a atoms
-    # atoms = ase.io.read ('si-bulk.xyz')
-    atoms = bulk('Si', 'diamond', a=5.432)
+    atoms = ase.io.read('cubic-si.xyz')
+    # atoms = bulk('Si', 'diamond', a=5.432)
+    supercell = np.array([3, 3, 3])
+    replicated_atoms = FiniteDifference(atoms, supercell).replicated_atoms
+    ase.io.write('dlpoly_files/CONFIG', replicated_atoms)
 
     # and replicate it
-    supercell = np.array([3, 3, 3])
+
     n_replicas = np.prod(supercell)
     temperatures = np.array([300])
     conductivities = np.zeros_like(temperatures, dtype=np.float)
@@ -67,10 +68,6 @@ if __name__ == "__main__":
         # Create a phonon object
         phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                           temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
-
-        sns.set(color_codes=True)
-        ax = sns.kdeplot(phonons.frequencies.flatten())
-        plt.show()
         # Create a plot helper object
         plotter = Plotter(phonons=phonons,
                           is_showing=True,
@@ -90,4 +87,4 @@ if __name__ == "__main__":
     #
     # plt.plot(temperatures, heat_capacities)
     # plt.show()
-print(conductivities)
+    print(conductivities)

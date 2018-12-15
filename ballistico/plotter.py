@@ -7,7 +7,7 @@ import time
 from ballistico.interpolation_controller import interpolator
 import os
 import ballistico.constants as constants
-
+import seaborn as sns
 
 BUFFER_PLOT = .2
 
@@ -68,14 +68,27 @@ class Plotter (object):
         if self.is_showing:
             plt.show ()
 
+    def plot_dos(self):
+        phonons = self.phonons
+        fig = plt.figure ()
+        sns.set(color_codes=True)
+        ax = sns.kdeplot(phonons.frequencies.flatten())
+        plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+        if self.is_persistency_enabled:
+            fig.savefig (self.folder + 'dos.pdf')
+        if self.is_showing:
+            plt.show()
+
     def plot_everything(self, with_dispersion=True):
         phonons = self.phonons
+        self.plot_dos()
+
         if with_dispersion:
-            self.plot_in_brillouin_zone (observable_name='disp_rel', with_fourier=False)
+            self.plot_in_brillouin_zone(observable_name='disp_rel', with_fourier=False)
             # self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
-        self.plot_vs_frequency (phonons.c_v, 'cv')
-        vel = np.linalg.norm (phonons.velocities, axis=-1)
-        self.plot_vs_frequency (vel, 'vel')
+        self.plot_vs_frequency(phonons.c_v, 'cv_SI')
+        vel = np.linalg.norm(phonons.velocities, axis=-1)
+        self.plot_vs_frequency(vel, 'vel_100movers')
 
         hbar = 6.35075751
         mevoverdlpoly = 9.648538
@@ -83,5 +96,5 @@ class Plotter (object):
 
         gamma_coeff = (2 * np.pi) * coeff / constants.thzovermev
 
-        self.plot_vs_frequency (phonons.gamma * gamma_coeff, 'gamma_THz')
-        self.plot_vs_frequency (phonons.gamma * coeff, 'gamma_meV')
+        self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_THz')
+        self.plot_vs_frequency(phonons.gamma * coeff, 'gamma_meV')

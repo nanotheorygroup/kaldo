@@ -187,6 +187,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             ase.io.write (folder + REPLICATED_ATOMS_FILE, new_replicated_atoms, format='extxyz')
         self._replicated_atoms = new_replicated_atoms
 
@@ -217,6 +219,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             np.save (folder + LIST_OF_INDEX_FILE, new_list_of_index)
         self._list_of_index = new_list_of_index
 
