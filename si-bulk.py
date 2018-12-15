@@ -12,6 +12,8 @@ import ballistico.io_helper as io_helper
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 if __name__ == "__main__":
     # We start from a atoms
@@ -64,7 +66,11 @@ if __name__ == "__main__":
 
         # Create a phonon object
         phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                          temperature=temperature, is_persistency_enabled=False)
+                          temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
+
+        sns.set(color_codes=True)
+        ax = sns.kdeplot(phonons.frequencies.flatten())
+        plt.show()
         # Create a plot helper object
         plotter = Plotter(phonons=phonons,
                           is_showing=True,

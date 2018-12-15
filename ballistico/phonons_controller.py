@@ -20,7 +20,8 @@ FOLDER_NAME = 'ballistico'
 
 
 class PhononsController (object):
-    def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD):
+    def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
+    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)

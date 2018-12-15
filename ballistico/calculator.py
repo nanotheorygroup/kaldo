@@ -286,8 +286,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
     return gamma, ps
 
 
-
-
 # @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
                     sigma_in, broadening, energy_threshold):
