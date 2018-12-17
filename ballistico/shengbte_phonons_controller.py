@@ -11,11 +11,10 @@ SHENG_FOLDER_NAME = 'sheng_bte'
 
 
 class ShengbtePhononsController (PhononsController):
-    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300,
-                 second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, is_persistency_enabled=True, parameters={}):
         super(self.__class__, self).__init__(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                                              temperature=temperature, is_persistency_enabled=is_persistency_enabled)
-        self.second_order = finite_difference.second_order
+        self.second_order = finite_difference.second_order / constants.evoverdlpoly
         self.third_order = finite_difference.third_order
         self._qpoints_mapper = None
         self._energies = None
@@ -122,8 +121,10 @@ class ShengbtePhononsController (PhononsController):
         PhononsController.gamma.fset (self, new_gamma)
         
     def save_second_order_matrix(self):
-        second_order = self.second_order
         shenbte_folder = self.sheng_folder_name + '/'
+        n_replicas = self.supercell.prod()
+        n_particles = int(self.n_modes / 3)
+        second_order = self.second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))
         filename = 'espresso.ifc2'
         n_particles = second_order.shape[1]
         filename = shenbte_folder + filename
@@ -133,6 +134,7 @@ class ShengbtePhononsController (PhononsController):
         for replica_id in range(self.finite_difference.list_of_index.shape[0]):
             list_of_indices[replica_id] = cell_inv.dot(self.finite_difference.list_of_index[replica_id])
         file.write (self.header ())
+
         for alpha in range (3):
             for beta in range (3):
                 for i in range (n_particles):
@@ -145,7 +147,7 @@ class ShengbtePhononsController (PhononsController):
                             file.write ('\t' + str (l_vec[0]) + '\t' + str (l_vec[1]) + '\t' + str (l_vec[2]))
                             
                             # TODO: WHy are they flipped?
-                            matrix_element = self.second_order[0, j, beta, id_replica, i, alpha]
+                            matrix_element = second_order[0, j, beta, id_replica, i, alpha]
                             
                             matrix_element = matrix_element / constants.evoverdlpoly / constants.rydbergoverev * (
                                     constants.bohroverangstrom ** 2)
@@ -160,6 +162,7 @@ class ShengbtePhononsController (PhononsController):
         file = open ('%s' % filename, 'w')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
+        third_order = self.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))
         block_counter = 0
         for i_0 in range (n_in_unit_cell):
             for n_1 in range (n_replicas):
@@ -167,7 +170,7 @@ class ShengbtePhononsController (PhononsController):
                     for n_2 in range (n_replicas):
                         for i_2 in range (n_in_unit_cell):
                             
-                            three_particles_interaction = self.third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
+                            three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
