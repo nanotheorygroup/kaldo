@@ -12,6 +12,8 @@ import ballistico.io_helper as io_helper
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
+import seaborn as sns
+import ballistico.constants as constants
 
 if __name__ == "__main__":
     # We start from a atoms
@@ -24,67 +26,77 @@ if __name__ == "__main__":
     # and replicate it
 
     n_replicas = np.prod(supercell)
-    temperatures = np.array([300])
-    conductivities = np.zeros_like(temperatures, dtype=np.float)
-    heat_capacities = np.zeros_like(conductivities)
 
-    for i in range(temperatures.shape[0]):
-        temperature = temperatures[i]
-        # we create our system
-        # temperature = 300
+    temperature = 300
+    # we create our system
+    # temperature = 300
 
-        # our Phonons object built on the system
-        kpts = np.array([7, 7, 7])
-        is_classic = False
+    # our Phonons object built on the system
+    kpts = np.array([5, 5, 5])
+    is_classic = True
 
-        calculator = LAMMPSlib
-        calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
-                             'log_file': 'log_lammps.out'}
+    calculator = LAMMPSlib
+    calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
+                         'log_file': 'log_lammps.out'}
 
-        # calculator = Espresso
-        # calculator_inputs = {'pseudopotentials':{'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'},
-        #                 'tstress':True,
-        #                 'tprnfor':True,
-        #                 'input_data':
-        #                      {'system': {'ecutwfc': 16.0},
-        #                                            'electrons': {'conv_thr': 1e-8},
-        #                                            'disk_io': 'low',
-        #                                            'pseudo_dir': '/home/giuseppe/espresso/pseudo/'},
-        #                 'koffset':(2, 2, 2),
-        #                 'kpoints':(1, 1, 1)}
+    # calculator = Espresso
+    # calculator_inputs = {'pseudopotentials':{'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'},
+    #                 'tstress':True,
+    #                 'tprnfor':True,
+    #                 'input_data':
+    #                      {'system': {'ecutwfc': 16.0},
+    #                                            'electrons': {'conv_thr': 1e-8},
+    #                                            'disk_io': 'low',
+    #                                            'pseudo_dir': '/home/giuseppe/espresso/pseudo/'},
+    #                 'koffset':(2, 2, 2),
+    #                 'kpoints':(1, 1, 1)}
 
-        third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
+    third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
 
-        # Create a finite difference object
-        finite_difference = FiniteDifference(atoms=atoms,
-                                             supercell=supercell,
-                                             is_persistency_enabled=False)
-        replicated_atoms = finite_difference.replicated_atoms
-        # ase.io.write('CONFIG', replicated_atoms, 'dlp4')
+    # Create a finite difference object
+    finite_difference = FiniteDifference(atoms=atoms,
+                                         supercell=supercell,
+                                         is_persistency_enabled=False)
+    replicated_atoms = finite_difference.replicated_atoms
+    # ase.io.write('CONFIG', replicated_atoms, 'dlp4')
 
-        finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
-        finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
+    finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
+    finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
 
-        # Create a phonon object
-        phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                          temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
-        # Create a plot helper object
-        plotter = Plotter(phonons=phonons,
-                          is_showing=True,
-                          folder='plot/ballistico/',
-                          is_persistency_enabled=True)
+    # Create a phonon object
+    phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+                      temperature=temperature, is_persistency_enabled=True, broadening_shape='gauss')
 
-        # call the method plot everything
-        plotter.plot_everything()
+    sns.set(color_codes=True)
 
-        # calculate the conductivity creating a conductivity object and calling the
-        # calculate_conductivity method
-        heat_capacities[i] = phonons.c_v.mean()
-        conductivities[i] = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
+    # Create a plot helper object
+    hbar = 6.35075751
+    mevoverdlpoly = 9.648538
+    coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
+
+    # next line converts to meV > THz
+    coeff *= constants.mevoverthz
+    # shen_coeff = (2 * np.pi) * coeff
+
+    plt.scatter(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,
+                marker='.')
+    # plt.legend()
+    plt.ylim([0, 0.04])
+    plt.xlim([0.1, 17.5])
+
+    plt.ylabel("$\Gamma$ (THz)", fontsize=16, fontweight='bold')
+    plt.xlabel("$\\nu$ (THz)", fontsize=16, fontweight='bold')
+    # call the method plot everything
+    # plotter.plot_everything()
+
+    # calculate the conductivity creating a conductivity object and calling the
+    # calculate_conductivity method
+    heat_capacity = phonons.c_v.mean()
+    conductivity = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
     #
     # plt.plot(temperatures, conductivities)
-    # plt.show()
+    plt.show()
     #
     # plt.plot(temperatures, heat_capacities)
     # plt.show()
-    print(conductivities)
+    print(heat_capacity, conductivity)
