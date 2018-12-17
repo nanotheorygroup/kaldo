@@ -24,7 +24,10 @@ if __name__ == "__main__":
                                          third_order=third_order,
                                          is_persistency_enabled=True)
     fig = plt.figure()
-    widths = [0.05, 0.1, 0.2, 0.5, 1]
+    sns.set(color_codes=True)
+
+    # widths = [0.05, 0.1, 0.2, 0.5, 1]
+    widths = [0.05, 0.5]
     for width in widths:
         width_thz = width * constants.mevoverthz
 
@@ -36,14 +39,23 @@ if __name__ == "__main__":
                           is_persistency_enabled=True,
                           broadening_shape='lorentz')
 
-        plotter = Plotter(phonons=phonons,
-                          is_showing=True,
-                          folder='plot/ballistico/',
-                          is_persistency_enabled=True)
+        hbar = 6.35075751
+        mevoverdlpoly = 9.648538
+        coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
-        sns.set(color_codes=True)
-        ax = sns.kdeplot(phonons.frequencies.flatten())
-        plt.show()
+        # next line converts to meV > THz
+        coeff *= constants.mevoverthz
+        # shen_coeff = (2 * np.pi) * coeff
 
-        # call the method plot everything
-        plotter.plot_everything()
+        ax = sns.kdeplot(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,
+                         label='width=%.3f THz' % width_thz)
+        plt.legend()
+
+    plt.ylim([0, .06])
+    plt.xlim([0, 20])
+    plt.xlabel("$\\nu$ (THz)", fontsize=16, fontweight='bold')
+    plt.ylabel("$\Gamma$ (THz)", fontsize=16, fontweight='bold')
+    plt.show()
+
+    fig.savefig('comparison_lorentz.pdf')
+    Plotter(phonons).plot_dos()

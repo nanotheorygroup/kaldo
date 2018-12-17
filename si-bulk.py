@@ -12,14 +12,15 @@ import ballistico.io_helper as io_helper
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
+from ballistico.shengbte_phonons_controller import ShengbtePhononsController as Sheng
 
 if __name__ == "__main__":
     # We start from a atoms
     atoms = ase.io.read('cubic-si.xyz')
     # atoms = bulk('Si', 'diamond', a=5.432)
     supercell = np.array([3, 3, 3])
-    replicated_atoms = FiniteDifference(atoms, supercell).replicated_atoms
-    ase.io.write('dlpoly_files/CONFIG', replicated_atoms)
+    # replicated_atoms = FiniteDifference(atoms, supercell).replicated_atoms
+    # ase.io.write('dlpoly_files/CONFIG', replicated_atoms)
 
     # and replicate it
 
@@ -34,8 +35,8 @@ if __name__ == "__main__":
         # temperature = 300
 
         # our Phonons object built on the system
-        kpts = np.array([7, 7, 7])
-        is_classic = False
+        kpts = np.array([3, 3, 3])
+        is_classic = True
 
         calculator = LAMMPSlib
         calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
@@ -58,16 +59,21 @@ if __name__ == "__main__":
         # Create a finite difference object
         finite_difference = FiniteDifference(atoms=atoms,
                                              supercell=supercell,
-                                             is_persistency_enabled=False)
+                                             is_persistency_enabled=True,
+                                             )
         replicated_atoms = finite_difference.replicated_atoms
         # ase.io.write('CONFIG', replicated_atoms, 'dlp4')
 
         finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
         finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
 
-        # Create a phonon object
-        phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                          temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
+        phonons = Sheng(finite_difference, kpts, is_classic, temperature=300, is_persistency_enabled=False)
+        phonons.run()
+        #
+        #
+        # # Create a phonon object
+        # phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+        #                   temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
         # Create a plot helper object
         plotter = Plotter(phonons=phonons,
                           is_showing=True,

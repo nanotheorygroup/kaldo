@@ -77,7 +77,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
         idx = eigenvals.argsort ()
         eigenvals = eigenvals[idx]
         eigenvects = eigenvects[:, idx]
-    frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
+    frequencies = np.abs(eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 
     if is_calculation_at_gamma:
         # TODO: here we should add the imaginary components of the velocities
@@ -85,7 +85,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     else:
         ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
         velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-        vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
+        vel = contract('ki,ija,jq->kqa', eigenvects.conj().T, ddyn, eigenvects)
         for alpha in range (3):
             for mu in range (n_particles * 3):
                 if np.abs(frequencies[mu]) > energy_threshold:
@@ -329,7 +329,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
-    mapping, grid = spg.get_ir_reciprocal_mesh (k_size,
+    mapping, grid = spg.get_ir_reciprocal_mesh(k_size,
                                                 atoms,
                                                 is_shift=[0, 0, 0])
     unique_points, degeneracy = np.unique (mapping, return_counts=True)
@@ -343,11 +343,14 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     n_phonons = nptk * n_modes
     n_particles = int(n_modes / 3)
-    for is_plus in (1, 0):
-        for index_k in (list_of_k):
-            i_k = np.array (np.unravel_index(index_k, k_size, order='F'))
+    # for is_plus in (1, 0):
+    #     for index_k in (list_of_k):
+    #         for mu in range(n_modes):
+    for is_plus in [0]:
+        for index_k in [10]:
+            for mu in [23]:
 
-            for mu in range(n_modes):
+                i_k = np.array(np.unravel_index(index_k, k_size, order='F'))
                 gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus,
                                                                                                index_k, mu,
                                                                                                i_k, frequencies,

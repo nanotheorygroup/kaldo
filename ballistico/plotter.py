@@ -58,11 +58,13 @@ class Plotter (object):
         # TODO: We should check if the flattn is C-like and still compatible with Sheng 'F' like
         frequencies = self.phonons.frequencies.flatten ()
         observable = observable.flatten ()
-        fig = plt.figure ()
+        # fig = plt.figure ()
         plt.scatter (frequencies[3:],
-                     observable[3:])
+                     observable[3:], marker='.', label=observable_name)
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+        plt.legend()
+        plt.xlim([0, 20])
         if self.is_persistency_enabled:
             fig.savefig (self.folder + observable_name + '.pdf')
         if self.is_showing:
@@ -71,9 +73,10 @@ class Plotter (object):
     def plot_dos(self):
         phonons = self.phonons
         fig = plt.figure ()
-        sns.set(color_codes=True)
         ax = sns.kdeplot(phonons.frequencies.flatten())
         plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+        plt.ylabel("DOS", fontsize=16, fontweight='bold')
+        plt.xlim([0,20])
         if self.is_persistency_enabled:
             fig.savefig (self.folder + 'dos.pdf')
         if self.is_showing:
@@ -81,14 +84,16 @@ class Plotter (object):
 
     def plot_everything(self, with_dispersion=True):
         phonons = self.phonons
-        self.plot_dos()
+        sns.set(color_codes=True)
 
-        if with_dispersion:
-            self.plot_in_brillouin_zone(observable_name='disp_rel', with_fourier=False)
-            # self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
-        self.plot_vs_frequency(phonons.c_v, 'cv_SI')
-        vel = np.linalg.norm(phonons.velocities, axis=-1)
-        self.plot_vs_frequency(vel, 'vel_100movers')
+        # self.plot_dos()
+
+        # if with_dispersion:
+        #     self.plot_in_brillouin_zone(observable_name='disp_rel', with_fourier=False)
+        #   # self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
+        # self.plot_vs_frequency(phonons.c_v, 'cv_SI')
+        # vel = np.linalg.norm(phonons.velocities, axis=-1)
+        # self.plot_vs_frequency(vel, 'vel_100movers')
 
         hbar = 6.35075751
         mevoverdlpoly = 9.648538
@@ -96,5 +101,5 @@ class Plotter (object):
 
         gamma_coeff = (2 * np.pi) * coeff / constants.thzovermev
 
-        self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_THz')
+        # self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_THz')
         self.plot_vs_frequency(phonons.gamma * coeff, 'gamma_meV')
