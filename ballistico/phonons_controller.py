@@ -401,16 +401,17 @@ class PhononsController (object):
                     str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
             str_to_write += '\n'
             csv.write (str_to_write)
+            velocities = self.velocities.reshape((np.prod(self.kpts), n_modes, 3))
             for k in range (self.q_points ().shape[0]):
                 str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
                     self.q_points ()[k, 2]) + ','
                 for i in range (n_modes):
-                    str_to_write += str(self.energies[k, i]) + ','
+                    str_to_write += str(self.energies[k, i] / (2 * np.pi)) + ','
                 for i in range (n_modes):
                     str_to_write += str(lifetime[k, i]) + ','
 
                 for alpha in range(3):
                     for i in range(n_modes):
-                        str_to_write += str(self.velocities[k, i, alpha]) + ','
+                        str_to_write += str(velocities[k, i, alpha]) + ','
                 str_to_write += '\n'
                 csv.write(str_to_write)

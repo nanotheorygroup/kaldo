@@ -15,10 +15,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import ballistico.constants as constants
 
+from ballistico.shengbte_phonons_controller import ShengbtePhononsController as Sheng
+
 if __name__ == "__main__":
     # We start from a atoms
     atoms = ase.io.read('cubic-si.xyz')
-    # atoms = bulk('Si', 'diamond', a=5.432)
+    # atoms = bulk('Si', 'diamond', a=5.43)
     supercell = np.array([3, 3, 3])
     replicated_atoms = FiniteDifference(atoms, supercell).replicated_atoms
     ase.io.write('dlpoly_files/CONFIG', replicated_atoms)
@@ -32,7 +34,7 @@ if __name__ == "__main__":
     # temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array([5, 5, 5])
+    kpts = np.array([15, 15, 15])
     is_classic = True
 
     calculator = LAMMPSlib
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     #                 'koffset':(2, 2, 2),
     #                 'kpoints':(1, 1, 1)}
 
-    third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
+    # third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
@@ -62,14 +64,26 @@ if __name__ == "__main__":
 
     finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
     finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
-
-    # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=True, broadening_shape='gauss')
-
+    sheng = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+          temperature=temperature, is_persistency_enabled=False)
     sns.set(color_codes=True)
 
+    sheng_coeff = constants.thzovermev / (2 * np.pi)
+    plt.scatter(sheng.frequencies, sheng.gamma * sheng_coeff, marker='x')
+    plt.show()
+    # Create a phonon object
+    # phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+                      # temperature=temperature, is_persistency_enabled=True, broadening_shape='gauss')
+    plt.scatter(sheng.frequencies, sheng.gamma * sheng_coeff, marker='x')
+
     # Create a plot helper object
+    # hbar = 6.35075751
+    # mevoverdlpoly = 9.648538
+    # coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
+
+    # next line converts to meV > THz
+    # shen_coeff = (2 * np.pi) * coeff
+
     hbar = 6.35075751
     mevoverdlpoly = 9.648538
     coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
@@ -78,25 +92,27 @@ if __name__ == "__main__":
     coeff *= constants.mevoverthz
     # shen_coeff = (2 * np.pi) * coeff
 
-    plt.scatter(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,
-                marker='.')
+    # plt.scatter(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,
+    #             label='width=%.3f THz' % width_thz)
+    # plt.scatter(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,
+    #             marker='.')
     # plt.legend()
-    plt.ylim([0, 0.04])
+    # plt.ylim([0, 0.04])
     plt.xlim([0.1, 17.5])
 
-    plt.ylabel("$\Gamma$ (THz)", fontsize=16, fontweight='bold')
+    plt.ylabel("$\Gamma$ (meV)", fontsize=16, fontweight='bold')
     plt.xlabel("$\\nu$ (THz)", fontsize=16, fontweight='bold')
+    plt.show()
     # call the method plot everything
-    # plotter.plot_everything()
-
+    Plotter(sheng).plot_everything()
+    sheng.save_csv_data()
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
-    heat_capacity = phonons.c_v.mean()
-    conductivity = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
+    # heat_capacity = sheng.c_v.mean()
+    conductivity = ConductivityController(sheng).calculate_conductivity(is_classical=is_classic)[0, 0]
     #
     # plt.plot(temperatures, conductivities)
-    plt.show()
     #
     # plt.plot(temperatures, heat_capacities)
     # plt.show()
-    print(heat_capacity, conductivity)
+    print(conductivity)

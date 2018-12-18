@@ -133,6 +133,7 @@ class ConductivityController (object):
         
         # TODO: this needs to go, generalizing for complex flux as per Leyla's project
         velocities = velocities.real
+        velocities[np.isnan(velocities)] = 0
         c_v = self.phonons.c_v
         c_v = c_v.reshape(self.phonons.n_k_points, self.phonons.n_modes)
         for alpha in range (3):
