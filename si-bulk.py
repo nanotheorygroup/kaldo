@@ -68,7 +68,7 @@ if __name__ == "__main__":
           temperature=temperature, is_persistency_enabled=False)
     sns.set(color_codes=True)
 
-    sheng_coeff = constants.thzovermev / (2 * np.pi)
+    sheng_coeff = constants.terahertz / (2 * np.pi)
     plt.scatter(sheng.frequencies, sheng.gamma * sheng_coeff, marker='x')
     plt.show()
     # Create a phonon object
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
     # next line converts to meV > THz
-    coeff *= constants.mevoverthz
+    coeff /= constants.terahertz
     # shen_coeff = (2 * np.pi) * coeff
 
     # plt.scatter(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,

@@ -25,14 +25,13 @@ if __name__ == "__main__":
     temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array ([15, 15, 15])
+    kpts = np.array ([7, 7, 7])
     is_classic = True
 
     calculator = LAMMPSlib
 
     calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
                          'log_file': 'log_lammps.out'}
-    pseudopotentials = None
 
     # calculator = Espresso
     # calculator_inputs = {'system': {'ecutwfc': 16.0},
@@ -46,14 +45,14 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=True)
+                                         is_persistency_enabled=False)
 
     # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,
                        kpts=kpts,
                        is_classic=is_classic,
                        temperature=temperature,
-                       is_persistency_enabled=True)
+                       is_persistency_enabled=False)
 
     # Create a plot helper object
     plotter = Plotter (phonons=phonons,
@@ -63,7 +62,7 @@ if __name__ == "__main__":
 
 
     # call the method plot everything
-    # plotter.plot_everything()
+    plotter.plot_everything()
 
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method

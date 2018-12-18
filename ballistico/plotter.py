@@ -94,7 +94,7 @@ class Plotter (object):
         mevoverdlpoly = 9.648538
         coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
-        gamma_coeff = (2 * np.pi) * coeff / constants.thzovermev
+        gamma_coeff = (2 * np.pi) * coeff / constants.terahertz
 
         self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_THz')
         self.plot_vs_frequency(phonons.gamma * coeff, 'gamma_meV')

@@ -14,7 +14,7 @@ class ShengbtePhononsController (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, is_persistency_enabled=True, parameters={}):
         super(self.__class__, self).__init__(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                                              temperature=temperature, is_persistency_enabled=is_persistency_enabled)
-        self.second_order = finite_difference.second_order / constants.evoverdlpoly
+        self.second_order = finite_difference.second_order * constants.tenjovermol
         self.third_order = finite_difference.third_order
         self._qpoints_mapper = None
         self._energies = None
@@ -149,8 +149,8 @@ class ShengbtePhononsController (PhononsController):
                             # TODO: WHy are they flipped?
                             matrix_element = second_order[0, j, beta, id_replica, i, alpha]
                             
-                            matrix_element = matrix_element / constants.evoverdlpoly / constants.rydbergoverev * (
-                                    constants.bohroverangstrom ** 2)
+                            matrix_element = matrix_element * constants.tenjovermol / constants.Rydberg * (
+                                    constants.Bohr ** 2)
                             file.write ('\t %.11E' % matrix_element)
                             file.write ('\n')
         file.close ()
@@ -299,9 +299,10 @@ class ShengbtePhononsController (PhononsController):
         # TODO: I'd like to have ibrav = 1 and put the actual positions here
         header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
         header_str += matrix_to_string (self.atoms.cell)
-    
+        mass_factor = 1.8218779 * 6.022e-4
+
         for i in range (ntype):
-            mass = np.unique (self.finite_difference.replicated_atoms.get_masses ())[i] / constants.mass_factor
+            mass = np.unique (self.finite_difference.replicated_atoms.get_masses ())[i] / mass_factor
             label = np.unique (self.finite_difference.replicated_atoms.get_chemical_symbols ())[i]
             header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
     

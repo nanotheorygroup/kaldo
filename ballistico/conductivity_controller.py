@@ -124,7 +124,15 @@ class ConductivityController (object):
     def calculate_conductivity(self, is_classical, post_processing=None, length=None, converged=False):
         volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
         conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.complex)
-        gamma = self.phonons.gamma
+
+        hbar = 6.35075751
+        mevoverdlpoly = 9.648538
+        coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
+
+        # next line converts to meV > THz
+        coeff /= constants.terahertz
+
+        gamma = self.phonons.gamma * coeff
         tau_zero = np.empty_like (gamma).astype(np.complex)
         physical_modes = np.abs(self.phonons.frequencies) > self.phonons.energy_threshold
 

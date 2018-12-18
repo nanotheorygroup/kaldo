@@ -1,14 +1,12 @@
 from scipy.optimize import minimize
 import os
 import numpy as np
+# TODO remove sparse and keep only scipy.sparse
 from sparse import COO
 from scipy.sparse import load_npz, save_npz
-
 from ase import Atoms
 import ase.io
-
 from ballistico.logger import Logger
-import ballistico.constants as constants
 import ballistico.atoms_helper as atoms_helper
 
 DELTA_SHIFT = 1e-6

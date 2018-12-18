@@ -1,23 +1,21 @@
 import numpy as np
+import ase.units as units
 
 # 1 thz = 0.00414 mev
-thzovermev = 4.13566553853599
-mevoverthz = 1. / thzovermev
+terahertz = 4.13566553853599
 
-bohroverangstrom = 0.529177
-rydbergoverev = 13.6056980
-
-evoverjoule = 1.60217662e-19  # coulombs
-avogadro = 6.022140857e23
+Bohr = units.Bohr
+Rydberg = units.Rydberg
+mol = units.mol
 
 mass_factor = 1.8218779 * 6.022e-4
 
-thzoverjoule = 6.626069570305e-22
-kelvinoverjoule = 1.380648813e-23  # J / K
+thzoverjoule = terahertz / units.J / 1000
+kelvinoverjoule = units.kB / units.J
 
 
-evoverdlpoly = evoverjoule * avogadro / 10
+tenjovermol = 10 * units.J / units.mol
 
-gamma_coeff = 1 / (2 * np.pi) * 1 / (4. * np.pi) ** 3 * avogadro ** 3 * thzoverjoule * evoverjoule * evoverjoule / 1000
+gamma_coeff = 1 / (2 * np.pi) * 1 / (4. * np.pi) ** 3 * mol ** 3 * thzoverjoule * 1 / units.J * 1 / units.J / 1000
 
-davide_coeff = 1 / (2 * np.pi) * gamma_coeff * thzovermev  # result in mev
+davide_coeff = 1 / (2 * np.pi) * gamma_coeff * terahertz  # result in mev

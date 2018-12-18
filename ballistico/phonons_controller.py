@@ -279,7 +279,8 @@ class PhononsController (object):
 
             if self.is_classic is False:
                 density[physical_modes] = 1. / (
-                        np.exp((constants.thzoverjoule / (2 * np.pi)) * 2 * np.pi * frequencies[physical_modes] / constants.kelvinoverjoule / temp) - 1.)
+                        np.exp(constants.thzoverjoule * frequencies[physical_modes] / constants.kelvinoverjoule /
+                               temp) - 1.)
             else:
                 density[physical_modes] = constants.kelvinoverjoule * temp / (
                         2 * np.pi * frequencies[physical_modes]) / (constants.thzoverjoule / (2 * np.pi))

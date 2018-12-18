@@ -17,30 +17,28 @@ if __name__ == "__main__":
     # atoms = ase.io.read ('aSi.xyz', format='extxyz')
     atoms = ase.io.read('si-8.xyz', format='extxyz')
 
-
+    atoms = FiniteDifference(atoms=atoms, supercell=(4, 4, 4)).replicated_atoms
     ase.io.write('dlpoly_files/CONFIG', atoms, format='dlp4')
-    temperature = 300
-    second_order = io_helper.import_second_dlpoly(atoms)
-    third_order = io_helper.import_third_order_dlpoly(atoms)
 
-    finite_difference = FiniteDifference(atoms=atoms,
-                                         second_order=second_order,
-                                         third_order=third_order,
-                                         is_persistency_enabled=True)
+    finite_difference = FiniteDifference(atoms)
+    finite_difference.second_order = io_helper.import_second_dlpoly(atoms)
+    finite_difference.third_order = io_helper.import_third_order_dlpoly(atoms)
+
+    temperature = 300
+
     fig = plt.figure()
     sns.set(color_codes=True)
 
     # widths = [0.05, 0.1, 0.2, 0.5, 1]
-    widths = [0.05, 0.5]
+    widths = [0.5, 1]
     for width in widths:
-        width_thz = width * constants.mevoverthz
+        width_thz = width / constants.terahertz
 
         # Create a phonon object
         phonons = Phonons(finite_difference=finite_difference,
                           is_classic=is_classic,
                           temperature=temperature,
                           sigma_in=width_thz,
-                          is_persistency_enabled=True,
                           broadening_shape='lorentz')
 
         hbar = 6.35075751
@@ -48,7 +46,7 @@ if __name__ == "__main__":
         coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
         # next line converts to meV > THz
-        coeff *= constants.mevoverthz
+        coeff /= constants.terahertz
         # shen_coeff = (2 * np.pi) * coeff
         coeff = 1
 
