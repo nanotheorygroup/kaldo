@@ -6,6 +6,7 @@ import scipy.special
 from opt_einsum import contract
 from memory_profiler import profile
 from sparse import COO
+import ballistico.constants as constants
 
 
 IS_SCATTERING_MATRIX_ENABLED = False
@@ -51,6 +52,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    dynmat /= constants.tenjovermol
 
     is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
     if is_calculation_at_gamma:
@@ -77,6 +79,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
         idx = eigenvals.argsort ()
         eigenvals = eigenvals[idx]
         eigenvects = eigenvects[:, idx]
+
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 
     if is_calculation_at_gamma:

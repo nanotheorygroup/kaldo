@@ -129,9 +129,6 @@ class ConductivityController (object):
         mevoverdlpoly = 9.648538
         coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
-        # next line converts to meV > THz
-        coeff /= constants.terahertz
-
         gamma = self.phonons.gamma * coeff
         tau_zero = np.empty_like (gamma).astype(np.complex)
         physical_modes = np.abs(self.phonons.frequencies) > self.phonons.energy_threshold

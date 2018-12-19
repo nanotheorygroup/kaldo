@@ -29,7 +29,7 @@ if __name__ == "__main__":
     # widths = [0.05, 0.1, 0.2, 0.5, 1]
     widths = [0.05, 0.5]
     for width in widths:
-        width_thz = width / constants.terahertz
+        width_thz = width / constants.petahertz
 
         # Create a phonon object
         phonons = Phonons(finite_difference=finite_difference,
@@ -44,7 +44,6 @@ if __name__ == "__main__":
         coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
         # next line converts to meV > THz
-        coeff /= constants.terahertz
         # shen_coeff = (2 * np.pi) * coeff
 
         ax = sns.kdeplot(phonons.frequencies.flatten(), phonons.gamma.flatten() * coeff,
