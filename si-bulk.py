@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # We start from a atoms
     # atoms = ase.io.read ('si-bulk.xyz')
     atoms = bulk('Si', 'diamond', a=5.432)
-    is_classic = True
+    is_classic = False
 
     # and replicate it
     supercell = np.array([3, 3, 3])
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
         # Create a phonon object
         phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                          temperature=temperature, is_persistency_enabled=False)
+                          temperature=temperature, is_persistency_enabled=True)
         # Create a plot helper object
         # plotter = Plotter (phonons=phonons,
         #                    is_showing=True,
@@ -79,5 +79,9 @@ if __name__ == "__main__":
     plt.plot(temperatures, conductivities)
     plt.show()
 
+    print(conductivities)
+
     plt.plot(temperatures, heat_capacities)
     plt.show()
+
+    print(heat_capacities)
