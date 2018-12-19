@@ -17,6 +17,7 @@ if __name__ == "__main__":
     # We start from a atoms
     # atoms = ase.io.read ('si-bulk.xyz')
     atoms = bulk('Si', 'diamond', a=5.432)
+    is_classic = True
 
     # and replicate it
     supercell = np.array([3, 3, 3])
@@ -32,7 +33,6 @@ if __name__ == "__main__":
 
         # our Phonons object built on the system
         kpts = np.array([7, 7, 7])
-        is_classic = False
 
         calculator = LAMMPSlib
         calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
