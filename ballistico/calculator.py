@@ -383,4 +383,10 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     # if IS_SCATTERING_MATRIX_ENABLED:
     #     return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
     # else:
+
+    hbar = 6.35075751
+    mevoverdlpoly = 9.648538
+    coeff = hbar ** 2 * np.pi / 4. / constants.tenjovermol ** 2 / 16 / np.pi ** 4
+
+    gamma *= coeff
     return gamma, ps

@@ -8,13 +8,14 @@ import ballistico.atoms_helper as ath
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
+SCRIPT_NAME = 'ShengBTE.x'
 
 
 class ShengbtePhononsController (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, is_persistency_enabled=True, parameters={}):
         super(self.__class__, self).__init__(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                                              temperature=temperature, is_persistency_enabled=is_persistency_enabled)
-        self.second_order = finite_difference.second_order * constants.tenjovermol
+        self.second_order = finite_difference.second_order
         self.third_order = finite_difference.third_order
         self._qpoints_mapper = None
         self._energies = None
@@ -149,7 +150,7 @@ class ShengbtePhononsController (PhononsController):
                             # TODO: WHy are they flipped?
                             matrix_element = second_order[0, j, beta, id_replica, i, alpha]
                             
-                            matrix_element = matrix_element * constants.tenjovermol / constants.Rydberg * (
+                            matrix_element = matrix_element/ constants.Rydberg * (
                                     constants.Bohr ** 2)
                             file.write ('\t %.11E' % matrix_element)
                             file.write ('\n')
@@ -207,9 +208,9 @@ class ShengbtePhononsController (PhononsController):
         self.save_second_order_matrix ()
         self.save_third_order_matrix ()
         if n_processors == 1:
-            cmd = 'ShengBTE'
+            cmd = SCRIPT_NAME
         else:
-            cmd = 'mpirun -np ' + str(n_processors) + ' ShengBTE'
+            cmd = 'mpirun -np ' + str(n_processors) + ' ' + SCRIPT_NAME
         return run_script (cmd, self.sheng_folder_name)
 
     def create_control_file_string(self):

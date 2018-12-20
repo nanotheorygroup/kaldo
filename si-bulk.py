@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
-                                         is_persistency_enabled=False,
+                                         is_persistency_enabled=True,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs)
     # replicated_atoms = finite_difference.replicated_atoms
@@ -65,15 +65,14 @@ if __name__ == "__main__":
 
     # finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
     # finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
-    # sheng = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-    #       temperature=temperature, is_persistency_enabled=False)
     sns.set(color_codes=True)
+
 
     # plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
     # plt.show()
     # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
+                      temperature=temperature, is_persistency_enabled=True, broadening_shape='gauss')
     # plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
 
     # Create a plot helper object
@@ -115,3 +114,7 @@ if __name__ == "__main__":
     # plt.plot(temperatures, heat_capacities)
     # plt.show()
     # print(conductivity)
+    sheng = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+              temperature=temperature, is_persistency_enabled=False)
+    sheng.run()
+    Plotter(sheng).plot_everything()
