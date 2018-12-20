@@ -207,11 +207,11 @@ class FiniteDifference(object):
         replicated_cell = cell * self.supercell
         replicated_cell_inv = np.linalg.inv(replicated_cell)
         atoms_helper.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, replicated_positions)
-        replicated_atoms = Atoms(positions=replicated_positions.dot(replicated_cell),
+        new_positions = replicated_positions.dot(replicated_cell)
+        new_positions = (atoms_helper.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, new_positions))
+        replicated_atoms = Atoms(positions=new_positions,
                                  symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
-
-        sposcar = atoms_helper.convert_to_poscar(replicated_atoms, supercell)
-        return atoms_helper.convert_to_atoms_and_super_cell(sposcar)[0]
+        return replicated_atoms
 
     def optimize(self, method, tol=None):
         if not ((method == 'none') or not method):
