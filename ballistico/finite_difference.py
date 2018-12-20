@@ -57,30 +57,6 @@ class FiniteDifference(object):
             self.third_order = third_order
 
     @property
-    def poscar(self):
-        return self._poscar
-
-    @poscar.getter
-    def poscar(self):
-        self._poscar = atoms_helper.convert_to_poscar(self.atoms)
-        return self._poscar
-
-    @poscar.setter
-    def poscar(self, new_poscar):
-        atoms, _ = atoms_helper.convert_to_atoms_and_super_cell(new_poscar)
-        self._poscar = new_poscar
-        self.atoms = atoms
-
-    @property
-    def replicated_poscar(self):
-        return self._replicated_poscar
-
-    @replicated_poscar.getter
-    def replicated_poscar(self):
-        self._replicated_poscar = self.gen_supercell()
-        return self._replicated_poscar
-
-    @property
     def second_order(self):
         return self._second_order
 
@@ -166,8 +142,7 @@ class FiniteDifference(object):
                 except FileNotFoundError as e:
                     Logger().info(e)
             if self._replicated_atoms is None:
-                replicated_poscar = self.replicated_poscar
-                self.replicated_atoms, _ = atoms_helper.convert_to_atoms_and_super_cell(replicated_poscar)
+                self.replicated_atoms = self.gen_supercell()
         return self._replicated_atoms
 
     @replicated_atoms.setter
@@ -235,7 +210,8 @@ class FiniteDifference(object):
         replicated_atoms = Atoms(positions=replicated_positions.dot(replicated_cell),
                                  symbols=replicated_symbols, cell=replicated_cell, pbc=[1, 1, 1])
 
-        return atoms_helper.convert_to_poscar(replicated_atoms, supercell)
+        sposcar = atoms_helper.convert_to_poscar(replicated_atoms, supercell)
+        return atoms_helper.convert_to_atoms_and_super_cell(sposcar)[0]
 
     def optimize(self, method, tol=None):
         if not ((method == 'none') or not method):
@@ -310,7 +286,7 @@ class FiniteDifference(object):
                 self.third_order_symmerty_inputs = None
 
         if self.third_order_symmerty_inputs is not None:
-            poscar = self.poscar
+            poscar = atoms_helper.convert_to_poscar(self.atoms)
             f_range = None
             Logger().info("Analyzing symmetries")
             symops = SymmetryOperations(
@@ -318,7 +294,7 @@ class FiniteDifference(object):
             Logger().info("- Symmetry group {0} detected".format(symops.symbol))
             Logger().info("- {0} symmetry operations".format(symops.translations.shape[0]))
             Logger().info("Creating the supercell")
-            sposcar = self.replicated_poscar
+            sposcar = atoms_helper.convert_to_poscar(self.replicated_atoms, self.supercell)
             Logger().info("Computing all distances in the supercell")
             dmin, nequi, shifts = calc_dists(sposcar)
             if nneigh != None:
@@ -332,11 +308,11 @@ class FiniteDifference(object):
                           frange)
             self.wedge = wedge
             Logger().info("- {0} triplet equivalence classes found".format(wedge.nlist))
-            self.list4 = wedge.build_list4()
+            list4 = wedge.build_list4()
             Logger().info('object created')
-            nirred = len(self.list4)
+            nirred = len(list4)
             phipart = np.zeros((3, nirred, n_replicated_atoms))
-            for i, e in enumerate(self.list4):
+            for i, e in enumerate(list4):
                 jat, iat, jcoord, icoord = e
                 Logger().info(
                     'Moving atoms ' + str(iat) + ',' + str(jat) + ', direction ' + str(icoord) + ',' + str(jcoord))
@@ -353,8 +329,8 @@ class FiniteDifference(object):
                     phipart[:, i, :] += isign * jsign * (
                             -1 * self.gradient(replicated_atoms.positions + shift, replicated_atoms)
                             .reshape(replicated_atoms.positions.shape).T)
-            phifull = np.array(reconstruct_ifcs(phipart, self.wedge, self.list4,
-                                                self.poscar, self.replicated_poscar))
+            phifull = np.array(reconstruct_ifcs(phipart, self.wedge, list4,
+                                                poscar, sposcar))
             phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
             phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
             phifull = phifull.swapaxes(5, 4)
