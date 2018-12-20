@@ -13,14 +13,13 @@ from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
 import seaborn as sns
-import ballistico.constants as constants
 
 from ballistico.shengbte_phonons_controller import ShengbtePhononsController as Sheng
 
 if __name__ == "__main__":
     # We start from a atoms
-    atoms = ase.io.read('cubic-si.xyz')
-    # atoms = bulk('Si', 'diamond', a=5.43)
+    # atoms = ase.io.read('cubic-si.xyz')
+    atoms = bulk('Si', 'diamond', a=5.43)
     supercell = np.array([3, 3, 3])
     replicated_atoms = FiniteDifference(atoms, supercell).replicated_atoms
     ase.io.write('dlpoly_files/CONFIG', replicated_atoms)
@@ -34,8 +33,8 @@ if __name__ == "__main__":
     # temperature = 300
 
     # our Phonons object built on the system
-    kpts = np.array([15, 15, 15])
-    is_classic = True
+    kpts = np.array([7, 7, 7])
+    is_classic = False
 
     calculator = LAMMPSlib
     calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
@@ -58,22 +57,24 @@ if __name__ == "__main__":
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
-                                         is_persistency_enabled=False)
-    replicated_atoms = finite_difference.replicated_atoms
+                                         is_persistency_enabled=False,
+                                         calculator=calculator,
+                                         calculator_inputs=calculator_inputs)
+    # replicated_atoms = finite_difference.replicated_atoms
     # ase.io.write('CONFIG', replicated_atoms, 'dlp4')
 
-    finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
-    finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
-    sheng = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-          temperature=temperature, is_persistency_enabled=False)
+    # finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
+    # finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
+    # sheng = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+    #       temperature=temperature, is_persistency_enabled=False)
     sns.set(color_codes=True)
 
-    plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
-    plt.show()
+    # plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
+    # plt.show()
     # Create a phonon object
-    # phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      # temperature=temperature, is_persistency_enabled=True, broadening_shape='gauss')
-    plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
+    phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+                      temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
+    # plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
 
     # Create a plot helper object
     # hbar = 6.35075751
@@ -96,21 +97,21 @@ if __name__ == "__main__":
     #             marker='.')
     # plt.legend()
     # plt.ylim([0, 0.04])
-    plt.xlim([0.1, 17.5])
-
-    plt.ylabel("$\Gamma$ (meV)", fontsize=16, fontweight='bold')
-    plt.xlabel("$\\nu$ (THz)", fontsize=16, fontweight='bold')
-    plt.show()
+    # plt.xlim([0.1, 17.5])
+    #
+    # plt.ylabel("$\Gamma$ (meV)", fontsize=16, fontweight='bold')
+    # plt.xlabel("$\\nu$ (THz)", fontsize=16, fontweight='bold')
+    # plt.show()
     # call the method plot everything
-    Plotter(sheng).plot_everything()
-    sheng.save_csv_data()
+    Plotter(phonons).plot_everything()
+    # sheng.save_csv_data()
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
     # heat_capacity = sheng.c_v.mean()
-    conductivity = ConductivityController(sheng).calculate_conductivity(is_classical=is_classic)[0, 0]
+    # conductivity = ConductivityController(sheng).calculate_conductivity(is_classical=is_classic)[0, 0]
     #
     # plt.plot(temperatures, conductivities)
     #
     # plt.plot(temperatures, heat_capacities)
     # plt.show()
-    print(conductivity)
+    # print(conductivity)

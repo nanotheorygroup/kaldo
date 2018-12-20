@@ -59,8 +59,11 @@ class Plotter (object):
         frequencies = self.phonons.frequencies.flatten ()
         observable = observable.flatten ()
         fig = plt.figure ()
-        plt.plot (frequencies[3:],
+        plt.scatter(frequencies[3:],
                      observable[3:])
+        observable[np.isnan(observable)] = 0
+        plt.ylim([observable[3:].min(), observable[3:].max()])
+        plt.xlim([frequencies[3:].min(), frequencies[3:].max()])
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
         if self.is_persistency_enabled:
@@ -92,11 +95,10 @@ class Plotter (object):
 
         hbar = 6.35075751
         mevoverdlpoly = 9.648538
-        coeff = hbar ** 2 / mevoverdlpoly / 64 / np.pi ** 3
-
+        coeff = hbar ** 2 * np.pi / 4. / constants.tenjovermol ** 2 / 16 / np.pi ** 4
 
         self.plot_vs_frequency(phonons.gamma * coeff, 'gamma_THz')
-        coeff = 1
-
-        self.plot_vs_frequency(phonons.gamma * coeff, 'gamma_meV')
-        gamma_coeff = (2 * np.pi) * coeff / constants.petahertz
+        # coeff = 1
+        #
+        # self.plot_vs_frequency(phonons.gamma * coeff, 'gamma_meV')
+        # gamma_coeff = (2 * np.pi) * coeff / constants.petahertz
