@@ -1,17 +1,15 @@
 from scipy.optimize import minimize
 import os
 import numpy as np
+# TODO remove sparse and keep only scipy.sparse
 from sparse import COO
 from scipy.sparse import load_npz, save_npz
-
 from ase import Atoms
 import ase.io
-
 from ballistico.logger import Logger
-import ballistico.constants as constants
 import ballistico.atoms_helper as atoms_helper
 
-DELTA_SHIFT = 1e-6 * constants.evoverdlpoly
+DELTA_SHIFT = 1e-6
 MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
@@ -21,6 +19,7 @@ LIST_OF_INDEX_FILE = 'list_of_index.npy'
 
 # Tolerance for symmetry search
 SYMPREC_THIRD_ORDER = 1e-5
+
 
 class FiniteDifference (object):
     def __init__(self,
@@ -55,9 +54,7 @@ class FiniteDifference (object):
             self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
-        if self.is_persistency_enabled:
-            if not os.path.exists (folder):
-                os.makedirs (folder)
+
 
     @property
     def poscar(self):
@@ -117,6 +114,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             np.save (folder + SECOND_ORDER_FILE, new_second_order)
         self._second_order = new_second_order
 
@@ -132,7 +131,8 @@ class FiniteDifference (object):
                     folder = self.folder_name
                     folder += '/'
                     self._third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE))\
-                        .reshape((1, self.n_atoms, 3, self.n_replicas, self.n_atoms, 3, self.n_replicas, self.n_atoms, 3))
+                        .reshape((1 * self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
+                                  self.n_atoms * 3))
                 except FileNotFoundError as e:
                     Logger().info(e)
                     try:
@@ -156,6 +156,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             save_npz(folder + THIRD_ORDER_FILE_SPARSE, self._third_order.reshape((self.n_atoms * 3 * self.n_replicas * \
                                                                                   self.n_atoms * 3, self.n_replicas * self.n_atoms * 3)).to_scipy_sparse())
 
@@ -183,6 +185,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             ase.io.write (folder + REPLICATED_ATOMS_FILE, new_replicated_atoms, format='extxyz')
         self._replicated_atoms = new_replicated_atoms
 
@@ -213,6 +217,8 @@ class FiniteDifference (object):
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/'
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             np.save (folder + LIST_OF_INDEX_FILE, new_list_of_index)
         self._list_of_index = new_list_of_index
 
@@ -294,7 +300,6 @@ class FiniteDifference (object):
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         second = second.reshape ((n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         second = second / (2. * dx)
-        second *= constants.evoverdlpoly
         return second
     
     def calculate_third(self):
@@ -395,5 +400,6 @@ class FiniteDifference (object):
                                             -1. * self.gradient (replicated_atoms.positions + shift, replicated_atoms))
         phifull = phifull.reshape ((1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         phifull /= (4. * dx * dx)
-        return phifull
+        return COO.from_numpy(phifull.reshape((self.n_atoms * 3 , self.n_replicas * self.n_atoms * 3, self.n_replicas *
+                                               self.n_atoms * 3)))
 

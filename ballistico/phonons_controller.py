@@ -20,7 +20,8 @@ FOLDER_NAME = 'ballistico'
 
 
 class PhononsController (object):
-    def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD):
+    def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
+    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -278,10 +279,11 @@ class PhononsController (object):
 
             if self.is_classic is False:
                 density[physical_modes] = 1. / (
-                        np.exp(constants.hbar * 2 * np.pi * frequencies[physical_modes] / constants.k_b / temp) - 1.)
+                        np.exp(constants.thzoverjoule * frequencies[physical_modes] / constants.kelvinoverjoule /
+                               temp) - 1.)
             else:
-                density[physical_modes] = constants.k_b * temp / (
-                        2 * np.pi * frequencies[physical_modes]) / constants.hbar
+                density[physical_modes] = constants.kelvinoverjoule * temp / frequencies[physical_modes] /\
+                                          constants.thzoverjoule
             self.occupations = density
         return self._occupations
 
@@ -349,12 +351,12 @@ class PhononsController (object):
             c_v = np.zeros_like (frequencies)
             physical_modes = np.abs(frequencies) > ENERGY_THRESHOLD
             if (self.is_classic):
-                c_v[:] = constants.k_b
+                c_v[:] = constants.kelvinoverjoule
             else:
                 f_be = self.occupations
-                c_v[physical_modes] = constants.hbar ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * (
-                        2 * np.pi * frequencies[physical_modes]) ** 2 / (
-                                                constants.k_b * self.temperature ** 2)
+                c_v[physical_modes] = (constants.thzoverjoule) ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * (
+                        frequencies[physical_modes]) ** 2 / (
+                                              constants.kelvinoverjoule * self.temperature ** 2)
             self.c_v = c_v * 1e21
         return self._c_v
 
@@ -400,16 +402,17 @@ class PhononsController (object):
                     str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
             str_to_write += '\n'
             csv.write (str_to_write)
+            velocities = self.velocities.reshape((np.prod(self.kpts), n_modes, 3))
             for k in range (self.q_points ().shape[0]):
                 str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
                     self.q_points ()[k, 2]) + ','
                 for i in range (n_modes):
-                    str_to_write += str(self.energies[k, i]) + ','
+                    str_to_write += str(self.energies[k, i] / (2 * np.pi)) + ','
                 for i in range (n_modes):
                     str_to_write += str(lifetime[k, i]) + ','
 
                 for alpha in range(3):
                     for i in range(n_modes):
-                        str_to_write += str(self.velocities[k, i, alpha]) + ','
+                        str_to_write += str(velocities[k, i, alpha]) + ','
                 str_to_write += '\n'
                 csv.write(str_to_write)

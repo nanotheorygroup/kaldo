@@ -5,8 +5,13 @@ import numpy as np
 import ballistico.constants as constants
 
 class BallisticoPhonons (PhononsController):
-    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, is_persistency_enabled=True, energy_threshold=None):
-        super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled, sigma_in=sigma_in, energy_threshold=energy_threshold)
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, 
+                 is_persistency_enabled=True, energy_threshold=None, broadening_shape='gauss'):
+        super(self.__class__, self).__init__(finite_difference, kpts=kpts, is_classic=is_classic,
+                                             temperature=temperature, is_persistency_enabled=is_persistency_enabled,
+                                             sigma_in=sigma_in, energy_threshold=energy_threshold)
+        # TODO: we should have a different folder for each broadening shape
+        self.broadening_shape = broadening_shape
 
     @property
     def frequencies(self):
@@ -154,11 +159,9 @@ class BallisticoPhonons (PhononsController):
             self.finite_difference.list_of_index,
             self.finite_difference.third_order,
             self.sigma_in,
-            'gauss',
+            self.broadening_shape,
             self.energy_threshold
         )
-
-        gamma *= constants.gamma_coeff
         self.gamma = gamma
         self.scattering_matrix = scattering_matrix
         return gamma
@@ -185,14 +188,9 @@ class BallisticoPhonons (PhononsController):
             self.finite_difference.list_of_index,
             self.finite_difference.third_order,
             self.sigma_in,
-            'gauss',
+            self.broadening_shape,
             self.energy_threshold
         )
-        gamma *= constants.gamma_coeff
         self.scattering_matrix = scattering_matrix
         self.gamma = gamma
         return scattering_matrix
-
-
-
-    

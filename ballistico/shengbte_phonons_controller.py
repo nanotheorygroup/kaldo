@@ -1,23 +1,27 @@
 from ballistico.logger import Logger
 from ballistico.phonons_controller import PhononsController
 import ballistico.geometry_helper as ghl
-from ballistico.constants import *
+import ballistico.constants as constants
 from ballistico.tools import *
 import matplotlib.pyplot as plt
 import ballistico.atoms_helper as ath
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
+SCRIPT_NAME = 'ShengBTE.x'
+
 
 class ShengbtePhononsController (PhononsController):
-    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, second_order=None, third_order=None, is_persistency_enabled=True, parameters={}):
-        super(self.__class__, self).__init__(atoms=atoms, supercell=supercell, kpts=kpts, is_classic=is_classic, temperature=temperature, is_persistency_enabled=is_persistency_enabled)
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, is_persistency_enabled=True, parameters={}):
+        super(self.__class__, self).__init__(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+                                             temperature=temperature, is_persistency_enabled=is_persistency_enabled)
         self.second_order = finite_difference.second_order
         self.third_order = finite_difference.third_order
         self._qpoints_mapper = None
         self._energies = None
         self.sheng_folder_name = SHENG_FOLDER_NAME
-        # TODO: move these initializations into a getter
+
+        # TODO: convert these into kwargs
         if 'convergence' in parameters:
             self.convergence = parameters['convergence']
         else:
@@ -27,7 +31,6 @@ class ShengbtePhononsController (PhononsController):
             self.only_gamma = parameters['only_gamma']
         else:
             self.only_gamma = False
-            
 
         if 'post_processing' in parameters:
             self.post_processing = parameters['post_processing']
@@ -49,8 +52,7 @@ class ShengbtePhononsController (PhononsController):
             self.length[2] = parameters['l_z']
         # else:
             # self.length[2] = LENGTH_THREESHOLD
-            
-        
+
     @property
     def qpoints_mapper(self):
         return self._qpoints_mapper
@@ -120,8 +122,10 @@ class ShengbtePhononsController (PhononsController):
         PhononsController.gamma.fset (self, new_gamma)
         
     def save_second_order_matrix(self):
-        second_order = self.second_order
         shenbte_folder = self.sheng_folder_name + '/'
+        n_replicas = self.supercell.prod()
+        n_particles = int(self.n_modes / 3)
+        second_order = self.second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))
         filename = 'espresso.ifc2'
         n_particles = second_order.shape[1]
         filename = shenbte_folder + filename
@@ -131,32 +135,35 @@ class ShengbtePhononsController (PhononsController):
         for replica_id in range(self.finite_difference.list_of_index.shape[0]):
             list_of_indices[replica_id] = cell_inv.dot(self.finite_difference.list_of_index[replica_id])
         file.write (self.header ())
+
         for alpha in range (3):
             for beta in range (3):
                 for i in range (n_particles):
                     for j in range (n_particles):
-                        file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1) + '\t' + str (j + 1) + '\n')
+                        file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1)
+                                    + '\t' + str (j + 1) + '\n')
                         for id_replica in range(list_of_indices.shape[0]):
                             index = list_of_indices[id_replica]
                             l_vec = np.array(index % self.supercell + 1).astype(np.int)
                             file.write ('\t' + str (l_vec[0]) + '\t' + str (l_vec[1]) + '\t' + str (l_vec[2]))
                             
                             # TODO: WHy are they flipped?
-                            matrix_element = self.second_order[0, j, beta, id_replica, i, alpha]
+                            matrix_element = second_order[0, j, beta, id_replica, i, alpha]
                             
-                            matrix_element = matrix_element / evoverdlpoly / rydbergoverev * (bohroverangstrom ** 2)
+                            matrix_element = matrix_element/ constants.Rydberg * (
+                                    constants.Bohr ** 2)
                             file.write ('\t %.11E' % matrix_element)
                             file.write ('\n')
         file.close ()
         Logger().info ('second order saved')
-    
-    
+
     def save_third_order_matrix(self):
         filename = 'FORCE_CONSTANTS_3RD'
         filename = self.sheng_folder_name + '/' + filename
         file = open ('%s' % filename, 'w')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
+        third_order = self.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))
         block_counter = 0
         for i_0 in range (n_in_unit_cell):
             for n_1 in range (n_replicas):
@@ -164,7 +171,7 @@ class ShengbtePhononsController (PhononsController):
                     for n_2 in range (n_replicas):
                         for i_2 in range (n_in_unit_cell):
                             
-                            three_particles_interaction = self.third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
+                            three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
@@ -201,12 +208,11 @@ class ShengbtePhononsController (PhononsController):
         self.save_second_order_matrix ()
         self.save_third_order_matrix ()
         if n_processors == 1:
-            cmd = 'ShengBTE'
+            cmd = SCRIPT_NAME
         else:
-            cmd = 'mpirun -np ' + str(n_processors) + ' ShengBTE'
+            cmd = 'mpirun -np ' + str(n_processors) + ' ' + SCRIPT_NAME
         return run_script (cmd, self.sheng_folder_name)
-    
-    
+
     def create_control_file_string(self):
         k_points = self.kpts
         elements = self.atoms.get_chemical_symbols ()
@@ -259,8 +265,7 @@ class ShengbtePhononsController (PhononsController):
             string += '\tconvergence=.true.\n'
         else:
             string += '\tconvergence=.false.\n'
-        
-            
+
         string += '\tnonanalytic=.false.\n'
         string += '\tisotopes=.false.\n'
         string += '&end\n'
@@ -277,8 +282,7 @@ class ShengbtePhononsController (PhononsController):
     def header(self):
     
         # this convert masses to qm masses
-        mass_factor = 1.8218779 * 6.022e-4
-    
+
         nat = len (self.atoms.get_chemical_symbols ())
     
         # TODO: The dielectric calculation is not implemented yet
@@ -296,7 +300,8 @@ class ShengbtePhononsController (PhononsController):
         # TODO: I'd like to have ibrav = 1 and put the actual positions here
         header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
         header_str += matrix_to_string (self.atoms.cell)
-    
+        mass_factor = 1.8218779 * 6.022e-4
+
         for i in range (ntype):
             mass = np.unique (self.finite_difference.replicated_atoms.get_masses ())[i] / mass_factor
             label = np.unique (self.finite_difference.replicated_atoms.get_chemical_symbols ())[i]
@@ -315,7 +320,6 @@ class ShengbtePhononsController (PhononsController):
         header_str += str (self.supercell[2]) + '\n'
         return header_str
 
-        
     def read_qpoints_mapper(self):
         q_points = pd.read_csv (self.sheng_folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)
         self._qpoints_mapper = q_points.values
@@ -330,8 +334,7 @@ class ShengbtePhononsController (PhononsController):
         indices_per_q = np.where(self.qpoints_mapper[:,1]==reduced_index)
         equivalent_q_points = self.qpoints_mapper[indices_per_q]
         return np.delete(equivalent_q_points, 1, 1)
-    
-    
+
     def read_energy_data(self):
         # We read in rad/ps
         omega = pd.read_csv (self.sheng_folder_name + '/BTE.omega', header=None, delim_whitespace=True)
@@ -350,8 +353,10 @@ class ShengbtePhononsController (PhononsController):
         else:
             file = 'BTE.WP3'
         temperature = str (int (self.temperature))
-        decay = pd.read_csv (self.sheng_folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
-        # decay = pd.read_csv (self.sheng_folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        decay = pd.read_csv (self.sheng_folder_name + '/T' + temperature + 'K/' + file, header=None,
+                             delim_whitespace=True)
+        # decay = pd.read_csv (self.sheng_folder_name + 'T' + temperature +
+        # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
         n_qpoints_reduced = int (decay.shape[0] / n_branches)
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -370,8 +375,10 @@ class ShengbtePhononsController (PhononsController):
         else:
             file = 'BTE.w_anharmonic'
         temperature = str(int(self.temperature))
-        decay = pd.read_csv (self.sheng_folder_name + '/T' + temperature + 'K/' + file, header=None, delim_whitespace=True)
-        # decay = pd.read_csv (self.sheng_folder_name + 'T' + temperature + 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+        decay = pd.read_csv (self.sheng_folder_name + '/T' + temperature + 'K/' + file, header=None,
+                             delim_whitespace=True)
+        # decay = pd.read_csv (self.sheng_folder_name + 'T' + temperature +
+        # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
         n_branches = int (decay.shape[0] / self.irreducible_indices ().max ())
         n_qpoints_reduced = int (decay.shape[0] / n_branches)
         n_qpoints = self.qpoints_mapper.shape[0]
@@ -379,7 +386,7 @@ class ShengbtePhononsController (PhononsController):
         decay = decay.reshape((n_branches, n_qpoints_reduced))
         decay_data = np.zeros ((n_qpoints, n_branches))
         for index, reduced_index, q_point_x, q_point_y, q_point_z in self.qpoints_mapper:
-            decay_data[int (index - 1)] = decay[:,int(reduced_index-1)]
+            decay_data[int (index - 1)] = decay[:, int(reduced_index-1)]
         return decay_data
     
     def read_velocity_data(self):
@@ -391,18 +398,16 @@ class ShengbtePhononsController (PhononsController):
         
         velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
 
-        velocities =  np.zeros((self.kpts[0], self.kpts[1], self.kpts[2], n_modes, 3))
+        velocities = np.zeros((self.kpts[0], self.kpts[1], self.kpts[2], n_modes, 3))
 
         z = 0
         for k in range (self.kpts[2]):
             for j in range(self.kpts[1]):
                 for i in range (self.kpts[0]):
-                    velocities[i,j,k,:,:] = velocity_array[:, z, :]
+                    velocities[i, j, k, :, :] = velocity_array[:, z, :]
                     z += 1
         return velocities
-        
-   
-        
+
     def read_conductivity(self, converged=True):
         folder = self.sheng_folder_name
         if converged:
@@ -419,4 +424,3 @@ class ShengbtePhononsController (PhononsController):
             
         conductivity = conductivity_array.reshape (3, 3)
         return conductivity
-    

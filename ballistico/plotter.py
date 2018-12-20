@@ -7,7 +7,7 @@ import time
 from ballistico.interpolation_controller import interpolator
 import os
 import ballistico.constants as constants
-
+import seaborn as sns
 
 BUFFER_PLOT = .2
 
@@ -59,8 +59,11 @@ class Plotter (object):
         frequencies = self.phonons.frequencies.flatten ()
         observable = observable.flatten ()
         fig = plt.figure ()
-        plt.scatter (frequencies[3:],
+        plt.scatter(frequencies[3:],
                      observable[3:])
+        observable[np.isnan(observable)] = 0
+        plt.ylim([observable[3:].min(), observable[3:].max()])
+        plt.xlim([frequencies[3:].min(), frequencies[3:].max()])
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
         if self.is_persistency_enabled:
@@ -68,13 +71,30 @@ class Plotter (object):
         if self.is_showing:
             plt.show ()
 
+    def plot_dos(self):
+        phonons = self.phonons
+        fig = plt.figure ()
+        sns.set(color_codes=True)
+        ax = sns.kdeplot(phonons.frequencies.flatten())
+        plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+        if self.is_persistency_enabled:
+            fig.savefig (self.folder + 'dos.pdf')
+        if self.is_showing:
+            plt.show()
+
     def plot_everything(self, with_dispersion=True):
         phonons = self.phonons
+        self.plot_dos()
+
         if with_dispersion:
-            self.plot_in_brillouin_zone (observable_name='disp_rel', with_fourier=False)
+            self.plot_in_brillouin_zone(observable_name='disp_rel', with_fourier=False)
             # self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
-        self.plot_vs_frequency (phonons.c_v, 'cv')
-        vel = np.linalg.norm (phonons.velocities, axis=-1)
-        self.plot_vs_frequency (vel, 'vel')
-        self.plot_vs_frequency (phonons.gamma, 'gamma_THz')
-        self.plot_vs_frequency (phonons.gamma * constants.davide_coeff / constants.gamma_coeff, 'gamma_meV')
+        self.plot_vs_frequency(phonons.c_v, 'cv_SI')
+        vel = np.linalg.norm(phonons.velocities, axis=-1)
+        self.plot_vs_frequency(vel, 'vel_100movers')
+
+        self.plot_vs_frequency(phonons.gamma, 'gamma_THz')
+        # coeff = 1
+        #
+        gamma_coeff = (2 * np.pi) / constants.petahertz
+        self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_meV')
