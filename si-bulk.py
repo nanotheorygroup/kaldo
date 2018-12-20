@@ -57,14 +57,14 @@ if __name__ == "__main__":
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
-                                         is_persistency_enabled=True,
-                                         calculator=calculator,
-                                         calculator_inputs=calculator_inputs)
+                                         is_persistency_enabled=False) #,
+                                         # calculator=calculator,
+                                         # calculator_inputs=calculator_inputs)
     # replicated_atoms = finite_difference.replicated_atoms
     # ase.io.write('CONFIG', replicated_atoms, 'dlp4')
 
-    # finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
-    # finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
+    finite_difference.second_order = io_helper.import_second_dlpoly(replicated_atoms)
+    finite_difference.third_order = io_helper.import_third_order_dlpoly(replicated_atoms)
     sns.set(color_codes=True)
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # plt.show()
     # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=True, broadening_shape='gauss')
+                      temperature=temperature, is_persistency_enabled=False, broadening_shape='gauss')
     # plt.scatter(sheng.frequencies, sheng.gamma, marker='x')
 
     # Create a plot helper object
