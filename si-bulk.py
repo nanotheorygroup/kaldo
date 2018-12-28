@@ -9,6 +9,7 @@ from ballistico.ballistico_phonons import BallisticoPhonons as Phonons
 from ballistico.conductivity_controller import ConductivityController
 from ballistico.plotter import Plotter
 import ballistico.io_helper as io_helper
+from ballistico.shengbte_phonons_controller import ShengbtePhononsController as Sheng
 from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
@@ -63,10 +64,19 @@ if __name__ == "__main__":
     plotter = Plotter (phonons=phonons,
                        is_showing=True,
                        folder='plot/ballistico/',
-                       is_persistency_enabled=True)
+                       is_persistency_enabled=True).plot_everything()
 
-    # call the method plot everything
-    plotter.plot_everything()
+    # Create a phonon object
+    phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+                      temperature=temperature, is_persistency_enabled=False)
+    # Create a plot helper object
+    plotter = Plotter (phonons=phonons,
+                       is_showing=True,
+                       folder='plot/ballistico/',
+                       is_persistency_enabled=True).plot_everything()
+
+
+
 
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method

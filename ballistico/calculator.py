@@ -4,7 +4,6 @@ import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 import scipy.special
 from opt_einsum import contract
-from memory_profiler import profile
 from sparse import COO
 import ballistico.constants as constants
 

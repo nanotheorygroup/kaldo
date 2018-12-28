@@ -1,5 +1,6 @@
 dist/ballistico-0.0.1-py3-none-any.whl
 ase
-seekpath
 sparse
 pandas
+spglib
+opt_einsum
