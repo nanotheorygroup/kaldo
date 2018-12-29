@@ -350,13 +350,13 @@ class PhononsController (object):
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
             physical_modes = np.abs(frequencies) > ENERGY_THRESHOLD
+
             if (self.is_classic):
-                c_v[:] = constants.kelvinoverjoule
+                c_v[physical_modes] = constants.kelvinoverjoule
             else:
                 f_be = self.occupations
-                c_v[physical_modes] = (constants.thzoverjoule) ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * (
-                        frequencies[physical_modes]) ** 2 / (
-                                              constants.kelvinoverjoule * self.temperature ** 2)
+                c_v[physical_modes] = (constants.thzoverjoule) ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
+                         (constants.kelvinoverjoule * self.temperature ** 2)
             self.c_v = c_v * 1e21
         return self._c_v
 

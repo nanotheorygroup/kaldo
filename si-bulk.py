@@ -67,10 +67,10 @@ if __name__ == "__main__":
                        is_persistency_enabled=True).plot_everything()
 
     # Create a phonon object
-    phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+    sheng_phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                       temperature=temperature, is_persistency_enabled=False)
     # Create a plot helper object
-    plotter = Plotter (phonons=phonons,
+    plotter = Plotter (phonons=sheng_phonons,
                        is_showing=True,
                        folder='plot/ballistico/',
                        is_persistency_enabled=True).plot_everything()
@@ -81,5 +81,10 @@ if __name__ == "__main__":
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
     # heat_capacity = phonons.c_v.mean()
+
     conductivity = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
     print(conductivity)
+
+    conductivity = ConductivityController(sheng_phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
+    print(conductivity)
+    print(sheng_phonons.read_conductivity(converged=False))

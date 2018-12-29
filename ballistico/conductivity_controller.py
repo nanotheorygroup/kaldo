@@ -122,14 +122,14 @@ class ConductivityController (object):
         return trans * length / abs (velocity)
     
     def calculate_conductivity(self, is_classical, post_processing=None, length=None, converged=False):
-        volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
+        volume = np.linalg.det(self.phonons.atoms.cell)
         conductivity_per_mode = np.zeros ((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.complex)
 
-        hbar = 6.35075751
-        mevoverdlpoly = 9.648538
-        coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
+        # hbar = 6.35075751
+        # mevoverdlpoly = 9.648538
+        # coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
 
-        gamma = self.phonons.gamma * coeff
+        gamma = self.phonons.gamma
         tau_zero = np.empty_like (gamma).astype(np.complex)
         physical_modes = np.abs(self.phonons.frequencies) > self.phonons.energy_threshold
 
@@ -143,9 +143,9 @@ class ConductivityController (object):
         c_v = c_v.reshape(self.phonons.n_k_points, self.phonons.n_modes)
         for alpha in range (3):
             for beta in range (3):
-                conductivity_per_mode[:, :, alpha, beta] += c_v[:, :] * velocities[:, :, beta].conj() * tau_zero[:, :]\
+                conductivity_per_mode[:, :, alpha, beta] += c_v[:, :] * velocities[:, :, beta] * tau_zero[:, :]\
                                                             * velocities[:, :, alpha]
-        conductivity_per_mode *= 1 / (volume * self.phonons.n_k_points)
+        conductivity_per_mode *= 1000 / (volume * self.phonons.n_k_points)
         conductivity_per_mode = conductivity_per_mode.sum (axis=0)
         # Logger().info ('\nconductivity = \n' + str (conductivity_per_mode.sum (axis=0)))
         return conductivity_per_mode.sum (axis=0)

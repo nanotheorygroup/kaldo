@@ -135,7 +135,7 @@ def gaussian_delta(params):
         correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
     else:
         correction = 1
-    gaussian = 1 / np.sqrt (2 * np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (2 * sigma ** 2))
+    gaussian = 1 / np.sqrt (np.pi * sigma ** 2) * np.exp (- delta_energy ** 2 / (sigma ** 2))
     return gaussian / correction
 
 
@@ -369,15 +369,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         # if IS_SCATTERING_MATRIX_ENABLED:
         #     gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
 
-    gamma = gamma / nptk
+    gamma = gamma / nptk * constants.gamma_coeff
     # if IS_SCATTERING_MATRIX_ENABLED:
     #     gamma_tensor = gamma_tensor * prefactor / nptk
     ps = ps / nptk / (2 * np.pi) ** 3
-    gamma = np.sum (gamma, axis=0)
+    gamma = np.sum(gamma, axis=0)
     # if IS_SCATTERING_MATRIX_ENABLED:
     #     return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
     # else:
 
-
-    gamma *= constants.gamma_coeff
     return gamma, ps
