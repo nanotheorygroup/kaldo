@@ -91,7 +91,7 @@ class Plotter (object):
             # self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
         self.plot_vs_frequency(phonons.c_v, 'cv_SI')
         vel = np.linalg.norm(phonons.velocities, axis=-1)
-        self.plot_vs_frequency(vel, 'vel_100movers')
+        self.plot_vs_frequency(vel, 'vel_kmovers')
 
         self.plot_vs_frequency(phonons.gamma, 'gamma_THz')
         # coeff = 1

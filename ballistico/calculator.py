@@ -194,7 +194,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         # TODO: next espression is unreadable and needs to be broken down
         scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes))[0]\
             .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
-        scaled_potential = COO.from_numpy(scaled_potential)
+        # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
         i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]

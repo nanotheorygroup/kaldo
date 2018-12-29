@@ -4,3 +4,4 @@ sparse
 pandas
 spglib
 opt_einsum
+seaborn
