@@ -17,6 +17,7 @@ kelvinoverjoule = units.kB / units.J
 
 tenjovermol = 10 * units.J / units.mol
 
-gamma_coeff = 1 / (2 * np.pi) * 1 / (4. * np.pi) ** 3 * mol ** 3 * thzoverjoule * 1 / units.J * 1 / units.J / 1000
+gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4. / 16 / np.pi ** 4
+
 
 davide_coeff = 1 / (2 * np.pi) * gamma_coeff * petahertz  # result in mev

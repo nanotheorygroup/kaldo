@@ -363,11 +363,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                                                                energy_threshold)
                 Logger ().info (process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str (mu))
 
-                hbar = 6.35075751
-                mevoverdlpoly = 9.648538
-                coeff = hbar ** 2 * np.pi / 4. / mevoverdlpoly / 16 / np.pi ** 4
-                Logger ().info (str(frequencies[index_k,mu]) + ' - ' + str(coeff * gamma[is_plus, index_k, mu]))
-
     for index_k, (associated_index, gp) in enumerate(zip(mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]
         gamma[:, index_k, :] = gamma[:, associated_index, :]
@@ -383,10 +378,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     #     return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
     # else:
 
-    hbar = 6.35075751
-    mevoverdlpoly = 9.648538
-    coeff = hbar ** 2 * np.pi / 4. / constants.tenjovermol ** 2 / 16 / np.pi ** 4
-    coeff = 1.05457172647 * np.pi / 4. * 5.60626442*1.e8 / 16 / np.pi ** 4
 
-    gamma *= coeff
+    gamma *= constants.gamma_coeff
     return gamma, ps
