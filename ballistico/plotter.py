@@ -96,5 +96,5 @@ class Plotter (object):
         self.plot_vs_frequency(phonons.gamma, 'gamma_THz')
         # coeff = 1
         #
-        gamma_coeff = (2 * np.pi) / constants.petahertz
-        self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_meV')
+        # gamma_coeff = (2 * np.pi) / constants.petahertz
+        # self.plot_vs_frequency(phonons.gamma * gamma_coeff, 'gamma_meV')

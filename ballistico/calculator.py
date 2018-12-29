@@ -386,6 +386,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     hbar = 6.35075751
     mevoverdlpoly = 9.648538
     coeff = hbar ** 2 * np.pi / 4. / constants.tenjovermol ** 2 / 16 / np.pi ** 4
+    coeff = 1.05457172647 * np.pi / 4. * 5.60626442*1.e8 / 16 / np.pi ** 4
 
     gamma *= coeff
     return gamma, ps
