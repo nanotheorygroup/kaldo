@@ -231,7 +231,7 @@ class FiniteDifference(object):
         for pos in range(n_atoms * n_replicas):
             k, j, i, iat = np.unravel_index(pos, [na, nb, nc, n_atoms])
             replicated_positions[pos, :] = (positions[iat, :] + [i, j, k]) / [na, nb, nc]
-            replicated_symbols.append(atoms.symbols[iat])
+            replicated_symbols.append(atoms.get_chemical_symbols()[iat])
 
         replicated_cell = cell * self.supercell
         replicated_cell_inv = np.linalg.inv(replicated_cell)

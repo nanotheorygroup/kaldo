@@ -165,7 +165,7 @@ class ShengbtePhononsController (PhononsController):
         filename = 'espresso.ifc2'
         n_particles = second_order.shape[1]
         filename = shenbte_folder + filename
-        file = open ('%s' % filename, 'a+')
+        file = open ('%s' % filename, 'w+')
         cell_inv = np.linalg.inv(self.atoms.cell)
         list_of_index = self.create_list_of_index()
 
@@ -206,7 +206,9 @@ class ShengbtePhononsController (PhononsController):
         file = open ('%s' % filename, 'w')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
-        third_order = self.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))
+        third_order = self.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3)).todense()
+        list_of_index = self.create_list_of_index()
+        list_of_index = list_of_index.dot(self.atoms.cell)
         block_counter = 0
         for i_0 in range (n_in_unit_cell):
             for n_1 in range (n_replicas):
@@ -218,7 +220,7 @@ class ShengbtePhononsController (PhononsController):
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1
-                                replica = self.finite_difference.list_of_index
+                                replica = list_of_index
                                 file.write ('\n  ' + str (block_counter))
                                 rep_position = ath.apply_boundary (self.finite_difference.replicated_atoms,replica[n_1])
                                 file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
