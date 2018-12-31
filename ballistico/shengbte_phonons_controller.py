@@ -216,7 +216,7 @@ class ShengbtePhononsController (PhononsController):
                     for n_2 in range (n_replicas):
                         for i_2 in range (n_in_unit_cell):
                             
-                            three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
+                            three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :].todense()
                             
                             if (np.abs (three_particles_interaction) > 1e-9).any ():
                                 block_counter += 1

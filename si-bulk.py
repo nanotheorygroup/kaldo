@@ -31,9 +31,9 @@ if __name__ == "__main__":
     # our Phonons object built on the system
     kpts = np.array([5, 5, 5])
 
-    # calculator = LAMMPSlib
-    # calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
-    #                      'log_file': 'log_lammps.out'}
+    calculator = LAMMPSlib
+    calculator_inputs = {'lmpcmds': ["pair_style tersoff", "pair_coeff * * forcefields/Si.tersoff Si"],
+                         'log_file': 'log_lammps.out'}
 
     # calculator = Espresso
     # calculator_inputs = {'pseudopotentials':{'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'},
@@ -47,26 +47,23 @@ if __name__ == "__main__":
     #                 'koffset':(2, 2, 2),
     #                 'kpoints':(1, 1, 1)}
 
-    # third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
+    third_order_symmerty_inputs = {'NNEIGH': 4, 'SYMPREC': 1e-5}
 
     # import the calculated second order
-    second_order = io_helper.import_second_dlpoly (atoms, supercell)
+    # second_order = io_helper.import_second_dlpoly (atoms, supercell)
 
     # import the calculated third order
-    third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
+    # third_order = io_helper.import_third_order_dlpoly(atoms, supercell)
 
     # Create a finite difference object
     finite_difference = FiniteDifference(atoms=atoms,
                                          supercell=supercell,
-                                         second_order=second_order,
-                                         third_order=third_order,
-                                         # calculator=calculator,
-                                         # calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=False,
-                                         # third_order_symmerty_inputs=third_order_symmerty_inputs
-                                         )
+                                         calculator=calculator,
+                                         calculator_inputs=calculator_inputs,
+                                         is_persistency_enabled=True,
+                                         third_order_symmerty_inputs=third_order_symmerty_inputs)
 
-    # Create a phonon object
+    # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                       temperature=temperature, is_persistency_enabled=False)
     # Create a plot helper object
@@ -82,8 +79,11 @@ if __name__ == "__main__":
     # Create a plot helper object
     plotter = Plotter (phonons=sheng_phonons,
                        is_showing=True,
-                       folder='plot/ballistico_sheng/',
+                       folder='plot/ballistico/',
                        is_persistency_enabled=True).plot_everything()
+
+
+
 
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
