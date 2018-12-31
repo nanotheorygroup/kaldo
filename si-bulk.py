@@ -54,21 +54,22 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=False,
+                                         is_persistency_enabled=True,
                                          third_order_symmerty_inputs=third_order_symmerty_inputs)
 
-    # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=False)
-    # Create a plot helper object
-    plotter = Plotter (phonons=phonons,
-                       is_showing=True,
-                       folder='plot/ballistico/',
-                       is_persistency_enabled=True).plot_everything()
+    # # Create a phonon object
+    # phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+    #                   temperature=temperature, is_persistency_enabled=False)
+    # # Create a plot helper object
+    # plotter = Plotter (phonons=phonons,
+    #                    is_showing=True,
+    #                    folder='plot/ballistico/',
+    #                    is_persistency_enabled=True).plot_everything()
 
     # Create a phonon object
     sheng_phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                       temperature=temperature, is_persistency_enabled=False)
+    sheng_phonons.run()
     # Create a plot helper object
     plotter = Plotter (phonons=sheng_phonons,
                        is_showing=True,
@@ -82,8 +83,8 @@ if __name__ == "__main__":
     # calculate_conductivity method
     # heat_capacity = phonons.c_v.mean()
 
-    conductivity = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
-    print(conductivity)
+    # conductivity = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
+    # print(conductivity)
 
     conductivity = ConductivityController(sheng_phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
     print(conductivity)
