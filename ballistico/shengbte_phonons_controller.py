@@ -120,7 +120,43 @@ class ShengbtePhononsController (PhononsController):
     @gamma.setter
     def gamma(self, new_gamma):
         PhononsController.gamma.fset (self, new_gamma)
-        
+
+    def create_list_of_index(self):
+        replicas = self.supercell
+        atoms = self.atoms
+        # TODO: supercell[i] needs to be odd, throw an exception otherwise
+        n_replicas = replicas[0] * replicas[1] * replicas[2]
+        replica_id = 0
+        list_of_index = np.zeros((n_replicas, 3))
+
+        # range_0 = np.linspace(-int(supercell[0]/2),int(supercell[0]/2),int(supercell[0]))
+        # range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
+        #
+        # range_1 = np.linspace(-int(supercell[1]/2),int(supercell[1]/2),int(supercell[1]))
+        # range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
+        #
+        # range_2 = np.linspace(-int(supercell[2]/2),int(supercell[2]/2),int(supercell[2]))
+        # range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
+
+        range_0 = np.arange(int(replicas[0]))
+        range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
+        range_1 = np.arange(int(replicas[1]))
+        range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
+        range_2 = np.arange(int(replicas[2]))
+        range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
+
+        # list_of_index = np.array (np.unravel_index (np.arange (np.prod (replicas)), replicas, order='F')).T
+        # list_of_index
+        for lx in range_0:
+            for ly in range_1:
+                for lz in range_2:
+                    index = np.array([lx, ly, lz])  # %supercell
+                    list_of_index[replica_id] = index
+                    replica_id += 1
+        # np.prod(replicas)
+
+        return list_of_index#.dot(atoms.cell)
+
     def save_second_order_matrix(self):
         shenbte_folder = self.sheng_folder_name + '/'
         n_replicas = self.supercell.prod()
@@ -131,9 +167,15 @@ class ShengbtePhononsController (PhononsController):
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'a+')
         cell_inv = np.linalg.inv(self.atoms.cell)
-        list_of_indices = np.zeros_like(self.finite_difference.list_of_index, dtype=np.int)
-        for replica_id in range(self.finite_difference.list_of_index.shape[0]):
-            list_of_indices[replica_id] = cell_inv.dot(self.finite_difference.list_of_index[replica_id])
+        list_of_index = self.create_list_of_index()
+
+        list_of_index = list_of_index.dot(self.atoms.cell)
+
+        cell_inv = np.linalg.inv(self.atoms.cell)
+        list_of_indices = np.zeros_like(list_of_index, dtype=np.int)
+        for replica_id in range(list_of_indices.shape[0]):
+            list_of_indices[replica_id] = cell_inv.dot(list_of_index[replica_id])
+
         file.write (self.header ())
 
         for alpha in range (3):
@@ -145,12 +187,13 @@ class ShengbtePhononsController (PhononsController):
                         for id_replica in range(list_of_indices.shape[0]):
                             index = list_of_indices[id_replica]
                             l_vec = np.array(index % self.supercell + 1).astype(np.int)
-                            file.write ('\t' + str (l_vec[0]) + '\t' + str (l_vec[1]) + '\t' + str (l_vec[2]))
+                            file.write ('\t' + str (int(l_vec[0])) + '\t' + str (int(l_vec[1])) + '\t' + str (int(l_vec[
+                                                                                                                  2])))
                             
                             # TODO: WHy are they flipped?
                             matrix_element = second_order[0, j, beta, id_replica, i, alpha]
                             
-                            matrix_element = matrix_element/ constants.Rydberg * (
+                            matrix_element = matrix_element / constants.Rydberg * (
                                     constants.Bohr ** 2)
                             file.write ('\t %.11E' % matrix_element)
                             file.write ('\n')

@@ -16,8 +16,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     # We start from a atoms
-    # atoms = ase.io.read ('si-bulk.xyz')
-    atoms = bulk('Si', 'diamond', a=5.432)
+    atoms = ase.io.read ('si-bulk.xyz')
+    # atoms = bulk('Si', 'diamond', a=5.432)
     is_classic = False
 
     # and replicate it
@@ -54,12 +54,12 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=False,
+                                         is_persistency_enabled=True,
                                          third_order_symmerty_inputs=third_order_symmerty_inputs)
 
     # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=False)
+                      temperature=temperature, is_persistency_enabled=True)
     # Create a plot helper object
     plotter = Plotter (phonons=phonons,
                        is_showing=True,
@@ -69,14 +69,12 @@ if __name__ == "__main__":
     # Create a phonon object
     sheng_phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                       temperature=temperature, is_persistency_enabled=False)
+    sheng_phonons.run()
     # Create a plot helper object
     plotter = Plotter (phonons=sheng_phonons,
                        is_showing=True,
-                       folder='plot/ballistico/',
+                       folder='plot/ballistico_sheng/',
                        is_persistency_enabled=True).plot_everything()
-
-
-
 
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
