@@ -3,7 +3,7 @@ from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
 from ase.units import Rydberg, Bohr
 
-from ballistico.finite_difference import FiniteDifference
+from finite_difference.finite_difference import FiniteDifference
 
 
 def _matrix_to_string(matrix):

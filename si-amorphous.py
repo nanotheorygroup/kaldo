@@ -7,8 +7,8 @@ import ballistico.constants as constants
 import ballistico.io_helper as io_helper
 from ballistico.ballistico_phonons import BallisticoPhonons as Phonons
 from ballistico.plotter import Plotter
-from ballistico.finite_difference import FiniteDifference
-import seaborn as sns
+from finite_difference.finite_difference import FiniteDifference
+import seaborn as sns.
 
 if __name__ == "__main__":
     is_classic = True

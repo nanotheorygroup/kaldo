@@ -3,7 +3,7 @@ import ase
 import ase.io
 import ballistico.geometry_helper as geometry_helper
 import ballistico.atoms_helper as atoms_helper
-from ballistico.finite_difference import FiniteDifference
+from finite_difference.finite_difference import FiniteDifference
 from ase.calculators.lammpslib import LAMMPSlib
 from ballistico.ballistico_phonons import BallisticoPhonons as Phonons
 from ballistico.conductivity_controller import ConductivityController
