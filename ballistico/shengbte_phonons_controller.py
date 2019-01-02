@@ -120,42 +120,6 @@ class ShengbtePhononsController (PhononsController):
     def gamma(self, new_gamma):
         PhononsController.gamma.fset (self, new_gamma)
 
-    def create_list_of_index(self):
-        replicas = self.supercell
-        atoms = self.atoms
-        # TODO: supercell[i] needs to be odd, throw an exception otherwise
-        n_replicas = replicas[0] * replicas[1] * replicas[2]
-        replica_id = 0
-        list_of_index = np.zeros((n_replicas, 3))
-
-        # range_0 = np.linspace(-int(supercell[0]/2),int(supercell[0]/2),int(supercell[0]))
-        # range_0[range_0 > supercell[0] / 2] = range_0[range_0 > supercell[0] / 2] - supercell[0]
-        #
-        # range_1 = np.linspace(-int(supercell[1]/2),int(supercell[1]/2),int(supercell[1]))
-        # range_1[range_1 > supercell[1] / 2] = range_1[range_1 > supercell[1] / 2] - supercell[1]
-        #
-        # range_2 = np.linspace(-int(supercell[2]/2),int(supercell[2]/2),int(supercell[2]))
-        # range_2[range_2 > supercell[2] / 2] = range_2[range_2 > supercell[2] / 2] - supercell[2]
-
-        range_0 = np.arange(int(replicas[0]))
-        range_0[range_0 > replicas[0] / 2] = range_0[range_0 > replicas[0] / 2] - replicas[0]
-        range_1 = np.arange(int(replicas[1]))
-        range_1[range_1 > replicas[1] / 2] = range_1[range_1 > replicas[1] / 2] - replicas[1]
-        range_2 = np.arange(int(replicas[2]))
-        range_2[range_2 > replicas[2] / 2] = range_2[range_2 > replicas[2] / 2] - replicas[2]
-
-        # list_of_index = np.array (np.unravel_index (np.arange (np.prod (replicas)), replicas, order='F')).T
-        # list_of_index
-        for lx in range_0:
-            for ly in range_1:
-                for lz in range_2:
-                    index = np.array([lx, ly, lz])  # %supercell
-                    list_of_index[replica_id] = index
-                    replica_id += 1
-        # np.prod(replicas)
-
-        return list_of_index#.dot(atoms.cell)
-
     def save_second_order_matrix(self):
         shenbte_folder = self.sheng_folder_name + '/'
         n_replicas = self.supercell.prod()
@@ -169,30 +133,24 @@ class ShengbtePhononsController (PhononsController):
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'w+')
         cell_inv = np.linalg.inv(self.atoms.cell)
-        list_of_index = self.create_list_of_index()
 
-        list_of_index = list_of_index.dot(self.atoms.cell)
-
-        cell_inv = np.linalg.inv(self.atoms.cell)
-        list_of_indices = np.zeros_like(list_of_index, dtype=np.int)
-        for replica_id in range(list_of_indices.shape[0]):
-            list_of_indices[replica_id] = cell_inv.dot(list_of_index[replica_id])
+        list_of_index = self.finite_difference.list_of_index.dot(cell_inv)
+        list_of_index = np.flip(list_of_index, 1)
+        list_of_index = np.round(list_of_index)
 
         file.write (self.header ())
-
         for alpha in range (3):
             for beta in range (3):
                 for i in range (n_particles):
                     for j in range (n_particles):
                         file.write ('\t' + str (alpha + 1) + '\t' + str (beta + 1) + '\t' + str (i + 1)
                                     + '\t' + str (j + 1) + '\n')
-                        for id_replica in range(list_of_indices.shape[0]):
-                            index = list_of_indices[id_replica]
+                        for id_replica in range(list_of_index.shape[0]):
+                            index = list_of_index[id_replica]
                             l_vec = np.array(index % self.supercell + 1).astype(np.int)
                             file.write ('\t' + str (int(l_vec[0])) + '\t' + str (int(l_vec[1])) + '\t' + str (int(l_vec[
                                                                                                                   2])))
                             
-                            # TODO: WHy are they flipped?
                             matrix_element = second_order[j, beta, id_replica, i, alpha]
                             
                             matrix_element = matrix_element / constants.Rydberg * (
@@ -208,9 +166,11 @@ class ShengbtePhononsController (PhononsController):
         file = open ('%s' % filename, 'w')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
-        third_order = self.finite_difference.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3)).todense()
-        list_of_index = self.create_list_of_index()
-        list_of_index = list_of_index.dot(self.atoms.cell)
+        third_order = self.finite_difference.third_order\
+            .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
+            .todense()
+        list_of_index = self.finite_difference.list_of_index.astype(int)
+        list_of_index = np.flip(list_of_index, 1)
         block_counter = 0
         for i_0 in range (n_in_unit_cell):
             for n_1 in range (n_replicas):

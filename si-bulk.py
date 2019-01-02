@@ -83,9 +83,6 @@ if __name__ == "__main__":
                        folder='plot/ballistico/',
                        is_persistency_enabled=True).plot_everything()
 
-
-
-
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
     # heat_capacity = phonons.c_v.mean()
