@@ -60,8 +60,9 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=True,
-                                         third_order_symmerty_inputs=third_order_symmerty_inputs)
+                                         is_persistency_enabled=False,
+                                         third_order_symmerty_inputs=third_order_symmerty_inputs,
+                                         is_reduced_second=True)
 
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,

@@ -46,8 +46,11 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     n_particles = geometry.shape[0]
     n_replicas = list_of_replicas.shape[0]
     n_phonons = n_particles * 3
-
-    dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
+    is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
+    if is_second_reduced:
+        dynmat = second_order.reshape ((n_particles, 3, n_replicas, n_particles, 3))
+    else:
+        dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
@@ -59,10 +62,6 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
         dyn_s = np.sum(dynmat, axis=2)
     else:
         DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
-    if is_calculation_at_gamma:
-        dyn_s = np.sum(dynmat, axis=2)
-
-    else:
         chi_k = np.zeros(n_replicas).astype(complex)
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))

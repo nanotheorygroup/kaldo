@@ -15,8 +15,7 @@ class ShengbtePhononsController (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, is_persistency_enabled=True, parameters={}):
         super(self.__class__, self).__init__(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                                              temperature=temperature, is_persistency_enabled=is_persistency_enabled)
-        self.second_order = finite_difference.second_order
-        self.third_order = finite_difference.third_order
+        self.finite_difference = finite_difference
         self._qpoints_mapper = None
         self._energies = None
         self.sheng_folder_name = SHENG_FOLDER_NAME
@@ -161,9 +160,12 @@ class ShengbtePhononsController (PhononsController):
         shenbte_folder = self.sheng_folder_name + '/'
         n_replicas = self.supercell.prod()
         n_particles = int(self.n_modes / 3)
-        second_order = self.second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))
+        if self.finite_difference.is_reduced_second:
+            second_order = self.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+        else:
+            second_order = self.finite_difference.second_order.reshape (
+                (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
         filename = 'espresso.ifc2'
-        n_particles = second_order.shape[1]
         filename = shenbte_folder + filename
         file = open ('%s' % filename, 'w+')
         cell_inv = np.linalg.inv(self.atoms.cell)
@@ -191,7 +193,7 @@ class ShengbtePhononsController (PhononsController):
                                                                                                                   2])))
                             
                             # TODO: WHy are they flipped?
-                            matrix_element = second_order[0, j, beta, id_replica, i, alpha]
+                            matrix_element = second_order[j, beta, id_replica, i, alpha]
                             
                             matrix_element = matrix_element / constants.Rydberg * (
                                     constants.Bohr ** 2)
@@ -206,7 +208,7 @@ class ShengbtePhononsController (PhononsController):
         file = open ('%s' % filename, 'w')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
-        third_order = self.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3)).todense()
+        third_order = self.finite_difference.third_order.reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3)).todense()
         list_of_index = self.create_list_of_index()
         list_of_index = list_of_index.dot(self.atoms.cell)
         block_counter = 0
