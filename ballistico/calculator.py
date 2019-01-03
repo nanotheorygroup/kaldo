@@ -259,35 +259,18 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                     potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[
                         nup_vec], chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
 
-            # for interaction_counter in range(scaled_potential.coords.T.shape[0]):
-            #     w, l, i, t, j = scaled_potential.coords.T[interaction_counter]
-            #     # print(w,l,i,t,j)
-            #
-            #     if is_plus:
-            #         if is_amorphous:
-            #
-            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
-            #                         rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors[nup_vec, i]
-            #         else:
-            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
-            #                         rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors[nup_vec, i] * \
-            #                         chi[index_kp_vec, l] * chi.conj()[index_kpp_vec, t]
-            #     else:
-            #         if is_amorphous:
-            #
-            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
-            #                     rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors.conj()[nup_vec, i]
-            #
-            #         else:
-            #             potential = scaled_potential.data[interaction_counter] * rescaled_eigenvectors[nu, w] * \
-            #                     rescaled_eigenvectors.conj()[nupp_vec, j] * rescaled_eigenvectors.conj()[nup_vec, i] * \
-            #                     chi.conj()[index_kp_vec, l] * chi.conj()[index_kpp_vec, t]
-            gamma = np.sum(np.abs(potential.flatten()) ** 2 * dirac_delta.flatten())
+            # gamma contracted on one index
+            pot_times_dirac = np.abs(potential.flatten()) ** 2 * dirac_delta.flatten()
+            new_nu, new_counts = np.unique(nup_vec, return_counts=True)
+            gamma_tens = np.zeros_like(new_nu).astype(np.float)
+            full_index = 0
+            for i in range(new_counts.shape[0]):
+                degeneracy_nu_pp = new_counts[i]
+                for index_in in range(degeneracy_nu_pp):
+                    gamma_tens[i] += pot_times_dirac[full_index]
+                    full_index += 1
 
-            ps = np.sum(dirac_delta)
-        gamma = gamma / frequencies[index_k, mu]
-        ps = ps / frequencies[index_k, mu]
-    return gamma, ps
+            return new_nu, gamma_tens
 
 
 # @profile
@@ -349,18 +332,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             i_k = np.array (np.unravel_index(index_k, k_size, order='F'))
 
             for mu in range(n_modes):
-                gamma[is_plus, index_k, mu], ps[is_plus, index_k, mu] = calculate_single_gamma(is_plus,
-                                                                                               index_k, mu,
-                                                                                               i_k, frequencies,
-                                                                                               velocities, density,
-                                                                                               cell_inv, k_size,
-                                                                                               n_modes, nptk,
-                                                                                               n_replicas,
-                                                                                               rescaled_eigenvectors,
-                                                                                               chi, third_order,
-                                                                                               sigma_in, broadening,
-                                                                                               energy_threshold)
-                Logger ().info (process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str (mu))
+                out = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies,velocities, density, cell_inv,
+                                             k_size, n_modes, nptk, n_replicas, rescaled_eigenvectors, chi, third_order,
+                                             sigma_in, broadening, energy_threshold)
+                if out:
+                    new_nu, gamma_tens = out
+                    gamma[is_plus, index_k, mu] = np.sum(gamma_tens) / frequencies[index_k, mu]
+                    Logger().info(process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str(mu))
 
     for index_k, (associated_index, gp) in enumerate(zip(mapping, grid)):
         ps[:, index_k, :] = ps[:, associated_index, :]

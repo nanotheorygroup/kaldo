@@ -2,7 +2,6 @@ import ballistico.constants as constants
 from ballistico.logger import Logger
 import numpy as np
 from scipy.sparse import csc_matrix
-import sys
 
 LENGTH_THREESHOLD = 1e20
 THREESHOLD = 1e-20
@@ -13,30 +12,6 @@ class ConductivityController (object):
         self.phonons = phonons
         # self.import_scattering_matrix()
 
-    def import_scattering_matrix(self):
-        temperature = str (int (self.phonons.temperature))
-        filename_gamma = self.phonons.folder + 'T' + temperature + 'K/GGG.Gamma_Tensor'
-        gamma_value = []
-        row = []
-        col = []
-        with open (filename_gamma, "rw+") as f:
-            for line in f:
-                items = line.split ()
-                n0 = int (items[0]) - 1
-                k0 = int (items[1]) - 1
-                n1 = int (items[2]) - 1
-                k1 = int (items[3]) - 1
-                nu0 = k0 * self.phonons.n_modes + n0
-                nu1 = k1 * self.phonons.n_modes + n1
-                row.append (nu0)
-                col.append (nu1)
-                # self.phonons.gamma[nu0, nu1] = float(items[4])
-                gamma = float (items[4]) * self.phonons.frequencies[nu1] / (self.phonons.frequencies[nu0] + THREESHOLD) + THREESHOLD
-                gamma_value.append (gamma)
-        
-        return csc_matrix ((gamma_value, (row, col)), shape=(self.phonons.n_phonons, self.phonons.n_phonons),
-                                 dtype=np.float32)
-    
     def read_conductivity(self, converged=True):
         folder = self.phonons.folder
         if converged:

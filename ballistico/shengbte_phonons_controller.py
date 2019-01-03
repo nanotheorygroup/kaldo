@@ -5,6 +5,8 @@ import ballistico.constants as constants
 from ballistico.tools import *
 import matplotlib.pyplot as plt
 import ballistico.atoms_helper as ath
+from scipy.sparse import csc_matrix
+
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
@@ -12,45 +14,15 @@ SCRIPT_NAME = 'ShengBTE.x'
 
 
 class ShengbtePhononsController (PhononsController):
-    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, is_persistency_enabled=True, parameters={}):
+    def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300,
+                 is_persistency_enabled=True, convergence=True):
         super(self.__class__, self).__init__(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                                              temperature=temperature, is_persistency_enabled=is_persistency_enabled)
         self.finite_difference = finite_difference
         self._qpoints_mapper = None
         self._energies = None
         self.sheng_folder_name = SHENG_FOLDER_NAME
-
-        # TODO: convert these into kwargs
-        if 'convergence' in parameters:
-            self.convergence = parameters['convergence']
-        else:
-            self.convergence = False
-            
-        if 'only_gamma' in parameters:
-            self.only_gamma = parameters['only_gamma']
-        else:
-            self.only_gamma = False
-
-        if 'post_processing' in parameters:
-            self.post_processing = parameters['post_processing']
-        else:
-            self.post_processing = None
-    
-        self.length = np.zeros(3)
-        if 'l_x' in parameters:
-            self.length[0] = parameters['l_x']
-        # else:
-            # self.length[0] = LENGTH_THREESHOLD
-
-        if 'l_y' in parameters:
-            self.length[1] = parameters['l_y']
-        # else:
-            # self.length[1] = LENGTH_THREESHOLD
-        #
-        if 'l_z' in parameters:
-            self.length[2] = parameters['l_z']
-        # else:
-            # self.length[2] = LENGTH_THREESHOLD
+        self.convergence = convergence
 
     @property
     def qpoints_mapper(self):
@@ -264,10 +236,7 @@ class ShengbtePhononsController (PhononsController):
         string += '&end\n'
         string += '&flags\n'
         string += '\tespresso=.true.\n'
-        
-        if self.only_gamma:
-            string += '\tonly_gamma=.true.\n'
-            
+
         if self.is_classic:
             string += '\tclassical=.true.\n'
         
@@ -434,3 +403,27 @@ class ShengbtePhononsController (PhononsController):
             
         conductivity = conductivity_array.reshape (3, 3)
         return conductivity
+
+    def import_scattering_matrix(self):
+        temperature = str(int(self.temperature))
+        filename_gamma = self.sheng_folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
+        gamma_value = []
+        row = []
+        col = []
+        with open(filename_gamma, "r") as f:
+            for line in f:
+                items = line.split()
+                n0 = int(items[0]) - 1
+                k0 = int(items[1]) - 1
+                n1 = int(items[2]) - 1
+                k1 = int(items[3]) - 1
+                nu0 = k0 * self.n_modes + n0
+                nu1 = k1 * self.n_modes + n1
+                row.append(nu0)
+                col.append(nu1)
+                # self.gamma[nu0, nu1] = float(items[4])
+                gamma = float(items[4])
+                gamma_value.append(gamma)
+
+        return csc_matrix((gamma_value, (row, col)), shape=(self.n_phonons, self.n_phonons),
+                          dtype=np.float32)

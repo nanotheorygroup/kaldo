@@ -77,6 +77,8 @@ if __name__ == "__main__":
     sheng_phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
                       temperature=temperature, is_persistency_enabled=False)
     sheng_phonons.run()
+
+    gamma = sheng_phonons.import_scattering_matrix()
     # Create a plot helper object
     plotter = Plotter (phonons=sheng_phonons,
                        is_showing=True,
