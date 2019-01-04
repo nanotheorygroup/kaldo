@@ -1,6 +1,5 @@
 import numpy as np
 from ballistico.logger import Logger
-import spglib as spg
 import ballistico.atoms_helper as atoms_helper
 import scipy.special
 from opt_einsum import contract
@@ -8,7 +7,7 @@ from sparse import COO
 import ballistico.constants as constants
 
 
-IS_SCATTERING_MATRIX_ENABLED = False
+IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
@@ -56,19 +55,26 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     dynmat /= constants.tenjovermol
 
+    replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
+    dxij = atoms_helper.apply_boundary_with_cell(replicated_atoms.cell, replicated_cell_inv,
+                                                 geometry[:, np.newaxis, np.newaxis] - (
+                                                         geometry[np.newaxis, :, np.newaxis] + list_of_replicas[
+                                                                                               np.newaxis, np.newaxis,
+                                                                                               :]))
     is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
+
     if is_calculation_at_gamma:
         DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
-        dyn_s = np.sum(dynmat, axis=2)
+        dyn_s = contract('ialjb->iajb', dynmat)
+        ddyn_s = 1j * contract('ijla,ibljc->ibjca', dxij, dynmat)
+
     else:
         DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
         chi_k = np.zeros(n_replicas).astype(complex)
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
         dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-        replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
-        dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
-                geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+
         ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
     out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape (n_phonons, n_phonons))
@@ -80,17 +86,15 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 
-    if is_calculation_at_gamma:
-        # TODO: here we should add the imaginary components of the velocities
-        velocities = None
-    else:
-        ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
-        velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-        vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
-        for alpha in range (3):
-            for mu in range (n_particles * 3):
-                if np.abs(frequencies[mu]) > energy_threshold:
-                    velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
+    ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
+
+    # TODO: we probably want complex velocities
+    velocities = np.zeros((frequencies.shape[0], 3), dtype=np.float)
+    vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
+    for alpha in range (3):
+        for mu in range (n_particles * 3):
+            if np.abs(frequencies[mu]) > energy_threshold:
+                velocities[mu, alpha] = (vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])).real
 
     return frequencies, eigenvals, eigenvects, velocities
 
@@ -102,7 +106,7 @@ def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, r
     frequencies = np.zeros ((n_k_points, n_unit_cell * 3))
     eigenvalues = np.zeros ((n_k_points, n_unit_cell * 3))
     eigenvectors = np.zeros ((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype (np.complex)
-    velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3)).astype(np.complex)
+    velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3))
     for index_k in range (n_k_points):
         freq, eval, evect, vels = diagonalize_second_order_single_k (k_points[index_k], atoms, second_order.copy(),
                                                                      list_of_replicas, replicated_atoms,
@@ -111,7 +115,7 @@ def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, r
         eigenvalues[index_k, :] = eval
         eigenvectors[index_k, :, :] = evect
         velocities[index_k, :, :] = vels
-    return frequencies, eigenvalues, eigenvectors, velocities / 10
+    return frequencies, eigenvalues, eigenvectors, -1 * (velocities / 10)
 
 
 def calculate_broadening(velocity, cellinv, k_size):
@@ -183,21 +187,21 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
     elif broadening == 'triangle':
         broadening_function = triangular_delta
 
-    gamma = 0
-    ps = 0
     if np.abs(frequencies[index_k, mu]) > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes)
         evect_dagger = evect.reshape(nptk * n_modes, n_modes).conj()
 
         # TODO: next espression is unreadable and needs to be broken down
+        # We need to use the right data structure here, it matters how the sparse matrix is saved
+        # (columns, rows, coo, ...)
         scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes))[0]\
             .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
         # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
-        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
+        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
         i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='F', mode='wrap')
+        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
         # +1 if is_plus, -1 if not is_plus
         second_sign = (int(is_plus) * 2 - 1)
         if sigma_in is None:
@@ -261,22 +265,13 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
             # gamma contracted on one index
             pot_times_dirac = np.abs(potential.flatten()) ** 2 * dirac_delta.flatten()
-            new_nu, new_counts = np.unique(nup_vec, return_counts=True)
-            gamma_tens = np.zeros_like(new_nu).astype(np.float)
-            full_index = 0
-            for i in range(new_counts.shape[0]):
-                degeneracy_nu_pp = new_counts[i]
-                for index_in in range(degeneracy_nu_pp):
-                    gamma_tens[i] += pot_times_dirac[full_index]
-                    full_index += 1
-
-            return new_nu, gamma_tens
+            pot_times_dirac = pot_times_dirac / frequencies[index_k, mu] / nptk * constants.gamma_coeff
+            return COO((nup_vec, nupp_vec), pot_times_dirac, (nptk * n_modes, nptk * n_modes))
 
 
 # @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
                     sigma_in, broadening, energy_threshold):
-
     density = density.flatten()
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
@@ -300,59 +295,84 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         rlattvec = cell_inv * 2 * np.pi
         chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
         for index_k in range (np.prod (k_size)):
-            i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
+            i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
             k_point = i_k / k_size
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
     Logger ().info ('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
-    ps = np.zeros ((2, np.prod (k_size), n_modes))
 
     if IS_SCATTERING_MATRIX_ENABLED:
-        gamma_tensor = np.zeros ((2, nptk, n_modes, nptk * n_modes))
+        gamma_tensor = np.zeros((nptk * n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
-    mapping, grid = spg.get_ir_reciprocal_mesh (k_size,
-                                                atoms,
-                                                is_shift=[0, 0, 0])
-    unique_points, degeneracy = np.unique (mapping, return_counts=True)
-    list_of_k = unique_points
 
-    Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
+    list_of_k = np.arange(np.prod(k_size))
+
+    # Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
     process = ['Minus processes: ', 'Plus processes: ']
     masses = atoms.get_masses()
-    rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
+    rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) / np.sqrt(
+        masses[np.newaxis, :, np.newaxis, np.newaxis])
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes))
 
-    n_phonons = nptk * n_modes
-    n_particles = int(n_modes / 3)
     for is_plus in (1, 0):
         for index_k in (list_of_k):
-            i_k = np.array (np.unravel_index(index_k, k_size, order='F'))
+            i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
             for mu in range(n_modes):
-                out = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies,velocities, density, cell_inv,
-                                             k_size, n_modes, nptk, n_replicas, rescaled_eigenvectors, chi, third_order,
-                                             sigma_in, broadening, energy_threshold)
-                if out:
-                    new_nu, gamma_tens = out
-                    gamma[is_plus, index_k, mu] = np.sum(gamma_tens) / frequencies[index_k, mu]
-                    Logger().info(process[is_plus] + 'q-point = ' + str(index_k) + ', mu-branch = ' + str(mu))
+                gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density,
+                                                   cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                   rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
+                                                   energy_threshold)
+                if gamma_out:
+                    # first_contracted_gamma = gamma_out.sum(axis=1)
+                    # gamma_scal = first_contracted_gamma.sum(axis=0)
+                    gamma[is_plus, index_k, mu] = gamma_out.sum()
+                    if IS_SCATTERING_MATRIX_ENABLED:
+                        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                        # gamma_tensor[nu, nu] += gamma[is_plus, index_k, mu]
+                        coords = gamma_out.coords.T
+                        for i in range(coords.shape[0]):
+                            if is_plus:
+                                gamma_tensor[nu, coords[i][0]] -= gamma_out.data[i]
+                                gamma_tensor[nu, coords[i][1]] += gamma_out.data[i]
+                            else:
+                                gamma_tensor[nu, coords[i][0]] += gamma_out.data[i]
+                                gamma_tensor[nu, coords[i][1]] += gamma_out.data[i]
 
-    for index_k, (associated_index, gp) in enumerate(zip(mapping, grid)):
-        ps[:, index_k, :] = ps[:, associated_index, :]
-        gamma[:, index_k, :] = gamma[:, associated_index, :]
-        # if IS_SCATTERING_MATRIX_ENABLED:
-        #     gamma_tensor[:, index_k, :] = gamma_tensor[:, associated_index, :]
+                            #
+                            # nup_vec = first_contracted_gamma.coords[0]
+                            #
+                            # second_contracted_gamma = gamma_out.sum(axis=0)
+                            # nupp_vec = second_contracted_gamma.coords[0]
+                            # if is_plus:
+                            #     nu_vec = nu * np.ones(nup_vec.shape[0]).astype(int)
+                            #     gamma_tensor[nu_vec, nup_vec] += first_contracted_gamma.data
+                            #     # gamma_tensor[nup_vec, nu_vec] += first_contracted_gamma.data
+                            #     nu_vec = nu * np.ones(nupp_vec.shape[0]).astype(int)
+                            #     gamma_tensor[nu_vec, nupp_vec] -= second_contracted_gamma.data
+                            #     # gamma_tensor[nupp_vec, nu_vec] -= second_contracted_gamma.data
+                            #
+                            # else:
+                            #     nu_vec = nu * np.ones(nup_vec.shape[0]).astype(int)
+                            #     gamma_tensor[nu_vec, nup_vec] += first_contracted_gamma.data
+                            #     # gamma_tensor[nup_vec, nu_vec] += first_contracted_gamma.data
+                            #     nu_vec = nu * np.ones(nupp_vec.shape[0]).astype(int)
+                            #     gamma_tensor[nu_vec, nupp_vec] += second_contracted_gamma.data
+                            #     # gamma_tensor[nupp_vec, nu_vec] += second_contracted_gamma.data
 
-    gamma = gamma / nptk * constants.gamma_coeff
-    # if IS_SCATTERING_MATRIX_ENABLED:
-    #     gamma_tensor = gamma_tensor * prefactor / nptk
-    ps = ps / nptk / (2 * np.pi) ** 3
-    gamma = np.sum(gamma, axis=0)
-    # if IS_SCATTERING_MATRIX_ENABLED:
-    #     return gamma, gamma_tensor.reshape((2, nptk, n_modes, nptk, n_modes))
-    # else:
+            Logger().info(process[is_plus] + 'q-point = ' + str(index_k))
 
-    return gamma, ps
+    if IS_SCATTERING_MATRIX_ENABLED:
+        gamma_tensor_copy = np.zeros((nptk, n_modes, nptk, n_modes))
+        for index_k in range(nptk):
+            for mu in range(n_modes):
+                nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                for index_kp in range(nptk):
+                    for mup in range(n_modes):
+                        nup = np.ravel_multi_index([index_kp, mup], [nptk, n_modes], order='C')
+                        gamma_tensor_copy[index_k, mu, index_kp, mup] = gamma_tensor[nu, nup]
+                # gamma_tensor_copy[index_k, mu, index_k, mu] = 0
+    return np.sum(gamma, axis=0), gamma_tensor_copy

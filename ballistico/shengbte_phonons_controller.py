@@ -6,6 +6,7 @@ from ballistico.tools import *
 import matplotlib.pyplot as plt
 import ballistico.atoms_helper as ath
 from scipy.sparse import csc_matrix
+from sparse import COO
 
 
 BUFFER_PLOT = .2
@@ -92,6 +93,22 @@ class ShengbtePhononsController (PhononsController):
     def gamma(self, new_gamma):
         PhononsController.gamma.fset (self, new_gamma)
 
+    @property
+    def scattering_matrix(self):
+        return super ().scattering_matrix
+
+    @scattering_matrix.setter
+    def scattering_matrix(self, new_scattering_matrix):
+        PhononsController.scattering_matrix.fset (self, new_scattering_matrix)
+
+    @scattering_matrix.getter
+    def scattering_matrix(self):
+        if super (self.__class__, self).scattering_matrix is not None:
+            return super (self.__class__, self).scattering_matrix
+        scattering_matrix = self.import_scattering_matrix()
+        self.scattering_matrix = scattering_matrix
+        return scattering_matrix
+
     def save_second_order_matrix(self):
         shenbte_folder = self.sheng_folder_name + '/'
         n_replicas = self.supercell.prod()
@@ -135,7 +152,7 @@ class ShengbtePhononsController (PhononsController):
     def save_third_order_matrix(self):
         filename = 'FORCE_CONSTANTS_3RD'
         filename = self.sheng_folder_name + '/' + filename
-        file = open ('%s' % filename, 'w')
+        file = open ('%s' % filename, 'w+')
         n_in_unit_cell = len (self.atoms.numbers)
         n_replicas = np.prod (self.supercell)
         third_order = self.finite_difference.third_order\
@@ -178,7 +195,7 @@ class ShengbtePhononsController (PhononsController):
         file.close ()
         with open (filename, 'r') as original:
             data = original.read ()
-        with open (filename, 'w') as modified:
+        with open (filename, 'w+') as modified:
             modified.write ('  ' + str (block_counter) + '\n' + data)
         Logger().info ('third order saved')
     
@@ -255,7 +272,7 @@ class ShengbtePhononsController (PhononsController):
         filename = folder + '/CONTROL'
         string = self.create_control_file_string ()
         
-        with open (filename, 'w') as file:
+        with open (filename, 'w+') as file:
             file.write (string)
 
     def header(self):
@@ -367,7 +384,7 @@ class ShengbtePhononsController (PhononsController):
         for index, reduced_index, q_point_x, q_point_y, q_point_z in self.qpoints_mapper:
             decay_data[int (index - 1)] = decay[:, int(reduced_index-1)]
         return decay_data
-    
+
     def read_velocity_data(self):
         shenbte_folder = self.sheng_folder_name
         velocities = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
@@ -403,27 +420,60 @@ class ShengbtePhononsController (PhononsController):
             
         conductivity = conductivity_array.reshape (3, 3)
         return conductivity
+    #
+    # def import_scattering_matrix(self):
+    #     temperature = str(int(self.temperature))
+    #     filename_gamma = self.sheng_folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
+    #     gamma_value = []
+    #     row = []
+    #     col = []
+    #     with open(filename_gamma, "r") as f:
+    #         for line in f:
+    #             items = line.split()
+    #             n0 = int(items[0]) - 1
+    #             k0 = int(items[1]) - 1
+    #             n1 = int(items[2]) - 1
+    #             k1 = int(items[3]) - 1
+    #             nu0 = np.ravel_multi_index([k0, n0], [self.n_k_points, self.n_modes], order='C')
+    #             nu1 = np.ravel_multi_index([k1, n1], [self.n_k_points, self.n_modes], order='C')
+    #             if nu0 >= 3 and nu1 > 3:
+    #                 row.append(nu0)
+    #                 col.append(nu1)
+    #                 # self.gamma[nu0, nu1] = float(items[4])
+    #                 gamma = float(items[4])
+    #                 gamma_value.append(gamma)
+    #
+    #     return csc_matrix((gamma_value, (row, col)), shape=(self.n_phonons, self.n_phonons),
+    #                       dtype=np.float32).todense()
+    #
 
     def import_scattering_matrix(self):
         temperature = str(int(self.temperature))
         filename_gamma = self.sheng_folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
-        gamma_value = []
-        row = []
-        col = []
-        with open(filename_gamma, "r") as f:
+        filename_tau_zero = self.sheng_folder_name + '/T' + temperature + 'K/GGG.tau_zero'
+        self.tau_zero = np.zeros((self.n_modes, self.n_k_points))
+        with open(filename_tau_zero, "r+") as f:
             for line in f:
                 items = line.split()
-                n0 = int(items[0]) - 1
-                k0 = int(items[1]) - 1
-                n1 = int(items[2]) - 1
-                k1 = int(items[3]) - 1
-                nu0 = k0 * self.n_modes + n0
-                nu1 = k1 * self.n_modes + n1
-                row.append(nu0)
-                col.append(nu1)
-                # self.gamma[nu0, nu1] = float(items[4])
-                gamma = float(items[4])
-                gamma_value.append(gamma)
+                self.tau_zero[int(items[0]) - 1, int(items[1]) - 1] = float(items[2])
 
-        return csc_matrix((gamma_value, (row, col)), shape=(self.n_phonons, self.n_phonons),
-                          dtype=np.float32)
+        n0 = []
+        n1 = []
+        k0 = []
+        k1 = []
+        gamma_value = []
+
+        with open(filename_gamma, "r+") as f:
+            for line in f:
+                items = line.split()
+
+                n0.append(int(items[0]) - 1)
+                k0.append(int(items[1]) - 1)
+                n1.append(int(items[2]) - 1)
+                k1.append(int(items[3]) - 1)
+
+                gamma_value.append(float(items[4]))
+        gamma_tensor = np.zeros((self.n_k_points, self.n_modes, self.n_k_points,self.n_modes))
+        gamma_tensor[k0, n0, k1, n1] = gamma_value
+        return gamma_tensor
+

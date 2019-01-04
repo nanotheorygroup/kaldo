@@ -163,7 +163,6 @@ class PhononsController (object):
 
     @gamma.getter
     def gamma(self):
-        # TODO separate gamma classic and quantum
         if self._gamma is None and self.is_persistency_enabled:
             try:
                 folder = self.folder_name
@@ -181,7 +180,6 @@ class PhononsController (object):
 
     @gamma.setter
     def gamma(self, new_gamma):
-        # TODO separate gamma classic and quantum
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/' + str (self.temperature) + '/'
@@ -200,7 +198,6 @@ class PhononsController (object):
 
     @scattering_matrix.getter
     def scattering_matrix(self):
-        #TODO separate scattering_matrix classic and quantum
         if self._scattering_matrix is None and self.is_persistency_enabled:
             try:
                 folder = self.folder_name
@@ -218,7 +215,6 @@ class PhononsController (object):
 
     @scattering_matrix.setter
     def scattering_matrix(self, new_scattering_matrix):
-        #TODO separate scattering_matrix classic and quantum
         if self.is_persistency_enabled:
             folder = self.folder_name
             folder += '/' + str(self.temperature) + '/'
@@ -317,7 +313,7 @@ class PhononsController (object):
             n_k_points = np.prod (k_size)
             k_points = np.zeros ((n_k_points, 3))
             for index_k in range (n_k_points):
-                k_points[index_k] = np.unravel_index (index_k, k_size, order='F') / k_size
+                k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
             self.k_points = k_points
         return self._k_points
 

@@ -2,14 +2,14 @@ import numpy as np
 import ase.units as units
 
 # 1 thz = 0.00414 mev
-petahertz = 4.13566553853599
+petahertz = units.J * (2 * np.pi * units._hbar) * 1e15
 
 
 Bohr = units.Bohr
 Rydberg = units.Rydberg
 mol = units.mol
 
-mass_factor = 1.8218779 * 6.022e-4
+mass_factor = units._me * 2 * units.mol * 1e+3
 
 thzoverjoule = petahertz / units.J / 1000
 kelvinoverjoule = units.kB / units.J

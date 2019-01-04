@@ -14,6 +14,7 @@ from ase.build import bulk
 from ase.calculators.espresso import Espresso
 import matplotlib.pyplot as plt
 
+
 if __name__ == "__main__":
     # We start from a atoms
     atoms = ase.io.read ('si-bulk.xyz')
@@ -60,38 +61,54 @@ if __name__ == "__main__":
                                          supercell=supercell,
                                          calculator=calculator,
                                          calculator_inputs=calculator_inputs,
-                                         is_persistency_enabled=False,
+                                         is_persistency_enabled=True,
                                          third_order_symmerty_inputs=third_order_symmerty_inputs,
                                          is_reduced_second=True)
 
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=False)
+                      temperature=temperature, is_persistency_enabled=True)
+
     # Create a plot helper object
-    plotter = Plotter (phonons=phonons,
-                       is_showing=True,
-                       folder='plot/ballistico/',
-                       is_persistency_enabled=True).plot_everything()
+    # plotter = Plotter (phonons=phonons,
+    #                    is_showing=True,
+    #                    folder='plot/ballistico/',
+    #                    is_persistency_enabled=True).plot_everything()
 
     # Create a phonon object
-    sheng_phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
-                      temperature=temperature, is_persistency_enabled=False)
-    sheng_phonons.run()
+    # sheng_phonons = Sheng(finite_difference=finite_difference, kpts=kpts, is_classic=is_classic,
+    #                   temperature=temperature, is_persistency_enabled=False)
+    # sheng_phonons.run()
 
-    gamma = sheng_phonons.import_scattering_matrix()
+    phonons.scattering_matrix
+
+    # sheng_phonons.scattering_matrix
+    print('done')
+    # gamma = sheng_phonons.scattering_matrix
     # Create a plot helper object
-    plotter = Plotter (phonons=sheng_phonons,
-                       is_showing=True,
-                       folder='plot/ballistico/',
-                       is_persistency_enabled=True).plot_everything()
+    # plotter = Plotter (phonons=sheng_phonons,
+    #                    is_showing=True,
+    #                    folder='plot/ballistico/',
+    #                    is_persistency_enabled=True).plot_everything()
 
     # calculate the conductivity creating a conductivity object and calling the
     # calculate_conductivity method
     # heat_capacity = phonons.c_v.mean()
+    # self_consistent_cycle(sheng_phonons, is_classic=is_classic)
+    conductivity = ConductivityController(phonons)
+    print(conductivity.calculate_conductivity(is_classic=is_classic))
 
-    conductivity = ConductivityController(phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
-    print(conductivity)
+    print('----------')
 
-    conductivity = ConductivityController(sheng_phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
-    print(conductivity)
-    print(sheng_phonons.read_conductivity(converged=False))
+    conductivity.self_consistent_cycle(is_classic=is_classic)
+
+    #
+    # conductivity = ConductivityController(sheng_phonons).calculate_conductivity(is_classical=is_classic)[0, 0]
+    # print('----------')
+    # print(conductivity)
+    # print(sheng_phonons.read_conductivity(converged=True))
+
+    # plotter = Plotter (phonons=phonons,
+    #                    is_showing=True,
+    #                    folder='plot/ballistico/',
+    #                    is_persistency_enabled=True).plot_everything()

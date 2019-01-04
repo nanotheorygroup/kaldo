@@ -38,9 +38,9 @@ class Plotter (object):
             obs_plot[:, mode] = interpolator (k_list, obs[:, :, :, mode], with_fourier=with_fourier)
         return q, Q, point_names, obs_plot
 
-    def plot_in_brillouin_zone(self, observable_name='frequency', observable=None, symmetry='fcc',  n_k_points=100, with_fourier=True):
-        if observable is None:
-            observable = self.phonons.frequencies
+    def plot_in_brillouin_zone(self, symmetry='fcc',  n_k_points=100, with_fourier=True):
+        observable = self.phonons.frequencies
+        observable_name = 'frequency'
         fig = plt.figure ()
         q, Q, point_names, freqs_plot = self.project_to_path(observable, symmetry, n_k_points, with_fourier=with_fourier)
         plt.ylabel (observable_name)
@@ -52,7 +52,23 @@ class Plotter (object):
         if self.is_persistency_enabled:
             fig.savefig (self.folder + observable_name + '.pdf')
         if self.is_showing:
-            plt.show ()
+            plt.show()
+
+        for alpha in range(3):
+            observable = self.phonons.velocities[..., alpha]
+            observable_name = 'v_' + str(alpha + 1)
+            fig = plt.figure()
+            q, Q, point_names, freqs_plot = self.project_to_path(observable, symmetry, n_k_points, with_fourier=with_fourier)
+            plt.ylabel (observable_name)
+            plt.xticks (Q, point_names)
+            plt.xlim (q[0], q[-1])
+            plt.plot (q, freqs_plot, "-")
+            plt.grid ()
+            plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
+            if self.is_persistency_enabled:
+                fig.savefig (self.folder + observable_name + '.pdf')
+            if self.is_showing:
+                plt.show ()
 
     def plot_vs_frequency(self, observable, observable_name):
         # TODO: We should check if the flattn is C-like and still compatible with Sheng 'F' like
@@ -85,10 +101,10 @@ class Plotter (object):
     def plot_everything(self, with_dispersion=True):
         phonons = self.phonons
         self.plot_dos()
-
         if with_dispersion:
-            self.plot_in_brillouin_zone(observable_name='disp_rel', with_fourier=False)
+            self.plot_in_brillouin_zone(with_fourier=False)
             # self.plot_in_brillouin_zone (observable_name='disp_rel_fourier', with_fourier=True)
+
         self.plot_vs_frequency(phonons.c_v, 'cv_SI')
         vel = np.linalg.norm(phonons.velocities, axis=-1)
         self.plot_vs_frequency(vel, 'vel_kmovers')
