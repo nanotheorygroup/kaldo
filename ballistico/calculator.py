@@ -55,26 +55,19 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     dynmat /= constants.tenjovermol
 
-    replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
-    dxij = atoms_helper.apply_boundary_with_cell(replicated_atoms.cell, replicated_cell_inv,
-                                                 geometry[:, np.newaxis, np.newaxis] - (
-                                                         geometry[np.newaxis, :, np.newaxis] + list_of_replicas[
-                                                                                               np.newaxis, np.newaxis,
-                                                                                               :]))
     is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
-
     if is_calculation_at_gamma:
         DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
-        dyn_s = contract('ialjb->iajb', dynmat)
-        ddyn_s = 1j * contract('ijla,ibljc->ibjca', dxij, dynmat)
-
+        dyn_s = np.sum(dynmat, axis=2)
     else:
         DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
         chi_k = np.zeros(n_replicas).astype(complex)
         for id_replica in range (n_replicas):
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
         dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-
+        replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
+        dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+                geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
         ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
     out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape (n_phonons, n_phonons))
@@ -86,15 +79,17 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 
-    ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
-
-    # TODO: we probably want complex velocities
-    velocities = np.zeros((frequencies.shape[0], 3), dtype=np.float)
-    vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
-    for alpha in range (3):
-        for mu in range (n_particles * 3):
-            if np.abs(frequencies[mu]) > energy_threshold:
-                velocities[mu, alpha] = (vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])).real
+    if is_calculation_at_gamma:
+        # TODO: here we should add the imaginary components of the velocities
+        velocities = None
+    else:
+        ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
+        velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
+        vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
+        for alpha in range (3):
+            for mu in range (n_particles * 3):
+                if np.abs(frequencies[mu]) > energy_threshold:
+                    velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
     return frequencies, eigenvals, eigenvects, velocities
 

@@ -420,32 +420,7 @@ class ShengbtePhononsController (PhononsController):
             
         conductivity = conductivity_array.reshape (3, 3)
         return conductivity
-    #
-    # def import_scattering_matrix(self):
-    #     temperature = str(int(self.temperature))
-    #     filename_gamma = self.sheng_folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
-    #     gamma_value = []
-    #     row = []
-    #     col = []
-    #     with open(filename_gamma, "r") as f:
-    #         for line in f:
-    #             items = line.split()
-    #             n0 = int(items[0]) - 1
-    #             k0 = int(items[1]) - 1
-    #             n1 = int(items[2]) - 1
-    #             k1 = int(items[3]) - 1
-    #             nu0 = np.ravel_multi_index([k0, n0], [self.n_k_points, self.n_modes], order='C')
-    #             nu1 = np.ravel_multi_index([k1, n1], [self.n_k_points, self.n_modes], order='C')
-    #             if nu0 >= 3 and nu1 > 3:
-    #                 row.append(nu0)
-    #                 col.append(nu1)
-    #                 # self.gamma[nu0, nu1] = float(items[4])
-    #                 gamma = float(items[4])
-    #                 gamma_value.append(gamma)
-    #
-    #     return csc_matrix((gamma_value, (row, col)), shape=(self.n_phonons, self.n_phonons),
-    #                       dtype=np.float32).todense()
-    #
+
 
     def import_scattering_matrix(self):
         temperature = str(int(self.temperature))
