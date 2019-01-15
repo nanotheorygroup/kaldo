@@ -206,8 +206,8 @@ class ConductivityController (object):
 
     def self_consistent_cycle(self, is_classic, n_iterations=10):
         THREESHOLD = 1e-20
-        hbar = 1.05457172647E-22  # J / THz
-        k_b = 1.380648813E-23  # J / K
+        hbar = constants.hbar * 1e12
+        k_b = constants.kelvinoverjoule
 
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
