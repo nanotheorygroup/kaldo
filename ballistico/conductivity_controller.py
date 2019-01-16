@@ -1,5 +1,4 @@
 import ballistico.constants as constants
-from ballistico.logger import Logger
 import numpy as np
 from scipy.sparse import csc_matrix
 
@@ -28,7 +27,6 @@ class ConductivityController (object):
         return conductivity_array.reshape (3, 3)
     
     def calculate_transmission(self, velocities, length):
-
         
         prefactor = csc_matrix ((1. / velocities, (range(self.phonons.n_phonons), range(self.phonons.n_phonons))), shape=(self.phonons.n_phonons, self.phonons.n_phonons),
                                  dtype=np.float32)
@@ -98,60 +96,13 @@ class ConductivityController (object):
         return trans * length / abs (velocity)
     
     def calculate_conductivity(self, is_classic):
-        # volume = np.linalg.det(self.phonons.atoms.cell)
-        # conductivity_per_mode = np.zeros ((self.phonons.n_k_points * self.phonons.n_modes, 3, 3))
-        #
-        # frequencies = self.phonons.frequencies.reshape(self.phonons.n_k_points * self.phonons.n_modes)
-        # physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
-        #
-        # # gamma_phys_2d = self.phonons.scattering_matrix[np.outer(physical_modes, physical_modes)]
-        # # n_real_phonons = physical_modes.sum()
-        # # gamma_phys_2d = gamma_phys_2d.reshape(n_real_phonons, n_real_phonons)
-        #
-        # # gamma = gamma.reshape((self.phonons.n_k_points * self.phonons.n_modes))
-        # velocities = self.phonons.velocities.reshape(self.phonons.n_k_points * self.phonons.n_modes, 3)
-        #
-        # # TODO: this needs to go, generalizing for complex flux as per Leyla's project
-        # velocities = velocities.real
-        # # velocities[np.isnan(velocities)] = 0
-        # c_v = self.phonons.c_v.reshape(self.phonons.n_k_points * self.phonons.n_modes)
-        #
-        # mean_free_path = np.empty_like(velocities)
-        # scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
-        # index = np.outer(physical_modes, physical_modes)
-        # scattering_matrix[index] = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons, self.phonons.n_phonons))[index]
-        #
-        # scattering_matrix += np.diag(self.phonons.gamma.flatten())
-        #
-        # scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(),physical_modes.sum()))
-        #
-        # gamma_inv = np.linalg.inv(scattering_matrix)
-        #
-        # # gamma_inv = np.zeros_like(frequencies)
-        # # gamma_inv[physical_modes, physical_modes] += 1 / self.phonons.gamma.flatten()[physical_modes]
-        # for alpha in range(3):
-        #     mean_free_path[physical_modes, alpha] = gamma_inv.dot(velocities[physical_modes, alpha])
-        # for alpha in range (3):
-        #     for beta in range (3):
-        #         conductivity_per_mode[physical_modes, alpha, beta] += c_v[physical_modes] * velocities[
-        #             physical_modes, beta] * mean_free_path[physical_modes, alpha]
-        # conductivity_per_mode *= 1000 / (volume * self.phonons.n_k_points)
-        # total_conductivity = conductivity_per_mode.sum(axis=0)
 
         THREESHOLD = 1e-20
-        hbar = 1.05457172647E-22  # J / THz
-        k_b = 1.380648813E-23  # J / K
-
+        hbar = constants.hbar * 1e12
+        k_b = constants.kelvinoverjoule
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
-        # nu0 = k0 * phonons.n_modes + n0
-        # nu1 = k1 * phonons.n_modes + n1
-
-        scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons, phonons.n_phonons))
-        # try:
-        #     tau_zero = phonons.tau_zero.T
-        # except AttributeError:
         tau_zero = 1 / phonons.gamma
         tau_zero[tau_zero == np.inf] = 0
 
@@ -204,7 +155,7 @@ class ConductivityController (object):
         total_conductivity = np.sum(conductivity_per_mode, 0)
         return total_conductivity
 
-    def self_consistent_cycle(self, is_classic, n_iterations=10):
+    def calculate_conductivity_sc(self, is_classic, n_iterations=10):
         THREESHOLD = 1e-20
         hbar = constants.hbar * 1e12
         k_b = constants.kelvinoverjoule
@@ -212,13 +163,8 @@ class ConductivityController (object):
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
-        # nu0 = k0 * phonons.n_modes + n0
-        # nu1 = k1 * phonons.n_modes + n1
-
         scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons, phonons.n_phonons))
-        # try:
-        #     tau_zero = phonons.tau_zero.T
-        # except AttributeError:
+
         tau_zero = 1 / phonons.gamma
         tau_zero[tau_zero == np.inf] = 0
 
@@ -253,7 +199,7 @@ class ConductivityController (object):
                                                                 * omegas[:] * velocities[:, alpha] * F_n[:, beta]
 
             conductivity = np.sum(conductivity_per_mode, 0)
-            print(n_iteration, conductivity)
+            # print(n_iteration, conductivity)
             tau_zero = tau_zero.reshape((phonons.n_phonons))
 
             # calculate the shift in mft
@@ -275,5 +221,5 @@ class ConductivityController (object):
                                                             * omegas[:] * velocities[:, alpha] * F_n[:, beta]
 
         conductivity = np.sum(conductivity_per_mode, 0)
-        print(n_iteration, conductivity)
+        # print(n_iteration, conductivity)
         return conductivity

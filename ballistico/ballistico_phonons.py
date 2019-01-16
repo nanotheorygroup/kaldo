@@ -1,6 +1,7 @@
 import ballistico.calculator
 from ballistico.phonons_controller import PhononsController
 
+
 class BallisticoPhonons (PhononsController):
     def __init__(self, finite_difference, kpts=(1, 1, 1), is_classic=False, temperature=300, sigma_in=None, 
                  is_persistency_enabled=True, energy_threshold=None, broadening_shape='gauss'):
