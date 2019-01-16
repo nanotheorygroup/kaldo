@@ -1,3 +1,7 @@
 .DS_Store
 *.pyc
 .idea
+examples/ballistico
+examples/displacement
+examples/log_lammps.out
+examples/output.log
