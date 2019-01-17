@@ -5,3 +5,4 @@ examples/ballistico
 examples/displacement
 examples/log_lammps.out
 examples/output.log
+examples/plots*

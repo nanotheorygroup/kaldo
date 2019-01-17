@@ -91,10 +91,12 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
                 if np.abs(frequencies[mu]) > energy_threshold:
                     velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
+    if velocities is None:
+        velocities = 0
     return frequencies, eigenvals, eigenvects, velocities
 
 
-def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
+def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = k_points.shape[0]
 
@@ -110,6 +112,9 @@ def calculate_second_all_grid(k_points, atoms, second_order, list_of_replicas, r
         eigenvalues[index_k, :] = eval
         eigenvectors[index_k, :, :] = evect
         velocities[index_k, :, :] = vels
+
+    # TODO: figure out why we have Nan values
+    velocities[np.isnan(velocities)] = 0
     return frequencies, eigenvalues, eigenvectors, -1 * (velocities / 10)
 
 

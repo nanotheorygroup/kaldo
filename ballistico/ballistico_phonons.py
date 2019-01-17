@@ -19,7 +19,7 @@ class BallisticoPhonons (PhononsController):
     def frequencies(self):
         if super (self.__class__, self).frequencies is not None:
             return super (self.__class__, self).frequencies
-        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
+        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
             self.k_points,
             self.atoms,
             self.finite_difference.second_order,
@@ -44,7 +44,7 @@ class BallisticoPhonons (PhononsController):
     def velocities(self):
         if super (self.__class__, self).velocities is not None:
             return super (self.__class__, self).velocities
-        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
+        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
             self.k_points,
             self.atoms,
             self.finite_difference.second_order,
@@ -69,7 +69,7 @@ class BallisticoPhonons (PhononsController):
     def eigenvalues(self):
         if super (self.__class__, self).eigenvalues is not None:
             return super (self.__class__, self).eigenvalues
-        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
+        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
             self.k_points,
             self.atoms,
             self.finite_difference.second_order,
@@ -98,7 +98,7 @@ class BallisticoPhonons (PhononsController):
     def eigenvectors(self):
         if super (self.__class__, self).eigenvectors is not None:
             return super (self.__class__, self).eigenvectors
-        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_all_grid(
+        frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
             self.k_points,
             self.atoms,
             self.finite_difference.second_order,
@@ -192,3 +192,12 @@ class BallisticoPhonons (PhononsController):
         self.scattering_matrix = scattering_matrix
         self.gamma = gamma
         return scattering_matrix
+
+    def second_quantities_k_list(self, klist):
+        return ballistico.calculator.calculate_second_k_list(
+            klist,
+            self.atoms,
+            self.finite_difference.second_order,
+            self.finite_difference.list_of_index,
+            self.finite_difference.replicated_atoms,
+            self.energy_threshold)
