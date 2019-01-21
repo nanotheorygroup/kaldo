@@ -304,7 +304,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     gamma = np.zeros ((2, nptk, n_modes))
 
     if IS_SCATTERING_MATRIX_ENABLED:
-        gamma_tensor = np.zeros((nptk * n_modes, nptk * n_modes))
+        gamma_tensor_plus = np.zeros((nptk * n_modes, nptk * n_modes))
+        gamma_tensor_minus = np.zeros((nptk * n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
 
@@ -336,11 +337,11 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         coords = gamma_out.coords.T
                         for i in range(coords.shape[0]):
                             if is_plus:
-                                gamma_tensor[nu, coords[i][0]] -= gamma_out.data[i]
-                                gamma_tensor[nu, coords[i][1]] += gamma_out.data[i]
+                                gamma_tensor_plus[nu, coords[i][0]] -= gamma_out.data[i]
+                                gamma_tensor_plus[nu, coords[i][1]] += gamma_out.data[i]
                             else:
-                                gamma_tensor[nu, coords[i][0]] += gamma_out.data[i]
-                                gamma_tensor[nu, coords[i][1]] += gamma_out.data[i]
+                                gamma_tensor_minus[nu, coords[i][0]] += gamma_out.data[i]
+                                gamma_tensor_minus[nu, coords[i][1]] += gamma_out.data[i]
 
                             #
                             # nup_vec = first_contracted_gamma.coords[0]
@@ -365,14 +366,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
             Logger().info(process[is_plus] + 'q-point = ' + str(index_k))
 
-    if IS_SCATTERING_MATRIX_ENABLED:
-        gamma_tensor_copy = np.zeros((nptk, n_modes, nptk, n_modes))
-        for index_k in range(nptk):
-            for mu in range(n_modes):
-                nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                for index_kp in range(nptk):
-                    for mup in range(n_modes):
-                        nup = np.ravel_multi_index([index_kp, mup], [nptk, n_modes], order='C')
-                        gamma_tensor_copy[index_k, mu, index_kp, mup] = gamma_tensor[nu, nup]
-                # gamma_tensor_copy[index_k, mu, index_k, mu] = 0
-    return np.sum(gamma, axis=0), gamma_tensor_copy
+    # if IS_SCATTERING_MATRIX_ENABLED:
+    #     gamma_tensor_copy = np.zeros((nptk, n_modes, nptk, n_modes))
+    #     for index_k in range(nptk):
+    #         for mu in range(n_modes):
+    #             nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+    #             for index_kp in range(nptk):
+    #                 for mup in range(n_modes):
+    #                     nup = np.ravel_multi_index([index_kp, mup], [nptk, n_modes], order='C')
+    #                     gamma_tensor_copy[index_k, mu, index_kp, mup] = gamma_tensor[nu, nup]
+    return [gamma[0], gamma[1]], [gamma_tensor_minus, gamma_tensor_plus]

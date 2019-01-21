@@ -160,9 +160,9 @@ class BallisticoPhonons (PhononsController):
             self.broadening_shape,
             self.energy_threshold
         )
-        self.gamma = gamma
-        self.scattering_matrix = scattering_matrix
-        return gamma
+        self.scattering_matrix = scattering_matrix[0] + scattering_matrix[1]
+        self.gamma = gamma[0] + gamma[1]
+        return self.gamma
 
     @property
     def scattering_matrix(self):
@@ -189,9 +189,9 @@ class BallisticoPhonons (PhononsController):
             self.broadening_shape,
             self.energy_threshold
         )
-        self.scattering_matrix = scattering_matrix
-        self.gamma = gamma
-        return scattering_matrix
+        self.scattering_matrix = scattering_matrix[0] + scattering_matrix[1]
+        self.gamma = gamma[0] + gamma[1]
+        return self.scattering_matrix
 
     def second_quantities_k_list(self, klist):
         return ballistico.calculator.calculate_second_k_list(

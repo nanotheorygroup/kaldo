@@ -106,19 +106,19 @@ class ConductivityController (object):
         tau_zero = np.zeros_like(phonons.gamma)
         tau_zero[phonons.gamma != 0] = 1 / phonons.gamma[phonons.gamma != 0]
 
-        omegas = phonons.frequencies * 2 * np.pi
+        omega = phonons.frequencies * 2 * np.pi
         F_n_0 = np.zeros((phonons.n_k_points, phonons.n_modes, 3))
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
         velocities[np.isnan(velocities)] = 0
 
         for n in range(phonons.n_modes):
             for k in range(phonons.n_k_points):
-                F_n_0[k, n, :] = tau_zero[k, n] * velocities[k, n, :] * omegas[k, n]
+                F_n_0[k, n, :] = tau_zero[k, n] * velocities[k, n, :] * omega[k, n]
 
         F_n_0 = F_n_0.reshape((phonons.n_phonons, 3))
 
         F_n = F_n_0.copy()
-        omegas = omegas.reshape((phonons.n_phonons))
+        omega = omega.reshape((phonons.n_phonons))
         tau_zero = tau_zero.reshape((phonons.n_phonons))
         velocities = velocities.reshape(phonons.n_phonons, 3)
         f_be = np.zeros((phonons.n_phonons))
@@ -138,21 +138,29 @@ class ConductivityController (object):
 
         gamma_inv = np.linalg.inv(scattering_matrix)
 
+        gamma_inv = 1 / (omega[physical_modes, np.newaxis]) * (gamma_inv * omega[np.newaxis, physical_modes])
         lambdas = gamma_inv.dot(np.abs(velocities[physical_modes, 0])).mean()
 
+        # import seaborn as sns
+        # import matplotlib.pyplot as plt
+        # sns.kdeplot(np.triu(gamma_inv).flatten())
+        # sns.kdeplot(np.tril(gamma_inv).flatten())
+        # sns.kdeplot(np.diag(gamma_inv).flatten())
+        # plt.show()
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
         for alpha in range(3):
             for beta in range(3):
-                f_be[:] = 1. / (np.exp(hbar * omegas[:] / k_b / phonons.temperature) - 1.)
+                f_be[:] = 1. / (np.exp(hbar * omega[:] / k_b / phonons.temperature) - 1.)
 
                 if (is_classic):
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b /\
-                                                                         (omegas[physical_modes]) * velocities[physical_modes, alpha] * gamma_inv.dot(velocities[physical_modes, beta] * omegas[physical_modes])
+                    conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b *\
+                                                                         velocities[physical_modes, alpha] * gamma_inv.dot(
+                        velocities[physical_modes, beta])
 
                 else:
                     conductivity_per_mode[physical_modes, alpha, beta] = 1e21 * hbar ** 2 / (k_b *
                                                                                              phonons.temperature ** 2 * volume * phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1)\
-                                                            * omegas[physical_modes] * velocities[physical_modes, alpha] * gamma_inv.dot(velocities[physical_modes, beta] * omegas[physical_modes])
+                                                            * omega[physical_modes] ** 2 * velocities[physical_modes, alpha] * gamma_inv.dot(velocities[physical_modes, beta])
 
         total_conductivity = np.sum(conductivity_per_mode, 0)
         return total_conductivity

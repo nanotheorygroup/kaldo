@@ -31,8 +31,8 @@ class Plotter (object):
         fig = plt.figure ()
         plt.scatter(frequencies[3:], observable[3:])
         observable[np.isnan(observable)] = 0
-        plt.ylim([observable[3:].min(), observable[3:].max()])
-        plt.xlim([frequencies[3:].min(), frequencies[3:].max()])
+        # plt.ylim([observable[3:].min(), observable[3:].max()])
+        # plt.xlim([frequencies[3:].min(), frequencies[3:].max()])
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
         if self.is_persistency_enabled:
@@ -51,7 +51,7 @@ class Plotter (object):
         if self.is_showing:
             plt.show()
 
-    def plot_dispersion(self, symmetry='fcc', n_k_points=100):
+    def plot_dispersion(self, symmetry='fcc', n_k_points=200):
         atoms = self.phonons.atoms
         cell = atoms.cell
         fig = plt.figure ()
@@ -61,7 +61,7 @@ class Plotter (object):
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
         plt.xlim (q[0], q[-1])
-        plt.plot (q, freqs_plot, "-")
+        plt.plot (q, freqs_plot, ".")
         plt.grid ()
         plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
         if self.is_persistency_enabled:
@@ -72,7 +72,7 @@ class Plotter (object):
         plt.ylabel('velocity norm/$100m/s$')
         plt.xticks(Q, point_names)
         plt.xlim(q[0], q[-1])
-        plt.plot(q, np.linalg.norm(vel_plot[:, :, :], axis=2), "-")
+        plt.plot(q, np.linalg.norm(vel_plot[:, :, :], axis=2), ".")
         plt.grid()
         # plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
         if self.is_persistency_enabled:
