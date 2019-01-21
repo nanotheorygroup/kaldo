@@ -103,8 +103,8 @@ class ConductivityController (object):
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
-        tau_zero = 1 / phonons.gamma
-        tau_zero[tau_zero == np.inf] = 0
+        tau_zero = np.zeros_like(phonons.gamma)
+        tau_zero[phonons.gamma != 0] = 1 / phonons.gamma[phonons.gamma != 0]
 
         omegas = phonons.frequencies * 2 * np.pi
         F_n_0 = np.zeros((phonons.n_k_points, phonons.n_modes, 3))
@@ -138,6 +138,8 @@ class ConductivityController (object):
 
         gamma_inv = np.linalg.inv(scattering_matrix)
 
+        lambdas = gamma_inv.dot(np.abs(velocities[physical_modes, 0])).mean()
+
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
         for alpha in range(3):
             for beta in range(3):
@@ -165,8 +167,8 @@ class ConductivityController (object):
 
         scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons, phonons.n_phonons))
 
-        tau_zero = 1 / phonons.gamma
-        tau_zero[tau_zero == np.inf] = 0
+        tau_zero = np.zeros_like(phonons.gamma)
+        tau_zero[phonons.gamma != 0] = 1 / phonons.gamma[phonons.gamma != 0]
 
         omegas = phonons.frequencies * 2 * np.pi
         F_n_0 = np.zeros((phonons.n_k_points, phonons.n_modes, 3))
@@ -223,3 +225,4 @@ class ConductivityController (object):
         conductivity = np.sum(conductivity_per_mode, 0)
         # print(n_iteration, conductivity)
         return conductivity
+
