@@ -111,7 +111,7 @@ def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, rep
         frequencies[index_k, :] = freq
         eigenvalues[index_k, :] = eval
         eigenvectors[index_k, :, :] = evect
-        velocities[index_k, :, :] = vels
+        velocities[index_k, :, :] = vels.real
 
     # TODO: figure out why we have Nan values
     velocities[np.isnan(velocities)] = 0
