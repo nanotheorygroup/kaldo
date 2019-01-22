@@ -95,9 +95,8 @@ class ConductivityController (object):
         trans = (1 - kn * (1 - np.exp (- 1. / kn))) * kn
         return trans * length / abs (velocity)
     
-    def calculate_conductivity(self, is_classic):
+    def calculate_conductivity(self, is_classic, length_thresholds=None):
 
-        THREESHOLD = 1e-20
         hbar = constants.hbar * 1e12
         k_b = constants.kelvinoverjoule
         phonons = self.phonons
@@ -131,8 +130,11 @@ class ConductivityController (object):
         index = np.outer(physical_modes, physical_modes)
         scattering_matrix[index] = -1 * self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
                                                                             self.phonons.n_phonons))[index]
-
         scattering_matrix += np.diag(self.phonons.gamma.flatten())
+        if length_thresholds:
+            for alpha in range(3):
+                if length_thresholds[alpha]:
+                    scattering_matrix += np.diag(np.abs(velocities[:, alpha]) / length_thresholds[alpha])
 
         scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(),physical_modes.sum()))
 
