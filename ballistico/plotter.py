@@ -55,7 +55,15 @@ class Plotter (object):
         atoms = self.phonons.atoms
         cell = atoms.cell
         fig = plt.figure ()
-        k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
+        if symmetry == 'nw':
+            q = np.linspace(0, 0.5, n_k_points)
+            k_list = np.zeros((n_k_points, 3))
+            k_list[:, 0] = q
+            k_list[:, 2] = q
+            Q = [0, 0.5]
+            point_names = ['$\\Gamma$', 'X']
+        else:
+            k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
         freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
 
         plt.ylabel ('frequency/$THz$')

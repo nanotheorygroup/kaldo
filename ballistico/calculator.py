@@ -178,7 +178,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
                            energy_threshold):
 
-    is_amorphous = nptk == 1
+    # is_amorphous = nptk == 1
 
     if broadening == 'gauss':
         broadening_function = gaussian_delta
@@ -248,19 +248,19 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                     [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
 
             if is_plus:
-                if (k_size == (1, 1, 1)).any():
-                    potential = contract('litj,aj,ai->alt', scaled_potential,
-                                         evect_dagger[nupp_vec], evect[nup_vec])
-                else:
-                    potential = contract('litj,aj,ai,al,at->a', scaled_potential,
+                # if (k_size == (1, 1, 1)).any():
+                #     potential = contract('litj,aj,ai->alt', scaled_potential,
+                #                          evect_dagger[nupp_vec], evect[nup_vec])
+                # else:
+                potential = contract('litj,aj,ai,al,at->a', scaled_potential,
                                          evect_dagger[nupp_vec], evect[nup_vec], chi[index_kp_vec], chi.conj()
                                          [index_kpp_vec])
             else:
-                if (k_size == (1, 1, 1)).any():
-                    potential = contract('litj,al,at->alt', scaled_potential,  evect_dagger[nupp_vec], evect_dagger[
-                        nup_vec])
-                else:
-                    potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[
+                # if (k_size == (1, 1, 1)).any():
+                #     potential = contract('litj,al,at->alt', scaled_potential,  evect_dagger[nupp_vec], evect_dagger[
+                #         nup_vec])
+                # else:
+                potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[
                         nup_vec], chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
 
             # gamma contracted on one index

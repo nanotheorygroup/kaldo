@@ -126,15 +126,14 @@ class ConductivityController (object):
         physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
 
         scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
-        scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
         index = np.outer(physical_modes, physical_modes)
         scattering_matrix[index] = -1 * self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
                                                                             self.phonons.n_phonons))[index]
         scattering_matrix += np.diag(self.phonons.gamma.flatten())
-        if length_thresholds:
-            for alpha in range(3):
-                if length_thresholds[alpha]:
-                    scattering_matrix += np.diag(np.abs(velocities[:, alpha]) / length_thresholds[alpha])
+        # if length_thresholds:
+        #     for alpha in range(3):
+        #         if length_thresholds[alpha]:
+        #             scattering_matrix += np.diag(np.abs(velocities[:, alpha]) / length_thresholds[alpha])
 
         scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(),physical_modes.sum()))
 
@@ -167,33 +166,39 @@ class ConductivityController (object):
         total_conductivity = np.sum(conductivity_per_mode, 0)
         return total_conductivity
 
-    def calculate_conductivity_sc(self, is_classic, n_iterations=10):
+    def calculate_conductivity_sc(self, is_classic, n_iterations=10, length_thresholds=None):
         THREESHOLD = 1e-20
         hbar = constants.hbar * 1e12
         k_b = constants.kelvinoverjoule
 
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
-
-        scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons, phonons.n_phonons))
-
-        tau_zero = np.zeros_like(phonons.gamma)
-        tau_zero[phonons.gamma != 0] = 1 / phonons.gamma[phonons.gamma != 0]
-
         omegas = phonons.frequencies * 2 * np.pi
-        F_n_0 = np.zeros((phonons.n_k_points, phonons.n_modes, 3))
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
         velocities[np.isnan(velocities)] = 0
+        frequencies = self.phonons.frequencies.reshape(self.phonons.n_k_points * self.phonons.n_modes)
 
-        for n in range(phonons.n_modes):
-            for k in range(phonons.n_k_points):
-                F_n_0[k, n, :] = tau_zero[k, n] * velocities[k, n, :] * omegas[k, n]
+        physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
 
-        F_n_0 = F_n_0.reshape((phonons.n_phonons, 3))
+        # scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
+        # index = np.outer(physical_modes, physical_modes)
+        scattering_matrix = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
+                                                                            self.phonons.n_phonons))
+        # scattering_matrix -= np.diag(self.phonons.gamma.flatten())
+        F_n_0 = np.zeros((phonons.n_k_points * phonons.n_modes, 3))
+        velocities = velocities.reshape(phonons.n_phonons, 3)
+        omegas = omegas.reshape((phonons.n_phonons))
+
+        for alpha in range(3):
+            gamma = phonons.gamma.reshape(phonons.n_phonons)
+            tau_zero = np.zeros_like(gamma)
+            for mu in range(phonons.n_phonons):
+                # if length_thresholds[alpha]:
+                #     gamma += velocities[mu, alpha] / length_thresholds[alpha]
+                tau_zero[gamma != 0] = 1 / gamma[gamma != 0]
+                F_n_0[mu, alpha] = tau_zero[mu] * velocities[mu, alpha] * omegas[mu]
 
         F_n = F_n_0.copy()
-        omegas = omegas.reshape((phonons.n_phonons))
-        velocities = velocities.reshape(phonons.n_phonons, 3)
         for n_iteration in range(n_iterations):
             f_be = np.zeros((phonons.n_phonons))
 
