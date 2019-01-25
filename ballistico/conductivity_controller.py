@@ -113,31 +113,32 @@ class ConductivityController (object):
         frequencies = self.phonons.frequencies.reshape(self.phonons.n_k_points * self.phonons.n_modes)
         physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
 
-        scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
         index = np.outer(physical_modes, physical_modes)
-        scattering_matrix[index] = -1 * self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
-                                                                            self.phonons.n_phonons))[index]
-        scattering_matrix += np.diag(self.phonons.gamma.flatten())
-        scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()))
 
-        if length_thresholds:
-            for alpha in range(3):
+        conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
+
+        for alpha in range(3):
+            # TODO: here we can probably avoid allocating the tensor new everytime
+            scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
+            scattering_matrix[index] = -1 * self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
+                                                                                    self.phonons.n_phonons))[index]
+            scattering_matrix += np.diag(self.phonons.gamma.flatten())
+            scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()))
+            if length_thresholds:
                 if length_thresholds[alpha]:
                     scattering_matrix[:, :] += np.diag(np.abs(velocities[physical_modes, alpha]) / length_thresholds[
                         alpha])
 
-        gamma_inv = np.linalg.inv(scattering_matrix)
+            gamma_inv = np.linalg.inv(scattering_matrix)
 
-        gamma_inv = 1 / (omega[physical_modes, np.newaxis]) * (gamma_inv * omega[np.newaxis, physical_modes])
+            gamma_inv = 1 / (omega[physical_modes, np.newaxis]) * (gamma_inv * omega[np.newaxis, physical_modes])
 
-        # import seaborn as sns
-        # import matplotlib.pyplot as plt
-        # sns.kdeplot(np.triu(gamma_inv).flatten())
-        # sns.kdeplot(np.tril(gamma_inv).flatten())
-        # sns.kdeplot(np.diag(gamma_inv).flatten())
-        # plt.show()
-        conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
-        for alpha in range(3):
+            # import seaborn as sns
+            # import matplotlib.pyplot as plt
+            # sns.kdeplot(np.triu(gamma_inv).flatten())
+            # sns.kdeplot(np.tril(gamma_inv).flatten())
+            # sns.kdeplot(np.diag(gamma_inv).flatten())
+            # plt.show()
             for beta in range(3):
                 f_be[:] = 1. / (np.exp(hbar * omega[:] / k_b / phonons.temperature) - 1.)
 
@@ -151,7 +152,7 @@ class ConductivityController (object):
                                                                                              phonons.temperature ** 2 * volume * phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1)\
                                                             * omega[physical_modes] ** 2 * velocities[physical_modes, alpha] * gamma_inv.dot(velocities[physical_modes, beta])
 
-        total_conductivity = np.sum(conductivity_per_mode, 0)
+            total_conductivity = np.sum(conductivity_per_mode, 0)
         return total_conductivity
 
     def calculate_conductivity_sc(self, is_classic, n_iterations=10, length_thresholds=None):
