@@ -102,23 +102,11 @@ class ConductivityController (object):
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
-        tau_zero = np.zeros_like(phonons.gamma)
-        tau_zero[phonons.gamma != 0] = 1 / phonons.gamma[phonons.gamma != 0]
-
         omega = phonons.frequencies * 2 * np.pi
-        F_n_0 = np.zeros((phonons.n_k_points, phonons.n_modes, 3))
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
         velocities[np.isnan(velocities)] = 0
 
-        for n in range(phonons.n_modes):
-            for k in range(phonons.n_k_points):
-                F_n_0[k, n, :] = tau_zero[k, n] * velocities[k, n, :] * omega[k, n]
-
-        F_n_0 = F_n_0.reshape((phonons.n_phonons, 3))
-
-        F_n = F_n_0.copy()
         omega = omega.reshape((phonons.n_phonons))
-        tau_zero = tau_zero.reshape((phonons.n_phonons))
         velocities = velocities.reshape(phonons.n_phonons, 3)
         f_be = np.zeros((phonons.n_phonons))
 
@@ -130,17 +118,17 @@ class ConductivityController (object):
         scattering_matrix[index] = -1 * self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
                                                                             self.phonons.n_phonons))[index]
         scattering_matrix += np.diag(self.phonons.gamma.flatten())
-        # if length_thresholds:
-        #     for alpha in range(3):
-        #         if length_thresholds[alpha]:
-        #             scattering_matrix += np.diag(np.abs(velocities[:, alpha]) / length_thresholds[alpha])
+        scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()))
 
-        scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(),physical_modes.sum()))
+        if length_thresholds:
+            for alpha in range(3):
+                if length_thresholds[alpha]:
+                    scattering_matrix[:, :] += np.diag(np.abs(velocities[physical_modes, alpha]) / length_thresholds[
+                        alpha])
 
         gamma_inv = np.linalg.inv(scattering_matrix)
 
         gamma_inv = 1 / (omega[physical_modes, np.newaxis]) * (gamma_inv * omega[np.newaxis, physical_modes])
-        lambdas = gamma_inv.dot(np.abs(velocities[physical_modes, 0])).mean()
 
         # import seaborn as sns
         # import matplotlib.pyplot as plt
@@ -167,7 +155,6 @@ class ConductivityController (object):
         return total_conductivity
 
     def calculate_conductivity_sc(self, is_classic, n_iterations=10, length_thresholds=None):
-        THREESHOLD = 1e-20
         hbar = constants.hbar * 1e12
         k_b = constants.kelvinoverjoule
 
@@ -176,47 +163,46 @@ class ConductivityController (object):
         omegas = phonons.frequencies * 2 * np.pi
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
         velocities[np.isnan(velocities)] = 0
-        frequencies = self.phonons.frequencies.reshape(self.phonons.n_k_points * self.phonons.n_modes)
-
-        physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
-
-        # scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
-        # index = np.outer(physical_modes, physical_modes)
         scattering_matrix = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
                                                                             self.phonons.n_phonons))
-        # scattering_matrix -= np.diag(self.phonons.gamma.flatten())
         F_n_0 = np.zeros((phonons.n_k_points * phonons.n_modes, 3))
         velocities = velocities.reshape(phonons.n_phonons, 3)
         omegas = omegas.reshape((phonons.n_phonons))
 
         for alpha in range(3):
-            gamma = phonons.gamma.reshape(phonons.n_phonons)
-            tau_zero = np.zeros_like(gamma)
+            gamma = np.zeros_like(omegas)
+
             for mu in range(phonons.n_phonons):
-                # if length_thresholds[alpha]:
-                #     gamma += velocities[mu, alpha] / length_thresholds[alpha]
-                tau_zero[gamma != 0] = 1 / gamma[gamma != 0]
-                F_n_0[mu, alpha] = tau_zero[mu] * velocities[mu, alpha] * omegas[mu]
+                if length_thresholds:
+                    if length_thresholds[alpha]:
+                        gamma[mu] = phonons.gamma.reshape(phonons.n_phonons)[mu] + \
+                                    np.abs(velocities[mu, alpha]) / length_thresholds[alpha]
+                    else:
+                        gamma[mu] = phonons.gamma.reshape(phonons.n_phonons)[mu]
+
+                else:
+                    gamma[mu] = phonons.gamma.reshape(phonons.n_phonons)[mu]
+            tau_zero = np.zeros_like(gamma)
+            tau_zero[gamma != 0] = 1 / gamma[gamma != 0]
+            F_n_0[:, alpha] = tau_zero[:] * velocities[:, alpha] * omegas[:]
 
         F_n = F_n_0.copy()
+        f_be = np.zeros((phonons.n_phonons))
+        conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
         for n_iteration in range(n_iterations):
-            f_be = np.zeros((phonons.n_phonons))
-
-            conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
             for alpha in range(3):
                 for beta in range(3):
                     f_be[:] = 1. / (np.exp(hbar * omegas[:] / k_b / phonons.temperature) - 1.)
 
                     if (is_classic):
-                        conductivity_per_mode[:, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b / (omegas[:]\
-                             + THREESHOLD) * velocities[:, alpha] * F_n[:, beta]
+                        conductivity_per_mode[:, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b / \
+                                                                (omegas[:]) * velocities[:, alpha] * F_n[:, beta]
                     else:
-                        conductivity_per_mode[:, alpha, beta] = 1e21 * hbar ** 2 / (\
-                            k_b * phonons.temperature ** 2 * volume * phonons.n_k_points) * f_be[:] * (f_be[:] + 1)\
-                                                                * omegas[:] * velocities[:, alpha] * F_n[:, beta]
+                        conductivity_per_mode[:, alpha, beta] = 1e21 * hbar ** 2 / \
+                                                                (k_b * phonons.temperature ** 2 * volume *
+                                                                 phonons.n_k_points) * f_be[:] * (f_be[:] + 1) * \
+                                                                omegas[:] * velocities[:, alpha] * F_n[:, beta]
 
-            conductivity = np.sum(conductivity_per_mode, 0)
-            # print(n_iteration, conductivity)
             tau_zero = tau_zero.reshape((phonons.n_phonons))
 
             # calculate the shift in mft
@@ -227,17 +213,17 @@ class ConductivityController (object):
 
         for alpha in range(3):
             for beta in range(3):
-                f_be[:] = 1. / (np.exp(hbar * omegas[:] / k_b / phonons.temperature) - 1. + THREESHOLD)
+                f_be[:] = 1. / (np.exp(hbar * omegas[:] / k_b / phonons.temperature) - 1.)
 
                 if (is_classic):
-                    conductivity_per_mode[:, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b / (omegas[:]\
-                         + THREESHOLD) * velocities[:,alpha] * F_n[:, beta]
+                    conductivity_per_mode[:, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * \
+                                                            k_b / (omegas[:]) * velocities[:,alpha] * F_n[:, beta]
                 else:
-                    conductivity_per_mode[:, alpha, beta] = 1e21 * hbar ** 2 / ( \
-                        k_b * phonons.temperature ** 2 * volume * phonons.n_k_points) * f_be[:] * (f_be[:] + 1)\
-                                                            * omegas[:] * velocities[:, alpha] * F_n[:, beta]
+                    conductivity_per_mode[:, alpha, beta] = 1e21 * hbar ** 2 \
+                                                            / (k_b * phonons.temperature ** 2 * volume *
+                                                               phonons.n_k_points) * f_be[:] * (f_be[:] + 1) * \
+                                                            omegas[:] * velocities[:, alpha] * F_n[:, beta]
 
         conductivity = np.sum(conductivity_per_mode, 0)
-        # print(n_iteration, conductivity)
         return conductivity
 
