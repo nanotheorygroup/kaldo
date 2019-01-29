@@ -4,7 +4,7 @@ from scipy.sparse import csc_matrix
 
 LENGTH_THREESHOLD = 1e20
 THREESHOLD = 1e-20
-
+MAX_ITERATIONS_SC = 1000
 
 class ConductivityController (object):
     def __init__(self, phonons):
@@ -155,7 +155,7 @@ class ConductivityController (object):
             total_conductivity = np.sum(conductivity_per_mode, 0)
         return total_conductivity
 
-    def calculate_conductivity_sc(self, is_classic, n_iterations=10, length_thresholds=None):
+    def calculate_conductivity_sc(self, is_classic, tolerance=0.1, length_thresholds=None, is_rta=False):
         hbar = constants.hbar * 1e12
         k_b = constants.kelvinoverjoule
 
@@ -190,7 +190,8 @@ class ConductivityController (object):
         F_n = F_n_0.copy()
         f_be = np.zeros((phonons.n_phonons))
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
-        for n_iteration in range(n_iterations):
+        avg_conductivity = 0
+        for n_iteration in range(MAX_ITERATIONS_SC):
             for alpha in range(3):
                 for beta in range(3):
                     f_be[:] = 1. / (np.exp(hbar * omegas[:] / k_b / phonons.temperature) - 1.)
@@ -203,7 +204,11 @@ class ConductivityController (object):
                                                                 (k_b * phonons.temperature ** 2 * volume *
                                                                  phonons.n_k_points) * f_be[:] * (f_be[:] + 1) * \
                                                                 omegas[:] * velocities[:, alpha] * F_n[:, beta]
-
+            new_avg_conductivity = np.diag(np.sum(conductivity_per_mode, 0)).mean()
+            if avg_conductivity:
+                if np.abs(avg_conductivity - new_avg_conductivity) < tolerance or is_rta == True:
+                    return conductivity_per_mode.sum(axis=0)
+            avg_conductivity = new_avg_conductivity
             tau_zero = tau_zero.reshape((phonons.n_phonons))
 
             # calculate the shift in mft
