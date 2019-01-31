@@ -231,5 +231,7 @@ class ConductivityController (object):
                                                             omegas[:] * velocities[:, alpha] * F_n[:, beta]
 
         conductivity = np.sum(conductivity_per_mode, 0)
+        if n_iteration == (MAX_ITERATIONS_SC - 1):
+            print('Convergence not reached')
         return conductivity
 
