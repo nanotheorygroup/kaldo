@@ -7,7 +7,10 @@ import time
 from ballistico.interpolation_controller import interpolator
 import os
 import ballistico.constants as constants
+from sklearn.neighbors.kde import KernelDensity
+
 import seaborn as sns
+sns.set(color_codes=True)
 
 BUFFER_PLOT = .2
 
@@ -40,11 +43,14 @@ class Plotter (object):
         if self.is_showing:
             plt.show ()
 
-    def plot_dos(self):
+    def plot_dos(self, bandwidth=.5):
         phonons = self.phonons
         fig = plt.figure ()
-        # sns.set(color_codes=True)
-        ax = sns.kdeplot(phonons.frequencies.flatten())
+        kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequencies.flatten().reshape(-1, 1))
+        x = np.linspace(0, phonons.frequencies.max(), 200)
+        y = np.exp(kde.score_samples(x.reshape(-1, 1)))
+        plt.plot(x, y)
+        plt.fill_between(x, y, alpha=.2)
         plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
         if self.is_persistency_enabled:
             fig.savefig (self.folder + 'dos.pdf')
