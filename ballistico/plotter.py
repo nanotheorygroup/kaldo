@@ -70,7 +70,21 @@ class Plotter (object):
             point_names = ['$\\Gamma$', 'X']
         else:
             k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
-        freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
+
+        try:
+            freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
+        except AttributeError as err:
+            print(err)
+            freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
+            vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
+            for mode in range(self.phonons.n_modes):
+                with_fourier = False
+
+                freqs_plot[:, mode] = interpolator(k_list, self.phonons.frequencies[:, :, :, mode],
+                                                   with_fourier=with_fourier)
+                for alpha in range(3):
+                    vel_plot[:, mode, alpha] = interpolator(k_list, self.phonons.velocities[:, :, :, mode, alpha],
+                                                            with_fourier=with_fourier)
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
