@@ -141,17 +141,17 @@ class ConductivityController (object):
             # plt.show()
             for beta in range(3):
                 f_be[:] = 1. / (np.exp(hbar * omega[:] / k_b / phonons.temperature) - 1.)
+                lambd = gamma_inv.dot(velocities[physical_modes, beta])
+                print(lambd.mean())
 
                 if (is_classic):
                     conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b *\
-                                                                         velocities[physical_modes, alpha] * gamma_inv.dot(
-                        velocities[physical_modes, beta])
-
+                                                                         velocities[physical_modes, alpha] * lambd
                 else:
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1e21 * hbar ** 2 / (k_b *
-                                                                                             phonons.temperature ** 2 * volume * phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1)\
-                                                            * omega[physical_modes] ** 2 * velocities[physical_modes, alpha] * gamma_inv.dot(velocities[physical_modes, beta])
-
+                    conductivity_per_mode[physical_modes, alpha, beta] = \
+                        1e21 * hbar ** 2 / (k_b * phonons.temperature ** 2 * volume * phonons.n_k_points) * \
+                        f_be[physical_modes] * (f_be[physical_modes] + 1) * omega[physical_modes] ** 2 * \
+                        velocities[physical_modes, alpha] * lambd
             total_conductivity = np.sum(conductivity_per_mode, 0)
         return total_conductivity
 
