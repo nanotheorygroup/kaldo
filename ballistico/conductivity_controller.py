@@ -143,7 +143,8 @@ class ConductivityController (object):
             for beta in range(3):
                 f_be[physical_modes] = 1. / (np.exp(hbar * omega[physical_modes] / k_b / phonons.temperature) - 1.)
                 lambd = gamma_inv.dot(velocities[physical_modes, beta])
-                print('mean free path: ', alpha, ', ', beta, ' : ', lambd.mean())
+                if alpha == 0:
+                    print('mean free path: beta: ', beta, ', mfp: ', np.abs(lambd).mean(), lambd.max(), lambd.min())
 
                 if (is_classic):
                     conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b *\
