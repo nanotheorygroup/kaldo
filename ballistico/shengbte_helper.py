@@ -1,8 +1,7 @@
-from ballistico.phonons_controller import Phonons
+from ballistico.phonons import Phonons
 
 import pandas as pd
 import numpy as np
-import ballistico.atoms_helper as ath
 import os
 import subprocess
 from ase.units import Bohr, Rydberg
@@ -112,10 +111,10 @@ def save_third_order_matrix(phonons):
                             block_counter += 1
                             replica = list_of_index
                             file.write ('\n  ' + str (block_counter))
-                            rep_position = ath.apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_1])
+                            rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_1])
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
-                            rep_position = ath.apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_2])
+                            rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_2])
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
                             file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -138,7 +137,7 @@ def save_third_order_matrix(phonons):
 
 def run(phonons, n_processors=1):
     folder = SHENG_FOLDER_NAME
-    if not os.path.exists (folder):
+    if not os.pexists (folder):
         os.makedirs (folder)
     create_control_file(phonons)
     save_second_order_matrix(phonons)
@@ -172,7 +171,7 @@ def create_control_file_string(phonons):
     string +='\n'
     string += '\ttypes='
     for element in phonons.atoms.get_chemical_symbols():
-        string += str(ath.type_element_id(phonons.atoms, element) + 1) + ' '
+        string += str(type_element_id(phonons.atoms, element) + 1) + ' '
     string += ',\n'
     for i in range (phonons.atoms.positions.shape[0]):
         # TODO: double check this for more complicated geometries
@@ -417,3 +416,28 @@ def run_script(cmd, folder=None):
     (output, err) = p.communicate ()
     p.wait ()
     return output.decode('ascii')
+
+
+def apply_boundary_with_cell(cell, cellinv, dxij):
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
+    sxij = dxij.dot(cellinv)
+    sxij = sxij - np.round (sxij)
+    dxij = sxij.dot(cell)
+    return dxij
+
+
+def apply_boundary(atoms, dxij):
+    # TODO: remove this method
+    cell = atoms.cell
+    cellinv = np.linalg.inv (cell)
+    dxij = apply_boundary_with_cell(atoms.cell, cellinv, dxij)
+    return dxij
+
+
+def type_element_id(atoms, element_name):
+    # TODO: remove this method
+    unique_elements = np.unique (atoms.get_chemical_symbols ())
+    for i in range(len(unique_elements)):
+        element = unique_elements[i]
+        if element == element_name:
+            return i

@@ -1,6 +1,5 @@
 import numpy as np
 from ballistico.logger import Logger
-import ballistico.atoms_helper as atoms_helper
 import scipy.special
 from opt_einsum import contract
 from sparse import COO
@@ -68,7 +67,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
             chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
         dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
         replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
-        dxij = atoms_helper.apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+        dxij = apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
                 geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
         ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
@@ -378,3 +377,12 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     #                     nup = np.ravel_multi_index([index_kp, mup], [nptk, n_modes], order='C')
     #                     gamma_tensor_copy[index_k, mu, index_kp, mup] = gamma_tensor[nu, nup]
     return [gamma[0], gamma[1]], [gamma_tensor_minus, gamma_tensor_plus]
+
+
+
+def apply_boundary_with_cell(cell, cellinv, dxij):
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
+    sxij = dxij.dot(cellinv)
+    sxij = sxij - np.round (sxij)
+    dxij = sxij.dot(cell)
+    return dxij

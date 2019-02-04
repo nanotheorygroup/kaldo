@@ -1,13 +1,9 @@
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import ballistico.geometry_helper as geometry_helper
-import datetime
 import numpy as np
-import time
 from ballistico.interpolation_controller import interpolator
 import os
-import ballistico.constants as constants
 from sklearn.neighbors.kde import KernelDensity
+from ase.dft.kpoints import ibz_points, bandpath
 
 import seaborn as sns
 sns.set(color_codes=True)
@@ -69,7 +65,7 @@ class Plotter (object):
             Q = [0, 0.5]
             point_names = ['$\\Gamma$', 'X']
         else:
-            k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
+            k_list, q, Q, point_names = self.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
 
         try:
             freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
@@ -107,3 +103,25 @@ class Plotter (object):
             fig.savefig(self.folder + 'velocity.pdf')
         if self.is_showing:
             plt.show()
+
+    def create_k_and_symmetry_space(self, cell, symmetry='fcc', n_k_points=50):
+
+        # TODO: implement symmetry here
+        # import spglib as spg
+        # spacegroup = spg.get_spacegroup (atoms, symprec=1e-5)
+
+        # High-symmetry points in the Brillouin zone
+        points = ibz_points[symmetry]
+        G = points['Gamma']
+        X = points['X']
+        W = points['W']
+        K = points['K']
+        L = points['L']
+        U = points['U']
+
+        point_names = ['$\Gamma$', 'X', 'U', 'L', '$\Gamma$', 'K']
+        path = [G, X, U, L, G, K]
+
+        # Band structure in meV
+        path_kc, q, Q = bandpath (path, cell, n_k_points)
+        return path_kc, q, Q, point_names
