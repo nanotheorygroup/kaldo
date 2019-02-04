@@ -14,9 +14,11 @@ IS_SORTING_EIGENVALUES = False
 # DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
+DELTA_DOS = 1
+NUM_DOS = 100
 
 
-def calculate_density_of_states(frequencies, k_mesh, delta, num):
+def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
     n_modes = frequencies.shape[-1]
     frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
     n_k_points = np.prod (k_mesh)

@@ -1,4 +1,4 @@
-from ballistico.phonons_controller import PhononsController
+from ballistico.phonons_controller import Phonons
 
 import pandas as pd
 import numpy as np
@@ -15,11 +15,11 @@ SCRIPT_NAME = 'ShengBTE.x'
 
 def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating):
     # # Create a phonon object
-    phonons = PhononsController(finite_difference=finite_difference,
-                                kpts=kpts,
-                                is_classic=is_classic,
-                                temperature=temperature,
-                                is_persistency_enabled=is_persistency_enabled)
+    phonons = Phonons(finite_difference=finite_difference,
+                      kpts=kpts,
+                      is_classic=is_classic,
+                      temperature=temperature,
+                      is_persistency_enabled=is_persistency_enabled)
     
     phonons.convergence = convergence
 
