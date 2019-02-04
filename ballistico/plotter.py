@@ -12,7 +12,7 @@ BUFFER_PLOT = .2
 
 
 class Plotter (object):
-    def __init__(self, phonons, folder='plots', is_showing=True, is_persistency_enabled=True):
+    def __init__(self, phonons, folder='plots/', is_showing=True, is_persistency_enabled=True):
         self.phonons = phonons
         self.system = phonons.atoms
         self.folder = folder

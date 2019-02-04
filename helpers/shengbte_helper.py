@@ -9,10 +9,10 @@ from ase.units import Bohr, Rydberg
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
-SCRIPT_NAME = 'ShengBTE.x'
+SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
-def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating):
+def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating, script=SHENGBTE_SCRIPT):
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,
                       kpts=kpts,
@@ -23,7 +23,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
     phonons.convergence = convergence
 
     if is_calculating:
-        run(phonons)
+        run(phonons, script)
     try:
         new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
         phonons.energies = read_energy_data().reshape(new_shape)
@@ -33,7 +33,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
         phonons.scattering_matrix = import_scattering_matrix(phonons)
     except FileNotFoundError:
         # TODO: clean up this replicated logic
-        run(phonons)
+        run(phonons, script)
         new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
         phonons.energies = read_energy_data().reshape(new_shape)
         phonons.frequencies = phonons.energies / (2 * np.pi)
@@ -135,18 +135,14 @@ def save_third_order_matrix(phonons):
     print('third order saved')
 
 
-def run(phonons, n_processors=1):
+def run(phonons, script):
     folder = SHENG_FOLDER_NAME
-    if not os.pexists (folder):
+    if not os.path.exists(folder):
         os.makedirs (folder)
     create_control_file(phonons)
     save_second_order_matrix(phonons)
     save_third_order_matrix(phonons)
-    if n_processors == 1:
-        cmd = SCRIPT_NAME
-    else:
-        cmd = 'mpirun -np ' + str(n_processors) + ' ' + SCRIPT_NAME
-    return run_script (cmd, SHENG_FOLDER_NAME)
+    return run_script (script, SHENG_FOLDER_NAME)
 
 
 def create_control_file_string(phonons):
