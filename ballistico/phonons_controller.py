@@ -2,6 +2,8 @@ import numpy as np
 import os
 import ballistico.constants as constants
 from ballistico.logger import Logger
+import ballistico.calculator
+
 ENERGY_THRESHOLD = 0.001
 
 
@@ -19,9 +21,9 @@ C_V_FILE = 'c_v.npy'
 FOLDER_NAME = 'ballistico'
 
 
-class PhononsController (object):
+class Phonons (object):
     def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD):
+    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, broadening_shape='gauss'):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -48,6 +50,7 @@ class PhononsController (object):
         self.folder_name = folder_name
         self.sigma_in = sigma_in
         self._c_v = None
+        self.broadening_shape = broadening_shape
         if self.is_classic:
             classic_string = 'classic'
         else:
@@ -78,6 +81,18 @@ class PhononsController (object):
                 self._frequencies = np.load (folder + FREQUENCIES_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
+
+                frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
+                    self.k_points,
+                    self.atoms,
+                    self.finite_difference.second_order,
+                    self.finite_difference.list_of_index,
+                    self.finite_difference.replicated_atoms,
+                    self.energy_threshold)
+                self.frequencies = frequencies
+                self.eigenvalues = eigenvalues
+                self.velocities = velocities
+                self.eigenvectors = eigenvectors
         return self._frequencies
 
     @frequencies.setter
@@ -101,6 +116,18 @@ class PhononsController (object):
                 self._velocities = np.load (folder + VELOCITIES_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
+
+                frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
+                    self.k_points,
+                    self.atoms,
+                    self.finite_difference.second_order,
+                    self.finite_difference.list_of_index,
+                    self.finite_difference.replicated_atoms,
+                    self.energy_threshold)
+                self.frequencies = frequencies
+                self.eigenvalues = eigenvalues
+                self.velocities = velocities
+                self.eigenvectors = eigenvectors
         return self._velocities
 
     @velocities.setter
@@ -147,6 +174,17 @@ class PhononsController (object):
                 self._eigenvalues = np.load (folder + EIGENVALUES_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
+                frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
+                    self.k_points,
+                    self.atoms,
+                    self.finite_difference.second_order,
+                    self.finite_difference.list_of_index,
+                    self.finite_difference.replicated_atoms,
+                    self.energy_threshold)
+                self.frequencies = frequencies
+                self.eigenvalues = eigenvalues
+                self.velocities = velocities
+                self.eigenvectors = eigenvectors
         return self._eigenvalues
 
     @eigenvalues.setter
@@ -176,6 +214,23 @@ class PhononsController (object):
                 self._gamma = np.load (folder + GAMMA_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
+
+                gamma, scattering_matrix = ballistico.calculator.calculate_gamma(
+                    self.atoms,
+                    self.frequencies,
+                    self.velocities,
+                    self.occupations,
+                    self.kpts,
+                    self.eigenvectors,
+                    self.finite_difference.list_of_index,
+                    self.finite_difference.third_order,
+                    self.sigma_in,
+                    self.broadening_shape,
+                    self.energy_threshold
+                )
+                self.scattering_matrix = scattering_matrix[0] + scattering_matrix[1]
+                self.gamma = gamma[0] + gamma[1]
+
         return self._gamma
 
     @gamma.setter
@@ -211,6 +266,22 @@ class PhononsController (object):
                 self._scattering_matrix = np.load (folder + SCATTERING_MATRIX_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
+
+                gamma, scattering_matrix = ballistico.calculator.calculate_gamma(
+                    self.atoms,
+                    self.frequencies,
+                    self.velocities,
+                    self.occupations,
+                    self.kpts,
+                    self.eigenvectors,
+                    self.finite_difference.list_of_index,
+                    self.finite_difference.third_order,
+                    self.sigma_in,
+                    self.broadening_shape,
+                    self.energy_threshold
+                )
+                self.scattering_matrix = scattering_matrix[0] + scattering_matrix[1]
+                self.gamma = gamma[0] + gamma[1]
         return self._scattering_matrix
 
     @scattering_matrix.setter
@@ -240,6 +311,12 @@ class PhononsController (object):
                 self._dos = np.load (folder + DOS_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
+                dos = ballistico.calculator.calculate_density_of_states(
+                    self.frequencies,
+                    self.kpts
+                )
+                self.dos = dos
+
         return self._dos
 
     @dos.setter
@@ -412,3 +489,12 @@ class PhononsController (object):
                         str_to_write += str(velocities[k, i, alpha]) + ','
                 str_to_write += '\n'
                 csv.write(str_to_write)
+
+    def second_quantities_k_list(self, klist):
+        return ballistico.calculator.calculate_second_k_list(
+            klist,
+            self.atoms,
+            self.finite_difference.second_order,
+            self.finite_difference.list_of_index,
+            self.finite_difference.replicated_atoms,
+            self.energy_threshold)
