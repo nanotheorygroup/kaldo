@@ -2,7 +2,6 @@ import subprocess
 import numpy as np
 from sparse import COO
 import pandas as pd
-import ballistico.atoms_helper as ath
 import ballistico.constants as constants
 
 
