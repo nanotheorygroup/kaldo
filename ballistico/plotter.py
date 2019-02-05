@@ -54,7 +54,7 @@ class Plotter (object):
     def plot_dispersion(self, symmetry='fcc', n_k_points=200):
         atoms = self.phonons.atoms
         cell = atoms.cell
-        fig = plt.figure ()
+        fig1 = plt.figure ()
         if symmetry == 'nw':
             q = np.linspace(0, 0.5, n_k_points)
             k_list = np.zeros((n_k_points, 3))
@@ -73,10 +73,11 @@ class Plotter (object):
         plt.grid ()
         plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
         if self.is_persistency_enabled:
-            fig.savefig (self.folder + 'dispersion' + '.pdf')
+            fig1.savefig (self.folder + 'dispersion' + '.pdf')
         if self.is_showing:
             plt.show()
-
+            
+        fig2 = plt.figure ()
         plt.ylabel('velocity norm/$100m/s$')
         plt.xticks(Q, point_names)
         plt.xlim(q[0], q[-1])
@@ -84,6 +85,6 @@ class Plotter (object):
         plt.grid()
         # plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
         if self.is_persistency_enabled:
-            fig.savefig(self.folder + 'velocity.pdf')
+            fig2.savefig(self.folder + 'velocity.pdf')
         if self.is_showing:
             plt.show()
