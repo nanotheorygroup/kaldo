@@ -1,19 +1,17 @@
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import ballistico.geometry_helper as geometry_helper
-import datetime
 import numpy as np
-import time
-from ballistico.interpolation_controller import interpolator
 import os
-import ballistico.constants as constants
+from sklearn.neighbors.kde import KernelDensity
+from ase.dft.kpoints import ibz_points, bandpath
+from scipy.ndimage import map_coordinates
 import seaborn as sns
+sns.set(color_codes=True)
 
 BUFFER_PLOT = .2
 
 
 class Plotter (object):
-    def __init__(self, phonons, folder='plots', is_showing=True, is_persistency_enabled=True):
+    def __init__(self, phonons, folder='plots/', is_showing=True, is_persistency_enabled=True):
         self.phonons = phonons
         self.system = phonons.atoms
         self.folder = folder
@@ -40,11 +38,14 @@ class Plotter (object):
         if self.is_showing:
             plt.show ()
 
-    def plot_dos(self):
+    def plot_dos(self, bandwidth=.5):
         phonons = self.phonons
         fig = plt.figure ()
-        # sns.set(color_codes=True)
-        ax = sns.kdeplot(phonons.frequencies.flatten())
+        kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequencies.flatten().reshape(-1, 1))
+        x = np.linspace(0, phonons.frequencies.max(), 200)
+        y = np.exp(kde.score_samples(x.reshape(-1, 1)))
+        plt.plot(x, y)
+        plt.fill_between(x, y, alpha=.2)
         plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
         if self.is_persistency_enabled:
             fig.savefig (self.folder + 'dos.pdf')
@@ -63,8 +64,19 @@ class Plotter (object):
             Q = [0, 0.5]
             point_names = ['$\\Gamma$', 'X']
         else:
-            k_list, q, Q, point_names = geometry_helper.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
-        freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
+            k_list, q, Q, point_names = self.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
+
+        try:
+            freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
+        except AttributeError as err:
+            print(err)
+            freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
+            vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
+            for mode in range(self.phonons.n_modes):
+
+                freqs_plot[:, mode] = self.map_interpolator(k_list, self.phonons.frequencies[:, :, :, mode])
+                for alpha in range(3):
+                    vel_plot[:, mode, alpha] = self.map_interpolator(k_list, self.phonons.velocities[:, :, :, mode, alpha])
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
@@ -88,3 +100,29 @@ class Plotter (object):
             fig2.savefig(self.folder + 'velocity.pdf')
         if self.is_showing:
             plt.show()
+
+    def create_k_and_symmetry_space(self, cell, symmetry='fcc', n_k_points=50):
+
+        # TODO: implement symmetry here
+        # import spglib as spg
+        # spacegroup = spg.get_spacegroup (atoms, symprec=1e-5)
+
+        # High-symmetry points in the Brillouin zone
+        points = ibz_points[symmetry]
+        G = points['Gamma']
+        X = points['X']
+        W = points['W']
+        K = points['K']
+        L = points['L']
+        U = points['U']
+
+        point_names = ['$\Gamma$', 'X', 'U', 'L', '$\Gamma$', 'K']
+        path = [G, X, U, L, G, K]
+
+        # Band structure in meV
+        path_kc, q, Q = bandpath (path, cell, n_k_points)
+        return path_kc, q, Q, point_names
+
+    def map_interpolator(self, k_list, observable):
+        k_size = np.array(observable.shape)
+        return map_coordinates(observable, (k_list * k_size).T, order=0, mode='wrap')
