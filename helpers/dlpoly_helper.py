@@ -1,9 +1,8 @@
-import subprocess
 import numpy as np
 from sparse import COO
 import pandas as pd
-import ballistico.atoms_helper as ath
-import ballistico.constants as constants
+import ase.units as units
+tenjovermol = 10 * units.J / units.mol
 
 
 def import_second_dlpoly(atoms, replicas=(1, 1, 1), filename='dlpoly_files/Dyn.form'):
@@ -21,7 +20,7 @@ def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), filename='dlpoly_files/Dy
     n_replicas = replicas[0] * replicas[1] * replicas[2]
     n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
     return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3) \
-           * constants.tenjovermol
+           * tenjovermol
 
 
 def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), filename='dlpoly_files/THIRD'):
@@ -41,5 +40,5 @@ def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), filename='dlpoly_files/
     n_particles_small = int(n_particles / n_replicas)
     sparse = sparse.reshape ((n_replicas * n_particles_small * 3, n_replicas * n_particles_small * \
                               3, n_replicas * n_particles_small * 3))
-    return sparse * constants.tenjovermol
+    return sparse * tenjovermol
 

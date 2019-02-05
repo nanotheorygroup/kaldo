@@ -7,3 +7,5 @@ examples/log_lammps.out
 examples/output.log
 examples/plots*
 examples/atomistica.log
+examples/sheng_bte
+examples/Archive.zip
