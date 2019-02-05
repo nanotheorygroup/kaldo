@@ -1,10 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from ballistico.interpolation_controller import interpolator
 import os
 from sklearn.neighbors.kde import KernelDensity
 from ase.dft.kpoints import ibz_points, bandpath
-
+from scipy.ndimage import map_coordinates
 import seaborn as sns
 sns.set(color_codes=True)
 
@@ -74,13 +73,10 @@ class Plotter (object):
             freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
             vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
             for mode in range(self.phonons.n_modes):
-                with_fourier = False
 
-                freqs_plot[:, mode] = interpolator(k_list, self.phonons.frequencies[:, :, :, mode],
-                                                   with_fourier=with_fourier)
+                freqs_plot[:, mode] = self.map_interpolator(k_list, self.phonons.frequencies[:, :, :, mode])
                 for alpha in range(3):
-                    vel_plot[:, mode, alpha] = interpolator(k_list, self.phonons.velocities[:, :, :, mode, alpha],
-                                                            with_fourier=with_fourier)
+                    vel_plot[:, mode, alpha] = self.map_interpolator(k_list, self.phonons.velocities[:, :, :, mode, alpha])
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
@@ -125,3 +121,7 @@ class Plotter (object):
         # Band structure in meV
         path_kc, q, Q = bandpath (path, cell, n_k_points)
         return path_kc, q, Q, point_names
+
+    def map_interpolator(self, k_list, observable):
+        k_size = np.array(observable.shape)
+        return map_coordinates(observable, (k_list * k_size).T, order=0, mode='wrap')
