@@ -12,13 +12,13 @@ if __name__ == "__main__":
         long_description=long_description,
         author='Giuseppe Barbalinardo',
         author_email='giuseppe.barbalinardo@gmail.com',
-        url="https://gitlab.com/gbarbalinardo/finitedifference",
+        url="https://gitlab.com/gbarbalinardo/ballistico",
         license='BSD-3C',
         packages = [
-            'finitedifference'
+            'ballistico'
             ],
         package_dir = {
-            'finitedifference': 'finitedifference'
+            'ballistico': 'ballistico'
             },
         install_requires=[
             'numpy>=1.7',
