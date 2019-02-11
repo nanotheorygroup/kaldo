@@ -12,13 +12,15 @@ SHENG_FOLDER_NAME = 'sheng_bte'
 SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
-def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating, script=SHENGBTE_SCRIPT):
+def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating, script=SHENGBTE_SCRIPT, folder_name=SHENG_FOLDER_NAME):
+
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,
                       kpts=kpts,
                       is_classic=is_classic,
                       temperature=temperature,
-                      is_persistency_enabled=is_persistency_enabled)
+                      is_persistency_enabled=is_persistency_enabled,
+                      folder_name=folder_name)
     
     phonons.convergence = convergence
 
@@ -26,7 +28,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
         run(phonons, script)
     try:
         new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
-        phonons.energies = read_energy_data().reshape(new_shape)
+        phonons.energies = read_energy_data(phonons).reshape(new_shape)
         phonons.frequencies = phonons.energies / (2 * np.pi)
         phonons.velocities = read_velocity_data(phonons)
         phonons.gamma = read_decay_rate_data(phonons).reshape(new_shape)
@@ -35,7 +37,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
         # TODO: clean up this replicated logic
         run(phonons, script)
         new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
-        phonons.energies = read_energy_data().reshape(new_shape)
+        phonons.energies = read_energy_data(phonons).reshape(new_shape)
         phonons.frequencies = phonons.energies / (2 * np.pi)
         phonons.velocities = read_velocity_data(phonons)
         phonons.gamma = read_decay_rate_data(phonons).reshape(new_shape)
@@ -44,7 +46,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
     
 
 def save_second_order_matrix(phonons):
-    shenbte_folder = SHENG_FOLDER_NAME + '/'
+    shenbte_folder = phonons.folder_name + '/'
     n_replicas = phonons.supercell.prod()
     n_particles = int(phonons.n_modes / 3)
     if phonons.finite_difference.is_reduced_second:
@@ -86,7 +88,7 @@ def save_second_order_matrix(phonons):
 
 def save_third_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_3RD'
-    filename = SHENG_FOLDER_NAME + '/' + filename
+    filename = phonons.folder_name + '/' + filename
     file = open ('%s' % filename, 'w+')
     n_in_unit_cell = len (phonons.atoms.numbers)
     n_replicas = np.prod (phonons.supercell)
@@ -136,13 +138,13 @@ def save_third_order_matrix(phonons):
 
 
 def run(phonons, script):
-    folder = SHENG_FOLDER_NAME
+    folder = phonons.folder_name
     if not os.path.exists(folder):
         os.makedirs (folder)
     create_control_file(phonons)
     save_second_order_matrix(phonons)
     save_third_order_matrix(phonons)
-    return run_script (script, SHENG_FOLDER_NAME)
+    return run_script (script, phonons.folder_name)
 
 
 def create_control_file_string(phonons):
@@ -200,7 +202,7 @@ def create_control_file_string(phonons):
 
 
 def create_control_file(phonons):
-    folder = SHENG_FOLDER_NAME
+    folder = phonons.folder_name
     filename = folder + '/CONTROL'
     string = create_control_file_string (phonons)
 
@@ -250,26 +252,26 @@ def header(phonons):
     return header_str
 
 
-def qpoints_mapper():
-    q_points = pd.read_csv (SHENG_FOLDER_NAME + '/BTE.qpoints_full', header=None, delim_whitespace=True)
+def qpoints_mapper(phonons):
+    q_points = pd.read_csv (phonons.folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)
     return q_points.values
 
 
-def irreducible_indices():
-    return np.unique(qpoints_mapper()[:,1])
+def irreducible_indices(phonons):
+    return np.unique(qpoints_mapper(phonons)[:,1])
 
 
-def q_points():
-    return qpoints_mapper()[:,2:5]
+def q_points(phonons):
+    return qpoints_mapper(phonons)[:,2:5]
 
 
-def read_energy_data():
+def read_energy_data(phonons):
     # We read in rad/ps
-    omega = pd.read_csv (SHENG_FOLDER_NAME + '/BTE.omega', header=None, delim_whitespace=True)
-    n_qpoints = qpoints_mapper().shape[0]
+    omega = pd.read_csv (phonons.folder_name + '/BTE.omega', header=None, delim_whitespace=True)
+    n_qpoints = qpoints_mapper(phonons).shape[0]
     n_branches = omega.shape[1]
     energy_data = np.zeros ((n_qpoints, n_branches))
-    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper():
+    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
         energy_data[int (index - 1)] = omega.loc[[int (reduced_index - 1)]].values
     return energy_data
 
@@ -282,17 +284,17 @@ def read_ps_data(phonons, type=None):
     else:
         file = 'BTE.WP3'
     temperature = str (int (phonons.temperature))
-    decay = pd.read_csv (SHENG_FOLDER_NAME + '/T' + temperature + 'K/' + file, header=None,
+    decay = pd.read_csv (phonons.folder_name + '/T' + temperature + 'K/' + file, header=None,
                          delim_whitespace=True)
-    # decay = pd.read_csv (SHENG_FOLDER_NAME + 'T' + temperature +
+    # decay = pd.read_csv (phonons.folder_name + 'T' + temperature +
     # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
-    n_branches = int (decay.shape[0] / irreducible_indices().max ())
+    n_branches = int (decay.shape[0] / irreducible_indices(phonons).max ())
     n_qpoints_reduced = int (decay.shape[0] / n_branches)
-    n_qpoints = qpoints_mapper().shape[0]
+    n_qpoints = qpoints_mapper(phonons).shape[0]
     decay = np.delete (decay.values, 0, 1)
     decay = decay.reshape ((n_branches, n_qpoints_reduced))
     decay_data = np.zeros ((n_qpoints, n_branches))
-    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper():
+    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
         decay_data[int (index - 1)] = decay[:, int (reduced_index - 1)]
     return decay_data
 
@@ -305,26 +307,26 @@ def read_decay_rate_data(phonons, type=None):
     else:
         file = 'BTE.w_anharmonic'
     temperature = str(int(phonons.temperature))
-    decay = pd.read_csv (SHENG_FOLDER_NAME + '/T' + temperature + 'K/' + file, header=None,
+    decay = pd.read_csv (phonons.folder_name + '/T' + temperature + 'K/' + file, header=None,
                          delim_whitespace=True)
-    # decay = pd.read_csv (SHENG_FOLDER_NAME + 'T' + temperature +
+    # decay = pd.read_csv (phonons.folder_name + 'T' + temperature +
     # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
-    n_branches = int (decay.shape[0] / irreducible_indices ().max ())
+    n_branches = int (decay.shape[0] / irreducible_indices (phonons).max ())
     n_qpoints_reduced = int (decay.shape[0] / n_branches)
-    n_qpoints = qpoints_mapper().shape[0]
+    n_qpoints = qpoints_mapper(phonons).shape[0]
     decay = np.delete(decay.values,0,1)
     decay = decay.reshape((n_branches, n_qpoints_reduced))
     decay_data = np.zeros ((n_qpoints, n_branches))
-    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper():
+    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
         decay_data[int (index - 1)] = decay[:, int(reduced_index-1)]
     return decay_data
 
 
 def read_velocity_data(phonons):
-    shenbte_folder = SHENG_FOLDER_NAME
+    shenbte_folder = phonons.folder_name
     velocities = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
     n_velocities = velocities.shape[0]
-    n_qpoints = qpoints_mapper().shape[0]
+    n_qpoints = qpoints_mapper(phonons).shape[0]
     n_modes = int(n_velocities / n_qpoints)
 
     velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
@@ -341,7 +343,7 @@ def read_velocity_data(phonons):
 
 
 def read_conductivity(converged=True):
-    folder = SHENG_FOLDER_NAME
+    folder = phonons.folder_name
     if converged:
         conduct_file = '/BTE.KappaTensorVsT_CONV'
     else:
@@ -360,8 +362,8 @@ def read_conductivity(converged=True):
 
 def import_scattering_matrix(phonons):
     temperature = str(int(phonons.temperature))
-    filename_gamma = SHENG_FOLDER_NAME + '/T' + temperature + 'K/GGG.Gamma_Tensor'
-    filename_tau_zero = SHENG_FOLDER_NAME + '/T' + temperature + 'K/GGG.tau_zero'
+    filename_gamma = phonons.folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
+    filename_tau_zero = phonons.folder_name + '/T' + temperature + 'K/GGG.tau_zero'
     phonons.tau_zero = np.zeros((phonons.n_modes, phonons.n_k_points))
     with open(filename_tau_zero, "r+") as f:
         for line in f:
