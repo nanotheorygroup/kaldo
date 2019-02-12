@@ -16,6 +16,14 @@ DELTA_THRESHOLD = 2
 DELTA_DOS = 1
 NUM_DOS = 100
 
+def apply_acoustic(second_order):
+    shape = second_order.shape
+    size = int(np.sqrt(second_order.size))
+    second_order = second_order.reshape((size, size))
+    print('error %.2e' % np.sum(second_order - second_order.T))
+    second_order += second_order.T
+    second_order /= 2
+    return second_order.reshape(shape)
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
     n_modes = frequencies.shape[-1]
