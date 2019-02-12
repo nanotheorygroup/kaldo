@@ -23,7 +23,7 @@ FOLDER_NAME = 'ballistico'
 
 class Phonons (object):
     def __init__(self, finite_difference, folder_name=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, broadening_shape='gauss'):
+    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, broadening_shape='gauss', is_acoustic_enabled=False):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -51,6 +51,12 @@ class Phonons (object):
         self.sigma_in = sigma_in
         self._c_v = None
         self.broadening_shape = broadening_shape
+        if is_acoustic_enabled and not self.finite_difference.is_reduced_second:
+            print('Applying acoustic sum rule')
+            self.second_order = ballistico.calculator.apply_acoustic(self.finite_difference.second_order)
+        self.second_order = self.finite_difference.second_order
+        self.list_of_index = self.finite_difference.list_of_index
+        self.replicated_atoms = self.finite_difference.replicated_atoms
         if self.is_classic:
             classic_string = 'classic'
         else:
@@ -85,9 +91,9 @@ class Phonons (object):
                 frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
-                    self.finite_difference.second_order,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.replicated_atoms,
+                    self.second_order,
+                    self.list_of_index,
+                    self.replicated_atoms,
                     self.energy_threshold)
                 self.frequencies = frequencies
                 self.eigenvalues = eigenvalues
@@ -120,9 +126,9 @@ class Phonons (object):
                 frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
-                    self.finite_difference.second_order,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.replicated_atoms,
+                    self.second_order,
+                    self.list_of_index,
+                    self.replicated_atoms,
                     self.energy_threshold)
                 self.frequencies = frequencies
                 self.eigenvalues = eigenvalues
@@ -177,9 +183,9 @@ class Phonons (object):
                 frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
-                    self.finite_difference.second_order,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.replicated_atoms,
+                    self.second_order,
+                    self.list_of_index,
+                    self.replicated_atoms,
                     self.energy_threshold)
                 self.frequencies = frequencies
                 self.eigenvalues = eigenvalues
@@ -222,8 +228,8 @@ class Phonons (object):
                     self.occupations,
                     self.kpts,
                     self.eigenvectors,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.third_order,
+                    self.list_of_index,
+                    self.third_order,
                     self.sigma_in,
                     self.broadening_shape,
                     self.energy_threshold
@@ -274,8 +280,8 @@ class Phonons (object):
                     self.occupations,
                     self.kpts,
                     self.eigenvectors,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.third_order,
+                    self.list_of_index,
+                    self.third_order,
                     self.sigma_in,
                     self.broadening_shape,
                     self.energy_threshold
@@ -494,7 +500,7 @@ class Phonons (object):
         return ballistico.calculator.calculate_second_k_list(
             klist,
             self.atoms,
-            self.finite_difference.second_order,
-            self.finite_difference.list_of_index,
-            self.finite_difference.replicated_atoms,
+            self.second_order,
+            self.list_of_index,
+            self.replicated_atoms,
             self.energy_threshold)
