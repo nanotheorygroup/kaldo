@@ -20,7 +20,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
                       is_classic=is_classic,
                       temperature=temperature,
                       is_persistency_enabled=is_persistency_enabled,
-                      folder_name=folder_name)
+                      folder=folder_name)
     
     phonons.convergence = convergence
 
@@ -50,16 +50,16 @@ def save_second_order_matrix(phonons):
     n_replicas = phonons.supercell.prod()
     n_particles = int(phonons.n_modes / 3)
     if phonons.finite_difference.is_reduced_second:
-        second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+        second_order = phonons.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
     else:
-        second_order = phonons.finite_difference.second_order.reshape (
+        second_order = phonons.second_order.reshape (
             (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
     cell_inv = np.linalg.inv(phonons.atoms.cell)
 
-    list_of_index = phonons.finite_difference.list_of_index.dot(cell_inv)
+    list_of_index = phonons.list_of_index.dot(cell_inv)
     list_of_index = np.flip(list_of_index, 1)
     list_of_index = np.round(list_of_index)
 
@@ -92,10 +92,10 @@ def save_third_order_matrix(phonons):
     file = open ('%s' % filename, 'w+')
     n_in_unit_cell = len (phonons.atoms.numbers)
     n_replicas = np.prod (phonons.supercell)
-    third_order = phonons.finite_difference.third_order\
+    third_order = phonons.third_order\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
-    list_of_index = phonons.finite_difference.list_of_index.astype(int)
+    list_of_index = phonons.list_of_index.astype(int)
     list_of_index = np.flip(list_of_index, 1)
     block_counter = 0
     for i_0 in range (n_in_unit_cell):
@@ -107,16 +107,16 @@ def save_third_order_matrix(phonons):
                         try:
                             three_particles_interaction = three_particles_interaction.todense()
                         except AttributeError as err:
-                            pass
+                            print(err)
 
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
                             block_counter += 1
                             replica = list_of_index
                             file.write ('\n  ' + str (block_counter))
-                            rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_1])
+                            rep_position = apply_boundary (phonons.replicated_atoms,replica[n_1])
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
-                            rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_2])
+                            rep_position = apply_boundary (phonons.replicated_atoms,replica[n_2])
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
                             file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -234,8 +234,8 @@ def header(phonons):
     mass_factor = 1.8218779 * 6.022e-4
 
     for i in range (ntype):
-        mass = np.unique (phonons.finite_difference.replicated_atoms.get_masses ())[i] / mass_factor
-        label = np.unique (phonons.finite_difference.replicated_atoms.get_chemical_symbols ())[i]
+        mass = np.unique (phonons.replicated_atoms.get_masses ())[i] / mass_factor
+        label = np.unique (phonons.replicated_atoms.get_chemical_symbols ())[i]
         header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
 
     # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
@@ -363,12 +363,6 @@ def read_conductivity(converged=True):
 def import_scattering_matrix(phonons):
     temperature = str(int(phonons.temperature))
     filename_gamma = phonons.folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
-    filename_tau_zero = phonons.folder_name + '/T' + temperature + 'K/GGG.tau_zero'
-    phonons.tau_zero = np.zeros((phonons.n_modes, phonons.n_k_points))
-    with open(filename_tau_zero, "r+") as f:
-        for line in f:
-            items = line.split()
-            phonons.tau_zero[int(items[0]) - 1, int(items[1]) - 1] = float(items[2])
 
     n0 = []
     n1 = []
