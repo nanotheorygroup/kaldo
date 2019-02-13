@@ -208,9 +208,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
         # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
-        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
+        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='F'))
         i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
+        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='F', mode='wrap')
         # +1 if is_plus, -1 if not is_plus
         second_sign = (int(is_plus) * 2 - 1)
         if sigma_in is None:
@@ -304,7 +304,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         rlattvec = cell_inv * 2 * np.pi
         chi = np.zeros ((nptk, n_replicas), dtype=np.complex)
         for index_k in range (np.prod (k_size)):
-            i_k = np.array (np.unravel_index (index_k, k_size, order='C'))
+            i_k = np.array (np.unravel_index (index_k, k_size, order='F'))
             k_point = i_k / k_size
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
@@ -329,7 +329,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     for is_plus in (1, 0):
         for index_k in (list_of_k):
-            i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
+            i_k = np.array(np.unravel_index(index_k, k_size, order='F'))
 
             for mu in range(n_modes):
                 gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density,

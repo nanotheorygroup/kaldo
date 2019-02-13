@@ -54,6 +54,8 @@ class Phonons (object):
         if is_acoustic_enabled and not self.finite_difference.is_reduced_second:
             print('Applying acoustic sum rule')
             self.second_order = ballistico.calculator.apply_acoustic(self.finite_difference.second_order)
+        
+        # TODO: creating these copies here can create serious potential inconsistencies. absolutly need to be changed
         self.second_order = self.finite_difference.second_order
         self.list_of_index = self.finite_difference.list_of_index
         self.replicated_atoms = self.finite_difference.replicated_atoms
@@ -397,7 +399,7 @@ class Phonons (object):
             n_k_points = np.prod (k_size)
             k_points = np.zeros ((n_k_points, 3))
             for index_k in range (n_k_points):
-                k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
+                k_points[index_k] = np.unravel_index (index_k, k_size, order='F') / k_size
             self.k_points = k_points
         return self._k_points
 
