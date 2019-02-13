@@ -166,8 +166,11 @@ class ConductivityController (object):
         omegas = phonons.frequencies * 2 * np.pi
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
         velocities[np.isnan(velocities)] = 0
-        scattering_matrix = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
-                                                                    self.phonons.n_phonons))
+        if not is_rta:
+            # TODO: clean up the is_rta logic
+            scattering_matrix = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
+                                                                        self.phonons.n_phonons))
+            max_iterations = MAX_ITERATIONS_SC
         F_n_0 = np.zeros((phonons.n_k_points * phonons.n_modes, 3))
         velocities = velocities.reshape(phonons.n_phonons, 3)
         omegas = omegas.reshape((phonons.n_phonons))
@@ -208,13 +211,17 @@ class ConductivityController (object):
                                                                 (k_b * phonons.temperature ** 2 * volume *
                                                                  phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1) * \
                                                                 omegas[physical_modes] * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
+            if is_rta:
+                return conductivity_per_mode.sum (axis=0)
+            
             new_avg_conductivity = np.diag(np.sum(conductivity_per_mode, 0)).mean()
             if avg_conductivity:
-                if np.abs(avg_conductivity - new_avg_conductivity) < tolerance or is_rta == True:
+                if np.abs(avg_conductivity - new_avg_conductivity) < tolerance:
                     return conductivity_per_mode.sum(axis=0)
             avg_conductivity = new_avg_conductivity
+        
+            # If the tolerance has not been reached update the state
             tau_zero = tau_zero.reshape((phonons.n_phonons))
-
             # calculate the shift in mft
             DeltaF = scattering_matrix.dot(F_n)
 
