@@ -19,7 +19,7 @@ def import_dynamical_matrix_dlpoly(replicas=(1, 1, 1), filename='dlpoly_files/Dy
     dynamical_matrix_vector = dynamical_matrix_frame.values
     n_replicas = replicas[0] * replicas[1] * replicas[2]
     n_particles = int((dynamical_matrix_vector.size / (3. ** 2.)) ** (1. / 2.)/n_replicas)
-    return dynamical_matrix_vector.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3) \
+    return dynamical_matrix_vector.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C') \
            * tenjovermol
 
 
@@ -39,6 +39,6 @@ def import_third_order_dlpoly(atoms, replicas=(1, 1, 1), filename='dlpoly_files/
     sparse = sparse_x + sparse_y + sparse_z
     n_particles_small = int(n_particles / n_replicas)
     sparse = sparse.reshape ((n_replicas * n_particles_small * 3, n_replicas * n_particles_small * \
-                              3, n_replicas * n_particles_small * 3))
+                              3, n_replicas * n_particles_small * 3), order='C')
     return sparse * tenjovermol
 

@@ -16,7 +16,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
     if not folder:
         folder = SHENG_FOLDER_NAME
     else:
-        folder = folder + '/' +SHENG_FOLDER_NAME
+        folder = folder + '/' + SHENG_FOLDER_NAME
         
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,
@@ -31,20 +31,19 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
     if is_calculating:
         run(phonons, script)
     try:
-        new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
-        phonons.energies = read_energy_data(phonons).reshape(new_shape)
+        # new_shape = [ballistico_phonons.kpts[0], ballistico_phonons.kpts[1], ballistico_phonons.kpts[2], ballistico_phonons.n_modes]
+        phonons.energies = read_energy_data(phonons)
         phonons.frequencies = phonons.energies / (2 * np.pi)
         phonons.velocities = read_velocity_data(phonons)
-        phonons.gamma = read_decay_rate_data(phonons).reshape(new_shape)
-        phonons.scattering_matrix = import_scattering_matrix(phonons)
+        phonons.gamma = read_decay_rate_data(phonons)
+        # ballistico_phonons.scattering_matrix = import_scattering_matrix(ballistico_phonons)
     except FileNotFoundError:
         # TODO: clean up this replicated logic
         run(phonons, script)
-        new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
-        phonons.energies = read_energy_data(phonons).reshape(new_shape)
+        phonons.energies = read_energy_data(phonons)
         phonons.frequencies = phonons.energies / (2 * np.pi)
         phonons.velocities = read_velocity_data(phonons)
-        phonons.gamma = read_decay_rate_data(phonons).reshape(new_shape)
+        phonons.gamma = read_decay_rate_data(phonons)
         phonons.scattering_matrix = import_scattering_matrix(phonons)
     return phonons
     
@@ -54,13 +53,13 @@ def save_second_order_matrix(phonons):
     n_replicas = phonons.supercell.prod()
     n_particles = int(phonons.n_modes / 3)
     if phonons.finite_difference.is_reduced_second:
-        second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+        second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
     else:
         second_order = phonons.finite_difference.second_order.reshape (
-            (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
+            (n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
-    file = open ('%s' % filename, 'w+')
+    file = open ('%s' % filename, 'w')
     cell_inv = np.linalg.inv(phonons.atoms.cell)
 
     list_of_index = phonons.finite_difference.list_of_index.dot(cell_inv)
@@ -93,11 +92,11 @@ def save_second_order_matrix(phonons):
 def save_third_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_3RD'
     filename = phonons.folder_name + '/' + filename
-    file = open ('%s' % filename, 'w+')
+    file = open ('%s' % filename, 'w')
     n_in_unit_cell = len (phonons.atoms.numbers)
     n_replicas = np.prod (phonons.supercell)
     third_order = phonons.finite_difference.third_order\
-        .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
+        .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3), order='C')\
         .todense()
     list_of_index = phonons.finite_difference.list_of_index.astype(int)
     list_of_index = np.flip(list_of_index, 1)
@@ -136,7 +135,7 @@ def save_third_order_matrix(phonons):
     file.close ()
     with open (filename, 'r') as original:
         data = original.read ()
-    with open (filename, 'w+') as modified:
+    with open (filename, 'w') as modified:
         modified.write ('  ' + str (block_counter) + '\n' + data)
     print('third order saved')
 
@@ -210,7 +209,7 @@ def create_control_file(phonons):
     filename = folder + '/CONTROL'
     string = create_control_file_string (phonons)
 
-    with open (filename, 'w+') as file:
+    with open (filename, 'w') as file:
         file.write (string)
 
 
@@ -290,13 +289,14 @@ def read_ps_data(phonons, type=None):
     temperature = str (int (phonons.temperature))
     decay = pd.read_csv (phonons.folder_name + '/T' + temperature + 'K/' + file, header=None,
                          delim_whitespace=True)
-    # decay = pd.read_csv (phonons.folder_name + 'T' + temperature +
+    # decay = pd.read_csv (ballistico_phonons.folder_name + 'T' + temperature +
     # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
     n_branches = int (decay.shape[0] / irreducible_indices(phonons).max ())
     n_qpoints_reduced = int (decay.shape[0] / n_branches)
     n_qpoints = qpoints_mapper(phonons).shape[0]
     decay = np.delete (decay.values, 0, 1)
-    decay = decay.reshape ((n_branches, n_qpoints_reduced))
+    decay = decay.reshape ((n_branches, n_qpoints_reduced), order='C')
+    
     decay_data = np.zeros ((n_qpoints, n_branches))
     for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
         decay_data[int (index - 1)] = decay[:, int (reduced_index - 1)]
@@ -313,13 +313,13 @@ def read_decay_rate_data(phonons, type=None):
     temperature = str(int(phonons.temperature))
     decay = pd.read_csv (phonons.folder_name + '/T' + temperature + 'K/' + file, header=None,
                          delim_whitespace=True)
-    # decay = pd.read_csv (phonons.folder_name + 'T' + temperature +
+    # decay = pd.read_csv (ballistico_phonons.folder_name + 'T' + temperature +
     # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
     n_branches = int (decay.shape[0] / irreducible_indices (phonons).max ())
     n_qpoints_reduced = int (decay.shape[0] / n_branches)
     n_qpoints = qpoints_mapper(phonons).shape[0]
     decay = np.delete(decay.values,0,1)
-    decay = decay.reshape((n_branches, n_qpoints_reduced))
+    decay = decay.reshape((n_branches, n_qpoints_reduced), order='C')
     decay_data = np.zeros ((n_qpoints, n_branches))
     for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
         decay_data[int (index - 1)] = decay[:, int(reduced_index-1)]
@@ -333,7 +333,7 @@ def read_velocity_data(phonons):
     n_qpoints = qpoints_mapper(phonons).shape[0]
     n_modes = int(n_velocities / n_qpoints)
 
-    velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
+    velocity_array = velocities.values.reshape ((n_modes, n_qpoints, 3), order='C')
 
     velocities = np.zeros((phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], n_modes, 3))
 
@@ -360,7 +360,7 @@ def read_conductivity(converged=True):
         n_steps = int (conductivity_array[-1])
         conductivity_array = np.delete (conductivity_array, -1)
 
-    conductivity = conductivity_array.reshape (3, 3)
+    conductivity = conductivity_array.reshape ((3, 3), order='C')
     return conductivity
 
 

@@ -399,7 +399,7 @@ class Phonons (object):
             n_k_points = np.prod (k_size)
             k_points = np.zeros ((n_k_points, 3))
             for index_k in range (n_k_points):
-                k_points[index_k] = np.unravel_index (index_k, k_size, order='F') / k_size
+                k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
             self.k_points = k_points
         return self._k_points
 
@@ -484,7 +484,7 @@ class Phonons (object):
                     str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
             str_to_write += '\n'
             csv.write (str_to_write)
-            velocities = self.velocities.reshape((np.prod(self.kpts), n_modes, 3))
+            velocities = self.velocities.reshape((np.prod(self.kpts), n_modes, 3), order='C')
             for k in range (self.q_points ().shape[0]):
                 str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
                     self.q_points ()[k, 2]) + ','
