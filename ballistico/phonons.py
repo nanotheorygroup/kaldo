@@ -50,6 +50,7 @@ class Phonons (object):
         self.folder_name = folder_name
         self.sigma_in = sigma_in
         self._c_v = None
+        self.is_able_to_calculate = True
         self.broadening_shape = broadening_shape
         if self.is_classic:
             classic_string = 'classic'

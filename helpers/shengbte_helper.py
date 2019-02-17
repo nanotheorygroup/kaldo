@@ -27,7 +27,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
                       folder_name=folder)
     
     phonons.convergence = convergence
-
+    phonons.is_able_to_calculate = False
     if is_calculating:
         run(phonons, script)
     try:

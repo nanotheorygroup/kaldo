@@ -66,10 +66,9 @@ class Plotter (object):
         else:
             k_list, q, Q, point_names = self.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
 
-        try:
+        if self.phonons.is_able_to_calculate:
             freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
-        except AttributeError as err:
-            print(err)
+        else:
             freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
             vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
             for mode in range(self.phonons.n_modes):
