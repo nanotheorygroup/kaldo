@@ -16,7 +16,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
     if not folder:
         folder = SHENG_FOLDER_NAME
     else:
-        folder = folder + '/' + SHENG_FOLDER_NAME
+        folder = folder + '/' + SHENG_FOLDER_NAME + '/'
         
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,
@@ -24,7 +24,7 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
                       is_classic=is_classic,
                       temperature=temperature,
                       is_persistency_enabled=is_persistency_enabled,
-                      folder_name=folder)
+                      folder=folder)
     
     phonons.convergence = convergence
     phonons.is_able_to_calculate = False

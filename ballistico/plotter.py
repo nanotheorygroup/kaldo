@@ -8,12 +8,14 @@ import seaborn as sns
 sns.set(color_codes=True)
 
 BUFFER_PLOT = .2
-
+DEFAULT_FOLDER = 'plots/'
 
 class Plotter (object):
-    def __init__(self, phonons, folder='plots/', is_showing=True, is_persistency_enabled=True):
+    def __init__(self, phonons, folder=None, is_showing=True, is_persistency_enabled=True):
         self.phonons = phonons
         self.system = phonons.atoms
+        if not folder:
+            folder = phonons.folder_name + '/' + DEFAULT_FOLDER
         self.folder = folder
         self.is_persistency_enabled = is_persistency_enabled
         self.is_showing = is_showing
