@@ -16,18 +16,10 @@ DELTA_THRESHOLD = 2
 DELTA_DOS = 1
 NUM_DOS = 100
 
-def apply_acoustic(second_order):
-    shape = second_order.shape
-    size = int(np.sqrt(second_order.size))
-    second_order = second_order.reshape((size, size), order='C')
-    print('error %.2e' % np.sum(second_order - second_order.T))
-    second_order += second_order.T
-    second_order /= 2
-    return second_order.reshape(shape, order='C')
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
     n_modes = frequencies.shape[-1]
-    frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes), order='C')
+    frequencies = frequencies.reshape ((k_mesh[0], k_mesh[1], k_mesh[2], n_modes))
     n_k_points = np.prod (k_mesh)
     # increase_factor = 3
     omega_kl = np.zeros ((n_k_points, n_modes))
@@ -56,26 +48,30 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     n_phonons = n_particles * 3
     is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
     if is_second_reduced:
-        dynmat = second_order.reshape ((n_particles, 3, n_replicas, n_particles, 3), order='C')
+        dynmat = second_order.reshape ((n_particles, 3, n_replicas, n_particles, 3))
     else:
-        dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
+        dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     dynmat /= constants.tenjovermol
 
+    is_calculation_at_gamma = (qvec == (0, 0, 0)).all()
+    if is_calculation_at_gamma:
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.dsyev
+        dyn_s = np.sum(dynmat, axis=2)
+    else:
+        DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+        chi_k = np.zeros(n_replicas).astype(complex)
+        for id_replica in range (n_replicas):
+            chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
+        dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+        replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
+        dxij = apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+                geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+        ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
-    DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
-    chi_k = np.zeros(n_replicas).astype(complex)
-    for id_replica in range (n_replicas):
-        chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-    replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
-    dxij = apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
-            geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-    ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
-
-    out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape ((n_phonons, n_phonons), order='C'))
+    out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape (n_phonons, n_phonons))
     eigenvals, eigenvects = out[0], out[1]
     if IS_SORTING_EIGENVALUES:
         idx = eigenvals.argsort ()
@@ -84,13 +80,17 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
     frequencies = np.abs (eigenvals) ** .5 * np.sign (eigenvals) / (np.pi * 2.)
 
-    ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3, order='C')
-    velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-    vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
-    for alpha in range (3):
-        for mu in range (n_particles * 3):
-            if np.abs(frequencies[mu]) > energy_threshold:
-                velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
+    if is_calculation_at_gamma:
+        # TODO: here we should add the imaginary components of the velocities
+        velocities = None
+    else:
+        ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3)
+        velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
+        vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
+        for alpha in range (3):
+            for mu in range (n_particles * 3):
+                if np.abs(frequencies[mu]) > energy_threshold:
+                    velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
     if velocities is None:
         velocities = 0
@@ -190,14 +190,14 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
     if np.abs(frequencies[index_k, mu]) > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-        evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
-        evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
+        evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes)
+        evect_dagger = evect.reshape(nptk * n_modes, n_modes).conj()
 
         # TODO: next espression is unreadable and needs to be broken down
         # We need to use the right data structure here, it matters how the sparse matrix is saved
         # (columns, rows, coo, ...)
-        scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes), order='C')[0]\
-            .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+        scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes))[0]\
+            .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes))
         # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
@@ -265,7 +265,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                         nup_vec], chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
 
             # gamma contracted on one index
-            pot_times_dirac = np.abs(potential.flatten(order='C')) ** 2 * dirac_delta.flatten(order='C')
+            pot_times_dirac = np.abs(potential.flatten()) ** 2 * dirac_delta.flatten()
             pot_times_dirac = pot_times_dirac / frequencies[index_k, mu] / nptk * constants.gamma_coeff
             return COO((nup_vec, nupp_vec), pot_times_dirac, (nptk * n_modes, nptk * n_modes))
 
@@ -273,7 +273,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 # @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
                     sigma_in, broadening, energy_threshold):
-    density = density.flatten(order='C')
+    density = density.flatten()
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
 
@@ -315,9 +315,9 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     # Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
     process = ['Minus processes: ', 'Plus processes: ']
     masses = atoms.get_masses()
-    rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
+    rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes)) / np.sqrt(
         masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes))
 
     for is_plus in (1, 0):
         for index_k in (list_of_k):
