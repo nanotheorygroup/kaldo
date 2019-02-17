@@ -12,15 +12,19 @@ SHENG_FOLDER_NAME = 'sheng_bte'
 SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
-def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating, script=SHENGBTE_SCRIPT, folder_name=SHENG_FOLDER_NAME):
-
+def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating, script=SHENGBTE_SCRIPT, folder=None):
+    if not folder:
+        folder = SHENG_FOLDER_NAME
+    else:
+        folder = folder + '/' + SHENG_FOLDER_NAME
+        
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,
                       kpts=kpts,
                       is_classic=is_classic,
                       temperature=temperature,
                       is_persistency_enabled=is_persistency_enabled,
-                      folder_name=folder_name)
+                      folder_name=folder)
     
     phonons.convergence = convergence
 

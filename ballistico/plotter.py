@@ -41,9 +41,9 @@ class Plotter (object):
     def plot_dos(self, bandwidth=.3):
         phonons = self.phonons
         fig = plt.figure ()
-        kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequencies.flatten().reshape(-1, 1))
+        kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequencies.flatten(order='C').reshape(-1, 1))
         x = np.linspace(0, phonons.frequencies.max(), 200)
-        y = np.exp(kde.score_samples(x.reshape(-1, 1)))
+        y = np.exp(kde.score_samples(x.reshape((-1, 1), order='C')))
         plt.plot(x, y)
         plt.fill_between(x, y, alpha=.2)
         plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
