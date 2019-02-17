@@ -475,7 +475,7 @@ class Phonons (object):
                     str_to_write += 'v^' + coord + '_' + str (i) + ' (km/s),'
             str_to_write += '\n'
             csv.write (str_to_write)
-            velocities = self.velocities.reshape((np.prod(self.kpts), n_modes, 3))
+            velocities = self.velocities.reshape((np.prod(self.kpts), n_modes, 3), order='C')
             for k in range (self.q_points ().shape[0]):
                 str_to_write = str (self.q_points ()[k, 0]) + ',' + str (self.q_points ()[k, 1]) + ',' + str (
                     self.q_points ()[k, 2]) + ','

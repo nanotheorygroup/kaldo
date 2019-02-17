@@ -104,14 +104,14 @@ class ConductivityController (object):
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
         omega = phonons.frequencies * 2 * np.pi
-        velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
+        velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
         velocities[np.isnan(velocities)] = 0
 
-        omega = omega.reshape((phonons.n_phonons))
-        velocities = velocities.reshape(phonons.n_phonons, 3)
+        omega = omega.reshape((phonons.n_phonons), order='C')
+        velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
         f_be = np.zeros((phonons.n_phonons))
 
-        frequencies = self.phonons.frequencies.reshape(self.phonons.n_k_points * self.phonons.n_modes)
+        frequencies = self.phonons.frequencies.reshape((self.phonons.n_k_points * self.phonons.n_modes), order='C')
         physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
 
         index = np.outer(physical_modes, physical_modes)
@@ -122,9 +122,9 @@ class ConductivityController (object):
             # TODO: here we can probably avoid allocating the tensor new everytime
             scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
             scattering_matrix[index] = -1 * self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
-                                                                                    self.phonons.n_phonons))[index]
-            scattering_matrix += np.diag(self.phonons.gamma.flatten())
-            scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()))
+                                                                                    self.phonons.n_phonons), order='C')[index]
+            scattering_matrix += np.diag(self.phonons.gamma.flatten(order='C'))
+            scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
             if length_thresholds:
                 if length_thresholds[alpha]:
                     scattering_matrix[:, :] += np.diag(np.abs(velocities[physical_modes, alpha]) / length_thresholds[
@@ -134,11 +134,6 @@ class ConductivityController (object):
 
             gamma_inv = 1 / (omega[physical_modes, np.newaxis]) * (gamma_inv * omega[np.newaxis, physical_modes])
 
-            # import seaborn as sns
-            # import matplotlib.pyplot as plt
-            # sns.kdeplot(np.triu(gamma_inv).flatten())
-            # sns.kdeplot(np.tril(gamma_inv).flatten())
-            # sns.kdeplot(np.diag(gamma_inv).flatten())
             # plt.show()
             for beta in range(3):
                 f_be[physical_modes] = 1. / (np.exp(hbar * omega[physical_modes] / k_b / phonons.temperature) - 1.)
@@ -154,8 +149,7 @@ class ConductivityController (object):
                         1e21 * hbar ** 2 / (k_b * phonons.temperature ** 2 * volume * phonons.n_k_points) * \
                         f_be[physical_modes] * (f_be[physical_modes] + 1) * omega[physical_modes] ** 2 * \
                         velocities[physical_modes, alpha] * lambd
-            total_conductivity = np.sum(conductivity_per_mode, 0)
-        return total_conductivity
+        return conductivity_per_mode
 
     def calculate_conductivity_sc(self, is_classic, tolerance=0.1, length_thresholds=None, is_rta=False):
         hbar = constants.hbar * 1e12
@@ -164,13 +158,15 @@ class ConductivityController (object):
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
         omegas = phonons.frequencies * 2 * np.pi
-        velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3))
+        velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
         velocities[np.isnan(velocities)] = 0
-        scattering_matrix = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
-                                                                    self.phonons.n_phonons))
+        if not is_rta:
+            # TODO: clean up the is_rta logic
+            scattering_matrix = self.phonons.scattering_matrix.reshape((self.phonons.n_phonons,
+                                                                        self.phonons.n_phonons), order='C')
         F_n_0 = np.zeros((phonons.n_k_points * phonons.n_modes, 3))
-        velocities = velocities.reshape(phonons.n_phonons, 3)
-        omegas = omegas.reshape((phonons.n_phonons))
+        velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
+        omegas = omegas.reshape((phonons.n_phonons), order='C')
         frequencies = omegas / (2 * np.pi)
         physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
 
@@ -180,13 +176,13 @@ class ConductivityController (object):
             for mu in range(phonons.n_phonons):
                 if length_thresholds:
                     if length_thresholds[alpha]:
-                        gamma[mu] = phonons.gamma.reshape(phonons.n_phonons)[mu] + \
+                        gamma[mu] = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu] + \
                                     np.abs(velocities[mu, alpha]) / length_thresholds[alpha]
                     else:
-                        gamma[mu] = phonons.gamma.reshape(phonons.n_phonons)[mu]
+                        gamma[mu] = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu]
 
                 else:
-                    gamma[mu] = phonons.gamma.reshape(phonons.n_phonons)[mu]
+                    gamma[mu] = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu]
             tau_zero = np.zeros_like(gamma)
             tau_zero[gamma != 0] = 1 / gamma[gamma != 0]
             F_n_0[:, alpha] = tau_zero[:] * velocities[:, alpha] * omegas[:]
@@ -208,13 +204,17 @@ class ConductivityController (object):
                                                                 (k_b * phonons.temperature ** 2 * volume *
                                                                  phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1) * \
                                                                 omegas[physical_modes] * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
+            if is_rta:
+                return conductivity_per_mode
+            
             new_avg_conductivity = np.diag(np.sum(conductivity_per_mode, 0)).mean()
             if avg_conductivity:
-                if np.abs(avg_conductivity - new_avg_conductivity) < tolerance or is_rta == True:
-                    return conductivity_per_mode.sum(axis=0)
+                if np.abs(avg_conductivity - new_avg_conductivity) < tolerance:
+                    return conductivity_per_mode
             avg_conductivity = new_avg_conductivity
-            tau_zero = tau_zero.reshape((phonons.n_phonons))
-
+        
+            # If the tolerance has not been reached update the state
+            tau_zero = tau_zero.reshape((phonons.n_phonons), order='C')
             # calculate the shift in mft
             DeltaF = scattering_matrix.dot(F_n)
 
@@ -235,7 +235,7 @@ class ConductivityController (object):
                                                                phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1) * \
                                                             omegas[physical_modes] * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
 
-        conductivity = np.sum(conductivity_per_mode, 0)
+        conductivity = conductivity_per_mode
         if n_iteration == (MAX_ITERATIONS_SC - 1):
             print('Convergence not reached')
         return conductivity
