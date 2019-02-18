@@ -110,7 +110,7 @@ def save_third_order_matrix(phonons):
                         three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
                         try:
                             three_particles_interaction = three_particles_interaction.todense()
-                        except AttributeError as err:
+                        except AttributeError:
                             pass
 
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
@@ -122,14 +122,14 @@ def save_third_order_matrix(phonons):
                             rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_2])
                             file.write ('\n  ' + str (rep_position[2]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[0]))
-                            file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
+                            file.write ('\n  ' + str (i_2 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_0 + 1))
 
                             for alpha_0 in range (3):
                                 for alpha_1 in range (3):
                                     for alpha_2 in range (3):
                                         file.write (
-                                            '\n  ' + str (alpha_0 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
-                                                alpha_2 + 1) + "  %.11E" % three_particles_interaction[
+                                            '\n  ' + str (alpha_2 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
+                                                alpha_0 + 1) + "  %.11E" % three_particles_interaction[
                                                 alpha_0, alpha_1, alpha_2])
                             file.write ('\n')
     file.close ()
