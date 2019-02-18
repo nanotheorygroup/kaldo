@@ -64,7 +64,6 @@ def save_second_order_matrix(phonons):
     cell_inv = np.linalg.inv(phonons.atoms.cell)
 
     list_of_index = phonons.finite_difference.list_of_index.dot(cell_inv)
-    list_of_index = np.flip(list_of_index, 1)
     list_of_index = np.round(list_of_index)
 
     file.write (header(phonons))
@@ -77,8 +76,8 @@ def save_second_order_matrix(phonons):
                     for id_replica in range(list_of_index.shape[0]):
                         index = list_of_index[id_replica]
                         l_vec = np.array(index % phonons.supercell + 1).astype(np.int)
-                        file.write ('\t' + str (int(l_vec[0])) + '\t' + str (int(l_vec[1])) + '\t' + str (int(l_vec[
-                                                                                                              2])))
+                        file.write ('\t' + str (int(l_vec[2])) + '\t' + str (int(l_vec[1])) + '\t' + str (int(l_vec[
+                                                                                                              0])))
 
                         matrix_element = second_order[j, beta, id_replica, i, alpha]
 
@@ -99,38 +98,38 @@ def save_third_order_matrix(phonons):
     third_order = phonons.finite_difference.third_order\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
-    list_of_index = phonons.finite_difference.list_of_index.astype(int)
-    list_of_index = np.flip(list_of_index, 1)
+    replica = phonons.finite_difference.list_of_index.astype(int)
+    replica = np.flip(replica, 1)
     block_counter = 0
     for i_0 in range (n_in_unit_cell):
         for n_1 in range (n_replicas):
             for i_1 in range (n_in_unit_cell):
                 for n_2 in range (n_replicas):
                     for i_2 in range (n_in_unit_cell):
+                        # TODO: remove this exceptioni catch
                         three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
                         try:
                             three_particles_interaction = three_particles_interaction.todense()
-                        except AttributeError as err:
+                        except AttributeError:
                             pass
 
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
                             block_counter += 1
-                            replica = list_of_index
                             file.write ('\n  ' + str (block_counter))
                             rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_1])
-                            file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
-                                rep_position[2]))
+                            file.write ('\n  ' + str (rep_position[2]) + ' ' + str (rep_position[1]) + ' ' + str (
+                                rep_position[0]))
                             rep_position = apply_boundary (phonons.finite_difference.replicated_atoms,replica[n_2])
-                            file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
-                                rep_position[2]))
-                            file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
+                            file.write ('\n  ' + str (rep_position[2]) + ' ' + str (rep_position[1]) + ' ' + str (
+                                rep_position[0]))
+                            file.write ('\n  ' + str (i_2 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_0 + 1))
 
                             for alpha_0 in range (3):
                                 for alpha_1 in range (3):
                                     for alpha_2 in range (3):
                                         file.write (
-                                            '\n  ' + str (alpha_0 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
-                                                alpha_2 + 1) + "  %.11E" % three_particles_interaction[
+                                            '\n  ' + str (alpha_2 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
+                                                alpha_0 + 1) + "  %.11E" % three_particles_interaction[
                                                 alpha_0, alpha_1, alpha_2])
                             file.write ('\n')
     file.close ()
