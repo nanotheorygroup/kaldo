@@ -347,17 +347,14 @@ class Phonons (object):
                 Logger().info(e)
         if self._occupations is None:
             frequencies = self.frequencies
-            temp = self.temperature
+            temp = self.temperature *  (constants.kelvinoverjoule / constants.thzoverjoule)
             density = np.zeros_like(frequencies)
-            physical_modes = np.abs(frequencies) > ENERGY_THRESHOLD
+            physical_modes = frequencies > ENERGY_THRESHOLD
 
             if self.is_classic is False:
-                density[physical_modes] = 1. / (
-                        np.exp(constants.thzoverjoule * frequencies[physical_modes] / constants.kelvinoverjoule /
-                               temp) - 1.)
+                density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
             else:
-                density[physical_modes] = constants.kelvinoverjoule * temp / frequencies[physical_modes] /\
-                                          constants.thzoverjoule
+                density[physical_modes] = temp / frequencies[physical_modes]
             self.occupations = density
         return self._occupations
 

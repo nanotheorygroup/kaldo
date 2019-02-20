@@ -3,8 +3,7 @@ from ballistico.logger import Logger
 import scipy.special
 from opt_einsum import contract
 from sparse import COO
-import ballistico.constants as constants
-
+import ase.units as units
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
@@ -54,7 +53,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    dynmat /= constants.tenjovermol
+    dynmat /= (10 * units.J / units.mol)
 
 
     DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
@@ -81,7 +80,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
-            if np.abs(frequencies[mu]) > energy_threshold:
+            if frequencies[mu] > energy_threshold:
                 velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
     if velocities is None:
@@ -106,8 +105,6 @@ def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, rep
         eigenvectors[index_k, :, :] = evect
         velocities[index_k, :, :] = vels.real
 
-    # TODO: figure out why we have Nan values
-    velocities[np.isnan(velocities)] = 0
     return frequencies, eigenvalues, eigenvectors, -1 * (velocities / 10)
 
 
@@ -136,10 +133,10 @@ def gaussian_delta(params):
 
 
 def triangular_delta(params):
-    domega = np.abs(params[0])
+    delta_energy = np.abs(params[0])
     deltaa = np.abs(params[1])
-    out = np.zeros_like(domega)
-    out[domega < deltaa] = 1. / deltaa * (1 - domega[domega < deltaa] / deltaa)
+    out = np.zeros_like(delta_energy)
+    out[delta_energy < deltaa] = 1. / deltaa * (1 - delta_energy[delta_energy < deltaa] / deltaa)
     return out
 
 
@@ -180,7 +177,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
     elif broadening == 'triangle':
         broadening_function = triangular_delta
 
-    if np.abs(frequencies[index_k, mu]) > energy_threshold:
+    if frequencies[index_k, mu] > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
         evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
@@ -209,7 +206,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         freq_diff_np = np.abs(frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] -
                               frequencies[index_kpp_vec, np.newaxis, :])
 
-        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > energy_threshold) & (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > energy_threshold)
+        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
+                    (frequencies[index_kp_vec, :, np.newaxis] > energy_threshold) & \
+                    (frequencies[index_kpp_vec, np.newaxis, :] > energy_threshold)
         interactions = np.array(np.where(condition)).T
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
@@ -258,7 +257,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
 
             # gamma contracted on one index
             pot_times_dirac = np.abs(potential.flatten(order='C')) ** 2 * dirac_delta.flatten(order='C')
-            pot_times_dirac = pot_times_dirac / frequencies[index_k, mu] / nptk * constants.gamma_coeff
+            gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4. / 16 / np.pi ** 4
+            pot_times_dirac = pot_times_dirac / frequencies[index_k, mu] / nptk * gamma_coeff
             return COO((nup_vec, nupp_vec), pot_times_dirac, (nptk * n_modes, nptk * n_modes))
 
 

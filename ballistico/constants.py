@@ -11,12 +11,9 @@ mol = units.mol
 
 hbar = units._hbar
 
-mass_factor = units._me * 2 * units.mol * 1e+3
 
 thzoverjoule = petahertz / units.J / 1000
 kelvinoverjoule = units.kB / units.J
 
 
-tenjovermol = 10 * units.J / units.mol
 
-gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4. / 16 / np.pi ** 4
