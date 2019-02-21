@@ -1,8 +1,8 @@
 import numpy as np
 import os
-import ballistico.constants as constants
 from ballistico.logger import Logger
 import ballistico.calculator
+import ase.units as units
 
 ENERGY_THRESHOLD = 0.001
 
@@ -347,7 +347,9 @@ class Phonons (object):
                 Logger().info(e)
         if self._occupations is None:
             frequencies = self.frequencies
-            temp = self.temperature *  (constants.kelvinoverjoule / constants.thzoverjoule)
+            
+            kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+            temp = self.temperature * kelvinoverthz
             density = np.zeros_like(frequencies)
             physical_modes = frequencies > ENERGY_THRESHOLD
 
@@ -421,13 +423,16 @@ class Phonons (object):
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
             physical_modes = np.abs(frequencies) > ENERGY_THRESHOLD
+            kelvinoverjoule = units.kB / units.J
+            kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+            temperature = self.temperature * kelvinoverthz
 
             if (self.is_classic):
-                c_v[physical_modes] = constants.kelvinoverjoule
+                c_v[physical_modes] = kelvinoverjoule
             else:
                 f_be = self.occupations
-                c_v[physical_modes] = (constants.thzoverjoule) ** 2 * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
-                         (constants.kelvinoverjoule * self.temperature ** 2)
+                c_v[physical_modes] = kelvinoverjoule * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
+                         (temperature ** 2)
             self.c_v = c_v * 1e21
         return self._c_v
 
