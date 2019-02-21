@@ -84,8 +84,6 @@ class ConductivityController (object):
     
     def calculate_conductivity(self, is_classic, length_thresholds=None):
 
-        hbar = units._hbar * 1e12
-        k_b = units.kB / units.J
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
@@ -93,7 +91,6 @@ class ConductivityController (object):
 
         velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
         c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
-        f_be = np.zeros((phonons.n_phonons))
 
         frequencies = self.phonons.frequencies.reshape((self.phonons.n_k_points * self.phonons.n_modes), order='C')
         physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
@@ -161,7 +158,7 @@ class ConductivityController (object):
             tau_zero = np.zeros_like(gamma)
             tau_zero[gamma != 0] = 1 / gamma[gamma != 0]
             F_n_0[:, alpha] = tau_zero[:] * velocities[:, alpha] * 2 * np.pi * frequencies[:]
-
+        c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
         F_n = F_n_0.copy()
         f_be = np.zeros((phonons.n_phonons))
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
@@ -169,16 +166,11 @@ class ConductivityController (object):
         for n_iteration in range(MAX_ITERATIONS_SC):
             for alpha in range(3):
                 for beta in range(3):
-                    f_be[physical_modes] = 1. / (np.exp(hbar * 2 * np.pi * frequencies[physical_modes] / k_b / phonons.temperature) - 1.)
+                    conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * phonons.n_k_points) * c_v[
+                        physical_modes] / (2 * np.pi * frequencies[physical_modes]) * velocities[
+                                                                             physical_modes, alpha] * F_n[
+                                                                             physical_modes, beta]
 
-                    if (is_classic):
-                        conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b / \
-                                                                (2 * np.pi * frequencies[physical_modes]) * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
-                    else:
-                        conductivity_per_mode[physical_modes, alpha, beta] = 1e21 * hbar ** 2 / \
-                                                                (k_b * phonons.temperature ** 2 * volume *
-                                                                 phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1) * \
-                                                                             2 * np.pi * frequencies[physical_modes] * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
             if is_rta:
                 return conductivity_per_mode
             
@@ -200,15 +192,7 @@ class ConductivityController (object):
             for beta in range(3):
                 f_be[physical_modes] = 1. / (np.exp(hbar * 2 * np.pi * frequencies[physical_modes] / k_b / phonons.temperature) - 1.)
 
-                if (is_classic):
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * \
-                                                            k_b / (2 * np.pi * frequencies[physical_modes]) * velocities[
-                                                                             physical_modes, alpha] * F_n[physical_modes, beta]
-                else:
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1e21 * hbar ** 2 \
-                                                            / (k_b * phonons.temperature ** 2 * volume *
-                                                               phonons.n_k_points) * f_be[physical_modes] * (f_be[physical_modes] + 1) * \
-                                                                         2 * np.pi * frequencies[physical_modes] * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
+                conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * phonons.n_k_points) * c_v[physical_modes] / (2 * np.pi * frequencies[physical_modes]) * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
 
         conductivity = conductivity_per_mode
         if n_iteration == (MAX_ITERATIONS_SC - 1):
