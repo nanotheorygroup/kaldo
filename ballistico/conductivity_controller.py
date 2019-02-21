@@ -1,4 +1,3 @@
-import ballistico.constants as constants
 import numpy as np
 from scipy.sparse import csc_matrix
 import ase.units as units
@@ -51,19 +50,6 @@ class ConductivityController (object):
         
         return (transmission / length)
     
-    def specific_heat(self, is_classical=False):
-        temperature = (constants.kelvinoverjoule / constants.thzoverjoule) * self.phonons.temperature
-        f_be = 1. / (np.exp (self.phonons.frequencies / temperature) - 1.)
-        c_v = np.zeros ((self.phonons.n_phonons))
-        if (is_classical):
-            c_v[:] = constants.kelvinoverjoule
-        else:
-            c_v[:] = constants.kelvinoverjoule * f_be[:] * (f_be[:] + 1) * self.phonons.frequencies[:] ** 2 / \
-                     (self.phonons.temperature ** 2)
-            
-        # TODO: get rid of this prefactor
-        return 1e21 * c_v
-    
     def exact_conductivity(self, is_classical=False, l_x=LENGTH_THREESHOLD, l_y=LENGTH_THREESHOLD,
                            l_z=LENGTH_THREESHOLD, alpha=0, beta=0):
         volume = np.linalg.det(self.phonons.atoms.cell) / 1000.
@@ -76,7 +62,7 @@ class ConductivityController (object):
         
         transmission = self.calculate_transmission (self.phonons.velocities[:, alpha], length[alpha]) * length[alpha]
         
-        conductivity_per_mode[:] = self.specific_heat(is_classical) * (self.phonons.velocities[:, beta].dot(transmission))
+        conductivity_per_mode[:] = self.phonons.c_v * (self.phonons.velocities[:, beta].dot(transmission))
         
         conductivity = np.sum (conductivity_per_mode, 0) / self.phonons.n_k_points / volume
         return conductivity
@@ -98,15 +84,15 @@ class ConductivityController (object):
     
     def calculate_conductivity(self, is_classic, length_thresholds=None):
 
-        hbar = constants.hbar * 1e12
-        k_b = constants.kelvinoverjoule
+        hbar = units._hbar * 1e12
+        k_b = units.kB / units.J
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
 
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
-        velocities[np.isnan(velocities)] = 0
 
         velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
+        c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
         f_be = np.zeros((phonons.n_phonons))
 
         frequencies = self.phonons.frequencies.reshape((self.phonons.n_k_points * self.phonons.n_modes), order='C')
@@ -134,24 +120,17 @@ class ConductivityController (object):
 
             # plt.show()
             for beta in range(3):
-                f_be[physical_modes] = 1. / (np.exp(hbar * 2 * np.pi * frequencies[physical_modes] / k_b / phonons.temperature) - 1.)
                 lambd = gamma_inv.dot(velocities[physical_modes, beta])
-                # if alpha == 0:
-                    # print('mean free path: beta: ', beta, ', mfp: ', np.abs(lambd).mean(), lambd.max(), lambd.min())
-
-                if (is_classic):
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1e21 / (volume * phonons.n_k_points) * k_b *\
+                
+                conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * phonons.n_k_points) * c_v[physical_modes] *\
                                                                          velocities[physical_modes, alpha] * lambd
-                else:
-                    conductivity_per_mode[physical_modes, alpha, beta] = \
-                        1e21 * hbar ** 2 / (k_b * phonons.temperature ** 2 * volume * phonons.n_k_points) * \
-                        f_be[physical_modes] * (f_be[physical_modes] + 1) * (2 * np.pi * frequencies[physical_modes]) ** 2 * \
-                        velocities[physical_modes, alpha] * lambd
+                
         return conductivity_per_mode
 
+
     def calculate_conductivity_sc(self, is_classic, tolerance=0.01, length_thresholds=None, is_rta=False):
-        hbar = constants.hbar * 1e12
-        k_b = constants.kelvinoverjoule
+        hbar = units._hbar * 1e12
+        k_b = units.kB / units.J
 
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
