@@ -36,7 +36,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
+def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms, frequencies_threshold):
 
     geometry = atoms.positions
     cell_inv = np.linalg.inv (atoms.cell)
@@ -80,7 +80,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
-            if frequencies[mu] > energy_threshold:
+            if frequencies[mu] > frequencies_threshold:
                 velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
     if velocities is None:
@@ -88,7 +88,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     return frequencies, eigenvals, eigenvects, velocities
 
 
-def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, replicated_atoms, energy_threshold):
+def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, replicated_atoms, frequencies_threshold):
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = k_points.shape[0]
 
@@ -99,7 +99,7 @@ def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, rep
     for index_k in range (n_k_points):
         freq, eval, evect, vels = diagonalize_second_order_single_k (k_points[index_k], atoms, second_order.copy(),
                                                                      list_of_replicas, replicated_atoms,
-                                                                     energy_threshold)
+                                                                     frequencies_threshold)
         frequencies[index_k, :] = freq
         eigenvalues[index_k, :] = eval
         eigenvectors[index_k, :, :] = evect
@@ -166,9 +166,7 @@ def lorentzian_delta(params):
 # @profile
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
-                           energy_threshold):
-
-    # is_amorphous = nptk == 1
+                           frequencies_threshold):
 
     if broadening == 'gauss':
         broadening_function = gaussian_delta
@@ -176,8 +174,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         broadening_function = lorentzian_delta
     elif broadening == 'triangle':
         broadening_function = triangular_delta
-
-    if frequencies[index_k, mu] > energy_threshold:
+    omegas = 2 * np.pi * frequencies
+    if frequencies[index_k, mu] > frequencies_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
         evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
@@ -195,7 +193,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         # +1 if is_plus, -1 if not is_plus
         second_sign = (int(is_plus) * 2 - 1)
         if sigma_in is None:
-            velocities = velocities.real
             # velocities[0, :3, :] = 0
             sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
                                                    velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
@@ -203,12 +200,12 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         else:
             sigma_small = sigma_in
 
-        freq_diff_np = np.abs(frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] -
-                              frequencies[index_kpp_vec, np.newaxis, :])
+        omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_vec, :, np.newaxis] -
+                              omegas[index_kpp_vec, np.newaxis, :])
 
-        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & \
-                    (frequencies[index_kp_vec, :, np.newaxis] > energy_threshold) & \
-                    (frequencies[index_kpp_vec, np.newaxis, :] > energy_threshold)
+        condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
+                    (frequencies[index_kp_vec, :, np.newaxis] > frequencies_threshold) & \
+                    (frequencies[index_kpp_vec, np.newaxis, :] > frequencies_threshold)
         interactions = np.array(np.where(condition)).T
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
@@ -227,44 +224,34 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                 dirac_delta = density[nup_vec] - density[nupp_vec]
 
             else:
-                dirac_delta = .5 * (
-                        1 + density[nup_vec] + density[nupp_vec])
+                dirac_delta = .5 * (1 + density[nup_vec] + density[nupp_vec])
 
-            dirac_delta /= (frequencies[index_kp_vec, mup_vec] * frequencies[index_kpp_vec, mupp_vec])
+            dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
             if sigma_in is None:
-                dirac_delta *= broadening_function([freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_small[
+                dirac_delta *= broadening_function([omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
                     index_kp_vec, mup_vec, mupp_vec]])
 
             else:
                 dirac_delta *= broadening_function(
-                    [freq_diff_np[index_kp_vec, mup_vec, mupp_vec], sigma_in])
+                    [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
 
             if is_plus:
-                # if (k_size == (1, 1, 1)).any():
-                #     potential = contract('litj,aj,ai->alt', scaled_potential,
-                #                          evect_dagger[nupp_vec], evect[nup_vec])
-                # else:
-                potential = contract('litj,aj,ai,al,at->a', scaled_potential,
-                                         evect_dagger[nupp_vec], evect[nup_vec], chi[index_kp_vec], chi.conj()
-                                         [index_kpp_vec])
+                potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect[nup_vec],
+                                     chi[index_kp_vec], chi.conj()[index_kpp_vec])
             else:
-                # if (k_size == (1, 1, 1)).any():
-                #     potential = contract('litj,al,at->alt', scaled_potential,  evect_dagger[nupp_vec], evect_dagger[
-                #         nup_vec])
-                # else:
-                potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[
-                        nup_vec], chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
+                potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[nup_vec],
+                                     chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
 
             # gamma contracted on one index
             pot_times_dirac = np.abs(potential.flatten(order='C')) ** 2 * dirac_delta.flatten(order='C')
-            gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4. / 16 / np.pi ** 4
-            pot_times_dirac = pot_times_dirac / frequencies[index_k, mu] / nptk * gamma_coeff
+            gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
+            pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
             return COO((nup_vec, nupp_vec), pot_times_dirac, (nptk * n_modes, nptk * n_modes))
 
 
 # @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
-                    sigma_in, broadening, energy_threshold):
+                    sigma_in, broadening, frequencies_threshold):
     density = density.flatten(order='C')
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
@@ -319,7 +306,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                 gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density,
                                                    cell_inv, k_size, n_modes, nptk, n_replicas,
                                                    rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
-                                                   energy_threshold)
+                                                   frequencies_threshold)
                 if gamma_out:
                     # first_contracted_gamma = gamma_out.sum(axis=1)
                     # gamma_scal = first_contracted_gamma.sum(axis=0)
