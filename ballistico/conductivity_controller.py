@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.sparse import csc_matrix
-import ase.units as units
 
 LENGTH_THREESHOLD = 1e20
 THREESHOLD = 1e-20
@@ -126,9 +125,6 @@ class ConductivityController (object):
 
 
     def calculate_conductivity_sc(self, is_classic, tolerance=0.01, length_thresholds=None, is_rta=False):
-        hbar = units._hbar * 1e12
-        k_b = units.kB / units.J
-
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell) / 1000
         velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
@@ -160,7 +156,6 @@ class ConductivityController (object):
             F_n_0[:, alpha] = tau_zero[:] * velocities[:, alpha] * 2 * np.pi * frequencies[:]
         c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
         F_n = F_n_0.copy()
-        f_be = np.zeros((phonons.n_phonons))
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
         avg_conductivity = 0
         for n_iteration in range(MAX_ITERATIONS_SC):
@@ -190,8 +185,6 @@ class ConductivityController (object):
 
         for alpha in range(3):
             for beta in range(3):
-                f_be[physical_modes] = 1. / (np.exp(hbar * 2 * np.pi * frequencies[physical_modes] / k_b / phonons.temperature) - 1.)
-
                 conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * phonons.n_k_points) * c_v[physical_modes] / (2 * np.pi * frequencies[physical_modes]) * velocities[physical_modes, alpha] * F_n[physical_modes, beta]
 
         conductivity = conductivity_per_mode
