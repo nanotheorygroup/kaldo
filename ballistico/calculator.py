@@ -81,7 +81,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
-            if np.abs(frequencies[mu]) > energy_threshold:
+            if frequencies[mu] > energy_threshold:
                 velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
     if velocities is None:
@@ -180,7 +180,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
     elif broadening == 'triangle':
         broadening_function = triangular_delta
 
-    if np.abs(frequencies[index_k, mu]) > energy_threshold:
+    if frequencies[index_k, mu] > energy_threshold:
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
         evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
@@ -209,7 +209,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         freq_diff_np = np.abs(frequencies[index_k, mu] + second_sign * frequencies[index_kp_vec, :, np.newaxis] -
                               frequencies[index_kpp_vec, np.newaxis, :])
 
-        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (np.abs(frequencies[index_kp_vec, :, np.newaxis]) > energy_threshold) & (np.abs(frequencies[index_kpp_vec, np.newaxis, :]) > energy_threshold)
+        condition = (freq_diff_np < DELTA_THRESHOLD * sigma_small) & (frequencies[index_kp_vec, :, np.newaxis] > energy_threshold) & (frequencies[index_kpp_vec, np.newaxis, :] > energy_threshold)
         interactions = np.array(np.where(condition)).T
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
