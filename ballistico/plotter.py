@@ -1,4 +1,12 @@
-import matplotlib.pyplot as plt
+import sys
+if sys.platform == 'linux':
+    import matplotlib
+    # TKAgg is a good backend for matplotlib in ubuntu
+    matplotlib.use('TKAgg')
+    import matplotlib.pyplot as plt
+else:
+    import matplotlib.pyplot as plt
+
 import numpy as np
 import os
 from sklearn.neighbors.kde import KernelDensity
@@ -29,7 +37,7 @@ class Plotter (object):
         frequencies = self.phonons.frequencies.flatten ()
         observable = observable.flatten ()
         fig = plt.figure ()
-        plt.scatter(frequencies[3:], observable[3:])
+        plt.scatter(frequencies[3:], observable[3:],s=5)
         observable[np.isnan(observable)] = 0
         # plt.ylim([observable[3:].min(), observable[3:].max()])
         # plt.xlim([frequencies[3:].min(), frequencies[3:].max()])
