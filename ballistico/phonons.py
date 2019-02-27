@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from ballistico.logger import Logger
-import ballistico.calculator
+import ballistico.phonons_calculator
 import ase.units as units
 
 ENERGY_THRESHOLD = 0.001
@@ -89,7 +89,7 @@ class Phonons (object):
             except FileNotFoundError as e:
                 Logger().info(e)
 
-                frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
+                frequencies, eigenvalues, eigenvectors, velocities = ballistico.phonons_calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
@@ -124,7 +124,7 @@ class Phonons (object):
             except FileNotFoundError as e:
                 Logger().info(e)
 
-                frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
+                frequencies, eigenvalues, eigenvectors, velocities = ballistico.phonons_calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
@@ -181,7 +181,7 @@ class Phonons (object):
                 self._eigenvalues = np.load (folder + EIGENVALUES_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
-                frequencies, eigenvalues, eigenvectors, velocities = ballistico.calculator.calculate_second_k_list(
+                frequencies, eigenvalues, eigenvectors, velocities = ballistico.phonons_calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
@@ -222,7 +222,7 @@ class Phonons (object):
             except FileNotFoundError as e:
                 Logger().info(e)
 
-                gamma, scattering_matrix = ballistico.calculator.calculate_gamma(
+                gamma, scattering_matrix = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -274,7 +274,7 @@ class Phonons (object):
             except FileNotFoundError as e:
                 Logger().info(e)
 
-                gamma, scattering_matrix = ballistico.calculator.calculate_gamma(
+                gamma, scattering_matrix = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -318,7 +318,7 @@ class Phonons (object):
                 self._dos = np.load (folder + DOS_FILE)
             except FileNotFoundError as e:
                 Logger().info(e)
-                dos = ballistico.calculator.calculate_density_of_states(
+                dos = ballistico.phonons_calculator.calculate_density_of_states(
                     self.frequencies,
                     self.kpts
                 )
@@ -500,7 +500,7 @@ class Phonons (object):
                 csv.write(str_to_write)
 
     def second_quantities_k_list(self, klist):
-        return ballistico.calculator.calculate_second_k_list(
+        return ballistico.phonons_calculator.calculate_second_k_list(
             klist,
             self.atoms,
             self.finite_difference.second_order,
