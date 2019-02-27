@@ -92,7 +92,7 @@ class ConductivityController (object):
         c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
 
         frequencies = self.phonons.frequencies.reshape((self.phonons.n_k_points * self.phonons.n_modes), order='C')
-        physical_modes = np.abs(frequencies) > self.phonons.energy_threshold
+        physical_modes = frequencies > self.phonons.energy_threshold
 
         index = np.outer(physical_modes, physical_modes)
 
@@ -152,7 +152,7 @@ class ConductivityController (object):
                 else:
                     gamma[mu] = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu]
             tau_zero = np.zeros_like(gamma)
-            tau_zero[gamma != 0] = 1 / gamma[gamma != 0]
+            tau_zero[gamma > self.phonons.gamma_cutoff] = 1 / gamma[gamma > self.phonons.gamma_cutoff]
             F_n_0[:, alpha] = tau_zero[:] * velocities[:, alpha] * 2 * np.pi * frequencies[:]
         c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
         F_n = F_n_0.copy()

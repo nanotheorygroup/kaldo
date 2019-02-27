@@ -5,6 +5,7 @@ import ballistico.calculator
 import ase.units as units
 
 ENERGY_THRESHOLD = 0.001
+GAMMA_CUTOFF = 0
 
 
 FREQUENCIES_FILE = 'frequencies.npy'
@@ -23,7 +24,7 @@ FOLDER_NAME = 'ballistico'
 
 class Phonons (object):
     def __init__(self, finite_difference, folder=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, broadening_shape='gauss'):
+    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss'):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -68,6 +69,11 @@ class Phonons (object):
             self.energy_threshold = energy_threshold
         else:
             self.energy_threshold = ENERGY_THRESHOLD
+        
+        if gamma_cutoff is not None:
+            self.gamma_cutoff = gamma_cutoff
+        else:
+            self.gamma_cutoff = GAMMA_CUTOFF
 
     @property
     def frequencies(self):
@@ -422,7 +428,7 @@ class Phonons (object):
         if self._c_v is None:
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
-            physical_modes = np.abs(frequencies) > ENERGY_THRESHOLD
+            physical_modes = frequencies > ENERGY_THRESHOLD
             kelvinoverjoule = units.kB / units.J
             kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
             temperature = self.temperature * kelvinoverthz
