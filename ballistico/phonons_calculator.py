@@ -1,5 +1,4 @@
 import numpy as np
-from ballistico.logger import Logger
 import scipy.special
 from opt_einsum import contract
 from sparse import COO
@@ -210,7 +209,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
         if interactions.size != 0:
-            # Logger ().info ('interactions: ' + str (interactions.size))
+            # print('interactions: ' + str (interactions.size))
             index_kp_vec = interactions[:, 0]
             index_kpp_vec = index_kpp_vec[index_kp_vec]
             mup_vec = interactions[:, 1]
@@ -256,7 +255,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
 
-    Logger ().info ('Lifetime calculation')
+    print('Lifetime calculation')
     n_modes = n_particles * 3
 
     # TODO: We should write this in a better way
@@ -280,7 +279,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             realq = np.matmul (rlattvec, k_point)
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
-    Logger ().info ('Projection started')
+    print('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
 
     if IS_SCATTERING_MATRIX_ENABLED:
@@ -291,7 +290,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     list_of_k = np.arange(np.prod(k_size))
 
-    # Logger ().info ('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
+    # print('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
     process = ['Minus processes: ', 'Plus processes: ']
     masses = atoms.get_masses()
     rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
@@ -344,7 +343,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                             #     gamma_tensor[nu_vec, nupp_vec] += second_contracted_gamma.data
                             #     # gamma_tensor[nupp_vec, nu_vec] += second_contracted_gamma.data
 
-            Logger().info(process[is_plus] + 'q-point = ' + str(index_k))
+            print(process[is_plus] + 'q-point = ' + str(index_k))
 
     # if IS_SCATTERING_MATRIX_ENABLED:
     #     gamma_tensor_copy = np.zeros((nptk, n_modes, nptk, n_modes))

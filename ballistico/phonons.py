@@ -1,6 +1,5 @@
 import numpy as np
 import os
-from ballistico.logger import Logger
 import ballistico.phonons_calculator
 import ase.units as units
 
@@ -87,7 +86,7 @@ class Phonons (object):
                 folder += '/'
                 self._frequencies = np.load (folder + FREQUENCIES_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
 
                 frequencies, eigenvalues, eigenvectors, velocities = ballistico.phonons_calculator.calculate_second_k_list(
                     self.k_points,
@@ -122,7 +121,7 @@ class Phonons (object):
                 folder += '/'
                 self._velocities = np.load (folder + VELOCITIES_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
 
                 frequencies, eigenvalues, eigenvectors, velocities = ballistico.phonons_calculator.calculate_second_k_list(
                     self.k_points,
@@ -157,7 +156,7 @@ class Phonons (object):
                 folder += '/'
                 self._eigenvectors = np.load (folder + EIGENVECTORS_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
         return self._eigenvectors
 
     @eigenvectors.setter
@@ -180,7 +179,7 @@ class Phonons (object):
                 folder += '/'
                 self._eigenvalues = np.load (folder + EIGENVALUES_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
                 frequencies, eigenvalues, eigenvectors, velocities = ballistico.phonons_calculator.calculate_second_k_list(
                     self.k_points,
                     self.atoms,
@@ -220,7 +219,7 @@ class Phonons (object):
                     folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
                 self._gamma = np.load (folder + GAMMA_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
 
                 gamma, scattering_matrix = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
@@ -272,7 +271,7 @@ class Phonons (object):
                     folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
                 self._scattering_matrix = np.load (folder + SCATTERING_MATRIX_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
 
                 gamma, scattering_matrix = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
@@ -317,7 +316,7 @@ class Phonons (object):
                 folder += '/'
                 self._dos = np.load (folder + DOS_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
                 dos = ballistico.phonons_calculator.calculate_density_of_states(
                     self.frequencies,
                     self.kpts
@@ -350,7 +349,7 @@ class Phonons (object):
                     folder += 'quantum/'
                 self._occupations = np.load (folder + OCCUPATIONS_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
         if self._occupations is None:
             frequencies = self.frequencies
             
@@ -390,7 +389,7 @@ class Phonons (object):
                 folder += '/'
                 self._k_points = np.load (folder + K_POINTS_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
         if self._k_points is None:
             k_size = self.kpts
             n_k_points = np.prod (k_size)
@@ -424,7 +423,7 @@ class Phonons (object):
                     folder += 'quantum/'
                 self._c_v = np.load (folder + C_V_FILE)
             except FileNotFoundError as e:
-                Logger().info(e)
+                print(e)
         if self._c_v is None:
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
@@ -466,7 +465,7 @@ class Phonons (object):
         filename = filename + ".csv"
 
         filename = self.folder_name + filename
-        Logger ().info ('saving ' + filename)
+        print('saving ' + filename)
         with open (filename, "w") as csv:
             str_to_write = 'k_x,k_y,k_z,'
             for i in range (n_modes):
