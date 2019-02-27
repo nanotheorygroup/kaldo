@@ -1,12 +1,4 @@
-import sys
-if sys.platform == 'linux':
-    import matplotlib
-    # TKAgg is a good backend for matplotlib in ubuntu
-    matplotlib.use('TKAgg')
-    import matplotlib.pyplot as plt
-else:
-    import matplotlib.pyplot as plt
-
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 from sklearn.neighbors.kde import KernelDensity
