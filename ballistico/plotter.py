@@ -91,7 +91,7 @@ class Plotter (object):
             plt.show()
             
         fig2 = plt.figure ()
-        plt.ylabel('velocity norm/$1000m/s$')
+        plt.ylabel('velocity norm/$100m/s$')
         plt.xticks(Q, point_names)
         plt.xlim(q[0], q[-1])
         plt.plot(q, np.linalg.norm(vel_plot[:, :, :], axis=2), ".")

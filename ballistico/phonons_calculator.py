@@ -6,9 +6,10 @@ import ase.units as units
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
-# DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
 # DIAGONALIZATION_ALGORITHM = np.linalg.eigh
+DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+
 IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
 DELTA_DOS = 1
@@ -52,10 +53,10 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     mass = np.sqrt(atoms.get_masses ())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+    
+    # TODO: probably we want to move this unit conversion somewhere more appropriate
     dynmat /= (10 * units.J / units.mol)
 
-
-    DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
     chi_k = np.zeros(n_replicas).astype(complex)
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
@@ -82,8 +83,6 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
             if frequencies[mu] > frequencies_threshold:
                 velocities[mu, alpha] = vel[mu, mu, alpha] / (2 * (2 * np.pi) * frequencies[mu])
 
-    if velocities is None:
-        velocities = 0
     return frequencies, eigenvals, eigenvects, velocities
 
 
@@ -102,17 +101,21 @@ def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, rep
         frequencies[index_k, :] = freq
         eigenvalues[index_k, :] = eval
         eigenvectors[index_k, :, :] = evect
-        velocities[index_k, :, :] = vels.real
+        velocities[index_k, :, :] = -1 * vels.real
 
-    return frequencies, eigenvalues, eigenvectors, -1 * (velocities / 10)
+    return frequencies, eigenvalues, eigenvectors, velocities
 
 
 def calculate_broadening(velocity, cellinv, k_size):
+    velocity /= 10
+
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
     # 10 = armstrong to nanometers
+    
     delta_k = cellinv / k_size * 2 * np.pi
     base_sigma = ((np.tensordot (velocity * 10., delta_k, [-1, 1])) ** 2).sum (axis=-1)
     base_sigma = np.sqrt (base_sigma / 6.)
+    
     return base_sigma / (2 * np.pi)
 
 
@@ -166,7 +169,6 @@ def lorentzian_delta(params):
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
                            frequencies_threshold):
-
     if broadening == 'gauss':
         broadening_function = gaussian_delta
     elif broadening == 'lorentz':
