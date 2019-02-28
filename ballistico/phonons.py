@@ -356,7 +356,7 @@ class Phonons (object):
             kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
             temp = self.temperature * kelvinoverthz
             density = np.zeros_like(frequencies)
-            physical_modes = frequencies > ENERGY_THRESHOLD
+            physical_modes = frequencies > self.energy_threshold
 
             if self.is_classic is False:
                 density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
@@ -427,7 +427,7 @@ class Phonons (object):
         if self._c_v is None:
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
-            physical_modes = frequencies > ENERGY_THRESHOLD
+            physical_modes = frequencies > self.energy_threshold
             kelvinoverjoule = units.kB / units.J
             kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
             temperature = self.temperature * kelvinoverthz
