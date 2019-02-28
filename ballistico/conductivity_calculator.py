@@ -8,7 +8,6 @@ MAX_ITERATIONS_SC = 1000
 
 
 def calculate_transmission(phonons, velocities, length):
-    
     prefactor = csc_matrix ((1. / velocities, (range(phonons.n_phonons), range(phonons.n_phonons))), shape=(phonons.n_phonons, phonons.n_phonons),
                              dtype=np.float32)
     gamma_unitless = prefactor.dot (phonons.scattering_matrix)
@@ -54,7 +53,8 @@ def transmission_matthiesen(phonons, rate, velocity, length):
     trans = (rate + abs (velocity) / length) ** (-1)
     return trans
 
-def transmission_infinite(phonons, rate, velocity, length):
+
+def transmission_infinite(rate, velocity, length):
     return 1. / (rate + THREESHOLD)
 
 def transmission_caltech(phonons, rate, velocity, length):
@@ -64,8 +64,8 @@ def transmission_caltech(phonons, rate, velocity, length):
 
 def calculate_conductivity(phonons, length_thresholds=None):
     volume = np.linalg.det(phonons.atoms.cell) / 1000
-
     velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
+    velocities /= 10
 
     velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
     c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
@@ -106,7 +106,7 @@ def calculate_conductivity(phonons, length_thresholds=None):
 def calculate_conductivity_sc(phonons, tolerance=0.01, length_thresholds=None, is_rta=False):
     volume = np.linalg.det(phonons.atoms.cell) / 1000
     velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
-    velocities[np.isnan(velocities)] = 0
+    velocities /= 10
     if not is_rta:
         # TODO: clean up the is_rta logic
         scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons,
