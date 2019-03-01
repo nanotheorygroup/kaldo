@@ -107,11 +107,17 @@ def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, rep
 
 
 def calculate_broadening(velocity, cellinv, k_size):
+    velocity /= 10
+
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
+    # 10 = armstrong to nanometers
+    
     delta_k = cellinv / k_size * 2 * np.pi
-    base_sigma = ((np.tensordot (velocity, delta_k, [-1, 1])) ** 2).sum (axis=-1)
-    base_sigma = np.sqrt (base_sigma / 6.) / (2 * np.pi)
-    return base_sigma
+    base_sigma = ((np.tensordot (velocity * 10., delta_k, [-1, 1])) ** 2).sum (axis=-1)
+    base_sigma = np.sqrt (base_sigma / 6.)
+    
+    return base_sigma / (2 * np.pi)
+
 
 def gaussian_delta(params):
     # alpha is a factor that tells whats the ration between the width of the gaussian
