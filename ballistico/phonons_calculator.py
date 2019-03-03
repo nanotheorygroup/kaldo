@@ -10,7 +10,7 @@ IS_SORTING_EIGENVALUES = False
 # DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 
-IS_DELTA_CORRECTION_ENABLED = False
+IS_DELTA_CORRECTION_ENABLED = True
 DELTA_THRESHOLD = 2
 DELTA_DOS = 1
 NUM_DOS = 100
@@ -108,9 +108,9 @@ def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, rep
 
 def calculate_broadening(velocity, cellinv, k_size):
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
-    delta_k = cellinv / k_size * 2 * np.pi
+    delta_k = cellinv / k_size
     base_sigma = ((np.tensordot (velocity, delta_k, [-1, 1])) ** 2).sum (axis=-1)
-    base_sigma = np.sqrt (base_sigma / 6.) / (2 * np.pi)
+    base_sigma = np.sqrt (base_sigma / 6.)
     return base_sigma
 
 def gaussian_delta(params):
