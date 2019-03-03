@@ -47,9 +47,6 @@ def exact_conductivity(phonons, is_classical=False, l_x=LENGTH_THREESHOLD, l_y=L
     return conductivity
 
 def transmission_matthiesen(phonons, rate, velocity, length):
-    # TODO: this is not exacly a transmission function, change the names to match the right units.
-    # trans =  (rates + abs (velocity) / length) ** (-1)
-    # return trans
     trans = (rate + abs (velocity) / length) ** (-1)
     return trans
 
@@ -64,8 +61,7 @@ def transmission_caltech(phonons, rate, velocity, length):
 
 def calculate_conductivity(phonons, length_thresholds=None):
     volume = np.linalg.det(phonons.atoms.cell) / 1000
-    velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
-    velocities /= 10
+    velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C') / 10
 
     velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
     c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
@@ -105,8 +101,7 @@ def calculate_conductivity(phonons, length_thresholds=None):
 
 def calculate_conductivity_sc(phonons, tolerance=0.01, length_thresholds=None, is_rta=False):
     volume = np.linalg.det(phonons.atoms.cell) / 1000
-    velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C')
-    velocities /= 10
+    velocities = phonons.velocities.real.reshape((phonons.n_k_points, phonons.n_modes, 3), order='C') / 10
     if not is_rta:
         # TODO: clean up the is_rta logic
         scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons,
