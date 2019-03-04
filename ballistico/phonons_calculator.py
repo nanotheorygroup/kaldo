@@ -36,7 +36,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_atoms, frequencies_threshold):
+def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_cell, frequencies_threshold):
 
     geometry = atoms.positions
     cell_inv = np.linalg.inv (atoms.cell)
@@ -61,8 +61,8 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
     dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-    replicated_cell_inv = np.linalg.inv(replicated_atoms.cell)
-    dxij = apply_boundary_with_cell (replicated_atoms.cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+    replicated_cell_inv = np.linalg.inv(replicated_cell)
+    dxij = apply_boundary_with_cell (replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
             geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
     ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
@@ -86,17 +86,18 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     return frequencies, eigenvals, eigenvects, velocities
 
 
-def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, replicated_atoms, frequencies_threshold):
+def calculate_second_k_list(k_points, atoms, second_order, list_of_replicas, replicated_cell, frequencies_threshold):
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = k_points.shape[0]
 
+    
     frequencies = np.zeros ((n_k_points, n_unit_cell * 3))
     eigenvalues = np.zeros ((n_k_points, n_unit_cell * 3))
     eigenvectors = np.zeros ((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype (np.complex)
     velocities = np.zeros ((n_k_points, n_unit_cell * 3, 3))
     for index_k in range (n_k_points):
         freq, eval, evect, vels = diagonalize_second_order_single_k (k_points[index_k], atoms, second_order.copy(),
-                                                                     list_of_replicas, replicated_atoms,
+                                                                     list_of_replicas, replicated_cell,
                                                                      frequencies_threshold)
         frequencies[index_k, :] = freq
         eigenvalues[index_k, :] = eval
@@ -311,12 +312,20 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         # gamma_tensor[nu, nu] += gamma[is_plus, index_k, mu]
                         coords = gamma_out.coords.T
                         for i in range(coords.shape[0]):
-                            if is_plus:
-                                gamma_tensor_plus[nu, coords[i][0]] -= gamma_out.data[i]
-                                gamma_tensor_plus[nu, coords[i][1]] += gamma_out.data[i]
-                            else:
-                                gamma_tensor_minus[nu, coords[i][0]] += gamma_out.data[i]
-                                gamma_tensor_minus[nu, coords[i][1]] += gamma_out.data[i]
+                            coord = coords[i, 0]
+                            index_kp, mup = np.unravel_index (coord, [nptk, n_modes], order='C')
+                            # TODO: For some reason the conductivity doesn't change if we remove the following if.
+                            # Not sure if we should keep it or not
+                            if not ((index_kp, mup) == (index_k, mu)):
+                                if is_plus:
+                                    gamma_tensor_plus[nu, coords[i][0]] -= gamma_out.data[i]
+                                    gamma_tensor_plus[nu, coords[i][1]] += gamma_out.data[i]
+                                else:
+                                    gamma_tensor_minus[nu, coords[i][0]] += gamma_out.data[i]
+                                    gamma_tensor_minus[nu, coords[i][1]] += gamma_out.data[i]
+                            # else:
+                                # print('ciao')
+                                
 
                             #
                             # nup_vec = first_contracted_gamma.coords[0]
