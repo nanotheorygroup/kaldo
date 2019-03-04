@@ -73,6 +73,18 @@ class Phonons (object):
             self.gamma_cutoff = gamma_cutoff
         else:
             self.gamma_cutoff = GAMMA_CUTOFF
+            
+        self.replicated_cell = self.finite_difference.replicated_atoms.cell
+        replicated_cell_inv = np.linalg.inv(self.replicated_cell)
+        replicated_atoms_positions = (self.__apply_boundary_with_cell(self.replicated_cell, replicated_cell_inv, self.finite_difference.replicated_atoms.positions))
+
+        n_replicas = np.prod (self.finite_difference.supercell)
+        atoms = self.finite_difference.atoms
+        n_unit_atoms = self.finite_difference.atoms.positions.shape[0]
+        list_of_replicas = (
+                replicated_atoms_positions.reshape ((n_replicas, n_unit_atoms, 3)) -
+                atoms.positions[np.newaxis, :, :])
+        self.list_of_index = list_of_replicas[:, 0, :]
 
     @property
     def frequencies(self):
@@ -92,8 +104,8 @@ class Phonons (object):
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.replicated_atoms,
+                    self.list_of_index,
+                    self.replicated_cell,
                     self.energy_threshold)
                 self.frequencies = frequencies
                 self.eigenvalues = eigenvalues
@@ -127,8 +139,8 @@ class Phonons (object):
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.replicated_atoms,
+                    self.list_of_index,
+                    self.replicated_cell,
                     self.energy_threshold)
                 self.frequencies = frequencies
                 self.eigenvalues = eigenvalues
@@ -184,8 +196,8 @@ class Phonons (object):
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
-                    self.finite_difference.list_of_index,
-                    self.finite_difference.replicated_atoms,
+                    self.list_of_index,
+                    self.replicated_cell,
                     self.energy_threshold)
                 self.frequencies = frequencies
                 self.eigenvalues = eigenvalues
@@ -228,7 +240,7 @@ class Phonons (object):
                     self.occupations,
                     self.kpts,
                     self.eigenvectors,
-                    self.finite_difference.list_of_index,
+                    self.list_of_index,
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
@@ -280,7 +292,7 @@ class Phonons (object):
                     self.occupations,
                     self.kpts,
                     self.eigenvectors,
-                    self.finite_difference.list_of_index,
+                    self.list_of_index,
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
@@ -452,6 +464,13 @@ class Phonons (object):
                 folder += 'quantum/'
             np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
+        
+    def __apply_boundary_with_cell(self, cell, cellinv, dxij):
+        # exploit periodicity to calculate the shortest distance, which may not be the one we have
+        sxij = dxij.dot(cellinv)
+        sxij = sxij - np.round(sxij)
+        dxij = sxij.dot(cell)
+        return dxij
 
     def save_csv_data(self):
         frequencies = self.frequencies
@@ -503,6 +522,6 @@ class Phonons (object):
             klist,
             self.atoms,
             self.finite_difference.second_order,
-            self.finite_difference.list_of_index,
-            self.finite_difference.replicated_atoms,
+            self.list_of_index,
+            self.replicated_cell,
             self.energy_threshold)
