@@ -21,14 +21,13 @@ if __name__ == "__main__":
             'ballistico': 'ballistico'
             },
         install_requires=[
-            'numpy>=1.7',
+            'numpy>=1.13',
             'scipy>=1',
             'ase>=3.16.0',
             'sparse>=0.6',
             'pandas>=0.23',
             'spglib>=1.11',
-            'opt_einsum>=2.3',
-            'seaborn>=0.9',
-        ],
+            'opt_einsum>=2.3'
+            ],
         zip_safe=True
     )
