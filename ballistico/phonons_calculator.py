@@ -245,7 +245,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             return COO((nup_vec, nupp_vec), pot_times_dirac, (nptk * n_modes, nptk * n_modes))
 
 
-# @profile
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
                     sigma_in, broadening, frequencies_threshold):
     density = density.flatten(order='C')
@@ -314,7 +313,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         for i in range(coords.shape[0]):
                             coord = coords[i, 0]
                             index_kp, mup = np.unravel_index (coord, [nptk, n_modes], order='C')
-                            # TODO: For some reason the conductivity doesn't change if we remove the following if.
+                            # TODO: For some reason the conductivity doesn't seems to change if we remove the following if.
                             # Not sure if we should keep it or not
                             if not ((index_kp, mup) == (index_k, mu)):
                                 if is_plus:
@@ -323,42 +322,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                 else:
                                     gamma_tensor_minus[nu, coords[i][0]] += gamma_out.data[i]
                                     gamma_tensor_minus[nu, coords[i][1]] += gamma_out.data[i]
-                            # else:
-                                # print('ciao')
-                                
-
-                            #
-                            # nup_vec = first_contracted_gamma.coords[0]
-                            #
-                            # second_contracted_gamma = gamma_out.sum(axis=0)
-                            # nupp_vec = second_contracted_gamma.coords[0]
-                            # if is_plus:
-                            #     nu_vec = nu * np.ones(nup_vec.shape[0]).astype(int)
-                            #     gamma_tensor[nu_vec, nup_vec] += first_contracted_gamma.data
-                            #     # gamma_tensor[nup_vec, nu_vec] += first_contracted_gamma.data
-                            #     nu_vec = nu * np.ones(nupp_vec.shape[0]).astype(int)
-                            #     gamma_tensor[nu_vec, nupp_vec] -= second_contracted_gamma.data
-                            #     # gamma_tensor[nupp_vec, nu_vec] -= second_contracted_gamma.data
-                            #
-                            # else:
-                            #     nu_vec = nu * np.ones(nup_vec.shape[0]).astype(int)
-                            #     gamma_tensor[nu_vec, nup_vec] += first_contracted_gamma.data
-                            #     # gamma_tensor[nup_vec, nu_vec] += first_contracted_gamma.data
-                            #     nu_vec = nu * np.ones(nupp_vec.shape[0]).astype(int)
-                            #     gamma_tensor[nu_vec, nupp_vec] += second_contracted_gamma.data
-                            #     # gamma_tensor[nupp_vec, nu_vec] += second_contracted_gamma.data
-
             print(process[is_plus] + 'q-point = ' + str(index_k))
-
-    # if IS_SCATTERING_MATRIX_ENABLED:
-    #     gamma_tensor_copy = np.zeros((nptk, n_modes, nptk, n_modes))
-    #     for index_k in range(nptk):
-    #         for mu in range(n_modes):
-    #             nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-    #             for index_kp in range(nptk):
-    #                 for mup in range(n_modes):
-    #                     nup = np.ravel_multi_index([index_kp, mup], [nptk, n_modes], order='C')
-    #                     gamma_tensor_copy[index_k, mu, index_kp, mup] = gamma_tensor[nu, nup]
     return [gamma[0], gamma[1]], [gamma_tensor_minus, gamma_tensor_plus]
 
 
