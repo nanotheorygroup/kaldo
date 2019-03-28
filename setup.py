@@ -25,7 +25,6 @@ if __name__ == "__main__":
             'scipy>=1',
             'ase>=3.16.0',
             'sparse>=0.6',
-            'pandas>=0.23',
             'spglib>=1.11',
             'opt_einsum>=2.3'
             ],

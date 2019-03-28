@@ -292,7 +292,7 @@ class Phonons (object):
                     self.occupations,
                     self.kpts,
                     self.eigenvectors,
-                    self.list_of_index,
+                    self.finite_difference.list_of_index,
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
