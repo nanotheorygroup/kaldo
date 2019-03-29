@@ -1,8 +1,9 @@
 import numpy as np
 import scipy.special
-from opt_einsum import contract
 from sparse import COO
 import ase.units as units
+import tensorflow as tf
+tf.enable_eager_execution()
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
@@ -14,6 +15,24 @@ IS_DELTA_CORRECTION_ENABLED = True
 DELTA_THRESHOLD = 2
 DELTA_DOS = 1
 NUM_DOS = 100
+
+def contract(*operands, **kwargs):
+    operands_tf = []
+    is_complex = False
+    for i in range(len (operands)):
+        operand = operands[i]
+        if i==0:
+            operands_tf.append(operand)
+        else:
+            operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
+            if (operands_tf[i].dtype == tf.complex128):
+                is_complex = True
+    if is_complex:
+        for i in range (1, len (operands)):
+            operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
+
+    out = tf.einsum(*operands_tf, **kwargs)
+    return np.array(out)
 
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
@@ -164,6 +183,8 @@ def lorentzian_delta(params):
 def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
                            frequencies_threshold):
+    
+    is_amorphous = (nptk == 1)
     if broadening == 'gauss':
         broadening_function = gaussian_delta
     elif broadening == 'lorentz':
@@ -230,14 +251,19 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
             else:
                 dirac_delta *= broadening_function(
                     [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
-
-            if is_plus:
-                potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect[nup_vec],
-                                     chi[index_kp_vec], chi.conj()[index_kpp_vec])
+            if is_amorphous:
+                if is_plus:
+                    potential = contract ('litj,aj,ai->a', scaled_potential, evect_dagger[nupp_vec], evect[nup_vec])
+                else:
+                    potential = contract ('litj,aj,ai->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[nup_vec])
             else:
-                potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[nup_vec],
-                                     chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
-
+                if is_plus:
+                    potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect[nup_vec],
+                                         chi[index_kp_vec], chi.conj()[index_kpp_vec])
+                else:
+                    potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[nup_vec],
+                                         chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
+    
             # gamma contracted on one index
             pot_times_dirac = np.abs(potential.flatten(order='C')) ** 2 * dirac_delta.flatten(order='C')
             gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
