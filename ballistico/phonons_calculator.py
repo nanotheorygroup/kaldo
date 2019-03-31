@@ -336,21 +336,20 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                     # gamma_scal = first_contracted_gamma.sum(axis=0)
                     gamma[is_plus, index_k, mu] = gamma_out.sum()
                     if IS_SCATTERING_MATRIX_ENABLED:
-                        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                        # gamma_tensor[nu, nu] += gamma[is_plus, index_k, mu]
+                        nu = np.ravel_multi_index ([index_k, mu], [nptk, n_modes], order='C')
                         coords = gamma_out.coords.T
-                        for i in range(coords.shape[0]):
-                            coord = coords[i, 0]
-                            index_kp, mup = np.unravel_index (coord, [nptk, n_modes], order='C')
-                            # TODO: For some reason the conductivity doesn't seems to change if we remove the following if.
-                            # Not sure if we should keep it or not
-                            if not ((index_kp, mup) == (index_k, mu)):
-                                if is_plus:
-                                    gamma_tensor_plus[nu, coords[i][0]] -= gamma_out.data[i]
-                                    gamma_tensor_plus[nu, coords[i][1]] += gamma_out.data[i]
-                                else:
-                                    gamma_tensor_minus[nu, coords[i][0]] += gamma_out.data[i]
-                                    gamma_tensor_minus[nu, coords[i][1]] += gamma_out.data[i]
+                        for i in range (coords.shape[0]):
+                            if is_plus:
+                                if (nu != coords[i, 0]):
+                                    gamma_tensor_plus[nu, coords[i, 0]] -= gamma_out.data[i]
+                                if (nu != coords[i, 1]):
+                                    gamma_tensor_plus[nu, coords[i, 1]] += gamma_out.data[i]
+                            else:
+                                if (nu != coords[i, 0]):
+                                    gamma_tensor_minus[nu, coords[i, 0]] += gamma_out.data[i]
+                                if (nu != coords[i, 1]):
+                                    gamma_tensor_minus[nu, coords[i, 1]] += gamma_out.data[i]
+
             print(process[is_plus] + 'q-point = ' + str(index_k))
     return [gamma[0], gamma[1]], [gamma_tensor_minus, gamma_tensor_plus]
 

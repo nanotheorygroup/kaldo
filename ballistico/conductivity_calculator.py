@@ -36,6 +36,9 @@ def calculate_conductivity_inverse(phonons):
     lambd = np.zeros ((phonons.n_phonons, 3))
     lambd[physical_modes, :] = a_inverse.dot(velocities[physical_modes, :])
     conductivity_per_mode = conductivity(phonons, lambd)
+    evals = np.linalg.eigvalsh (a)
+    print('negative eigenvals : ', (evals<0).sum())
+    
     return conductivity_per_mode
 
 def conj_grad(phonons, a, a_out, b):
