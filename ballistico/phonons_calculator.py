@@ -203,7 +203,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         # TODO: next espression is unreadable and needs to be broken down
         # We need to use the right data structure here, it matters how the sparse matrix is saved
         # (columns, rows, coo, ...)
-        scaled_potential = third_order.reshape((n_replicas, n_modes, n_replicas * n_modes * n_replicas * n_modes), order='C')[0]\
+        scaled_potential = third_order.reshape((1, n_modes, n_replicas * n_modes * n_replicas * n_modes), order='C')[0]\
             .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
         # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
