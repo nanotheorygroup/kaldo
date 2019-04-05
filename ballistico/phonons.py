@@ -2,6 +2,7 @@ import numpy as np
 import os
 import ballistico.phonons_calculator
 import ase.units as units
+from sparse import COO
 
 ENERGY_THRESHOLD = 0.001
 GAMMA_CUTOFF = 0
@@ -232,8 +233,7 @@ class Phonons (object):
                 self._gamma = np.load (folder + GAMMA_FILE)
             except FileNotFoundError as e:
                 print(e)
-
-                gamma, scattering_matrix = ballistico.phonons_calculator.calculate_gamma(
+                nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -246,7 +246,21 @@ class Phonons (object):
                     self.broadening_shape,
                     self.energy_threshold
                 )
-                self.scattering_matrix = scattering_matrix[0] + scattering_matrix[1]
+                gamma_list = []
+                for is_plus in (1, 0):
+                    gamma_0 = COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
+                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
+                    gamma_1 = COO((nup_list[is_plus], nupp_list[is_plus], nu_list[is_plus]),
+                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
+                    gamma_2 = COO((nupp_list[is_plus], nu_list[is_plus], nup_list[is_plus]),
+                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
+                    if is_plus:
+                        gamma_list.append(-gamma_0.sum(axis=2) - gamma_1.sum(axis=2) + gamma_2.sum(axis=2))
+                    else:
+                        gamma_list.append(-gamma_0.sum(axis=2) + gamma_1.sum(axis=2) + gamma_2.sum(axis=2))
+                gamma_tensor_plus = gamma_list[0].todense()
+                gamma_tensor_minus = gamma_list[1].todense()
+                self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
                 self.gamma = gamma[0] + gamma[1]
 
         return self._gamma
@@ -285,20 +299,34 @@ class Phonons (object):
             except FileNotFoundError as e:
                 print(e)
 
-                gamma, scattering_matrix = ballistico.phonons_calculator.calculate_gamma(
+                nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
                     self.occupations,
                     self.kpts,
                     self.eigenvectors,
-                    self.finite_difference.list_of_index,
+                    self.list_of_index,
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
                     self.energy_threshold
                 )
-                self.scattering_matrix = scattering_matrix[0] + scattering_matrix[1]
+                gamma_list = []
+                for is_plus in (1, 0):
+                    gamma_0 = COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
+                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
+                    gamma_1 = COO((nup_list[is_plus], nupp_list[is_plus], nu_list[is_plus]),
+                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
+                    gamma_2 = COO((nupp_list[is_plus], nu_list[is_plus], nup_list[is_plus]),
+                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
+                    if is_plus:
+                        gamma_list.append(-gamma_0.sum(axis=2) - gamma_1.sum(axis=2) + gamma_2.sum(axis=2))
+                    else:
+                        gamma_list.append(-gamma_0.sum(axis=2) + gamma_1.sum(axis=2) + gamma_2.sum(axis=2))
+                gamma_tensor_plus = gamma_list[0].todense()
+                gamma_tensor_minus = gamma_list[1].todense()
+                self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
                 self.gamma = gamma[0] + gamma[1]
         return self._scattering_matrix
 
@@ -525,3 +553,40 @@ class Phonons (object):
             self.list_of_index,
             self.replicated_cell,
             self.energy_threshold)
+
+    def conductivity(phonons, mfp):
+        volume = np.linalg.det(phonons.atoms.cell) / 1000
+        frequencies = phonons.frequencies.reshape((phonons.n_phonons), order='C')
+        physical_modes = (frequencies > phonons.energy_threshold)
+        c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
+        velocities = phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C') / 10
+        conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
+        conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
+                                                      velocities[physical_modes, :, np.newaxis] * mfp[physical_modes,
+                                                                                                  np.newaxis, :]
+        return 1 / (volume * phonons.n_k_points) * conductivity_per_mode
+    
+    def calculate_conductivity_inverse(phonons):
+        velocities = phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C') / 10
+        frequencies = phonons.frequencies.reshape((phonons.n_k_points * phonons.n_modes), order='C')
+        physical_modes = (frequencies > phonons.energy_threshold)  # & (velocities > 0)[:, 2]
+        gamma = phonons.gamma.reshape((phonons.n_phonons), order='C')
+        a_in = - 1 * phonons.scattering_matrix.reshape((phonons.n_phonons, phonons.n_phonons), order='C')
+        a_in = np.einsum('a,ab,b->ab', 1 / frequencies, a_in, frequencies)
+        a_out = np.zeros_like(gamma)
+        a_out[physical_modes] = gamma[physical_modes]
+        a_out_inverse = np.zeros_like(gamma)
+        a_out_inverse[physical_modes] = 1 / a_out[physical_modes]
+        a = np.diag(a_out) + a_in
+        
+        # Let's remove the unphysical modes from the matrix
+        index = np.outer(physical_modes, physical_modes)
+        a = a[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
+        a_inverse = np.linalg.inv(a)
+        lambd = np.zeros((phonons.n_phonons, 3))
+        lambd[physical_modes, :] = a_inverse.dot(velocities[physical_modes, :])
+        conductivity_per_mode = self.conductivity(lambd)
+        evals = np.linalg.eigvalsh(a)
+        print('negative eigenvals : ', (evals < 0).sum())
+        
+        return conductivity_per_mode
