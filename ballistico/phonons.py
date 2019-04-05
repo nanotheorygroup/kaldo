@@ -605,7 +605,8 @@ class Phonons (object):
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
         physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
-        tau = 1 / self.gamma.reshape((self.n_phonons), order='C')
+        tau = np.zeros(frequencies.shape)
+        tau[physical_modes] = 1 / self.gamma.reshape((self.n_phonons), order='C')[physical_modes]
         gamma_out = self.gamma_full
         volume = np.linalg.det(self.atoms.cell) / 1000
         c_v = self.c_v.reshape((self.n_phonons), order='C')
@@ -617,20 +618,20 @@ class Phonons (object):
             DeltaF = 0
             for is_plus in (1, 0):
                 if is_plus:
-                    DeltaF -= sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0)).sum(axis=1)
+                    DeltaF -= sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
                 else:
-                    DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0)).sum(axis=1)
-                DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (2, 0)).sum(axis=1)
-                F_n = F_0 + tau * DeltaF
-            
-                conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
-                conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
-                                                              velocities[physical_modes, :, np.newaxis] * F_n[physical_modes,
-                                                                                                          np.newaxis, np.newaxis]
-                conductivity_per_mode = 1 / (volume * self.n_k_points) * conductivity_per_mode
+                    DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
+                DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (2, 0))
+            F_n = F_0 + tau * DeltaF.sum(axis=1)
         
-                conductivity = conductivity_per_mode.sum(axis=0)[2, 2]
-                list_k.append(conductivity)
+            conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
+            conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
+                                                          velocities[physical_modes, :, np.newaxis] * F_n[physical_modes,
+                                                                                                      np.newaxis, np.newaxis]
+            conductivity_per_mode = 1 / (volume * self.n_k_points) * conductivity_per_mode
+    
+            conductivity = conductivity_per_mode.sum(axis=0)[2, 2]
+            list_k.append(conductivity)
         plt.plot(list_k)
         plt.show()
 
