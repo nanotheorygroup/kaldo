@@ -4,8 +4,6 @@ import os
 from sklearn.neighbors.kde import KernelDensity
 from ase.dft.kpoints import ibz_points, bandpath
 from scipy.ndimage import map_coordinates
-import seaborn as sns
-sns.set(color_codes=True)
 
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
