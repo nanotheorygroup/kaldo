@@ -5,6 +5,10 @@ import ase.units as units
 import sparse
 import matplotlib.pyplot as plt
 
+from scipy.sparse import load_npz, save_npz
+from sparse import COO
+
+
 ENERGY_THRESHOLD = 0.001
 GAMMA_CUTOFF = 0
 
@@ -15,6 +19,8 @@ EIGENVECTORS_FILE = 'eigenvectors.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
 SCATTERING_MATRIX_FILE = 'scattering_matrix.npy'
+FULL_SCATTERING_FILE_PLUS = 'full_scattering_plus.npz'
+FULL_SCATTERING_FILE_MINUS = 'full_scattering_minus.npz'
 DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
@@ -44,6 +50,7 @@ class Phonons (object):
         self._dos = None
         self._occupations = None
         self._gamma = None
+        self._full_scattering = None
         self._scattering_matrix = None
         self._n_k_points = None
         self._n_modes = None
@@ -250,7 +257,6 @@ class Phonons (object):
                 )
                 nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = gamma_out
 
-                gamma_list = []
                 gamma_full = [[], []]
                 gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
                 gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
@@ -276,7 +282,7 @@ class Phonons (object):
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
                 self.gamma = gamma[0] + gamma[1]
-                self.gamma_full = gamma_full
+                self.full_scattering = gamma_full
 
         return self._gamma
 
@@ -293,6 +299,7 @@ class Phonons (object):
                 folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
             np.save (folder + GAMMA_FILE, new_gamma)
         self._gamma = new_gamma
+
 
     @property
     def scattering_matrix(self):
@@ -329,7 +336,6 @@ class Phonons (object):
                 )
                 nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = gamma_out
 
-                gamma_list = []
                 gamma_full = [[], []]
                 gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
                 gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
@@ -355,22 +361,7 @@ class Phonons (object):
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
                 self.gamma = gamma[0] + gamma[1]
-                self.gamma_full = gamma_full
-
-
-                # gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
-                # gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
-                # for is_plus in (1, 0):
-                #     gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
-                #                   pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
-                #     gamma_full[is_plus].append(gamma_0)
-                #     if is_plus:
-                #         gamma_tensor_plus -= gamma_full[is_plus][0].sum(axis=2)
-                #         gamma_tensor_plus += gamma_full[is_plus][0].sum(axis=1)
-                #     else:
-                #         gamma_tensor_minus += gamma_full[is_plus][0].sum(axis=2)
-                #         gamma_tensor_minus += gamma_full[is_plus][0].sum(axis=1)
-                #
+                self.full_scattering = gamma_full
 
         return self._scattering_matrix
 
@@ -387,6 +378,95 @@ class Phonons (object):
                 folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
             np.save (folder + SCATTERING_MATRIX_FILE, new_scattering_matrix)
         self._scattering_matrix = new_scattering_matrix
+
+    @property
+    def full_scattering(self):
+        return self._full_scattering
+
+    @full_scattering.getter
+    def full_scattering(self):
+        if self._full_scattering is None and self.is_persistency_enabled:
+            try:
+                folder = self.folder_name
+                folder += '/' + str(self.temperature) + '/'
+                if self.is_classic:
+                    folder += 'classic/'
+                else:
+                    folder += 'quantum/'
+                if self.sigma_in is not None:
+                    folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
+
+                plus_scatt = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_PLUS)) \
+                    .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
+
+                minus_scatt = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_MINUS)) \
+                    .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
+                self._full_scattering = [plus_scatt, minus_scatt]
+            except FileNotFoundError as e:
+                print(e)
+
+                gamma_out = ballistico.phonons_calculator.calculate_gamma(
+                    self.atoms,
+                    self.frequencies,
+                    self.velocities,
+                    self.occupations,
+                    self.kpts,
+                    self.eigenvectors,
+                    self.list_of_index,
+                    self.finite_difference.third_order,
+                    self.sigma_in,
+                    self.broadening_shape,
+                    self.energy_threshold
+                )
+                nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = gamma_out
+
+                gamma_full = [[], []]
+                gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
+                gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
+                for is_plus in (1, 0):
+
+                    for i in range(len(nu_list[is_plus])):
+                        nu = nu_list[is_plus][i]
+                        if is_plus:
+                            if (nu != nup_list[is_plus][i]):
+                                gamma_tensor_plus[nu, nup_list[is_plus][i]] -= pot_times_dirac_list[is_plus][i]
+                            if (nu != nupp_list[is_plus][i]):
+                                gamma_tensor_plus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
+                        else:
+                            if (nu != nup_list[is_plus][i]):
+                                gamma_tensor_minus[nu, nup_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
+                            if (nu != nupp_list[is_plus][i]):
+                                gamma_tensor_minus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
+
+                    gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
+                                         pot_times_dirac_list[is_plus],
+                                         (self.n_phonons, self.n_phonons, self.n_phonons))
+                    gamma_full[is_plus].append(gamma_0)
+
+                self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
+                self.gamma = gamma[0] + gamma[1]
+                self.full_scattering = gamma_full
+
+        return self._full_scattering
+
+    @full_scattering.setter
+    def full_scattering(self, new_full_scattering):
+        if self.is_persistency_enabled:
+            folder = self.folder_name
+            folder += '/' + str(self.temperature) + '/'
+            if self.is_classic:
+                folder += 'classic/'
+            else:
+                folder += 'quantum/'
+            if self.sigma_in is not None:
+                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
+
+            save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0].reshape(
+                (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
+            save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1].reshape(
+                (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
+
+        self._full_scattering = new_full_scattering
 
     @property
     def dos(self):
@@ -607,14 +687,14 @@ class Phonons (object):
         physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
         tau = np.zeros(frequencies.shape)
         tau[physical_modes] = 1 / self.gamma.reshape((self.n_phonons), order='C')[physical_modes]
-        gamma_out = self.gamma_full
+        gamma_out = self.full_scattering
         volume = np.linalg.det(self.atoms.cell) / 1000
         c_v = self.c_v.reshape((self.n_phonons), order='C')
         
         F_0 = tau * velocities[:, 2] * frequencies
         F_n = F_0.copy()
         list_k = []
-        for iteration in range(20):
+        for iteration in range(71):
             DeltaF = 0
             for is_plus in (1, 0):
                 if is_plus:
@@ -627,7 +707,7 @@ class Phonons (object):
             conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
             conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
                                                           velocities[physical_modes, :, np.newaxis] * F_n[physical_modes,
-                                                                                                      np.newaxis, np.newaxis]
+                                                                                                      np.newaxis, np.newaxis] / frequencies[physical_modes, np.newaxis, np.newaxis]
             conductivity_per_mode = 1 / (volume * self.n_k_points) * conductivity_per_mode
     
             conductivity = conductivity_per_mode.sum(axis=0)[2, 2]
