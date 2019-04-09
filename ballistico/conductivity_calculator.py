@@ -83,6 +83,18 @@ class ConductivityController(object):
         print('negative eigenvals : ', (evals<0).sum())
         return conductivity_per_mode
 
+    def transmission_caltech(self, gamma, velocity, length):
+        kn = abs(velocity / (length * gamma))
+        transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
+        return length / abs(velocity) * transmission
+
+
+    def transmission_matthiesen(self, gamma, velocity, length):
+#        gamma + np.abs(velocity) / length
+        transmission = (gamma * length / abs(velocity) + 1.) ** (-1)
+        return length / abs(velocity) * transmission
+
+
     def calculate_conductivity_variational(self, n_iterations=MAX_ITERATIONS_SC):
         phonons = self.phonons
         frequencies = phonons.frequencies.reshape ((phonons.n_phonons), order='C')
@@ -135,7 +147,7 @@ class ConductivityController(object):
         return conductivity_per_mode, conductivity_value, conductivity_integral
 
 
-    def calculate_conductivity_sc(self, tolerance=0.01, length_thresholds=None, is_rta=False, n_iterations=MAX_ITERATIONS_SC):
+    def calculate_conductivity_sc(self, tolerance=0.01, length_thresholds=None, is_rta=False, n_iterations=MAX_ITERATIONS_SC, finite_size_method='matthiesen'):
         phonons = self.phonons
         volume = np.linalg.det (phonons.atoms.cell) / 1000
         velocities = phonons.velocities.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C') / 10
@@ -155,8 +167,19 @@ class ConductivityController(object):
             for mu in range (phonons.n_phonons):
                 if length_thresholds:
                     if length_thresholds[alpha]:
-                        gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
-                                    np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
+                        if finite_size_method == 'matthiesen':
+                            tau = self.transmission_matthiesen(
+                                phonons.gamma.reshape((phonons.n_phonons), order='C')[mu],
+                                velocities[mu, alpha],
+                                length_thresholds[alpha])
+                            gamma[mu] = 1 / tau                            # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
+                            #         np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
+                        if finite_size_method == 'caltech':
+                            tau = self.transmission_caltech(phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu],
+                                                                     velocities[mu, alpha],
+                                                                     length_thresholds[alpha])
+                            gamma[mu] = 1/tau
+
                     else:
                         gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu]
                 else:
