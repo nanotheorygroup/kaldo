@@ -1,4 +1,6 @@
 import numpy as np
+import sparse
+
 from scipy.optimize import minimize
 
 MAX_ITERATIONS_SC = 500
@@ -193,3 +195,41 @@ def calculate_conductivity_sc(phonons, tolerance=0.01, length_thresholds=None, i
     if n_iteration == (MAX_ITERATIONS_SC - 1):
         print ('Convergence not reached')
     return conductivity_per_mode
+
+
+def calculate_conductivity_sheng(phonons):
+
+    velocities = phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C') / 10
+    frequencies = phonons.frequencies.reshape((phonons.n_k_points * phonons.n_modes), order='C')
+    physical_modes = (frequencies > phonons.energy_threshold)  # & (velocities > 0)[:, 2]
+    tau = np.zeros(frequencies.shape)
+    tau[physical_modes] = 1 / phonons.gamma.reshape((phonons.n_phonons), order='C')[physical_modes]
+    gamma_out = phonons.full_scattering
+    volume = np.linalg.det(phonons.atoms.cell) / 1000
+    c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
+
+    F_0 = tau * velocities[:, 2] * frequencies
+    F_n = F_0.copy()
+    list_k = []
+    for iteration in range(71):
+        DeltaF = 0
+        for is_plus in (1, 0):
+            if is_plus:
+                DeltaF -= sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
+            else:
+                DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
+            DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (2, 0))
+        F_n = F_0 + tau * DeltaF.sum(axis=1)
+
+        conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
+        conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
+                                                      velocities[physical_modes, :, np.newaxis] * F_n[
+                                                          physical_modes,
+                                                          np.newaxis, np.newaxis] / frequencies[
+                                                          physical_modes, np.newaxis, np.newaxis]
+        conductivity_per_mode = 1 / (volume * phonons.n_k_points) * conductivity_per_mode
+
+        conductivity = conductivity_per_mode.sum(axis=0)[2, 2]
+        list_k.append(conductivity)
+
+    return conductivity
