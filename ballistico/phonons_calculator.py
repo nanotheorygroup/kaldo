@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.special
-from sparse import COO
+import sparse
 import ase.units as units
 from opt_einsum import contract
 
@@ -200,11 +200,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
         evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
 
-        # TODO: next espression is unreadable and needs to be broken down
-        # We need to use the right data structure here, it matters how the sparse matrix is saved
-        # (columns, rows, coo, ...)
-        scaled_potential = third_order.reshape((1, n_modes, n_replicas * n_modes * n_replicas * n_modes), order='C')[0]\
-            .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+        scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
+        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+
         # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
