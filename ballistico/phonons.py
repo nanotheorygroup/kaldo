@@ -3,8 +3,6 @@ import os
 import ballistico.phonons_calculator
 import ase.units as units
 import sparse
-import matplotlib.pyplot as plt
-
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
 
@@ -401,7 +399,7 @@ class Phonons (object):
 
                 minus_scatt = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_MINUS)) \
                     .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-                self._full_scattering = [plus_scatt, minus_scatt]
+                self._full_scattering = [[minus_scatt], [plus_scatt]]
             except FileNotFoundError as e:
                 print(e)
 
@@ -461,9 +459,9 @@ class Phonons (object):
             if self.sigma_in is not None:
                 folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
 
-            save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0].reshape(
+            save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0][0].reshape(
                 (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
-            save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1].reshape(
+            save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1][0].reshape(
                 (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
 
         self._full_scattering = new_full_scattering
@@ -679,40 +677,4 @@ class Phonons (object):
             self.energy_threshold)
 
 
-    
-    def calculate_conductivity(self):
 
-        velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
-        frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
-        physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
-        tau = np.zeros(frequencies.shape)
-        tau[physical_modes] = 1 / self.gamma.reshape((self.n_phonons), order='C')[physical_modes]
-        gamma_out = self.full_scattering
-        volume = np.linalg.det(self.atoms.cell) / 1000
-        c_v = self.c_v.reshape((self.n_phonons), order='C')
-        
-        F_0 = tau * velocities[:, 2] * frequencies
-        F_n = F_0.copy()
-        list_k = []
-        for iteration in range(71):
-            DeltaF = 0
-            for is_plus in (1, 0):
-                if is_plus:
-                    DeltaF -= sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
-                else:
-                    DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
-                DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (2, 0))
-            F_n = F_0 + tau * DeltaF.sum(axis=1)
-        
-            conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
-            conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
-                                                          velocities[physical_modes, :, np.newaxis] * F_n[physical_modes,
-                                                                                                      np.newaxis, np.newaxis] / frequencies[physical_modes, np.newaxis, np.newaxis]
-            conductivity_per_mode = 1 / (volume * self.n_k_points) * conductivity_per_mode
-    
-            conductivity = conductivity_per_mode.sum(axis=0)[2, 2]
-            list_k.append(conductivity)
-        plt.plot(list_k)
-        plt.show()
-
-        return conductivity
