@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.special
-from sparse import COO
+import sparse
 import ase.units as units
 from opt_einsum import contract
 
@@ -200,11 +200,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
         evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
 
-        # TODO: next espression is unreadable and needs to be broken down
-        # We need to use the right data structure here, it matters how the sparse matrix is saved
-        # (columns, rows, coo, ...)
-        scaled_potential = third_order.reshape((1, n_modes, n_replicas * n_modes * n_replicas * n_modes), order='C')[0]\
-            .to_scipy_sparse().T.dot(evect[nu, :]).reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+        scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
+        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+
         # scaled_potential = COO.from_numpy(scaled_potential)
         index_kp_vec = np.arange(np.prod(k_size))
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
@@ -268,10 +266,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
                                          chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
     
             # gamma contracted on one index
-            pot_times_dirac = np.abs(potential.flatten(order='C')) ** 2 * dirac_delta.flatten(order='C')
+            pot_times_dirac = np.abs(potential) ** 2 * dirac_delta
             gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
             pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
-            return COO((nup_vec, nupp_vec), pot_times_dirac, (nptk * n_modes, nptk * n_modes))
+            return nup_vec, nupp_vec, pot_times_dirac
 
 
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
@@ -306,10 +304,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
     print('Projection started')
     gamma = np.zeros ((2, nptk, n_modes))
-
-    if IS_SCATTERING_MATRIX_ENABLED:
-        gamma_tensor_plus = np.zeros((nptk * n_modes, nptk * n_modes))
-        gamma_tensor_minus = np.zeros((nptk * n_modes, nptk * n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
 
@@ -321,7 +315,10 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
         masses[np.newaxis, :, np.newaxis, np.newaxis])
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
-
+    nu_list = [[], []]
+    nup_list = [[], []]
+    nupp_list = [[], []]
+    pot_times_dirac_list = [[], []]
     for is_plus in (1, 0):
         for index_k in (list_of_k):
             i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
@@ -332,26 +329,18 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                    rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
                                                    frequencies_threshold)
                 if gamma_out:
-                    # first_contracted_gamma = gamma_out.sum(axis=1)
-                    # gamma_scal = first_contracted_gamma.sum(axis=0)
-                    gamma[is_plus, index_k, mu] = gamma_out.sum()
-                    if IS_SCATTERING_MATRIX_ENABLED:
-                        nu = np.ravel_multi_index ([index_k, mu], [nptk, n_modes], order='C')
-                        coords = gamma_out.coords.T
-                        for i in range (coords.shape[0]):
-                            if is_plus:
-                                if (nu != coords[i, 0]):
-                                    gamma_tensor_plus[nu, coords[i, 0]] -= gamma_out.data[i]
-                                if (nu != coords[i, 1]):
-                                    gamma_tensor_plus[nu, coords[i, 1]] += gamma_out.data[i]
-                            else:
-                                if (nu != coords[i, 0]):
-                                    gamma_tensor_minus[nu, coords[i, 0]] += gamma_out.data[i]
-                                if (nu != coords[i, 1]):
-                                    gamma_tensor_minus[nu, coords[i, 1]] += gamma_out.data[i]
-
+                    nup_vec, nupp_vec, pot_times_dirac = gamma_out
+                    gamma[is_plus, index_k, mu] = pot_times_dirac.sum()
+                    nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                    nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
+                    
+                    nu_list[is_plus].extend(nu_vec)
+                    nup_list[is_plus].extend(nup_vec)
+                    nupp_list[is_plus].extend(nupp_vec)
+                    pot_times_dirac_list[is_plus].extend(pot_times_dirac)
             print(process[is_plus] + 'q-point = ' + str(index_k))
-    return [gamma[0], gamma[1]], [gamma_tensor_minus, gamma_tensor_plus]
+    return nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma
+
 
 
 
