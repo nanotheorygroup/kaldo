@@ -162,31 +162,22 @@ class ConductivityController(object):
             scattering_matrix = np.einsum ('a,ab,b->ab', 1 / frequencies, scattering_matrix, frequencies)
 
         for alpha in range (3):
-            gamma = np.zeros (phonons.n_phonons)
+            single_gamma = phonons.gamma.reshape((phonons.n_phonons), order='C').copy()
 
             for mu in range (phonons.n_phonons):
                 if length_thresholds:
                     if length_thresholds[alpha]:
-                        velocity = velocities[mu, alpha]
-                        length = length_thresholds[alpha]
-                        single_gamma = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu]
+                        
                         if finite_size_method == 'matthiesen':
-                            gamma[mu] = single_gamma + 2 * abs(velocity) / length
+                            single_gamma[mu] += 2 * abs(velocities[mu, alpha]) / length_thresholds[alpha]
                             # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
                             #         np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
 
-                        if finite_size_method == 'caltech':
+        tau_0 = np.zeros_like (single_gamma)
+        tau_0[physical_modes] = 1 / single_gamma[physical_modes]
 
-                            kn = abs(velocity / (length * single_gamma))
-                            transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
-                            gamma[mu] = abs(velocity) / length / transmission
-                    else:
-                        gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu]
-                else:
-                    gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu]
-            tau_0 = np.zeros_like (gamma)
-            tau_0[gamma > phonons.gamma_cutoff] = 1 / gamma[gamma > phonons.gamma_cutoff]
-            lambd_0[:, alpha] = tau_0[:] * velocities[:, alpha]
+        
+        lambd_0[:, alpha] = tau_0[:] * velocities[:, alpha]
         c_v = phonons.c_v.reshape ((phonons.n_phonons), order='C')
         lambd_n = lambd_0.copy ()
         conductivity_per_mode = np.zeros ((phonons.n_phonons, 3, 3))
@@ -216,6 +207,18 @@ class ConductivityController(object):
             delta_lambd = tau_0[:, np.newaxis] * scattering_matrix.dot (lambd_n)
             lambd_n = lambd_0 + delta_lambd
 
+        for alpha in range(3):
+            gamma = np.zeros(phonons.n_phonons)
+    
+            for mu in np.argwhere(physical_modes):
+                if length_thresholds:
+                    if length_thresholds[alpha]:
+                        
+                        if finite_size_method == 'caltech':
+                            # if lambd_n[mu, alpha] > 0:
+                            transmission = (1 - np.abs(lambd_n[mu, alpha]) / length_thresholds[alpha] * (1 - np.exp(-length_thresholds[alpha] / np.abs(lambd_n[mu, alpha]))))
+                            lambd_n[mu] = lambd_n[mu] * transmission
+                            
         for alpha in range (3):
             for beta in range (3):
                 conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * phonons.n_k_points) * c_v[
