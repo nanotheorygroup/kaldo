@@ -167,19 +167,19 @@ class ConductivityController(object):
             for mu in range (phonons.n_phonons):
                 if length_thresholds:
                     if length_thresholds[alpha]:
+                        velocity = velocities[mu, alpha]
+                        length = length_thresholds[alpha]
+                        single_gamma = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu]
                         if finite_size_method == 'matthiesen':
-                            tau = self.transmission_matthiesen(
-                                phonons.gamma.reshape((phonons.n_phonons), order='C')[mu],
-                                velocities[mu, alpha],
-                                length_thresholds[alpha])
-                            gamma[mu] = 1 / tau                            # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
+                            gamma[mu] = single_gamma + 2 * abs(velocity) / length
+                            # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
                             #         np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
-                        if finite_size_method == 'caltech':
-                            tau = self.transmission_caltech(phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu],
-                                                                     velocities[mu, alpha],
-                                                                     length_thresholds[alpha])
-                            gamma[mu] = 1/tau
 
+                        if finite_size_method == 'caltech':
+
+                            kn = abs(velocity / (length * single_gamma))
+                            transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
+                            gamma[mu] = abs(velocity) / length / transmission
                     else:
                         gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu]
                 else:
