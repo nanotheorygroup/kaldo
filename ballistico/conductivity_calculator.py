@@ -154,32 +154,31 @@ class ConductivityController(object):
         lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
         velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
         frequencies = phonons.frequencies.reshape ((phonons.n_phonons), order='C')
+        gamma = phonons.gamma.reshape((phonons.n_phonons), order='C').copy()
         physical_modes = (frequencies > phonons.energy_threshold) #& (velocities > 0)[:, 2]
         if not is_rta:
-            # TODO: clean up the is_rta logic
-            scattering_matrix = phonons.scattering_matrix.reshape ((phonons.n_phonons,
-                                                                    phonons.n_phonons), order='C')
+            index = np.outer(physical_modes, physical_modes)
+            scattering_matrix = phonons.scattering_matrix.reshape((phonons.n_phonons,
+                                                                   phonons.n_phonons), order='C')
+            # scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
             scattering_matrix = np.einsum ('a,ab,b->ab', 1 / frequencies, scattering_matrix, frequencies)
 
         for alpha in range (3):
-            single_gamma = phonons.gamma.reshape((phonons.n_phonons), order='C').copy()
-
-            for mu in range (phonons.n_phonons):
-                if length_thresholds:
-                    if length_thresholds[alpha]:
-                        
-                        if finite_size_method == 'matthiesen':
-                            single_gamma[mu] += 2 * abs(velocities[mu, alpha]) / length_thresholds[alpha]
+            if length_thresholds:
+                if length_thresholds[alpha]:
+                    if finite_size_method == 'matthiesen':
+                        gamma[physical_modes] += abs(velocities[physical_modes, alpha]) / (1/2 * length_thresholds[alpha])
                             # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
                             #         np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
 
-        tau_0 = np.zeros_like (single_gamma)
-        tau_0[physical_modes] = 1 / single_gamma[physical_modes]
+        tau_0 = np.zeros_like (gamma)
+        tau_0[physical_modes] = 1 / gamma[physical_modes]
 
         
-        lambd_0[:, alpha] = tau_0[:] * velocities[:, alpha]
+        lambd_0[physical_modes, alpha] = tau_0[physical_modes] * velocities[physical_modes, alpha]
         c_v = phonons.c_v.reshape ((phonons.n_phonons), order='C')
         lambd_n = lambd_0.copy ()
+        delta_lambd = np.zeros_like(lambd_n)
         conductivity_per_mode = np.zeros ((phonons.n_phonons, 3, 3))
         avg_conductivity = 0
 
@@ -191,13 +190,13 @@ class ConductivityController(object):
                                                                              physical_modes, alpha] * lambd_n[
                                                                              physical_modes, beta]
             if is_rta:
-                return conductivity_per_mode
+                return conductivity_per_mode, lambd_0
 
-            new_avg_conductivity = np.diag (np.sum (conductivity_per_mode, 0)).mean ()
-            if avg_conductivity:
-                if np.abs (avg_conductivity - new_avg_conductivity) < tolerance:
-                    return conductivity_per_mode
-            avg_conductivity = new_avg_conductivity
+            # new_avg_conductivity = np.diag (np.sum (conductivity_per_mode, 0)).mean ()
+            # if avg_conductivity:
+            #     if np.abs (avg_conductivity - new_avg_conductivity) < tolerance:
+            #         return conductivity_per_mode, lambd_n
+            # avg_conductivity = new_avg_conductivity
 
             # If the tolerance has not been reached update the state
             tau_0 = tau_0.reshape ((phonons.n_phonons), order='C')
@@ -208,7 +207,6 @@ class ConductivityController(object):
             lambd_n = lambd_0 + delta_lambd
 
         for alpha in range(3):
-            gamma = np.zeros(phonons.n_phonons)
     
             for mu in np.argwhere(physical_modes):
                 if length_thresholds:
@@ -226,7 +224,9 @@ class ConductivityController(object):
 
         if n_iteration == (MAX_ITERATIONS_SC - 1):
             print ('Convergence not reached')
-        return conductivity_per_mode
+            
+        
+        return conductivity_per_mode, lambd_n
 
 
     def calculate_conductivity_sheng(self):
