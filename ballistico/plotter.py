@@ -52,7 +52,7 @@ class Plotter (object):
         if self.is_showing:
             plt.show()
 
-    def plot_dispersion(self, symmetry='fcc', n_k_points=200):
+    def plot_dispersion(self, symmetry='fcc', n_k_points=500):
         atoms = self.phonons.atoms
         cell = atoms.cell
         fig1 = plt.figure ()
