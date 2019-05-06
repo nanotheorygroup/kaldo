@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import seekpath
+
 from sklearn.neighbors.kde import KernelDensity
-from ase.dft.kpoints import ibz_points, bandpath
 from scipy.ndimage import map_coordinates
 
 BUFFER_PLOT = .2
@@ -23,14 +24,11 @@ class Plotter (object):
                 os.makedirs (self.folder)
 
     def plot_vs_frequency(self, observable, observable_name):
-        # TODO: We should check if the flattn is C-like and still compatible with Sheng 'F' like
         frequencies = self.phonons.frequencies.flatten ()
         observable = observable.flatten ()
         fig = plt.figure ()
         plt.scatter(frequencies[3:], observable[3:],s=5)
         observable[np.isnan(observable)] = 0
-        # plt.ylim([observable[3:].min(), observable[3:].max()])
-        # plt.xlim([frequencies[3:].min(), frequencies[3:].max()])
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
         if self.is_persistency_enabled:
@@ -52,9 +50,9 @@ class Plotter (object):
         if self.is_showing:
             plt.show()
 
-    def plot_dispersion(self, symmetry='fcc', n_k_points=500):
+    def plot_dispersion(self, symmetry='fcc', n_k_points=100):
         atoms = self.phonons.atoms
-        cell = atoms.cell
+        reference_distance = 0.5/n_k_points
         fig1 = plt.figure ()
         if symmetry == 'nw':
             q = np.linspace(0, 0.5, n_k_points)
@@ -64,8 +62,7 @@ class Plotter (object):
             Q = [0, 0.5]
             point_names = ['$\\Gamma$', 'X']
         else:
-            k_list, q, Q, point_names = self.create_k_and_symmetry_space (cell, symmetry=symmetry, n_k_points=n_k_points)
-
+            k_list, q, Q, point_names = self.create_k_and_symmetry_space (atoms, reference_distance=reference_distance)
         if self.phonons.is_able_to_calculate:
             freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
         else:
@@ -94,33 +91,36 @@ class Plotter (object):
         plt.xlim(q[0], q[-1])
         plt.plot(q, np.linalg.norm(vel_plot[:, :, :], axis=2), ".")
         plt.grid()
-        # plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
+
         if self.is_persistency_enabled:
             fig2.savefig(self.folder + 'velocity.pdf')
         if self.is_showing:
             plt.show()
 
-    def create_k_and_symmetry_space(self, cell, symmetry='fcc', n_k_points=50):
-
-        # TODO: implement symmetry here
-        # import spglib as spg
-        # spacegroup = spg.get_spacegroup (atoms, symprec=1e-5)
-
-        # High-symmetry points in the Brillouin zone
-        points = ibz_points[symmetry]
-        G = points['Gamma']
-        X = points['X']
-        W = points['W']
-        K = points['K']
-        L = points['L']
-        U = points['U']
-
-        point_names = ['$\Gamma$', 'X', 'U', 'L', '$\Gamma$', 'K']
-        path = [G, X, U, L, G, K]
-
-        # Band structure in meV
-        path_kc, q, Q = bandpath (path, cell, n_k_points)
-        return path_kc, q, Q, point_names
+    def create_k_and_symmetry_space(self, atoms, reference_distance=0.02):
+        cell = atoms.cell
+        scaled_positions = atoms.get_positions().dot(np.linalg.inv(atoms.cell))
+        inp = (cell, scaled_positions, atoms.get_atomic_numbers())
+        explicit_data = seekpath.getpaths.get_explicit_k_path(inp, reference_distance=reference_distance)
+        kpath = explicit_data['explicit_kpoints_rel']
+        n_k_points = kpath.shape[0]
+        label_positions = np.array(explicit_data['explicit_segments']).flatten()
+        label_names = np.array(explicit_data['path']).flatten()
+        x_label_positions = [label_positions[0]]
+        x_label_names = [label_names[0]]
+        for i in range(1, label_positions.size - 1, 2):
+            x_label_names.append((label_names[i]))
+            x_label_positions.append((label_positions[i] + label_positions[i+1]) / 2)
+        x_label_positions.append(label_positions[-1])
+        x_label_names.append(label_names[-1])
+        point_names = x_label_names
+        Q = np.array(x_label_positions)
+        Q /= Q.max()
+        q = np.linspace(0, 1, n_k_points)
+        for i in range(len(point_names)):
+            if point_names[i] == 'GAMMA':
+                point_names[i] = '$\Gamma$'
+        return kpath, q, Q, point_names
 
     def map_interpolator(self, k_list, observable):
         k_size = np.array(observable.shape)
