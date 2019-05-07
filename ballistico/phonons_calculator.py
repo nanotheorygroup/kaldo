@@ -239,7 +239,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
         else:
             dirac_delta *= broadening_function(
                 [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
-        dirac_delta_sqrt = np.sqrt(dirac_delta)
         if is_plus:
             first_evect = evect[nup_vec]
             first_chi = chi[index_kp_vec]
@@ -279,9 +278,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
                                                       second_chi)
 
         # gamma contracted on one index
-        pot_times_dirac = np.abs(scaled_potential * dirac_delta_sqrt)
+        pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
-        pot_times_dirac = pot_times_dirac ** 2 / omegas[index_k, mu] / nptk * gamma_coeff
+        pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
         return nup_vec, nupp_vec, pot_times_dirac
 
 
