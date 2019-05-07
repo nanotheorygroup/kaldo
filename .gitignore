@@ -1,11 +1,4 @@
 .DS_Store
 *.pyc
 .idea
-examples/ballistico
-examples/displacement
-examples/log_lammps.out
-examples/output.log
-examples/plots*
-examples/atomistica.log
-examples/sheng_bte
-examples/Archive.zip
+**/examples
