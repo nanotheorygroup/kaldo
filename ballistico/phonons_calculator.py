@@ -4,26 +4,26 @@ import sparse
 import ase.units as units
 from opt_einsum import contract
 
-# import tensorflow as tf
-# tf.enable_eager_execution()
-#
-# def contract(*operands, **kwargs):
-#     operands_tf = []
-#     is_complex = False
-#     for i in range(len (operands)):
-#         operand = operands[i]
-#         if i==0:
-#             operands_tf.append(operand)
-#         else:
-#             operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
-#             if (operands_tf[i].dtype == tf.complex128):
-#                 is_complex = True
-#     if is_complex:
-#         for i in range (1, len (operands)):
-#             operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
-#
-#     out = tf.einsum(*operands_tf, **kwargs)
-#     return np.array(out)
+import tensorflow as tf
+tf.enable_eager_execution()
+
+def contract(*operands, **kwargs):
+    operands_tf = []
+    is_complex = False
+    for i in range(len (operands)):
+        operand = operands[i]
+        if i==0:
+            operands_tf.append(operand)
+        else:
+            operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
+            if (operands_tf[i].dtype == tf.complex128):
+                is_complex = True
+    if is_complex:
+        for i in range (1, len (operands)):
+            operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
+
+    out = tf.einsum(*operands_tf, **kwargs)
+    return np.array(out)
 
 
 IS_SCATTERING_MATRIX_ENABLED = True
