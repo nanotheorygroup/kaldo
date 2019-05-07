@@ -6,24 +6,24 @@ from opt_einsum import contract
 
 import tensorflow as tf
 tf.enable_eager_execution()
-
-def contract(*operands, **kwargs):
-    operands_tf = []
-    is_complex = False
-    for i in range(len (operands)):
-        operand = operands[i]
-        if i==0:
-            operands_tf.append(operand)
-        else:
-            operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
-            if (operands_tf[i].dtype == tf.complex128):
-                is_complex = True
-    if is_complex:
-        for i in range (1, len (operands)):
-            operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
-
-    out = tf.einsum(*operands_tf, **kwargs)
-    return np.array(out)
+#
+# def contract(*operands, **kwargs):
+#     operands_tf = []
+#     is_complex = False
+#     for i in range(len (operands)):
+#         operand = operands[i]
+#         if i==0:
+#             operands_tf.append(operand)
+#         else:
+#             operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
+#             if (operands_tf[i].dtype == tf.complex128):
+#                 is_complex = True
+#     if is_complex:
+#         for i in range (1, len (operands)):
+#             operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
+#
+#     out = tf.einsum(*operands_tf, **kwargs)
+#     return np.array(out)
 
 
 IS_SCATTERING_MATRIX_ENABLED = True
@@ -183,7 +183,7 @@ def lorentzian_delta(params):
 
 
 # @profile
-def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density, cell_inv, k_size,
+def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
                            frequencies_threshold):
     
@@ -196,6 +196,9 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         broadening_function = triangular_delta
     omegas = 2 * np.pi * frequencies
     if frequencies[index_k, mu] > frequencies_threshold:
+
+
+
         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
         evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
         evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
@@ -204,25 +207,23 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, d
         scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
         # scaled_potential = COO.from_numpy(scaled_potential)
-        index_kp_vec = np.arange(np.prod(k_size))
-        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
-        i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
+        i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_full[:, :]
         index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
         # +1 if is_plus, -1 if not is_plus
         second_sign = (int(is_plus) * 2 - 1)
         if sigma_in is None:
             # velocities[0, :3, :] = 0
-            sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
+            sigma_tensor_np = calculate_broadening(velocities[index_kp_full, :, np.newaxis, :] -
                                                    velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
             sigma_small = sigma_tensor_np
         else:
             sigma_small = sigma_in
 
-        omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_vec, :, np.newaxis] -
+        omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
                               omegas[index_kpp_vec, np.newaxis, :])
 
         condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                    (frequencies[index_kp_vec, :, np.newaxis] > frequencies_threshold) & \
+                    (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
                     (frequencies[index_kpp_vec, np.newaxis, :] > frequencies_threshold)
         interactions = np.array(np.where(condition)).T
         # TODO: Benchmark something fast like
@@ -319,12 +320,15 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     nup_list = [[], []]
     nupp_list = [[], []]
     pot_times_dirac_list = [[], []]
+
+    index_kp_vec = np.arange(np.prod(k_size))
+    i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
     for is_plus in (1, 0):
         for index_k in (list_of_k):
             i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
             for mu in range(n_modes):
-                gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, frequencies, velocities, density,
+                gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_vec, index_kp_vec, frequencies, velocities, density,
                                                    cell_inv, k_size, n_modes, nptk, n_replicas,
                                                    rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
                                                    frequencies_threshold)
