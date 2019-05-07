@@ -26,7 +26,6 @@ if __name__ == "__main__":
             'ase>=3.16.0',
             'sparse>=0.6',
             'spglib>=1.11',
-            'opt_einsum>=2.3',
             'seekpath>=1.8',
             'tensorflow>=1.13'
             ],
