@@ -27,7 +27,8 @@ if __name__ == "__main__":
             'sparse>=0.6',
             'spglib>=1.11',
             'opt_einsum>=2.3',
-            'seekpath>=1.8'
+            'seekpath>=1.8',
+            'tensorflow>=1.13'
             ],
         zip_safe=True
     )
