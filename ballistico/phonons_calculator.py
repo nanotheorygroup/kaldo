@@ -2,28 +2,8 @@ import numpy as np
 import scipy.special
 import sparse
 import ase.units as units
-
 import tensorflow as tf
 tf.enable_eager_execution()
-
-def contract(*operands, **kwargs):
-    operands_tf = []
-    is_complex = False
-    for i in range(len (operands)):
-        operand = operands[i]
-        if i==0:
-            operands_tf.append(operand)
-        else:
-            operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
-            if (operands_tf[i].dtype == tf.complex128):
-                is_complex = True
-    if is_complex:
-        for i in range (1, len (operands)):
-            operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
-
-    out = tf.einsum(*operands_tf, **kwargs)
-    return np.array(out)
-
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
@@ -249,35 +229,35 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
         second_chi = chi.conj()[index_kpp_vec]
         if is_amorphous:
             if is_plus:
-                scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+                scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
             else:
-                scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+                scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
         else:
 
             if n_modes < n_replicas:
                 # do replicas dirst
 
-                scaled_potential = contract('litj,al,at->ija',
+                scaled_potential = np.einsum('litj,al,at->ija',
                                             scaled_potential,
                                             first_chi,
                                             second_chi)
-                scaled_potential = contract('ija,aj,ai->a',
+                scaled_potential = np.einsum('ija,aj,ai->a',
                                             scaled_potential,
                                             second_evect,
                                             first_evect)
             else:
                 # do modes first
 
-                scaled_potential = contract('litj,aj,ai->lta',
+                scaled_potential = np.einsum('litj,aj,ai->lta',
                                                       scaled_potential,
                                                       second_evect,
                                                       first_evect)
-                scaled_potential = contract('lta,al,at->a',
+                scaled_potential = np.einsum('lta,al,at->a',
                                                       scaled_potential,
                                                       first_chi,
                                                       second_chi)
 
-        # gamma contracted on one index
+        # gamma np.einsumed on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
         pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
