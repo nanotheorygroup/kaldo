@@ -254,14 +254,14 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
                 scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
         else:
 
-            if n_modes > n_replicas:
+            if n_modes < n_replicas:
                 # do replicas dirst
 
                 scaled_potential = contract('litj,al,at->ija',
                                             scaled_potential,
                                             first_chi,
                                             second_chi)
-                scaled_potential = contract('ija,aj,ai,->a',
+                scaled_potential = contract('ija,aj,ai->a',
                                             scaled_potential,
                                             second_evect,
                                             first_evect)
