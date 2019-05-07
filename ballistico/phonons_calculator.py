@@ -2,28 +2,27 @@ import numpy as np
 import scipy.special
 import sparse
 import ase.units as units
-from opt_einsum import contract
 
 import tensorflow as tf
 tf.enable_eager_execution()
-#
-# def contract(*operands, **kwargs):
-#     operands_tf = []
-#     is_complex = False
-#     for i in range(len (operands)):
-#         operand = operands[i]
-#         if i==0:
-#             operands_tf.append(operand)
-#         else:
-#             operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
-#             if (operands_tf[i].dtype == tf.complex128):
-#                 is_complex = True
-#     if is_complex:
-#         for i in range (1, len (operands)):
-#             operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
-#
-#     out = tf.einsum(*operands_tf, **kwargs)
-#     return np.array(out)
+
+def contract(*operands, **kwargs):
+    operands_tf = []
+    is_complex = False
+    for i in range(len (operands)):
+        operand = operands[i]
+        if i==0:
+            operands_tf.append(operand)
+        else:
+            operands_tf.append(tf.convert_to_tensor (operand, operand.dtype))
+            if (operands_tf[i].dtype == tf.complex128):
+                is_complex = True
+    if is_complex:
+        for i in range (1, len (operands)):
+            operands_tf[i] = tf.dtypes.cast (operands_tf[i], tf.complex128)
+
+    out = tf.einsum(*operands_tf, **kwargs)
+    return np.array(out)
 
 
 IS_SCATTERING_MATRIX_ENABLED = True
@@ -82,11 +81,11 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     chi_k = np.zeros(n_replicas).astype(complex)
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+    dyn_s = np.einsum('ialjb,l->iajb', dynmat, chi_k)
     replicated_cell_inv = np.linalg.inv(replicated_cell)
     dxij = apply_boundary_with_cell (replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
             geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-    ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
+    ddyn_s = 1j * np.einsum('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
     out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape ((n_phonons, n_phonons), order='C'))
     eigenvals, eigenvects = out[0], out[1]
@@ -99,7 +98,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
     ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3, order='C')
     velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-    vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
+    vel = np.einsum('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
             if frequencies[mu] > frequencies_threshold:
