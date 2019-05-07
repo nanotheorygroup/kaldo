@@ -115,11 +115,12 @@ class Plotter (object):
         x_label_names.append(label_names[-1])
         point_names = x_label_names
         Q = np.array(x_label_positions)
-        path_kc = explicit_data['explicit_kpoints_rel']
-        Q = np.array(Q)
         Q /= Q.max()
         q = np.linspace(0, 1, n_k_points)
-        return path_kc, q, Q, point_names
+        for i in range(len(point_names)):
+            if point_names[i] == 'GAMMA':
+                point_names[i] = '$\Gamma$'
+        return kpath, q, Q, point_names
 
     def map_interpolator(self, k_list, observable):
         k_size = np.array(observable.shape)
