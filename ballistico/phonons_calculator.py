@@ -184,93 +184,106 @@ def lorentzian_delta(params):
 
 # @profile
 def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv, k_size,
-                           n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in, broadening,
-                           frequencies_threshold):
-    
-    is_amorphous = (nptk == 1)
-    if broadening == 'gauss':
-        broadening_function = gaussian_delta
-    elif broadening == 'lorentz':
-        broadening_function = lorentzian_delta
-    elif broadening == 'triangle':
-        broadening_function = triangular_delta
+                           n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in,
+                           frequencies_threshold, is_amorphous, broadening_function):
+
     omegas = 2 * np.pi * frequencies
-    if frequencies[index_k, mu] > frequencies_threshold:
+    nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+    evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
+    evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
 
+    scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
+    scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
+    i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_full[:, :]
+    index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
+    # +1 if is_plus, -1 if not is_plus
+    second_sign = (int(is_plus) * 2 - 1)
+    if sigma_in is None:
+        sigma_tensor_np = calculate_broadening(velocities[index_kp_full, :, np.newaxis, :] -
+                                               velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
+        sigma_small = sigma_tensor_np
+    else:
+        sigma_small = sigma_in
 
-        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-        evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
-        evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
+    omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
+                          omegas[index_kpp_vec, np.newaxis, :])
 
-        scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
-        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+    condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
+                (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
+                (frequencies[index_kpp_vec, np.newaxis, :] > frequencies_threshold)
+    interactions = np.array(np.where(condition)).T
+    # TODO: Benchmark something fast like
+    # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+    if interactions.size != 0:
+        # print('interactions: ' + str (interactions.size))
+        index_kp_vec = interactions[:, 0]
+        index_kpp_vec = index_kpp_vec[index_kp_vec]
+        mup_vec = interactions[:, 1]
+        mupp_vec = interactions[:, 2]
+        nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
+                                       np.array([nptk, n_modes]), order='C')
+        nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
+                                        np.array([nptk, n_modes]), order='C')
 
-        # scaled_potential = COO.from_numpy(scaled_potential)
-        i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_full[:, :]
-        index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
-        # +1 if is_plus, -1 if not is_plus
-        second_sign = (int(is_plus) * 2 - 1)
-        if sigma_in is None:
-            # velocities[0, :3, :] = 0
-            sigma_tensor_np = calculate_broadening(velocities[index_kp_full, :, np.newaxis, :] -
-                                                   velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
-            sigma_small = sigma_tensor_np
+        if is_plus:
+            dirac_delta = density[nup_vec] - density[nupp_vec]
+
         else:
-            sigma_small = sigma_in
+            dirac_delta = .5 * (1 + density[nup_vec] + density[nupp_vec])
 
-        omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
-                              omegas[index_kpp_vec, np.newaxis, :])
+        dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
+        if sigma_in is None:
+            dirac_delta *= broadening_function([omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
+                index_kp_vec, mup_vec, mupp_vec]])
 
-        condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                    (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
-                    (frequencies[index_kpp_vec, np.newaxis, :] > frequencies_threshold)
-        interactions = np.array(np.where(condition)).T
-        # TODO: Benchmark something fast like
-        # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-        if interactions.size != 0:
-            # print('interactions: ' + str (interactions.size))
-            index_kp_vec = interactions[:, 0]
-            index_kpp_vec = index_kpp_vec[index_kp_vec]
-            mup_vec = interactions[:, 1]
-            mupp_vec = interactions[:, 2]
-            nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
-                                           np.array([nptk, n_modes]), order='C')
-            nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
-                                            np.array([nptk, n_modes]), order='C')
-
+        else:
+            dirac_delta *= broadening_function(
+                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
+        dirac_delta_sqrt = np.sqrt(dirac_delta)
+        if is_plus:
+            first_evect = evect[nup_vec]
+            first_chi = chi[index_kp_vec]
+        else:
+            first_evect = evect_dagger[nup_vec]
+            first_chi = chi.conj()[index_kp_vec]
+        second_evect = evect_dagger[nupp_vec]
+        second_chi = chi.conj()[index_kpp_vec]
+        if is_amorphous:
             if is_plus:
-                dirac_delta = density[nup_vec] - density[nupp_vec]
-
+                scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
             else:
-                dirac_delta = .5 * (1 + density[nup_vec] + density[nupp_vec])
+                scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+        else:
 
-            dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
-            if sigma_in is None:
-                dirac_delta *= broadening_function([omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
-                    index_kp_vec, mup_vec, mupp_vec]])
+            if n_modes > n_replicas:
+                # do replicas dirst
 
+                scaled_potential = contract('litj,al,at->ija',
+                                            scaled_potential,
+                                            first_chi,
+                                            second_chi)
+                scaled_potential = contract('ija,aj,ai,->a',
+                                            scaled_potential,
+                                            second_evect,
+                                            first_evect)
             else:
-                dirac_delta *= broadening_function(
-                    [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
-            if is_amorphous:
-                if is_plus:
-                    potential = contract ('litj,aj,ai->a', scaled_potential, evect_dagger[nupp_vec], evect[nup_vec])
-                else:
-                    potential = contract ('litj,aj,ai->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[nup_vec])
-            else:
-                if is_plus:
-                    potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect[nup_vec],
-                                         chi[index_kp_vec], chi.conj()[index_kpp_vec])
-                else:
-                    potential = contract('litj,aj,ai,al,at->a', scaled_potential, evect_dagger[nupp_vec], evect_dagger[nup_vec],
-                                         chi.conj()[index_kp_vec], chi.conj()[index_kpp_vec])
-    
-            # gamma contracted on one index
-            pot_times_dirac = np.abs(potential) ** 2 * dirac_delta
-            gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
-            pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
-            return nup_vec, nupp_vec, pot_times_dirac
+                # do modes first
+
+                scaled_potential = contract('litj,aj,ai->lta',
+                                                      scaled_potential,
+                                                      second_evect,
+                                                      first_evect)
+                scaled_potential = contract('lta,al,at->a',
+                                                      scaled_potential,
+                                                      first_chi,
+                                                      second_chi)
+
+        # gamma contracted on one index
+        pot_times_dirac = np.abs(scaled_potential * dirac_delta_sqrt)
+        gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
+        pot_times_dirac = pot_times_dirac ** 2 / omegas[index_k, mu] / nptk * gamma_coeff
+        return nup_vec, nupp_vec, pot_times_dirac
 
 
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
@@ -323,25 +336,36 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     index_kp_vec = np.arange(np.prod(k_size))
     i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
+
+    is_amorphous = (nptk == 1)
+    if broadening == 'gauss':
+        broadening_function = gaussian_delta
+    elif broadening == 'lorentz':
+        broadening_function = lorentzian_delta
+    elif broadening == 'triangle':
+        broadening_function = triangular_delta
+
     for is_plus in (1, 0):
         for index_k in (list_of_k):
             i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
             for mu in range(n_modes):
-                gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_vec, index_kp_vec, frequencies, velocities, density,
-                                                   cell_inv, k_size, n_modes, nptk, n_replicas,
-                                                   rescaled_eigenvectors, chi, third_order, sigma_in, broadening,
-                                                   frequencies_threshold)
-                if gamma_out:
-                    nup_vec, nupp_vec, pot_times_dirac = gamma_out
-                    gamma[is_plus, index_k, mu] = pot_times_dirac.sum()
-                    nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                    nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
-                    
-                    nu_list[is_plus].extend(nu_vec)
-                    nup_list[is_plus].extend(nup_vec)
-                    nupp_list[is_plus].extend(nupp_vec)
-                    pot_times_dirac_list[is_plus].extend(pot_times_dirac)
+                if frequencies[index_k, mu] > frequencies_threshold:
+
+                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_vec, index_kp_vec, frequencies, velocities, density,
+                                                       cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                       rescaled_eigenvectors, chi, third_order, sigma_in,
+                                                       frequencies_threshold, is_amorphous, broadening_function)
+                    if gamma_out:
+                        nup_vec, nupp_vec, pot_times_dirac = gamma_out
+                        gamma[is_plus, index_k, mu] = pot_times_dirac.sum()
+                        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                        nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
+
+                        nu_list[is_plus].extend(nu_vec)
+                        nup_list[is_plus].extend(nup_vec)
+                        nupp_list[is_plus].extend(nupp_vec)
+                        pot_times_dirac_list[is_plus].extend(pot_times_dirac)
             print(process[is_plus] + 'q-point = ' + str(index_k))
     return nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma
 
