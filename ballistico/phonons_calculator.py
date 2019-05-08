@@ -242,50 +242,25 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
             first_chi = chi.conj()[index_kp_vec]
         second_evect = evect_dagger[nupp_vec]
         second_chi = chi.conj()[index_kpp_vec]
-        optimized_einsum = True
+
         if is_amorphous:
             if is_plus:
                 scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
             else:
                 scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
         else:
-            if optimized_einsum:
-                shapes = []
-                for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
-                    shapes.append(tens.shape)
+            shapes = []
+            for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
+                shapes.append(tens.shape)
 
-                expr = contract_expression('litj,al,at,aj,ai', *shapes)
-                scaled_potential = expr(scaled_potential,
-                                             first_chi,
-                                             second_chi,
-                                             second_evect,
-                                             first_evect,
-                                             backend='tensorflow')
+            expr = contract_expression('litj,al,at,aj,ai->a', *shapes)
+            scaled_potential = expr(scaled_potential,
+                                         first_chi,
+                                         second_chi,
+                                         second_evect,
+                                         first_evect,
+                                         backend='tensorflow')
 
-            else:
-
-                if n_modes < n_replicas:
-                    # do replicas dirst
-
-                    scaled_potential = np.einsum('litj,al,at->ija',
-                                                scaled_potential,
-                                                first_chi,
-                                                second_chi)
-                    scaled_potential = np.einsum('ija,aj,ai->a',
-                                                scaled_potential,
-                                                second_evect,
-                                                first_evect)
-                else:
-                    # do modes first
-
-                    scaled_potential = np.einsum('litj,aj,ai->lta',
-                                                          scaled_potential,
-                                                          second_evect,
-                                                          first_evect)
-                    scaled_potential = np.einsum('lta,al,at->a',
-                                                          scaled_potential,
-                                                          first_chi,
-                                                          second_chi)
 
         # gamma np.einsumed on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
