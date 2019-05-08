@@ -3,8 +3,7 @@ import scipy.special
 import sparse
 import ase.units as units
 import time
-from opt_einsum import contract
-from opt_einsum import contract_expression
+from opt_einsum import contract_expression, contract
 import tensorflow as tf
 tf.enable_eager_execution()
 
@@ -176,7 +175,6 @@ def lorentzian_delta(params):
     return lorentzian / correction
 
 
-# @timeit
 def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in,
                            frequencies_threshold, is_amorphous, broadening_function):
@@ -186,8 +184,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
     evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
     evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
 
-    scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
-    scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
     i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_full[:, :]
     index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
@@ -242,7 +238,12 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
             first_chi = chi.conj()[index_kp_vec]
         second_evect = evect_dagger[nupp_vec]
         second_chi = chi.conj()[index_kpp_vec]
-
+        
+        # scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
+        scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
+        for evect_index in range(n_modes):
+            scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
+        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
         if is_amorphous:
             if is_plus:
                 scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
@@ -268,7 +269,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
         pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
         return nup_vec, nupp_vec, pot_times_dirac
 
-
+@timeit
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
                     sigma_in, broadening, frequencies_threshold):
     density = density.flatten(order='C')
