@@ -2,6 +2,9 @@ import numpy as np
 import scipy.special
 import sparse
 import ase.units as units
+import time
+from opt_einsum import contract
+from opt_einsum import contract_expression
 import tensorflow as tf
 tf.enable_eager_execution()
 
@@ -16,6 +19,18 @@ DELTA_THRESHOLD = 2
 DELTA_DOS = 1
 NUM_DOS = 100
 
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+        return result
+    return timed
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
     n_modes = frequencies.shape[-1]
@@ -161,7 +176,7 @@ def lorentzian_delta(params):
     return lorentzian / correction
 
 
-# @profile
+# @timeit
 def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in,
                            frequencies_threshold, is_amorphous, broadening_function):
@@ -227,35 +242,50 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
             first_chi = chi.conj()[index_kp_vec]
         second_evect = evect_dagger[nupp_vec]
         second_chi = chi.conj()[index_kpp_vec]
+        optimized_einsum = True
         if is_amorphous:
             if is_plus:
                 scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
             else:
                 scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
         else:
+            if optimized_einsum:
+                shapes = []
+                for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
+                    shapes.append(tens.shape)
 
-            if n_modes < n_replicas:
-                # do replicas dirst
+                expr = contract_expression('litj,al,at,aj,ai', *shapes)
+                scaled_potential = expr(scaled_potential,
+                                             first_chi,
+                                             second_chi,
+                                             second_evect,
+                                             first_evect,
+                                             backend='tensorflow')
 
-                scaled_potential = np.einsum('litj,al,at->ija',
-                                            scaled_potential,
-                                            first_chi,
-                                            second_chi)
-                scaled_potential = np.einsum('ija,aj,ai->a',
-                                            scaled_potential,
-                                            second_evect,
-                                            first_evect)
             else:
-                # do modes first
 
-                scaled_potential = np.einsum('litj,aj,ai->lta',
-                                                      scaled_potential,
-                                                      second_evect,
-                                                      first_evect)
-                scaled_potential = np.einsum('lta,al,at->a',
-                                                      scaled_potential,
-                                                      first_chi,
-                                                      second_chi)
+                if n_modes < n_replicas:
+                    # do replicas dirst
+
+                    scaled_potential = np.einsum('litj,al,at->ija',
+                                                scaled_potential,
+                                                first_chi,
+                                                second_chi)
+                    scaled_potential = np.einsum('ija,aj,ai->a',
+                                                scaled_potential,
+                                                second_evect,
+                                                first_evect)
+                else:
+                    # do modes first
+
+                    scaled_potential = np.einsum('litj,aj,ai->lta',
+                                                          scaled_potential,
+                                                          second_evect,
+                                                          first_evect)
+                    scaled_potential = np.einsum('lta,al,at->a',
+                                                          scaled_potential,
+                                                          first_chi,
+                                                          second_chi)
 
         # gamma np.einsumed on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
