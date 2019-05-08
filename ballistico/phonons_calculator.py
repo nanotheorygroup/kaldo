@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.special
-import sparse
 import ase.units as units
 import time
 from opt_einsum import contract_expression, contract
@@ -9,9 +8,9 @@ tf.enable_eager_execution()
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
+DIAGONALIZATION_ALGORITHM = np.linalg.eigh
 # DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.ssytrd
-# DIAGONALIZATION_ALGORITHM = np.linalg.eigh
-DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+# DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 
 IS_DELTA_CORRECTION_ENABLED = True
 DELTA_THRESHOLD = 2
@@ -75,11 +74,11 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     chi_k = np.zeros(n_replicas).astype(complex)
     for id_replica in range (n_replicas):
         chi_k[id_replica] = np.exp (1j * list_of_replicas[id_replica].dot (kpoint))
-    dyn_s = np.einsum('ialjb,l->iajb', dynmat, chi_k)
+    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
     replicated_cell_inv = np.linalg.inv(replicated_cell)
     dxij = apply_boundary_with_cell (replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
             geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-    ddyn_s = 1j * np.einsum('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
+    ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
     out = DIAGONALIZATION_ALGORITHM (dyn_s.reshape ((n_phonons, n_phonons), order='C'))
     eigenvals, eigenvects = out[0], out[1]
@@ -92,7 +91,7 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
 
     ddyn = ddyn_s.reshape (n_phonons, n_phonons, 3, order='C')
     velocities = np.zeros ((frequencies.shape[0], 3), dtype=np.complex)
-    vel = np.einsum('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
+    vel = contract('ki,ija,jq->kqa',eigenvects.conj().T, ddyn, eigenvects)
     for alpha in range (3):
         for mu in range (n_particles * 3):
             if frequencies[mu] > frequencies_threshold:
@@ -181,12 +180,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
 
     omegas = 2 * np.pi * frequencies
     nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-    evect = evect.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
-    evect_dagger = evect.reshape((nptk * n_modes, n_modes), order='C').conj()
-
 
     i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_full[:, :]
     index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
+
     # +1 if is_plus, -1 if not is_plus
     second_sign = (int(is_plus) * 2 - 1)
     if sigma_in is None:
@@ -206,7 +203,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
     # TODO: Benchmark something fast like
     # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
     if interactions.size != 0:
-        # print('interactions: ' + str (interactions.size))
+
+        # Create sparse index
         index_kp_vec = interactions[:, 0]
         index_kpp_vec = index_kpp_vec[index_kp_vec]
         mup_vec = interactions[:, 1]
@@ -215,6 +213,14 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
                                        np.array([nptk, n_modes]), order='C')
         nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
                                         np.array([nptk, n_modes]), order='C')
+
+        # prepare evect
+        # scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
+        scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
+        for evect_index in range(n_modes):
+            scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
+        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+
 
         if is_plus:
             dirac_delta = density[nup_vec] - density[nupp_vec]
@@ -230,25 +236,21 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
         else:
             dirac_delta *= broadening_function(
                 [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
+
         if is_plus:
             first_evect = evect[nup_vec]
             first_chi = chi[index_kp_vec]
         else:
-            first_evect = evect_dagger[nup_vec]
+            first_evect = evect.conj()[nup_vec]
             first_chi = chi.conj()[index_kp_vec]
-        second_evect = evect_dagger[nupp_vec]
+        second_evect = evect.conj()[nupp_vec]
         second_chi = chi.conj()[index_kpp_vec]
-        
-        # scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
-        scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
-        for evect_index in range(n_modes):
-            scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
-        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
+
         if is_amorphous:
             if is_plus:
-                scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+                scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
             else:
-                scaled_potential = np.einsum ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+                scaled_potential = contract ('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
         else:
             shapes = []
             for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
@@ -260,10 +262,11 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
                                          second_chi,
                                          second_evect,
                                          first_evect,
-                                         backend='tensorflow')
+                                         backend='tensorflow',
+                                        )
 
 
-        # gamma np.einsumed on one index
+        # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
         pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
@@ -313,6 +316,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
         masses[np.newaxis, :, np.newaxis, np.newaxis])
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
+    rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
+
     nu_list = [[], []]
     nup_list = [[], []]
     nupp_list = [[], []]
@@ -336,7 +341,8 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             for mu in range(n_modes):
                 if frequencies[index_k, mu] > frequencies_threshold:
 
-                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_vec, index_kp_vec, frequencies, velocities, density,
+                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_vec, index_kp_vec, frequencies,
+                                                       velocities, density,
                                                        cell_inv, k_size, n_modes, nptk, n_replicas,
                                                        rescaled_eigenvectors, chi, third_order, sigma_in,
                                                        frequencies_threshold, is_amorphous, broadening_function)
