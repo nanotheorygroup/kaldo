@@ -10,18 +10,15 @@ BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
 
 class Plotter (object):
-    def __init__(self, phonons, folder=None, is_showing=True, is_persistency_enabled=True):
+    def __init__(self, phonons, folder=None, is_showing=True):
         self.phonons = phonons
         self.system = phonons.atoms
         if not folder:
             folder = phonons.folder_name + '/' + DEFAULT_FOLDER
         self.folder = folder
-        self.is_persistency_enabled = is_persistency_enabled
         self.is_showing = is_showing
-
-        if self.is_persistency_enabled:
-            if not os.path.exists (self.folder):
-                os.makedirs (self.folder)
+        if not os.path.exists (self.folder):
+            os.makedirs (self.folder)
 
     def plot_vs_frequency(self, observable, observable_name):
         frequencies = self.phonons.frequencies.flatten ()
@@ -31,8 +28,7 @@ class Plotter (object):
         observable[np.isnan(observable)] = 0
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-        if self.is_persistency_enabled:
-            fig.savefig (self.folder + observable_name + '.pdf')
+        fig.savefig (self.folder + observable_name + '.pdf')
         if self.is_showing:
             plt.show ()
 
@@ -45,8 +41,7 @@ class Plotter (object):
         plt.plot(x, y)
         plt.fill_between(x, y, alpha=.2)
         plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-        if self.is_persistency_enabled:
-            fig.savefig (self.folder + 'dos.pdf')
+        fig.savefig (self.folder + 'dos.pdf')
         if self.is_showing:
             plt.show()
 
@@ -80,8 +75,7 @@ class Plotter (object):
         plt.plot (q, freqs_plot, ".")
         plt.grid ()
         plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
-        if self.is_persistency_enabled:
-            fig1.savefig (self.folder + 'dispersion' + '.pdf')
+        fig1.savefig (self.folder + 'dispersion' + '.pdf')
         if self.is_showing:
             plt.show()
             
@@ -91,9 +85,7 @@ class Plotter (object):
         plt.xlim(q[0], q[-1])
         plt.plot(q, np.linalg.norm(vel_plot[:, :, :], axis=2), ".")
         plt.grid()
-
-        if self.is_persistency_enabled:
-            fig2.savefig(self.folder + 'velocity.pdf')
+        fig2.savefig(self.folder + 'velocity.pdf')
         if self.is_showing:
             plt.show()
 

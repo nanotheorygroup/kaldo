@@ -29,7 +29,7 @@ FOLDER_NAME = 'ballistico'
 
 class Phonons (object):
     def __init__(self, finite_difference, folder=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, is_persistency_enabled = True, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss'):
+    = 300, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss'):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -39,7 +39,6 @@ class Phonons (object):
         self.n_modes = self.atoms.get_masses ().shape[0] * 3
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = temperature
-        self.is_persistency_enabled = is_persistency_enabled
 
         self._frequencies = None
         self._velocities = None
@@ -67,10 +66,9 @@ class Phonons (object):
         if self.sigma_in is not None:
             folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
         folders = [self.folder_name, folder]
-        if self.is_persistency_enabled:
-            for folder in folders:
-                if not os.path.exists (folder):
-                    os.makedirs (folder)
+        for folder in folders:
+            if not os.path.exists (folder):
+                os.makedirs (folder)
         if energy_threshold is not None:
             self.energy_threshold = energy_threshold
         else:
@@ -99,7 +97,7 @@ class Phonons (object):
 
     @frequencies.getter
     def frequencies(self):
-        if self._frequencies is None and self.is_persistency_enabled:
+        if self._frequencies is None:
             try:
                 folder = self.folder_name
                 folder += '/'
@@ -122,10 +120,9 @@ class Phonons (object):
 
     @frequencies.setter
     def frequencies(self, new_frequencies):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/'
-            np.save (folder + FREQUENCIES_FILE, new_frequencies)
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + FREQUENCIES_FILE, new_frequencies)
         self._frequencies = new_frequencies
 
     @property
@@ -134,7 +131,7 @@ class Phonons (object):
 
     @velocities.getter
     def velocities(self):
-        if self._velocities is None and self.is_persistency_enabled:
+        if self._velocities is None:
             try:
                 folder = self.folder_name
                 folder += '/'
@@ -157,10 +154,9 @@ class Phonons (object):
 
     @velocities.setter
     def velocities(self, new_velocities):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/'
-            np.save (folder + VELOCITIES_FILE, new_velocities)
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + VELOCITIES_FILE, new_velocities)
         self._velocities = new_velocities
 
     @property
@@ -169,7 +165,7 @@ class Phonons (object):
 
     @eigenvectors.getter
     def eigenvectors(self):
-        if self._eigenvectors is None and self.is_persistency_enabled:
+        if self._eigenvectors is None:
             try:
                 folder = self.folder_name
                 folder += '/'
@@ -180,10 +176,9 @@ class Phonons (object):
 
     @eigenvectors.setter
     def eigenvectors(self, new_eigenvectors):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/'
-            np.save (folder + EIGENVECTORS_FILE, new_eigenvectors)
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + EIGENVECTORS_FILE, new_eigenvectors)
         self._eigenvectors = new_eigenvectors
 
     @property
@@ -192,7 +187,7 @@ class Phonons (object):
 
     @eigenvalues.getter
     def eigenvalues(self):
-        if self._eigenvalues is None and self.is_persistency_enabled:
+        if self._eigenvalues is None:
             try:
                 folder = self.folder_name
                 folder += '/'
@@ -214,10 +209,9 @@ class Phonons (object):
 
     @eigenvalues.setter
     def eigenvalues(self, new_eigenvalues):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/'
-            np.save (folder + EIGENVALUES_FILE, new_eigenvalues)
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + EIGENVALUES_FILE, new_eigenvalues)
         self._eigenvalues = new_eigenvalues
 
     @property
@@ -226,7 +220,7 @@ class Phonons (object):
 
     @gamma.getter
     def gamma(self):
-        if self._gamma is None and self.is_persistency_enabled:
+        if self._gamma is None:
             try:
                 folder = self.folder_name
                 folder += '/' + str (self.temperature) + '/'
@@ -286,16 +280,15 @@ class Phonons (object):
 
     @gamma.setter
     def gamma(self, new_gamma):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/' + str (self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            if self.sigma_in is not None:
-                folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
-            np.save (folder + GAMMA_FILE, new_gamma)
+        folder = self.folder_name
+        folder += '/' + str (self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        if self.sigma_in is not None:
+            folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
+        np.save (folder + GAMMA_FILE, new_gamma)
         self._gamma = new_gamma
 
 
@@ -305,7 +298,7 @@ class Phonons (object):
 
     @scattering_matrix.getter
     def scattering_matrix(self):
-        if self._scattering_matrix is None and self.is_persistency_enabled:
+        if self._scattering_matrix is None:
             try:
                 folder = self.folder_name
                 folder += '/' + str(self.temperature) + '/'
@@ -365,16 +358,15 @@ class Phonons (object):
 
     @scattering_matrix.setter
     def scattering_matrix(self, new_scattering_matrix):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/' + str(self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            if self.sigma_in is not None:
-                folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
-            np.save (folder + SCATTERING_MATRIX_FILE, new_scattering_matrix)
+        folder = self.folder_name
+        folder += '/' + str(self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        if self.sigma_in is not None:
+            folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
+        np.save (folder + SCATTERING_MATRIX_FILE, new_scattering_matrix)
         self._scattering_matrix = new_scattering_matrix
 
     @property
@@ -383,7 +375,7 @@ class Phonons (object):
 
     @full_scattering.getter
     def full_scattering(self):
-        if self._full_scattering is None and self.is_persistency_enabled:
+        if self._full_scattering is None:
             try:
                 folder = self.folder_name
                 folder += '/' + str(self.temperature) + '/'
@@ -449,21 +441,19 @@ class Phonons (object):
 
     @full_scattering.setter
     def full_scattering(self, new_full_scattering):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/' + str(self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            if self.sigma_in is not None:
-                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
+        folder = self.folder_name
+        folder += '/' + str(self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        if self.sigma_in is not None:
+            folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
 
-            save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0][0].reshape(
-                (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
-            save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1][0].reshape(
-                (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
-
+        save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0][0].reshape(
+            (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
+        save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1][0].reshape(
+            (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
         self._full_scattering = new_full_scattering
 
     @property
@@ -472,7 +462,7 @@ class Phonons (object):
 
     @dos.getter
     def dos(self):
-        if self._dos is None and self.is_persistency_enabled:
+        if self._dos is None:
             try:
                 folder = self.folder_name
                 folder += '/'
@@ -484,15 +474,13 @@ class Phonons (object):
                     self.kpts
                 )
                 self.dos = dos
-
         return self._dos
 
     @dos.setter
     def dos(self, new_dos):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/'
-            np.save (folder + DOS_FILE, new_dos)
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + DOS_FILE, new_dos)
         self._dos = new_dos
 
     @property
@@ -501,7 +489,7 @@ class Phonons (object):
 
     @occupations.getter
     def occupations(self):
-        if self._occupations is None and self.is_persistency_enabled:
+        if self._occupations is None:
             try:
                 folder = self.folder_name
                 folder += '/' + str(self.temperature) + '/'
@@ -529,14 +517,13 @@ class Phonons (object):
 
     @occupations.setter
     def occupations(self, new_occupations):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/' + str(self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            np.save (folder + OCCUPATIONS_FILE, new_occupations)
+        folder = self.folder_name
+        folder += '/' + str(self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        np.save (folder + OCCUPATIONS_FILE, new_occupations)
         self._occupations = new_occupations
 
     @property
@@ -545,7 +532,7 @@ class Phonons (object):
 
     @k_points.getter
     def k_points(self):
-        if self._k_points is None and self.is_persistency_enabled:
+        if self._k_points is None:
             try:
                 folder = self.folder_name
                 folder += '/'
@@ -563,10 +550,9 @@ class Phonons (object):
 
     @k_points.setter
     def k_points(self, new_k_points):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/'
-            np.save (folder + K_POINTS_FILE, new_k_points)
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + K_POINTS_FILE, new_k_points)
         self._k_points = new_k_points
 
     @property
@@ -575,7 +561,7 @@ class Phonons (object):
 
     @c_v.getter
     def c_v(self):
-        if self._c_v is None and self.is_persistency_enabled:
+        if self._c_v is None:
             try:
                 folder = self.folder_name
                 folder += '/' + str(self.temperature) + '/'
@@ -605,14 +591,13 @@ class Phonons (object):
 
     @c_v.setter
     def c_v(self, new_c_v):
-        if self.is_persistency_enabled:
-            folder = self.folder_name
-            folder += '/' + str(self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            np.save (folder + C_V_FILE, new_c_v)
+        folder = self.folder_name
+        folder += '/' + str(self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
         
     def __apply_boundary_with_cell(self, cell, cellinv, dxij):
