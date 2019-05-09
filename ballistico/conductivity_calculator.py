@@ -229,7 +229,7 @@ class ConductivityController(object):
         return conductivity_per_mode, lambd_n
 
 
-    def calculate_conductivity_sheng(self):
+    def calculate_conductivity_sheng(self, n_iterations=20):
         phonons = self.phonons
         velocities = phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C') / 10
         frequencies = phonons.frequencies.reshape((phonons.n_k_points * phonons.n_modes), order='C')
@@ -243,7 +243,7 @@ class ConductivityController(object):
         F_0 = tau * velocities[:, 2] * frequencies
         F_n = F_0.copy()
         list_k = []
-        for iteration in range(71):
+        for iteration in range(n_iterations):
             DeltaF = 0
             for is_plus in (1, 0):
                 if is_plus:
