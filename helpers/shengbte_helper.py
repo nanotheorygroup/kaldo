@@ -12,7 +12,7 @@ SHENG_FOLDER_NAME = 'sheng_bte'
 SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
-def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_persistency_enabled, convergence, is_calculating, script=SHENGBTE_SCRIPT, folder=None):
+def import_from_shengbte(finite_difference, kpts, is_classic, temperature, convergence, is_calculating, script=SHENGBTE_SCRIPT, folder=None):
     if not folder:
         folder = SHENG_FOLDER_NAME
     else:
@@ -23,7 +23,6 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, is_pe
                       kpts=kpts,
                       is_classic=is_classic,
                       temperature=temperature,
-                      is_persistency_enabled=is_persistency_enabled,
                       folder=folder)
     
     phonons.convergence = convergence
