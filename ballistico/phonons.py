@@ -350,11 +350,11 @@ class Phonons (object):
 
                 minus_scatt = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_MINUS)) \
                     .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-                self._full_scattering = [[minus_scatt], [plus_scatt]]
+                self._full_scattering = [minus_scatt, plus_scatt]
             except FileNotFoundError as e:
                 print(e)
-
-                gamma_out = ballistico.phonons_calculator.calculate_gamma(
+                n_kpoints = np.prod(self.kpts)
+                gamma_full = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -367,33 +367,12 @@ class Phonons (object):
                     self.broadening_shape,
                     self.energy_threshold
                 )
-                nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = gamma_out
-
-                gamma_full = [[], []]
-                gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
-                gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
-                for is_plus in (1, 0):
-
-                    for i in range(len(nu_list[is_plus])):
-                        nu = nu_list[is_plus][i]
-                        if is_plus:
-                            if (nu != nup_list[is_plus][i]):
-                                gamma_tensor_plus[nu, nup_list[is_plus][i]] -= pot_times_dirac_list[is_plus][i]
-                            if (nu != nupp_list[is_plus][i]):
-                                gamma_tensor_plus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                        else:
-                            if (nu != nup_list[is_plus][i]):
-                                gamma_tensor_minus[nu, nup_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                            if (nu != nupp_list[is_plus][i]):
-                                gamma_tensor_minus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-
-                    gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
-                                         pot_times_dirac_list[is_plus],
-                                         (self.n_phonons, self.n_phonons, self.n_phonons))
-                    gamma_full[is_plus].append(gamma_0)
+                gamma_tensor_plus = (gamma_full[1].sum(axis=1) - gamma_full[1].sum(axis=2)).todense()
+                gamma_tensor_minus = (gamma_full[0].sum(axis=1) + gamma_full[0].sum(axis=2)).todense()
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
-                self.gamma = gamma[0] + gamma[1]
+                self.gamma = (gamma_full[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
+                             gamma_full[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
                 self.full_scattering = gamma_full
 
         return self._full_scattering
