@@ -59,19 +59,12 @@ class ConductivityController(object):
 
     def calculate_conductivity_inverse(self):
         phonons = self.phonons
-        n_kpoints = np.prod(phonons.kpts)
-        gamma = (phonons.full_scattering[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes)) + \
-                 phonons.full_scattering[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes))).todense()
-
-        gamma_tensor_plus = (phonons.full_scattering[1].sum(axis=1) - phonons.full_scattering[1].sum(axis=2)).todense()
-        gamma_tensor_minus = (phonons.full_scattering[0].sum(axis=1) + phonons.full_scattering[0].sum(axis=2)).todense()
-
-        scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
+        scattering_matrix = (phonons.gamma_tensor_minus + phonons.gamma_tensor_plus)
 
         velocities = phonons.velocities.real.reshape ((phonons.n_phonons, 3), order='C') / 10
         frequencies = phonons.frequencies.reshape((phonons.n_k_points * phonons.n_modes), order='C')
         physical_modes = (frequencies > phonons.energy_threshold) #& (velocities > 0)[:, 2]
-        gamma = gamma.reshape ((phonons.n_phonons), order='C')
+        gamma = phonons.gamma.reshape ((phonons.n_phonons), order='C')
         a_in = - 1 * scattering_matrix.reshape ((phonons.n_phonons, phonons.n_phonons), order='C')
         a_in = np.einsum ('a,ab,b->ab', 1 / frequencies, a_in, frequencies)
         a_out = np.zeros_like (gamma)
@@ -111,14 +104,8 @@ class ConductivityController(object):
         velocities = phonons.velocities.real.reshape ((phonons.n_phonons, 3), order='C') / 10
         physical_modes = physical_modes #& (velocities > 0)[:, 2]
 
-        n_kpoints = np.prod(phonons.kpts)
-        gamma = (phonons.full_scattering[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes)) + \
-                 phonons.full_scattering[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes))).todense()
-        gamma = gamma.reshape ((phonons.n_phonons), order='C')
-        gamma_tensor_plus = (phonons.full_scattering[1].sum(axis=1) - phonons.full_scattering[1].sum(axis=2)).todense()
-        gamma_tensor_minus = (phonons.full_scattering[0].sum(axis=1) + phonons.full_scattering[0].sum(axis=2)).todense()
-
-        scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
+        gamma = phonons.gamma.reshape ((phonons.n_phonons), order='C')
+        scattering_matrix = (phonons.gamma_tensor_minus + phonons.gamma_tensor_plus)
 
         a_in = - 1 * scattering_matrix.reshape ((phonons.n_phonons, phonons.n_phonons), order='C')
         a_in = np.einsum ('a,ab,b->ab', 1 / frequencies, a_in, frequencies)
@@ -169,19 +156,12 @@ class ConductivityController(object):
         lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
         velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
         frequencies = phonons.frequencies.reshape ((phonons.n_phonons), order='C')
-        n_kpoints = np.prod(phonons.kpts)
-        gamma = (phonons.full_scattering[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes)) + \
-                 phonons.full_scattering[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes))).todense()
-
-        gamma = gamma.reshape((phonons.n_phonons), order='C').copy()
+        gamma = phonons.gamma.reshape((phonons.n_phonons), order='C').copy()
         physical_modes = (frequencies > phonons.energy_threshold) #& (velocities > 0)[:, 2]
         if not is_rta:
             index = np.outer(physical_modes, physical_modes)
-            gamma_tensor_plus = (phonons.full_scattering[1].sum(axis=1) - phonons.full_scattering[1].sum(axis=2)).todense()
-            gamma_tensor_minus = (phonons.full_scattering[0].sum(axis=1) + phonons.full_scattering[0].sum(axis=2)).todense()
 
-            scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
-
+            scattering_matrix = (phonons.gamma_tensor_minus + phonons.gamma_tensor_plus)
 
             scattering_matrix = scattering_matrix.reshape((phonons.n_phonons,
                                                                    phonons.n_phonons), order='C')
@@ -260,10 +240,7 @@ class ConductivityController(object):
         frequencies = phonons.frequencies.reshape((phonons.n_k_points * phonons.n_modes), order='C')
         physical_modes = (frequencies > phonons.energy_threshold)  # & (velocities > 0)[:, 2]
         tau = np.zeros(frequencies.shape)
-        n_kpoints = np.prod(phonons.kpts)
-        gamma = (phonons.full_scattering[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes)) + \
-                 phonons.full_scattering[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, phonons.n_modes))).todense()
-
+        gamma = phonons.gamma
         tau[physical_modes] = 1 / gamma.reshape((phonons.n_phonons), order='C')[physical_modes]
         gamma_out = phonons.full_scattering
         volume = np.linalg.det(phonons.atoms.cell) / 1000
