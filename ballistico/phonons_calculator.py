@@ -13,7 +13,6 @@ tf.enable_eager_execution()
 # see bug report: https://github.com/h5py/h5py/issues/1101
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
-THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE = 'third_order_projection_progress.hdf5'
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
@@ -209,6 +208,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
                 (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
                 (frequencies[index_kpp_vec, np.newaxis, :] > frequencies_threshold)
     interactions = np.array(np.where(condition)).T
+
     # TODO: Benchmark something fast like
     # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
     if interactions.size != 0:
@@ -282,7 +282,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
 
 @timeit
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
-                    sigma_in, broadening, frequencies_threshold):
+                    sigma_in, broadening, frequencies_threshold, progress_filename):
     density = density.flatten(order='C')
     nptk = np.prod (k_size)
     n_particles = atoms.positions.shape[0]
@@ -346,8 +346,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             for mu in range(n_modes):
                 if frequencies[index_k, mu] > frequencies_threshold:
 
-                    filename = THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
-                    with h5py.File(filename, 'a') as partial_third:
+                    with h5py.File(progress_filename, 'a') as partial_third:
                         prefix = str(is_plus) + '_' + str(index_k) + '_' + str(mu)
                         key_string_nup = prefix + '_nup'
                         key_string_nupp = prefix + '_nupp'
@@ -378,7 +377,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                              data=np.array([0]))
 
 
-    with h5py.File(filename, 'r') as partial_third:
+    with h5py.File(progress_filename, 'r') as partial_third:
         for is_plus in (1, 0):
             is_initializing_gamma = True
             for index_k in (list_of_k):
@@ -411,9 +410,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                 nup_vec_list = np.append(nup_vec_list, nup_vec)
                                 nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
                                 pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
-
-
-
 
             full_gamma[is_plus] = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
                                      pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
