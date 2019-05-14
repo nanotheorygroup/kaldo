@@ -4,6 +4,8 @@ import ase.units as units
 import time
 from opt_einsum import contract_expression, contract
 import tensorflow as tf
+import sparse
+
 tf.enable_eager_execution()
 
 IS_SCATTERING_MATRIX_ENABLED = True
@@ -306,6 +308,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     print('Projection started')
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
+    n_phonons = n_modes * nptk
 
     list_of_k = np.arange(np.prod(k_size))
 
@@ -317,10 +320,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
     rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
 
-    nu_list = [[], []]
-    nup_list = [[], []]
-    nupp_list = [[], []]
-    pot_times_dirac_list = [[], []]
 
     index_kp_vec = np.arange(np.prod(k_size))
     i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
@@ -333,7 +332,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     elif broadening == 'triangle':
         broadening_function = triangular_delta
 
+    full_gamma = [None,None]
     for is_plus in (1, 0):
+
+        nu_list = []
+        nup_list = []
+        nupp_list = []
+        pot_times_dirac_list = []
         for index_k in (list_of_k):
             i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
@@ -350,12 +355,15 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
                         nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
 
-                        nu_list[is_plus].extend(nu_vec)
-                        nup_list[is_plus].extend(nup_vec)
-                        nupp_list[is_plus].extend(nupp_vec)
-                        pot_times_dirac_list[is_plus].extend(pot_times_dirac)
+                        nu_list.extend(nu_vec)
+                        nup_list.extend(nup_vec)
+                        nupp_list.extend(nupp_vec)
+                        pot_times_dirac_list.extend(pot_times_dirac)
             print(process[is_plus] + 'q-point = ' + str(index_k))
-    return nu_list, nup_list, nupp_list, pot_times_dirac_list
+
+        full_gamma[is_plus] = sparse.COO((nu_list, nup_list, nupp_list),
+               pot_times_dirac_list, (n_phonons, n_phonons, n_phonons))
+    return full_gamma
 
 
 

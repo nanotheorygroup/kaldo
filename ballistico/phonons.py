@@ -233,8 +233,8 @@ class Phonons (object):
                 self._gamma = np.load (folder + GAMMA_FILE)
             except FileNotFoundError as e:
                 print(e)
-
-                gamma_out = ballistico.phonons_calculator.calculate_gamma(
+                n_kpoints = np.prod(self.kpts)
+                gamma_full = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -247,21 +247,13 @@ class Phonons (object):
                     self.broadening_shape,
                     self.energy_threshold
                 )
-                nu_list, nup_list, nupp_list, pot_times_dirac_list = gamma_out
 
-                gamma_full = [[], []]
-                for is_plus in (1, 0):
-                    gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
-                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
-                    gamma_full[is_plus].append(gamma_0)
-
-                gamma_tensor_plus = (gamma_full[1][0].sum(axis=1) - gamma_full[1][0].sum(axis=2)).todense()
-                gamma_tensor_minus = (gamma_full[0][0].sum(axis=1) + gamma_full[0][0].sum(axis=2)).todense()
+                gamma_tensor_plus = (gamma_full[1].sum(axis=1) - gamma_full[1].sum(axis=2)).todense()
+                gamma_tensor_minus = (gamma_full[0].sum(axis=1) + gamma_full[0].sum(axis=2)).todense()
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
-                n_kpoints = np.prod(self.kpts)
-                self.gamma = (gamma_full[0][0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
-                             gamma_full[1][0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
+                self.gamma = (gamma_full[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
+                             gamma_full[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
                 self.full_scattering = gamma_full
 
         return self._gamma
@@ -299,8 +291,8 @@ class Phonons (object):
                 self._scattering_matrix = np.load (folder + SCATTERING_MATRIX_FILE)
             except FileNotFoundError as e:
                 print(e)
-
-                gamma_out = ballistico.phonons_calculator.calculate_gamma(
+                n_kpoints = np.prod(self.kpts)
+                gamma_full = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -313,21 +305,12 @@ class Phonons (object):
                     self.broadening_shape,
                     self.energy_threshold
                 )
-                nu_list, nup_list, nupp_list, pot_times_dirac_list = gamma_out
-
-                gamma_full = [[], []]
-                for is_plus in (1, 0):
-                    gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
-                                  pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
-                    gamma_full[is_plus].append(gamma_0)
-
-                gamma_tensor_plus = (gamma_full[1][0].sum(axis=1) - gamma_full[1][0].sum(axis=2)).todense()
-                gamma_tensor_minus = (gamma_full[0][0].sum(axis=1) + gamma_full[0][0].sum(axis=2)).todense()
+                gamma_tensor_plus = (gamma_full[1].sum(axis=1) - gamma_full[1].sum(axis=2)).todense()
+                gamma_tensor_minus = (gamma_full[0].sum(axis=1) + gamma_full[0].sum(axis=2)).todense()
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
-                n_kpoints = np.prod(self.kpts)
-                self.gamma = (gamma_full[0][0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
-                             gamma_full[1][0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
+                self.gamma = (gamma_full[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
+                             gamma_full[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
                 self.full_scattering = gamma_full
 
         return self._scattering_matrix
@@ -426,9 +409,9 @@ class Phonons (object):
         if self.sigma_in is not None:
             folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
 
-        save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0][0].reshape(
+        save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering[0].reshape(
             (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
-        save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1][0].reshape(
+        save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering[1].reshape(
             (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
         self._full_scattering = new_full_scattering
 
