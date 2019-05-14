@@ -250,27 +250,13 @@ class Phonons (object):
                 nu_list, nup_list, nupp_list, pot_times_dirac_list = gamma_out
 
                 gamma_full = [[], []]
-                gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
-                gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
                 for is_plus in (1, 0):
-    
-                    for i in range(len(nu_list[is_plus])):
-                        nu = nu_list[is_plus][i]
-                        if is_plus:
-                            if (nu != nup_list[is_plus][i]):
-                                gamma_tensor_plus[nu, nup_list[is_plus][i]] -= pot_times_dirac_list[is_plus][i]
-                            if (nu != nupp_list[is_plus][i]):
-                                gamma_tensor_plus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                        else:
-                            if (nu != nup_list[is_plus][i]):
-                                gamma_tensor_minus[nu, nup_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                            if (nu != nupp_list[is_plus][i]):
-                                gamma_tensor_minus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                    
                     gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
                                   pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
                     gamma_full[is_plus].append(gamma_0)
 
+                gamma_tensor_plus = (gamma_full[1][0].sum(axis=1) - gamma_full[1][0].sum(axis=2)).todense()
+                gamma_tensor_minus = (gamma_full[0][0].sum(axis=1) + gamma_full[0][0].sum(axis=2)).todense()
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
                 n_kpoints = np.prod(self.kpts)
@@ -330,28 +316,13 @@ class Phonons (object):
                 nu_list, nup_list, nupp_list, pot_times_dirac_list = gamma_out
 
                 gamma_full = [[], []]
-                gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
-                gamma_tensor_minus = np.zeros((self.n_phonons, self.n_phonons))
                 for is_plus in (1, 0):
-    
-                    for i in range(len(nu_list[is_plus])):
-                        nu = nu_list[is_plus][i]
-                        if is_plus:
-                            if (nu != nup_list[is_plus][i]):
-                                gamma_tensor_plus[nu, nup_list[is_plus][i]] -= pot_times_dirac_list[is_plus][i]
-                            if (nu != nupp_list[is_plus][i]):
-                                gamma_tensor_plus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                        else:
-                            if (nu != nup_list[is_plus][i]):
-                                gamma_tensor_minus[nu, nup_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                            if (nu != nupp_list[is_plus][i]):
-                                gamma_tensor_minus[nu, nupp_list[is_plus][i]] += pot_times_dirac_list[is_plus][i]
-                    
                     gamma_0 = sparse.COO((nu_list[is_plus], nup_list[is_plus], nupp_list[is_plus]),
                                   pot_times_dirac_list[is_plus], (self.n_phonons, self.n_phonons, self.n_phonons))
                     gamma_full[is_plus].append(gamma_0)
 
-
+                gamma_tensor_plus = (gamma_full[1][0].sum(axis=1) - gamma_full[1][0].sum(axis=2)).todense()
+                gamma_tensor_minus = (gamma_full[0][0].sum(axis=1) + gamma_full[0][0].sum(axis=2)).todense()
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
                 n_kpoints = np.prod(self.kpts)
