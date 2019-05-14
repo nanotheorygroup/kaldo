@@ -273,6 +273,22 @@ class Phonons (object):
         self._full_scattering = new_full_scattering
 
     @property
+    def gamma(self):
+        n_kpoints = np.prod(self.kpts)
+        gamma_full = self.full_scattering
+        gamma = (gamma_full[0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
+                 gamma_full[1].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
+        return gamma
+
+    @property
+    def gamma_tensor_plus(self):
+        return (self.full_scattering[1].sum(axis=1) - self.full_scattering[1].sum(axis=2)).todense()
+
+    @property
+    def gamma_tensor_minus(self):
+        return (self.full_scattering[0].sum(axis=1) + self.full_scattering[0].sum(axis=2)).todense()
+
+    @property
     def dos(self):
         return self._dos
 
