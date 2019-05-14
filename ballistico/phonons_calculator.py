@@ -2,12 +2,18 @@ import numpy as np
 import scipy.special
 import ase.units as units
 import time
+import sparse
+import os
+import h5py
 from opt_einsum import contract_expression, contract
 import tensorflow as tf
-import sparse
 
 tf.enable_eager_execution()
 
+# see bug report: https://github.com/h5py/h5py/issues/1101
+os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
+
+THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE = 'third_order_projection_progress.hdf5'
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
 DIAGONALIZATION_ALGORITHM = np.linalg.eigh
@@ -176,9 +182,10 @@ def lorentzian_delta(params):
     return lorentzian / correction
 
 
-def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv, k_size,
+def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv, k_size,
                            n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in,
                            frequencies_threshold, is_amorphous, broadening_function):
+    i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
     omegas = 2 * np.pi * frequencies
     nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
@@ -312,7 +319,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     list_of_k = np.arange(np.prod(k_size))
 
     # print('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
-    process = ['Minus processes: ', 'Plus processes: ']
+    process_string = ['Minus processes: ', 'Plus processes: ']
     masses = atoms.get_masses()
     rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
         masses[np.newaxis, :, np.newaxis, np.newaxis])
@@ -335,39 +342,81 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     for is_plus in (1, 0):
         is_initializing_gamma = True
         for index_k in (list_of_k):
-            i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
             for mu in range(n_modes):
                 if frequencies[index_k, mu] > frequencies_threshold:
 
-                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_vec, index_kp_vec, frequencies,
-                                                       velocities, density,
-                                                       cell_inv, k_size, n_modes, nptk, n_replicas,
-                                                       rescaled_eigenvectors, chi, third_order, sigma_in,
-                                                       frequencies_threshold, is_amorphous, broadening_function)
-                    if gamma_out:
-                        nup_vec, nupp_vec, pot_times_dirac = gamma_out
-                        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                        nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
+                    filename = THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
+                    with h5py.File(filename, 'a') as partial_third:
+                        prefix = str(is_plus) + '_' + str(index_k) + '_' + str(mu)
+                        key_string_nup = prefix + '_nup'
+                        key_string_nupp = prefix + '_nupp'
+                        key_string_pot = prefix + '_pot_times_dirac'
 
-                        if is_initializing_gamma:
-                            nu_vec_list = nu_vec
-                            nup_vec_list = nup_vec
-                            nupp_vec_list = nupp_vec
-                            pot_times_dirac_vec_list = pot_times_dirac
-                            is_initializing_gamma = False
-                        else:
-                            nu_vec_list = np.append(nu_vec_list, nu_vec)
-                            nup_vec_list = np.append(nup_vec_list, nup_vec)
-                            nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
-                            pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
+                        # TODO: here we probably should check for all the keys, but it's slower
+                        is_plus_k_mu_exists = (key_string_pot in partial_third)
+                        if not is_plus_k_mu_exists:
+                            print(process_string[is_plus] + 'q-point = ' + str(index_k) + ', mu = ' + str(mu))
+
+                            gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
+                                                               frequencies,
+                                                               velocities, density,
+                                                               cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                               rescaled_eigenvectors, chi, third_order, sigma_in,
+                                                               frequencies_threshold, is_amorphous, broadening_function)
+                            if gamma_out:
+                                nup_vec, nupp_vec, pot_times_dirac = gamma_out
+
+                                partial_third.create_dataset(key_string_nup,
+                                                             data=nup_vec)
+                                partial_third.create_dataset(key_string_nupp,
+                                                             data=nupp_vec)
+                                partial_third.create_dataset(key_string_pot,
+                                                             data=pot_times_dirac)
+                            else:
+                                partial_third.create_dataset(key_string_pot,
+                                                             data=np.array([0]))
+
+
+    with h5py.File(filename, 'r') as partial_third:
+        for is_plus in (1, 0):
+            is_initializing_gamma = True
+            for index_k in (list_of_k):
+
+                for mu in range(n_modes):
+                    if frequencies[index_k, mu] > frequencies_threshold:
+
+                        prefix = str(is_plus) + '_' + str(index_k) + '_' + str(mu)
+                        key_string_nup = prefix + '_nup'
+                        key_string_nupp = prefix + '_nupp'
+                        key_string_pot = prefix + '_pot_times_dirac'
+                        try:
+                            pot_times_dirac = np.array(partial_third[key_string_pot])
+                        except KeyError as err:
+                            print(err)
+                        if not ((pot_times_dirac == 0).all()):
+                            nup_vec = np.array(partial_third[key_string_nup])
+                            nupp_vec = np.array(partial_third[key_string_nupp])
+                            nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                            nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
+
+                            if is_initializing_gamma:
+                                nu_vec_list = nu_vec
+                                nup_vec_list = nup_vec
+                                nupp_vec_list = nupp_vec
+                                pot_times_dirac_vec_list = pot_times_dirac
+                                is_initializing_gamma = False
+                            else:
+                                nu_vec_list = np.append(nu_vec_list, nu_vec)
+                                nup_vec_list = np.append(nup_vec_list, nup_vec)
+                                nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
+                                pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
 
 
 
-            print(process[is_plus] + 'q-point = ' + str(index_k))
 
-        full_gamma[is_plus] = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
-                                         pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
+            full_gamma[is_plus] = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
+                                     pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
     return full_gamma
 
 
