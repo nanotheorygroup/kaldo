@@ -247,10 +247,10 @@ class ConductivityController(object):
             DeltaF = 0
             for is_plus in (1, 0):
                 if is_plus:
-                    DeltaF -= sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
+                    DeltaF -= sparse.tensordot(gamma_out[is_plus], F_n, (1, 0))
                 else:
-                    DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (1, 0))
-                DeltaF += sparse.tensordot(gamma_out[is_plus][0], F_n, (2, 0))
+                    DeltaF += sparse.tensordot(gamma_out[is_plus], F_n, (1, 0))
+                DeltaF += sparse.tensordot(gamma_out[is_plus], F_n, (2, 0))
             F_n = F_0 + tau * DeltaF.sum(axis=1)
 
             conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))

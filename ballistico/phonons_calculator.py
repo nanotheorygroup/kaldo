@@ -267,7 +267,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_k, i_kp_full, index_kp_full, 
                                          backend='tensorflow',
                                         )
 
-
         # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
@@ -334,11 +333,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
     full_gamma = [None,None]
     for is_plus in (1, 0):
-
-        nu_list = []
-        nup_list = []
-        nupp_list = []
-        pot_times_dirac_list = []
+        is_initializing_gamma = True
         for index_k in (list_of_k):
             i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
@@ -355,14 +350,24 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
                         nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
 
-                        nu_list.extend(nu_vec)
-                        nup_list.extend(nup_vec)
-                        nupp_list.extend(nupp_vec)
-                        pot_times_dirac_list.extend(pot_times_dirac)
+                        if is_initializing_gamma:
+                            nu_vec_list = nu_vec
+                            nup_vec_list = nup_vec
+                            nupp_vec_list = nupp_vec
+                            pot_times_dirac_vec_list = pot_times_dirac
+                            is_initializing_gamma = False
+                        else:
+                            nu_vec_list = np.append(nu_vec_list, nu_vec)
+                            nup_vec_list = np.append(nup_vec_list, nup_vec)
+                            nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
+                            pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
+
+
+
             print(process[is_plus] + 'q-point = ' + str(index_k))
 
-        full_gamma[is_plus] = sparse.COO((nu_list, nup_list, nupp_list),
-               pot_times_dirac_list, (n_phonons, n_phonons, n_phonons))
+        full_gamma[is_plus] = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
+                                         pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
     return full_gamma
 
 
