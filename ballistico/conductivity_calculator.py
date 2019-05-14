@@ -242,7 +242,6 @@ class ConductivityController(object):
         tau = np.zeros(frequencies.shape)
         gamma = phonons.gamma
         tau[physical_modes] = 1 / gamma.reshape((phonons.n_phonons), order='C')[physical_modes]
-        gamma_out = phonons.full_scattering
         volume = np.linalg.det(phonons.atoms.cell) / 1000
         c_v = phonons.c_v.reshape((phonons.n_phonons), order='C')
 
@@ -253,10 +252,13 @@ class ConductivityController(object):
             DeltaF = 0
             for is_plus in (1, 0):
                 if is_plus:
-                    DeltaF -= sparse.tensordot(gamma_out[is_plus], F_n, (1, 0))
+                    DeltaF -= sparse.tensordot(phonons.full_scattering_plus, F_n, (1, 0))
+                    DeltaF += sparse.tensordot(phonons.full_scattering_plus, F_n, (2, 0))
+
                 else:
-                    DeltaF += sparse.tensordot(gamma_out[is_plus], F_n, (1, 0))
-                DeltaF += sparse.tensordot(gamma_out[is_plus], F_n, (2, 0))
+                    DeltaF += sparse.tensordot(phonons.full_scattering_minus, F_n, (1, 0))
+                    DeltaF += sparse.tensordot(phonons.full_scattering_minus, F_n, (2, 0))
+
             F_n = F_0 + tau * DeltaF.sum(axis=1)
 
             conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))

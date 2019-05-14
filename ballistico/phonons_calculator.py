@@ -338,7 +338,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     elif broadening == 'triangle':
         broadening_function = triangular_delta
 
-    full_gamma = [None,None]
     for is_plus in (1, 0):
         is_initializing_gamma = True
         for index_k in (list_of_k):
@@ -410,10 +409,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                 nup_vec_list = np.append(nup_vec_list, nup_vec)
                                 nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
                                 pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
-
-            full_gamma[is_plus] = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
+            if is_plus:
+                full_gamma_plus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
                                      pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
-    return full_gamma
+            else:
+                full_gamma_minus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
+                                     pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
+    return full_gamma_plus, full_gamma_minus
 
 
 
