@@ -23,6 +23,7 @@ DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
 C_V_FILE = 'c_v.npy'
+THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE = 'third_order_projection_progress.hdf5'
 
 FOLDER_NAME = 'ballistico'
 
@@ -221,15 +222,15 @@ class Phonons (object):
     @gamma.getter
     def gamma(self):
         if self._gamma is None:
+            folder = self.folder_name
+            folder += '/' + str(self.temperature) + '/'
+            if self.is_classic:
+                folder += 'classic/'
+            else:
+                folder += 'quantum/'
+            if self.sigma_in is not None:
+                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
             try:
-                folder = self.folder_name
-                folder += '/' + str (self.temperature) + '/'
-                if self.is_classic:
-                    folder += 'classic/'
-                else:
-                    folder += 'quantum/'
-                if self.sigma_in is not None:
-                    folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
                 self._gamma = np.load (folder + GAMMA_FILE)
             except FileNotFoundError as e:
                 print(e)
@@ -245,7 +246,8 @@ class Phonons (object):
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
-                    self.energy_threshold
+                    self.energy_threshold,
+                    folder + '/' + THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
                 )
 
                 gamma_tensor_plus = (gamma_full[1].sum(axis=1) - gamma_full[1].sum(axis=2)).todense()
@@ -279,15 +281,15 @@ class Phonons (object):
     @scattering_matrix.getter
     def scattering_matrix(self):
         if self._scattering_matrix is None:
+            folder = self.folder_name
+            folder += '/' + str(self.temperature) + '/'
+            if self.is_classic:
+                folder += 'classic/'
+            else:
+                folder += 'quantum/'
+            if self.sigma_in is not None:
+                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
             try:
-                folder = self.folder_name
-                folder += '/' + str(self.temperature) + '/'
-                if self.is_classic:
-                    folder += 'classic/'
-                else:
-                    folder += 'quantum/'
-                if self.sigma_in is not None:
-                    folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
                 self._scattering_matrix = np.load (folder + SCATTERING_MATRIX_FILE)
             except FileNotFoundError as e:
                 print(e)
@@ -303,7 +305,8 @@ class Phonons (object):
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
-                    self.energy_threshold
+                    self.energy_threshold,
+                    folder + '/' + THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
                 )
                 gamma_tensor_plus = (gamma_full[1].sum(axis=1) - gamma_full[1].sum(axis=2)).todense()
                 gamma_tensor_minus = (gamma_full[0].sum(axis=1) + gamma_full[0].sum(axis=2)).todense()
@@ -335,19 +338,17 @@ class Phonons (object):
     @full_scattering.getter
     def full_scattering(self):
         if self._full_scattering is None:
+            folder = self.folder_name
+            folder += '/' + str(self.temperature) + '/'
+            if self.is_classic:
+                folder += 'classic/'
+            else:
+                folder += 'quantum/'
+            if self.sigma_in is not None:
+                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
             try:
-                folder = self.folder_name
-                folder += '/' + str(self.temperature) + '/'
-                if self.is_classic:
-                    folder += 'classic/'
-                else:
-                    folder += 'quantum/'
-                if self.sigma_in is not None:
-                    folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
-
                 plus_scatt = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_PLUS)) \
                     .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-
                 minus_scatt = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_MINUS)) \
                     .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
                 self._full_scattering = [minus_scatt, plus_scatt]
@@ -365,7 +366,8 @@ class Phonons (object):
                     self.finite_difference.third_order,
                     self.sigma_in,
                     self.broadening_shape,
-                    self.energy_threshold
+                    self.energy_threshold,
+                    folder + '/' + THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
                 )
                 gamma_tensor_plus = (gamma_full[1].sum(axis=1) - gamma_full[1].sum(axis=2)).todense()
                 gamma_tensor_minus = (gamma_full[0].sum(axis=1) + gamma_full[0].sum(axis=2)).todense()
