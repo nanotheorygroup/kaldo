@@ -247,7 +247,7 @@ class Phonons (object):
                     self.broadening_shape,
                     self.energy_threshold
                 )
-                nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma = gamma_out
+                nu_list, nup_list, nupp_list, pot_times_dirac_list = gamma_out
 
                 gamma_full = [[], []]
                 gamma_tensor_plus = np.zeros((self.n_phonons, self.n_phonons))
@@ -273,7 +273,9 @@ class Phonons (object):
 
 
                 self.scattering_matrix = (gamma_tensor_minus + gamma_tensor_plus)
-                self.gamma = gamma[0] + gamma[1]
+                n_kpoints = np.prod(self.kpts)
+                self.gamma = (gamma_full[0][0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
+                             gamma_full[1][0].sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
                 self.full_scattering = gamma_full
 
         return self._gamma

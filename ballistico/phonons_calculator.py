@@ -304,7 +304,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
             for l in range (n_replicas):
                 chi[index_k, l] = np.exp (1j * list_of_replicas[l].dot (realq))
     print('Projection started')
-    gamma = np.zeros ((2, nptk, n_modes))
     n_modes = n_particles * 3
     nptk = np.prod (k_size)
 
@@ -348,7 +347,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                        frequencies_threshold, is_amorphous, broadening_function)
                     if gamma_out:
                         nup_vec, nupp_vec, pot_times_dirac = gamma_out
-                        gamma[is_plus, index_k, mu] = pot_times_dirac.sum()
                         nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
                         nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
 
@@ -357,7 +355,7 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                         nupp_list[is_plus].extend(nupp_vec)
                         pot_times_dirac_list[is_plus].extend(pot_times_dirac)
             print(process[is_plus] + 'q-point = ' + str(index_k))
-    return nu_list, nup_list, nupp_list, pot_times_dirac_list, gamma
+    return nu_list, nup_list, nupp_list, pot_times_dirac_list
 
 
 
