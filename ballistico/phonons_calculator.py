@@ -346,10 +346,10 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                 if frequencies[index_k, mu] > frequencies_threshold:
 
                     with h5py.File(progress_filename, 'a') as partial_third:
-                        prefix = str(is_plus) + '_' + str(index_k) + '_' + str(mu)
-                        key_string_nup = prefix + '_nup'
-                        key_string_nupp = prefix + '_nupp'
-                        key_string_pot = prefix + '_pot_times_dirac'
+                        prefix = str(is_plus) + '/' + str(index_k) + '/' + str(mu)
+                        key_string_nup = prefix + '/nup'
+                        key_string_nupp = prefix + '/nupp'
+                        key_string_pot = prefix + '/pot_times_dirac'
 
                         # TODO: here we probably should check for all the keys, but it's slower
                         is_plus_k_mu_exists = (key_string_pot in partial_third)
