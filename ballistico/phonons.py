@@ -23,7 +23,7 @@ DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
 C_V_FILE = 'c_v.npy'
-THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE = 'third_order_projection_progress.hdf5'
+THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE = 'third'
 
 FOLDER_NAME = 'ballistico'
 
