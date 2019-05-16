@@ -375,26 +375,15 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                 partial_third.create_dataset(key_string_pot,
                                                              data=np.array([0]))
 
+                        else:
 
-    with h5py.File(progress_filename, 'r') as partial_third:
-        for is_plus in (1, 0):
-            is_initializing_gamma = True
-            for index_k in (list_of_k):
-
-                for mu in range(n_modes):
-                    if frequencies[index_k, mu] > frequencies_threshold:
-
-                        prefix = str(is_plus) + '_' + str(index_k) + '_' + str(mu)
-                        key_string_nup = prefix + '_nup'
-                        key_string_nupp = prefix + '_nupp'
-                        key_string_pot = prefix + '_pot_times_dirac'
-                        try:
                             pot_times_dirac = np.array(partial_third[key_string_pot])
-                        except KeyError as err:
-                            print(err)
-                        if not ((pot_times_dirac == 0).all()):
-                            nup_vec = np.array(partial_third[key_string_nup])
-                            nupp_vec = np.array(partial_third[key_string_nupp])
+                            gamma_out = not ((pot_times_dirac == 0).all())
+                            if gamma_out:
+                                nup_vec = np.array(partial_third[key_string_nup])
+                                nupp_vec = np.array(partial_third[key_string_nupp])
+
+                        if gamma_out:
                             nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
                             nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
 
@@ -409,12 +398,13 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                 nup_vec_list = np.append(nup_vec_list, nup_vec)
                                 nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
                                 pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
-            if is_plus:
-                full_gamma_plus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
-                                     pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
-            else:
-                full_gamma_minus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
-                                     pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
+
+        if is_plus:
+            full_gamma_plus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
+                                 pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
+        else:
+            full_gamma_minus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
+                                 pot_times_dirac_vec_list, (n_phonons, n_phonons, n_phonons))
     return full_gamma_plus, full_gamma_minus
 
 
