@@ -6,6 +6,7 @@ import sparse
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
 
+import sparse
 
 ENERGY_THRESHOLD = 0.001
 GAMMA_CUTOFF = 0
@@ -16,14 +17,10 @@ EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
-SCATTERING_MATRIX_FILE = 'scattering_matrix.npy'
-FULL_SCATTERING_FILE_PLUS = 'full_scattering_plus.npz'
-FULL_SCATTERING_FILE_MINUS = 'full_scattering_minus.npz'
-DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
 C_V_FILE = 'c_v.npy'
-THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE = 'third'
+SCATTERING_MATRIX_FILE = 'scattering_matrix'
 
 FOLDER_NAME = 'ballistico'
 
@@ -230,13 +227,17 @@ class Phonons (object):
             if self.sigma_in is not None:
                 folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
             try:
-                self._full_scattering_plus = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_PLUS)) \
-                    .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-                self._full_scattering_minus = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_MINUS)) \
-                    .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-            except FileNotFoundError as e:
+                n_phonons = self.n_phonons
+                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_1').T
+
+                self._full_scattering_plus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
+                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
+                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_0').T
+                self._full_scattering_minus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
+                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
+            except OSError as e:
                 print(e)
-                self.full_scattering_plus, self.full_scattering_minus = ballistico.phonons_calculator.calculate_gamma(
+                self._full_scattering_plus, self._full_scattering_minus = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -248,7 +249,7 @@ class Phonons (object):
                     self.sigma_in,
                     self.broadening_shape,
                     self.energy_threshold,
-                    folder + '/' + THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
+                    folder + '/' + SCATTERING_MATRIX_FILE
                 )
         return self._full_scattering_plus
 
@@ -283,13 +284,17 @@ class Phonons (object):
             if self.sigma_in is not None:
                 folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
             try:
-                self._full_scattering_plus = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_PLUS)) \
-                    .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-                self._full_scattering_minus = COO.from_scipy_sparse(load_npz(folder + FULL_SCATTERING_FILE_MINUS)) \
-                    .reshape((self.n_phonons, self.n_phonons, self.n_phonons))
-            except FileNotFoundError as e:
+                n_phonons = self.n_phonons
+                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_1').T
+
+                self._full_scattering_plus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
+                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
+                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_0').T
+                self._full_scattering_minus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
+                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
+            except OSError as e:
                 print(e)
-                self.full_scattering_plus, self.full_scattering_minus = ballistico.phonons_calculator.calculate_gamma(
+                self._full_scattering_plus, self._full_scattering_minus = ballistico.phonons_calculator.calculate_gamma(
                     self.atoms,
                     self.frequencies,
                     self.velocities,
@@ -301,8 +306,9 @@ class Phonons (object):
                     self.sigma_in,
                     self.broadening_shape,
                     self.energy_threshold,
-                    folder + '/' + THIRD_ORDER_PROJECTION_WITH_PROGRESS_FILE
+                    folder + '/' + SCATTERING_MATRIX_FILE
                 )
+
         return self._full_scattering_minus
 
     @full_scattering_minus.setter

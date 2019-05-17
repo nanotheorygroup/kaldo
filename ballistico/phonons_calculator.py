@@ -5,8 +5,9 @@ import time
 import sparse
 import os
 from opt_einsum import contract_expression, contract
-import tensorflow as tf
+import pandas as pd
 
+import tensorflow as tf
 tf.enable_eager_execution()
 
 
@@ -275,7 +276,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
         pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
-        return nup_vec, nupp_vec, pot_times_dirac
+        return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac
 
 @timeit
 def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvectors, list_of_replicas, third_order,
@@ -313,7 +314,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     nptk = np.prod (k_size)
     n_phonons = n_modes * nptk
 
-    list_of_k = np.arange(np.prod(k_size))
 
     # print('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
     process_string = ['Minus processes: ', 'Plus processes: ']
@@ -322,7 +322,6 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
         masses[np.newaxis, :, np.newaxis, np.newaxis])
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
     rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
-
 
     index_kp_vec = np.arange(np.prod(k_size))
     i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
@@ -335,27 +334,16 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
     elif broadening == 'triangle':
         broadening_function = triangular_delta
 
+
     for is_plus in (1, 0):
-        is_initializing_gamma = True
-        for index_k in (list_of_k):
+        with open(progress_filename + '_' + str(is_plus), 'a+') as file:
+            is_initializing_gamma = True
 
-            for mu in range(n_modes):
-                if frequencies[index_k, mu] > frequencies_threshold:
+            for index_k in (np.arange(np.prod(k_size))):
 
-                    prefix = '_' + str(is_plus) + '_' + str(index_k) + '_' + str(mu)
-                    key_string_nup = prefix + '_nup.npy'
-                    key_string_nupp = prefix + '_nupp.npy'
-                    key_string_pot = prefix + '_pot_times_dirac.npy'
+                for mu in range(n_modes):
+                    if frequencies[index_k, mu] > frequencies_threshold:
 
-                    try:
-                        pot_times_dirac = np.load(progress_filename + key_string_pot)
-                        nup_vec = np.load(progress_filename + key_string_nup)
-                        nupp_vec = np.load(progress_filename + key_string_nupp)
-                        gamma_out = not ((pot_times_dirac == 0).all())
-
-                    except FileNotFoundError as e:
-
-                        print(process_string[is_plus] + 'q-point = ' + str(index_k) + ', mu = ' + str(mu))
 
                         gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
                                                            frequencies,
@@ -363,32 +351,27 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
                                                            cell_inv, k_size, n_modes, nptk, n_replicas,
                                                            rescaled_eigenvectors, chi, third_order, sigma_in,
                                                            frequencies_threshold, is_amorphous, broadening_function)
+
                         if gamma_out:
                             nup_vec, nupp_vec, pot_times_dirac = gamma_out
-                            np.save(progress_filename + key_string_nup, nup_vec)
-                            np.save(progress_filename + key_string_nupp, nupp_vec)
-                            np.save(progress_filename + key_string_pot, pot_times_dirac)
+                            nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                            nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
 
-                        else:
-                            np.save(progress_filename + key_string_pot, np.array([0]))
-                            np.save(progress_filename + key_string_nup, np.array([0]))
-                            np.save(progress_filename + key_string_nupp, np.array([0]))
+                            if is_initializing_gamma:
+                                nu_vec_list = nu_vec
+                                nup_vec_list = nup_vec
+                                nupp_vec_list = nupp_vec
+                                pot_times_dirac_vec_list = pot_times_dirac
+                                is_initializing_gamma = False
+                            else:
+                                nu_vec_list = np.append(nu_vec_list, nu_vec)
+                                nup_vec_list = np.append(nup_vec_list, nup_vec)
+                                nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
+                                pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
 
-                    if gamma_out:
-                        nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                        nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu
+                            np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
 
-                        if is_initializing_gamma:
-                            nu_vec_list = nu_vec
-                            nup_vec_list = nup_vec
-                            nupp_vec_list = nupp_vec
-                            pot_times_dirac_vec_list = pot_times_dirac
-                            is_initializing_gamma = False
-                        else:
-                            nu_vec_list = np.append(nu_vec_list, nu_vec)
-                            nup_vec_list = np.append(nup_vec_list, nup_vec)
-                            nupp_vec_list = np.append(nupp_vec_list, nupp_vec)
-                            pot_times_dirac_vec_list = np.append(pot_times_dirac_vec_list, pot_times_dirac)
+                print(process_string[is_plus] + 'q-point = ' + str(index_k))
 
         if is_plus:
             full_gamma_plus = sparse.COO((nu_vec_list, nup_vec_list, nupp_vec_list),
