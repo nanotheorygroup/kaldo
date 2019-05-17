@@ -267,8 +267,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
                                          first_chi,
                                          second_chi,
                                          second_evect,
-                                         first_evect,
-                                         backend='tensorflow',
+                                         first_evect
+                                         # backend='tensorflow',
                                         )
 
         # gamma contracted on one index
