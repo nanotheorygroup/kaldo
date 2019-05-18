@@ -336,12 +336,23 @@ def calculate_gamma(atoms, frequencies, velocities, density, k_size, eigenvector
 
 
     for is_plus in (1, 0):
-        with open(progress_filename + '_' + str(is_plus), 'a+') as file:
+        try:
+            out = np.genfromtxt(progress_filename + '_' + str(is_plus), delimiter=' ')
+            nu_vec_list, nup_vec_list, nupp_vec_list, pot_times_dirac_vec_list = out.T
+            nu_vec_list = nu_vec_list.astype(int)
+            nup_vec_list = nup_vec_list.astype(int)
+            nupp_vec_list = nupp_vec_list.astype(int)
+            first_k, first_mode  = np.unravel_index(nu_vec_list[-1] + 1, [nptk, n_modes], order='C')
+            is_initializing_gamma = False
+
+        except OSError as err:
+            first_k = 0
+            first_mode = 0
             is_initializing_gamma = True
 
-            for index_k in (np.arange(np.prod(k_size))):
-
-                for mu in range(n_modes):
+        with open(progress_filename + '_' + str(is_plus), 'a+') as file:
+            for index_k in (np.arange(first_k, np.prod(k_size))):
+                for mu in range(first_mode, n_modes):
                     if frequencies[index_k, mu] > frequencies_threshold:
 
 
