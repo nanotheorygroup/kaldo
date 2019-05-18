@@ -2,9 +2,7 @@ import numpy as np
 import os
 import ballistico.phonons_calculator
 import ase.units as units
-import sparse
-from scipy.sparse import load_npz, save_npz
-from sparse import COO
+from scipy.sparse import save_npz
 
 import sparse
 
