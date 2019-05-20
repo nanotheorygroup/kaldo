@@ -401,3 +401,5 @@ def apply_boundary_with_cell(cell, cellinv, dxij):
     sxij = sxij - np.round (sxij)
     dxij = sxij.dot(cell)
     return dxij
+
+
