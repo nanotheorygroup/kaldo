@@ -542,7 +542,7 @@ class Phonons (object):
         a_inverse = np.linalg.inv(a)
         lambd = np.zeros((self.n_phonons, 3))
         lambd[physical_modes, :] = a_inverse.dot(velocities[physical_modes, :])
-        conductivity_per_mode = self.conductivity(phonons, lambd)
+        conductivity_per_mode = self.conductivity(lambd)
         evals = np.linalg.eigvalsh(a)
         print('negative eigenvals : ', (evals < 0).sum())
         return conductivity_per_mode
@@ -601,9 +601,9 @@ class Phonons (object):
             f_n += a_out_inverse_a_in_to_n_times_b
 
             conductivity_integral[:, :, n_iteration] = - 1 * f_n.T.dot(2 * b - a.dot(f_n))
-            conductivity_value[:, :, n_iteration] = self.conductivity(phonons, f_n).sum(0)
+            conductivity_value[:, :, n_iteration] = self.conductivity(f_n).sum(0)
 
-        conductivity_per_mode = self.conductivity(phonons, f_n)
+        conductivity_per_mode = self.conductivity(f_n)
         if n_iteration == (MAX_ITERATIONS_SC - 1):
             print('Max iterations reached')
         # print((f_n[physical_modes, 2] - mimized_f).sum())
