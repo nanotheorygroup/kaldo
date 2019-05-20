@@ -22,12 +22,12 @@ EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
+DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
 C_V_FILE = 'c_v.npy'
 SCATTERING_MATRIX_FILE = 'scattering_matrix'
-
-FOLDER_NAME = 'ballistico'
+FOLDER_NAME = 'phonons_calculated'
 
 
 class Phonons (object):
@@ -260,20 +260,6 @@ class Phonons (object):
                 )
         return self._full_scattering_plus
 
-    @full_scattering_plus.setter
-    def full_scattering_plus(self, new_full_scattering_plus):
-        folder = self.folder_name
-        folder += '/' + str(self.temperature) + '/'
-        if self.is_classic:
-            folder += 'classic/'
-        else:
-            folder += 'quantum/'
-        if self.sigma_in is not None:
-            folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
-
-        save_npz(folder + FULL_SCATTERING_FILE_PLUS, new_full_scattering_plus.reshape(
-            (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
-        self._full_scattering_plus = new_full_scattering_plus
 
     @property
     def full_scattering_minus(self):
@@ -317,21 +303,6 @@ class Phonons (object):
                 )
 
         return self._full_scattering_minus
-
-    @full_scattering_minus.setter
-    def full_scattering_minus(self, new_full_scattering_minus):
-        folder = self.folder_name
-        folder += '/' + str(self.temperature) + '/'
-        if self.is_classic:
-            folder += 'classic/'
-        else:
-            folder += 'quantum/'
-        if self.sigma_in is not None:
-            folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
-
-        save_npz(folder + FULL_SCATTERING_FILE_MINUS, new_full_scattering_minus.reshape(
-            (self.n_phonons * self.n_phonons, self.n_phonons)).to_scipy_sparse())
-        self._full_scattering_minus = new_full_scattering_minus
 
     @property
     def gamma(self):
