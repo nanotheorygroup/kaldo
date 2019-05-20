@@ -515,10 +515,10 @@ class Phonons (object):
         c_v = self.c_v.reshape((self.n_phonons), order='C')
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
-        conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
-                                                      velocities[physical_modes, :, np.newaxis] * mfp[physical_modes,
-                                                                                                  np.newaxis, :]
-        return 1 / (volume * self.n_k_points) * conductivity_per_mode
+        conductivity_per_mode[physical_modes, :, :] = 1 / (volume * self.n_k_points) * c_v[physical_modes, np.newaxis, np.newaxis] * \
+                                                      velocities[physical_modes, :, np.newaxis] * mfp[physical_modes,np.newaxis, :]
+
+        return conductivity_per_mode
 
     def calculate_conductivity_inverse(self):
         
@@ -579,35 +579,19 @@ class Phonons (object):
         a_out_inverse_a_in_to_n_times_b = np.copy(b)
         f_n = np.copy(b)
         conductivity_value = np.zeros((3, 3, n_iterations))
-        conductivity_integral = np.zeros((3, 3, n_iterations))
-
-        # f_0 = a_out_inverse[:, np.newaxis] * b
-        # index = np.outer(physical_modes, physical_modes)
-        # a_small = a[index].reshape ((physical_modes.sum (), physical_modes.sum ()), order='C')
-        # a_out_small = a_out[physical_modes]
-        # b_small = b[physical_modes, 2]
-        #
-        # f_small = conj_grad (phonons, a_small, a_out_small, b_small)
-        # print(self.conductivity(phonons, f_0))
-        # out = minimize (conductivity_integral_fn, f_0, args=(a_small, b_small), method='BFGS', jac=conductivity_value_fn,
-        #                 options={'maxiter': 100, 'disp': True, 'gtol':500})
-        # mimized_f = out.x
-        # print(out.success)
-        # print(out)
 
         for n_iteration in range(n_iterations):
+
             a_out_inverse_a_in_to_n_times_b[:, :] = -1 * (a_out_inverse[:, np.newaxis] * a_in[:, physical_modes]).dot(
                 a_out_inverse_a_in_to_n_times_b[physical_modes, :])
             f_n += a_out_inverse_a_in_to_n_times_b
 
-            conductivity_integral[:, :, n_iteration] = - 1 * f_n.T.dot(2 * b - a.dot(f_n))
             conductivity_value[:, :, n_iteration] = self.conductivity(f_n).sum(0)
 
         conductivity_per_mode = self.conductivity(f_n)
         if n_iteration == (MAX_ITERATIONS_SC - 1):
             print('Max iterations reached')
-        # print((f_n[physical_modes, 2] - mimized_f).sum())
-        return conductivity_per_mode, conductivity_value, conductivity_integral
+        return conductivity_per_mode, conductivity_value
 
     def calculate_conductivity_sc(self, tolerance=0.01, length_thresholds=None, is_rta=False,
                                   n_iterations=MAX_ITERATIONS_SC, finite_size_method='matthiesen'):
@@ -620,13 +604,11 @@ class Phonons (object):
         gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
         physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
         if not is_rta:
-            index = np.outer(physical_modes, physical_modes)
 
             scattering_matrix = (self.gamma_tensor_minus + self.gamma_tensor_plus)
 
             scattering_matrix = scattering_matrix.reshape((self.n_phonons,
                                                            self.n_phonons), order='C')
-            # scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
             scattering_matrix = np.einsum('a,ab,b->ab', 1 / frequencies, scattering_matrix, frequencies)
 
         for alpha in range(3):
@@ -635,8 +617,6 @@ class Phonons (object):
                     if finite_size_method == 'matthiesen':
                         gamma[physical_modes] += abs(velocities[physical_modes, alpha]) / (
                                     1 / 2 * length_thresholds[alpha])
-                        # gamma[mu] = self.gamma.reshape ((self.n_phonons), order='C')[mu] + \
-                        #         np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
 
         tau_0 = np.zeros_like(gamma)
         tau_0[physical_modes] = 1 / gamma[physical_modes]
@@ -644,9 +624,7 @@ class Phonons (object):
         lambd_0[physical_modes, alpha] = tau_0[physical_modes] * velocities[physical_modes, alpha]
         c_v = self.c_v.reshape((self.n_phonons), order='C')
         lambd_n = lambd_0.copy()
-        delta_lambd = np.zeros_like(lambd_n)
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
-        avg_conductivity = 0
 
         for n_iteration in range(n_iterations):
             for alpha in range(3):
@@ -658,17 +636,9 @@ class Phonons (object):
             if is_rta:
                 return conductivity_per_mode, lambd_0
 
-            # new_avg_conductivity = np.diag (np.sum (conductivity_per_mode, 0)).mean ()
-            # if avg_conductivity:
-            #     if np.abs (avg_conductivity - new_avg_conductivity) < tolerance:
-            #         return conductivity_per_mode, lambd_n
-            # avg_conductivity = new_avg_conductivity
-
-            # If the tolerance has not been reached update the state
             tau_0 = tau_0.reshape((self.n_phonons), order='C')
 
             # calculate the shift in mft
-            # scattering_matrix = scattering_matrix * frequencies
             delta_lambd = tau_0[:, np.newaxis] * scattering_matrix.dot(lambd_n)
             lambd_n = lambd_0 + delta_lambd
 
@@ -679,7 +649,6 @@ class Phonons (object):
                     if length_thresholds[alpha]:
 
                         if finite_size_method == 'caltech':
-                            # if lambd_n[mu, alpha] > 0:
                             transmission = (1 - np.abs(lambd_n[mu, alpha]) / length_thresholds[alpha] * (
                                         1 - np.exp(-length_thresholds[alpha] / np.abs(lambd_n[mu, alpha]))))
                             lambd_n[mu] = lambd_n[mu] * transmission
@@ -702,12 +671,10 @@ class Phonons (object):
         tau = np.zeros(frequencies.shape)
         gamma = self.gamma
         tau[physical_modes] = 1 / gamma.reshape((self.n_phonons), order='C')[physical_modes]
-        volume = np.linalg.det(self.atoms.cell) / 1000
-        c_v = self.c_v.reshape((self.n_phonons), order='C')
 
-        F_0 = tau * velocities[:, 2] * frequencies
+        # F_0 = tau * velocities[:, :] * frequencies
+        F_0 = tau[:, np.newaxis] * velocities * frequencies[:, np.newaxis]
         F_n = F_0.copy()
-        list_k = []
         for iteration in range(n_iterations):
             DeltaF = 0
             for is_plus in (1, 0):
@@ -719,18 +686,10 @@ class Phonons (object):
                     DeltaF += sparse.tensordot(self.full_scattering_minus, F_n, (1, 0))
                     DeltaF += sparse.tensordot(self.full_scattering_minus, F_n, (2, 0))
 
-            F_n = F_0 + tau * DeltaF.sum(axis=1)
+            F_n = F_0 + tau[:, np.newaxis] * DeltaF.sum(axis=1)
 
-            conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
-            conductivity_per_mode[physical_modes, :, :] = c_v[physical_modes, np.newaxis, np.newaxis] * \
-                                                          velocities[physical_modes, :, np.newaxis] * F_n[
-                                                              physical_modes,
-                                                              np.newaxis, np.newaxis] / frequencies[
-                                                              physical_modes, np.newaxis, np.newaxis]
-            conductivity_per_mode = 1 / (volume * self.n_k_points) * conductivity_per_mode
+            conductivity_per_mode = self.conductivity(F_n / frequencies[:, np.newaxis])
 
-            conductivity = conductivity_per_mode.sum(axis=0)[2, 2]
-            list_k.append(conductivity)
 
-        return conductivity
+        return conductivity_per_mode
     
