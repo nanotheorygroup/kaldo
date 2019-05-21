@@ -2,9 +2,28 @@ import pandas as pd
 import numpy as np
 from ase.units import Bohr, Rydberg
 
-    
-
 def save_second_order_matrix(phonons):
+    filename = 'FORCE_CONSTANTS_2ND'
+    filename = phonons.folder_name + '/' + filename
+    finite_difference = phonons.finite_difference
+    n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
+    n_replicas = np.prod(finite_difference.supercell)
+    with open(filename, 'w+') as file:
+        file.write(str(n_atoms_unit_cell * n_replicas) + '\n')
+        for i0 in range(n_atoms_unit_cell):
+            for l0 in range(n_replicas):
+                for i1 in range(n_atoms_unit_cell):
+                    for l1 in range(n_replicas):
+
+                        file.write(str(l0 + i0 * n_atoms_unit_cell + 1) + '  ' + str(l1 + i1 * n_atoms_unit_cell + 1) + '\n')
+
+                        sub_second = finite_difference.second_order[l0, i0, :, l1, i1, :]
+                        file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
+                        file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
+                        file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
+
+
+def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder_name + '/'
     n_replicas = phonons.supercell.prod()
     n_particles = int(phonons.n_modes / 3)
@@ -71,19 +90,19 @@ def save_third_order_matrix(phonons):
                             block_counter += 1
                             file.write ('\n  ' + str (block_counter))
                             rep_position = phonons.finite_difference.list_of_replicas()[n_1]
-                            file.write ('\n  ' + str (rep_position[2]) + ' ' + str (rep_position[1]) + ' ' + str (
-                                rep_position[0]))
+                            file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
+                                rep_position[2]))
                             rep_position = phonons.finite_difference.list_of_replicas()[n_2]
-                            file.write ('\n  ' + str (rep_position[2]) + ' ' + str (rep_position[1]) + ' ' + str (
-                                rep_position[0]))
-                            file.write ('\n  ' + str (i_2 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_0 + 1))
+                            file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
+                                rep_position[2]))
+                            file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
 
                             for alpha_0 in range (3):
                                 for alpha_1 in range (3):
                                     for alpha_2 in range (3):
                                         file.write (
-                                            '\n  ' + str (alpha_2 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
-                                                alpha_0 + 1) + "  %.11E" % three_particles_interaction[
+                                            '\n  ' + str (alpha_0 + 1) + ' ' + str (alpha_1 + 1) + ' ' + str (
+                                                alpha_2 + 1) + "  %.11E" % three_particles_interaction[
                                                 alpha_0, alpha_1, alpha_2])
                             file.write ('\n')
     file.close ()
@@ -96,7 +115,7 @@ def save_third_order_matrix(phonons):
 
 
 
-def create_control_file_string(phonons):
+def create_control_file_string(phonons, is_espresso=False):
     k_points = phonons.kpts
     elements = phonons.atoms.get_chemical_symbols ()
     unique_elements = np.unique (phonons.atoms.get_chemical_symbols ())
@@ -134,8 +153,10 @@ def create_control_file_string(phonons):
     string += '\tscalebroad=1.0\n'
     string += '&end\n'
     string += '&flags\n'
-    string += '\tespresso=.true.\n'
-
+    if is_espresso:
+        string += '\tespresso=.true.\n'
+    else:
+        string += '\tespresso=.false.\n'
     if phonons.is_classic:
         string += '\tclassical=.true.\n'
 
