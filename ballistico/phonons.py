@@ -662,5 +662,5 @@ class Phonons (object):
             conductivity_per_mode = self.conductivity(F_n / frequencies[:, np.newaxis])
 
 
-        return conductivity_per_mode
+        return conductivity_per_mode, F_n / frequencies[:, np.newaxis]
     
