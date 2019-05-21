@@ -26,11 +26,16 @@ def save_second_order_matrix(phonons):
                 for j in range (n_particles):
                     file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
                     for id_replica in range(list_of_index.shape[0]):
-                        l_vec = phonons.finite_difference.list_of_index()[id_replica]
+
+                        l_vec = (phonons.finite_difference.list_of_index()[id_replica] + 1)
+                        for delta in range(3):
+                            if l_vec[delta] <= 0:
+                                l_vec[delta] = phonons.finite_difference.supercell[delta]
+
 
                         file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
 
-                        matrix_element = second_order[j, beta, id_replica, i, alpha]
+                        matrix_element = second_order[i, alpha, id_replica, j, beta]
 
                         matrix_element = matrix_element / Rydberg * (
                                 Bohr ** 2)
@@ -49,15 +54,13 @@ def save_third_order_matrix(phonons):
     third_order = phonons.finite_difference.third_order\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
-    replica = phonons.finite_difference.list_of_index()
-    replica = np.flip(replica, 1)
+
     block_counter = 0
     for i_0 in range (n_in_unit_cell):
         for n_1 in range (n_replicas):
             for i_1 in range (n_in_unit_cell):
                 for n_2 in range (n_replicas):
                     for i_2 in range (n_in_unit_cell):
-                        # TODO: remove this exceptioni catch
                         three_particles_interaction = third_order[0, i_0, :, n_1, i_1, :, n_2, i_2, :]
                         try:
                             three_particles_interaction = three_particles_interaction.todense()
