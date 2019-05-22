@@ -3,6 +3,8 @@ import numpy as np
 from ase.units import Bohr, Rydberg
 
 def save_second_order_matrix(phonons):
+    if phonons.finite_difference.is_reduced_second:
+        print('error')
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder_name + '/' + filename
     finite_difference = phonons.finite_difference
@@ -15,12 +17,13 @@ def save_second_order_matrix(phonons):
                 for i1 in range(n_atoms_unit_cell):
                     for l1 in range(n_replicas):
 
-                        file.write(str(l0 + i0 * n_atoms_unit_cell + 1) + '  ' + str(l1 + i1 * n_atoms_unit_cell + 1) + '\n')
+                        file.write(str(l0 + i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
 
                         sub_second = finite_difference.second_order[l0, i0, :, l1, i1, :]
                         file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
                         file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
                         file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
+    print('second order saved')
 
 
 def save_second_order_qe_matrix(phonons):
