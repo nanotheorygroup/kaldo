@@ -306,9 +306,23 @@ class Phonons (object):
 
     @property
     def gamma(self):
-        n_kpoints = np.prod(self.kpts)
-        gamma = (self.full_scattering_minus.sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes)) + \
-                 self.full_scattering_plus.sum(axis=2).sum(axis=1).reshape((n_kpoints, self.n_modes))).todense()
+        folder = self.folder_name
+        folder += '/' + str(self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        if self.sigma_in is not None:
+            folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
+        n_phonons = self.n_phonons
+
+        gamma = np.zeros(n_phonons)
+        for is_plus in [1, 0]:
+            filename = folder + '/' + SCATTERING_MATRIX_FILE + '_' + str(is_plus)
+            with open(filename, 'r') as f:
+                for line in f:
+                    nu, _, _, value = np.fromstring(line, dtype=np.float, sep=' ')
+                    gamma[int(nu)] += value
         return gamma
 
     @property
