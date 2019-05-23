@@ -92,8 +92,8 @@ class Phonons (object):
                 replicated_atoms_positions.reshape ((n_replicas, n_unit_atoms, 3)) -
                 atoms.positions[np.newaxis, :, :])
         self.list_of_index = list_of_replicas[:, 0, :]
-
-
+        self._gamma = None
+        self._gamma_tensor = None
 
     @property
     def frequencies(self):
@@ -218,120 +218,18 @@ class Phonons (object):
         np.save (folder + EIGENVALUES_FILE, new_eigenvalues)
         self._eigenvalues = new_eigenvalues
 
-    @property
-    def full_scattering_plus(self):
-        return self._full_scattering_plus
-
-    @full_scattering_plus.getter
-    def full_scattering_plus(self):
-        if self._full_scattering_plus is None:
-            folder = self.folder_name
-            folder += '/' + str(self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            if self.sigma_in is not None:
-                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
-            try:
-                n_phonons = self.n_phonons
-                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_1').T
-
-                self._full_scattering_plus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
-                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
-                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_0').T
-                self._full_scattering_minus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
-                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
-            except OSError as e:
-                print(e)
-                self._full_scattering_plus, self._full_scattering_minus = ballistico.phonons_calculator.calculate_gamma(
-                    self.atoms,
-                    self.frequencies,
-                    self.velocities,
-                    self.occupations,
-                    self.kpts,
-                    self.eigenvectors,
-                    self.list_of_index,
-                    self.finite_difference.third_order,
-                    self.sigma_in,
-                    self.broadening_shape,
-                    self.energy_threshold,
-                    folder + '/' + SCATTERING_MATRIX_FILE
-                )
-        return self._full_scattering_plus
-
-
-    @property
-    def full_scattering_minus(self):
-        return self._full_scattering_minus
-
-    @full_scattering_minus.getter
-    def full_scattering_minus(self):
-        if self._full_scattering_minus is None:
-            folder = self.folder_name
-            folder += '/' + str(self.temperature) + '/'
-            if self.is_classic:
-                folder += 'classic/'
-            else:
-                folder += 'quantum/'
-            if self.sigma_in is not None:
-                folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
-            try:
-                n_phonons = self.n_phonons
-                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_1').T
-
-                self._full_scattering_plus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
-                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
-                nu, nu_p, nu_pp, pot_times_delta = np.loadtxt(folder + SCATTERING_MATRIX_FILE + '_0').T
-                self._full_scattering_minus = sparse.COO((nu.astype(int), nu_p.astype(int), nu_pp.astype(int)),
-                                                        pot_times_delta, (n_phonons, n_phonons, n_phonons))
-            except OSError as e:
-                print(e)
-                self._full_scattering_plus, self._full_scattering_minus = ballistico.phonons_calculator.calculate_gamma(
-                    self.atoms,
-                    self.frequencies,
-                    self.velocities,
-                    self.occupations,
-                    self.kpts,
-                    self.eigenvectors,
-                    self.list_of_index,
-                    self.finite_difference.third_order,
-                    self.sigma_in,
-                    self.broadening_shape,
-                    self.energy_threshold,
-                    folder + '/' + SCATTERING_MATRIX_FILE
-                )
-
-        return self._full_scattering_minus
 
     @property
     def gamma(self):
-        folder = self.folder_name
-        folder += '/' + str(self.temperature) + '/'
-        if self.is_classic:
-            folder += 'classic/'
-        else:
-            folder += 'quantum/'
-        if self.sigma_in is not None:
-            folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
-        n_phonons = self.n_phonons
-
-        gamma = np.zeros(n_phonons)
-        for is_plus in [1, 0]:
-            filename = folder + '/' + SCATTERING_MATRIX_FILE + '_' + str(is_plus)
-            with open(filename, 'r') as f:
-                for line in f:
-                    nu, _, _, value = np.fromstring(line, dtype=np.float, sep=' ')
-                    gamma[int(nu)] += value
-        return gamma
+        if self._gamma is None:
+            self.calculate_gamma(is_gamma_tensor_enabled=False)
+        return self._gamma
 
     @property
-    def gamma_tensor_plus(self):
-        return (self.full_scattering_plus.sum(axis=1) - self.full_scattering_plus.sum(axis=2)).todense()
-
-    @property
-    def gamma_tensor_minus(self):
-        return (self.full_scattering_minus.sum(axis=1) + self.full_scattering_minus.sum(axis=2)).todense()
+    def gamma_tensor(self):
+        if self._gamma_tensor is None:
+            self.calculate_gamma(is_gamma_tensor_enabled=True)
+        return  self._gamma_tensor
 
     @property
     def dos(self):
@@ -493,6 +391,146 @@ class Phonons (object):
             self.replicated_cell,
             self.energy_threshold)
 
+    def calculate_gamma(self, is_gamma_tensor_enabled=False):
+        folder = self.folder_name
+        folder += '/' + str(self.temperature) + '/'
+        if self.is_classic:
+            folder += 'classic/'
+        else:
+            folder += 'quantum/'
+        if self.sigma_in is not None:
+            folder += 'sigma_in_' + str(self.sigma_in).replace('.', '_') + '/'
+        n_phonons = self.n_phonons
+        is_plus_label = ['_0', '_1']
+        file = None
+        self._gamma = np.zeros(n_phonons)
+        if is_gamma_tensor_enabled:
+            self._gamma_tensor = np.zeros((n_phonons, n_phonons))
+        for is_plus in [1, 0]:
+            read_nu = -1
+            file = None
+            progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
+            try:
+                file = open(progress_filename, 'r+')
+            except FileNotFoundError as err:
+                print(err)
+            else:
+                for line in file:
+                    read_nu, read_nup, read_nupp, value = np.fromstring(line, dtype=np.float, sep=' ')
+                    read_nu = int(read_nu)
+                    read_nup = int(read_nup)
+                    read_nupp = int(read_nupp)
+                    self._gamma[read_nu] += value
+                    if is_gamma_tensor_enabled:
+                        if is_plus:
+                            self._gamma_tensor[read_nu, read_nup] -= value
+                            self._gamma_tensor[read_nu, read_nupp] += value
+                        else:
+                            self._gamma_tensor[read_nu, read_nup] += value
+                            self._gamma_tensor[read_nu, read_nupp] += value
+
+            print('starting third order ')
+            atoms = self.atoms
+            frequencies = self.frequencies
+            velocities = self.velocities
+            density = self.occupations
+            k_size = self.kpts
+            eigenvectors = self.eigenvectors
+            list_of_replicas = self.list_of_index
+            third_order = self.finite_difference.third_order
+            sigma_in = self.sigma_in
+            broadening = self.broadening_shape
+            frequencies_threshold = self.energy_threshold
+
+            density = density.flatten(order='C')
+            nptk = np.prod(k_size)
+            n_particles = atoms.positions.shape[0]
+
+            print('Lifetime calculation')
+
+            # TODO: We should write this in a better way
+            if list_of_replicas.shape == (3,):
+                n_replicas = 1
+            else:
+                n_replicas = list_of_replicas.shape[0]
+
+            cell_inv = np.linalg.inv(atoms.cell)
+
+            is_amorphous = (k_size == (1, 1, 1)).all()
+
+            if is_amorphous:
+                chi = 1
+            else:
+                rlattvec = cell_inv * 2 * np.pi
+                chi = np.zeros((nptk, n_replicas), dtype=np.complex)
+                for index_k in range(np.prod(k_size)):
+                    i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
+                    k_point = i_k / k_size
+                    realq = np.matmul(rlattvec, k_point)
+                    for l in range(n_replicas):
+                        chi[index_k, l] = np.exp(1j * list_of_replicas[l].dot(realq))
+            print('Projection started')
+            n_modes = n_particles * 3
+            nptk = np.prod(k_size)
+
+            # print('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
+            process_string = ['Minus processes: ', 'Plus processes: ']
+            masses = atoms.get_masses()
+            rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
+                masses[np.newaxis, :, np.newaxis, np.newaxis])
+            rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
+            rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
+
+            index_kp_vec = np.arange(np.prod(k_size))
+            i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
+
+            is_amorphous = (nptk == 1)
+            if broadening == 'gauss':
+                broadening_function = ballistico.phonons_calculator.gaussian_delta
+            elif broadening == 'lorentz':
+                broadening_function = ballistico.phonons_calculator.lorentzian_delta
+            elif broadening == 'triangle':
+                broadening_function = ballistico.phonons_calculator.triangular_delta
+            read_nu = read_nu + 1
+
+            for nu_single in range(read_nu, self.n_phonons):
+                index_k, mu = np.unravel_index(nu_single, [nptk, n_modes], order='C')
+
+                if not file:
+                    file = open(progress_filename, 'a+')
+                if frequencies[index_k, mu] > frequencies_threshold:
+
+
+                    gamma_out = ballistico.phonons_calculator.calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
+                                                       frequencies,
+                                                       velocities, density,
+                                                       cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                       rescaled_eigenvectors, chi, third_order, sigma_in,
+                                                       frequencies_threshold, is_amorphous, broadening_function)
+
+                    if gamma_out:
+                        nup_vec, nupp_vec, pot_times_dirac = gamma_out
+                        self._gamma[nu_single] += pot_times_dirac.sum()
+                        for nup_index in range(nup_vec.shape[0]):
+                            nup = nup_vec[nup_index]
+                            nupp = nupp_vec[nup_index]
+                            if is_gamma_tensor_enabled:
+                                if is_plus:
+                                    self.gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
+                                    self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                else:
+                                    self.gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
+                                    self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+
+                        nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
+                        # try:
+                        np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
+                        # except ValueError as err:
+                        #     print(err)
+                print(process_string[is_plus] + 'q-point = ' + str(index_k))
+            file.close()
+
+
     def conductivity(self, mfp):
         volume = np.linalg.det(self.atoms.cell) / 1000
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
@@ -507,7 +545,7 @@ class Phonons (object):
 
     def calculate_conductivity_inverse(self):
         
-        scattering_matrix = (self.gamma_tensor_minus + self.gamma_tensor_plus)
+        scattering_matrix = self.gamma_tensor
 
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
@@ -551,7 +589,7 @@ class Phonons (object):
         physical_modes = physical_modes  # & (velocities > 0)[:, 2]
 
         gamma = self.gamma.reshape((self.n_phonons), order='C')
-        scattering_matrix = (self.gamma_tensor_minus + self.gamma_tensor_plus)
+        scattering_matrix = self.gamma_tensor
 
         a_in = - 1 * scattering_matrix.reshape((self.n_phonons, self.n_phonons), order='C')
         a_in = np.einsum('a,ab,b->ab', 1 / frequencies, a_in, frequencies)
@@ -578,8 +616,7 @@ class Phonons (object):
             print('Max iterations reached')
         return conductivity_per_mode, conductivity_value
 
-    def calculate_conductivity_sc(self, tolerance=0.01, length_thresholds=None, is_rta=False,
-                                  n_iterations=MAX_ITERATIONS_SC, finite_size_method='matthiesen'):
+    def calculate_conductivity_rta(self, length_thresholds=None, finite_size_method='matthiesen'):
         
         volume = np.linalg.det(self.atoms.cell) / 1000
         velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C') / 10
@@ -587,14 +624,7 @@ class Phonons (object):
         velocities = velocities.reshape((self.n_phonons, 3), order='C')
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
         gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
-        physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
-        if not is_rta:
-
-            scattering_matrix = (self.gamma_tensor_minus + self.gamma_tensor_plus)
-
-            scattering_matrix = scattering_matrix.reshape((self.n_phonons,
-                                                           self.n_phonons), order='C')
-            scattering_matrix = np.einsum('a,ab,b->ab', 1 / frequencies, scattering_matrix, frequencies)
+        physical_modes = (frequencies > self.energy_threshold)
 
         for alpha in range(3):
             if length_thresholds:
@@ -611,21 +641,6 @@ class Phonons (object):
         lambd_n = lambd_0.copy()
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
 
-        for n_iteration in range(n_iterations):
-            for alpha in range(3):
-                for beta in range(3):
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * self.n_k_points) * \
-                                                                         c_v[physical_modes] * velocities[
-                                                                             physical_modes, alpha] * lambd_n[
-                                                                             physical_modes, beta]
-            if is_rta:
-                return conductivity_per_mode, lambd_0
-
-            tau_0 = tau_0.reshape((self.n_phonons), order='C')
-
-            # calculate the shift in mft
-            delta_lambd = tau_0[:, np.newaxis] * scattering_matrix.dot(lambd_n)
-            lambd_n = lambd_0 + delta_lambd
 
         for alpha in range(3):
 
@@ -643,38 +658,5 @@ class Phonons (object):
                 conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * self.n_k_points) * c_v[
                     physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
 
-        if n_iteration == (MAX_ITERATIONS_SC - 1):
-            print('Convergence not reached')
 
         return conductivity_per_mode, lambd_n
-
-    def calculate_conductivity_sheng(self, n_iterations=20):
-        
-        velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
-        frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
-        physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
-        tau = np.zeros(frequencies.shape)
-        gamma = self.gamma
-        tau[physical_modes] = 1 / gamma.reshape((self.n_phonons), order='C')[physical_modes]
-
-        # F_0 = tau * velocities[:, :] * frequencies
-        F_0 = tau[:, np.newaxis] * velocities * frequencies[:, np.newaxis]
-        F_n = F_0.copy()
-        for iteration in range(n_iterations):
-            DeltaF = 0
-            for is_plus in (1, 0):
-                if is_plus:
-                    DeltaF -= sparse.tensordot(self.full_scattering_plus, F_n, (1, 0))
-                    DeltaF += sparse.tensordot(self.full_scattering_plus, F_n, (2, 0))
-
-                else:
-                    DeltaF += sparse.tensordot(self.full_scattering_minus, F_n, (1, 0))
-                    DeltaF += sparse.tensordot(self.full_scattering_minus, F_n, (2, 0))
-
-            F_n = F_0 + tau[:, np.newaxis] * DeltaF.sum(axis=1)
-
-            conductivity_per_mode = self.conductivity(F_n / frequencies[:, np.newaxis])
-
-
-        return conductivity_per_mode, F_n / frequencies[:, np.newaxis]
-    
