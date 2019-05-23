@@ -239,7 +239,7 @@ class Phonons (object):
         self._gamma = np.zeros(n_phonons)
         self._gamma_tensor = np.zeros((n_phonons, n_phonons))
         for is_plus in [1, 0]:
-            first_nu = 0
+            first_nu = -1
             progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
             try:
                 file = open(progress_filename, 'r+')
@@ -258,109 +258,111 @@ class Phonons (object):
                     else:
                         self._gamma_tensor[first_nu, nup] += value
                         self._gamma_tensor[first_nu, nupp] += value
-            #
-            # print('starting third order ')
-            # is_plus = is_plus
-            # atoms = self.atoms
-            # frequencies = self.frequencies
-            # velocities = self.velocities
-            # density = self.occupations
-            # k_size = self.kpts
-            # eigenvectors = self.eigenvectors
-            # list_of_replicas = self.list_of_index
-            # third_order = self.finite_difference.third_order
-            # sigma_in = self.sigma_in
-            # broadening = self.broadening_shape
-            # frequencies_threshold = self.energy_threshold
-            #
-            # density = density.flatten(order='C')
-            # nptk = np.prod(k_size)
-            # n_particles = atoms.positions.shape[0]
-            #
-            # print('Lifetime calculation')
-            #
-            # # TODO: We should write this in a better way
-            # if list_of_replicas.shape == (3,):
-            #     n_replicas = 1
-            # else:
-            #     n_replicas = list_of_replicas.shape[0]
-            #
-            # cell_inv = np.linalg.inv(atoms.cell)
-            #
-            # is_amorphous = (k_size == (1, 1, 1)).all()
-            #
-            # if is_amorphous:
-            #     chi = 1
-            # else:
-            #     rlattvec = cell_inv * 2 * np.pi
-            #     chi = np.zeros((nptk, n_replicas), dtype=np.complex)
-            #     for index_k in range(np.prod(k_size)):
-            #         i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
-            #         k_point = i_k / k_size
-            #         realq = np.matmul(rlattvec, k_point)
-            #         for l in range(n_replicas):
-            #             chi[index_k, l] = np.exp(1j * list_of_replicas[l].dot(realq))
-            # print('Projection started')
-            # n_modes = n_particles * 3
-            # nptk = np.prod(k_size)
-            #
-            # # print('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
-            # process_string = ['Minus processes: ', 'Plus processes: ']
-            # masses = atoms.get_masses()
-            # rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
-            #     masses[np.newaxis, :, np.newaxis, np.newaxis])
-            # rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
-            # rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
-            #
-            # index_kp_vec = np.arange(np.prod(k_size))
-            # i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
-            #
-            # is_amorphous = (nptk == 1)
-            # if broadening == 'gauss':
-            #     broadening_function = ballistico.phonons_calculator.gaussian_delta
-            # elif broadening == 'lorentz':
-            #     broadening_function = ballistico.phonons_calculator.lorentzian_delta
-            # elif broadening == 'triangle':
-            #     broadening_function = ballistico.phonons_calculator.triangular_delta
-            #
-            # first_nu = first_nu + 1
-            # if first_nu < self.n_phonons:
-            #     first_k, first_mode = np.unravel_index(first_nu, [nptk, n_modes], order='C')
-            #
-            #     for index_k in (np.arange(first_k, np.prod(k_size))):
-            #         for mu in range(first_mode, n_modes):
-            #             if frequencies[index_k, mu] > frequencies_threshold:
-            #
-            #                 gamma_out = ballistico.phonons_calculator.calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
-            #                                                    frequencies,
-            #                                                    velocities, density,
-            #                                                    cell_inv, k_size, n_modes, nptk, n_replicas,
-            #                                                    rescaled_eigenvectors, chi, third_order, sigma_in,
-            #                                                    frequencies_threshold, is_amorphous, broadening_function)
-            #
-            #                 if gamma_out:
-            #                     nup_vec, nupp_vec, pot_times_dirac = gamma_out
-            #                     nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-            #                     self._gamma[nu_single] += pot_times_dirac.sum()
-            #                     for nup_index in range(nup_vec.shape[0]):
-            #                         nup = nup_vec[nup_index]
-            #                         nupp = nupp_vec[nup_index]
-            #
-            #                         if is_plus:
-            #                             self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
-            #                             self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-            #                         else:
-            #                             self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
-            #                             self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-            #                     if not file:
-            #                         file = open(progress_filename, 'a+')
-            #                     elif file.closed:
-            #                         file = open(progress_filename, 'a+')
-            #
-            #                     nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
-            #                     np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
-            #         print(process_string[is_plus] + 'q-point = ' + str(index_k))
-            # file.close()
+
+            print('starting third order ')
+            atoms = self.atoms
+            frequencies = self.frequencies
+            velocities = self.velocities
+            density = self.occupations
+            k_size = self.kpts
+            eigenvectors = self.eigenvectors
+            list_of_replicas = self.list_of_index
+            third_order = self.finite_difference.third_order
+            sigma_in = self.sigma_in
+            broadening = self.broadening_shape
+            frequencies_threshold = self.energy_threshold
+
+            density = density.flatten(order='C')
+            nptk = np.prod(k_size)
+            n_particles = atoms.positions.shape[0]
+
+            print('Lifetime calculation')
+
+            # TODO: We should write this in a better way
+            if list_of_replicas.shape == (3,):
+                n_replicas = 1
+            else:
+                n_replicas = list_of_replicas.shape[0]
+
+            cell_inv = np.linalg.inv(atoms.cell)
+
+            is_amorphous = (k_size == (1, 1, 1)).all()
+
+            if is_amorphous:
+                chi = 1
+            else:
+                rlattvec = cell_inv * 2 * np.pi
+                chi = np.zeros((nptk, n_replicas), dtype=np.complex)
+                for index_k in range(np.prod(k_size)):
+                    i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
+                    k_point = i_k / k_size
+                    realq = np.matmul(rlattvec, k_point)
+                    for l in range(n_replicas):
+                        chi[index_k, l] = np.exp(1j * list_of_replicas[l].dot(realq))
+            print('Projection started')
+            n_modes = n_particles * 3
+            nptk = np.prod(k_size)
+
+            # print('n_irreducible_q_points = ' + str(int(len(unique_points))) + ' : ' + str(unique_points))
+            process_string = ['Minus processes: ', 'Plus processes: ']
+            masses = atoms.get_masses()
+            rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
+                masses[np.newaxis, :, np.newaxis, np.newaxis])
+            rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
+            rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
+
+            index_kp_vec = np.arange(np.prod(k_size))
+            i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
+
+            is_amorphous = (nptk == 1)
+            if broadening == 'gauss':
+                broadening_function = ballistico.phonons_calculator.gaussian_delta
+            elif broadening == 'lorentz':
+                broadening_function = ballistico.phonons_calculator.lorentzian_delta
+            elif broadening == 'triangle':
+                broadening_function = ballistico.phonons_calculator.triangular_delta
+
+            first_nu = first_nu + 1
+            # if (first_nu > 0) & (first_nu < self.n_phonons):
+            #     file.write('\n')
+            if first_nu < self.n_phonons:
+                first_k, first_mode = np.unravel_index(first_nu, [nptk, n_modes], order='C')
+
+                for index_k in (np.arange(first_k, np.prod(k_size))):
+                    for mu in range(first_mode, n_modes):
+                        if frequencies[index_k, mu] > frequencies_threshold:
+
+                            gamma_out = ballistico.phonons_calculator.calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
+                                                               frequencies,
+                                                               velocities, density,
+                                                               cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                               rescaled_eigenvectors, chi, third_order, sigma_in,
+                                                               frequencies_threshold, is_amorphous, broadening_function)
+
+                            if gamma_out:
+                                nup_vec, nupp_vec, pot_times_dirac = gamma_out
+                                nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                                self._gamma[nu_single] += pot_times_dirac.sum()
+                                for nup_index in range(nup_vec.shape[0]):
+                                    nup = nup_vec[nup_index]
+                                    nupp = nupp_vec[nup_index]
+
+                                    if is_plus:
+                                        self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
+                                        self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                    else:
+                                        self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
+                                        self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                if not file:
+                                    file = open(progress_filename, 'a+')
+                                elif file.closed:
+                                    file = open(progress_filename, 'a+')
+
+
+                                nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
+                                np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
+                    print(process_string[is_plus] + 'q-point = ' + str(index_k))
+            file.close()
 
 
         return self._gamma
