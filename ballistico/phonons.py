@@ -407,7 +407,8 @@ class Phonons (object):
         if is_gamma_tensor_enabled:
             self._gamma_tensor = np.zeros((n_phonons, n_phonons))
         for is_plus in [1, 0]:
-            first_nu = -1
+            read_nu = -1
+            file = None
             progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
             try:
                 file = open(progress_filename, 'r+')
@@ -415,18 +416,18 @@ class Phonons (object):
                 print(err)
             else:
                 for line in file:
-                    first_nu, nup, nupp, value = np.fromstring(line, dtype=np.float, sep=' ')
-                    first_nu = int(first_nu)
-                    nup = int(nup)
-                    nupp = int(nupp)
-                    self._gamma[first_nu] += value
+                    read_nu, read_nup, read_nupp, value = np.fromstring(line, dtype=np.float, sep=' ')
+                    read_nu = int(read_nu)
+                    read_nup = int(read_nup)
+                    read_nupp = int(read_nupp)
+                    self._gamma[read_nu] += value
                     if is_gamma_tensor_enabled:
                         if is_plus:
-                            self._gamma_tensor[first_nu, nup] -= value
-                            self._gamma_tensor[first_nu, nupp] += value
+                            self._gamma_tensor[read_nu, read_nup] -= value
+                            self._gamma_tensor[read_nu, read_nupp] += value
                         else:
-                            self._gamma_tensor[first_nu, nup] += value
-                            self._gamma_tensor[first_nu, nupp] += value
+                            self._gamma_tensor[read_nu, read_nup] += value
+                            self._gamma_tensor[read_nu, read_nupp] += value
 
             print('starting third order ')
             atoms = self.atoms
@@ -490,47 +491,43 @@ class Phonons (object):
                 broadening_function = ballistico.phonons_calculator.lorentzian_delta
             elif broadening == 'triangle':
                 broadening_function = ballistico.phonons_calculator.triangular_delta
+            read_nu = read_nu + 1
 
-            first_nu = first_nu + 1
-            # if (first_nu > 0) & (first_nu < self.n_phonons):
-            #     file.write('\n')
-            if first_nu < self.n_phonons:
-                first_k, first_mode = np.unravel_index(first_nu, [nptk, n_modes], order='C')
+            for nu_single in range(read_nu, self.n_phonons):
+                index_k, mu = np.unravel_index(nu_single, [nptk, n_modes], order='C')
 
-                for index_k in (np.arange(first_k, np.prod(k_size))):
-                    for mu in range(first_mode, n_modes):
-                        if frequencies[index_k, mu] > frequencies_threshold:
-
-                            gamma_out = ballistico.phonons_calculator.calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
-                                                               frequencies,
-                                                               velocities, density,
-                                                               cell_inv, k_size, n_modes, nptk, n_replicas,
-                                                               rescaled_eigenvectors, chi, third_order, sigma_in,
-                                                               frequencies_threshold, is_amorphous, broadening_function)
-
-                            if gamma_out:
-                                nup_vec, nupp_vec, pot_times_dirac = gamma_out
-                                nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                                self._gamma[nu_single] += pot_times_dirac.sum()
-                                for nup_index in range(nup_vec.shape[0]):
-                                    nup = nup_vec[nup_index]
-                                    nupp = nupp_vec[nup_index]
-                                    if is_gamma_tensor_enabled:
-                                        if is_plus:
-                                            self.gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
-                                            self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-                                        else:
-                                            self.gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
-                                            self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-                                if not file:
-                                    file = open(progress_filename, 'a+')
-                                elif file.closed:
-                                    file = open(progress_filename, 'a+')
+                if not file:
+                    file = open(progress_filename, 'a+')
+                if frequencies[index_k, mu] > frequencies_threshold:
 
 
-                                nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
-                                np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
-                    print(process_string[is_plus] + 'q-point = ' + str(index_k))
+                    gamma_out = ballistico.phonons_calculator.calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
+                                                       frequencies,
+                                                       velocities, density,
+                                                       cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                       rescaled_eigenvectors, chi, third_order, sigma_in,
+                                                       frequencies_threshold, is_amorphous, broadening_function)
+
+                    if gamma_out:
+                        nup_vec, nupp_vec, pot_times_dirac = gamma_out
+                        self._gamma[nu_single] += pot_times_dirac.sum()
+                        for nup_index in range(nup_vec.shape[0]):
+                            nup = nup_vec[nup_index]
+                            nupp = nupp_vec[nup_index]
+                            if is_gamma_tensor_enabled:
+                                if is_plus:
+                                    self.gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
+                                    self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                else:
+                                    self.gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
+                                    self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+
+                        nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
+                        # try:
+                        np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
+                        # except ValueError as err:
+                        #     print(err)
+                print(process_string[is_plus] + 'q-point = ' + str(index_k))
             file.close()
 
 
