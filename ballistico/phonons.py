@@ -626,17 +626,20 @@ class Phonons (object):
         gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
         physical_modes = (frequencies > self.energy_threshold)
 
+
+        tau_0 = np.zeros_like(gamma)
+        tau_0[physical_modes] = 1 / gamma[physical_modes]
+
+
         for alpha in range(3):
+            lambd_0[physical_modes, alpha] = tau_0[physical_modes] * velocities[physical_modes, alpha]
             if length_thresholds:
                 if length_thresholds[alpha]:
                     if finite_size_method == 'matthiesen':
                         gamma[physical_modes] += abs(velocities[physical_modes, alpha]) / (
                                     1 / 2 * length_thresholds[alpha])
 
-        tau_0 = np.zeros_like(gamma)
-        tau_0[physical_modes] = 1 / gamma[physical_modes]
 
-        lambd_0[physical_modes, alpha] = tau_0[physical_modes] * velocities[physical_modes, alpha]
         c_v = self.c_v.reshape((self.n_phonons), order='C')
         lambd_n = lambd_0.copy()
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
