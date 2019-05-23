@@ -318,11 +318,15 @@ class Phonons (object):
 
         gamma = np.zeros(n_phonons)
         for is_plus in [1, 0]:
-            filename = folder + '/' + SCATTERING_MATRIX_FILE + '_' + str(is_plus)
+            filename = folder  + SCATTERING_MATRIX_FILE + '_' + str(is_plus)
             with open(filename, 'r') as f:
                 for line in f:
                     nu, _, _, value = np.fromstring(line, dtype=np.float, sep=' ')
                     gamma[int(nu)] += value
+                    
+
+
+
         return gamma
 
     @property
@@ -578,8 +582,7 @@ class Phonons (object):
             print('Max iterations reached')
         return conductivity_per_mode, conductivity_value
 
-    def calculate_conductivity_sc(self, tolerance=0.01, length_thresholds=None, is_rta=False,
-                                  n_iterations=MAX_ITERATIONS_SC, finite_size_method='matthiesen'):
+    def calculate_conductivity_rta(self, length_thresholds=None, finite_size_method='matthiesen'):
         
         volume = np.linalg.det(self.atoms.cell) / 1000
         velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C') / 10
@@ -587,14 +590,7 @@ class Phonons (object):
         velocities = velocities.reshape((self.n_phonons, 3), order='C')
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
         gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
-        physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
-        if not is_rta:
-
-            scattering_matrix = (self.gamma_tensor_minus + self.gamma_tensor_plus)
-
-            scattering_matrix = scattering_matrix.reshape((self.n_phonons,
-                                                           self.n_phonons), order='C')
-            scattering_matrix = np.einsum('a,ab,b->ab', 1 / frequencies, scattering_matrix, frequencies)
+        physical_modes = (frequencies > self.energy_threshold)
 
         for alpha in range(3):
             if length_thresholds:
@@ -611,21 +607,6 @@ class Phonons (object):
         lambd_n = lambd_0.copy()
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
 
-        for n_iteration in range(n_iterations):
-            for alpha in range(3):
-                for beta in range(3):
-                    conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * self.n_k_points) * \
-                                                                         c_v[physical_modes] * velocities[
-                                                                             physical_modes, alpha] * lambd_n[
-                                                                             physical_modes, beta]
-            if is_rta:
-                return conductivity_per_mode, lambd_0
-
-            tau_0 = tau_0.reshape((self.n_phonons), order='C')
-
-            # calculate the shift in mft
-            delta_lambd = tau_0[:, np.newaxis] * scattering_matrix.dot(lambd_n)
-            lambd_n = lambd_0 + delta_lambd
 
         for alpha in range(3):
 
@@ -643,8 +624,6 @@ class Phonons (object):
                 conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * self.n_k_points) * c_v[
                     physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
 
-        if n_iteration == (MAX_ITERATIONS_SC - 1):
-            print('Convergence not reached')
 
         return conductivity_per_mode, lambd_n
 
