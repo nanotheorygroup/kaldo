@@ -9,6 +9,42 @@ from scipy.ndimage import map_coordinates
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
 
+
+import numpy as np
+from scipy import ndimage
+
+
+def resample_fourier(observable, increase_factor):
+    matrix = np.fft.fftn (observable, axes=(0, 1, 2))
+    bigger_matrix = np.zeros ((increase_factor * matrix.shape[0], increase_factor * matrix.shape[1],increase_factor * matrix.shape[2])).astype (complex)
+    half = int(matrix.shape[0] / 2)
+    bigger_matrix[0:half, 0:half, 0:half] = matrix[0:half, 0:half, 0:half]
+    bigger_matrix[-half:, 0:half, 0:half] = matrix[-half:, 0:half, 0:half]
+    bigger_matrix[0:half, -half:, 0:half] = matrix[0:half, -half:, 0:half]
+    bigger_matrix[-half:, -half:, 0:half] = matrix[-half:, -half:, 0:half]
+    bigger_matrix[0:half, 0:half, -half:] = matrix[0:half, 0:half, -half:]
+    bigger_matrix[-half:, 0:half, -half:] = matrix[-half:, 0:half, -half:]
+    bigger_matrix[0:half, -half:, -half:] = matrix[0:half, -half:, -half:]
+    bigger_matrix[-half:, -half:, -half:] = matrix[-half:, -half:, -half:]
+    bigger_matrix = (np.fft.ifftn (bigger_matrix, axes=(0, 1, 2)))
+    bigger_matrix *= increase_factor ** 3
+    return bigger_matrix
+
+
+def interpolator(k_list, observable, fourier_order=0, interpolation_order=0, is_wrapping=True):
+    # Here we can put a pipeline of several interpolator
+    if fourier_order:
+        observable = resample_fourier (observable, increase_factor=fourier_order).real
+
+    k_size = np.array(observable.shape)
+    if is_wrapping:
+        out = ndimage.map_coordinates (observable, (k_list * k_size).T, order=interpolation_order, mode='wrap')
+    else:
+        out = ndimage.map_coordinates (observable, (k_list * k_size).T, order=interpolation_order)
+
+    return out
+
+
 class Plotter (object):
     def __init__(self, phonons, folder=None, is_showing=True):
         self.phonons = phonons
@@ -45,7 +81,8 @@ class Plotter (object):
         if self.is_showing:
             plt.show()
 
-    def plot_dispersion(self, symmetry='fcc', n_k_points=100):
+    def plot_dispersion(self, symmetry=None, n_k_points=100):
+        #TODO: remove useless symmetry flag
         atoms = self.phonons.atoms
         reference_distance = 0.5/n_k_points
         fig1 = plt.figure ()
@@ -63,11 +100,15 @@ class Plotter (object):
         else:
             freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
             vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
-            for mode in range(self.phonons.n_modes):
 
-                freqs_plot[:, mode] = self.map_interpolator(k_list, self.phonons.frequencies[:, :, :, mode])
+            frequencies = self.phonons.frequencies.reshape((self.phonons.kpts[0], self.phonons.kpts[1],
+                                                            self.phonons.kpts[2], self.phonons.n_modes), order='C')
+            velocities = self.phonons.velocities.reshape((self.phonons.kpts[0], self.phonons.kpts[1],
+                                                           self.phonons.kpts[2], self.phonons.n_modes, 3), order='C')
+            for mode in range(self.phonons.n_modes):
+                freqs_plot[:, mode] = interpolator(k_list, frequencies[..., mode], fourier_order=5, interpolation_order=2)
                 for alpha in range(3):
-                    vel_plot[:, mode, alpha] = self.map_interpolator(k_list, self.phonons.velocities[:, :, :, mode, alpha])
+                    vel_plot[:, mode, alpha] = interpolator(k_list, velocities[..., mode, alpha], interpolation_order=5, is_wrapping=False)
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
@@ -113,7 +154,3 @@ class Plotter (object):
             if point_names[i] == 'GAMMA':
                 point_names[i] = '$\Gamma$'
         return kpath, q, Q, point_names
-
-    def map_interpolator(self, k_list, observable):
-        k_size = np.array(observable.shape)
-        return map_coordinates(observable, (k_list * k_size).T, order=0, mode='wrap')
