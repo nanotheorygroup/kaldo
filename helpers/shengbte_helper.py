@@ -1,6 +1,11 @@
 import pandas as pd
 import numpy as np
-from ase.units import Bohr, Rydberg
+from ballistico.phonons import Phonons
+
+BUFFER_PLOT = .2
+SHENG_FOLDER_NAME = 'sheng_bte'
+SHENGBTE_SCRIPT = 'ShengBTE.x'
+
 
 def save_second_order_matrix(phonons):
     if phonons.finite_difference.is_reduced_second:
@@ -26,45 +31,45 @@ def save_second_order_matrix(phonons):
     print('second order saved')
 
 
-def save_second_order_qe_matrix(phonons):
-    shenbte_folder = phonons.folder_name + '/'
-    n_replicas = phonons.supercell.prod()
-    n_particles = int(phonons.n_modes / 3)
-    if phonons.finite_difference.is_reduced_second:
-        second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
-    else:
-        second_order = phonons.finite_difference.second_order.reshape (
-            (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
-    filename = 'espresso.ifc2'
-    filename = shenbte_folder + filename
-    file = open ('%s' % filename, 'w+')
-
-    list_of_index = phonons.finite_difference.list_of_index()
-
-    file.write (header(phonons))
-    for alpha in range (3):
-        for beta in range (3):
-            for i in range (n_particles):
-                for j in range (n_particles):
-                    file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
-                    for id_replica in range(list_of_index.shape[0]):
-
-                        l_vec = (phonons.finite_difference.list_of_index()[id_replica] + 1)
-                        for delta in range(3):
-                            if l_vec[delta] <= 0:
-                                l_vec[delta] = phonons.finite_difference.supercell[delta]
-
-
-                        file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
-
-                        matrix_element = second_order[i, alpha, id_replica, j, beta]
-
-                        matrix_element = matrix_element / Rydberg * (
-                                Bohr ** 2)
-                        file.write ('\t %.11E' % matrix_element)
-                        file.write ('\n')
-    file.close ()
-    print('second order saved')
+# def save_second_order_qe_matrix(phonons):
+#     shenbte_folder = phonons.folder_name + '/'
+#     n_replicas = phonons.supercell.prod()
+#     n_particles = int(phonons.n_modes / 3)
+#     if phonons.finite_difference.is_reduced_second:
+#         second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+#     else:
+#         second_order = phonons.finite_difference.second_order.reshape (
+#             (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
+#     filename = 'espresso.ifc2'
+#     filename = shenbte_folder + filename
+#     file = open ('%s' % filename, 'w+')
+#
+#     list_of_index = phonons.finite_difference.list_of_index()
+#
+#     file.write (header(phonons))
+#     for alpha in range (3):
+#         for beta in range (3):
+#             for i in range (n_particles):
+#                 for j in range (n_particles):
+#                     file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
+#                     for id_replica in range(list_of_index.shape[0]):
+#
+#                         l_vec = (phonons.finite_difference.list_of_index()[id_replica] + 1)
+#                         for delta in range(3):
+#                             if l_vec[delta] <= 0:
+#                                 l_vec[delta] = phonons.finite_difference.supercell[delta]
+#
+#
+#                         file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
+#
+#                         matrix_element = second_order[i, alpha, id_replica, j, beta]
+#
+#                         matrix_element = matrix_element / Rydberg * (
+#                                 Bohr ** 2)
+#                         file.write ('\t %.11E' % matrix_element)
+#                         file.write ('\n')
+#     file.close ()
+#     print('second order saved')
 
 
 def save_third_order_matrix(phonons):
@@ -259,3 +264,160 @@ def type_element_id(atoms, element_name):
         element = unique_elements[i]
         if element == element_name:
             return i
+
+
+def import_from_shengbte(finite_difference, kpts, is_classic, temperature, folder):
+
+    # # Create a phonon object
+    phonons = Phonons(finite_difference=finite_difference,
+                      kpts=kpts,
+                      is_classic=is_classic,
+                      temperature=temperature,
+                      folder=folder)
+
+    new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
+    energies = read_energy_data(phonons).reshape(new_shape)
+    phonons.frequencies = energies / (2 * np.pi)
+    phonons.velocities = read_velocity_data(phonons) * 10
+    phonons.gamma = read_decay_rate_data(phonons).reshape(new_shape)
+    # phonons.scattering_matrix = import_scattering_matrix(phonons)
+    return phonons
+
+def qpoints_mapper(phonons):
+    q_points = pd.read_csv (phonons.folder_name + '/BTE.qpoints_full', header=None, delim_whitespace=True)
+    return q_points.values
+
+
+def irreducible_indices(phonons):
+    return np.unique(qpoints_mapper(phonons)[:,1])
+
+
+def q_points(phonons):
+    return qpoints_mapper(phonons)[:,2:5]
+
+
+def read_energy_data(phonons):
+    # We read in rad/ps
+    omega = pd.read_csv (phonons.folder_name + '/BTE.omega', header=None, delim_whitespace=True)
+    n_qpoints = qpoints_mapper(phonons).shape[0]
+    n_branches = omega.shape[1]
+    energy_data = np.zeros ((n_qpoints, n_branches))
+    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
+        energy_data[int (index - 1)] = omega.loc[[int (reduced_index - 1)]].values
+    return energy_data
+
+
+def read_ps_data(phonons, type=None):
+    if type == 'plus':
+        file = 'BTE.WP3_plus'
+    elif type == 'minus':
+        file = 'BTE.WP3_minus'
+    else:
+        file = 'BTE.WP3'
+    temperature = str (int (phonons.temperature))
+    decay = pd.read_csv (phonons.folder_name + '/T' + temperature + 'K/' + file, header=None,
+                         delim_whitespace=True)
+    # decay = pd.read_csv (phonons.folder_name + 'T' + temperature +
+    # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+    n_branches = int (decay.shape[0] / irreducible_indices(phonons).max ())
+    n_qpoints_reduced = int (decay.shape[0] / n_branches)
+    n_qpoints = qpoints_mapper(phonons).shape[0]
+    decay = np.delete (decay.values, 0, 1)
+    decay = decay.reshape ((n_branches, n_qpoints_reduced))
+    decay_data = np.zeros ((n_qpoints, n_branches))
+    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
+        decay_data[int (index - 1)] = decay[:, int (reduced_index - 1)]
+    return decay_data
+
+
+def read_decay_rate_data(phonons, type=None):
+    if type == 'plus':
+        file = 'BTE.w_anharmonic_plus'
+    elif type == 'minus':
+        file = 'BTE.w_anharmonic_minus'
+    else:
+        file = 'BTE.w_anharmonic'
+    temperature = str(int(phonons.temperature))
+    decay = pd.read_csv (phonons.folder_name + '/T' + temperature + 'K/' + file, header=None,
+                         delim_whitespace=True)
+    # decay = pd.read_csv (phonons.folder_name + 'T' + temperature +
+    # 'K/BTE.w_anharmonic', header=None, delim_whitespace=True)
+    n_branches = int (decay.shape[0] / irreducible_indices (phonons).max ())
+    n_qpoints_reduced = int (decay.shape[0] / n_branches)
+    n_qpoints = qpoints_mapper(phonons).shape[0]
+    decay = np.delete(decay.values,0,1)
+    decay = decay.reshape((n_branches, n_qpoints_reduced))
+    decay_data = np.zeros ((n_qpoints, n_branches))
+    for index, reduced_index, q_point_x, q_point_y, q_point_z in qpoints_mapper(phonons):
+        decay_data[int (index - 1)] = decay[:, int(reduced_index-1)]
+    return decay_data
+
+
+def read_velocity_data(phonons):
+    shenbte_folder = phonons.folder_name
+    velocities = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
+    n_velocities = velocities.shape[0]
+    n_qpoints = qpoints_mapper(phonons).shape[0]
+    n_modes = int(n_velocities / n_qpoints)
+
+    velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
+
+    velocities = np.zeros((phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], n_modes, 3))
+
+    z = 0
+    for k in range (phonons.kpts[2]):
+        for j in range(phonons.kpts[1]):
+            for i in range (phonons.kpts[0]):
+                velocities[i, j, k, :, :] = velocity_array[:, z, :]
+                z += 1
+    return velocities
+
+
+def read_conductivity(converged=True):
+    folder = phonons.folder_name
+    if converged:
+        conduct_file = '/BTE.KappaTensorVsT_CONV'
+    else:
+        conduct_file = '/BTE.KappaTensorVsT_RTA'
+
+    conductivity_array = np.loadtxt (folder + conduct_file)
+    conductivity_array = np.delete (conductivity_array, 0)
+    n_steps = 0
+    if converged:
+        n_steps = int (conductivity_array[-1])
+        conductivity_array = np.delete (conductivity_array, -1)
+
+    conductivity = conductivity_array.reshape (3, 3)
+    return conductivity
+
+
+def import_scattering_matrix(phonons):
+    temperature = str(int(phonons.temperature))
+    filename_gamma = phonons.folder_name + '/T' + temperature + 'K/GGG.Gamma_Tensor'
+    filename_tau_zero = phonons.folder_name + '/T' + temperature + 'K/GGG.tau_zero'
+    phonons.tau_zero = np.zeros((phonons.n_modes, phonons.n_k_points))
+    with open(filename_tau_zero, "r+") as f:
+        for line in f:
+            items = line.split()
+            phonons.tau_zero[int(items[0]) - 1, int(items[1]) - 1] = float(items[2])
+
+    n0 = []
+    n1 = []
+    k0 = []
+    k1 = []
+    gamma_value = []
+
+    with open(filename_gamma, "r+") as f:
+        for line in f:
+            items = line.split()
+
+            n0.append(int(items[0]) - 1)
+            k0.append(int(items[1]) - 1)
+            n1.append(int(items[2]) - 1)
+            k1.append(int(items[3]) - 1)
+
+            gamma_value.append(float(items[4]))
+    gamma_tensor = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_k_points,phonons.n_modes))
+    gamma_tensor[k0, n0, k1, n1] = gamma_value
+    return gamma_tensor
+
