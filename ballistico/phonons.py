@@ -1,18 +1,9 @@
-import numpy as np
 import os
 import ballistico.phonons_calculator
 import ase.units as units
-from scipy.sparse import save_npz
-
 import numpy as np
-import sparse
-
-from scipy.optimize import minimize
 
 MAX_ITERATIONS_SC = 500
-
-import sparse
-
 ENERGY_THRESHOLD = 0.001
 GAMMA_CUTOFF = 0
 
@@ -82,16 +73,7 @@ class Phonons (object):
             self.gamma_cutoff = GAMMA_CUTOFF
             
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
-        replicated_cell_inv = np.linalg.inv(self.replicated_cell)
-        replicated_atoms_positions = (self.__apply_boundary_with_cell(self.replicated_cell, replicated_cell_inv, self.finite_difference.replicated_atoms.positions))
-
-        n_replicas = np.prod (self.finite_difference.supercell)
-        atoms = self.finite_difference.atoms
-        n_unit_atoms = self.finite_difference.atoms.positions.shape[0]
-        list_of_replicas = (
-                replicated_atoms_positions.reshape ((n_replicas, n_unit_atoms, 3)) -
-                atoms.positions[np.newaxis, :, :])
-        self.list_of_index = list_of_replicas[:, 0, :]
+        self.list_of_replicas = self.finite_difference.list_of_replicas()
         self._gamma = None
         self._gamma_tensor = None
 
@@ -113,7 +95,7 @@ class Phonons (object):
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
-                    self.list_of_index,
+                    self.list_of_replicas,
                     self.replicated_cell,
                     self.energy_threshold)
                 self.frequencies = frequencies
@@ -147,7 +129,7 @@ class Phonons (object):
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
-                    self.list_of_index,
+                    self.list_of_replicas,
                     self.replicated_cell,
                     self.energy_threshold)
                 self.frequencies = frequencies
@@ -202,7 +184,7 @@ class Phonons (object):
                     self.k_points,
                     self.atoms,
                     self.finite_difference.second_order,
-                    self.list_of_index,
+                    self.list_of_replicas,
                     self.replicated_cell,
                     self.energy_threshold)
                 self.frequencies = frequencies
@@ -221,9 +203,26 @@ class Phonons (object):
 
     @property
     def gamma(self):
-        if self._gamma is None:
-            self.calculate_gamma(is_gamma_tensor_enabled=False)
         return self._gamma
+
+    @gamma.getter
+    def gamma(self):
+        if self._gamma is None:
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._gamma = np.load (folder + GAMMA_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_gamma(is_gamma_tensor_enabled=False)
+        return self._gamma
+
+    @gamma.setter
+    def gamma(self, new_gamma):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + GAMMA_FILE, new_gamma)
+        self._gamma = new_gamma
 
     @property
     def gamma_tensor(self):
@@ -387,7 +386,7 @@ class Phonons (object):
             klist,
             self.atoms,
             self.finite_difference.second_order,
-            self.list_of_index,
+            self.list_of_replicas,
             self.replicated_cell,
             self.energy_threshold)
 
@@ -436,7 +435,7 @@ class Phonons (object):
             density = self.occupations
             k_size = self.kpts
             eigenvectors = self.eigenvectors
-            list_of_replicas = self.list_of_index
+            list_of_replicas = self.list_of_replicas
             third_order = self.finite_difference.third_order
             sigma_in = self.sigma_in
             broadening = self.broadening_shape
