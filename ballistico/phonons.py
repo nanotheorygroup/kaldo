@@ -61,7 +61,7 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replicas, replicated_cell,
+def diagonalize_second_order_single_k(qvec, atoms, dynmat, list_of_replicas, replicated_cell,
                                       frequencies_threshold):
     geometry = atoms.positions
     cell_inv = np.linalg.inv(atoms.cell)
@@ -70,25 +70,15 @@ def diagonalize_second_order_single_k(qvec, atoms, second_order, list_of_replica
     n_particles = geometry.shape[0]
     n_replicas = list_of_replicas.shape[0]
     n_phonons = n_particles * 3
-    is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
-    if is_second_reduced:
-        dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
-    else:
-        dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
-    mass = np.sqrt(atoms.get_masses())
-    dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-    dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 
-    # TODO: probably we want to move this unit conversion somewhere more appropriate
-    dynmat /= (10 * units.J / units.mol)
 
     chi_k = np.zeros(n_replicas).astype(complex)
     for id_replica in range(n_replicas):
         chi_k[id_replica] = np.exp(1j * list_of_replicas[id_replica].dot(kpoint))
     dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
     replicated_cell_inv = np.linalg.inv(replicated_cell)
-    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
-            geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv,(
+        list_of_replicas[np.newaxis, np.newaxis, :]))
     ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
 
     out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
@@ -395,6 +385,8 @@ class Phonons (object):
                 self._eigenvectors = np.load (folder + EIGENVECTORS_FILE)
             except FileNotFoundError as e:
                 print(e)
+                self.calculate_second_k_list()
+
         return self._eigenvectors
 
     @eigenvectors.setter
@@ -403,6 +395,7 @@ class Phonons (object):
         folder += '/'
         np.save (folder + EIGENVECTORS_FILE, new_eigenvectors)
         self._eigenvectors = new_eigenvectors
+
 
     @property
     def eigenvalues(self):
@@ -418,7 +411,6 @@ class Phonons (object):
             except FileNotFoundError as e:
                 print(e)
                 self.calculate_second_k_list()
-
         return self._eigenvalues
 
     @eigenvalues.setter
@@ -717,22 +709,12 @@ class Phonons (object):
                 if not file:
                     file = open(progress_filename, 'a+')
                 if frequencies[index_k, mu] > frequencies_threshold:
-
-
                     gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
                                                        frequencies,
                                                        velocities, density,
                                                        cell_inv, k_size, n_modes, nptk, n_replicas,
                                                        rescaled_eigenvectors, chi, third_order, sigma_in,
                                                        frequencies_threshold, is_amorphous, broadening_function)
-
-
-
-
-
-
-
-
 
                     if gamma_out:
                         nup_vec, nupp_vec, pot_times_dirac = gamma_out
@@ -896,7 +878,7 @@ class Phonons (object):
         else:
             k_points = self.k_points
         atoms = self.atoms
-        second_order = self.finite_difference.second_order
+        second_order = self.finite_difference.second_order.copy()
         list_of_replicas = self.list_of_replicas
         replicated_cell = self.replicated_cell
         frequencies_threshold = self.energy_threshold
@@ -908,17 +890,33 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
+
+        geometry = atoms.positions
+        n_particles = geometry.shape[0]
+        n_replicas = list_of_replicas.shape[0]
+
+        is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
+        if is_second_reduced:
+            dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
+        else:
+            dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
+        mass = np.sqrt(atoms.get_masses())
+        dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+        dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+
+        # TODO: probably we want to move this unit conversion somewhere more appropriate
+        dynmat /= (10 * units.J / units.mol)
+
+
         for index_k in range(n_k_points):
-            freq, eval, evect, vels = diagonalize_second_order_single_k(k_points[index_k], atoms, second_order.copy(),
+            freq, eval, evect, vels = diagonalize_second_order_single_k(k_points[index_k], atoms, dynmat,
                                                                         list_of_replicas, replicated_cell,
                                                                         frequencies_threshold)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
-            velocities[index_k, :, :] = -1 * vels.real
+            velocities[index_k, :, :] = vels.real
 
-        # frequencies[0,:3] = 0.
-        # velocities[0,:3,:] = 0.
         # TODO: change the way we deal with two different outputs
         if k_list is not None:
             return frequencies, eigenvalues, eigenvectors, velocities
