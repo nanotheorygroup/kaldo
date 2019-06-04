@@ -96,7 +96,7 @@ class Plotter (object):
         else:
             k_list, q, Q, point_names = self.create_k_and_symmetry_space (atoms, reference_distance=reference_distance)
         if self.phonons.is_able_to_calculate:
-            freqs_plot, _, _, vel_plot = self.phonons.second_quantities_k_list(k_list)
+            freqs_plot, _, _, vel_plot = self.phonons.calculate_second_k_list(k_list)
         else:
             freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
             vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
@@ -108,7 +108,7 @@ class Plotter (object):
             for mode in range(self.phonons.n_modes):
                 freqs_plot[:, mode] = interpolator(k_list, frequencies[..., mode], fourier_order=5, interpolation_order=2)
                 for alpha in range(3):
-                    vel_plot[:, mode, alpha] = interpolator(k_list, velocities[..., mode, alpha], interpolation_order=5, is_wrapping=False)
+                    vel_plot[:, mode, alpha] = interpolator(k_list, velocities[..., mode, alpha], interpolation_order=0, is_wrapping=False)
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
@@ -119,16 +119,16 @@ class Plotter (object):
         fig1.savefig (self.folder + 'dispersion' + '.pdf')
         if self.is_showing:
             plt.show()
-            
-        fig2 = plt.figure ()
-        plt.ylabel('velocity norm/$100m/s$')
-        plt.xticks(Q, point_names)
-        plt.xlim(q[0], q[-1])
-        plt.plot(q, np.linalg.norm(vel_plot[:, :, :], axis=2), ".")
-        plt.grid()
-        fig2.savefig(self.folder + 'velocity.pdf')
-        if self.is_showing:
-            plt.show()
+        for alpha in range(3):
+            fig2 = plt.figure ()
+            plt.ylabel('v_$' + str(alpha) + '$/($10m/s$)')
+            plt.xticks(Q, point_names)
+            plt.xlim(q[0], q[-1])
+            plt.plot(q, vel_plot[:, :, alpha], ".")
+            plt.grid()
+            fig2.savefig(self.folder + 'velocity.pdf')
+            if self.is_showing:
+                plt.show()
 
     def create_k_and_symmetry_space(self, atoms, reference_distance=0.02):
         cell = atoms.cell
