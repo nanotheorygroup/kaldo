@@ -98,6 +98,10 @@ def diagonalize_second_order_single_k(qvec, atoms, dynmat, list_of_replicas, rep
             velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn, eigenvects[:, mu]) / (
                         2 * (2 * np.pi) * frequencies[mu])
 
+    # if (qvec == [0,0,0]).all():
+    #     frequencies[:3] = 0.
+    #     velocities[:3,:] = 0.
+
     return frequencies, eigenvals, eigenvects, velocities
 
 

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from ballistico.phonons import Phonons
+from ase.units import Rydberg, Bohr
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
@@ -8,8 +9,7 @@ SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
 def save_second_order_matrix(phonons):
-    if phonons.finite_difference.is_reduced_second:
-        print('error')
+
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder_name + '/' + filename
     finite_difference = phonons.finite_difference
@@ -18,58 +18,57 @@ def save_second_order_matrix(phonons):
     with open(filename, 'w+') as file:
         file.write(str(n_atoms_unit_cell * n_replicas) + '\n')
         for i0 in range(n_atoms_unit_cell):
-            for l0 in range(n_replicas):
-                for i1 in range(n_atoms_unit_cell):
-                    for l1 in range(n_replicas):
+            for i1 in range(n_atoms_unit_cell):
+                for l1 in range(n_replicas):
 
-                        file.write(str(l0 + i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
+                    file.write(str(i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
 
-                        sub_second = finite_difference.second_order[l0, i0, :, l1, i1, :]
-                        file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
-                        file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
-                        file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
+                    sub_second = finite_difference.second_order[i0, :, l1, i1, :]
+                    file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
+                    file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
+                    file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
     print('second order saved')
 
 
-# def save_second_order_qe_matrix(phonons):
-#     shenbte_folder = phonons.folder_name + '/'
-#     n_replicas = phonons.supercell.prod()
-#     n_particles = int(phonons.n_modes / 3)
-#     if phonons.finite_difference.is_reduced_second:
-#         second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
-#     else:
-#         second_order = phonons.finite_difference.second_order.reshape (
-#             (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
-#     filename = 'espresso.ifc2'
-#     filename = shenbte_folder + filename
-#     file = open ('%s' % filename, 'w+')
-#
-#     list_of_index = phonons.finite_difference.list_of_index()
-#
-#     file.write (header(phonons))
-#     for alpha in range (3):
-#         for beta in range (3):
-#             for i in range (n_particles):
-#                 for j in range (n_particles):
-#                     file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
-#                     for id_replica in range(list_of_index.shape[0]):
-#
-#                         l_vec = (phonons.finite_difference.list_of_index()[id_replica] + 1)
-#                         for delta in range(3):
-#                             if l_vec[delta] <= 0:
-#                                 l_vec[delta] = phonons.finite_difference.supercell[delta]
-#
-#
-#                         file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
-#
-#                         matrix_element = second_order[i, alpha, id_replica, j, beta]
-#
-#                         matrix_element = matrix_element / Rydberg * (
-#                                 Bohr ** 2)
-#                         file.write ('\t %.11E' % matrix_element)
-#                         file.write ('\n')
-#     file.close ()
-#     print('second order saved')
+def save_second_order_qe_matrix(phonons):
+    shenbte_folder = phonons.folder_name + '/'
+    n_replicas = phonons.supercell.prod()
+    n_particles = int(phonons.n_modes / 3)
+    if phonons.finite_difference.is_reduced_second:
+        second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+    else:
+        second_order = phonons.finite_difference.second_order.reshape (
+            (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
+    filename = 'espresso.ifc2'
+    filename = shenbte_folder + filename
+    file = open ('%s' % filename, 'w+')
+
+    list_of_index = phonons.finite_difference.list_of_index()
+
+    file.write (header(phonons))
+    for alpha in range (3):
+        for beta in range (3):
+            for i in range (n_particles):
+                for j in range (n_particles):
+                    file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
+                    for id_replica in range(list_of_index.shape[0]):
+
+                        l_vec = (phonons.finite_difference.list_of_index()[id_replica] + 1)
+                        for delta in range(3):
+                            if l_vec[delta] <= 0:
+                                l_vec[delta] = phonons.finite_difference.supercell[delta]
+
+
+                        file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
+
+                        matrix_element = second_order[i, alpha, id_replica, j, beta]
+
+                        matrix_element = matrix_element / Rydberg * (
+                                Bohr ** 2)
+                        file.write ('\t %.11E' % matrix_element)
+                        file.write ('\n')
+    file.close ()
+    print('second order saved')
 
 
 def save_third_order_matrix(phonons):
