@@ -9,25 +9,36 @@ SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
 def save_second_order_matrix(phonons):
+    if not phonons.finite_difference.is_reduced_second:
+        raise ValueError('Only finitedifference.reduced_second == True supported.')
 
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder_name + '/' + filename
     finite_difference = phonons.finite_difference
+    second_order = phonons.finite_difference.second_order
     n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
     n_replicas = np.prod(finite_difference.supercell)
+    second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
+    #TODO: this is a bit hacky. ShengBTE wants the whole second order matrix, but actually uses only the reduced one. So we fill the rest with zeros
     with open(filename, 'w+') as file:
         file.write(str(n_atoms_unit_cell * n_replicas) + '\n')
         for i0 in range(n_atoms_unit_cell):
-            for i1 in range(n_atoms_unit_cell):
-                for l1 in range(n_replicas):
+            for l0 in range(n_replicas):
+                for i1 in range(n_atoms_unit_cell):
+                    for l1 in range(n_replicas):
 
-                    file.write(str(i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
-
-                    sub_second = finite_difference.second_order[i0, :, l1, i1, :]
-                    file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
-                    file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
-                    file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
-    print('second order saved')
+                        file.write(str(l0 + i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
+                        if l0 == 0:
+                            sub_second = second_order[i0, :, l1, i1, :]
+                        else:
+                            sub_second = np.zeros((3, 3))
+                        try:
+                            file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
+                            file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
+                            file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
+                        except TypeError as err:
+                            print(err)
+    print('second order sheng saved')
 
 
 def save_second_order_qe_matrix(phonons):
@@ -68,7 +79,7 @@ def save_second_order_qe_matrix(phonons):
                         file.write ('\t %.11E' % matrix_element)
                         file.write ('\n')
     file.close ()
-    print('second order saved')
+    print('second order qe sheng saved')
 
 
 def save_third_order_matrix(phonons):
@@ -114,9 +125,7 @@ def save_third_order_matrix(phonons):
         data = original.read ()
     with open (filename, 'w+') as modified:
         modified.write ('  ' + str (block_counter) + '\n' + data)
-    print('third order saved')
-
-
+    print('third order sheng saved')
 
 
 def create_control_file_string(phonons, is_espresso=False):
