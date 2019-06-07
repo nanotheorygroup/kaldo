@@ -71,15 +71,14 @@ def diagonalize_second_order_single_k(qvec, atoms, dynmat, list_of_replicas, rep
     n_replicas = list_of_replicas.shape[0]
     n_phonons = n_particles * 3
 
-
-    chi_k = np.zeros(n_replicas).astype(complex)
-    for id_replica in range(n_replicas):
-        chi_k[id_replica] = np.exp(1j * list_of_replicas[id_replica].dot(kpoint))
-    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
     replicated_cell_inv = np.linalg.inv(replicated_cell)
-    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv,(
-        list_of_replicas[np.newaxis, np.newaxis, :]))
-    ddyn_s = 1j * contract('ijla,l,ibljc->ibjca', dxij, chi_k, dynmat)
+
+    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv,list_of_replicas)
+
+    chi_k = np.exp(1j * dxij.dot(kpoint))
+    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+    dx_chi = contract('la,l->la',dxij, chi_k)
+    ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
     out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
     eigenvals, eigenvects = out[0], out[1]
@@ -676,13 +675,18 @@ class Phonons (object):
                 chi = 1
             else:
                 rlattvec = cell_inv * 2 * np.pi
+                cell_inv = np.linalg.inv(atoms.cell)
+                replicated_cell = self.finite_difference.replicated_atoms.cell
+                replicated_cell_inv = np.linalg.inv(replicated_cell)
                 chi = np.zeros((nptk, n_replicas), dtype=np.complex)
+                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+
                 for index_k in range(np.prod(k_size)):
                     i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
                     k_point = i_k / k_size
                     realq = np.matmul(rlattvec, k_point)
-                    for l in range(n_replicas):
-                        chi[index_k, l] = np.exp(1j * list_of_replicas[l].dot(realq))
+                    chi[index_k] = np.exp(1j * dxij.dot(realq))
+
             print('Projection started')
             n_modes = n_particles * 3
             nptk = np.prod(k_size)
