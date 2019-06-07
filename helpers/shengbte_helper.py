@@ -9,8 +9,6 @@ SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
 def save_second_order_matrix(phonons):
-    if not phonons.finite_difference.is_reduced_second:
-        raise ValueError('Only finitedifference.reduced_second == True supported.')
 
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder_name + '/' + filename
@@ -18,7 +16,14 @@ def save_second_order_matrix(phonons):
     second_order = phonons.finite_difference.second_order
     n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
     n_replicas = np.prod(finite_difference.supercell)
-    second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
+
+    if not phonons.finite_difference.is_reduced_second:
+        second_order = second_order.reshape((n_replicas, n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
+        second_order = second_order[0]
+    else:
+        second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
+
+
     #TODO: this is a bit hacky. ShengBTE wants the whole second order matrix, but actually uses only the reduced one. So we fill the rest with zeros
     with open(filename, 'w+') as file:
         file.write(str(n_atoms_unit_cell * n_replicas) + '\n')
