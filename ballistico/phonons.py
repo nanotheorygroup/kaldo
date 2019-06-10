@@ -61,48 +61,6 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-def diagonalize_second_order_single_k(qvec, atoms, dynmat, list_of_replicas, replicated_cell,
-                                      frequencies_threshold):
-    geometry = atoms.positions
-    cell_inv = np.linalg.inv(atoms.cell)
-    kpoint = 2 * np.pi * (cell_inv).dot(qvec)
-
-    n_particles = geometry.shape[0]
-    n_replicas = list_of_replicas.shape[0]
-    n_phonons = n_particles * 3
-
-    replicated_cell_inv = np.linalg.inv(replicated_cell)
-
-    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv,list_of_replicas)
-
-    chi_k = np.exp(1j * dxij.dot(kpoint))
-    dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-    dx_chi = contract('la,l->la',dxij, chi_k)
-    ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
-
-    out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
-    eigenvals, eigenvects = out[0], out[1]
-    if IS_SORTING_EIGENVALUES:
-        idx = eigenvals.argsort()
-        eigenvals = eigenvals[idx]
-        eigenvects = eigenvects[:, idx]
-
-    frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-
-    ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
-    velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
-
-    for mu in range(n_particles * 3):
-        if frequencies[mu] > frequencies_threshold:
-            velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn, eigenvects[:, mu]) / (
-                        2 * (2 * np.pi) * frequencies[mu])
-
-    # if (qvec == [0,0,0]).all():
-    #     frequencies[:3] = 0.
-    #     velocities[:3,:] = 0.
-
-    return frequencies, eigenvals, eigenvects, velocities
-
 
 
 
@@ -604,6 +562,52 @@ class Phonons (object):
         dxij = sxij.dot(cell)
         return dxij
 
+    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold):
+        # TODO: remove duplicate arguments from this method
+        atoms = self.atoms
+        list_of_replicas = self.list_of_replicas
+        replicated_cell = self.replicated_cell
+
+
+        geometry = atoms.positions
+        cell_inv = np.linalg.inv(atoms.cell)
+        kpoint = 2 * np.pi * (cell_inv).dot(qvec)
+
+        n_particles = geometry.shape[0]
+        n_phonons = n_particles * 3
+
+        replicated_cell_inv = np.linalg.inv(replicated_cell)
+
+        dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+
+        chi_k = np.exp(1j * dxij.dot(kpoint))
+        dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+        dx_chi = contract('la,l->la', dxij, chi_k)
+        ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+
+        out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
+        eigenvals, eigenvects = out[0], out[1]
+        if IS_SORTING_EIGENVALUES:
+            idx = eigenvals.argsort()
+            eigenvals = eigenvals[idx]
+            eigenvects = eigenvects[:, idx]
+
+        frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
+
+        ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
+        velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+
+        for mu in range(n_particles * 3):
+            if frequencies[mu] > frequencies_threshold:
+                velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn, eigenvects[:, mu]) / (
+                        2 * (2 * np.pi) * frequencies[mu])
+
+        # if (qvec == [0,0,0]).all():
+        #     frequencies[:3] = 0.
+        #     velocities[:3,:] = 0.
+
+        return frequencies, eigenvals, eigenvects, velocities
+
     def calculate_gamma(self, is_gamma_tensor_enabled=False):
         folder = self.folder_name
         folder += '/' + str(self.temperature) + '/'
@@ -917,8 +921,7 @@ class Phonons (object):
 
 
         for index_k in range(n_k_points):
-            freq, eval, evect, vels = diagonalize_second_order_single_k(k_points[index_k], atoms, dynmat,
-                                                                        list_of_replicas, replicated_cell,
+            freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
                                                                         frequencies_threshold)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
