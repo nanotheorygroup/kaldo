@@ -19,7 +19,6 @@ def save_second_order_matrix(phonons):
 
     if not phonons.finite_difference.is_reduced_second:
         second_order = second_order.reshape((n_replicas, n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
-        second_order = second_order[0]
     else:
         second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
 
@@ -31,12 +30,14 @@ def save_second_order_matrix(phonons):
             for l0 in range(n_replicas):
                 for i1 in range(n_atoms_unit_cell):
                     for l1 in range(n_replicas):
-
                         file.write(str(l0 + i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
-                        if l0 == 0:
-                            sub_second = second_order[i0, :, l1, i1, :]
+                        if phonons.finite_difference.is_reduced_second:
+                            if l0 == 0:
+                                sub_second = second_order[i0, :, l1, i1, :]
+                            else:
+                                sub_second = np.zeros((3, 3))
                         else:
-                            sub_second = np.zeros((3, 3))
+                            sub_second = second_order[l0, i0, :, l1, i1, :]
                         try:
                             file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
                             file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
