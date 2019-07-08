@@ -84,7 +84,7 @@ class Plotter (object):
     def plot_dispersion(self, symmetry=None, n_k_points=100):
         #TODO: remove useless symmetry flag
         atoms = self.phonons.atoms
-        reference_distance = 0.5/n_k_points
+        reference_distance = 4/n_k_points
         fig1 = plt.figure ()
         if symmetry == 'nw':
             q = np.linspace(0, 0.5, n_k_points)
