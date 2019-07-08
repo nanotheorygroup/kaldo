@@ -84,7 +84,7 @@ class Plotter (object):
     def plot_dispersion(self, symmetry=None, n_k_points=100):
         #TODO: remove useless symmetry flag
         atoms = self.phonons.atoms
-        reference_distance = 0.5/n_k_points
+        reference_distance = 4/n_k_points
         fig1 = plt.figure ()
         if symmetry == 'nw':
             q = np.linspace(0, 0.5, n_k_points)
@@ -97,9 +97,12 @@ class Plotter (object):
             k_list, q, Q, point_names = self.create_k_and_symmetry_space (atoms, reference_distance=reference_distance)
         if self.phonons.is_able_to_calculate:
             freqs_plot, _, _, vel_plot = self.phonons.calculate_second_k_list(k_list)
+            vel_norm = np.linalg.norm(vel_plot, axis=-1)
+            # print(vel_plot)
         else:
             freqs_plot = np.zeros((k_list.shape[0], self.phonons.n_modes))
             vel_plot = np.zeros((k_list.shape[0], self.phonons.n_modes, 3))
+            vel_norm = np.zeros((k_list.shape[0], self.phonons.n_modes))
 
             frequencies = self.phonons.frequencies.reshape((self.phonons.kpts[0], self.phonons.kpts[1],
                                                             self.phonons.kpts[2], self.phonons.n_modes), order='C')
@@ -107,8 +110,10 @@ class Plotter (object):
                                                            self.phonons.kpts[2], self.phonons.n_modes, 3), order='C')
             for mode in range(self.phonons.n_modes):
                 freqs_plot[:, mode] = interpolator(k_list, frequencies[..., mode], fourier_order=5, interpolation_order=2)
+
                 for alpha in range(3):
                     vel_plot[:, mode, alpha] = interpolator(k_list, velocities[..., mode, alpha], interpolation_order=0, is_wrapping=False)
+                vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocities[..., mode, :],axis=-1), interpolation_order=0, is_wrapping=False)
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
@@ -119,6 +124,7 @@ class Plotter (object):
         fig1.savefig (self.folder + 'dispersion' + '.pdf')
         if self.is_showing:
             plt.show()
+
         for alpha in range(3):
             fig2 = plt.figure ()
             plt.ylabel('v_$' + str(alpha) + '$/($10m/s$)')
@@ -129,6 +135,16 @@ class Plotter (object):
             fig2.savefig(self.folder + 'velocity.pdf')
             if self.is_showing:
                 plt.show()
+
+        fig2 = plt.figure ()
+        plt.ylabel('$|v|$/($10m/s$)')
+        plt.xticks(Q, point_names)
+        plt.xlim(q[0], q[-1])
+        plt.plot(q, vel_norm[:, :], ".")
+        plt.grid()
+        fig2.savefig(self.folder + 'velocity.pdf')
+        if self.is_showing:
+            plt.show()
 
     def create_k_and_symmetry_space(self, atoms, reference_distance=0.02):
         cell = atoms.cell

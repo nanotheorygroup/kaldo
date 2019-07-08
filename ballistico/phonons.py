@@ -275,12 +275,12 @@ class Phonons (object):
             self.energy_threshold = energy_threshold
         else:
             self.energy_threshold = ENERGY_THRESHOLD
-        
+
         if gamma_cutoff is not None:
             self.gamma_cutoff = gamma_cutoff
         else:
             self.gamma_cutoff = GAMMA_CUTOFF
-            
+
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.list_of_replicas = self.finite_difference.list_of_replicas()
         self._gamma = None
@@ -457,7 +457,7 @@ class Phonons (object):
                 print(e)
         if self._occupations is None:
             frequencies = self.frequencies
-            
+
             kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
             temp = self.temperature * kelvinoverthz
             density = np.zeros_like(frequencies)
@@ -540,7 +540,7 @@ class Phonons (object):
             else:
                 f_be = self.occupations
                 c_v[physical_modes] = kelvinoverjoule * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
-                         (temperature ** 2)
+                                      (temperature ** 2)
             self.c_v = c_v * 1e21
         return self._c_v
 
@@ -554,7 +554,7 @@ class Phonons (object):
             folder += 'quantum/'
         np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
-        
+
     def __apply_boundary_with_cell(self, cell, cellinv, dxij):
         # exploit periodicity to calculate the shortest distance, which may not be the one we have
         sxij = dxij.dot(cellinv)
@@ -562,28 +562,84 @@ class Phonons (object):
         dxij = sxij.dot(cell)
         return dxij
 
-    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold):
+    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, dq=None):
         # TODO: remove duplicate arguments from this method
         atoms = self.atoms
-        list_of_replicas = self.list_of_replicas
-        replicated_cell = self.replicated_cell
-
-
         geometry = atoms.positions
-        cell_inv = np.linalg.inv(atoms.cell)
-        kpoint = 2 * np.pi * (cell_inv).dot(qvec)
-
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-
+        atoms = self.atoms
+        replicated_cell = self.replicated_cell
+        pos = self.finite_difference.atoms.positions
+        geometry = atoms.positions
+        n_particles = geometry.shape[0]
+        cell_inv = np.linalg.inv(self.atoms.cell)
+        list_of_replicas = self.list_of_replicas
+        n_replicas = list_of_replicas.shape[0]
         replicated_cell_inv = np.linalg.inv(replicated_cell)
 
-        dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+        if dq is not None:
+            # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
+            dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
+            # pos = self.__apply_boundary_with_cell(cell, cell_inv, pos)
 
-        chi_k = np.exp(1j * dxij.dot(kpoint))
-        dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-        dx_chi = contract('la,l->la', dxij, chi_k)
-        ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+            for iat in range(n_particles):
+                for alpha in range(3):
+                    for jat in range(n_particles):
+                        for beta in range(3):
+                            for id_replica in range(n_replicas):
+                                dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                                dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+
+                                # phase = 2 * np.pi * qvec.dot(dxij)
+                                phase = 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec)
+                                # chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
+
+                                dynbase[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
+                                    1j * phase)
+            perturbx = np.zeros((n_particles, 3, n_particles, 3, 3), dtype=np.complex)
+            for gamma in range(3):
+
+                dqx = np.zeros(3)
+                dqx[gamma] = dq
+                # dqmod = np.linalg.norm(dq) * 2 * np.pi
+                dqx = dqx.dot(atoms.cell)
+                dqmod = np.linalg.norm(dq) * 2 * np.pi
+
+                perturb = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
+                for iat in range(n_particles):
+                    for alpha in range(3):
+                        for jat in range(n_particles):
+                            for beta in range(3):
+                                for id_replica in range(n_replicas):
+                                    dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                                    dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+
+                                    # phase = 2 * np.pi * (qvec + dqx).dot(dxij)
+                                    phase = 2 * np.pi * (qvec + dqx).dot(cell_inv.dot(dxij))
+                                    perturb[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
+                                        1j * phase)
+
+                perturbx[..., gamma] = (perturb - dynbase) / dqmod
+            dyn_s, ddyn_s = dynbase, perturbx
+
+        else:
+            # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+            # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
+            # chi_k = np.exp(1j * dxij.dot(kpoint))
+
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+                    geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+            chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
+
+            # dx_chi = contract('la,l->la', dxij, chi_k)
+            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+
+            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+            dyn_s = contract('ialjb,ijl->iajb', dynmat, chi_k)
+            ddyn_s = 1j * contract('ijla,ijl,ibljc->ibjca', dxij, chi_k, dynmat)
+
+        ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
 
         out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
         eigenvals, eigenvects = out[0], out[1]
@@ -593,20 +649,23 @@ class Phonons (object):
             eigenvects = eigenvects[:, idx]
 
         frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-
-        ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
         velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+        dyn = dyn_s.reshape((n_phonons, n_phonons), order='C')
 
         for mu in range(n_particles * 3):
             if frequencies[mu] > frequencies_threshold:
                 velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn, eigenvects[:, mu]) / (
                         2 * (2 * np.pi) * frequencies[mu])
+                # eigenvals[mu] = np.real(contract('i,ij,j->', eigenvects[:, mu].conj(), dyn, eigenvects[:, mu]))
 
-        # if (qvec == [0,0,0]).all():
+                # if (qvec == [0,0,0]).all():
         #     frequencies[:3] = 0.
         #     velocities[:3,:] = 0.
+        # frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
 
         return frequencies, eigenvals, eigenvects, velocities
+
+
 
     def calculate_gamma(self, is_gamma_tensor_enabled=False):
         folder = self.folder_name
@@ -764,7 +823,7 @@ class Phonons (object):
         return conductivity_per_mode
 
     def calculate_conductivity_inverse(self):
-        
+
         scattering_matrix = self.gamma_tensor
 
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
@@ -801,7 +860,7 @@ class Phonons (object):
         return length / abs(velocity) * transmission
 
     def calculate_conductivity_variational(self, n_iterations=MAX_ITERATIONS_SC):
-        
+
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
         physical_modes = (frequencies > self.energy_threshold)
 
@@ -837,7 +896,7 @@ class Phonons (object):
         return conductivity_per_mode, conductivity_value
 
     def calculate_conductivity_rta(self, length_thresholds=None, finite_size_method='matthiesen'):
-        
+
         volume = np.linalg.det(self.atoms.cell) / 1000
         velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C') / 10
         lambd_0 = np.zeros((self.n_k_points * self.n_modes, 3))
@@ -857,7 +916,7 @@ class Phonons (object):
                 if length_thresholds[alpha]:
                     if finite_size_method == 'matthiesen':
                         gamma[physical_modes] += abs(velocities[physical_modes, alpha]) / (
-                                    1 / 2 * length_thresholds[alpha])
+                                1 / 2 * length_thresholds[alpha])
 
 
         c_v = self.c_v.reshape((self.n_phonons), order='C')
@@ -866,14 +925,13 @@ class Phonons (object):
 
 
         for alpha in range(3):
-
             for mu in np.argwhere(physical_modes):
                 if length_thresholds:
                     if length_thresholds[alpha]:
 
                         if finite_size_method == 'caltech':
                             transmission = (1 - np.abs(lambd_n[mu, alpha]) / length_thresholds[alpha] * (
-                                        1 - np.exp(-length_thresholds[alpha] / np.abs(lambd_n[mu, alpha]))))
+                                    1 - np.exp(-length_thresholds[alpha] / np.abs(lambd_n[mu, alpha]))))
                             lambd_n[mu] = lambd_n[mu] * transmission
 
         for alpha in range(3):
@@ -922,7 +980,7 @@ class Phonons (object):
 
         for index_k in range(n_k_points):
             freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-                                                                        frequencies_threshold)
+                                                                             frequencies_threshold)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
