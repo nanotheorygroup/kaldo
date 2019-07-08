@@ -589,9 +589,9 @@ class Phonons (object):
         # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
         # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-        # dyn_s = contract('ialjb,ijl->iajb', dynmat, chi_k)
-        # ddyn_s = 1j * contract('ijla,ijl,ibljc->ibjca', dxij, chi_k, dynmat)
-        dyn_s, ddyn_s = self.calculate_vel_pert(qvec, dynmat)
+        dyn_s = contract('ialjb,ijl->iajb', dynmat, chi_k)
+        ddyn_s = 1j * contract('ijla,ijl,ibljc->ibjca', dxij, chi_k, dynmat)
+        # dyn_s, ddyn_s = self.calculate_vel_pert(qvec, dynmat)
 
         ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
 
