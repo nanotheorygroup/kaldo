@@ -562,36 +562,82 @@ class Phonons (object):
         dxij = sxij.dot(cell)
         return dxij
 
-    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold):
+    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, dq=None):
         # TODO: remove duplicate arguments from this method
         atoms = self.atoms
-        list_of_replicas = self.list_of_replicas
-        replicated_cell = self.replicated_cell
-
-
         geometry = atoms.positions
-        cell_inv = np.linalg.inv(atoms.cell)
-        kpoint = 2 * np.pi * (cell_inv).dot(qvec)
-
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-
+        atoms = self.atoms
+        replicated_cell = self.replicated_cell
+        pos = self.finite_difference.atoms.positions
+        geometry = atoms.positions
+        n_particles = geometry.shape[0]
+        cell_inv = np.linalg.inv(self.atoms.cell)
+        list_of_replicas = self.list_of_replicas
+        n_replicas = list_of_replicas.shape[0]
         replicated_cell_inv = np.linalg.inv(replicated_cell)
 
-        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
-        # chi_k = np.exp(1j * dxij.dot(kpoint))
+        if dq is not None:
+            # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
+            dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
+            # pos = self.__apply_boundary_with_cell(cell, cell_inv, pos)
 
-        dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
-                geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-        chi_k = np.exp(1j * dxij.dot(kpoint))
+            for iat in range(n_particles):
+                for alpha in range(3):
+                    for jat in range(n_particles):
+                        for beta in range(3):
+                            for id_replica in range(n_replicas):
+                                dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                                dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
-        # dx_chi = contract('la,l->la', dxij, chi_k)
-        # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+                                # phase = 2 * np.pi * qvec.dot(dxij)
+                                phase = 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec)
+                                # chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
 
-        # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-        dyn_s = contract('ialjb,ijl->iajb', dynmat, chi_k)
-        ddyn_s = 1j * contract('ijla,ijl,ibljc->ibjca', dxij, chi_k, dynmat)
-        # dyn_s, ddyn_s = self.calculate_vel_pert(qvec, dynmat)
+                                dynbase[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
+                                    1j * phase)
+            perturbx = np.zeros((n_particles, 3, n_particles, 3, 3), dtype=np.complex)
+            for gamma in range(3):
+
+                dqx = np.zeros(3)
+                dqx[gamma] = dq
+                # dqmod = np.linalg.norm(dq) * 2 * np.pi
+                dqx = dqx.dot(atoms.cell)
+                dqmod = np.linalg.norm(dq) * 2 * np.pi
+
+                perturb = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
+                for iat in range(n_particles):
+                    for alpha in range(3):
+                        for jat in range(n_particles):
+                            for beta in range(3):
+                                for id_replica in range(n_replicas):
+                                    dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                                    dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+
+                                    # phase = 2 * np.pi * (qvec + dqx).dot(dxij)
+                                    phase = 2 * np.pi * (qvec + dqx).dot(cell_inv.dot(dxij))
+                                    perturb[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
+                                        1j * phase)
+
+                perturbx[..., gamma] = (perturb - dynbase) / dqmod
+            dyn_s, ddyn_s = dynbase, perturbx
+
+        else:
+            # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+            # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
+            # chi_k = np.exp(1j * dxij.dot(kpoint))
+
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
+                    geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
+            chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
+
+            # dx_chi = contract('la,l->la', dxij, chi_k)
+            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+
+            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+            dyn_s = contract('ialjb,ijl->iajb', dynmat, chi_k)
+            ddyn_s = 1j * contract('ijla,ijl,ibljc->ibjca', dxij, chi_k, dynmat)
 
         ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
 
@@ -623,48 +669,51 @@ class Phonons (object):
         n_particles = geometry.shape[0]
         # ndimbase = n_particles * 3
         # ndim = ndimbase * n_replicas
+        cell = self.atoms.cell
         cell_inv = np.linalg.inv(self.atoms.cell)
 
         replicated_cell_inv = np.linalg.inv(replicated_cell)
         twopi = 2 * np.pi
         # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
         dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
-
+        # pos = self.__apply_boundary_with_cell(cell, cell_inv, pos)
         list_of_replicas = self.list_of_replicas
-        list_of_replicas = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
         n_replicas = list_of_replicas.shape[0]
 
         for iat in range(n_particles):
             for alpha in range(3):
-                for id_replica in range(n_replicas):
-                    for jat in range(n_particles):
-                        for beta in range(3):
-                            dxij = pos[iat, :] - (list_of_replicas[id_replica] + pos[jat, :])
+                for jat in range(n_particles):
+                    for beta in range(3):
+                        for id_replica in range(n_replicas):
+                            dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                            dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                             # phase = twopi * qvec.dot(dxij)
-                            phase = twopi * qvec.dot(cell_inv.dot(dxij))
-                            dynbase[iat, alpha, jat, beta] = dynbase[iat, alpha, jat, beta] + dynmat[iat, alpha, id_replica, jat, beta] * np.exp(1j * phase)
+                            phase = twopi * (dxij.dot(cell_inv)).dot(qvec)
+                            # chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
+
+                            dynbase[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(1j * phase)
 
         perturbx = np.zeros((n_particles, 3, n_particles, 3, 3), dtype=np.complex)
         for gamma in range(3):
 
             dqx = np.zeros(3)
             dqx[gamma] = dq
-            dqmod = np.linalg.norm(dqx) * twopi
 
             perturb = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
             for iat in range(n_particles):
                 for alpha in range(3):
-                    for id_replica in range(n_replicas):
-                        for jat in range(n_particles):
-                            for beta in range(3):
-                                dxij = pos[iat, :] - (list_of_replicas[id_replica] + pos[jat, :])
+                    for jat in range(n_particles):
+                        for beta in range(3):
+                            for id_replica in range(n_replicas):
+                                dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                                dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                 # phase = twopi * (qvec + dqx).dot(dxij)
-                                phase = twopi * (qvec + dqx).dot(cell_inv.dot(dxij))
-                                perturb[iat, alpha, jat, beta] = perturb[iat, alpha, jat, beta] + dynmat[iat, alpha, id_replica, jat, beta]  * np.exp(1j * phase)
+                                phase = twopi * (qvec + dqx).dot(cell_invqqxwqq.dot(dxij))
+                                perturb[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(1j * phase)
 
-            perturbx[..., gamma] = (perturb - dynbase) / dqmod
+            perturbx[..., gamma] = (perturb - dynbase) / dq
         return dynbase, perturbx
 
 
@@ -981,7 +1030,8 @@ class Phonons (object):
 
         for index_k in range(n_k_points):
             freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-                                                                             frequencies_threshold)
+                                                                             frequencies_threshold,
+                                                                             dq=0.0001)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
