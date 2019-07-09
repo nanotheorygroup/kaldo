@@ -980,8 +980,7 @@ class Phonons (object):
 
         for index_k in range(n_k_points):
             freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-                                                                             frequencies_threshold,
-                                                                             dq=0.0001)
+                                                                             frequencies_threshold)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect

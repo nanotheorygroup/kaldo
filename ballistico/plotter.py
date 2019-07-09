@@ -113,7 +113,7 @@ class Plotter (object):
 
                 for alpha in range(3):
                     vel_plot[:, mode, alpha] = interpolator(k_list, velocities[..., mode, alpha], interpolation_order=0, is_wrapping=False)
-                vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocities[..., mode, alpha],axis=-1), interpolation_order=0, is_wrapping=False)
+                vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocities[..., mode, :],axis=-1), interpolation_order=0, is_wrapping=False)
 
         plt.ylabel ('frequency/$THz$')
         plt.xticks (Q, point_names)
