@@ -22,6 +22,7 @@ EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
+PS_FILE = 'phase_space.npy'
 DOS_FILE = 'dos.npy'
 OCCUPATIONS_FILE = 'occupations.npy'
 K_POINTS_FILE = 'k_points.npy'
@@ -216,7 +217,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
         pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
-        return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac
+        return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac, dirac_delta
 
 
 
@@ -232,7 +233,7 @@ def apply_boundary_with_cell(cell, cellinv, dxij):
 
 class Phonons (object):
     def __init__(self, finite_difference, folder=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss'):
+    = 300, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss', velocity_dq=None):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -260,6 +261,7 @@ class Phonons (object):
         self._c_v = None
         self.is_able_to_calculate = True
         self.broadening_shape = broadening_shape
+        self.velocity_dq = velocity_dq
         if self.is_classic:
             classic_string = 'classic'
         else:
@@ -283,6 +285,7 @@ class Phonons (object):
 
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.list_of_replicas = self.finite_difference.list_of_replicas()
+        self._ps = None
         self._gamma = None
         self._gamma_tensor = None
 
@@ -404,6 +407,29 @@ class Phonons (object):
         folder += '/'
         np.save (folder + GAMMA_FILE, new_gamma)
         self._gamma = new_gamma
+
+    @property
+    def ps(self):
+        return self._ps
+
+    @ps.getter
+    def ps(self):
+        if self._ps is None:
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._ps = np.load (folder + PS_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_gamma(is_gamma_tensor_enabled=False)
+        return self._ps
+
+    @ps.setter
+    def ps(self, new_ps):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + GAMMA_FILE, ps)
+        self._ps = new_ps
 
     @property
     def gamma_tensor(self):
@@ -582,17 +608,17 @@ class Phonons (object):
             # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
             dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
             # pos = self.__apply_boundary_with_cell(cell, cell_inv, pos)
-
+            q_vec = 2 * np.pi * cell_inv.dot(qvec)
             for iat in range(n_particles):
                 for alpha in range(3):
-                    for jat in range(n_particles):
-                        for beta in range(3):
-                            for id_replica in range(n_replicas):
-                                dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                    for id_replica in range(n_replicas):
+                        for jat in range(n_particles):
+                            for beta in range(3):
+                                dxij = - (list_of_replicas[id_replica, :])
                                 dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                 # phase = 2 * np.pi * qvec.dot(dxij)
-                                phase = 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec)
+                                phase = -1 * dxij.dot(q_vec)
                                 # chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
 
                                 dynbase[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
@@ -603,20 +629,21 @@ class Phonons (object):
                 dqx = np.zeros(3)
                 dqx[gamma] = dq
                 # dqmod = np.linalg.norm(dq) * 2 * np.pi
-                dqx = dqx.dot(atoms.cell)
-                dqmod = np.linalg.norm(dq) * 2 * np.pi
+                # dqx = dqx.dot(atoms.cell)
+                q_prime_vec = 2 * np.pi * (cell_inv.dot(qvec + atoms.cell.dot(dqx)))
+                dqmod = np.linalg.norm(2 * np.pi * (dqx))
 
                 perturb = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
                 for iat in range(n_particles):
                     for alpha in range(3):
-                        for jat in range(n_particles):
-                            for beta in range(3):
-                                for id_replica in range(n_replicas):
-                                    dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                        for id_replica in range(n_replicas):
+                            for jat in range(n_particles):
+                                for beta in range(3):
+                                    dxij = - (list_of_replicas[id_replica, :])
                                     dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                     # phase = 2 * np.pi * (qvec + dqx).dot(dxij)
-                                    phase = 2 * np.pi * (qvec + dqx).dot(cell_inv.dot(dxij))
+                                    phase = -1 * dxij.dot(q_prime_vec)
                                     perturb[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
                                         1j * phase)
 
@@ -628,19 +655,28 @@ class Phonons (object):
             # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
             # chi_k = np.exp(1j * dxij.dot(kpoint))
 
-            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis] - (
-                    geometry[np.newaxis, :, np.newaxis] + list_of_replicas[np.newaxis, np.newaxis, :]))
-            chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
+            # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+            #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
+            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
 
             # dx_chi = contract('la,l->la', dxij, chi_k)
             # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
             # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-            dyn_s = contract('ialjb,ijl->iajb', dynmat, chi_k)
-            ddyn_s = 1j * contract('ijla,ijl,ibljc->ibjca', dxij, chi_k, dynmat)
+            dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+            ddyn_s = 1j * contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+
+
+        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+        # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
+        # chi_k = np.exp(1j * dxij.dot(kpoint))
+        # dyn_s_new = contract('ialjb,l->iajb', dynmat, chi_k)
+        # dx_chi = contract('la,l->la', dxij, chi_k)
+        # ddyn_s_new = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+        # print(np.abs(ddyn_s_new - ddyn_s).sum())
 
         ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
-
         out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
         eigenvals, eigenvects = out[0], out[1]
         if IS_SORTING_EIGENVALUES:
@@ -680,6 +716,7 @@ class Phonons (object):
         is_plus_label = ['_0', '_1']
         file = None
         self._gamma = np.zeros(n_phonons)
+        self._ps = np.zeros(n_phonons)
         if is_gamma_tensor_enabled:
             self._gamma_tensor = np.zeros((n_phonons, n_phonons))
         for is_plus in [1, 0]:
@@ -692,11 +729,12 @@ class Phonons (object):
                 print(err)
             else:
                 for line in file:
-                    read_nu, read_nup, read_nupp, value = np.fromstring(line, dtype=np.float, sep=' ')
+                    read_nu, read_nup, read_nupp, value, value_ps = np.fromstring(line, dtype=np.float, sep=' ')
                     read_nu = int(read_nu)
                     read_nup = int(read_nup)
                     read_nupp = int(read_nupp)
                     self._gamma[read_nu] += value
+                    self._ps[read_nu] += value_ps
                     if is_gamma_tensor_enabled:
                         if is_plus:
                             self._gamma_tensor[read_nu, read_nup] -= value
@@ -788,8 +826,9 @@ class Phonons (object):
                                                        frequencies_threshold, is_amorphous, broadening_function)
 
                     if gamma_out:
-                        nup_vec, nupp_vec, pot_times_dirac = gamma_out
+                        nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
                         self._gamma[nu_single] += pot_times_dirac.sum()
+                        self._ps[nu_single] += dirac.sum()
                         for nup_index in range(nup_vec.shape[0]):
                             nup = nup_vec[nup_index]
                             nupp = nupp_vec[nup_index]
@@ -803,7 +842,7 @@ class Phonons (object):
 
                         nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
                         # try:
-                        np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e')
+                        np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e %.8e')
                         # except ValueError as err:
                         #     print(err)
                 print(process_string[is_plus] + 'q-point = ' + str(index_k))
@@ -979,8 +1018,10 @@ class Phonons (object):
 
 
         for index_k in range(n_k_points):
+            # freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
+            #                                                                  frequencies_threshold, dq=0.0001)
             freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-                                                                             frequencies_threshold)
+                                                                             frequencies_threshold, dq=self.velocity_dq)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
