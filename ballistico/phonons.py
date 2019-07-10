@@ -615,6 +615,7 @@ class Phonons (object):
                         for jat in range(n_particles):
                             for beta in range(3):
                                 dxij = - (list_of_replicas[id_replica, :])
+                                # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
                                 dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                 # phase = 2 * np.pi * qvec.dot(dxij)
@@ -640,6 +641,7 @@ class Phonons (object):
                             for jat in range(n_particles):
                                 for beta in range(3):
                                     dxij = - (list_of_replicas[id_replica, :])
+                                    # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
                                     dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                     # phase = 2 * np.pi * (qvec + dqx).dot(dxij)
