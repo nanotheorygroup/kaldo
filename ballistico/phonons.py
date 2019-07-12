@@ -828,6 +828,7 @@ class Phonons (object):
                         nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
                         self._gamma[nu_single] += pot_times_dirac.sum()
                         self._ps[nu_single] += dirac.sum()
+                        # print(nu_single, self.frequencies.flatten()[nu_single], self._gamma[nu_single]*4.135/(2*np.pi))
                         for nup_index in range(nup_vec.shape[0]):
                             nup = nup_vec[nup_index]
                             nupp = nupp_vec[nup_index]
