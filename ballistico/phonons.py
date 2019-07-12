@@ -151,7 +151,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
     # TODO: Benchmark something fast like
     # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
     if interactions.size != 0:
-
         # Create sparse index
         index_kp_vec = interactions[:, 0]
         index_kpp_vec = index_kpp_vec[index_kp_vec]
@@ -178,28 +177,26 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
         if sigma_in is None:
             dirac_delta *= broadening_function(
-                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
+                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_tensor_np[
                     index_kp_vec, mup_vec, mupp_vec]])
 
         else:
             dirac_delta *= broadening_function(
-                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], sigma_in])
+                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_in])
 
         if is_plus:
             first_evect = evect[nup_vec]
-            first_chi = chi[index_kp_vec]
         else:
             first_evect = evect.conj()[nup_vec]
-            first_chi = chi.conj()[index_kp_vec]
         second_evect = evect.conj()[nupp_vec]
-        second_chi = chi.conj()[index_kpp_vec]
-
         if is_amorphous:
-            if is_plus:
-                scaled_potential = contract('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
-            else:
-                scaled_potential = contract('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+            scaled_potential = contract('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
         else:
+            if is_plus:
+                first_chi = chi[index_kp_vec]
+            else:
+                first_chi = chi.conj()[index_kp_vec]
+            second_chi = chi.conj()[index_kpp_vec]
             shapes = []
             for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
                 shapes.append(tens.shape)
