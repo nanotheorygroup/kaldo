@@ -214,6 +214,11 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
         pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
+
+        mevtothz = units.J*units._hbar*2*np.pi*1e15
+        pot_times_dirac_davide = pot_times_dirac.sum() * mevtothz / (2 * np.pi)
+        print(frequencies[index_k, mu], pot_times_dirac_davide)
+
         return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac, dirac_delta
 
 
@@ -742,7 +747,6 @@ class Phonons (object):
                             self._gamma_tensor[read_nu, read_nup] += value
                             self._gamma_tensor[read_nu, read_nupp] += value
 
-            print('starting third order ')
             atoms = self.atoms
             frequencies = self.frequencies
             velocities = self.velocities
@@ -828,7 +832,7 @@ class Phonons (object):
                         nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
                         self._gamma[nu_single] += pot_times_dirac.sum()
                         self._ps[nu_single] += dirac.sum()
-                        # print(nu_single, self.frequencies.flatten()[nu_single], self._gamma[nu_single]*4.135/(2*np.pi))
+
                         for nup_index in range(nup_vec.shape[0]):
                             nup = nup_vec[nup_index]
                             nupp = nupp_vec[nup_index]
