@@ -486,8 +486,8 @@ class Phonons (object):
         if self._occupations is None:
             frequencies = self.frequencies
 
-            kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-            temp = self.temperature * kelvinoverthz
+            thzoverkelvin = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+            temp = self.temperature * thzoverkelvin
             density = np.zeros_like(frequencies)
             physical_modes = frequencies > self.energy_threshold
 
@@ -559,17 +559,17 @@ class Phonons (object):
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
             physical_modes = frequencies > self.energy_threshold
-            kelvinoverjoule = units.kB / units.J
-            kelvinoverthz = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-            temperature = self.temperature * kelvinoverthz
+            jouleoverkelvin = units.kB / units.J
+            thzoverkelvin = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+            temperature = self.temperature * thzoverkelvin
 
             if (self.is_classic):
-                c_v[physical_modes] = kelvinoverjoule
+                c_v[physical_modes] = jouleoverkelvin
             else:
                 f_be = self.occupations
-                c_v[physical_modes] = kelvinoverjoule * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
+                c_v[physical_modes] = jouleoverkelvin * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
                                       (temperature ** 2)
-            self.c_v = c_v * 1e21
+            self.c_v = c_v
         return self._c_v
 
     @c_v.setter
@@ -680,8 +680,9 @@ class Phonons (object):
         # ddyn_s_new = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
         # print(np.abs(ddyn_s_new - ddyn_s).sum())
 
-        ddyn = ddyn_s.reshape(n_phonons, n_phonons, 3, order='C')
-        out = DIAGONALIZATION_ALGORITHM(dyn_s.reshape((n_phonons, n_phonons), order='C'))
+        ddyn_s = ddyn_s.reshape((n_phonons, n_phonons, 3), order='C')
+        dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
+        out = DIAGONALIZATION_ALGORITHM(dyn_s)
         eigenvals, eigenvects = out[0], out[1]
         if IS_SORTING_EIGENVALUES:
             idx = eigenvals.argsort()
@@ -690,12 +691,23 @@ class Phonons (object):
 
         frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
-        dyn = dyn_s.reshape((n_phonons, n_phonons), order='C')
-
+        condition = frequencies > frequencies_threshold
         for mu in range(n_particles * 3):
             if frequencies[mu] > frequencies_threshold:
-                velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn, eigenvects[:, mu]) / (
+                velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
                         2 * (2 * np.pi) * frequencies[mu])
+        
+        
+        velocities2 = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+
+        velocities2[condition, :] = contract('im,ija,jm,m->ma', eigenvects[:, condition].conj(), ddyn_s, eigenvects[:, condition],1 / (
+                2 * (2 * np.pi) * frequencies[condition]))
+        eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
+        eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
+        frequencies_2 = np.abs(eigenvals_2) ** .5 * np.sign(eigenvals_2) / (np.pi * 2.)
+
+        # velocities2 = contract('ik,ija,jk,j->ja', eigenvects.conj(), ddyn_s, eigenvects,
+        #                                1 / (2 * (2 * np.pi) * frequencies[:]))
                 # eigenvals[mu] = np.real(contract('i,ij,j->', eigenvects[:, mu].conj(), dyn, eigenvects[:, mu]))
 
                 # if (qvec == [0,0,0]).all():
@@ -857,7 +869,7 @@ class Phonons (object):
         volume = np.linalg.det(self.atoms.cell) / 1000
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
         physical_modes = (frequencies > self.energy_threshold)
-        c_v = self.c_v.reshape((self.n_phonons), order='C')
+        c_v = self.c_v.reshape((self.n_phonons), order='C') * 1e21
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
         conductivity_per_mode[physical_modes, :, :] = 1 / (volume * self.n_k_points) * c_v[physical_modes, np.newaxis, np.newaxis] * \
@@ -962,7 +974,7 @@ class Phonons (object):
                                 1 / 2 * length_thresholds[alpha])
 
 
-        c_v = self.c_v.reshape((self.n_phonons), order='C')
+        c_v = self.c_v.reshape((self.n_phonons), order='C') * 1e21
         lambd_n = lambd_0.copy()
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
 
