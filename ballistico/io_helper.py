@@ -253,24 +253,6 @@ def matrix_to_string(matrix):
     return string
 
 
-
-
-def apply_boundary_with_cell(cell, cellinv, dxij):
-    # exploit periodicity to calculate the shortest distance, which may not be the one we have
-    sxij = dxij.dot(cellinv)
-    sxij = sxij - np.round (sxij)
-    dxij = sxij.dot(cell)
-    return dxij
-
-
-def apply_boundary(atoms, dxij):
-    # TODO: remove this method
-    cell = atoms.cell
-    cellinv = np.linalg.inv (cell)
-    dxij = apply_boundary_with_cell(atoms.cell, cellinv, dxij)
-    return dxij
-
-
 def type_element_id(atoms, element_name):
     # TODO: remove this method
     unique_elements = np.unique (atoms.get_chemical_symbols ())
