@@ -11,6 +11,10 @@ import tensorflow as tf
 
 tf.enable_eager_execution()
 
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+KELVINTOJOULE = units.kB / units.J
+THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
 
 MAX_ITERATIONS_SC = 500
 ENERGY_THRESHOLD = 0.001
@@ -212,11 +216,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
 
         # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-        gamma_coeff = units._hbar * units.mol ** 3 / units.J ** 2 * 1e9 * np.pi / 4.
-        pot_times_dirac = pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
+        gamma_coeff = units.mol ** 3 / units.J ** 2 * 1e9
+        pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
 
-        mevtothz = units.J*units._hbar*2*np.pi*1e15
-        pot_times_dirac_davide = pot_times_dirac.sum() * mevtothz / (2 * np.pi)
+        pot_times_dirac_davide = pot_times_dirac.sum() * THZTOMEV / (2 * np.pi)
         print(frequencies[index_k, mu], pot_times_dirac_davide)
 
         return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac, dirac_delta
@@ -486,8 +489,7 @@ class Phonons (object):
         if self._occupations is None:
             frequencies = self.frequencies
 
-            thzoverkelvin = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-            temp = self.temperature * thzoverkelvin
+            temp = self.temperature * KELVINTOTHZ
             density = np.zeros_like(frequencies)
             physical_modes = frequencies > self.energy_threshold
 
@@ -559,15 +561,13 @@ class Phonons (object):
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
             physical_modes = frequencies > self.energy_threshold
-            jouleoverkelvin = units.kB / units.J
-            thzoverkelvin = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-            temperature = self.temperature * thzoverkelvin
+            temperature = self.temperature * KELVINTOTHZ
 
             if (self.is_classic):
-                c_v[physical_modes] = jouleoverkelvin
+                c_v[physical_modes] = KELVINTOJOULE
             else:
                 f_be = self.occupations
-                c_v[physical_modes] = jouleoverkelvin * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
+                c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
                                       (temperature ** 2)
             self.c_v = c_v
         return self._c_v
@@ -1030,8 +1030,8 @@ class Phonons (object):
         dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
 
         # TODO: probably we want to move this unit conversion somewhere more appropriate
-        dynmat /= (10 * units.J / units.mol)
 
+        dynmat *= EVTOTENJOVERMOL
 
         for index_k in range(n_k_points):
             # freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,

@@ -64,6 +64,7 @@ class Plotter (object):
         observable[np.isnan(observable)] = 0
         plt.ylabel (observable_name, fontsize=16, fontweight='bold')
         plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+        plt.ylim(observable.min(), observable.max())
         fig.savefig (self.folder + observable_name + '.pdf')
         if self.is_showing:
             plt.show ()
