@@ -97,7 +97,7 @@ class Plotter (object):
         else:
             k_list, q, Q, point_names = self.create_k_and_symmetry_space (atoms, reference_distance=reference_distance)
         if self.phonons.is_able_to_calculate:
-            freqs_plot, _, _, vel_plot = self.phonons.calculate_second_k_list(k_list)
+            freqs_plot, _, _, vel_plot, _ = self.phonons.calculate_second_k_list(k_list)
             vel_norm = np.linalg.norm(vel_plot, axis=-1)
             # print(vel_plot)
         else:
