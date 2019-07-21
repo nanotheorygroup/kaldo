@@ -7,9 +7,8 @@ import ase.units as units
 import sparse
 from opt_einsum import contract_expression, contract
 
-import tensorflow as tf
-
-tf.enable_eager_execution()
+# import tensorflow as tf
+# tf.enable_eager_execution()
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -24,6 +23,7 @@ GAMMA_CUTOFF = 0
 FREQUENCIES_FILE = 'frequencies.npy'
 EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
+VELOCITIES_AF_FILE = 'velocities_af.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
 PS_FILE = 'phase_space.npy'
@@ -37,8 +37,8 @@ FOLDER_NAME = 'phonons_calculated'
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
-# DIAGONALIZATION_ALGORITHM = np.linalg.eigh
-DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+DIAGONALIZATION_ALGORITHM = np.linalg.eigh
+# DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 
 IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
@@ -167,9 +167,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
 
         # prepare evect
         # scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
-        scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
-        for evect_index in range(n_modes):
-            scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
+        # scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
+        # for evect_index in range(n_modes):
+        #     scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
+        scaled_potential = sparse.tensordot(third_order, evect[nu, :], (0, 0))
         scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
         if is_plus:
@@ -216,8 +217,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
 
         # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-        gamma_coeff = units.mol ** 3 / units.J ** 2 * 1e9
-        pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
+        gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
+        pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
 
         pot_times_dirac_davide = pot_times_dirac.sum() * THZTOMEV / (2 * np.pi)
         print(frequencies[index_k, mu], pot_times_dirac_davide)
@@ -251,6 +252,7 @@ class Phonons (object):
 
         self._frequencies = None
         self._velocities = None
+        self._velocities_AF = None
         self._eigenvalues = None
         self._eigenvectors = None
         self._dos = None
@@ -340,6 +342,30 @@ class Phonons (object):
         folder += '/'
         np.save (folder + VELOCITIES_FILE, new_velocities)
         self._velocities = new_velocities
+
+    @property
+    def velocities_AF(self):
+        return self._velocities_AF
+
+    @velocities_AF.getter
+    def velocities_AF(self):
+        if self._velocities_AF is None:
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._velocities_AF = np.load (folder + VELOCITIES_AF_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_second_k_list()
+
+        return self._velocities_AF
+
+    @velocities_AF.setter
+    def velocities_AF(self, new_velocities_AF):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + VELOCITIES_AF_FILE, new_velocities_AF)
+        self._velocities_AF = new_velocities_AF
 
     @property
     def eigenvectors(self):
@@ -583,13 +609,6 @@ class Phonons (object):
         np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
 
-    def __apply_boundary_with_cell(self, cell, cellinv, dxij):
-        # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(cellinv)
-        sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(cell)
-        return dxij
-
     def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, dq=None):
         # TODO: remove duplicate arguments from this method
         atoms = self.atoms
@@ -609,7 +628,7 @@ class Phonons (object):
         if dq is not None:
             # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
             dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
-            # pos = self.__apply_boundary_with_cell(cell, cell_inv, pos)
+            # pos = apply_boundary_with_cell(cell, cell_inv, pos)
             q_vec = 2 * np.pi * cell_inv.dot(qvec)
             for iat in range(n_particles):
                 for alpha in range(3):
@@ -618,7 +637,7 @@ class Phonons (object):
                             for beta in range(3):
                                 dxij = - (list_of_replicas[id_replica, :])
                                 # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
-                                dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+                                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                 # phase = 2 * np.pi * qvec.dot(dxij)
                                 phase = -1 * dxij.dot(q_vec)
@@ -661,15 +680,35 @@ class Phonons (object):
 
             # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
             #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+            is_amorphous = (self.kpts == (1, 1, 1)).all()
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
-            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+            if is_amorphous:
 
-            # dx_chi = contract('la,l->la', dxij, chi_k)
-            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+                # dx_chi = contract('la,l->la', dxij, chi_k)
+                # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
-            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-            dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
-            ddyn_s = 1j * contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+                # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+                dyn_s = dynmat[:, :, 0, :, :]
+                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+
+                ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
+                ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
+                ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
+
+            else:
+                chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+                # dx_chi = contract('la,l->la', dxij, chi_k)
+                # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+
+                # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+                dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+                dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
+                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+                        geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+
+                ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+                ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
+                # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
 
 
         # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
@@ -690,21 +729,25 @@ class Phonons (object):
             eigenvects = eigenvects[:, idx]
 
         frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-        velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+        # velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
         condition = frequencies > frequencies_threshold
-        for mu in range(n_particles * 3):
-            if frequencies[mu] > frequencies_threshold:
-                velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
-                        2 * (2 * np.pi) * frequencies[mu])
-        
-        
-        velocities2 = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+        # for mu in range(n_particles * 3):
+        #     if frequencies[mu] > frequencies_threshold:
+        #         velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
+        #                 2 * (2 * np.pi) * frequencies[mu])
+        #
 
-        velocities2[condition, :] = contract('im,ija,jm,m->ma', eigenvects[:, condition].conj(), ddyn_s, eigenvects[:, condition],1 / (
-                2 * (2 * np.pi) * frequencies[condition]))
-        eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
-        eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
-        frequencies_2 = np.abs(eigenvals_2) ** .5 * np.sign(eigenvals_2) / (np.pi * 2.)
+
+        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :])
+        velocities_AF = contract('mna,mn->mna', velocities_AF,
+                                          1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
+        velocities_AF[np.invert(condition), :, :] = 0
+        velocities_AF[:, np.invert(condition), :] = 0
+        velocities_AF = velocities_AF / 2
+        velocities = 1j * np.diagonal(velocities_AF).T
+        # eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
+        # eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
+        # frequencies_2 = np.abs(eigenvals_2) ** .5 * np.sign(eigenvals_2) / (np.pi * 2.)
 
         # velocities2 = contract('ik,ija,jk,j->ja', eigenvects.conj(), ddyn_s, eigenvects,
         #                                1 / (2 * (2 * np.pi) * frequencies[:]))
@@ -715,7 +758,7 @@ class Phonons (object):
         #     velocities[:3,:] = 0.
         # frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
 
-        return frequencies, eigenvals, eigenvects, velocities
+        return frequencies, eigenvals, eigenvects, velocities, velocities_AF
 
 
 
@@ -877,6 +920,8 @@ class Phonons (object):
 
         return conductivity_per_mode
 
+
+
     def calculate_conductivity_inverse(self):
 
         scattering_matrix = self.gamma_tensor
@@ -950,52 +995,42 @@ class Phonons (object):
             print('Max iterations reached')
         return conductivity_per_mode, conductivity_value
 
-    def calculate_conductivity_rta(self, length_thresholds=None, finite_size_method='matthiesen'):
+    def calculate_conductivity_rta(self):
+        volume = np.linalg.det(self.atoms.cell)
+        gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
+        physical_modes = (self.frequencies > self.energy_threshold)
+        tau = 1 / gamma
+        tau[np.invert(physical_modes)] = 0
+        self.velocities[np.isnan(self.velocities)] = 0
+        conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, 3, 3))
+        conductivity_per_mode[:, :, :, :] = contract('kn,kna,kn,knb->knab', self.c_v[:, :], self.velocities[:, :, :], tau[:, :], self.velocities[:, :, :])
+        conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
+        conductivity_per_mode = conductivity_per_mode.reshape((self.n_phonons, 3, 3))
+        return conductivity_per_mode
 
-        volume = np.linalg.det(self.atoms.cell) / 1000
-        velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C') / 10
-        lambd_0 = np.zeros((self.n_k_points * self.n_modes, 3))
-        velocities = velocities.reshape((self.n_phonons, 3), order='C')
-        frequencies = self.frequencies.reshape((self.n_phonons), order='C')
-        gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
-        physical_modes = (frequencies > self.energy_threshold)
-
-
-        tau_0 = np.zeros_like(gamma)
-        tau_0[physical_modes] = 1 / gamma[physical_modes]
-
-
-        for alpha in range(3):
-            lambd_0[physical_modes, alpha] = tau_0[physical_modes] * velocities[physical_modes, alpha]
-            if length_thresholds:
-                if length_thresholds[alpha]:
-                    if finite_size_method == 'matthiesen':
-                        gamma[physical_modes] += abs(velocities[physical_modes, alpha]) / (
-                                1 / 2 * length_thresholds[alpha])
-
-
-        c_v = self.c_v.reshape((self.n_phonons), order='C') * 1e21
-        lambd_n = lambd_0.copy()
-        conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
+    def calculate_conductivity_AF(self, gamma_in=None):
+        volume = np.linalg.det(self.atoms.cell)
+        if gamma_in is not None:
+            gamma = gamma_in * np.ones((self.n_k_points, self.n_modes))
+        else:
+            gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
+        omega = 2 * np.pi * self.frequencies
+        physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) * (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
+        # lorentz = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
 
 
-        for alpha in range(3):
-            for mu in np.argwhere(physical_modes):
-                if length_thresholds:
-                    if length_thresholds[alpha]:
+        lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+                                                                           (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
+        lorentz[np.invert(physical_modes)] = 0
+        conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
+        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
+        conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
 
-                        if finite_size_method == 'caltech':
-                            transmission = (1 - np.abs(lambd_n[mu, alpha]) / length_thresholds[alpha] * (
-                                    1 - np.exp(-length_thresholds[alpha] / np.abs(lambd_n[mu, alpha]))))
-                            lambd_n[mu] = lambd_n[mu] * transmission
+        kappa = contract('knmab->knab', conductivity_per_mode)
+        kappa = kappa.reshape((self.n_phonons, 3, 3))
 
-        for alpha in range(3):
-            for beta in range(3):
-                conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * self.n_k_points) * c_v[
-                    physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
+        return kappa
 
-
-        return conductivity_per_mode, lambd_n
 
     def calculate_second_k_list(self, k_list=None):
         if k_list is not None:
@@ -1015,6 +1050,7 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
+        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3))
 
         geometry = atoms.positions
         n_particles = geometry.shape[0]
@@ -1036,18 +1072,20 @@ class Phonons (object):
         for index_k in range(n_k_points):
             # freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
             #                                                                  frequencies_threshold, dq=0.0001)
-            freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
+            freq, eval, evect, vels, vels_AF = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
                                                                              frequencies_threshold, dq=self.velocity_dq)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
             velocities[index_k, :, :] = vels.real
+            velocities_AF[index_k, : , :, :] = vels_AF.real
 
         # TODO: change the way we deal with two different outputs
         if k_list is not None:
-            return frequencies, eigenvalues, eigenvectors, velocities
+            return frequencies, eigenvalues, eigenvectors, velocities, velocities_AF
         else:
             self.frequencies = frequencies
             self.eigenvalues = eigenvalues
             self.eigenvectors = eigenvectors
             self.velocities = velocities
+            self.velocities_AF = velocities_AF
