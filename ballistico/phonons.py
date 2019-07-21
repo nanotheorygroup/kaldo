@@ -216,8 +216,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
 
         # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-        gamma_coeff = units.mol ** 3 / units.J ** 2 * 1e9
-        pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gamma_coeff
+        gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
+        pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
 
         pot_times_dirac_davide = pot_times_dirac.sum() * THZTOMEV / (2 * np.pi)
         print(frequencies[index_k, mu], pot_times_dirac_davide)
@@ -669,6 +669,10 @@ class Phonons (object):
 
             # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
             dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+                    geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+
             ddyn_s = 1j * contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
 
 
