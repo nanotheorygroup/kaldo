@@ -673,7 +673,7 @@ class Phonons (object):
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
 
-            ddyn_s = 1j * contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+            ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
 
 
         # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
@@ -694,21 +694,24 @@ class Phonons (object):
             eigenvects = eigenvects[:, idx]
 
         frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-        velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+        # velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
         condition = frequencies > frequencies_threshold
-        for mu in range(n_particles * 3):
-            if frequencies[mu] > frequencies_threshold:
-                velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
-                        2 * (2 * np.pi) * frequencies[mu])
+        # for mu in range(n_particles * 3):
+        #     if frequencies[mu] > frequencies_threshold:
+        #         velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
+        #                 2 * (2 * np.pi) * frequencies[mu])
+        #
         
-        
-        velocities2 = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+        velocities_AF = np.zeros((frequencies.shape[0], frequencies.shape[0], 3), dtype=np.complex)
 
-        velocities2[condition, :] = contract('im,ija,jm,m->ma', eigenvects[:, condition].conj(), ddyn_s, eigenvects[:, condition],1 / (
-                2 * (2 * np.pi) * frequencies[condition]))
-        eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
-        eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
-        frequencies_2 = np.abs(eigenvals_2) ** .5 * np.sign(eigenvals_2) / (np.pi * 2.)
+        velocities_AF[:, :, :] = contract('im,ija,jn,mn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :],
+                                          1 / (2 * (2 * np.pi) * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
+        velocities_AF[np.invert(condition), :, :] = 0
+        velocities_AF[:, np.invert(condition), :] = 0
+        velocities = 1j * np.diagonal(velocities_AF).T
+        # eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
+        # eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
+        # frequencies_2 = np.abs(eigenvals_2) ** .5 * np.sign(eigenvals_2) / (np.pi * 2.)
 
         # velocities2 = contract('ik,ija,jk,j->ja', eigenvects.conj(), ddyn_s, eigenvects,
         #                                1 / (2 * (2 * np.pi) * frequencies[:]))
