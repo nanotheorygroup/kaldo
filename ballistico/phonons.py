@@ -996,14 +996,19 @@ class Phonons (object):
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
         return conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
-        # self.velocities_AF
-        # self.frequencies
-        # gamma = self.gamma.reshape((int(self.n_phonons / 3), 3))
-
-
-        # conductivity_per_mode[physical_modes, :, :] = contract('n,na,n,nb->nab', c_v[physical_modes], velocities[physical_modes, :], 1 / gamma[physical_modes], velocities[physical_modes, :])
-
-        # return conductivity_per_mode
+    def calculate_conductivity_AF(self):
+        volume = np.linalg.det(self.atoms.cell)
+        gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
+        physical_modes = (self.frequencies > self.energy_threshold)
+        tau = 1 / gamma
+        tau[np.invert(physical_modes)] = 0
+        conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
+        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], (tau[:, :, np.newaxis] + tau[:, np.newaxis, :])/2, self.velocities_AF[:, :, :, :])
+        conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
+        reduced_conductivity_per_mode = np.diagonal(conductivity_per_mode, axis1=1, axis2=2)
+        # reduced_conductivity_per_mode = conductivity_per_mode.sum(axis=2)
+        reduced_conductivity_per_mode = reduced_conductivity_per_mode.swapaxes(3, 2).swapaxes(2, 1)
+        return reduced_conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
 
     def calculate_second_k_list(self, k_list=None):
