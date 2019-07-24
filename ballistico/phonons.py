@@ -7,9 +7,8 @@ import ase.units as units
 import sparse
 from opt_einsum import contract_expression, contract
 
-import tensorflow as tf
-
-tf.enable_eager_execution()
+# import tensorflow as tf
+# tf.enable_eager_execution()
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
