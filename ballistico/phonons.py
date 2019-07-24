@@ -701,7 +701,7 @@ class Phonons (object):
         #         velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
         #                 2 * (2 * np.pi) * frequencies[mu])
         #
-        
+
         velocities_AF = np.zeros((frequencies.shape[0], frequencies.shape[0], 3), dtype=np.complex)
 
         velocities_AF[:, :, :] = contract('im,ija,jn,mn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :],
@@ -957,52 +957,24 @@ class Phonons (object):
             print('Max iterations reached')
         return conductivity_per_mode, conductivity_value
 
-    def calculate_conductivity_rta(self, length_thresholds=None, finite_size_method='matthiesen'):
+    def calculate_conductivity_rta(self):
 
-        volume = np.linalg.det(self.atoms.cell) / 1000
-        velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C') / 10
-        lambd_0 = np.zeros((self.n_k_points * self.n_modes, 3))
+        volume = np.linalg.det(self.atoms.cell)
+        velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C')
         velocities = velocities.reshape((self.n_phonons, 3), order='C')
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
         gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
         physical_modes = (frequencies > self.energy_threshold)
 
+        frequencies[np.invert(physical_modes)] = 0
+        velocities[np.invert(physical_modes), :] = 0
 
-        tau_0 = np.zeros_like(gamma)
-        tau_0[physical_modes] = 1 / gamma[physical_modes]
-
-
-        for alpha in range(3):
-            lambd_0[physical_modes, alpha] = tau_0[physical_modes] * velocities[physical_modes, alpha]
-            if length_thresholds:
-                if length_thresholds[alpha]:
-                    if finite_size_method == 'matthiesen':
-                        gamma[physical_modes] += abs(velocities[physical_modes, alpha]) / (
-                                1 / 2 * length_thresholds[alpha])
-
-
-        c_v = self.c_v.reshape((self.n_phonons), order='C') * 1e21
-        lambd_n = lambd_0.copy()
+        c_v = self.c_v.reshape((self.n_phonons), order='C')
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
 
+        conductivity_per_mode[physical_modes, :, :] = contract('n,na,n,nb->nab', c_v[physical_modes], velocities[physical_modes, :], 1 / gamma[physical_modes], velocities[physical_modes, :])
 
-        for alpha in range(3):
-            for mu in np.argwhere(physical_modes):
-                if length_thresholds:
-                    if length_thresholds[alpha]:
-
-                        if finite_size_method == 'caltech':
-                            transmission = (1 - np.abs(lambd_n[mu, alpha]) / length_thresholds[alpha] * (
-                                    1 - np.exp(-length_thresholds[alpha] / np.abs(lambd_n[mu, alpha]))))
-                            lambd_n[mu] = lambd_n[mu] * transmission
-
-        for alpha in range(3):
-            for beta in range(3):
-                conductivity_per_mode[physical_modes, alpha, beta] = 1 / (volume * self.n_k_points) * c_v[
-                    physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
-
-
-        return conductivity_per_mode, lambd_n
+        return 1e22 / (volume * self.n_k_points) * conductivity_per_mode
 
     def calculate_second_k_list(self, k_list=None):
         if k_list is not None:
