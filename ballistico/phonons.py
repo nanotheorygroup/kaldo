@@ -24,6 +24,7 @@ GAMMA_CUTOFF = 0
 FREQUENCIES_FILE = 'frequencies.npy'
 EIGENVALUES_FILE = 'eigenvalues.npy'
 EIGENVECTORS_FILE = 'eigenvectors.npy'
+VELOCITIES_AF_FILE = 'velocities_af.npy'
 VELOCITIES_FILE = 'velocities.npy'
 GAMMA_FILE = 'gamma.npy'
 PS_FILE = 'phase_space.npy'
@@ -251,6 +252,7 @@ class Phonons (object):
 
         self._frequencies = None
         self._velocities = None
+        self._velocities_AF = None
         self._eigenvalues = None
         self._eigenvectors = None
         self._dos = None
@@ -340,6 +342,30 @@ class Phonons (object):
         folder += '/'
         np.save (folder + VELOCITIES_FILE, new_velocities)
         self._velocities = new_velocities
+
+    @property
+    def velocities_AF(self):
+        return self._velocities_AF
+
+    @velocities_AF.getter
+    def velocities_AF(self):
+        if self._velocities_AF is None:
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._velocities_AF = np.load (folder + VELOCITIES_AF_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_second_k_list()
+
+        return self._velocities_AF
+
+    @velocities_AF.setter
+    def velocities_AF(self, new_velocities_AF):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + VELOCITIES_AF_FILE, new_velocities_AF)
+        self._velocities_AF = new_velocities_AF
 
     @property
     def eigenvectors(self):
@@ -722,7 +748,7 @@ class Phonons (object):
         #     velocities[:3,:] = 0.
         # frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
 
-        return frequencies, eigenvals, eigenvects, velocities
+        return frequencies, eigenvals, eigenvects, velocities, velocities_AF
 
 
 
@@ -884,6 +910,8 @@ class Phonons (object):
 
         return conductivity_per_mode
 
+
+
     def calculate_conductivity_inverse(self):
 
         scattering_matrix = self.gamma_tensor
@@ -958,23 +986,25 @@ class Phonons (object):
         return conductivity_per_mode, conductivity_value
 
     def calculate_conductivity_rta(self):
-
         volume = np.linalg.det(self.atoms.cell)
-        velocities = self.velocities.real.reshape((self.n_k_points, self.n_modes, 3), order='C')
-        velocities = velocities.reshape((self.n_phonons, 3), order='C')
-        frequencies = self.frequencies.reshape((self.n_phonons), order='C')
-        gamma = self.gamma.reshape((self.n_phonons), order='C').copy()
-        physical_modes = (frequencies > self.energy_threshold)
+        gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
+        physical_modes = (self.frequencies > self.energy_threshold)
+        tau = 1 / gamma
+        tau[np.invert(physical_modes)] = 0
+        conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, 3, 3))
+        conductivity_per_mode[:, :, :, :] = contract('kn,kna,kn,knb->knab', self.c_v[:, :], self.velocities[:, :, :], tau[:, :], self.velocities[:, :, :])
+        conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
+        return conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
-        frequencies[np.invert(physical_modes)] = 0
-        velocities[np.invert(physical_modes), :] = 0
+        # self.velocities_AF
+        # self.frequencies
+        # gamma = self.gamma.reshape((int(self.n_phonons / 3), 3))
 
-        c_v = self.c_v.reshape((self.n_phonons), order='C')
-        conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
 
-        conductivity_per_mode[physical_modes, :, :] = contract('n,na,n,nb->nab', c_v[physical_modes], velocities[physical_modes, :], 1 / gamma[physical_modes], velocities[physical_modes, :])
+        # conductivity_per_mode[physical_modes, :, :] = contract('n,na,n,nb->nab', c_v[physical_modes], velocities[physical_modes, :], 1 / gamma[physical_modes], velocities[physical_modes, :])
 
-        return 1e22 / (volume * self.n_k_points) * conductivity_per_mode
+        # return conductivity_per_mode
+
 
     def calculate_second_k_list(self, k_list=None):
         if k_list is not None:
@@ -994,6 +1024,7 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
+        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3))
 
         geometry = atoms.positions
         n_particles = geometry.shape[0]
@@ -1015,18 +1046,20 @@ class Phonons (object):
         for index_k in range(n_k_points):
             # freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
             #                                                                  frequencies_threshold, dq=0.0001)
-            freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
+            freq, eval, evect, vels, vels_AF = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
                                                                              frequencies_threshold, dq=self.velocity_dq)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
             velocities[index_k, :, :] = vels.real
+            velocities_AF[index_k, : , :, :] = vels_AF.real
 
         # TODO: change the way we deal with two different outputs
         if k_list is not None:
-            return frequencies, eigenvalues, eigenvectors, velocities
+            return frequencies, eigenvalues, eigenvectors, velocities, velocities_AF
         else:
             self.frequencies = frequencies
             self.eigenvalues = eigenvalues
             self.eigenvectors = eigenvectors
             self.velocities = velocities
+            self.velocities_AF = velocities_AF
