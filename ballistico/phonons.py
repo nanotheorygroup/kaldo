@@ -998,11 +998,11 @@ class Phonons (object):
     def calculate_conductivity_AF(self):
         volume = np.linalg.det(self.atoms.cell)
         gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
-        physical_modes = (self.frequencies > self.energy_threshold)
-        tau = 1 / gamma
+        physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) + (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
+        tau = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
         tau[np.invert(physical_modes)] = 0
         conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
-        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], (tau[:, :, np.newaxis] + tau[:, np.newaxis, :])/2, self.velocities_AF[:, :, :, :])
+        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], tau[:, :, :], self.velocities_AF[:, :, :, :])
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
         reduced_conductivity_per_mode = np.diagonal(conductivity_per_mode, axis1=1, axis2=2)
         # reduced_conductivity_per_mode = conductivity_per_mode.sum(axis=2)
@@ -1028,7 +1028,7 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
-        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3))
+        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
 
         geometry = atoms.positions
         n_particles = geometry.shape[0]
@@ -1056,7 +1056,7 @@ class Phonons (object):
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
             velocities[index_k, :, :] = vels.real
-            velocities_AF[index_k, : , :, :] = vels_AF.real
+            velocities_AF[index_k, : , :, :] = vels_AF
 
         # TODO: change the way we deal with two different outputs
         if k_list is not None:
