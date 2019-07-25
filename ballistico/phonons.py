@@ -998,8 +998,11 @@ class Phonons (object):
     def calculate_conductivity_AF(self):
         volume = np.linalg.det(self.atoms.cell)
         gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
+        omega = 2 * np.pi * self.frequencies
         physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) + (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
-        tau = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
+        # tau = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
+        tau = ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+                                                                           ((omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) / 2) ** 2)
         tau[np.invert(physical_modes)] = 0
         conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
         conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], tau[:, :, :], self.velocities_AF[:, :, :, :])
