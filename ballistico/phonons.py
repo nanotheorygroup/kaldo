@@ -608,13 +608,6 @@ class Phonons (object):
         np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
 
-    def __apply_boundary_with_cell(self, cell, cellinv, dxij):
-        # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(cellinv)
-        sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(cell)
-        return dxij
-
     def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, dq=None):
         # TODO: remove duplicate arguments from this method
         atoms = self.atoms
@@ -634,7 +627,7 @@ class Phonons (object):
         if dq is not None:
             # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
             dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
-            # pos = self.__apply_boundary_with_cell(cell, cell_inv, pos)
+            # pos = apply_boundary_with_cell(cell, cell_inv, pos)
             q_vec = 2 * np.pi * cell_inv.dot(qvec)
             for iat in range(n_particles):
                 for alpha in range(3):
@@ -643,7 +636,7 @@ class Phonons (object):
                             for beta in range(3):
                                 dxij = - (list_of_replicas[id_replica, :])
                                 # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
-                                dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+                                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                 # phase = 2 * np.pi * qvec.dot(dxij)
                                 phase = -1 * dxij.dot(q_vec)
@@ -995,9 +988,12 @@ class Phonons (object):
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
         return conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
-    def calculate_conductivity_AF(self):
+    def calculate_conductivity_AF(self, gamma_in=None):
         volume = np.linalg.det(self.atoms.cell)
-        gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
+        if gamma_in is not None:
+            gamma = gamma_in * np.ones((self.n_k_points, self.n_modes))
+        else:
+            gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
         omega = 2 * np.pi * self.frequencies
         physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) + (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
         # tau = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
