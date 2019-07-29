@@ -167,9 +167,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
 
         # prepare evect
         # scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
-        scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
-        for evect_index in range(n_modes):
-            scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
+        # scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
+        # for evect_index in range(n_modes):
+        #     scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
+        scaled_potential = sparse.tensordot(third_order, evect[nu, :], (0, 0))
         scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
         if is_plus:
