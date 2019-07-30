@@ -680,6 +680,7 @@ class Phonons (object):
 
             # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
             #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+            is_amorphous = (self.kpts == (1, 1, 1)).all()
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
             chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
 
@@ -688,7 +689,6 @@ class Phonons (object):
 
             # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
             dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
-
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
 
@@ -721,9 +721,9 @@ class Phonons (object):
         #                 2 * (2 * np.pi) * frequencies[mu])
         #
 
-        velocities_AF = np.zeros((frequencies.shape[0], frequencies.shape[0], 3), dtype=np.complex)
 
-        velocities_AF[:, :, :] = contract('im,ija,jn,mn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :],
+        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :])
+        velocities_AF = contract('mna,mn->mna', velocities_AF,
                                           1 / (2 * (2 * np.pi) * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
         velocities_AF[np.invert(condition), :, :] = 0
         velocities_AF[:, np.invert(condition), :] = 0
