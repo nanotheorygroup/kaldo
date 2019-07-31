@@ -693,6 +693,8 @@ class Phonons (object):
 
                 ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
                 ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
+                ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
+
             else:
                 chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
                 # dx_chi = contract('la,l->la', dxij, chi_k)
@@ -700,10 +702,12 @@ class Phonons (object):
 
                 # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
                 dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+                dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
                 dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
                         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
 
                 ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+                ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
                 # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
 
 
@@ -735,10 +739,10 @@ class Phonons (object):
 
 
         velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :])
-        velocities_AF = contract('mna,mn->mna', velocities_AF,
-                                          1 / (2 * (2 * np.pi) * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
-        velocities_AF[np.invert(condition), :, :] = 0
-        velocities_AF[:, np.invert(condition), :] = 0
+        # velocities_AF = contract('mna,mn->mna', velocities_AF,
+        #                                   1 / (2 * (2 * np.pi) * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
+        # velocities_AF[np.invert(condition), :, :] = 0
+        # velocities_AF[:, np.invert(condition), :] = 0
         velocities = 1j * np.diagonal(velocities_AF).T
         # eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
         # eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
@@ -1019,6 +1023,46 @@ class Phonons (object):
         reduced_conductivity_per_mode = np.diagonal(conductivity_per_mode, axis1=1, axis2=2)
         # reduced_conductivity_per_mode = conductivity_per_mode.sum(axis=2)
         reduced_conductivity_per_mode = reduced_conductivity_per_mode.swapaxes(3, 2).swapaxes(2, 1)
+
+        cnv = 47.992374
+        temp = self.temperature
+        kboltz = 13.806504
+
+        kappa = 0.
+        cvqm = 0.
+        ndim = self.n_phonons
+        delta = gamma_in
+
+        omega = omega[0]
+        ework = np.zeros(ndim, ndim).astype(complex)
+        import pandas as pd
+        for i in range(3):
+            # read = pd.read_csv("/Users/mac-juice/Development/research-dev/davide-scripts/0_Si-a216-sw/sij." + str(i + 1),
+            #                    header=None, delim_whitespace=True).values
+            # ework = ework + read ** 2
+            ework = ework + self.velocities_AF[0, :, :, i] ** 2
+        for i in range(3, ndim):
+            for j in range(3, ndim):
+                ework[j,i] = ework[j,i]*(omega[i]+omega[j])**2/16./omega[i]/omega[j]
+
+        diff = np.zeros(ndim)
+
+        for i in range(3, ndim):
+            for j in range(3, ndim):
+                lorentz = delta/((omega[i]-omega[j])**2 + delta**2)/np.pi
+                diff[i] = diff[i] + ework[j,i]*lorentz
+            diff[i] = np.pi*diff[i]/3/omega[i]**2/100
+            # print(omega[i]/2./np.pi, diff[i])
+
+        omega = omega / 2. / np.pi * cnv
+        for j in range(3, ndim):
+            x = omega[j]/temp
+            expx = np.exp(x)
+            cvx   = x*x*expx/(expx-1.0)**2
+            cvqm = cvqm + cvx
+            kappa = kappa + kboltz*cvx*diff[j]/volume
+            # print(omega[j]/cnv, kappa, kboltz*cvx*diff[j]/volume)
+        print(temp, kappa, cvqm/volume)
         return reduced_conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
 
