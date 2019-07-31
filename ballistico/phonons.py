@@ -37,8 +37,8 @@ FOLDER_NAME = 'phonons_calculated'
 
 IS_SCATTERING_MATRIX_ENABLED = True
 IS_SORTING_EIGENVALUES = False
-# DIAGONALIZATION_ALGORITHM = np.linalg.eigh
-DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
+DIAGONALIZATION_ALGORITHM = np.linalg.eigh
+# DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
 
 IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
@@ -682,17 +682,29 @@ class Phonons (object):
             #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
             is_amorphous = (self.kpts == (1, 1, 1)).all()
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
-            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+            if is_amorphous:
 
-            # dx_chi = contract('la,l->la', dxij, chi_k)
-            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+                # dx_chi = contract('la,l->la', dxij, chi_k)
+                # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
-            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-            dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
-            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
-                    geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+                # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+                dyn_s = dynmat[:, :, 0, :, :]
+                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
 
-            ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+                ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
+                ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
+            else:
+                chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+                # dx_chi = contract('la,l->la', dxij, chi_k)
+                # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+
+                # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+                dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+                        geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+
+                ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+                # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
 
 
         # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
