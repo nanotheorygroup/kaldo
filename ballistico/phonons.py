@@ -741,8 +741,8 @@ class Phonons (object):
         velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :])
         velocities_AF = contract('mna,mn->mna', velocities_AF,
                                           1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
-        # velocities_AF[np.invert(condition), :, :] = 0
-        # velocities_AF[:, np.invert(condition), :] = 0
+        velocities_AF[np.invert(condition), :, :] = 0
+        velocities_AF[:, np.invert(condition), :] = 0
         velocities_AF = velocities_AF / 2
         velocities = 1j * np.diagonal(velocities_AF).T
         # eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
@@ -1026,31 +1026,26 @@ class Phonons (object):
         reduced_conductivity_per_mode = np.diagonal(conductivity_per_mode, axis1=1, axis2=2)
         # reduced_conductivity_per_mode = conductivity_per_mode.sum(axis=2)
         reduced_conductivity_per_mode = reduced_conductivity_per_mode.swapaxes(3, 2).swapaxes(2, 1)
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
 
-        cnv = 47.992374
-        temp = self.temperature
-        kboltz = 13.806504
-
-        kappa = 0.
-        cvqm = 0.
-        ndim = self.n_phonons
-        delta = gamma_in
-
-        omega = omega[0]
-        ework = np.sum((self.velocities_AF[0,...] * 2) ** 2, axis=2)
-        ework = ework * (omega[:, np.newaxis] + omega[:, np.newaxis]) ** 2 / 16
-        diff = np.zeros(ndim)
-        lorentz = delta/((omega[:, np.newaxis]-omega[np.newaxis, :])**2 + delta**2)/np.pi
-        diff[3:] = np.sum(ework[3:, 3:] * lorentz[3:, 3:], axis=1) * np.pi / (3 * omega[3:] ** 2 * 100)
-
-
-        omega = omega / 2. / np.pi * cnv
-        x = omega/temp
-        expx = np.exp(x)
-        cvx   = x*x*expx/(expx-1.0)**2
-        cvqm = cvx.sum()/volume
-        kappa = (kboltz*cvx*diff/volume).sum()
-        print(kappa, cvqm)
+        if is_amorphous:
+            temp = self.temperature
+            ndim = self.n_phonons
+            delta = gamma_in
+            omega = omega[0]
+            ework = np.sum((self.velocities_AF[0,...] * (omega[:, np.newaxis, np.newaxis] + omega[np.newaxis, :, np.newaxis]) / 2) ** 2, axis=2)
+            diff = np.zeros(ndim)
+            lorentz = delta/((omega[:, np.newaxis]-omega[np.newaxis, :])**2 + delta**2)/np.pi
+            diff[3:] = np.sum(ework[3:, 3:] * lorentz[3:, 3:], axis=1) * np.pi / (3 * omega[3:] ** 2 * 100)
+            cnv = 47.992374
+            omega = omega / 2. / np.pi * cnv
+            x = omega/temp
+            expx = np.exp(x)
+            cvx   = x*x*expx/(expx-1.0)**2
+            cvqm = cvx.sum()/volume
+            kboltz = 13.806504
+            kappa = (kboltz*cvx*diff/volume).sum()
+            print(kappa, cvqm)
         return reduced_conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
 
