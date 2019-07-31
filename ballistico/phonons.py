@@ -739,10 +739,11 @@ class Phonons (object):
 
 
         velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :])
-        # velocities_AF = contract('mna,mn->mna', velocities_AF,
-        #                                   1 / (2 * (2 * np.pi) * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
+        velocities_AF = contract('mna,mn->mna', velocities_AF,
+                                          1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
         # velocities_AF[np.invert(condition), :, :] = 0
         # velocities_AF[:, np.invert(condition), :] = 0
+        velocities_AF = velocities_AF / 2
         velocities = 1j * np.diagonal(velocities_AF).T
         # eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
         # eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
@@ -1000,10 +1001,12 @@ class Phonons (object):
         physical_modes = (self.frequencies > self.energy_threshold)
         tau = 1 / gamma
         tau[np.invert(physical_modes)] = 0
+        self.velocities[np.isnan(self.velocities)] = 0
         conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, 3, 3))
         conductivity_per_mode[:, :, :, :] = contract('kn,kna,kn,knb->knab', self.c_v[:, :], self.velocities[:, :, :], tau[:, :], self.velocities[:, :, :])
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
-        return conductivity_per_mode.reshape((self.n_phonons, 3, 3))
+        conductivity_per_mode = conductivity_per_mode.reshape((self.n_phonons, 3, 3))
+        return conductivity_per_mode
 
     def calculate_conductivity_AF(self, gamma_in=None):
         volume = np.linalg.det(self.atoms.cell)
@@ -1034,35 +1037,20 @@ class Phonons (object):
         delta = gamma_in
 
         omega = omega[0]
-        ework = np.zeros(ndim, ndim).astype(complex)
-        import pandas as pd
-        for i in range(3):
-            # read = pd.read_csv("/Users/mac-juice/Development/research-dev/davide-scripts/0_Si-a216-sw/sij." + str(i + 1),
-            #                    header=None, delim_whitespace=True).values
-            # ework = ework + read ** 2
-            ework = ework + self.velocities_AF[0, :, :, i] ** 2
-        for i in range(3, ndim):
-            for j in range(3, ndim):
-                ework[j,i] = ework[j,i]*(omega[i]+omega[j])**2/16./omega[i]/omega[j]
-
+        ework = np.sum((self.velocities_AF[0,...] * 2) ** 2, axis=2)
+        ework = ework * (omega[:, np.newaxis] + omega[:, np.newaxis]) ** 2 / 16
         diff = np.zeros(ndim)
+        lorentz = delta/((omega[:, np.newaxis]-omega[np.newaxis, :])**2 + delta**2)/np.pi
+        diff[3:] = np.sum(ework[3:, 3:] * lorentz[3:, 3:], axis=1) * np.pi / (3 * omega[3:] ** 2 * 100)
 
-        for i in range(3, ndim):
-            for j in range(3, ndim):
-                lorentz = delta/((omega[i]-omega[j])**2 + delta**2)/np.pi
-                diff[i] = diff[i] + ework[j,i]*lorentz
-            diff[i] = np.pi*diff[i]/3/omega[i]**2/100
-            # print(omega[i]/2./np.pi, diff[i])
 
         omega = omega / 2. / np.pi * cnv
-        for j in range(3, ndim):
-            x = omega[j]/temp
-            expx = np.exp(x)
-            cvx   = x*x*expx/(expx-1.0)**2
-            cvqm = cvqm + cvx
-            kappa = kappa + kboltz*cvx*diff[j]/volume
-            # print(omega[j]/cnv, kappa, kboltz*cvx*diff[j]/volume)
-        print(temp, kappa, cvqm/volume)
+        x = omega/temp
+        expx = np.exp(x)
+        cvx   = x*x*expx/(expx-1.0)**2
+        cvqm = cvx.sum()/volume
+        kappa = (kboltz*cvx*diff/volume).sum()
+        print(kappa, cvqm)
         return reduced_conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
 
