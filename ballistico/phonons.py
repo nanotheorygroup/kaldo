@@ -1015,40 +1015,39 @@ class Phonons (object):
         else:
             gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
         omega = 2 * np.pi * self.frequencies
-        physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) + (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
-        # tau = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
-        tau = ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+        physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) * (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
+        # lorentz = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
+        lorentz = ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
                                                                            ((omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) / 2) ** 2)
-        tau[np.invert(physical_modes)] = 0
+        lorentz[np.invert(physical_modes)] = 0
         conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
-        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], tau[:, :, :], self.velocities_AF[:, :, :, :])
+        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
         reduced_conductivity_per_mode = np.diagonal(conductivity_per_mode, axis1=1, axis2=2)
         # reduced_conductivity_per_mode = conductivity_per_mode.sum(axis=2)
         reduced_conductivity_per_mode = reduced_conductivity_per_mode.swapaxes(3, 2).swapaxes(2, 1)
         is_amorphous = (self.kpts == (1, 1, 1)).all()
 
-        if is_amorphous:
-            temp = self.temperature
-            ndim = self.n_phonons
-            delta = gamma_in
-            omega = omega[0]
+        # if is_amorphous:
+        temp = self.temperature
+        delta = gamma
+        omega = omega
 
-            cnv = 47.992374
-            x = omega / 2. / np.pi * cnv / temp
-            expx = np.exp(x)
-            cvx = x * x * expx / (expx - 1.0) ** 2
-            cvqm = cvx.sum()/volume
+        cnv = 47.992374
+        x = omega / 2. / np.pi * cnv / temp
+        expx = np.exp(x)
+        cvx = x * x * expx / (expx - 1.0) ** 2
+        cvqm = cvx.sum()/volume
+        lorentz = 1 / np.pi * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+                                                                           (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
+        lorentz[np.invert(physical_modes)] = 0
+        kappa = contract('ki,kija,kij,kija->a', cvx[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
 
-            s_ij = contract('lija->ija', self.velocities_AF)
-            lorentz = delta/((omega[:, np.newaxis]-omega[np.newaxis, :])**2 + delta**2)/np.pi
-            kappa = contract('i,ija,ij,ija->a', cvx[3:], s_ij[3:, 3:, :], lorentz[3:, 3:], s_ij[3:, 3:, :])
+        kboltz = 0.13806504
+        kappa = kboltz / volume * np.pi * kappa
 
-            kboltz = 0.13806504
-            kappa = kboltz / volume * np.pi * kappa
-
-            kappa = np.mean(kappa)
-            print(kappa, cvqm)
+        kappa = np.mean(kappa)
+        print(kappa, cvqm)
         return reduced_conductivity_per_mode.reshape((self.n_phonons, 3, 3))
 
 
@@ -1070,7 +1069,7 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
-        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3))
 
         geometry = atoms.positions
         n_particles = geometry.shape[0]
@@ -1098,7 +1097,7 @@ class Phonons (object):
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
             velocities[index_k, :, :] = vels.real
-            velocities_AF[index_k, : , :, :] = vels_AF
+            velocities_AF[index_k, : , :, :] = vels_AF.real
 
         # TODO: change the way we deal with two different outputs
         if k_list is not None:
