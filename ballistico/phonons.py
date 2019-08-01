@@ -1017,38 +1017,23 @@ class Phonons (object):
         omega = 2 * np.pi * self.frequencies
         physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) * (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
         # lorentz = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
-        lorentz = ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
-                                                                           ((omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) / 2) ** 2)
+
+
+        lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+                                                                           (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
         lorentz[np.invert(physical_modes)] = 0
         conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
         conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
-        reduced_conductivity_per_mode = np.diagonal(conductivity_per_mode, axis1=1, axis2=2)
-        # reduced_conductivity_per_mode = conductivity_per_mode.sum(axis=2)
-        reduced_conductivity_per_mode = reduced_conductivity_per_mode.swapaxes(3, 2).swapaxes(2, 1)
-        is_amorphous = (self.kpts == (1, 1, 1)).all()
 
-        # if is_amorphous:
-        temp = self.temperature
-        delta = gamma
-        omega = omega
+        kappa_crystal = contract('knnab->knab', conductivity_per_mode)
+        kappa_crystal = kappa_crystal.reshape((self.n_phonons, 3, 3))
 
-        cnv = 47.992374
-        x = omega / 2. / np.pi * cnv / temp
-        expx = np.exp(x)
-        cvx = x * x * expx / (expx - 1.0) ** 2
-        cvqm = cvx.sum()/volume
-        lorentz = 1 / np.pi * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
-                                                                           (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
-        lorentz[np.invert(physical_modes)] = 0
-        kappa = contract('ki,kija,kij,kija->a', cvx[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
+        kappa_amorphous = contract('knmaa->a', conductivity_per_mode)
+        kappa_amorphous_mean = np.mean(kappa_amorphous)
 
-        kboltz = 0.13806504
-        kappa = kboltz / volume * np.pi * kappa
-
-        kappa = np.mean(kappa)
-        print(kappa, cvqm)
-        return reduced_conductivity_per_mode.reshape((self.n_phonons, 3, 3))
+        print(kappa_amorphous_mean)
+        return kappa_crystal
 
 
     def calculate_second_k_list(self, k_list=None):
