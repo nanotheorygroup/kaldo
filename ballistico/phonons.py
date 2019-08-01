@@ -6,7 +6,7 @@ import scipy.special
 import ase.units as units
 import sparse
 from opt_einsum import contract_expression, contract
-
+import time
 # import tensorflow as tf
 # tf.enable_eager_execution()
 
@@ -44,6 +44,19 @@ IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
 DELTA_DOS = 1
 NUM_DOS = 100
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+        return result
+    return timed
 
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
@@ -220,8 +233,8 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
         pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
 
-        pot_times_dirac_davide = pot_times_dirac.sum() * THZTOMEV / (2 * np.pi)
-        print(frequencies[index_k, mu], pot_times_dirac_davide)
+        # pot_times_dirac_davide = pot_times_dirac.sum() * THZTOMEV / (2 * np.pi)
+        # print(frequencies[index_k, mu], pot_times_dirac_davide)
 
         return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac, dirac_delta
 
@@ -761,7 +774,7 @@ class Phonons (object):
         return frequencies, eigenvals, eigenvects, velocities, velocities_AF
 
 
-
+    @timeit
     def calculate_gamma(self, is_gamma_tensor_enabled=False):
         folder = self.folder_name
         folder += '/' + str(self.temperature) + '/'
@@ -871,6 +884,9 @@ class Phonons (object):
             read_nu = read_nu + 1
 
             for nu_single in range(read_nu, self.n_phonons):
+                if (nu_single % 300) == 0:
+                    print(is_plus, 'process, ', nu_single / n_phonons * 100, '%')
+
                 index_k, mu = np.unravel_index(nu_single, [nptk, n_modes], order='C')
 
                 if not file:
@@ -904,7 +920,7 @@ class Phonons (object):
                         np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e %.8e')
                         # except ValueError as err:
                         #     print(err)
-                print(process_string[is_plus] + 'q-point = ' + str(index_k))
+                # print(process_string[is_plus] + 'q-point = ' + str(index_k))
             file.close()
 
 
