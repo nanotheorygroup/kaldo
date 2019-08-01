@@ -1040,12 +1040,12 @@ class Phonons (object):
             cvx = x * x * expx / (expx - 1.0) ** 2
             cvqm = cvx.sum()/volume
 
-            s_ij = contract('lija,ij->ija', self.velocities_AF, (omega[:, np.newaxis] + omega[np.newaxis, :]) / 2)
+            s_ij = contract('lija->ija', self.velocities_AF)
             lorentz = delta/((omega[:, np.newaxis]-omega[np.newaxis, :])**2 + delta**2)/np.pi
-            kappa = contract('i,ija,ij,ija, ij->a', cvx[3:], s_ij[3:, 3:, :], lorentz[3:, 3:], s_ij[3:, 3:, :], 1 / (omega[3:, np.newaxis] * omega[np.newaxis, 3:]))
+            kappa = contract('i,ija,ij,ija->a', cvx[3:], s_ij[3:, 3:, :], lorentz[3:, 3:], s_ij[3:, 3:, :])
 
-            kboltz = 13.806504
-            kappa = kboltz / volume * np.pi / 100 * kappa
+            kboltz = 0.13806504
+            kappa = kboltz / volume * np.pi * kappa
 
             kappa = np.mean(kappa)
             print(kappa, cvqm)
