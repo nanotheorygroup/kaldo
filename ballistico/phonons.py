@@ -1029,6 +1029,13 @@ class Phonons (object):
         kappa = contract('knmab->knab', conductivity_per_mode)
         kappa = kappa.reshape((self.n_phonons, 3, 3))
 
+
+        # kappa_crystal = contract('knnab->knab', conductivity_per_mode)
+        # kappa_crystal = kappa_crystal.reshape((self.n_phonons, 3, 3))
+        #
+        # kappa_amorphous = contract('knmaa->a', conductivity_per_mode)
+        # kappa_amorphous_mean = np.mean(kappa_amorphous)
+
         return kappa
 
 
