@@ -1026,14 +1026,10 @@ class Phonons (object):
         conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
 
-        kappa_crystal = contract('knnab->knab', conductivity_per_mode)
-        kappa_crystal = kappa_crystal.reshape((self.n_phonons, 3, 3))
+        kappa = contract('knmab->knab', conductivity_per_mode)
+        kappa = kappa.reshape((self.n_phonons, 3, 3))
 
-        kappa_amorphous = contract('knmaa->a', conductivity_per_mode)
-        kappa_amorphous_mean = np.mean(kappa_amorphous)
-
-        print(kappa_amorphous_mean)
-        return kappa_crystal
+        return kappa
 
 
     def calculate_second_k_list(self, k_list=None):
