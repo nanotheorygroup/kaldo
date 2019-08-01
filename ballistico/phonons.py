@@ -1057,7 +1057,7 @@ class Phonons (object):
         eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
         eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
         velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
-        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3))
+        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
 
         geometry = atoms.positions
         n_particles = geometry.shape[0]
@@ -1085,7 +1085,7 @@ class Phonons (object):
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
             velocities[index_k, :, :] = vels.real
-            velocities_AF[index_k, : , :, :] = vels_AF.real
+            velocities_AF[index_k, : , :, :] = vels_AF
 
         # TODO: change the way we deal with two different outputs
         if k_list is not None:
