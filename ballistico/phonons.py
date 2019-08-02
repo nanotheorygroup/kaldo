@@ -649,11 +649,11 @@ class Phonons (object):
                         for jat in range(n_particles):
                             for beta in range(3):
                                 dxij = - (list_of_replicas[id_replica, :])
-                                # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
+                                dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
                                 dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                 # phase = 2 * np.pi * qvec.dot(dxij)
-                                phase = -1 * dxij.dot(q_vec)
+                                phase = dxij.dot(q_vec)
                                 # chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
 
                                 dynbase[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
@@ -676,10 +676,10 @@ class Phonons (object):
                                 for beta in range(3):
                                     dxij = - (list_of_replicas[id_replica, :])
                                     # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
-                                    dxij = self.__apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+                                    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
 
                                     # phase = 2 * np.pi * (qvec + dqx).dot(dxij)
-                                    phase = -1 * dxij.dot(q_prime_vec)
+                                    phase = dxij.dot(q_prime_vec)
                                     perturb[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
                                         1j * phase)
 
