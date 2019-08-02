@@ -705,22 +705,24 @@ class Phonons (object):
                 dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
 
                 ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
-                ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
-                ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
+                # ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
+                # ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
 
             else:
+                # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+                #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
                 chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
                 # dx_chi = contract('la,l->la', dxij, chi_k)
                 # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
                 # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
                 dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
-                dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
+                # dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
                 dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
                         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
 
                 ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
-                ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
+                # ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
                 # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
 
 
