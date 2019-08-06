@@ -146,23 +146,23 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
     nu = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
 
     i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_full[:, :]
-    index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
+    kpp_mapping = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
 
     # +1 if is_plus, -1 if not is_plus
     second_sign = (int(is_plus) * 2 - 1)
     if sigma_in is None:
         sigma_tensor_np = calculate_broadening(velocities[index_kp_full, :, np.newaxis, :] -
-                                               velocities[index_kpp_vec, np.newaxis, :, :], cell_inv, k_size)
+                                               velocities[kpp_mapping, np.newaxis, :, :], cell_inv, k_size)
         sigma_small = sigma_tensor_np
     else:
         sigma_small = sigma_in
 
     omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
-                               omegas[index_kpp_vec, np.newaxis, :])
+                               omegas[kpp_mapping, np.newaxis, :])
 
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
                 (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
-                (frequencies[index_kpp_vec, np.newaxis, :] > frequencies_threshold)
+                (frequencies[kpp_mapping, np.newaxis, :] > frequencies_threshold)
     interactions = np.array(np.where(condition)).T
 
     # TODO: Benchmark something fast like
@@ -170,7 +170,7 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
     if interactions.size != 0:
         # Create sparse index
         index_kp_vec = interactions[:, 0]
-        index_kpp_vec = index_kpp_vec[index_kp_vec]
+        index_kpp_vec = kpp_mapping[index_kp_vec]
         mup_vec = interactions[:, 1]
         mupp_vec = interactions[:, 2]
         if is_amorphous:
@@ -209,27 +209,27 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         else:
 
             if is_plus:
-                first_evect = evect[nup_vec]
+                first_evect = evect.reshape((nptk, n_modes, n_modes))
             else:
-                first_evect = evect.conj()[nup_vec]
-            second_evect = evect.conj()[nupp_vec]
+                first_evect = evect.conj().reshape((nptk, n_modes, n_modes))
+            second_evect = evect.conj().reshape((nptk, n_modes, n_modes))[kpp_mapping]
 
             if is_plus:
-                first_chi = chi[index_kp_vec]
+                first_chi = chi
             else:
-                first_chi = chi.conj()[index_kp_vec]
-            second_chi = chi.conj()[index_kpp_vec]
+                first_chi = chi.conj()
+            second_chi = chi.conj()[kpp_mapping]
             shapes = []
-            for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
+            for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
                 shapes.append(tens.shape)
-            expr = contract_expression('litj,al,at,aj,ai->a', *shapes)
+            expr = contract_expression('litj,kni,kl,kmj,kt->knm', *shapes)
             scaled_potential = expr(scaled_potential,
+                                    first_evect,
                                     first_chi,
-                                    second_chi,
                                     second_evect,
-                                    first_evect
-                                    # backend='tensorflow',
+                                    second_chi
                                     )
+            scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
 
         # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
@@ -240,6 +240,10 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         # print(frequencies[index_k, mu], pot_times_dirac_davide)
 
         n_phonons = n_modes * nptk
+        # if is_amorphous or (nu % 300 == 0):
+        mevtothz = units.J * units._hbar * 2 * np.pi * 1e15
+        pot_times_dirac_davide = pot_times_dirac.sum() * mevtothz / (2 * np.pi)
+
         if is_amorphous or (nu % 300 == 0):
             mevtothz = units.J * units._hbar * 2 * np.pi * 1e15
             pot_times_dirac_davide = pot_times_dirac.sum() * mevtothz / (2 * np.pi)
