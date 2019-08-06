@@ -29,6 +29,7 @@ if __name__ == "__main__":
             'seekpath>=1.8',
             'tensorflow>=1.12',
             'opt_einsum>=2.3',
+            'sklearn>=0.20'
         ],
         zip_safe=True
     )
