@@ -173,16 +173,15 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         index_kpp_vec = index_kpp_vec[index_kp_vec]
         mup_vec = interactions[:, 1]
         mupp_vec = interactions[:, 2]
-        nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
-                                       np.array([nptk, n_modes]), order='C')
-        nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
-                                        np.array([nptk, n_modes]), order='C')
+        if is_amorphous:
+            nup_vec = mup_vec
+            nupp_vec = mupp_vec
+        else:
+            nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec]),
+                                           np.array([nptk, n_modes]), order='C')
+            nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
+                                            np.array([nptk, n_modes]), order='C')
 
-        # prepare evect
-        # scaled_potential = sparse.tensordot(third_order, evect[nu, :], [0, 0])
-        # scaled_potential = np.zeros((n_replicas * n_modes, n_replicas * n_modes), dtype=np.complex128)
-        # for evect_index in range(n_modes):
-        #     scaled_potential += third_order[evect_index, :, :].todense() * evect[nu, evect_index]
         scaled_potential = sparse.tensordot(third_order, evect[nu, :], (0, 0))
         scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
@@ -202,14 +201,19 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
             dirac_delta *= broadening_function(
                 [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_in])
 
-        if is_plus:
-            first_evect = evect[nup_vec]
-        else:
-            first_evect = evect.conj()[nup_vec]
-        second_evect = evect.conj()[nupp_vec]
         if is_amorphous:
-            scaled_potential = contract('litj,aj,ai->a', scaled_potential, second_evect, first_evect)
+            evect = evect.real
+            scaled_potential = scaled_potential[0, :, 0, :].real
+            scaled_potential = (evect.dot(scaled_potential)).dot(evect.T)[nup_vec, nupp_vec]
+
         else:
+
+            if is_plus:
+                first_evect = evect[nup_vec]
+            else:
+                first_evect = evect.conj()[nup_vec]
+            second_evect = evect.conj()[nupp_vec]
+
             if is_plus:
                 first_chi = chi[index_kp_vec]
             else:
@@ -218,7 +222,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
             shapes = []
             for tens in scaled_potential, first_chi, second_chi, second_evect, first_evect:
                 shapes.append(tens.shape)
-
             expr = contract_expression('litj,al,at,aj,ai->a', *shapes)
             scaled_potential = expr(scaled_potential,
                                     first_chi,
@@ -236,10 +239,14 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
         # pot_times_dirac_davide = pot_times_dirac.sum() * THZTOMEV / (2 * np.pi)
         # print(frequencies[index_k, mu], pot_times_dirac_davide)
 
+        n_phonons = n_modes * nptk
+        if is_amorphous or (nu % 300 == 0):
+            mevtothz = units.J * units._hbar * 2 * np.pi * 1e15
+            pot_times_dirac_davide = pot_times_dirac.sum() * mevtothz / (2 * np.pi)
+            print(is_plus, 'process, ', nu, '%.2f' % (nu / n_phonons * 100), '%',
+                  pot_times_dirac_davide)
+
         return nup_vec.astype(int), nupp_vec.astype(int), pot_times_dirac, dirac_delta
-
-
-
 
 
 def apply_boundary_with_cell(cell, cellinv, dxij):
@@ -886,9 +893,6 @@ class Phonons (object):
             read_nu = read_nu + 1
 
             for nu_single in range(read_nu, self.n_phonons):
-                if (nu_single % 300) == 0:
-                    print(is_plus, 'process, ', nu_single / n_phonons * 100, '%')
-
                 index_k, mu = np.unravel_index(nu_single, [nptk, n_modes], order='C')
 
                 if not file:
@@ -903,6 +907,7 @@ class Phonons (object):
 
                     if gamma_out:
                         nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
+
                         self._gamma[nu_single] += pot_times_dirac.sum()
                         self._ps[nu_single] += dirac.sum()
 
