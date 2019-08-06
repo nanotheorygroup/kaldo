@@ -911,11 +911,11 @@ class Phonons (object):
                             nupp = nupp_vec[nup_index]
                             if is_gamma_tensor_enabled:
                                 if is_plus:
-                                    self.gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
-                                    self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                    self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
+                                    self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
                                 else:
-                                    self.gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
-                                    self.gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                    self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
+                                    self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
 
                         nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
                         # try:
