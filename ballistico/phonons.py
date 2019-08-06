@@ -136,9 +136,11 @@ def lorentzian_delta(params):
     return lorentzian / correction
 
 
+
+
 def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv,
                            k_size,
-                           n_modes, nptk, n_replicas, evect, chi, third_order, sigma_in,
+                           n_modes, nptk, n_replicas, evect, first_evect, second_evect, first_chi, second_chi, third_order, sigma_in,
                            frequencies_threshold, is_amorphous, broadening_function):
     i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
@@ -201,36 +203,27 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
             dirac_delta *= broadening_function(
                 [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_in])
 
-        if is_amorphous:
-            evect = evect.real
-            scaled_potential = scaled_potential[0, :, 0, :].real
-            scaled_potential = (evect.dot(scaled_potential)).dot(evect.T)[nup_vec, nupp_vec]
 
-        else:
 
-            if is_plus:
-                first_evect = evect.reshape((nptk, n_modes, n_modes))
-            else:
-                first_evect = evect.conj().reshape((nptk, n_modes, n_modes))
-            second_evect = evect.conj().reshape((nptk, n_modes, n_modes))[kpp_mapping]
+        # if is_amorphous:
+        #     evect = evect.real
+        #     scaled_potential = scaled_potential[0, :, 0, :].real
+        #     scaled_potential = (evect.dot(scaled_potential)).dot(evect.T)[nup_vec, nupp_vec]
+        #
+        # else:
 
-            if is_plus:
-                first_chi = chi
-            else:
-                first_chi = chi.conj()
-            second_chi = chi.conj()[kpp_mapping]
-            shapes = []
-            for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
-                shapes.append(tens.shape)
-            expr = contract_expression('litj,kni,kl,kmj,kt->knm', *shapes)
-            scaled_potential = expr(scaled_potential,
-                                    first_evect,
-                                    first_chi,
-                                    second_evect,
-                                    second_chi
-                                    )
-            scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
+        shapes = []
+        for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
+            shapes.append(tens.shape)
+        expr = contract_expression('litj,kni,kl,kmj,kt->knm', *shapes)
+        scaled_potential = expr(scaled_potential,
+                                first_evect,
+                                first_chi,
+                                second_evect,
+                                second_chi
+                                )
 
+        scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
         # gamma contracted on one index
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
         gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
@@ -822,11 +815,11 @@ class Phonons (object):
                     self._ps[read_nu] += value_ps
                     if is_gamma_tensor_enabled:
                         if is_plus:
-                            self._gamma_tensor[read_nu, read_nup] -= value
-                            self._gamma_tensor[read_nu, read_nupp] += value
+                            self.gamma_tensor[read_nu, read_nup] -= value
+                            self.gamma_tensor[read_nu, read_nupp] += value
                         else:
-                            self._gamma_tensor[read_nu, read_nup] += value
-                            self._gamma_tensor[read_nu, read_nupp] += value
+                            self.gamma_tensor[read_nu, read_nup] += value
+                            self.gamma_tensor[read_nu, read_nupp] += value
 
             atoms = self.atoms
             frequencies = self.frequencies
@@ -894,45 +887,72 @@ class Phonons (object):
                 broadening_function = lorentzian_delta
             elif broadening == 'triangle':
                 broadening_function = triangular_delta
-            read_nu = read_nu + 1
 
-            for nu_single in range(read_nu, self.n_phonons):
-                index_k, mu = np.unravel_index(nu_single, [nptk, n_modes], order='C')
+            # TODO: find a way to use initial_mu correctly, when restarting
+            read_nu += 1
+            if (read_nu < nptk * n_modes):
+                initial_k, initial_mu = np.unravel_index(read_nu, (nptk, n_modes))
+                # initial_k = initial_k + 1
 
-                if not file:
-                    file = open(progress_filename, 'a+')
-                if frequencies[index_k, mu] > frequencies_threshold:
-                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
-                                                       frequencies,
-                                                       velocities, density,
-                                                       cell_inv, k_size, n_modes, nptk, n_replicas,
-                                                       rescaled_eigenvectors, chi, third_order, sigma_in,
-                                                       frequencies_threshold, is_amorphous, broadening_function)
+                for index_k in range(initial_k, nptk):
 
-                    if gamma_out:
-                        nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
+                    i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
-                        self._gamma[nu_single] += pot_times_dirac.sum()
-                        self._ps[nu_single] += dirac.sum()
 
-                        for nup_index in range(nup_vec.shape[0]):
-                            nup = nup_vec[nup_index]
-                            nupp = nupp_vec[nup_index]
-                            if is_gamma_tensor_enabled:
-                                if is_plus:
-                                    self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
-                                    self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-                                else:
-                                    self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
-                                    self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                    i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
+                    kpp_mapping = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
 
-                        nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
-                        # try:
-                        np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e %.8e')
-                        # except ValueError as err:
-                        #     print(err)
-                # print(process_string[is_plus] + 'q-point = ' + str(index_k))
-            file.close()
+                    if is_plus:
+                        first_evect = rescaled_eigenvectors.reshape((nptk, n_modes, n_modes))
+                    else:
+                        first_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))
+                    second_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))[kpp_mapping]
+
+                    if is_plus:
+                        first_chi = chi
+                    else:
+                        first_chi = chi.conj()
+                    second_chi = chi.conj()[kpp_mapping]
+
+                    for mu in range(n_modes):
+                        if index_k == initial_k and mu < initial_mu:
+                            break
+
+                        nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                        if not file:
+                            file = open(progress_filename, 'a+')
+                        if frequencies[index_k, mu] > frequencies_threshold:
+                            gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
+                                                               frequencies,
+                                                               velocities, density,
+                                                               cell_inv, k_size, n_modes, nptk, n_replicas,
+                                                               rescaled_eigenvectors, first_evect, second_evect, first_chi, second_chi, third_order, sigma_in,
+                                                               frequencies_threshold, is_amorphous, broadening_function)
+
+                            if gamma_out:
+                                nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
+
+                                self._gamma[nu_single] += pot_times_dirac.sum()
+                                self._ps[nu_single] += dirac.sum()
+
+                                for nup_index in range(nup_vec.shape[0]):
+                                    nup = nup_vec[nup_index]
+                                    nupp = nupp_vec[nup_index]
+                                    if is_gamma_tensor_enabled:
+                                        if is_plus:
+                                            self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
+                                            self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                        else:
+                                            self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
+                                            self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+
+                                nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
+                                # try:
+                                np.savetxt(file, np.vstack([nu_vec, gamma_out]).T, fmt='%i %i %i %.8e %.8e')
+                                # except ValueError as err:
+                                #     print(err)
+                        # print(process_string[is_plus] + 'q-point = ' + str(index_k))
+                file.close()
 
 
     def conductivity(self, mfp):
