@@ -135,13 +135,22 @@ def lorentzian_delta(params):
     lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_energy ** 2 + (gamma / 2) ** 2)
     return lorentzian / correction
 
-
+#
+# gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec, frequencies, velocities, density,
+#                                    cell_inv, k_size, n_modes, nptk, n_replicas,
+#                                    first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_in,
+#                                    frequencies_threshold, is_amorphous, broadening_function)
 
 
 def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequencies, velocities, density, cell_inv,
-                           k_size,
-                           n_modes, nptk, n_replicas, evect, first_evect, second_evect, first_chi, second_chi, third_order, sigma_in,
-                           frequencies_threshold, is_amorphous, broadening_function):
+                           k_size, n_modes, nptk, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_in,
+                           frequencies_threshold, is_amorphous, broadening):
+    if broadening == 'gauss':
+        broadening_function = gaussian_delta
+    elif broadening == 'lorentz':
+        broadening_function = lorentzian_delta
+    elif broadening == 'triangle':
+        broadening_function = triangular_delta
     i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
     omegas = 2 * np.pi * frequencies
@@ -183,9 +192,6 @@ def calculate_single_gamma(is_plus, index_k, mu, i_kp_full, index_kp_full, frequ
                                            np.array([nptk, n_modes]), order='C')
             nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec]),
                                             np.array([nptk, n_modes]), order='C')
-
-        scaled_potential = sparse.tensordot(third_order, evect[nu, :], (0, 0))
-        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes), order='C')
 
         if is_plus:
             dirac_delta = density[nup_vec] - density[nupp_vec]
@@ -881,12 +887,6 @@ class Phonons (object):
             i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
 
             is_amorphous = (nptk == 1)
-            if broadening == 'gauss':
-                broadening_function = gaussian_delta
-            elif broadening == 'lorentz':
-                broadening_function = lorentzian_delta
-            elif broadening == 'triangle':
-                broadening_function = triangular_delta
 
             # TODO: find a way to use initial_mu correctly, when restarting
             read_nu += 1
@@ -922,12 +922,15 @@ class Phonons (object):
                         if not file:
                             file = open(progress_filename, 'a+')
                         if frequencies[index_k, mu] > frequencies_threshold:
-                            gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec,
-                                                               frequencies,
-                                                               velocities, density,
-                                                               cell_inv, k_size, n_modes, nptk, n_replicas,
-                                                               rescaled_eigenvectors, first_evect, second_evect, first_chi, second_chi, third_order, sigma_in,
-                                                               frequencies_threshold, is_amorphous, broadening_function)
+
+                            scaled_potential = sparse.tensordot(third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
+                            scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
+                                                                        order='C')
+
+                            gamma_out = calculate_single_gamma(is_plus, index_k, mu, i_kp_vec, index_kp_vec, frequencies, velocities, density,
+                                                               cell_inv, k_size, n_modes, nptk,
+                                                               first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_in,
+                                                               frequencies_threshold, is_amorphous, broadening)
 
                             if gamma_out:
                                 nup_vec, nupp_vec, pot_times_dirac, dirac = gamma_out
