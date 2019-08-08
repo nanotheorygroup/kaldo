@@ -217,7 +217,7 @@ def apply_boundary_with_cell(cell, cellinv, dxij):
 
 class Phonons (object):
     def __init__(self, finite_difference, folder=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss', velocity_dq=None):
+    = 300, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss'):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -246,7 +246,7 @@ class Phonons (object):
         self._c_v = None
         self.is_able_to_calculate = True
         self.broadening_shape = broadening_shape
-        self.velocity_dq = velocity_dq
+
         if self.is_classic:
             classic_string = 'classic'
         else:
@@ -587,7 +587,7 @@ class Phonons (object):
         np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
 
-    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, dq=None):
+    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, symmetrize=True, acoustic=True):
         # TODO: remove duplicate arguments from this method
         atoms = self.atoms
         geometry = atoms.positions
@@ -603,92 +603,50 @@ class Phonons (object):
         n_replicas = list_of_replicas.shape[0]
         replicated_cell_inv = np.linalg.inv(replicated_cell)
 
-        if dq is not None:
-            # dynmat = dynmat.reshape((n_particles, 3, n_replicas, n_particles, 3))
-            dynbase = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
-            # pos = apply_boundary_with_cell(cell, cell_inv, pos)
-            q_vec = 2 * np.pi * cell_inv.dot(qvec)
-            for iat in range(n_particles):
-                for alpha in range(3):
-                    for id_replica in range(n_replicas):
-                        for jat in range(n_particles):
-                            for beta in range(3):
-                                dxij = - (list_of_replicas[id_replica, :])
-                                dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
-                                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
+        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+        # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
+        # chi_k = np.exp(1j * dxij.dot(kpoint))
 
-                                # phase = 2 * np.pi * qvec.dot(dxij)
-                                phase = dxij.dot(q_vec)
-                                # chi_k = np.exp(1j * 2 * np.pi * (dxij.dot(cell_inv)).dot(qvec))
+        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+        #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
+        if is_amorphous:
 
-                                dynbase[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
-                                    1j * phase)
-            perturbx = np.zeros((n_particles, 3, n_particles, 3, 3), dtype=np.complex)
-            for gamma in range(3):
+            # dx_chi = contract('la,l->la', dxij, chi_k)
+            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
-                dqx = np.zeros(3)
-                dqx[gamma] = dq
-                # dqmod = np.linalg.norm(dq) * 2 * np.pi
-                # dqx = dqx.dot(atoms.cell)
-                q_prime_vec = 2 * np.pi * (cell_inv.dot(qvec + atoms.cell.dot(dqx)))
-                dqmod = np.linalg.norm(2 * np.pi * (dqx))
+            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+            dyn_s = dynmat[:, :, 0, :, :]
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
 
-                perturb = np.zeros((n_particles, 3, n_particles, 3), dtype=np.complex)
-                for iat in range(n_particles):
-                    for alpha in range(3):
-                        for id_replica in range(n_replicas):
-                            for jat in range(n_particles):
-                                for beta in range(3):
-                                    dxij = - (list_of_replicas[id_replica, :])
-                                    # dxij = pos[iat, :] - (list_of_replicas[id_replica, :] + pos[jat, :])
-                                    dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, dxij)
-
-                                    # phase = 2 * np.pi * (qvec + dqx).dot(dxij)
-                                    phase = dxij.dot(q_prime_vec)
-                                    perturb[iat, alpha, jat, beta] += dynmat[iat, alpha, id_replica, jat, beta] * np.exp(
-                                        1j * phase)
-
-                perturbx[..., gamma] = (perturb - dynbase) / dqmod
-            dyn_s, ddyn_s = dynbase, perturbx
+            ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
+            # ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
+            # ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
 
         else:
-            # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
-            # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
-            # chi_k = np.exp(1j * dxij.dot(kpoint))
-
             # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
             #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
-            is_amorphous = (self.kpts == (1, 1, 1)).all()
-            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
-            if is_amorphous:
+            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+            # dx_chi = contract('la,l->la', dxij, chi_k)
+            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
 
-                # dx_chi = contract('la,l->la', dxij, chi_k)
-                # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
+            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
+            dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+            # dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+                    geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
 
-                # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-                dyn_s = dynmat[:, :, 0, :, :]
-                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+            ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
 
-                ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
-                # ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
-                # ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
 
-            else:
-                # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
-                #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
-                chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
-                # dx_chi = contract('la,l->la', dxij, chi_k)
-                # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
-
-                # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
-                dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
-                # dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
-                dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
-                        geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
-
-                ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
-                # ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
-                # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
+            if symmetrize==True:
+                dyn_s = dyn_s + dyn_s.transpose(2, 3, 0, 1).conj()
+                dyn_s = dyn_s * 0.5
+                ddyn_s = ddyn_s - ddyn_s.transpose(2, 3, 0, 1, 4).conj()
+                ddyn_s = ddyn_s * 0.5
+            # ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
+            # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
 
 
         # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
@@ -869,15 +827,15 @@ class Phonons (object):
                         first_chi = chi.conj()
                     second_chi = chi.conj()[index_kpp_vec]
 
+                    if broadening == 'gauss':
+                        broadening_function = gaussian_delta
+                    elif broadening == 'lorentz':
+                        broadening_function = lorentzian_delta
+                    elif broadening == 'triangle':
+                        broadening_function = triangular_delta
+
                     # +1 if is_plus, -1 if not is_plus
                     if sigma_in is None:
-                        if broadening == 'gauss':
-                            broadening_function = gaussian_delta
-                        elif broadening == 'lorentz':
-                            broadening_function = lorentzian_delta
-                        elif broadening == 'triangle':
-                            broadening_function = triangular_delta
-
                         sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
                                                                velocities[index_kpp_vec, np.newaxis, :, :], cell_inv,
                                                                k_size)
@@ -1102,10 +1060,8 @@ class Phonons (object):
         dynmat *= EVTOTENJOVERMOL
 
         for index_k in range(n_k_points):
-            # freq, eval, evect, vels = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-            #                                                                  frequencies_threshold, dq=0.0001)
             freq, eval, evect, vels, vels_AF = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-                                                                             frequencies_threshold, dq=self.velocity_dq)
+                                                                             frequencies_threshold)
             frequencies[index_k, :] = freq
             eigenvalues[index_k, :] = eval
             eigenvectors[index_k, :, :] = evect
