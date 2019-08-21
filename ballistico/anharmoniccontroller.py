@@ -4,6 +4,7 @@ import numpy as np
 from opt_einsum import contract_expression
 import ase.units as units
 from .helper import timeit
+from .helper import lazy_property
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
@@ -14,9 +15,6 @@ OCCUPATIONS_FILE = 'occupations.npy'
 
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-
-
-
 
 
 def calculate_broadening(velocity, cellinv, k_size):
@@ -142,81 +140,49 @@ class AnharmonicController:
         folder_name = self.phonons.folder_name
         folder_name += '/' + str(self.phonons.temperature) + '/'
         if self.phonons.is_classic:
-            folder_name += 'classic/'
+            folder_name += 'classic'
         else:
-            folder_name += 'quantum/'
+            folder_name += 'quantum'
         self.folder_name = folder_name
 
-        self._occupations = None
-        self._c_v = None
 
-
-
-
-    @property
+    @lazy_property
     def occupations(self):
-        return self._occupations
-
-    @occupations.getter
-    def occupations(self):
-        if self._occupations is None:
-            try:
-                self._occupations = np.load (self.folder_name + OCCUPATIONS_FILE)
-            except FileNotFoundError as e:
-                print(e)
-        if self._occupations is None:
-            frequencies = self.frequencies
-
-            temp = self.temperature * KELVINTOTHZ
-            density = np.zeros_like(frequencies)
-            physical_modes = frequencies > self.frequency_threshold
-
-            if self.is_classic is False:
-                density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
-            else:
-                density[physical_modes] = temp / frequencies[physical_modes]
-            self.occupations = density
-        return self._occupations
-
-    @occupations.setter
-    def occupations(self, new_occupations):
-        folder = self.folder_name
-        np.save (folder + OCCUPATIONS_FILE, new_occupations)
-        self._occupations = new_occupations
+        occupations =  self.calculate_occupations()
+        return occupations
 
 
-    @property
+    @lazy_property
     def c_v(self):
-        return self._c_v
+        c_v =  self.calculate_c_v()
+        return c_v
 
-    @c_v.getter
-    def c_v(self):
-        if self._c_v is None:
-            try:
-                folder = self.folder_name
-                self._c_v = np.load (folder + C_V_FILE)
-            except FileNotFoundError as e:
-                print(e)
-        if self._c_v is None:
-            frequencies = self.frequencies
-            c_v = np.zeros_like (frequencies)
-            physical_modes = frequencies > self.frequency_threshold
-            temperature = self.temperature * KELVINTOTHZ
 
-            if (self.is_classic):
-                c_v[physical_modes] = KELVINTOJOULE
-            else:
-                f_be = self.occupations
-                c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
-                                      (temperature ** 2)
-            self.c_v = c_v
-        return self._c_v
+    def calculate_occupations(self):
+        frequencies = self.phonons.frequencies
+        temp = self.phonons.temperature * KELVINTOTHZ
+        density = np.zeros_like(frequencies)
+        physical_modes = frequencies > self.phonons.frequency_threshold
+        if self.phonons.is_classic is False:
+            density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
+        else:
+            density[physical_modes] = temp / frequencies[physical_modes]
+        return density
 
-    @c_v.setter
-    def c_v(self, new_c_v):
-        folder = self.folder_name
-        np.save (folder + C_V_FILE, new_c_v)
-        self._c_v = new_c_v
+
+    def calculate_c_v(self):
+        frequencies = self.phonons.frequencies
+        c_v = np.zeros_like (frequencies)
+        physical_modes = frequencies > self.phonons.frequency_threshold
+        temperature = self.phonons.temperature * KELVINTOTHZ
+
+        if (self.phonons.is_classic):
+            c_v[physical_modes] = KELVINTOJOULE
+        else:
+            f_be = self.occupations
+            c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.phonons.frequencies[physical_modes] ** 2 / \
+                                  (temperature ** 2)
+        return c_v
 
 
     @timeit

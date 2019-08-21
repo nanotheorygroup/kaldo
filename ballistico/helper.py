@@ -13,3 +13,23 @@ def timeit(method):
             print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
         return result
     return timed
+
+
+def lazy_property(fn):
+    attr = '_lazy__' + fn.__name__
+
+    @property
+    def _lazy_property(self):
+        if not hasattr(self, attr):
+            filename = self.folder_name + '/' + fn.__name__ + '.npy'
+            try:
+                loaded_attr = np.load (filename)
+            except FileNotFoundError:
+                print(filename, 'not found, calculating', fn.__name__)
+                loaded_attr = fn(self)
+                np.save (filename, loaded_attr)
+            else:
+                print('loading', filename)
+            setattr(self, attr, loaded_attr)
+        return getattr(self, attr)
+    return _lazy_property
