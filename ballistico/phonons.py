@@ -7,8 +7,6 @@ import ase.units as units
 import sparse
 from opt_einsum import contract_expression, contract
 import time
-# import tensorflow as tf
-# tf.enable_eager_execution()
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -16,8 +14,7 @@ KELVINTOJOULE = units.kB / units.J
 THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
 
 MAX_ITERATIONS_SC = 500
-ENERGY_THRESHOLD = 0.001
-GAMMA_CUTOFF = 0
+FREQUENCY_THRESHOLD = 0.001
 
 
 FREQUENCIES_FILE = 'frequencies.npy'
@@ -36,10 +33,6 @@ FOLDER_NAME = 'phonons_calculated'
 
 
 IS_SCATTERING_MATRIX_ENABLED = True
-IS_SORTING_EIGENVALUES = False
-DIAGONALIZATION_ALGORITHM = np.linalg.eigh
-# DIAGONALIZATION_ALGORITHM = scipy.linalg.lapack.zheev
-
 IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
 DELTA_DOS = 1
@@ -214,10 +207,21 @@ def apply_boundary_with_cell(cell, cellinv, dxij):
     dxij = sxij.dot(cell)
     return dxij
 
+def lazy_property(fn):
+    attr = '_lazy__' + fn.__name__
+
+    @property
+    def _lazy_property(self):
+        if not hasattr(self, attr):
+            setattr(self, attr, fn(self))
+        return getattr(self, attr)
+
+    return _lazy_property
+
 
 class Phonons (object):
     def __init__(self, finite_difference, folder=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, sigma_in=None, energy_threshold=ENERGY_THRESHOLD, gamma_cutoff=GAMMA_CUTOFF, broadening_shape='gauss'):
+    = 300, sigma_in=None, frequency_threshold=FREQUENCY_THRESHOLD, broadening_shape='gauss'):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
@@ -258,140 +262,50 @@ class Phonons (object):
         for folder in folders:
             if not os.path.exists (folder):
                 os.makedirs (folder)
-        if energy_threshold is not None:
-            self.energy_threshold = energy_threshold
+        if frequency_threshold is not None:
+            self.frequency_threshold = frequency_threshold
         else:
-            self.energy_threshold = ENERGY_THRESHOLD
-
-        if gamma_cutoff is not None:
-            self.gamma_cutoff = gamma_cutoff
-        else:
-            self.gamma_cutoff = GAMMA_CUTOFF
-
+            self.frequency_threshold = FREQUENCY_THRESHOLD
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.list_of_replicas = self.finite_difference.list_of_replicas()
         self._ps = None
         self._gamma = None
         self._gamma_tensor = None
 
-    @property
+    @lazy_property
+    def dynmat(self):
+        dynmat =  self.calculate_dynamical_matrix()
+        return dynmat
+
+    @lazy_property
     def frequencies(self):
-        return self._frequencies
+        frequencies =  self.calculate_second_k_list('frequencies')
+        return frequencies
 
-    @frequencies.getter
-    def frequencies(self):
-        if self._frequencies is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._frequencies = np.load (folder + FREQUENCIES_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self.calculate_second_k_list()
-        return self._frequencies
-
-    @frequencies.setter
-    def frequencies(self, new_frequencies):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + FREQUENCIES_FILE, new_frequencies)
-        self._frequencies = new_frequencies
-
-    @property
-    def velocities(self):
-        return self._velocities
-
-    @velocities.getter
-    def velocities(self):
-        if self._velocities is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._velocities = np.load (folder + VELOCITIES_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self.calculate_second_k_list()
-
-        return self._velocities
-
-    @velocities.setter
-    def velocities(self, new_velocities):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + VELOCITIES_FILE, new_velocities)
-        self._velocities = new_velocities
-
-    @property
-    def velocities_AF(self):
-        return self._velocities_AF
-
-    @velocities_AF.getter
-    def velocities_AF(self):
-        if self._velocities_AF is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._velocities_AF = np.load (folder + VELOCITIES_AF_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self.calculate_second_k_list()
-
-        return self._velocities_AF
-
-    @velocities_AF.setter
-    def velocities_AF(self, new_velocities_AF):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + VELOCITIES_AF_FILE, new_velocities_AF)
-        self._velocities_AF = new_velocities_AF
-
-    @property
-    def eigenvectors(self):
-        return self._eigenvectors
-
-    @eigenvectors.getter
-    def eigenvectors(self):
-        if self._eigenvectors is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._eigenvectors = np.load (folder + EIGENVECTORS_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self.calculate_second_k_list()
-
-        return self._eigenvectors
-
-    @eigenvectors.setter
-    def eigenvectors(self, new_eigenvectors):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + EIGENVECTORS_FILE, new_eigenvectors)
-        self._eigenvectors = new_eigenvectors
-
-
-    @property
+    @lazy_property
     def eigenvalues(self):
-        return self._eigenvalues
+        eigenvalues =  self.calculate_second_k_list('eigenvalues')
+        return eigenvalues
 
-    @eigenvalues.getter
-    def eigenvalues(self):
-        if self._eigenvalues is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._eigenvalues = np.load (folder + EIGENVALUES_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self.calculate_second_k_list()
-        return self._eigenvalues
+    @lazy_property
+    def eigenvectors(self):
+        eigenvectors =  self.calculate_second_k_list('eigenvectors')
+        return eigenvectors
 
-    @eigenvalues.setter
-    def eigenvalues(self, new_eigenvalues):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + EIGENVALUES_FILE, new_eigenvalues)
-        self._eigenvalues = new_eigenvalues
+    @lazy_property
+    def ddyn(self):
+        ddyn =  self.calculate_second_k_list('ddyn')
+        return ddyn
+
+    @lazy_property
+    def velocities(self):
+        velocities =  self.calculate_second_k_list('velocities')
+        return velocities
+
+    @lazy_property
+    def velocities_AF(self):
+        velocities_AF =  self.calculate_second_k_list('velocities_AF')
+        return velocities_AF
 
 
     @property
@@ -437,7 +351,7 @@ class Phonons (object):
     def ps(self, new_ps):
         folder = self.folder_name
         folder += '/'
-        np.save (folder + GAMMA_FILE, ps)
+        np.save (folder + GAMMA_FILE, new_ps)
         self._ps = new_ps
 
     @property
@@ -495,7 +409,7 @@ class Phonons (object):
 
             temp = self.temperature * KELVINTOTHZ
             density = np.zeros_like(frequencies)
-            physical_modes = frequencies > self.energy_threshold
+            physical_modes = frequencies > self.frequency_threshold
 
             if self.is_classic is False:
                 density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
@@ -564,7 +478,7 @@ class Phonons (object):
         if self._c_v is None:
             frequencies = self.frequencies
             c_v = np.zeros_like (frequencies)
-            physical_modes = frequencies > self.energy_threshold
+            physical_modes = frequencies > self.frequency_threshold
             temperature = self.temperature * KELVINTOTHZ
 
             if (self.is_classic):
@@ -587,116 +501,160 @@ class Phonons (object):
         np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
 
-    def diagonalize_second_order_single_k(self, qvec, dynmat, frequencies_threshold, symmetrize=True, acoustic=True):
-        # TODO: remove duplicate arguments from this method
+    def calculate_dynamical_matrix(self):
+        atoms = self.atoms
+        second_order = self.finite_difference.second_order.copy()
+        list_of_replicas = self.list_of_replicas
+        geometry = atoms.positions
+        n_particles = geometry.shape[0]
+        n_replicas = list_of_replicas.shape[0]
+        is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
+        if is_second_reduced:
+            dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
+        else:
+            dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
+        mass = np.sqrt(atoms.get_masses())
+        dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+        dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+
+        # TODO: probably we want to move this unit conversion somewhere more appropriate
+        dynmat *= EVTOTENJOVERMOL
+        return dynmat
+
+    def calculate_second_k_list(self, operator, k_list=None):
+        if k_list is not None:
+            k_points = k_list
+        else:
+            k_points = self.k_points
+        atoms = self.atoms
+        n_unit_cell = atoms.positions.shape[0]
+        n_k_points = k_points.shape[0]
+        if operator == 'frequencies':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3))
+            function = self.calculate_frequencies_for_k
+        elif operator == 'eigenvalues':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3))
+            function = self.calculate_eigenvalues_for_k
+        elif operator == 'eigenvectors':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
+            function = self.calculate_eigenvectors_for_k
+        elif operator == 'ddyn':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3,  n_unit_cell * 3, 3)).astype(np.complex)
+            function = self.calculate_ddyn_for_k
+        elif operator == 'velocities_AF':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+            function = self.calculate_velocities_AF_for_k
+        elif operator == 'velocities':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
+            function = self.calculate_velocities_for_k
+        else:
+            raise TypeError('Operator not recognized')
+
+        for index_k in range(n_k_points):
+            tensor[index_k] = function(k_points[index_k])
+        return tensor
+
+    def calculate_eigenvalues_for_k(self, qvec):
+        return self.calculate_eigensystem_for_k(qvec, only_eigvals=True)
+
+    def calculate_eigenvectors_for_k(self, qvec):
+        return self.calculate_eigensystem_for_k(qvec, only_eigvals=False)
+
+    def calculate_eigensystem_for_k(self, qvec, only_eigvals=False):
+        dynmat = self.dynmat
         atoms = self.atoms
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-        atoms = self.atoms
         replicated_cell = self.replicated_cell
-        pos = self.finite_difference.atoms.positions
-        geometry = atoms.positions
-        n_particles = geometry.shape[0]
         cell_inv = np.linalg.inv(self.atoms.cell)
         list_of_replicas = self.list_of_replicas
-        n_replicas = list_of_replicas.shape[0]
         replicated_cell_inv = np.linalg.inv(replicated_cell)
-
-        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
-        # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
-        # chi_k = np.exp(1j * dxij.dot(kpoint))
-
-        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
-        #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
         is_amorphous = (self.kpts == (1, 1, 1)).all()
         dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
-
-            # dx_chi = contract('la,l->la', dxij, chi_k)
-            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
-
-            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
             dyn_s = dynmat[:, :, 0, :, :]
-            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
-
-            ddyn_s = contract('ija,ibjc->ibjca', dxij, dyn_s)
-            # ddyn_s = (ddyn_s + contract('ija,jcib->ibjca', dxij, dyn_s)) / 2.
-            # ddyn_s = (ddyn_s - ddyn_s.swapaxes(0, 2).swapaxes(1, 3)) / 2.
-
         else:
-            # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
-            #         geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
             chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
-            # dx_chi = contract('la,l->la', dxij, chi_k)
-            # ddyn_s = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
-
-            # dyn_s = contract('ialjb,l->iajb', dynmat, chi_k)
             dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
-            # dyn_s = (dyn_s + contract('jblia,ilj->iajb', dynmat, chi_k.conj())) / 2.
+        dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
+        if only_eigvals:
+            evals = np.linalg.eigvalsh(dyn_s)
+            return evals
+        else:
+            # TODO: here we are diagonalizing twice to calculate the same quantity, we'll need to change this
+            _, evects = np.linalg.eigh(dyn_s)
+            return evects
+
+    def calculate_ddyn_for_k(self, qvec):
+        dynmat = self.dynmat
+        atoms = self.atoms
+        geometry = atoms.positions
+        n_particles = geometry.shape[0]
+        n_phonons = n_particles * 3
+        replicated_cell = self.replicated_cell
+        geometry = atoms.positions
+        cell_inv = np.linalg.inv(self.atoms.cell)
+        list_of_replicas = self.list_of_replicas
+        replicated_cell_inv = np.linalg.inv(replicated_cell)
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
+        if is_amorphous:
+            dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+            ddyn = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
+        else:
+            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+            ddyn = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+        ddyn = ddyn.reshape((n_phonons, n_phonons, 3), order='C')
+        return ddyn
 
-            ddyn_s = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
-
-
-            if symmetrize==True:
-                dyn_s = dyn_s + dyn_s.transpose(2, 3, 0, 1).conj()
-                dyn_s = dyn_s * 0.5
-                ddyn_s = ddyn_s - ddyn_s.transpose(2, 3, 0, 1, 4).conj()
-                ddyn_s = ddyn_s * 0.5
-            # ddyn_s = (ddyn_s - contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k.conj())) / 2.
-            # ddyn_s = (ddyn_s  + contract('ilja,jclib,ilj->ibjca', dxij, dynmat, chi_k)) / 2.
-
-
-        # dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
-        # kpoint = 2 * np.pi * (cell_inv).dot(qvec)
-        # chi_k = np.exp(1j * dxij.dot(kpoint))
-        # dyn_s_new = contract('ialjb,l->iajb', dynmat, chi_k)
-        # dx_chi = contract('la,l->la', dxij, chi_k)
-        # ddyn_s_new = 1j * contract('la,ibljc->ibjca', dx_chi, dynmat)
-        # print(np.abs(ddyn_s_new - ddyn_s).sum())
-
-        ddyn_s = ddyn_s.reshape((n_phonons, n_phonons, 3), order='C')
-        dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
-        out = DIAGONALIZATION_ALGORITHM(dyn_s)
-        eigenvals, eigenvects = out[0], out[1]
-        if IS_SORTING_EIGENVALUES:
-            idx = eigenvals.argsort()
-            eigenvals = eigenvals[idx]
-            eigenvects = eigenvects[:, idx]
-
+    def calculate_frequencies_for_k(self, qvec):
+        rescaled_qvec = qvec * self.kpts
+        if (np.round(rescaled_qvec) == qvec * self.kpts).all():
+            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
+            eigenvals = self.eigenvalues[k_index]
+        else:
+            eigenvals = self.calculate_eigenvalues_for_k(qvec)
         frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-        # velocities = np.zeros((frequencies.shape[0], 3), dtype=np.complex)
+        return frequencies
+
+    def calculate_velocities_AF_for_k(self, qvec):
+        rescaled_qvec = qvec * self.kpts
+        if (np.round(rescaled_qvec) == qvec * self.kpts).all():
+            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
+            ddyn = self.ddyn[k_index]
+            frequencies = self.frequencies[k_index]
+            eigenvects = self.eigenvectors[k_index]
+        else:
+            ddyn = self.calculate_ddyn_for_k(qvec)
+            frequencies = self.calculate_frequencies_for_k(qvec)
+            eigenvects = self.calculate_eigenvectors_for_k(qvec)
+
+        frequencies_threshold = self.frequency_threshold
         condition = frequencies > frequencies_threshold
-        # for mu in range(n_particles * 3):
-        #     if frequencies[mu] > frequencies_threshold:
-        #         velocities[mu, :] = contract('i,ija,j->a', eigenvects[:, mu].conj(), ddyn_s, eigenvects[:, mu]) / (
-        #                 2 * (2 * np.pi) * frequencies[mu])
-        #
-
-
-        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn_s, eigenvects[:, :])
+        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn, eigenvects[:, :])
         velocities_AF = contract('mna,mn->mna', velocities_AF,
                                           1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
         velocities_AF[np.invert(condition), :, :] = 0
         velocities_AF[:, np.invert(condition), :] = 0
         velocities_AF = velocities_AF / 2
+        return velocities_AF
+
+    def calculate_velocities_for_k(self, qvec):
+        rescaled_qvec = qvec * self.kpts
+        if (np.round(rescaled_qvec) == qvec * self.kpts).all():
+            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
+            velocities_AF = self.velocities_AF[k_index]
+        else:
+            velocities_AF = self.calculate_velocities_AF_for_k(qvec)
+
         velocities = 1j * np.diagonal(velocities_AF).T
-        # eigenvals_2 = np.zeros_like(eigenvals).astype(np.complex)
-        # eigenvals_2[condition] = contract('im,ij,jm->m', eigenvects[:, condition].conj(), dyn_s, eigenvects[:, condition])
-        # frequencies_2 = np.abs(eigenvals_2) ** .5 * np.sign(eigenvals_2) / (np.pi * 2.)
+        return velocities
 
-        # velocities2 = contract('ik,ija,jk,j->ja', eigenvects.conj(), ddyn_s, eigenvects,
-        #                                1 / (2 * (2 * np.pi) * frequencies[:]))
-                # eigenvals[mu] = np.real(contract('i,ij,j->', eigenvects[:, mu].conj(), dyn, eigenvects[:, mu]))
 
-                # if (qvec == [0,0,0]).all():
-        #     frequencies[:3] = 0.
-        #     velocities[:3,:] = 0.
-        # frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
 
-        return frequencies, eigenvals, eigenvects, velocities, velocities_AF
 
 
     @timeit
@@ -750,7 +708,7 @@ class Phonons (object):
             third_order = self.finite_difference.third_order
             sigma_in = self.sigma_in
             broadening = self.broadening_shape
-            frequencies_threshold = self.energy_threshold
+            frequencies_threshold = self.frequency_threshold
             omegas = 2 * np.pi * frequencies
 
             nptk = np.prod(k_size)
@@ -894,7 +852,7 @@ class Phonons (object):
     def conductivity(self, mfp):
         volume = np.linalg.det(self.atoms.cell) / 1000
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
-        physical_modes = (frequencies > self.energy_threshold)
+        physical_modes = (frequencies > self.frequency_threshold)
         c_v = self.c_v.reshape((self.n_phonons), order='C') * 1e21
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
@@ -911,7 +869,7 @@ class Phonons (object):
 
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
-        physical_modes = (frequencies > self.energy_threshold)  # & (velocities > 0)[:, 2]
+        physical_modes = (frequencies > self.frequency_threshold)  # & (velocities > 0)[:, 2]
         gamma = self.gamma.reshape((self.n_phonons), order='C')
         a_in = - 1 * scattering_matrix.reshape((self.n_phonons, self.n_phonons), order='C')
         a_in = np.einsum('a,ab,b->ab', 1 / frequencies, a_in, frequencies)
@@ -945,7 +903,7 @@ class Phonons (object):
     def calculate_conductivity_variational(self, n_iterations=MAX_ITERATIONS_SC):
 
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
-        physical_modes = (frequencies > self.energy_threshold)
+        physical_modes = (frequencies > self.frequency_threshold)
 
         velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
         physical_modes = physical_modes  # & (velocities > 0)[:, 2]
@@ -981,7 +939,7 @@ class Phonons (object):
     def calculate_conductivity_rta(self):
         volume = np.linalg.det(self.atoms.cell)
         gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
-        physical_modes = (self.frequencies > self.energy_threshold)
+        physical_modes = (self.frequencies > self.frequency_threshold)
         tau = 1 / gamma
         tau[np.invert(physical_modes)] = 0
         self.velocities[np.isnan(self.velocities)] = 0
@@ -998,9 +956,7 @@ class Phonons (object):
         else:
             gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
         omega = 2 * np.pi * self.frequencies
-        physical_modes = (self.frequencies[:, :, np.newaxis] > self.energy_threshold) * (self.frequencies[:, np.newaxis, :] > self.energy_threshold)
-        # lorentz = 2 / (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
-
+        physical_modes = (self.frequencies[:, :, np.newaxis] > self.frequency_threshold) * (self.frequencies[:, np.newaxis, :] > self.frequency_threshold)
 
         lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
                                                                            (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
@@ -1012,68 +968,5 @@ class Phonons (object):
         kappa = contract('knmab->knab', conductivity_per_mode)
         kappa = kappa.reshape((self.n_phonons, 3, 3))
 
-
-        # kappa_crystal = contract('knnab->knab', conductivity_per_mode)
-        # kappa_crystal = kappa_crystal.reshape((self.n_phonons, 3, 3))
-        #
-        # kappa_amorphous = contract('knmaa->a', conductivity_per_mode)
-        # kappa_amorphous_mean = np.mean(kappa_amorphous)
-
         return kappa
 
-
-    def calculate_second_k_list(self, k_list=None):
-        if k_list is not None:
-            k_points = k_list
-        else:
-            k_points = self.k_points
-        atoms = self.atoms
-        second_order = self.finite_difference.second_order.copy()
-        list_of_replicas = self.list_of_replicas
-        replicated_cell = self.replicated_cell
-        frequencies_threshold = self.energy_threshold
-
-        n_unit_cell = atoms.positions.shape[0]
-        n_k_points = k_points.shape[0]
-
-        frequencies = np.zeros((n_k_points, n_unit_cell * 3))
-        eigenvalues = np.zeros((n_k_points, n_unit_cell * 3))
-        eigenvectors = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
-        velocities = np.zeros((n_k_points, n_unit_cell * 3, 3))
-        velocities_AF = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
-
-        geometry = atoms.positions
-        n_particles = geometry.shape[0]
-        n_replicas = list_of_replicas.shape[0]
-
-        is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
-        if is_second_reduced:
-            dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
-        else:
-            dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
-        mass = np.sqrt(atoms.get_masses())
-        dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-        dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-
-        # TODO: probably we want to move this unit conversion somewhere more appropriate
-
-        dynmat *= EVTOTENJOVERMOL
-
-        for index_k in range(n_k_points):
-            freq, eval, evect, vels, vels_AF = self.diagonalize_second_order_single_k(k_points[index_k], dynmat,
-                                                                             frequencies_threshold)
-            frequencies[index_k, :] = freq
-            eigenvalues[index_k, :] = eval
-            eigenvectors[index_k, :, :] = evect
-            velocities[index_k, :, :] = vels.real
-            velocities_AF[index_k, : , :, :] = vels_AF
-
-        # TODO: change the way we deal with two different outputs
-        if k_list is not None:
-            return frequencies, eigenvalues, eigenvectors, velocities, velocities_AF
-        else:
-            self.frequencies = frequencies
-            self.eigenvalues = eigenvalues
-            self.eigenvectors = eigenvectors
-            self.velocities = velocities
-            self.velocities_AF = velocities_AF
