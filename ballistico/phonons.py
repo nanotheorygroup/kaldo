@@ -13,11 +13,7 @@ KELVINTOJOULE = units.kB / units.J
 THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
 
 FREQUENCY_THRESHOLD = 0.001
-
-
 FOLDER_NAME = 'output'
-GAMMA_FILE = 'gamma.npy'
-PS_FILE = 'phase_space.npy'
 
 
 
@@ -58,9 +54,6 @@ class Phonons:
             self.frequency_threshold = FREQUENCY_THRESHOLD
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.list_of_replicas = self.finite_difference.list_of_replicas()
-        self._ps = None
-        self._gamma = None
-        self._gamma_tensor = None
         self._harmonic_controller = HarmonicController(self)
         self._anharmonic_controller = AnharmonicController(self)
 
@@ -106,59 +99,17 @@ class Phonons:
     def c_v(self):
         return self._anharmonic_controller.c_v
 
-
-
     @property
     def gamma(self):
-        return self._gamma
-
-    @gamma.getter
-    def gamma(self):
-        if self._gamma is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._gamma = np.load (folder + GAMMA_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self._anharmonic_controller.calculate_gamma(is_gamma_tensor_enabled=False)
-        return self._gamma
-
-    @gamma.setter
-    def gamma(self, new_gamma):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + GAMMA_FILE, new_gamma)
-        self._gamma = new_gamma
+        return self._anharmonic_controller.gamma
 
     @property
     def ps(self):
-        return self._ps
-
-    @ps.getter
-    def ps(self):
-        if self._ps is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._ps = np.load (folder + PS_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                self._anharmonic_controller.calculate_gamma(is_gamma_tensor_enabled=False)
-        return self._ps
-
-    @ps.setter
-    def ps(self, new_ps):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + GAMMA_FILE, new_ps)
-        self._ps = new_ps
+        return self._anharmonic_controller.ps
 
     @property
     def gamma_tensor(self):
-        if self._gamma_tensor is None:
-            self._anharmonic_controller.calculate_gamma(is_gamma_tensor_enabled=True)
-        return  self._gamma_tensor
+        return self._anharmonic_controller.gamma_tensor
 
 
     @staticmethod

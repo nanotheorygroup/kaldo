@@ -10,8 +10,8 @@ DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 SCATTERING_MATRIX_FILE = 'scattering_matrix'
-C_V_FILE = 'c_v.npy'
-OCCUPATIONS_FILE = 'occupations.npy'
+GAMMA_FILE = 'gamma.npy'
+PS_FILE = 'phase_space.npy'
 
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -144,6 +144,10 @@ class AnharmonicController:
         else:
             folder_name += 'quantum'
         self.folder_name = folder_name
+        self._ps = None
+        self._gamma = None
+        self._gamma_tensor = None
+
 
 
     @lazy_property
@@ -156,6 +160,59 @@ class AnharmonicController:
     def c_v(self):
         c_v =  self.calculate_c_v()
         return c_v
+
+
+    @property
+    def gamma(self):
+        return self._gamma
+
+    @gamma.getter
+    def gamma(self):
+        if self._gamma is None:
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._gamma = np.load (folder + GAMMA_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_gamma(is_gamma_tensor_enabled=False)
+        return self._gamma
+
+    @gamma.setter
+    def gamma(self, new_gamma):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + GAMMA_FILE, new_gamma)
+        self._gamma = new_gamma
+
+    @property
+    def ps(self):
+        return self._ps
+
+    @ps.getter
+    def ps(self):
+        if self._ps is None:
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._ps = np.load (folder + PS_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_gamma(is_gamma_tensor_enabled=False)
+        return self._ps
+
+    @ps.setter
+    def ps(self, new_ps):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + GAMMA_FILE, new_ps)
+        self._ps = new_ps
+
+    @property
+    def gamma_tensor(self):
+        if self._gamma_tensor is None:
+            self.calculate_gamma(is_gamma_tensor_enabled=True)
+        return  self._gamma_tensor
 
 
     def calculate_occupations(self):
@@ -192,10 +249,10 @@ class AnharmonicController:
             folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
         n_phonons = self.phonons.n_phonons
         is_plus_label = ['_0', '_1']
-        self.phonons._gamma = np.zeros(n_phonons)
-        self.phonons._ps = np.zeros(n_phonons)
+        self._gamma = np.zeros(n_phonons)
+        self._ps = np.zeros(n_phonons)
         if is_gamma_tensor_enabled:
-            self.phonons._gamma_tensor = np.zeros((n_phonons, n_phonons))
+            self._gamma_tensor = np.zeros((n_phonons, n_phonons))
         for is_plus in [1, 0]:
             read_nu = -1
             file = None
@@ -210,15 +267,15 @@ class AnharmonicController:
                     read_nu = int(read_nu)
                     read_nup = int(read_nup)
                     read_nupp = int(read_nupp)
-                    self.phonons._gamma[read_nu] += value
-                    self.phonons._ps[read_nu] += value_ps
+                    self._gamma[read_nu] += value
+                    self._ps[read_nu] += value_ps
                     if is_gamma_tensor_enabled:
                         if is_plus:
-                            self.phonons.gamma_tensor[read_nu, read_nup] -= value
-                            self.phonons.gamma_tensor[read_nu, read_nupp] += value
+                            self.gamma_tensor[read_nu, read_nup] -= value
+                            self.gamma_tensor[read_nu, read_nupp] += value
                         else:
-                            self.phonons.gamma_tensor[read_nu, read_nup] += value
-                            self.phonons.gamma_tensor[read_nu, read_nupp] += value
+                            self.gamma_tensor[read_nu, read_nup] += value
+                            self.gamma_tensor[read_nu, read_nupp] += value
 
             atoms = self.phonons.atoms
             frequencies = self.phonons.frequencies
@@ -342,19 +399,19 @@ class AnharmonicController:
                                 nupp_vec = np.ravel_multi_index(np.array([index_kpp_out, mupp_out]),
                                                                 np.array([nptk, n_modes]), order='C')
 
-                                self.phonons._gamma[nu_single] += pot_times_dirac.sum()
-                                self.phonons._ps[nu_single] += dirac.sum()
+                                self._gamma[nu_single] += pot_times_dirac.sum()
+                                self._ps[nu_single] += dirac.sum()
 
                                 for nup_index in range(nup_vec.shape[0]):
                                     nup = nup_vec[nup_index]
                                     nupp = nupp_vec[nup_index]
                                     if is_gamma_tensor_enabled:
                                         if is_plus:
-                                            self.phonons._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
-                                            self.phonons._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                            self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
+                                            self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
                                         else:
-                                            self.phonons._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
-                                            self.phonons._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
+                                            self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
+                                            self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
 
                                 nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
                                 np.savetxt(file, np.vstack([nu_vec, nup_vec, nupp_vec, pot_times_dirac, dirac]).T, fmt='%i %i %i %.8e %.8e')
