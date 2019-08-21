@@ -1,30 +1,11 @@
 from opt_einsum import contract
 import numpy as np
 import ase.units as units
+from .helper import lazy_property
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
-
-
-def lazy_property(fn):
-    attr = '_lazy__' + fn.__name__
-
-    @property
-    def _lazy_property(self):
-        if not hasattr(self, attr):
-            filename = self.folder_name + '/' + fn.__name__ + '.npy'
-            try:
-                loaded_attr = np.load (filename)
-            except FileNotFoundError:
-                print(filename, 'not found, calculating', fn.__name__)
-                loaded_attr = fn(self)
-                np.save (filename, loaded_attr)
-            else:
-                print('loading', filename)
-            setattr(self, attr, loaded_attr)
-        return getattr(self, attr)
-    return _lazy_property
 
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
