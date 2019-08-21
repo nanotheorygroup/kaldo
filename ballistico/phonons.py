@@ -213,15 +213,22 @@ def lazy_property(fn):
     @property
     def _lazy_property(self):
         if not hasattr(self, attr):
-            setattr(self, attr, fn(self))
+            filename = self.folder_name + '/' + fn.__name__ + '.npy'
+            try:
+                loaded_attr = np.load (filename)
+            except FileNotFoundError:
+                print(filename, 'not found, calculating', fn.__name__)
+                loaded_attr = fn(self)
+                np.save (filename, loaded_attr)
+            else:
+                print('loading', filename)
+            setattr(self, attr, loaded_attr)
         return getattr(self, attr)
-
     return _lazy_property
 
 
 class Phonons (object):
-    def __init__(self, finite_difference, folder=FOLDER_NAME, kpts = (1, 1, 1), is_classic = False, temperature
-    = 300, sigma_in=None, frequency_threshold=FREQUENCY_THRESHOLD, broadening_shape='gauss'):
+    def __init__(self, finite_difference, is_classic, temperature, folder=FOLDER_NAME, kpts = (1, 1, 1), sigma_in=None, frequency_threshold=FREQUENCY_THRESHOLD, broadening_shape='gauss'):
         self.finite_difference = finite_difference
         self.atoms = finite_difference.atoms
         self.supercell = np.array (finite_difference.supercell)
