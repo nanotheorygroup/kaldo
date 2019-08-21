@@ -6,7 +6,6 @@ import ase.units as units
 from .harmoniccontroller import HarmonicController
 from .anharmoniccontroller import AnharmonicController
 from .conductivitycontroller import ConductivityController
-from .helper import lazy_property
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -41,7 +40,6 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = temperature
 
-        self._dos = None
         self._occupations = None
         self._full_scattering_plus = None
         self._full_scattering_minus = None
@@ -73,13 +71,13 @@ class Phonons:
         self._gamma = None
         self._gamma_tensor = None
         self._harmonic_controller = HarmonicController(self)
+        self._anharmonic_controller = AnharmonicController(self)
 
 
-    @lazy_property
+
+    @property
     def k_points(self):
-        k_points =  self.calculate_k_points()
-        return k_points
-
+        return self._harmonic_controller.k_points
 
     @property
     def dynmat(self):
@@ -210,7 +208,7 @@ class Phonons:
                 self._gamma = np.load (folder + GAMMA_FILE)
             except FileNotFoundError as e:
                 print(e)
-                AnharmonicController(self).calculate_gamma(is_gamma_tensor_enabled=False)
+                self._anharmonic_controller.calculate_gamma(is_gamma_tensor_enabled=False)
         return self._gamma
 
     @gamma.setter
@@ -233,7 +231,7 @@ class Phonons:
                 self._ps = np.load (folder + PS_FILE)
             except FileNotFoundError as e:
                 print(e)
-                AnharmonicController(self).calculate_gamma(is_gamma_tensor_enabled=False)
+                self._anharmonic_controller.calculate_gamma(is_gamma_tensor_enabled=False)
         return self._ps
 
     @ps.setter
@@ -246,7 +244,7 @@ class Phonons:
     @property
     def gamma_tensor(self):
         if self._gamma_tensor is None:
-            AnharmonicController(self).calculate_gamma(is_gamma_tensor_enabled=True)
+            self._anharmonic_controller.calculate_gamma(is_gamma_tensor_enabled=True)
         return  self._gamma_tensor
 
 
@@ -257,15 +255,6 @@ class Phonons:
         sxij = sxij - np.round(sxij)
         dxij = sxij.dot(cell)
         return dxij
-
-
-    def calculate_k_points(self):
-        k_size = self.kpts
-        n_k_points = np.prod (k_size)
-        k_points = np.zeros ((n_k_points, 3))
-        for index_k in range (n_k_points):
-            k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
-        return k_points
 
 
     def calculate_conductivity(self, method='rta', max_n_iterations=None):
