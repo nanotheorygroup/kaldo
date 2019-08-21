@@ -15,16 +15,9 @@ THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
 FREQUENCY_THRESHOLD = 0.001
 
 
-OCCUPATIONS_FILE = 'occupations.npy'
-C_V_FILE = 'c_v.npy'
 FOLDER_NAME = 'output'
 GAMMA_FILE = 'gamma.npy'
 PS_FILE = 'phase_space.npy'
-
-
-
-
-
 
 
 
@@ -40,13 +33,11 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = temperature
 
-        self._occupations = None
         self._full_scattering_plus = None
         self._full_scattering_minus = None
         self._k_points = None
         self.folder_name = folder
         self.sigma_in = sigma_in
-        self._c_v = None
         self.is_able_to_calculate = True
         self.broadening_shape = broadening_shape
 
@@ -107,92 +98,14 @@ class Phonons:
     def dos(self):
         return self._harmonic_controller.dos
 
-
     @property
     def occupations(self):
-        return self._occupations
-
-    @occupations.getter
-    def occupations(self):
-        if self._occupations is None:
-            try:
-                folder = self.folder_name
-                folder += '/' + str(self.temperature) + '/'
-                if self.is_classic:
-                    folder += 'classic/'
-                else:
-                    folder += 'quantum/'
-                self._occupations = np.load (folder + OCCUPATIONS_FILE)
-            except FileNotFoundError as e:
-                print(e)
-        if self._occupations is None:
-            frequencies = self.frequencies
-
-            temp = self.temperature * KELVINTOTHZ
-            density = np.zeros_like(frequencies)
-            physical_modes = frequencies > self.frequency_threshold
-
-            if self.is_classic is False:
-                density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
-            else:
-                density[physical_modes] = temp / frequencies[physical_modes]
-            self.occupations = density
-        return self._occupations
-
-    @occupations.setter
-    def occupations(self, new_occupations):
-        folder = self.folder_name
-        folder += '/' + str(self.temperature) + '/'
-        if self.is_classic:
-            folder += 'classic/'
-        else:
-            folder += 'quantum/'
-        np.save (folder + OCCUPATIONS_FILE, new_occupations)
-        self._occupations = new_occupations
-
+        return self._anharmonic_controller.occupations
 
     @property
     def c_v(self):
-        return self._c_v
+        return self._anharmonic_controller.c_v
 
-    @c_v.getter
-    def c_v(self):
-        if self._c_v is None:
-            try:
-                folder = self.folder_name
-                folder += '/' + str(self.temperature) + '/'
-                if self.is_classic:
-                    folder += 'classic/'
-                else:
-                    folder += 'quantum/'
-                self._c_v = np.load (folder + C_V_FILE)
-            except FileNotFoundError as e:
-                print(e)
-        if self._c_v is None:
-            frequencies = self.frequencies
-            c_v = np.zeros_like (frequencies)
-            physical_modes = frequencies > self.frequency_threshold
-            temperature = self.temperature * KELVINTOTHZ
-
-            if (self.is_classic):
-                c_v[physical_modes] = KELVINTOJOULE
-            else:
-                f_be = self.occupations
-                c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
-                                      (temperature ** 2)
-            self.c_v = c_v
-        return self._c_v
-
-    @c_v.setter
-    def c_v(self, new_c_v):
-        folder = self.folder_name
-        folder += '/' + str(self.temperature) + '/'
-        if self.is_classic:
-            folder += 'classic/'
-        else:
-            folder += 'quantum/'
-        np.save (folder + C_V_FILE, new_c_v)
-        self._c_v = new_c_v
 
 
     @property

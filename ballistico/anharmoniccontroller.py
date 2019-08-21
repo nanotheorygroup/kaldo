@@ -9,6 +9,11 @@ DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 SCATTERING_MATRIX_FILE = 'scattering_matrix'
+C_V_FILE = 'c_v.npy'
+OCCUPATIONS_FILE = 'occupations.npy'
+
+KELVINTOJOULE = units.kB / units.J
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 
 
 
@@ -134,15 +139,89 @@ def calculate_single_gamma(is_plus, index_k, mu, index_kp_full, frequencies, den
 class AnharmonicController:
     def __init__(self, phonons):
         self.phonons = phonons
+        folder_name = self.phonons.folder_name
+        folder_name += '/' + str(self.phonons.temperature) + '/'
+        if self.phonons.is_classic:
+            folder_name += 'classic/'
+        else:
+            folder_name += 'quantum/'
+        self.folder_name = folder_name
+
+        self._occupations = None
+        self._c_v = None
+
+
+
+
+    @property
+    def occupations(self):
+        return self._occupations
+
+    @occupations.getter
+    def occupations(self):
+        if self._occupations is None:
+            try:
+                self._occupations = np.load (self.folder_name + OCCUPATIONS_FILE)
+            except FileNotFoundError as e:
+                print(e)
+        if self._occupations is None:
+            frequencies = self.frequencies
+
+            temp = self.temperature * KELVINTOTHZ
+            density = np.zeros_like(frequencies)
+            physical_modes = frequencies > self.frequency_threshold
+
+            if self.is_classic is False:
+                density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
+            else:
+                density[physical_modes] = temp / frequencies[physical_modes]
+            self.occupations = density
+        return self._occupations
+
+    @occupations.setter
+    def occupations(self, new_occupations):
+        folder = self.folder_name
+        np.save (folder + OCCUPATIONS_FILE, new_occupations)
+        self._occupations = new_occupations
+
+
+    @property
+    def c_v(self):
+        return self._c_v
+
+    @c_v.getter
+    def c_v(self):
+        if self._c_v is None:
+            try:
+                folder = self.folder_name
+                self._c_v = np.load (folder + C_V_FILE)
+            except FileNotFoundError as e:
+                print(e)
+        if self._c_v is None:
+            frequencies = self.frequencies
+            c_v = np.zeros_like (frequencies)
+            physical_modes = frequencies > self.frequency_threshold
+            temperature = self.temperature * KELVINTOTHZ
+
+            if (self.is_classic):
+                c_v[physical_modes] = KELVINTOJOULE
+            else:
+                f_be = self.occupations
+                c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
+                                      (temperature ** 2)
+            self.c_v = c_v
+        return self._c_v
+
+    @c_v.setter
+    def c_v(self, new_c_v):
+        folder = self.folder_name
+        np.save (folder + C_V_FILE, new_c_v)
+        self._c_v = new_c_v
+
 
     @timeit
     def calculate_gamma(self, is_gamma_tensor_enabled=False):
         folder = self.phonons.folder_name
-        folder += '/' + str(self.phonons.temperature) + '/'
-        if self.phonons.is_classic:
-            folder += 'classic/'
-        else:
-            folder += 'quantum/'
         if self.phonons.sigma_in is not None:
             folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
         n_phonons = self.phonons.n_phonons
