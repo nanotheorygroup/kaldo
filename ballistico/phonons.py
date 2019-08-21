@@ -232,18 +232,10 @@ class Phonons (object):
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = temperature
 
-        self._frequencies = None
-        self._velocities = None
-        self._velocities_AF = None
-        self._eigenvalues = None
-        self._eigenvectors = None
         self._dos = None
         self._occupations = None
         self._full_scattering_plus = None
         self._full_scattering_minus = None
-        self._n_k_points = None
-        self._n_modes = None
-        self._n_phonons = None
         self._k_points = None
         self.folder_name = folder
         self.sigma_in = sigma_in
@@ -272,6 +264,12 @@ class Phonons (object):
         self._gamma = None
         self._gamma_tensor = None
 
+
+    @lazy_property
+    def k_points(self):
+        k_points =  self.calculate_k_points()
+        return k_points
+
     @lazy_property
     def dynmat(self):
         dynmat =  self.calculate_dynamical_matrix()
@@ -279,34 +277,216 @@ class Phonons (object):
 
     @lazy_property
     def frequencies(self):
-        frequencies =  self.calculate_second_k_list('frequencies')
+        frequencies =  self.calculate_second_order_observable('frequencies')
         return frequencies
 
     @lazy_property
     def eigenvalues(self):
-        eigenvalues =  self.calculate_second_k_list('eigenvalues')
+        eigenvalues =  self.calculate_second_order_observable('eigenvalues')
         return eigenvalues
 
     @lazy_property
     def eigenvectors(self):
-        eigenvectors =  self.calculate_second_k_list('eigenvectors')
+        eigenvectors =  self.calculate_second_order_observable('eigenvectors')
         return eigenvectors
 
     @lazy_property
-    def ddyn(self):
-        ddyn =  self.calculate_second_k_list('ddyn')
-        return ddyn
+    def dynmat_derivatives(self):
+        dynmat_derivatives =  self.calculate_second_order_observable('dynmat_derivatives')
+        return dynmat_derivatives
 
     @lazy_property
     def velocities(self):
-        velocities =  self.calculate_second_k_list('velocities')
+        velocities =  self.calculate_second_order_observable('velocities')
         return velocities
 
     @lazy_property
     def velocities_AF(self):
-        velocities_AF =  self.calculate_second_k_list('velocities_AF')
+        velocities_AF =  self.calculate_second_order_observable('velocities_AF')
         return velocities_AF
 
+    @lazy_property
+    def dos(self):
+        dos = calculate_density_of_states(self.frequencies, self.kpts)
+        return dos
+
+
+
+    # @property
+    # def k_points(self):
+    #     return self._k_points
+    #
+    # @k_points.getter
+    # def k_points(self):
+    #     if self._k_points is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._k_points = np.load (folder + K_POINTS_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #     if self._k_points is None:
+    #         k_size = self.kpts
+    #         n_k_points = np.prod (k_size)
+    #         k_points = np.zeros ((n_k_points, 3))
+    #         for index_k in range (n_k_points):
+    #             k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
+    #         self.k_points = k_points
+    #     return self._k_points
+    #
+    # @k_points.setter
+    # def k_points(self, new_k_points):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + K_POINTS_FILE, new_k_points)
+    #     self._k_points = new_k_points
+    #
+
+    # @property
+    # def frequencies(self):
+    #     return self._frequencies
+    #
+    # @frequencies.getter
+    # def frequencies(self):
+    #     if self._frequencies is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._frequencies = np.load (folder + FREQUENCIES_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #             self.calculate_second_k_list()
+    #     return self._frequencies
+    #
+    # @frequencies.setter
+    # def frequencies(self, new_frequencies):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + FREQUENCIES_FILE, new_frequencies)
+    #     self._frequencies = new_frequencies
+    #
+    # @property
+    # def velocities(self):
+    #     return self._velocities
+    #
+    # @velocities.getter
+    # def velocities(self):
+    #     if self._velocities is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._velocities = np.load (folder + VELOCITIES_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #             self.calculate_second_k_list()
+    #
+    #     return self._velocities
+    #
+    # @velocities.setter
+    # def velocities(self, new_velocities):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + VELOCITIES_FILE, new_velocities)
+    #     self._velocities = new_velocities
+    #
+    # @property
+    # def velocities_AF(self):
+    #     return self._velocities_AF
+    #
+    # @velocities_AF.getter
+    # def velocities_AF(self):
+    #     if self._velocities_AF is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._velocities_AF = np.load (folder + VELOCITIES_AF_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #             self.calculate_second_k_list()
+    #
+    #     return self._velocities_AF
+    #
+    # @velocities_AF.setter
+    # def velocities_AF(self, new_velocities_AF):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + VELOCITIES_AF_FILE, new_velocities_AF)
+    #     self._velocities_AF = new_velocities_AF
+    #
+    # @property
+    # def eigenvectors(self):
+    #     return self._eigenvectors
+    #
+    # @eigenvectors.getter
+    # def eigenvectors(self):
+    #     if self._eigenvectors is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._eigenvectors = np.load (folder + EIGENVECTORS_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #             self.calculate_second_k_list()
+    #
+    #     return self._eigenvectors
+    #
+    # @eigenvectors.setter
+    # def eigenvectors(self, new_eigenvectors):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + EIGENVECTORS_FILE, new_eigenvectors)
+    #     self._eigenvectors = new_eigenvectors
+    #
+    #
+    # @property
+    # def eigenvalues(self):
+    #     return self._eigenvalues
+    #
+    # @eigenvalues.getter
+    # def eigenvalues(self):
+    #     if self._eigenvalues is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._eigenvalues = np.load (folder + EIGENVALUES_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #             self.calculate_second_k_list()
+    #     return self._eigenvalues
+    #
+    # @eigenvalues.setter
+    # def eigenvalues(self, new_eigenvalues):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + EIGENVALUES_FILE, new_eigenvalues)
+    #     self._eigenvalues = new_eigenvalues
+    #
+    # @property
+    # def dos(self):
+    #     return self._dos
+    #
+    # @dos.getter
+    # def dos(self):
+    #     if self._dos is None:
+    #         try:
+    #             folder = self.folder_name
+    #             folder += '/'
+    #             self._dos = np.load (folder + DOS_FILE)
+    #         except FileNotFoundError as e:
+    #             print(e)
+    #             dos = calculate_density_of_states(
+    #                 self.frequencies,
+    #                 self.kpts
+    #             )
+    #             self.dos = dos
+    #     return self._dos
+    #
+    # @dos.setter
+    # def dos(self, new_dos):
+    #     folder = self.folder_name
+    #     folder += '/'
+    #     np.save (folder + DOS_FILE, new_dos)
+    #     self._dos = new_dos
 
     @property
     def gamma(self):
@@ -360,32 +540,6 @@ class Phonons (object):
             self.calculate_gamma(is_gamma_tensor_enabled=True)
         return  self._gamma_tensor
 
-    @property
-    def dos(self):
-        return self._dos
-
-    @dos.getter
-    def dos(self):
-        if self._dos is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._dos = np.load (folder + DOS_FILE)
-            except FileNotFoundError as e:
-                print(e)
-                dos = calculate_density_of_states(
-                    self.frequencies,
-                    self.kpts
-                )
-                self.dos = dos
-        return self._dos
-
-    @dos.setter
-    def dos(self, new_dos):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + DOS_FILE, new_dos)
-        self._dos = new_dos
 
     @property
     def occupations(self):
@@ -429,34 +583,6 @@ class Phonons (object):
         np.save (folder + OCCUPATIONS_FILE, new_occupations)
         self._occupations = new_occupations
 
-    @property
-    def k_points(self):
-        return self._k_points
-
-    @k_points.getter
-    def k_points(self):
-        if self._k_points is None:
-            try:
-                folder = self.folder_name
-                folder += '/'
-                self._k_points = np.load (folder + K_POINTS_FILE)
-            except FileNotFoundError as e:
-                print(e)
-        if self._k_points is None:
-            k_size = self.kpts
-            n_k_points = np.prod (k_size)
-            k_points = np.zeros ((n_k_points, 3))
-            for index_k in range (n_k_points):
-                k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
-            self.k_points = k_points
-        return self._k_points
-
-    @k_points.setter
-    def k_points(self, new_k_points):
-        folder = self.folder_name
-        folder += '/'
-        np.save (folder + K_POINTS_FILE, new_k_points)
-        self._k_points = new_k_points
 
     @property
     def c_v(self):
@@ -501,6 +627,14 @@ class Phonons (object):
         np.save (folder + C_V_FILE, new_c_v)
         self._c_v = new_c_v
 
+    def calculate_k_points(self):
+        k_size = self.kpts
+        n_k_points = np.prod (k_size)
+        k_points = np.zeros ((n_k_points, 3))
+        for index_k in range (n_k_points):
+            k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
+        return k_points
+
     def calculate_dynamical_matrix(self):
         atoms = self.atoms
         second_order = self.finite_difference.second_order.copy()
@@ -521,7 +655,7 @@ class Phonons (object):
         dynmat *= EVTOTENJOVERMOL
         return dynmat
 
-    def calculate_second_k_list(self, operator, k_list=None):
+    def calculate_second_order_observable(self, observable, k_list=None):
         if k_list is not None:
             k_points = k_list
         else:
@@ -529,22 +663,22 @@ class Phonons (object):
         atoms = self.atoms
         n_unit_cell = atoms.positions.shape[0]
         n_k_points = k_points.shape[0]
-        if operator == 'frequencies':
+        if observable == 'frequencies':
             tensor = np.zeros((n_k_points, n_unit_cell * 3))
             function = self.calculate_frequencies_for_k
-        elif operator == 'eigenvalues':
+        elif observable == 'eigenvalues':
             tensor = np.zeros((n_k_points, n_unit_cell * 3))
             function = self.calculate_eigenvalues_for_k
-        elif operator == 'eigenvectors':
+        elif observable == 'eigenvectors':
             tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
             function = self.calculate_eigenvectors_for_k
-        elif operator == 'ddyn':
+        elif observable == 'dynmat_derivatives':
             tensor = np.zeros((n_k_points, n_unit_cell * 3,  n_unit_cell * 3, 3)).astype(np.complex)
-            function = self.calculate_ddyn_for_k
-        elif operator == 'velocities_AF':
+            function = self.calculate_dynmat_derivatives_for_k
+        elif observable == 'velocities_AF':
             tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
             function = self.calculate_velocities_AF_for_k
-        elif operator == 'velocities':
+        elif observable == 'velocities':
             tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
             function = self.calculate_velocities_for_k
         else:
@@ -586,7 +720,7 @@ class Phonons (object):
             _, evects = np.linalg.eigh(dyn_s)
             return evects
 
-    def calculate_ddyn_for_k(self, qvec):
+    def calculate_dynmat_derivatives_for_k(self, qvec):
         dynmat = self.dynmat
         atoms = self.atoms
         geometry = atoms.positions
@@ -601,14 +735,14 @@ class Phonons (object):
         dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
-            ddyn = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
+            dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:
             chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
             dxij = apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
-            ddyn = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
-        ddyn = ddyn.reshape((n_phonons, n_phonons, 3), order='C')
-        return ddyn
+            dynmat_derivatives = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+        dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
+        return dynmat_derivatives
 
     def calculate_frequencies_for_k(self, qvec):
         rescaled_qvec = qvec * self.kpts
@@ -624,17 +758,17 @@ class Phonons (object):
         rescaled_qvec = qvec * self.kpts
         if (np.round(rescaled_qvec) == qvec * self.kpts).all():
             k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
-            ddyn = self.ddyn[k_index]
+            dynmat_derivatives = self.dynmat_derivatives[k_index]
             frequencies = self.frequencies[k_index]
             eigenvects = self.eigenvectors[k_index]
         else:
-            ddyn = self.calculate_ddyn_for_k(qvec)
+            dynmat_derivatives = self.calculate_dynmat_derivatives_for_k(qvec)
             frequencies = self.calculate_frequencies_for_k(qvec)
             eigenvects = self.calculate_eigenvectors_for_k(qvec)
 
         frequencies_threshold = self.frequency_threshold
         condition = frequencies > frequencies_threshold
-        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), ddyn, eigenvects[:, :])
+        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
         velocities_AF = contract('mna,mn->mna', velocities_AF,
                                           1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
         velocities_AF[np.invert(condition), :, :] = 0
