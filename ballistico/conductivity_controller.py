@@ -4,7 +4,7 @@ MAX_ITERATIONS_SC = 500
 
 
 
-class ConductivityController(object):
+class ConductivityController:
     def __init__(self, phonons):
         self.phonons = phonons
 

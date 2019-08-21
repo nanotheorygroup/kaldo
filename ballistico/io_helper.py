@@ -369,7 +369,7 @@ def read_velocity_data(phonons):
     return velocities
 
 
-def read_conductivity(converged=True):
+def read_conductivity(phonons, converged=True):
     folder = phonons.folder_name
     if converged:
         conduct_file = '/BTE.KappaTensorVsT_CONV'
@@ -384,7 +384,7 @@ def read_conductivity(converged=True):
         conductivity_array = np.delete (conductivity_array, -1)
 
     conductivity = conductivity_array.reshape (3, 3)
-    return conductivity
+    return conductivity, n_steps
 
 
 def import_scattering_matrix(phonons):
