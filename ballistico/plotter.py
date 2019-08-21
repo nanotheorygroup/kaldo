@@ -82,7 +82,7 @@ class Plotter (object):
         if self.is_showing:
             plt.show()
 
-    def plot_dispersion(self, symmetry=None, n_k_points=100):
+    def plot_dispersion(self, symmetry=None, n_k_points=200):
         #TODO: remove useless symmetry flag
         atoms = self.phonons.atoms
         reference_distance = 4/n_k_points
