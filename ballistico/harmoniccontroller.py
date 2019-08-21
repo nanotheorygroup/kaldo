@@ -33,10 +33,6 @@ class HarmonicController:
         self.phonons = phonons
         self.folder_name = self.phonons.folder_name
 
-
-
-
-
     @lazy_property
     def k_points(self):
         k_points =  self.calculate_k_points()
