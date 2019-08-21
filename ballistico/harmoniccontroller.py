@@ -1,4 +1,3 @@
-from .helper import lazy_property
 from opt_einsum import contract
 import numpy as np
 import ase.units as units
@@ -6,6 +5,26 @@ import ase.units as units
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
+
+
+def lazy_property(fn):
+    attr = '_lazy__' + fn.__name__
+
+    @property
+    def _lazy_property(self):
+        if not hasattr(self, attr):
+            filename = self.folder_name + '/' + fn.__name__ + '.npy'
+            try:
+                loaded_attr = np.load (filename)
+            except FileNotFoundError:
+                print(filename, 'not found, calculating', fn.__name__)
+                loaded_attr = fn(self)
+                np.save (filename, loaded_attr)
+            else:
+                print('loading', filename)
+            setattr(self, attr, loaded_attr)
+        return getattr(self, attr)
+    return _lazy_property
 
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
@@ -35,6 +54,12 @@ class HarmonicController:
 
 
 
+
+
+    @lazy_property
+    def k_points(self):
+        k_points =  self.calculate_k_points()
+        return k_points
 
     @lazy_property
     def dynmat(self):
@@ -76,6 +101,14 @@ class HarmonicController:
         dos = calculate_density_of_states(self.frequencies, self.kpts)
         return dos
 
+
+    def calculate_k_points(self):
+        k_size = self.phonons.kpts
+        n_k_points = np.prod (k_size)
+        k_points = np.zeros ((n_k_points, 3))
+        for index_k in range (n_k_points):
+            k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
+        return k_points
 
     def calculate_dynamical_matrix(self):
         atoms = self.phonons.atoms
