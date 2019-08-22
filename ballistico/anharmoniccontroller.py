@@ -129,7 +129,7 @@ def calculate_single_gamma(is_plus, index_k, mu, index_kp_full, frequencies, den
         gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
         pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
 
-        return index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta
+        return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
 
 
 
@@ -160,7 +160,6 @@ class AnharmonicController:
     def c_v(self):
         c_v =  self.calculate_c_v()
         return c_v
-
 
     @property
     def gamma(self):
@@ -242,177 +241,188 @@ class AnharmonicController:
         return c_v
 
 
-    @timeit
     def calculate_gamma(self, is_gamma_tensor_enabled=False):
-        folder = self.phonons.folder_name
-        if self.phonons.sigma_in is not None:
-            folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
+        n_particles = self.phonons.atoms.positions.shape[0]
+        n_modes = n_particles * 3
+        k_size = self.phonons.kpts
+        nptk = np.prod(k_size)
+
         n_phonons = self.phonons.n_phonons
-        is_plus_label = ['_0', '_1']
         self._gamma = np.zeros(n_phonons)
         self._ps = np.zeros(n_phonons)
         if is_gamma_tensor_enabled:
             self._gamma_tensor = np.zeros((n_phonons, n_phonons))
-        for is_plus in [1, 0]:
-            read_nu = -1
-            file = None
-            progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
-            try:
-                file = open(progress_filename, 'r+')
-            except FileNotFoundError as err:
-                print(err)
-            else:
-                for line in file:
-                    read_nu, read_nup, read_nupp, value, value_ps = np.fromstring(line, dtype=np.float, sep=' ')
-                    read_nu = int(read_nu)
-                    read_nup = int(read_nup)
-                    read_nupp = int(read_nupp)
-                    self._gamma[read_nu] += value
-                    self._ps[read_nu] += value_ps
-                    if is_gamma_tensor_enabled:
-                        if is_plus:
-                            self.gamma_tensor[read_nu, read_nup] -= value
-                            self.gamma_tensor[read_nu, read_nupp] += value
-                        else:
-                            self.gamma_tensor[read_nu, read_nup] += value
-                            self.gamma_tensor[read_nu, read_nupp] += value
 
-            atoms = self.phonons.atoms
-            frequencies = self.phonons.frequencies
-            velocities = self.phonons.velocities
-            density = self.phonons.occupations
-            k_size = self.phonons.kpts
-            eigenvectors = self.phonons.eigenvectors
-            list_of_replicas = self.phonons.list_of_replicas
-            third_order = self.phonons.finite_difference.third_order
-            sigma_in = self.phonons.sigma_in
-            broadening = self.phonons.broadening_shape
-            frequencies_threshold = self.phonons.frequency_threshold
-            omegas = 2 * np.pi * frequencies
+        for is_plus in (1, 0):
+            gamma_data = self.calculate_gamma_sparse(is_plus, is_gamma_tensor_enabled)
+            index_k, mu, index_kp, mup, index_kpp, mupp, pot_times_dirac, dirac = gamma_data
 
-            nptk = np.prod(k_size)
-            n_particles = atoms.positions.shape[0]
+            nu_vec = np.ravel_multi_index(np.array([index_k, mu], dtype=int),
+                                           np.array([nptk, n_modes]), order='C')
+            nup_vec = np.ravel_multi_index(np.array([index_kp, mup], dtype=int),
+                                           np.array([nptk, n_modes]), order='C')
+            nupp_vec = np.ravel_multi_index(np.array([index_kpp, mupp], dtype=int),
+                                            np.array([nptk, n_modes]), order='C')
+            for i in range(gamma_data.shape[1]):
+                nu = nu_vec[i]
+                nup = nup_vec[i]
+                nupp = nupp_vec[i]
+                self._gamma[nu] += pot_times_dirac[i]
+                self._ps[nu] += dirac[i]
+                if is_gamma_tensor_enabled:
+                    if is_plus:
+                        self.gamma_tensor[nu, nup] -= pot_times_dirac[i]
+                        self.gamma_tensor[nu, nupp] += pot_times_dirac[i]
+                    else:
+                        self.gamma_tensor[nu, nup] += pot_times_dirac[i]
+                        self.gamma_tensor[nu, nupp] += pot_times_dirac[i]
 
-            print('Lifetime calculation')
 
-            # TODO: We should write this in a better way
-            if list_of_replicas.shape == (3,):
-                n_replicas = 1
-            else:
-                n_replicas = list_of_replicas.shape[0]
+    @timeit
+    def calculate_gamma_sparse(self, is_plus, is_gamma_tensor_enabled=False):
 
+        folder = self.phonons.folder_name
+        if self.phonons.sigma_in is not None:
+            folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
+        is_plus_label = ['_0', '_1']
+        file = None
+        progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
+        gamma_data = None
+        try:
+            file = open(progress_filename, 'r+')
+        except FileNotFoundError:
+            print('No gamma partial file found. Calculating')
+        else:
+            gamma_data = np.loadtxt(file)
+        atoms = self.phonons.atoms
+        frequencies = self.phonons.frequencies
+        velocities = self.phonons.velocities
+        density = self.phonons.occupations
+        k_size = self.phonons.kpts
+        nptk = np.prod(k_size)
+        eigenvectors = self.phonons.eigenvectors
+        list_of_replicas = self.phonons.list_of_replicas
+        third_order = self.phonons.finite_difference.third_order
+        sigma_in = self.phonons.sigma_in
+        broadening = self.phonons.broadening_shape
+        frequencies_threshold = self.phonons.frequency_threshold
+        omegas = 2 * np.pi * frequencies
+
+        n_particles = atoms.positions.shape[0]
+
+        print('Lifetime calculation')
+
+        # TODO: We should write this in a better way
+        if list_of_replicas.shape == (3,):
+            n_replicas = 1
+        else:
+            n_replicas = list_of_replicas.shape[0]
+
+        cell_inv = np.linalg.inv(atoms.cell)
+
+        is_amorphous = (k_size == (1, 1, 1)).all()
+
+        if is_amorphous:
+            chi = 1
+        else:
+            rlattvec = cell_inv * 2 * np.pi
             cell_inv = np.linalg.inv(atoms.cell)
+            replicated_cell = self.phonons.finite_difference.replicated_atoms.cell
+            replicated_cell_inv = np.linalg.inv(replicated_cell)
+            chi = np.zeros((nptk, n_replicas), dtype=np.complex)
+            dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
 
-            is_amorphous = (k_size == (1, 1, 1)).all()
+            for index_k in range(np.prod(k_size)):
+                i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
+                k_point = i_k / k_size
+                realq = np.matmul(rlattvec, k_point)
+                chi[index_k] = np.exp(1j * dxij.dot(realq))
 
-            if is_amorphous:
-                chi = 1
+        print('Projection started')
+        n_modes = n_particles * 3
+        nptk = np.prod(k_size)
+        masses = atoms.get_masses()
+        rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
+            masses[np.newaxis, :, np.newaxis, np.newaxis])
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
+
+        index_kp_vec = np.arange(np.prod(k_size))
+        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
+
+        if gamma_data is not None:
+            initial_k = int(gamma_data[-1, 0])
+            initial_mu = int(gamma_data[-1, 1])
+            if initial_mu == n_modes - 1:
+                initial_k += 1
             else:
-                rlattvec = cell_inv * 2 * np.pi
-                cell_inv = np.linalg.inv(atoms.cell)
-                replicated_cell = self.phonons.finite_difference.replicated_atoms.cell
-                replicated_cell_inv = np.linalg.inv(replicated_cell)
-                chi = np.zeros((nptk, n_replicas), dtype=np.complex)
-                dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+                initial_mu += 1
+        else:
+            initial_k = 0
+            initial_mu = 0
 
-                for index_k in range(np.prod(k_size)):
-                    i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
-                    k_point = i_k / k_size
-                    realq = np.matmul(rlattvec, k_point)
-                    chi[index_k] = np.exp(1j * dxij.dot(realq))
+        for index_k in range(initial_k, nptk):
 
-            print('Projection started')
-            n_modes = n_particles * 3
-            nptk = np.prod(k_size)
-            masses = atoms.get_masses()
-            rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
-                masses[np.newaxis, :, np.newaxis, np.newaxis])
-            rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
-            rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
-
-            index_kp_vec = np.arange(np.prod(k_size))
-            i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
-
-            # TODO: find a way to use initial_mu correctly, when restarting
-            read_nu += 1
-            if (read_nu < nptk * n_modes):
-                initial_k, initial_mu = np.unravel_index(read_nu, (nptk, n_modes))
-
-                for index_k in range(initial_k, nptk):
-
-                    i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
+            i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
 
 
-                    i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-                    index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
+            i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
+            index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
 
-                    if is_plus:
-                        first_evect = rescaled_eigenvectors.reshape((nptk, n_modes, n_modes))
-                    else:
-                        first_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))
-                    second_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))[index_kpp_vec]
+            if is_plus:
+                first_evect = rescaled_eigenvectors.reshape((nptk, n_modes, n_modes))
+            else:
+                first_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))
+            second_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))[index_kpp_vec]
 
-                    if is_plus:
-                        first_chi = chi
-                    else:
-                        first_chi = chi.conj()
-                    second_chi = chi.conj()[index_kpp_vec]
+            if is_plus:
+                first_chi = chi
+            else:
+                first_chi = chi.conj()
+            second_chi = chi.conj()[index_kpp_vec]
 
-                    if broadening == 'gauss':
-                        broadening_function = gaussian_delta
-                    elif broadening == 'lorentz':
-                        broadening_function = lorentzian_delta
-                    elif broadening == 'triangle':
-                        broadening_function = triangular_delta
+            if broadening == 'gauss':
+                broadening_function = gaussian_delta
+            elif broadening == 'lorentz':
+                broadening_function = lorentzian_delta
+            elif broadening == 'triangle':
+                broadening_function = triangular_delta
 
-                    if sigma_in is None:
-                        sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
-                                                               velocities[index_kpp_vec, np.newaxis, :, :], cell_inv,
-                                                               k_size)
-                        sigma_small = sigma_tensor_np
-                    else:
-                        sigma_small = sigma_in
+            if sigma_in is None:
+                sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
+                                                       velocities[index_kpp_vec, np.newaxis, :, :], cell_inv,
+                                                       k_size)
+                sigma_small = sigma_tensor_np
+            else:
+                sigma_small = sigma_in
 
 
-                    for mu in range(n_modes):
-                        if index_k == initial_k and mu < initial_mu:
-                            break
+            for mu in range(n_modes):
+                if index_k == initial_k and mu < initial_mu:
+                    break
 
-                        nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                        if not file:
-                            file = open(progress_filename, 'a+')
-                        if frequencies[index_k, mu] > frequencies_threshold:
+                nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                if not file:
+                    file = open(progress_filename, 'a+')
+                if frequencies[index_k, mu] > frequencies_threshold:
 
-                            scaled_potential = sparse.tensordot(third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
-                            scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
-                                                                        order='C')
+                    scaled_potential = sparse.tensordot(third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
+                    scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
+                                                                order='C')
 
-                            gamma_out = calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, frequencies, density, nptk,
-                                                               first_evect, second_evect, first_chi, second_chi,
-                                                               scaled_potential, sigma_small, frequencies_threshold, omegas, index_kpp_vec, sigma_small, broadening_function)
+                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, frequencies, density, nptk,
+                                                       first_evect, second_evect, first_chi, second_chi,
+                                                       scaled_potential, sigma_small, frequencies_threshold, omegas, index_kpp_vec, sigma_small, broadening_function)
 
-                            if gamma_out:
-                                index_kp_out, mup_out, index_kpp_out, mupp_out, pot_times_dirac, dirac = gamma_out
-                                nup_vec = np.ravel_multi_index(np.array([index_kp_out, mup_out]),
-                                                               np.array([nptk, n_modes]), order='C')
-                                nupp_vec = np.ravel_multi_index(np.array([index_kpp_out, mupp_out]),
-                                                                np.array([nptk, n_modes]), order='C')
+                    if gamma_out is not None:
 
-                                self._gamma[nu_single] += pot_times_dirac.sum()
-                                self._ps[nu_single] += dirac.sum()
-
-                                for nup_index in range(nup_vec.shape[0]):
-                                    nup = nup_vec[nup_index]
-                                    nupp = nupp_vec[nup_index]
-                                    if is_gamma_tensor_enabled:
-                                        if is_plus:
-                                            self._gamma_tensor[nu_single, nup] -= pot_times_dirac[nup_index]
-                                            self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-                                        else:
-                                            self._gamma_tensor[nu_single, nup] += pot_times_dirac[nup_index]
-                                            self._gamma_tensor[nu_single, nupp] += pot_times_dirac[nup_index]
-
-                                nu_vec = np.ones(nup_vec.shape[0]).astype(int) * nu_single
-                                np.savetxt(file, np.vstack([nu_vec, nup_vec, nupp_vec, pot_times_dirac, dirac]).T, fmt='%i %i %i %.8e %.8e')
-                file.close()
+                        k_vec = np.ones(gamma_out.shape[0]).astype(int) * index_k
+                        mu_vec = np.ones(gamma_out.shape[0]).astype(int) * mu
+                        gamma_data_to_append = np.vstack([k_vec, mu_vec, gamma_out.T]).T
+                        if gamma_data is None:
+                            gamma_data = gamma_data_to_append
+                        else:
+                            gamma_data = np.append(gamma_data, gamma_data_to_append, axis=0)
+                        np.savetxt(file, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
+        return gamma_data.T
 
