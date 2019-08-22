@@ -5,6 +5,7 @@ from opt_einsum import contract_expression
 import ase.units as units
 from .helper import timeit
 from .helper import lazy_property
+import os
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
@@ -161,6 +162,16 @@ class AnharmonicController:
         c_v =  self.calculate_c_v()
         return c_v
 
+    @lazy_property
+    def gamma_sparse_plus(self):
+        gamma_data =  self.calculate_gamma_sparse(is_plus=True)
+        return gamma_data
+
+    @lazy_property
+    def gamma_sparse_minus(self):
+        gamma_data =  self.calculate_gamma_sparse(is_plus=False)
+        return gamma_data
+
     @property
     def gamma(self):
         return self._gamma
@@ -249,13 +260,15 @@ class AnharmonicController:
 
         n_phonons = self.phonons.n_phonons
         self._gamma = np.zeros(n_phonons)
-        self._gamma_tensor = np.zeros((n_phonons, n_phonons))
         self._ps = np.zeros(n_phonons)
         if is_gamma_tensor_enabled:
             self._gamma_tensor = np.zeros((n_phonons, n_phonons))
 
         for is_plus in (1, 0):
-            gamma_data = self.calculate_gamma_sparse(is_plus, is_gamma_tensor_enabled)
+            if is_plus:
+                gamma_data = self.gamma_sparse_plus
+            else:
+                gamma_data = self.gamma_sparse_minus
             index_k, mu, index_kp, mup, index_kpp, mupp, pot_times_dirac, dirac = gamma_data
 
             nu_vec = np.ravel_multi_index(np.array([index_k, mu], dtype=int),
@@ -268,30 +281,28 @@ class AnharmonicController:
             ps_sparse = sparse.COO([nu_vec, nup_vec, nupp_vec], dirac, (n_phonons, n_phonons, n_phonons))
             self._gamma += gamma_sparse.sum(axis=2).sum(axis=1).todense()
             self._ps += ps_sparse.sum(axis=2).sum(axis=1).todense()
-            if is_plus:
-                self._gamma_tensor -= gamma_sparse.sum(axis=2).todense()
-                self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
-            else:
-                self._gamma_tensor += gamma_sparse.sum(axis=2).todense()
-                self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
+            if is_gamma_tensor_enabled:
+                if is_plus:
+                    self._gamma_tensor -= gamma_sparse.sum(axis=2).todense()
+                    self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
+                else:
+                    self._gamma_tensor += gamma_sparse.sum(axis=2).todense()
+                    self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
 
 
     @timeit
-    def calculate_gamma_sparse(self, is_plus, is_gamma_tensor_enabled=False):
+    def calculate_gamma_sparse(self, is_plus):
 
         folder = self.phonons.folder_name
         if self.phonons.sigma_in is not None:
             folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
         is_plus_label = ['_0', '_1']
-        file = None
         progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
         gamma_data = None
         try:
-            file = open(progress_filename, 'r+')
-        except FileNotFoundError:
+            gamma_data = np.loadtxt(progress_filename)
+        except IOError:
             print('No gamma partial file found. Calculating')
-        else:
-            gamma_data = np.loadtxt(file)
         atoms = self.phonons.atoms
         frequencies = self.phonons.frequencies
         velocities = self.phonons.velocities
@@ -400,8 +411,6 @@ class AnharmonicController:
                     break
 
                 nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                if not file:
-                    file = open(progress_filename, 'a+')
                 if frequencies[index_k, mu] > frequencies_threshold:
 
                     scaled_potential = sparse.tensordot(third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
@@ -421,6 +430,7 @@ class AnharmonicController:
                             gamma_data = gamma_data_to_append
                         else:
                             gamma_data = np.append(gamma_data, gamma_data_to_append, axis=0)
-                        np.savetxt(file, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
+                        np.savetxt(progress_filename, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
+        os.remove(progress_filename)
         return gamma_data.T
 
