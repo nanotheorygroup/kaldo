@@ -49,13 +49,18 @@ class HarmonicController:
         return frequencies
 
     @lazy_property
+    def eigensystem(self):
+        eigensystem =  self.calculate_eigensystem()
+        return eigensystem
+
+    @property
     def eigenvalues(self):
-        eigenvalues =  self.calculate_second_order_observable('eigenvalues')
+        eigenvalues = self.eigensystem[:, :, -1]
         return eigenvalues
 
-    @lazy_property
+    @property
     def eigenvectors(self):
-        eigenvectors =  self.calculate_second_order_observable('eigenvectors')
+        eigenvectors = self.eigensystem[:, :, :-1]
         return eigenvectors
 
     @lazy_property
@@ -107,6 +112,21 @@ class HarmonicController:
         dynmat *= EVTOTENJOVERMOL
         return dynmat
 
+    def calculate_eigensystem(self, k_list=None):
+        if k_list is not None:
+            k_points = k_list
+        else:
+            k_points = self.phonons.k_points
+        atoms = self.phonons.atoms
+        n_unit_cell = atoms.positions.shape[0]
+        n_k_points = k_points.shape[0]
+
+        # Here we store the eigenvalues in the last column
+        eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)).astype(np.complex)
+        for index_k in range(n_k_points):
+            eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = self.calculate_eigensystem_for_k(k_points[index_k])
+        return eigensystem
+
 
     def calculate_second_order_observable(self, observable, k_list=None):
         if k_list is not None:
@@ -119,12 +139,6 @@ class HarmonicController:
         if observable == 'frequencies':
             tensor = np.zeros((n_k_points, n_unit_cell * 3))
             function = self.calculate_frequencies_for_k
-        elif observable == 'eigenvalues':
-            tensor = np.zeros((n_k_points, n_unit_cell * 3))
-            function = self.calculate_eigenvalues_for_k
-        elif observable == 'eigenvectors':
-            tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3)).astype(np.complex)
-            function = self.calculate_eigenvectors_for_k
         elif observable == 'dynmat_derivatives':
             tensor = np.zeros((n_k_points, n_unit_cell * 3,  n_unit_cell * 3, 3)).astype(np.complex)
             function = self.calculate_dynmat_derivatives_for_k
@@ -136,18 +150,12 @@ class HarmonicController:
             function = self.calculate_velocities_for_k
         else:
             raise TypeError('Operator not recognized')
-
         for index_k in range(n_k_points):
             tensor[index_k] = function(k_points[index_k])
         return tensor
 
-    def calculate_eigenvalues_for_k(self, qvec):
-        return self.calculate_eigensystem_for_k(qvec, only_eigvals=True)
 
-    def calculate_eigenvectors_for_k(self, qvec):
-        return self.calculate_eigensystem_for_k(qvec, only_eigvals=False)
-
-    def calculate_eigensystem_for_k(self, qvec, only_eigvals=False):
+    def calculate_eigensystem_for_k(self, qvec, only_eigenvals=False):
         dynmat = self.dynmat
         atoms = self.phonons.atoms
         geometry = atoms.positions
@@ -165,13 +173,12 @@ class HarmonicController:
             chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
             dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
         dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
-        if only_eigvals:
+        if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
             return evals
         else:
-            # TODO: here we are diagonalizing twice to calculate the same quantity, we'll need to change this
-            _, evects = np.linalg.eigh(dyn_s)
-            return evects
+            evals, evects = np.linalg.eigh(dyn_s)
+            return evals, evects
 
     def calculate_dynmat_derivatives_for_k(self, qvec):
         dynmat = self.dynmat
@@ -203,7 +210,7 @@ class HarmonicController:
             k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.phonons.kpts, order='C')
             eigenvals = self.eigenvalues[k_index]
         else:
-            eigenvals = self.calculate_eigenvalues_for_k(qvec)
+            eigenvals = self.calculate_eigensystem_for_k(qvec, only_eigenvals=True)
         frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequencies
 
@@ -217,7 +224,7 @@ class HarmonicController:
         else:
             dynmat_derivatives = self.calculate_dynmat_derivatives_for_k(qvec)
             frequencies = self.calculate_frequencies_for_k(qvec)
-            eigenvects = self.calculate_eigenvectors_for_k(qvec)
+            _, eigenvects = self.calculate_eigensystem_for_k(qvec)
 
         frequencies_threshold = self.phonons.frequency_threshold
         condition = frequencies > frequencies_threshold
