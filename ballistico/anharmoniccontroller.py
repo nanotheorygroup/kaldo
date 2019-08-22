@@ -333,7 +333,6 @@ class AnharmonicController:
             index_kp_vec = np.arange(np.prod(k_size))
             i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
 
-
             # TODO: find a way to use initial_mu correctly, when restarting
             read_nu += 1
             if (read_nu < nptk * n_modes):
