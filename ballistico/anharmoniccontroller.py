@@ -249,6 +249,7 @@ class AnharmonicController:
 
         n_phonons = self.phonons.n_phonons
         self._gamma = np.zeros(n_phonons)
+        self._gamma_tensor = np.zeros((n_phonons, n_phonons))
         self._ps = np.zeros(n_phonons)
         if is_gamma_tensor_enabled:
             self._gamma_tensor = np.zeros((n_phonons, n_phonons))
@@ -265,40 +266,14 @@ class AnharmonicController:
                                             np.array([nptk, n_modes]), order='C')
             gamma_sparse = sparse.COO([nu_vec, nup_vec, nupp_vec], pot_times_dirac, (n_phonons, n_phonons, n_phonons))
             ps_sparse = sparse.COO([nu_vec, nup_vec, nupp_vec], dirac, (n_phonons, n_phonons, n_phonons))
-            # gamma_sparse = gamma_sparse.todense()
-            # new_sparse = gamma_sparse.reshape((n_phonons, n_phonons ** 2)).tocsc()
-            # new_sparse.sum_duplicates()
-            # self._gamma[:] = new_sparse.sum(axis=1).T
-
-
-            # for i in range(gamma_data.shape[1]):
-            #     self._gamma[nu_vec[i]] += pot_times_dirac[i]
-
-            # for i in range(n_phonons):
-            #     for j in range(n_phonons):
-            #         for k in range(n_phonons):
-            #             self._gamma[i] += gamma_sparse[i,j,k]
-
             self._gamma += gamma_sparse.sum(axis=2).sum(axis=1).todense()
             self._ps += ps_sparse.sum(axis=2).sum(axis=1).todense()
             if is_plus:
-                self.gamma_tensor[:, :] -= gamma_sparse.sum(axis=1).todense()
-                self.gamma_tensor[:, :] += gamma_sparse.sum(axis=2).todense()
+                self._gamma_tensor -= gamma_sparse.sum(axis=2).todense()
+                self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
             else:
-                self.gamma_tensor[:, :] += gamma_sparse.sum(axis=1).todense()
-                self.gamma_tensor[:, :] += gamma_sparse.sum(axis=2).todense()
-            # for i in range(gamma_data.shape[1]):
-            #     if is_gamma_tensor_enabled:
-            #         if is_plus:
-            #             if nu_vec[i] != nup_vec[i]:
-            #                 self.gamma_tensor[nu_vec[i], nup_vec[i]] -= pot_times_dirac[i]
-            #             if nu_vec[i] != nupp_vec[i]:
-            #                 self.gamma_tensor[nu_vec[i], nupp_vec[i]] += pot_times_dirac[i]
-            #         else:
-            #             if nu_vec[i] != nup_vec[i]:
-            #                 self.gamma_tensor[nu_vec[i], nup_vec[i]] += pot_times_dirac[i]
-            #             if nu_vec[i] != nupp_vec[i]:
-            #                 self.gamma_tensor[nu_vec[i], nupp_vec[i]] += pot_times_dirac[i]
+                self._gamma_tensor += gamma_sparse.sum(axis=2).todense()
+                self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
 
 
     @timeit
