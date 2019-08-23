@@ -258,7 +258,6 @@ class AnharmonicController:
             print('No gamma partial file found. Calculating')
 
         n_particles = self.phonons.atoms.positions.shape[0]
-        nptk = int(np.prod(self.phonons.kpts))
 
         print('Lifetime calculation')
 
@@ -274,10 +273,10 @@ class AnharmonicController:
         if is_amorphous:
             chi = 1
         else:
-            chi = np.zeros((nptk, n_replicas), dtype=np.complex)
+            chi = np.zeros((self.phonons.n_k_points, n_replicas), dtype=np.complex)
             dxij = self.phonons.apply_boundary_with_cell(self.phonons.list_of_replicas)
 
-            for index_k in range(nptk):
+            for index_k in range(self.phonons.n_k_points):
                 i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
 
                 #TODO: Is the following division correct? Should we unravel instead
@@ -288,12 +287,12 @@ class AnharmonicController:
         print('Projection started')
         n_modes = n_particles * 3
         masses = self.phonons.atoms.get_masses()
-        rescaled_eigenvectors = self.phonons.eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
+        rescaled_eigenvectors = self.phonons.eigenvectors[:, :, :].reshape((self.phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
-        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_particles * 3, n_modes), order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(self.phonons.n_k_points * n_modes, n_modes, order='C')
 
-        index_kp_vec = np.arange(nptk)
+        index_kp_vec = np.arange(self.phonons.n_k_points)
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, self.phonons.kpts, order='C'))
 
         if gamma_data is not None:
@@ -307,7 +306,7 @@ class AnharmonicController:
             initial_k = 0
             initial_mu = 0
 
-        for index_k in range(initial_k, nptk):
+        for index_k in range(initial_k, self.phonons.n_k_points):
 
             i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
 
@@ -316,10 +315,10 @@ class AnharmonicController:
             index_kpp_vec = np.ravel_multi_index(i_kpp_vec, self.phonons.kpts, order='C', mode='wrap')
 
             if is_plus:
-                first_evect = rescaled_eigenvectors.reshape((nptk, n_modes, n_modes))
+                first_evect = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_modes, n_modes))
             else:
-                first_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))
-            second_evect = rescaled_eigenvectors.conj().reshape((nptk, n_modes, n_modes))[index_kpp_vec]
+                first_evect = rescaled_eigenvectors.conj().reshape((self.phonons.n_k_points, n_modes, n_modes))
+            second_evect = rescaled_eigenvectors.conj().reshape((self.phonons.n_k_points, n_modes, n_modes))[index_kpp_vec]
 
             if is_plus:
                 first_chi = chi
@@ -337,16 +336,16 @@ class AnharmonicController:
                 if index_k == initial_k and mu < initial_mu:
                     break
 
-                nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
+                nu_single = np.ravel_multi_index([index_k, mu], [self.phonons.n_k_points, n_modes], order='C')
                 if self.phonons.frequencies[index_k, mu] > self.phonons.frequency_threshold:
 
                     scaled_potential = sparse.tensordot(self.phonons.finite_difference.third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
                     scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
                                                                 order='C')
 
-                    gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, nptk,
+                    gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, index_kpp_vec,
                                                             first_evect, second_evect, first_chi, second_chi,
-                                                            scaled_potential, index_kpp_vec, sigma_small)
+                                                            scaled_potential, sigma_small)
 
                     if gamma_out is not None:
 
@@ -362,8 +361,7 @@ class AnharmonicController:
         return gamma_data.T
 
 
-    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, nptk, first_evect, second_evect, first_chi, second_chi, scaled_potential, kpp_mapping, sigma_small):
-
+    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, kpp_mapping, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_small):
         frequencies = self.phonons.frequencies
         density = self.phonons.occupations
         frequencies_threshold = self.phonons.frequency_threshold
@@ -428,7 +426,7 @@ class AnharmonicController:
 
             #TODO: move units conversion somewhere else
             gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
+            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / self.phonons.n_k_points * gammatothz
 
             return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
 
