@@ -18,7 +18,7 @@ PS_FILE = 'phase_space.npy'
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 
-
+ 
 def calculate_broadening(velocity, cellinv, k_size):
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
     delta_k = cellinv / k_size
