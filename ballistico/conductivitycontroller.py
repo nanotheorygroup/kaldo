@@ -50,7 +50,7 @@ class ConductivityController:
         conductivity_per_mode = self.conductivity(lambd)
 
         #TODO: remove this debug info
-        evals = np.linalg.eigvalsh(scattering_inverse)
+        evals = np.linalg.eigvalsh(self.scattering_matrix)
         print('negative eigenvals : ', (evals < 0).sum())
         return conductivity_per_mode
 
