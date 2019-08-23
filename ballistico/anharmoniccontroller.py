@@ -18,7 +18,7 @@ PS_FILE = 'phase_space.npy'
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 
- 
+
 def calculate_broadening(velocity, cellinv, k_size):
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
     delta_k = cellinv / k_size
@@ -72,66 +72,6 @@ def lorentzian_delta(params):
         correction = 1
     lorentzian = 1 / np.pi * 1 / 2 * gamma / (delta_energy ** 2 + (gamma / 2) ** 2)
     return lorentzian / correction
-
-
-def calculate_single_gamma(is_plus, index_k, mu, index_kp_full, frequencies, density, nptk, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_in,
-                           frequencies_threshold, omegas, kpp_mapping, sigma_small, broadening_function):
-    second_sign = (int(is_plus) * 2 - 1)
-
-    omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
-                               omegas[kpp_mapping, np.newaxis, :])
-
-    condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
-                (frequencies[kpp_mapping, np.newaxis, :] > frequencies_threshold)
-    interactions = np.array(np.where(condition)).T
-
-    # TODO: Benchmark something fast like
-    # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-    if interactions.size != 0:
-        # Create sparse index
-        index_kp_vec = interactions[:, 0]
-        index_kpp_vec = kpp_mapping[index_kp_vec]
-        mup_vec = interactions[:, 1]
-        mupp_vec = interactions[:, 2]
-
-
-        if is_plus:
-            dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec, mupp_vec]
-
-        else:
-            dirac_delta = .5 * (1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
-
-        dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
-        if np.array(sigma_small).size == 1:
-
-            dirac_delta *= broadening_function(
-                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small])
-
-        else:
-            dirac_delta *= broadening_function(
-                [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
-                    index_kp_vec, mup_vec, mupp_vec]])
-
-        shapes = []
-        for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
-            shapes.append(tens.shape)
-        expr = contract_expression('litj,kni,kl,kmj,kt->knm', *shapes)
-        scaled_potential = expr(scaled_potential,
-                                first_evect,
-                                first_chi,
-                                second_evect,
-                                second_chi
-                                )
-
-        scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
-        pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-
-        #TODO: move units conversion somewhere else
-        gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-        pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
-
-        return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
 
 
 
@@ -323,61 +263,50 @@ class AnharmonicController:
             gamma_data = np.loadtxt(progress_filename)
         except IOError:
             print('No gamma partial file found. Calculating')
-        atoms = self.phonons.atoms
-        frequencies = self.phonons.frequencies
-        velocities = self.phonons.velocities
-        density = self.phonons.occupations
-        k_size = self.phonons.kpts
-        nptk = np.prod(k_size)
-        eigenvectors = self.phonons.eigenvectors
-        list_of_replicas = self.phonons.list_of_replicas
-        third_order = self.phonons.finite_difference.third_order
-        sigma_in = self.phonons.sigma_in
-        broadening = self.phonons.broadening_shape
-        frequencies_threshold = self.phonons.frequency_threshold
-        omegas = 2 * np.pi * frequencies
 
-        n_particles = atoms.positions.shape[0]
+        n_particles = self.phonons.atoms.positions.shape[0]
+        nptk = np.prod(self.phonons.kpts)
 
         print('Lifetime calculation')
 
         # TODO: We should write this in a better way
-        if list_of_replicas.shape == (3,):
+        if self.phonons.list_of_replicas.shape == (3,):
             n_replicas = 1
         else:
-            n_replicas = list_of_replicas.shape[0]
+            n_replicas = self.phonons.list_of_replicas.shape[0]
 
-        cell_inv = np.linalg.inv(atoms.cell)
+        cell_inv = np.linalg.inv(self.phonons.atoms.cell)
 
-        is_amorphous = (k_size == (1, 1, 1)).all()
+        is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
 
         if is_amorphous:
             chi = 1
         else:
             rlattvec = cell_inv * 2 * np.pi
-            cell_inv = np.linalg.inv(atoms.cell)
+            cell_inv = np.linalg.inv(self.phonons.atoms.cell)
             replicated_cell = self.phonons.finite_difference.replicated_atoms.cell
             replicated_cell_inv = np.linalg.inv(replicated_cell)
             chi = np.zeros((nptk, n_replicas), dtype=np.complex)
-            dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas)
+            dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, self.phonons.list_of_replicas)
 
-            for index_k in range(np.prod(k_size)):
-                i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
-                k_point = i_k / k_size
+            for index_k in range(nptk):
+                i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
+
+                #TODO: Is the following division correct? Should we unravel instead
+                k_point = i_k / self.phonons.kpts
                 realq = np.matmul(rlattvec, k_point)
                 chi[index_k] = np.exp(1j * dxij.dot(realq))
 
         print('Projection started')
         n_modes = n_particles * 3
-        nptk = np.prod(k_size)
-        masses = atoms.get_masses()
-        rescaled_eigenvectors = eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
+        masses = self.phonons.atoms.get_masses()
+        rescaled_eigenvectors = self.phonons.eigenvectors[:, :, :].reshape((nptk, n_particles, 3, n_modes), order='C') / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
         rescaled_eigenvectors = rescaled_eigenvectors.reshape((nptk, n_particles * 3, n_modes), order='C')
         rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(nptk * n_modes, n_modes, order='C')
 
-        index_kp_vec = np.arange(np.prod(k_size))
-        i_kp_vec = np.array(np.unravel_index(index_kp_vec, k_size, order='C'))
+        index_kp_vec = np.arange(nptk)
+        i_kp_vec = np.array(np.unravel_index(index_kp_vec, self.phonons.kpts, order='C'))
 
         if gamma_data is not None:
             initial_k = int(gamma_data[-1, 0])
@@ -392,11 +321,11 @@ class AnharmonicController:
 
         for index_k in range(initial_k, nptk):
 
-            i_k = np.array(np.unravel_index(index_k, k_size, order='C'))
+            i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
 
 
             i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-            index_kpp_vec = np.ravel_multi_index(i_kpp_vec, k_size, order='C', mode='wrap')
+            index_kpp_vec = np.ravel_multi_index(i_kpp_vec, self.phonons.kpts, order='C', mode='wrap')
 
             if is_plus:
                 first_evect = rescaled_eigenvectors.reshape((nptk, n_modes, n_modes))
@@ -410,20 +339,22 @@ class AnharmonicController:
                 first_chi = chi.conj()
             second_chi = chi.conj()[index_kpp_vec]
 
-            if broadening == 'gauss':
+            if self.phonons.broadening_shape == 'gauss':
                 broadening_function = gaussian_delta
-            elif broadening == 'lorentz':
+            elif self.phonons.broadening_shape == 'lorentz':
                 broadening_function = lorentzian_delta
-            elif broadening == 'triangle':
+            elif self.phonons.broadening_shape == 'triangle':
                 broadening_function = triangular_delta
+            else:
+                raise TypeError('Broadening shape not supported')
 
-            if sigma_in is None:
-                sigma_tensor_np = calculate_broadening(velocities[index_kp_vec, :, np.newaxis, :] -
-                                                       velocities[index_kpp_vec, np.newaxis, :, :], cell_inv,
-                                                       k_size)
+            if self.phonons.sigma_in is None:
+                sigma_tensor_np = calculate_broadening(self.phonons.velocities[index_kp_vec, :, np.newaxis, :] -
+                                                       self.phonons.velocities[index_kpp_vec, np.newaxis, :, :], cell_inv,
+                                                       self.phonons.kpts)
                 sigma_small = sigma_tensor_np
             else:
-                sigma_small = sigma_in
+                sigma_small = self.phonons.sigma_in
 
 
             for mu in range(n_modes):
@@ -431,15 +362,14 @@ class AnharmonicController:
                     break
 
                 nu_single = np.ravel_multi_index([index_k, mu], [nptk, n_modes], order='C')
-                if frequencies[index_k, mu] > frequencies_threshold:
+                if self.phonons.frequencies[index_k, mu] > self.phonons.frequency_threshold:
 
-                    scaled_potential = sparse.tensordot(third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
+                    scaled_potential = sparse.tensordot(self.phonons.finite_difference.third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
                     scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
                                                                 order='C')
 
-                    gamma_out = calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, frequencies, density, nptk,
-                                                       first_evect, second_evect, first_chi, second_chi,
-                                                       scaled_potential, sigma_small, frequencies_threshold, omegas, index_kpp_vec, sigma_small, broadening_function)
+                    gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, self.phonons.frequencies, self.phonons.occupations, nptk,
+                                                       first_evect, second_evect, first_chi, second_chi, scaled_potential, self.phonons.frequency_threshold, index_kpp_vec, sigma_small, broadening_function)
 
                     if gamma_out is not None:
 
@@ -453,4 +383,64 @@ class AnharmonicController:
                         np.savetxt(progress_filename, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
         os.remove(progress_filename)
         return gamma_data.T
+
+
+    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, frequencies, density, nptk, first_evect, second_evect, first_chi, second_chi, scaled_potential,
+                               frequencies_threshold, kpp_mapping, sigma_small, broadening_function):
+        second_sign = (int(is_plus) * 2 - 1)
+        omegas = 2 * np.pi * self.phonons.frequencies
+        omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
+                                   omegas[kpp_mapping, np.newaxis, :])
+
+        condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
+                    (frequencies[index_kp_full, :, np.newaxis] > frequencies_threshold) & \
+                    (frequencies[kpp_mapping, np.newaxis, :] > frequencies_threshold)
+        interactions = np.array(np.where(condition)).T
+
+        # TODO: Benchmark something fast like
+        # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+        if interactions.size != 0:
+            # Create sparse index
+            index_kp_vec = interactions[:, 0]
+            index_kpp_vec = kpp_mapping[index_kp_vec]
+            mup_vec = interactions[:, 1]
+            mupp_vec = interactions[:, 2]
+
+
+            if is_plus:
+                dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec, mupp_vec]
+
+            else:
+                dirac_delta = .5 * (1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
+
+            dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
+            if np.array(sigma_small).size == 1:
+
+                dirac_delta *= broadening_function(
+                    [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small])
+
+            else:
+                dirac_delta *= broadening_function(
+                    [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
+                        index_kp_vec, mup_vec, mupp_vec]])
+
+            shapes = []
+            for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
+                shapes.append(tens.shape)
+            expr = contract_expression('litj,kni,kl,kmj,kt->knm', *shapes)
+            scaled_potential = expr(scaled_potential,
+                                    first_evect,
+                                    first_chi,
+                                    second_evect,
+                                    second_chi
+                                    )
+
+            scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
+            pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
+
+            #TODO: move units conversion somewhere else
+            gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
+            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / nptk * gammatothz
+
+            return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
 
