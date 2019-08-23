@@ -24,7 +24,7 @@ class Phonons:
         self.supercell = np.array (finite_difference.supercell)
         self.kpts = np.array (kpts)
         self.is_classic = is_classic
-        self.n_k_points = np.prod (self.kpts)
+        self.n_k_points = int(np.prod (self.kpts))
         self.n_modes = self.atoms.get_masses ().shape[0] * 3
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = temperature
