@@ -29,6 +29,11 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.temperature = temperature
 
+        # TODO: Move cell_inv and replicated_cell_inv to finitedifference
+        self.cell_inv = np.linalg.inv(self.atoms.cell)
+        self.replicated_cell = self.finite_difference.replicated_atoms.cell
+        self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
+
         self._full_scattering_plus = None
         self._full_scattering_minus = None
         self._k_points = None
@@ -112,12 +117,11 @@ class Phonons:
         return self._anharmonic_controller.gamma_tensor
 
 
-    @staticmethod
-    def apply_boundary_with_cell(cell, cellinv, dxij):
+    def apply_boundary_with_cell(self, dxij):
         # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(cellinv)
+        sxij = dxij.dot(self.replicated_cell_inv)
         sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(cell)
+        dxij = sxij.dot(self.replicated_cell)
         return dxij
 
 
