@@ -240,7 +240,8 @@ class AnharmonicController:
                 self.gamma_tensor += gamma_data[2]
 
     @timeit
-    def calculate_gamma_sparse(self, is_plus):
+    def calculate_gamma_sparse(self, is_plus, is_gamma_tensor_enabled):
+
         scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
         gamma_array = np.zeros(self.phonons.n_phonons)
         ps_array = np.zeros(self.phonons.n_phonons)
@@ -407,13 +408,18 @@ class AnharmonicController:
             nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
                                             np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
             gamma_tensor = np.zeros(self.phonons.n_phonons)
-            for i in range(nup_vec.shape[0]):
-                if is_plus:
-                    gamma_tensor[nup_vec[i]] -= pot_times_dirac[i]
-                    gamma_tensor[nupp_vec[i]] += pot_times_dirac[i]
-                else:
-                    gamma_tensor[nup_vec[i]] += pot_times_dirac[i]
-                    gamma_tensor[nupp_vec[i]] += pot_times_dirac[i]
+
+            # We need to use bincount together with fancy indexing here. See:
+            # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
+            if is_plus:
+                result = np.bincount(nup_vec, pot_times_dirac, self.phonons.n_phonons)
+                gamma_tensor -= result
+            else:
+                result = np.bincount(nup_vec, pot_times_dirac, self.phonons.n_phonons)
+                gamma_tensor += result
+
+            result = np.bincount(nupp_vec, pot_times_dirac, self.phonons.n_phonons)
+            gamma_tensor += result
             pot_times_dirac = pot_times_dirac.sum()
             dirac_delta = dirac_delta.sum()
 
