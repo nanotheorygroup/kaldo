@@ -106,6 +106,12 @@ class AnharmonicController:
         gamma_data =  self.calculate_gamma_sparse(is_plus=False)
         return gamma_data
 
+    @lazy_property
+    def rescaled_eigenvectors(self):
+        # TODO: this doesn't need to be saved
+        rescaled_eigenvectors = self.calculate_rescaled_eigenvectors()
+        return rescaled_eigenvectors
+
     @property
     def gamma(self):
         return self._gamma
@@ -177,6 +183,18 @@ class AnharmonicController:
         np.save (folder + GAMMA_TENSOR_FILE, new_gamma_tensor)
         self._gamma_tensor = new_gamma_tensor
 
+    def calculate_rescaled_eigenvectors(self):
+        n_particles = self.phonons.atoms.positions.shape[0]
+        n_modes = self.phonons.n_modes
+        masses = self.phonons.atoms.get_masses()
+        rescaled_eigenvectors = self.phonons.eigenvectors[:, :, :].reshape(
+            (self.phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
+            masses[np.newaxis, :, np.newaxis, np.newaxis])
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_particles * 3, n_modes),
+                                                              order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_modes, n_modes), order='C')
+        return rescaled_eigenvectors
 
     def calculate_occupations(self):
         frequencies = self.phonons.frequencies
@@ -286,12 +304,6 @@ class AnharmonicController:
 
         print('Projection started')
         n_modes = n_particles * 3
-        masses = self.phonons.atoms.get_masses()
-        rescaled_eigenvectors = self.phonons.eigenvectors[:, :, :].reshape((self.phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
-            masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_particles * 3, n_modes), order='C')
-        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2).reshape(self.phonons.n_k_points * n_modes, n_modes, order='C')
-
         index_kp_vec = np.arange(self.phonons.n_k_points)
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, self.phonons.kpts, order='C'))
 
@@ -307,48 +319,34 @@ class AnharmonicController:
             initial_mu = 0
 
         for index_k in range(initial_k, self.phonons.n_k_points):
-
             i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
-
-
             i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
             index_kpp_vec = np.ravel_multi_index(i_kpp_vec, self.phonons.kpts, order='C', mode='wrap')
-
             if is_plus:
-                first_evect = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_modes, n_modes))
-            else:
-                first_evect = rescaled_eigenvectors.conj().reshape((self.phonons.n_k_points, n_modes, n_modes))
-            second_evect = rescaled_eigenvectors.conj().reshape((self.phonons.n_k_points, n_modes, n_modes))[index_kpp_vec]
-
-            if is_plus:
+                first_evect = self.rescaled_eigenvectors
                 first_chi = chi
             else:
+                first_evect = self.rescaled_eigenvectors.conj()
                 first_chi = chi.conj()
+            second_evect = self.rescaled_eigenvectors.conj()[index_kpp_vec]
             second_chi = chi.conj()[index_kpp_vec]
-
             if self.phonons.sigma_in is None:
                 sigma_small = self.calculate_broadening(index_kp_vec, index_kpp_vec)
             else:
                 sigma_small = self.phonons.sigma_in
-
-
             for mu in range(n_modes):
                 if index_k == initial_k and mu < initial_mu:
                     break
-
                 nu_single = np.ravel_multi_index([index_k, mu], [self.phonons.n_k_points, n_modes], order='C')
                 if self.phonons.frequencies[index_k, mu] > self.phonons.frequency_threshold:
-
-                    scaled_potential = sparse.tensordot(self.phonons.finite_difference.third_order, rescaled_eigenvectors[nu_single, :], (0, 0))
+                    scaled_potential = sparse.tensordot(self.phonons.finite_difference.third_order,
+                                                        self.rescaled_eigenvectors.reshape((self.phonons.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
                     scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
                                                                 order='C')
-
                     gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, index_kpp_vec,
                                                             first_evect, second_evect, first_chi, second_chi,
                                                             scaled_potential, sigma_small)
-
                     if gamma_out is not None:
-
                         k_vec = np.ones(gamma_out.shape[0]).astype(int) * index_k
                         mu_vec = np.ones(gamma_out.shape[0]).astype(int) * mu
                         gamma_data_to_append = np.vstack([k_vec, mu_vec, gamma_out.T]).T
