@@ -19,13 +19,6 @@ KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 
 
-def calculate_broadening(velocity, cellinv, k_size):
-    # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
-    delta_k = cellinv / k_size
-    base_sigma = ((np.tensordot(velocity, delta_k, [-1, 1])) ** 2).sum(axis=-1)
-    base_sigma = np.sqrt(base_sigma / 6.)
-    return base_sigma
-
 
 def gaussian_delta(params):
     # alpha is a factor that tells whats the ration between the width of the gaussian
@@ -275,26 +268,23 @@ class AnharmonicController:
         else:
             n_replicas = self.phonons.list_of_replicas.shape[0]
 
-        cell_inv = np.linalg.inv(self.phonons.atoms.cell)
 
         is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
 
         if is_amorphous:
             chi = 1
         else:
-            rlattvec = cell_inv * 2 * np.pi
-            cell_inv = np.linalg.inv(self.phonons.atoms.cell)
             replicated_cell = self.phonons.finite_difference.replicated_atoms.cell
             replicated_cell_inv = np.linalg.inv(replicated_cell)
             chi = np.zeros((nptk, n_replicas), dtype=np.complex)
-            dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, self.phonons.list_of_replicas)
+            dxij = self.phonons.apply_boundary_with_cell(self.phonons.list_of_replicas)
 
             for index_k in range(nptk):
                 i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
 
                 #TODO: Is the following division correct? Should we unravel instead
                 k_point = i_k / self.phonons.kpts
-                realq = np.matmul(rlattvec, k_point)
+                realq = np.matmul(self.phonons.cell_inv * 2 * np.pi, k_point)
                 chi[index_k] = np.exp(1j * dxij.dot(realq))
 
         print('Projection started')
@@ -349,9 +339,8 @@ class AnharmonicController:
                 raise TypeError('Broadening shape not supported')
 
             if self.phonons.sigma_in is None:
-                sigma_tensor_np = calculate_broadening(self.phonons.velocities[index_kp_vec, :, np.newaxis, :] -
-                                                       self.phonons.velocities[index_kpp_vec, np.newaxis, :, :], cell_inv,
-                                                       self.phonons.kpts)
+                sigma_tensor_np = self.calculate_broadening(self.phonons.velocities[index_kp_vec, :, np.newaxis, :] -
+                                                       self.phonons.velocities[index_kpp_vec, np.newaxis, :, :])
                 sigma_small = sigma_tensor_np
             else:
                 sigma_small = self.phonons.sigma_in
@@ -444,3 +433,11 @@ class AnharmonicController:
 
             return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
 
+    def calculate_broadening(self, velocity):
+        cellinv = self.phonons.cell_inv
+        k_size = self.phonons.kpts
+        # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
+        delta_k = cellinv / k_size
+        base_sigma = ((np.tensordot(velocity, delta_k, [-1, 1])) ** 2).sum(axis=-1)
+        base_sigma = np.sqrt(base_sigma / 6.)
+        return base_sigma

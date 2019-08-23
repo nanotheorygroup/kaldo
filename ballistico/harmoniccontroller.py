@@ -161,12 +161,10 @@ class HarmonicController:
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-        replicated_cell = self.phonons.replicated_cell
         cell_inv = np.linalg.inv(self.phonons.atoms.cell)
         list_of_replicas = self.phonons.list_of_replicas
-        replicated_cell_inv = np.linalg.inv(replicated_cell)
         is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
-        dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
+        dxij = self.phonons.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
             dyn_s = dynmat[:, :, 0, :, :]
         else:
@@ -186,19 +184,17 @@ class HarmonicController:
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-        replicated_cell = self.phonons.replicated_cell
         geometry = atoms.positions
         cell_inv = np.linalg.inv(self.phonons.atoms.cell)
         list_of_replicas = self.phonons.list_of_replicas
-        replicated_cell_inv = np.linalg.inv(replicated_cell)
         is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
-        dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, list_of_replicas[np.newaxis, :, np.newaxis, :])
+        dxij = self.phonons.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
-            dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+            dxij = self.phonons.apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:
             chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
-            dxij = self.phonons.apply_boundary_with_cell(replicated_cell, replicated_cell_inv, geometry[:, np.newaxis, np.newaxis, :] - (
+            dxij = self.phonons.apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
             dynmat_derivatives = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
         dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
