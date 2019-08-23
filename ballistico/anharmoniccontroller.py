@@ -1,7 +1,7 @@
 import sparse
 import scipy.special
 import numpy as np
-from opt_einsum import contract_expression
+from opt_einsum import contract
 import ase.units as units
 from .helper import timeit
 from .helper import lazy_property
@@ -84,7 +84,6 @@ class AnharmonicController:
         self._gamma_tensor = None
 
 
-
     @lazy_property(is_storing=True)
     def occupations(self):
         occupations =  self.calculate_occupations()
@@ -96,21 +95,24 @@ class AnharmonicController:
         c_v =  self.calculate_c_v()
         return c_v
 
-    @lazy_property(is_storing=True)
-    def gamma_sparse_plus(self):
-        gamma_data =  self.calculate_gamma_sparse(is_plus=True)
-        return gamma_data
 
-    @lazy_property(is_storing=True)
-    def gamma_sparse_minus(self):
-        gamma_data =  self.calculate_gamma_sparse(is_plus=False)
-        return gamma_data
+    # @lazy_property(is_storing=True)
+    # def gamma_sparse_plus(self):
+    #     gamma_data =  self.calculate_gamma_sparse(is_plus=True)
+    #     return gamma_data
+    #
+    #
+    # @lazy_property(is_storing=True)
+    # def gamma_sparse_minus(self):
+    #     gamma_data =  self.calculate_gamma_sparse(is_plus=False)
+    #     return gamma_data
+
 
     @lazy_property(is_storing=False)
     def rescaled_eigenvectors(self):
-        # TODO: this doesn't need to be saved
         rescaled_eigenvectors = self.calculate_rescaled_eigenvectors()
         return rescaled_eigenvectors
+
 
     @property
     def gamma(self):
@@ -224,11 +226,6 @@ class AnharmonicController:
 
 
     def calculate_gamma(self, is_gamma_tensor_enabled=False):
-        n_particles = self.phonons.atoms.positions.shape[0]
-        n_modes = n_particles * 3
-        k_size = self.phonons.kpts
-        nptk = np.prod(k_size)
-
         n_phonons = self.phonons.n_phonons
         self._gamma = np.zeros(n_phonons)
         self._ps = np.zeros(n_phonons)
@@ -236,44 +233,28 @@ class AnharmonicController:
             self.gamma_tensor = np.zeros((n_phonons, n_phonons))
 
         for is_plus in (1, 0):
-            if is_plus:
-                gamma_data = self.gamma_sparse_plus
-            else:
-                gamma_data = self.gamma_sparse_minus
-            index_k, mu, index_kp, mup, index_kpp, mupp, pot_times_dirac, dirac = gamma_data
-
-            nu_vec = np.ravel_multi_index(np.array([index_k, mu], dtype=int),
-                                           np.array([nptk, n_modes]), order='C')
-            nup_vec = np.ravel_multi_index(np.array([index_kp, mup], dtype=int),
-                                           np.array([nptk, n_modes]), order='C')
-            nupp_vec = np.ravel_multi_index(np.array([index_kpp, mupp], dtype=int),
-                                            np.array([nptk, n_modes]), order='C')
-            gamma_sparse = sparse.COO([nu_vec, nup_vec, nupp_vec], pot_times_dirac, (n_phonons, n_phonons, n_phonons))
-            ps_sparse = sparse.COO([nu_vec, nup_vec, nupp_vec], dirac, (n_phonons, n_phonons, n_phonons))
-            self._gamma += gamma_sparse.sum(axis=2).sum(axis=1).todense()
-            self._ps += ps_sparse.sum(axis=2).sum(axis=1).todense()
+            gamma_data = self.calculate_gamma_sparse(is_plus)
+            self._gamma += gamma_data[0]
+            self._ps += gamma_data[1]
             if is_gamma_tensor_enabled:
-                if is_plus:
-                    self.gamma_tensor -= gamma_sparse.sum(axis=2).todense()
-                    self.gamma_tensor += gamma_sparse.sum(axis=1).todense()
-                else:
-                    self.gamma_tensor += gamma_sparse.sum(axis=2).todense()
-                    self.gamma_tensor += gamma_sparse.sum(axis=1).todense()
-
+                self.gamma_tensor += gamma_data[2]
 
     @timeit
     def calculate_gamma_sparse(self, is_plus):
+        scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
+        gamma_array = np.zeros(self.phonons.n_phonons)
+        ps_array = np.zeros(self.phonons.n_phonons)
 
         folder = self.phonons.folder_name
         if self.phonons.sigma_in is not None:
             folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
-        is_plus_label = ['_0', '_1']
-        progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
         gamma_data = None
-        try:
-            gamma_data = np.loadtxt(progress_filename)
-        except IOError:
-            print('No gamma partial file found. Calculating')
+        # is_plus_label = ['_0', '_1']
+        # progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
+        # try:
+        #     gamma_data = np.loadtxt(progress_filename)
+        # except IOError:
+        #     print('No gamma partial file found. Calculating')
 
         n_particles = self.phonons.atoms.positions.shape[0]
 
@@ -347,16 +328,23 @@ class AnharmonicController:
                                                             first_evect, second_evect, first_chi, second_chi,
                                                             scaled_potential, sigma_small)
                     if gamma_out is not None:
-                        k_vec = np.ones(gamma_out.shape[0]).astype(int) * index_k
-                        mu_vec = np.ones(gamma_out.shape[0]).astype(int) * mu
-                        gamma_data_to_append = np.vstack([k_vec, mu_vec, gamma_out.T]).T
-                        if gamma_data is None:
-                            gamma_data = gamma_data_to_append
-                        else:
-                            gamma_data = np.append(gamma_data, gamma_data_to_append, axis=0)
-                        np.savetxt(progress_filename, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
-        os.remove(progress_filename)
-        return gamma_data.T
+                        gamma = gamma_out[0]
+                        ps = gamma_out[1]
+                        gamma_matrix = gamma_out[2]
+                        scattering_matrix[nu_single] = gamma_matrix
+                        gamma_array[nu_single] = gamma
+                        ps_array[nu_single] = ps
+                    # if gamma_out is not None:
+                    #     k_vec = np.ones(gamma_out.shape[0]).astype(int) * index_k
+                    #     mu_vec = np.ones(gamma_out.shape[0]).astype(int) * mu
+                    #     gamma_data_to_append = np.vstack([k_vec, mu_vec, gamma_out.T]).T
+                    #     if gamma_data is None:
+                    #         gamma_data = gamma_data_to_append
+                    #     else:
+                    #         gamma_data = np.append(gamma_data, gamma_data_to_append, axis=0)
+                    #     np.savetxt(progress_filename, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
+        # os.remove(progress_filename)
+        return gamma_array, ps_array, scattering_matrix
 
 
     def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, kpp_mapping, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_small):
@@ -390,35 +378,23 @@ class AnharmonicController:
             index_kpp_vec = kpp_mapping[index_kp_vec]
             mup_vec = interactions[:, 1]
             mupp_vec = interactions[:, 2]
-
             if is_plus:
                 dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec, mupp_vec]
-
             else:
                 dirac_delta = .5 * (1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
-
             dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
             if np.array(sigma_small).size == 1:
-
                 dirac_delta *= broadening_function(
                     [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small])
-
             else:
                 dirac_delta *= broadening_function(
                     [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
                         index_kp_vec, mup_vec, mupp_vec]])
-
             shapes = []
             for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
                 shapes.append(tens.shape)
-            expr = contract_expression('litj,kni,kl,kmj,kt->knm', *shapes)
-            scaled_potential = expr(scaled_potential,
-                                    first_evect,
-                                    first_chi,
-                                    second_evect,
-                                    second_chi
-                                    )
-
+            scaled_potential = contract('litj,kni,kl,kmj,kt->knm', scaled_potential, first_evect, first_chi,
+                                        second_evect, second_chi)
             scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
             pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
 
@@ -426,7 +402,22 @@ class AnharmonicController:
             gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
             pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / self.phonons.n_k_points * gammatothz
 
-            return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
+            nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec], dtype=int),
+                                           np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
+            nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
+                                            np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
+            gamma_tensor = np.zeros(self.phonons.n_phonons)
+            for i in range(nup_vec.shape[0]):
+                if is_plus:
+                    gamma_tensor[nup_vec[i]] -= pot_times_dirac[i]
+                    gamma_tensor[nupp_vec[i]] += pot_times_dirac[i]
+                else:
+                    gamma_tensor[nup_vec[i]] += pot_times_dirac[i]
+                    gamma_tensor[nupp_vec[i]] += pot_times_dirac[i]
+            pot_times_dirac = pot_times_dirac.sum()
+            dirac_delta = dirac_delta.sum()
+
+            return pot_times_dirac, dirac_delta, gamma_tensor
 
     def calculate_broadening(self, index_kp_vec, index_kpp_vec):
         cellinv = self.phonons.cell_inv
