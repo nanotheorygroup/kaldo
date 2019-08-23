@@ -258,7 +258,7 @@ class AnharmonicController:
             print('No gamma partial file found. Calculating')
 
         n_particles = self.phonons.atoms.positions.shape[0]
-        nptk = np.prod(self.phonons.kpts)
+        nptk = int(np.prod(self.phonons.kpts))
 
         print('Lifetime calculation')
 
@@ -274,8 +274,6 @@ class AnharmonicController:
         if is_amorphous:
             chi = 1
         else:
-            replicated_cell = self.phonons.finite_difference.replicated_atoms.cell
-            replicated_cell_inv = np.linalg.inv(replicated_cell)
             chi = np.zeros((nptk, n_replicas), dtype=np.complex)
             dxij = self.phonons.apply_boundary_with_cell(self.phonons.list_of_replicas)
 
@@ -329,19 +327,8 @@ class AnharmonicController:
                 first_chi = chi.conj()
             second_chi = chi.conj()[index_kpp_vec]
 
-            if self.phonons.broadening_shape == 'gauss':
-                broadening_function = gaussian_delta
-            elif self.phonons.broadening_shape == 'lorentz':
-                broadening_function = lorentzian_delta
-            elif self.phonons.broadening_shape == 'triangle':
-                broadening_function = triangular_delta
-            else:
-                raise TypeError('Broadening shape not supported')
-
             if self.phonons.sigma_in is None:
-                sigma_tensor_np = self.calculate_broadening(self.phonons.velocities[index_kp_vec, :, np.newaxis, :] -
-                                                       self.phonons.velocities[index_kpp_vec, np.newaxis, :, :])
-                sigma_small = sigma_tensor_np
+                sigma_small = self.calculate_broadening(index_kp_vec, index_kpp_vec)
             else:
                 sigma_small = self.phonons.sigma_in
 
@@ -357,8 +344,9 @@ class AnharmonicController:
                     scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
                                                                 order='C')
 
-                    gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, self.phonons.frequencies, self.phonons.occupations, nptk,
-                                                       first_evect, second_evect, first_chi, second_chi, scaled_potential, self.phonons.frequency_threshold, index_kpp_vec, sigma_small, broadening_function)
+                    gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, nptk,
+                                                            first_evect, second_evect, first_chi, second_chi,
+                                                            scaled_potential, index_kpp_vec, sigma_small)
 
                     if gamma_out is not None:
 
@@ -374,8 +362,20 @@ class AnharmonicController:
         return gamma_data.T
 
 
-    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, frequencies, density, nptk, first_evect, second_evect, first_chi, second_chi, scaled_potential,
-                               frequencies_threshold, kpp_mapping, sigma_small, broadening_function):
+    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, nptk, first_evect, second_evect, first_chi, second_chi, scaled_potential, kpp_mapping, sigma_small):
+
+        frequencies = self.phonons.frequencies
+        density = self.phonons.occupations
+        frequencies_threshold = self.phonons.frequency_threshold
+        if self.phonons.broadening_shape == 'gauss':
+            broadening_function = gaussian_delta
+        elif self.phonons.broadening_shape == 'lorentz':
+            broadening_function = lorentzian_delta
+        elif self.phonons.broadening_shape == 'triangle':
+            broadening_function = triangular_delta
+        else:
+            raise TypeError('Broadening shape not supported')
+
         second_sign = (int(is_plus) * 2 - 1)
         omegas = 2 * np.pi * self.phonons.frequencies
         omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
@@ -394,7 +394,6 @@ class AnharmonicController:
             index_kpp_vec = kpp_mapping[index_kp_vec]
             mup_vec = interactions[:, 1]
             mupp_vec = interactions[:, 2]
-
 
             if is_plus:
                 dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec, mupp_vec]
@@ -433,9 +432,10 @@ class AnharmonicController:
 
             return np.vstack([index_kp_vec, mup_vec, index_kpp_vec, mupp_vec, pot_times_dirac, dirac_delta]).T
 
-    def calculate_broadening(self, velocity):
+    def calculate_broadening(self, index_kp_vec, index_kpp_vec):
         cellinv = self.phonons.cell_inv
         k_size = self.phonons.kpts
+        velocity = self.phonons.velocities[index_kp_vec, :, np.newaxis, :] - self.phonons.velocities[index_kpp_vec, np.newaxis, :, :]
         # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
         delta_k = cellinv / k_size
         base_sigma = ((np.tensordot(velocity, delta_k, [-1, 1])) ** 2).sum(axis=-1)
