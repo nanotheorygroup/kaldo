@@ -12,6 +12,7 @@ IS_DELTA_CORRECTION_ENABLED = False
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 SCATTERING_MATRIX_FILE = 'scattering_matrix'
 GAMMA_FILE = 'gamma.npy'
+GAMMA_TENSOR_FILE = 'gamma_tensor.npy'
 PS_FILE = 'phase_space.npy'
 
 KELVINTOJOULE = units.kB / units.J
@@ -215,14 +216,33 @@ class AnharmonicController:
     def ps(self, new_ps):
         folder = self.folder_name
         folder += '/'
-        np.save (folder + GAMMA_FILE, new_ps)
+        np.save (folder + PS_FILE, new_ps)
         self._ps = new_ps
 
     @property
     def gamma_tensor(self):
+        return self._gamma_tensor
+
+    @gamma_tensor.getter
+    def gamma_tensor(self):
         if self._gamma_tensor is None:
-            self.calculate_gamma(is_gamma_tensor_enabled=True)
+
+            try:
+                folder = self.folder_name
+                folder += '/'
+                self._gamma_tensor = np.load (folder + GAMMA_TENSOR_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                self.calculate_gamma(is_gamma_tensor_enabled=True)
+
         return  self._gamma_tensor
+
+    @gamma_tensor.setter
+    def gamma_tensor(self, new_gamma_tensor):
+        folder = self.folder_name
+        folder += '/'
+        np.save (folder + GAMMA_TENSOR_FILE, new_gamma_tensor)
+        self._gamma_tensor = new_gamma_tensor
 
 
     def calculate_occupations(self):
@@ -262,7 +282,7 @@ class AnharmonicController:
         self._gamma = np.zeros(n_phonons)
         self._ps = np.zeros(n_phonons)
         if is_gamma_tensor_enabled:
-            self._gamma_tensor = np.zeros((n_phonons, n_phonons))
+            self.gamma_tensor = np.zeros((n_phonons, n_phonons))
 
         for is_plus in (1, 0):
             if is_plus:
@@ -283,11 +303,11 @@ class AnharmonicController:
             self._ps += ps_sparse.sum(axis=2).sum(axis=1).todense()
             if is_gamma_tensor_enabled:
                 if is_plus:
-                    self._gamma_tensor -= gamma_sparse.sum(axis=2).todense()
-                    self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
+                    self.gamma_tensor -= gamma_sparse.sum(axis=2).todense()
+                    self.gamma_tensor += gamma_sparse.sum(axis=1).todense()
                 else:
-                    self._gamma_tensor += gamma_sparse.sum(axis=2).todense()
-                    self._gamma_tensor += gamma_sparse.sum(axis=1).todense()
+                    self.gamma_tensor += gamma_sparse.sum(axis=2).todense()
+                    self.gamma_tensor += gamma_sparse.sum(axis=1).todense()
 
 
     @timeit
