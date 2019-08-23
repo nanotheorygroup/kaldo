@@ -33,22 +33,22 @@ class HarmonicController:
         self.phonons = phonons
         self.folder_name = self.phonons.folder_name
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def k_points(self):
         k_points =  self.calculate_k_points()
         return k_points
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def dynmat(self):
         dynmat =  self.calculate_dynamical_matrix()
         return dynmat
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def frequencies(self):
         frequencies =  self.calculate_second_order_observable('frequencies')
         return frequencies
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def eigensystem(self):
         eigensystem =  self.calculate_eigensystem()
         return eigensystem
@@ -63,22 +63,22 @@ class HarmonicController:
         eigenvectors = self.eigensystem[:, :, :-1]
         return eigenvectors
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def dynmat_derivatives(self):
         dynmat_derivatives =  self.calculate_second_order_observable('dynmat_derivatives')
         return dynmat_derivatives
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def velocities(self):
         velocities =  self.calculate_second_order_observable('velocities')
         return velocities
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def velocities_AF(self):
         velocities_AF =  self.calculate_second_order_observable('velocities_AF')
         return velocities_AF
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def dos(self):
         dos = calculate_density_of_states(self.frequencies, self.kpts)
         return dos
