@@ -14,22 +14,26 @@ def timeit(method):
         return result
     return timed
 
+def lazy_property(is_storing):
+    def _lazy_property(fn):
+        attr = '_lazy__' + fn.__name__
 
-def lazy_property(fn):
-    attr = '_lazy__' + fn.__name__
-
-    @property
-    def _lazy_property(self):
-        if not hasattr(self, attr):
-            filename = self.folder_name + '/' + fn.__name__ + '.npy'
-            try:
-                loaded_attr = np.load (filename)
-            except FileNotFoundError:
-                print(filename, 'not found, calculating', fn.__name__)
-                loaded_attr = fn(self)
-                np.save (filename, loaded_attr)
-            else:
-                print('loading', filename)
-            setattr(self, attr, loaded_attr)
-        return getattr(self, attr)
+        @property
+        def __lazy_property(self):
+            if not hasattr(self, attr):
+                if is_storing:
+                    filename = self.folder_name + '/' + fn.__name__ + '.npy'
+                    try:
+                        loaded_attr = np.load (filename)
+                    except FileNotFoundError:
+                        print(filename, 'not found, calculating', fn.__name__)
+                        loaded_attr = fn(self)
+                        np.save (filename, loaded_attr)
+                    else:
+                        print('loading', filename)
+                else:
+                    loaded_attr = fn(self)
+                setattr(self, attr, loaded_attr)
+            return getattr(self, attr)
+        return __lazy_property
     return _lazy_property

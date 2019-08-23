@@ -85,28 +85,28 @@ class AnharmonicController:
 
 
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def occupations(self):
         occupations =  self.calculate_occupations()
         return occupations
 
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def c_v(self):
         c_v =  self.calculate_c_v()
         return c_v
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def gamma_sparse_plus(self):
         gamma_data =  self.calculate_gamma_sparse(is_plus=True)
         return gamma_data
 
-    @lazy_property
+    @lazy_property(is_storing=True)
     def gamma_sparse_minus(self):
         gamma_data =  self.calculate_gamma_sparse(is_plus=False)
         return gamma_data
 
-    @lazy_property
+    @lazy_property(is_storing=False)
     def rescaled_eigenvectors(self):
         # TODO: this doesn't need to be saved
         rescaled_eigenvectors = self.calculate_rescaled_eigenvectors()
