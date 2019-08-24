@@ -234,48 +234,28 @@ class AnharmonicController:
 
         for is_plus in (1, 0):
             gamma_data = self.calculate_gamma_sparse(is_plus)
-            self._gamma += gamma_data[0]
-            self._ps += gamma_data[1]
+            self._gamma += gamma_data[:, 1]
+            self._ps += gamma_data[:, 0]
             if is_gamma_tensor_enabled:
-                self.gamma_tensor += gamma_data[2]
+                self.gamma_tensor += gamma_data[:, 2:]
 
     @timeit
-    def calculate_gamma_sparse(self, is_plus, is_gamma_tensor_enabled):
-
-        scattering_matrix = np.zeros((self.phonons.n_phonons, self.phonons.n_phonons))
-        gamma_array = np.zeros(self.phonons.n_phonons)
-        ps_array = np.zeros(self.phonons.n_phonons)
-
-        folder = self.phonons.folder_name
-        if self.phonons.sigma_in is not None:
-            folder += 'sigma_in_' + str(self.phonons.sigma_in).replace('.', '_') + '/'
-        gamma_data = None
-        # is_plus_label = ['_0', '_1']
-        # progress_filename = folder + '/' + SCATTERING_MATRIX_FILE + is_plus_label[is_plus]
-        # try:
-        #     gamma_data = np.loadtxt(progress_filename)
-        # except IOError:
-        #     print('No gamma partial file found. Calculating')
-
+    def calculate_gamma_sparse(self, is_plus):
+        # The ps and gamma matrix stores ps, gamma and then the scattering matrix
+        ps_and_gamma = np.zeros((self.phonons.n_phonons, 2 + self.phonons.n_phonons))
         n_particles = self.phonons.atoms.positions.shape[0]
-
         print('Lifetime calculation')
-
         # TODO: We should write this in a better way
         if self.phonons.list_of_replicas.shape == (3,):
             n_replicas = 1
         else:
             n_replicas = self.phonons.list_of_replicas.shape[0]
-
-
         is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
-
         if is_amorphous:
             chi = 1
         else:
             chi = np.zeros((self.phonons.n_k_points, n_replicas), dtype=np.complex)
             dxij = self.phonons.apply_boundary_with_cell(self.phonons.list_of_replicas)
-
             for index_k in range(self.phonons.n_k_points):
                 i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
 
@@ -288,19 +268,7 @@ class AnharmonicController:
         n_modes = n_particles * 3
         index_kp_vec = np.arange(self.phonons.n_k_points)
         i_kp_vec = np.array(np.unravel_index(index_kp_vec, self.phonons.kpts, order='C'))
-
-        if gamma_data is not None:
-            initial_k = int(gamma_data[-1, 0])
-            initial_mu = int(gamma_data[-1, 1])
-            if initial_mu == n_modes - 1:
-                initial_k += 1
-            else:
-                initial_mu += 1
-        else:
-            initial_k = 0
-            initial_mu = 0
-
-        for index_k in range(initial_k, self.phonons.n_k_points):
+        for index_k in range(self.phonons.n_k_points):
             i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
             i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
             index_kpp_vec = np.ravel_multi_index(i_kpp_vec, self.phonons.kpts, order='C', mode='wrap')
@@ -317,35 +285,18 @@ class AnharmonicController:
             else:
                 sigma_small = self.phonons.sigma_in
             for mu in range(n_modes):
-                if index_k == initial_k and mu < initial_mu:
-                    break
                 nu_single = np.ravel_multi_index([index_k, mu], [self.phonons.n_k_points, n_modes], order='C')
                 if self.phonons.frequencies[index_k, mu] > self.phonons.frequency_threshold:
                     scaled_potential = sparse.tensordot(self.phonons.finite_difference.third_order,
                                                         self.rescaled_eigenvectors.reshape((self.phonons.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
                     scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
                                                                 order='C')
-                    gamma_out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, index_kpp_vec,
+                    out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, index_kpp_vec,
                                                             first_evect, second_evect, first_chi, second_chi,
                                                             scaled_potential, sigma_small)
-                    if gamma_out is not None:
-                        gamma = gamma_out[0]
-                        ps = gamma_out[1]
-                        gamma_matrix = gamma_out[2]
-                        scattering_matrix[nu_single] = gamma_matrix
-                        gamma_array[nu_single] = gamma
-                        ps_array[nu_single] = ps
-                    # if gamma_out is not None:
-                    #     k_vec = np.ones(gamma_out.shape[0]).astype(int) * index_k
-                    #     mu_vec = np.ones(gamma_out.shape[0]).astype(int) * mu
-                    #     gamma_data_to_append = np.vstack([k_vec, mu_vec, gamma_out.T]).T
-                    #     if gamma_data is None:
-                    #         gamma_data = gamma_data_to_append
-                    #     else:
-                    #         gamma_data = np.append(gamma_data, gamma_data_to_append, axis=0)
-                    #     np.savetxt(progress_filename, gamma_data_to_append, fmt='%i %i %i %i %i %i %.8e %.8e')
-        # os.remove(progress_filename)
-        return gamma_array, ps_array, scattering_matrix
+                    if out is not None:
+                        ps_and_gamma[nu_single] = out
+        return ps_and_gamma
 
 
     def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, kpp_mapping, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_small):
@@ -407,23 +358,24 @@ class AnharmonicController:
                                            np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
             nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
                                             np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
-            gamma_tensor = np.zeros(self.phonons.n_phonons)
+
+            # The ps and gamma array stores first ps then gamma then the scattering array
+            ps_and_gamma_sparse = np.zeros(2 + self.phonons.n_phonons)
+            ps_and_gamma_sparse[1] = pot_times_dirac.sum()
+            ps_and_gamma_sparse[0] = dirac_delta.sum()
 
             # We need to use bincount together with fancy indexing here. See:
             # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
             if is_plus:
                 result = np.bincount(nup_vec, pot_times_dirac, self.phonons.n_phonons)
-                gamma_tensor -= result
+                ps_and_gamma_sparse[2:] -= result
             else:
                 result = np.bincount(nup_vec, pot_times_dirac, self.phonons.n_phonons)
-                gamma_tensor += result
+                ps_and_gamma_sparse[2:] += result
 
             result = np.bincount(nupp_vec, pot_times_dirac, self.phonons.n_phonons)
-            gamma_tensor += result
-            pot_times_dirac = pot_times_dirac.sum()
-            dirac_delta = dirac_delta.sum()
-
-            return pot_times_dirac, dirac_delta, gamma_tensor
+            ps_and_gamma_sparse[2:] += result
+            return ps_and_gamma_sparse
 
     def calculate_broadening(self, index_kp_vec, index_kpp_vec):
         cellinv = self.phonons.cell_inv
