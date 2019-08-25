@@ -5,6 +5,7 @@ from opt_einsum import contract
 import ase.units as units
 from .helper import timeit
 from .helper import lazy_property
+from .harmonicmodel import HarmonicModel
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
@@ -68,12 +69,13 @@ def lorentzian_delta(params):
 
 
 
-class AnharmonicController:
-    def __init__(self, phonons):
-        self.phonons = phonons
-        folder_name = self.phonons.folder_name
-        folder_name += '/' + str(self.phonons.temperature) + '/'
-        if self.phonons.is_classic:
+class AnharmonicModel(HarmonicModel):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        folder_name = self.folder_name
+        folder_name += '/' + str(self.temperature) + '/'
+        if self.is_classic:
             folder_name += 'classic'
         else:
             folder_name += 'quantum'
@@ -132,25 +134,25 @@ class AnharmonicController:
 
 
     def calculate_rescaled_eigenvectors(self):
-        n_particles = self.phonons.atoms.positions.shape[0]
-        n_modes = self.phonons.n_modes
-        masses = self.phonons.atoms.get_masses()
-        rescaled_eigenvectors = self.phonons.eigenvectors[:, :, :].reshape(
-            (self.phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
+        n_particles = self.atoms.positions.shape[0]
+        n_modes = self.n_modes
+        masses = self.atoms.get_masses()
+        rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
+            (self.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_particles * 3, n_modes),
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_particles * 3, n_modes),
                                                               order='C')
         rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.phonons.n_k_points, n_modes, n_modes), order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
         return rescaled_eigenvectors
 
 
     def calculate_occupations(self):
-        frequencies = self.phonons.frequencies
-        temp = self.phonons.temperature * KELVINTOTHZ
+        frequencies = self.frequencies
+        temp = self.temperature * KELVINTOTHZ
         density = np.zeros_like(frequencies)
-        physical_modes = frequencies > self.phonons.frequency_threshold
-        if self.phonons.is_classic is False:
+        physical_modes = frequencies > self.frequency_threshold
+        if self.is_classic is False:
             density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
         else:
             density[physical_modes] = temp / frequencies[physical_modes]
@@ -158,16 +160,16 @@ class AnharmonicController:
 
 
     def calculate_c_v(self):
-        frequencies = self.phonons.frequencies
+        frequencies = self.frequencies
         c_v = np.zeros_like (frequencies)
-        physical_modes = frequencies > self.phonons.frequency_threshold
-        temperature = self.phonons.temperature * KELVINTOTHZ
+        physical_modes = frequencies > self.frequency_threshold
+        temperature = self.temperature * KELVINTOTHZ
 
-        if (self.phonons.is_classic):
+        if (self.is_classic):
             c_v[physical_modes] = KELVINTOJOULE
         else:
             f_be = self.occupations
-            c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.phonons.frequencies[physical_modes] ** 2 / \
+            c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
                                   (temperature ** 2)
         return c_v
 
@@ -175,39 +177,39 @@ class AnharmonicController:
     def calculate_gamma_sparse(self, is_gamma_tensor_enabled=False):
         # The ps and gamma matrix stores ps, gamma and then the scattering matrix
         if is_gamma_tensor_enabled:
-            ps_and_gamma = np.zeros((self.phonons.n_phonons, 2 + self.phonons.n_phonons))
+            ps_and_gamma = np.zeros((self.n_phonons, 2 + self.n_phonons))
         else:
-            ps_and_gamma = np.zeros((self.phonons.n_phonons, 2))
+            ps_and_gamma = np.zeros((self.n_phonons, 2))
         for is_plus in (1, 0):
-            n_particles = self.phonons.atoms.positions.shape[0]
+            n_particles = self.atoms.positions.shape[0]
             print('Lifetime calculation')
             # TODO: We should write this in a better way
-            if self.phonons.list_of_replicas.shape == (3,):
+            if self.list_of_replicas.shape == (3,):
                 n_replicas = 1
             else:
-                n_replicas = self.phonons.list_of_replicas.shape[0]
-            is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
+                n_replicas = self.list_of_replicas.shape[0]
+            is_amorphous = (self.kpts == (1, 1, 1)).all()
             if is_amorphous:
                 chi = 1
             else:
-                chi = np.zeros((self.phonons.n_k_points, n_replicas), dtype=np.complex)
-                dxij = self.phonons.apply_boundary_with_cell(self.phonons.list_of_replicas)
-                for index_k in range(self.phonons.n_k_points):
-                    i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
+                chi = np.zeros((self.n_k_points, n_replicas), dtype=np.complex)
+                dxij = self.apply_boundary_with_cell(self.list_of_replicas)
+                for index_k in range(self.n_k_points):
+                    i_k = np.array(np.unravel_index(index_k, self.kpts, order='C'))
 
                     #TODO: Is the following division correct? Should we unravel instead
-                    k_point = i_k / self.phonons.kpts
-                    realq = np.matmul(self.phonons.cell_inv * 2 * np.pi, k_point)
+                    k_point = i_k / self.kpts
+                    realq = np.matmul(self.cell_inv * 2 * np.pi, k_point)
                     chi[index_k] = np.exp(1j * dxij.dot(realq))
 
             print('Projection started')
             n_modes = n_particles * 3
-            index_kp_vec = np.arange(self.phonons.n_k_points)
-            i_kp_vec = np.array(np.unravel_index(index_kp_vec, self.phonons.kpts, order='C'))
-            for index_k in range(self.phonons.n_k_points):
-                i_k = np.array(np.unravel_index(index_k, self.phonons.kpts, order='C'))
+            index_kp_vec = np.arange(self.n_k_points)
+            i_kp_vec = np.array(np.unravel_index(index_kp_vec, self.kpts, order='C'))
+            for index_k in range(self.n_k_points):
+                i_k = np.array(np.unravel_index(index_k, self.kpts, order='C'))
                 i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-                index_kpp_vec = np.ravel_multi_index(i_kpp_vec, self.phonons.kpts, order='C', mode='wrap')
+                index_kpp_vec = np.ravel_multi_index(i_kpp_vec, self.kpts, order='C', mode='wrap')
                 if is_plus:
                     first_evect = self.rescaled_eigenvectors
                     first_chi = chi
@@ -216,15 +218,15 @@ class AnharmonicController:
                     first_chi = chi.conj()
                 second_evect = self.rescaled_eigenvectors.conj()[index_kpp_vec]
                 second_chi = chi.conj()[index_kpp_vec]
-                if self.phonons.sigma_in is None:
+                if self.sigma_in is None:
                     sigma_small = self.calculate_broadening(index_kp_vec, index_kpp_vec)
                 else:
-                    sigma_small = self.phonons.sigma_in
+                    sigma_small = self.sigma_in
                 for mu in range(n_modes):
-                    nu_single = np.ravel_multi_index([index_k, mu], [self.phonons.n_k_points, n_modes], order='C')
-                    if self.phonons.frequencies[index_k, mu] > self.phonons.frequency_threshold:
-                        scaled_potential = sparse.tensordot(self.phonons.finite_difference.third_order,
-                                                            self.rescaled_eigenvectors.reshape((self.phonons.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
+                    nu_single = np.ravel_multi_index([index_k, mu], [self.n_k_points, n_modes], order='C')
+                    if self.frequencies[index_k, mu] > self.frequency_threshold:
+                        scaled_potential = sparse.tensordot(self.finite_difference.third_order,
+                                                            self.rescaled_eigenvectors.reshape((self.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
                         scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
                                                                     order='C')
                         out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, index_kpp_vec,
@@ -236,20 +238,20 @@ class AnharmonicController:
 
 
     def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, kpp_mapping, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_small, is_gamma_tensor_enabled):
-        frequencies = self.phonons.frequencies
-        density = self.phonons.occupations
-        frequencies_threshold = self.phonons.frequency_threshold
-        if self.phonons.broadening_shape == 'gauss':
+        frequencies = self.frequencies
+        density = self.occupations
+        frequencies_threshold = self.frequency_threshold
+        if self.broadening_shape == 'gauss':
             broadening_function = gaussian_delta
-        elif self.phonons.broadening_shape == 'lorentz':
+        elif self.broadening_shape == 'lorentz':
             broadening_function = lorentzian_delta
-        elif self.phonons.broadening_shape == 'triangle':
+        elif self.broadening_shape == 'triangle':
             broadening_function = triangular_delta
         else:
             raise TypeError('Broadening shape not supported')
 
         second_sign = (int(is_plus) * 2 - 1)
-        omegas = 2 * np.pi * self.phonons.frequencies
+        omegas = 2 * np.pi * self.frequencies
         omegas_difference = np.abs(omegas[index_k, mu] + second_sign * omegas[index_kp_full, :, np.newaxis] -
                                    omegas[kpp_mapping, np.newaxis, :])
 
@@ -288,26 +290,26 @@ class AnharmonicController:
 
             #TODO: move units conversion somewhere else
             gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / self.phonons.n_k_points * gammatothz
+            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[index_k, mu] / self.n_k_points * gammatothz
 
             nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec], dtype=int),
-                                           np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
+                                           np.array([self.n_k_points, self.n_modes]), order='C')
             nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
-                                            np.array([self.phonons.n_k_points, self.phonons.n_modes]), order='C')
+                                            np.array([self.n_k_points, self.n_modes]), order='C')
 
             # The ps and gamma array stores first ps then gamma then the scattering array
             if is_gamma_tensor_enabled:
-                ps_and_gamma_sparse = np.zeros(2 + self.phonons.n_phonons)
+                ps_and_gamma_sparse = np.zeros(2 + self.n_phonons)
                 # We need to use bincount together with fancy indexing here. See:
                 # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
                 if is_plus:
-                    result = np.bincount(nup_vec, pot_times_dirac, self.phonons.n_phonons)
+                    result = np.bincount(nup_vec, pot_times_dirac, self.n_phonons)
                     ps_and_gamma_sparse[2:] -= result
                 else:
-                    result = np.bincount(nup_vec, pot_times_dirac, self.phonons.n_phonons)
+                    result = np.bincount(nup_vec, pot_times_dirac, self.n_phonons)
                     ps_and_gamma_sparse[2:] += result
 
-                result = np.bincount(nupp_vec, pot_times_dirac, self.phonons.n_phonons)
+                result = np.bincount(nupp_vec, pot_times_dirac, self.n_phonons)
                 ps_and_gamma_sparse[2:] += result
             else:
                 ps_and_gamma_sparse = np.zeros(2)
@@ -316,9 +318,9 @@ class AnharmonicController:
             return ps_and_gamma_sparse
 
     def calculate_broadening(self, index_kp_vec, index_kpp_vec):
-        cellinv = self.phonons.cell_inv
-        k_size = self.phonons.kpts
-        velocity = self.phonons.velocities[index_kp_vec, :, np.newaxis, :] - self.phonons.velocities[index_kpp_vec, np.newaxis, :, :]
+        cellinv = self.cell_inv
+        k_size = self.kpts
+        velocity = self.velocities[index_kp_vec, :, np.newaxis, :] - self.velocities[index_kpp_vec, np.newaxis, :, :]
         # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
         delta_k = cellinv / k_size
         base_sigma = ((np.tensordot(velocity, delta_k, [-1, 1])) ** 2).sum(axis=-1)

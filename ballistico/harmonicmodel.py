@@ -1,11 +1,21 @@
 from opt_einsum import contract
+import os
 import numpy as np
 import ase.units as units
 from .helper import lazy_property
 
+
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+KELVINTOJOULE = units.kB / units.J
+THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
+
+FREQUENCY_THRESHOLD = 0.001
+FOLDER_NAME = 'output'
+
 
 
 def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DOS):
@@ -28,20 +38,58 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-class HarmonicController:
-    def __init__(self, phonons):
-        self.phonons = phonons
-        self.folder_name = self.phonons.folder_name
+class HarmonicModel:
+    def __init__(self, finite_difference, is_classic, temperature, folder=FOLDER_NAME, kpts = (1, 1, 1), sigma_in=None, frequency_threshold=FREQUENCY_THRESHOLD, broadening_shape='gauss'):
+        self.finite_difference = finite_difference
+        self.atoms = finite_difference.atoms
+        self.supercell = np.array (finite_difference.supercell)
+        self.kpts = np.array (kpts)
+        self.is_classic = is_classic
+        self.n_k_points = int(np.prod (self.kpts))
+        self.n_modes = self.atoms.get_masses ().shape[0] * 3
+        self.n_phonons = self.n_k_points * self.n_modes
+        self.temperature = temperature
+
+        # TODO: Move cell_inv and replicated_cell_inv to finitedifference
+        self.cell_inv = np.linalg.inv(self.atoms.cell)
+        self.replicated_cell = self.finite_difference.replicated_atoms.cell
+        self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
+
+        self.folder_name = folder
+        self.sigma_in = sigma_in
+        self.is_able_to_calculate = True
+        self.broadening_shape = broadening_shape
+
+        if self.is_classic:
+            classic_string = 'classic'
+        else:
+            classic_string = 'quantum'
+        folder = self.folder_name + '/' + str (self.temperature) + '/' + classic_string + '/'
+        if self.sigma_in is not None:
+            folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
+        folders = [self.folder_name, folder]
+        for folder in folders:
+            if not os.path.exists (folder):
+                os.makedirs (folder)
+        if frequency_threshold is not None:
+            self.frequency_threshold = frequency_threshold
+        else:
+            self.frequency_threshold = FREQUENCY_THRESHOLD
+        self.replicated_cell = self.finite_difference.replicated_atoms.cell
+        self.list_of_replicas = self.finite_difference.list_of_replicas()
+
 
     @lazy_property(is_storing=True)
     def k_points(self):
         k_points =  self.calculate_k_points()
         return k_points
 
+
     @lazy_property(is_storing=True)
     def dynmat(self):
         dynmat =  self.calculate_dynamical_matrix()
         return dynmat
+
 
     @lazy_property(is_storing=True)
     def frequencies(self):
@@ -78,6 +126,7 @@ class HarmonicController:
         velocities_AF =  self.calculate_second_order_observable('velocities_AF')
         return velocities_AF
 
+
     @lazy_property(is_storing=True)
     def dos(self):
         dos = calculate_density_of_states(self.frequencies, self.kpts)
@@ -85,17 +134,26 @@ class HarmonicController:
 
 
     def calculate_k_points(self):
-        k_size = self.phonons.kpts
-        n_k_points = np.prod (k_size)
+        k_size = self.kpts
+        n_k_points = self.n_k_points
         k_points = np.zeros ((n_k_points, 3))
         for index_k in range (n_k_points):
             k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
         return k_points
 
+
+    def apply_boundary_with_cell(self, dxij):
+        # exploit periodicity to calculate the shortest distance, which may not be the one we have
+        sxij = dxij.dot(self.replicated_cell_inv)
+        sxij = sxij - np.round(sxij)
+        dxij = sxij.dot(self.replicated_cell)
+        return dxij
+
+
     def calculate_dynamical_matrix(self):
-        atoms = self.phonons.atoms
-        second_order = self.phonons.finite_difference.second_order.copy()
-        list_of_replicas = self.phonons.list_of_replicas
+        atoms = self.atoms
+        second_order = self.finite_difference.second_order.copy()
+        list_of_replicas = self.list_of_replicas
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_replicas = list_of_replicas.shape[0]
@@ -116,8 +174,8 @@ class HarmonicController:
         if k_list is not None:
             k_points = k_list
         else:
-            k_points = self.phonons.k_points
-        atoms = self.phonons.atoms
+            k_points = self.k_points
+        atoms = self.atoms
         n_unit_cell = atoms.positions.shape[0]
         n_k_points = k_points.shape[0]
 
@@ -132,8 +190,8 @@ class HarmonicController:
         if k_list is not None:
             k_points = k_list
         else:
-            k_points = self.phonons.k_points
-        atoms = self.phonons.atoms
+            k_points = self.k_points
+        atoms = self.atoms
         n_unit_cell = atoms.positions.shape[0]
         n_k_points = k_points.shape[0]
         if observable == 'frequencies':
@@ -157,14 +215,14 @@ class HarmonicController:
 
     def calculate_eigensystem_for_k(self, qvec, only_eigenvals=False):
         dynmat = self.dynmat
-        atoms = self.phonons.atoms
+        atoms = self.atoms
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-        cell_inv = np.linalg.inv(self.phonons.atoms.cell)
-        list_of_replicas = self.phonons.list_of_replicas
-        is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
-        dxij = self.phonons.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
+        cell_inv = np.linalg.inv(self.atoms.cell)
+        list_of_replicas = self.list_of_replicas
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        dxij = self.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
             dyn_s = dynmat[:, :, 0, :, :]
         else:
@@ -180,30 +238,30 @@ class HarmonicController:
 
     def calculate_dynmat_derivatives_for_k(self, qvec):
         dynmat = self.dynmat
-        atoms = self.phonons.atoms
+        atoms = self.atoms
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
         geometry = atoms.positions
-        cell_inv = np.linalg.inv(self.phonons.atoms.cell)
-        list_of_replicas = self.phonons.list_of_replicas
-        is_amorphous = (self.phonons.kpts == (1, 1, 1)).all()
-        dxij = self.phonons.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
+        cell_inv = np.linalg.inv(self.atoms.cell)
+        list_of_replicas = self.list_of_replicas
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        dxij = self.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
-            dxij = self.phonons.apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+            dxij = self.apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:
             chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
-            dxij = self.phonons.apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
+            dxij = self.apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
             dynmat_derivatives = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
         dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
         return dynmat_derivatives
 
     def calculate_frequencies_for_k(self, qvec):
-        rescaled_qvec = qvec * self.phonons.kpts
-        if (np.round(rescaled_qvec) == qvec * self.phonons.kpts).all():
-            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.phonons.kpts, order='C')
+        rescaled_qvec = qvec * self.kpts
+        if (np.round(rescaled_qvec) == qvec * self.kpts).all():
+            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
             eigenvals = self.eigenvalues[k_index]
         else:
             eigenvals = self.calculate_eigensystem_for_k(qvec, only_eigenvals=True)
@@ -211,9 +269,9 @@ class HarmonicController:
         return frequencies
 
     def calculate_velocities_AF_for_k(self, qvec):
-        rescaled_qvec = qvec * self.phonons.kpts
-        if (np.round(rescaled_qvec) == qvec * self.phonons.kpts).all():
-            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.phonons.kpts, order='C')
+        rescaled_qvec = qvec * self.kpts
+        if (np.round(rescaled_qvec) == qvec * self.kpts).all():
+            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
             dynmat_derivatives = self.dynmat_derivatives[k_index]
             frequencies = self.frequencies[k_index]
             eigenvects = self.eigenvectors[k_index]
@@ -222,7 +280,7 @@ class HarmonicController:
             frequencies = self.calculate_frequencies_for_k(qvec)
             _, eigenvects = self.calculate_eigensystem_for_k(qvec)
 
-        frequencies_threshold = self.phonons.frequency_threshold
+        frequencies_threshold = self.frequency_threshold
         condition = frequencies > frequencies_threshold
         velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
         velocities_AF = contract('mna,mn->mna', velocities_AF,
@@ -233,9 +291,9 @@ class HarmonicController:
         return velocities_AF
 
     def calculate_velocities_for_k(self, qvec):
-        rescaled_qvec = qvec * self.phonons.kpts
-        if (np.round(rescaled_qvec) == qvec * self.phonons.kpts).all():
-            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.phonons.kpts, order='C')
+        rescaled_qvec = qvec * self.kpts
+        if (np.round(rescaled_qvec) == qvec * self.kpts).all():
+            k_index = np.ravel_multi_index(rescaled_qvec.astype(int), self.kpts, order='C')
             velocities_AF = self.velocities_AF[k_index]
         else:
             velocities_AF = self.calculate_velocities_AF_for_k(qvec)
