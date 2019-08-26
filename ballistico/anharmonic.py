@@ -5,7 +5,8 @@ from opt_einsum import contract
 import ase.units as units
 from .helper import timeit
 from .helper import lazy_property
-from .harmonicmodel import HarmonicModel
+from .harmonic import Harmonic
+import os
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
@@ -69,32 +70,35 @@ def lorentzian_delta(params):
 
 
 
-class AnharmonicModel(HarmonicModel):
+class Anharmonic(Harmonic):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        folder_name = self.folder_name
-        folder_name += '/' + str(self.temperature) + '/'
-        if self.is_classic:
-            folder_name += 'classic'
+        self.is_classic = kwargs['is_classic']
+        self.temperature = kwargs['temperature']
+        if 'sigma_in' in kwargs:
+            self.sigma_in = kwargs['sigma_in']
         else:
-            folder_name += 'quantum'
-        self.folder_name = folder_name
+            self.sigma_in = None
+        if 'broadening_shape' in kwargs:
+            self.broadening_shape = kwargs['broadening_shape']
+        else:
+            self.broadening_shape = 'gauss'
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
         occupations =  self.calculate_occupations()
         return occupations
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=False)
     def c_v(self):
         c_v =  self.calculate_c_v()
         return c_v
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=False)
     def ps_and_gamma(self):
         if self.ps_gamma_and_gamma_tensor is not None:
             ps_and_gamma = self.ps_gamma_and_gamma_tensor[:, :2]
@@ -103,10 +107,16 @@ class AnharmonicModel(HarmonicModel):
         return ps_and_gamma
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=False)
     def ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.calculate_gamma_sparse(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def rescaled_eigenvectors(self):
+        rescaled_eigenvectors = self.calculate_rescaled_eigenvectors()
+        return rescaled_eigenvectors
 
 
     @property
@@ -125,12 +135,6 @@ class AnharmonicModel(HarmonicModel):
     def ps(self):
         ps = self.ps_and_gamma[:, 0]
         return ps
-
-
-    @lazy_property(is_storing=False)
-    def rescaled_eigenvectors(self):
-        rescaled_eigenvectors = self.calculate_rescaled_eigenvectors()
-        return rescaled_eigenvectors
 
 
     def calculate_rescaled_eigenvectors(self):

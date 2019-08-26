@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from ballistico.conductivitymodel import ConductivityModel
+from ballistico.phonons import Phonons
 from ase.units import Rydberg, Bohr
 
 BUFFER_PLOT = .2
@@ -265,11 +265,11 @@ def type_element_id(atoms, element_name):
 def import_from_shengbte(finite_difference, kpts, is_classic, temperature, folder):
 
     # # Create a phonon object
-    phonons = ConductivityModel(finite_difference=finite_difference,
-                                kpts=kpts,
-                                is_classic=is_classic,
-                                temperature=temperature,
-                                folder=folder)
+    phonons = Phonons(finite_difference=finite_difference,
+                      kpts=kpts,
+                      is_classic=is_classic,
+                      temperature=temperature,
+                      folder=folder)
 
     new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
     energies = read_energy_data(phonons).reshape(new_shape)
