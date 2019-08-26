@@ -223,6 +223,8 @@ class Anharmonic(Harmonic):
                     sigma_small = self.sigma_in
                 for mu in range(n_modes):
                     nu_single = np.ravel_multi_index([index_k, mu], [self.n_k_points, n_modes], order='C')
+                    if nu_single % 200 == 0:
+                        print('calculating third', np.round(nu_single/self.n_phonons, 2) * 100, '%')
                     if self.frequencies[index_k, mu] > self.frequency_threshold:
                         scaled_potential = sparse.tensordot(self.finite_difference.third_order,
                                                             self.rescaled_eigenvectors.reshape((self.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
