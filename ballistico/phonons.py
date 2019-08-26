@@ -52,6 +52,8 @@ class Phonons(Anharmonic):
         conductivity_per_mode = self.conductivity(lambd)
 
         #TODO: remove this debug info
+        neg_diag = (self.scattering_matrix.diagonal() < 0).sum()
+        print('negative on diagonal : ', neg_diag)
         evals = np.linalg.eigvalsh(self.scattering_matrix)
         print('negative eigenvals : ', (evals < 0).sum())
         return conductivity_per_mode
@@ -91,6 +93,7 @@ class Phonons(Anharmonic):
         conductivity_per_mode = self.conductivity(lambda_n)
         if n_iteration == (max_n_iterations - 1):
             print('Max iterations reached')
+
         return conductivity_per_mode, conductivity_value
 
     def calculate_conductivity_rta(self):
