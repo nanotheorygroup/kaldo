@@ -1,20 +1,18 @@
 from opt_einsum import contract
-import os
 import numpy as np
 import ase.units as units
+import os
 from .helper import lazy_property
 
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
 THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-
-FREQUENCY_THRESHOLD = 0.001
 FOLDER_NAME = 'output'
+FREQUENCY_THRESHOLD = 0.001
 
 
 
@@ -38,68 +36,79 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-class HarmonicModel:
-    def __init__(self, finite_difference, is_classic, temperature, folder=FOLDER_NAME, kpts = (1, 1, 1), sigma_in=None, frequency_threshold=FREQUENCY_THRESHOLD, broadening_shape='gauss'):
-        self.finite_difference = finite_difference
-        self.atoms = finite_difference.atoms
-        self.supercell = np.array (finite_difference.supercell)
-        self.kpts = np.array (kpts)
-        self.is_classic = is_classic
+class Harmonic:
+    def __init__(self, *args, **kwargs):
+        self.finite_difference = kwargs['finite_difference']
+        if 'folder' in kwargs:
+            self.folder_name = kwargs['folder']
+        else:
+            self.folder_name = FOLDER_NAME
+        if 'kpts' in kwargs:
+            self.kpts = np.array(kwargs['kpts'])
+        else:
+            self.kpts = np.array([1, 1, 1])
+        if 'frequency_threshold' in kwargs:
+            self.frequency_threshold = kwargs['frequency_threshold']
+        else:
+            self.frequency_threshold = FREQUENCY_THRESHOLD
+
+        self.atoms = self.finite_difference.atoms
+        self.supercell = np.array (self.finite_difference.supercell)
         self.n_k_points = int(np.prod (self.kpts))
         self.n_modes = self.atoms.get_masses ().shape[0] * 3
         self.n_phonons = self.n_k_points * self.n_modes
-        self.temperature = temperature
 
         # TODO: Move cell_inv and replicated_cell_inv to finitedifference
         self.cell_inv = np.linalg.inv(self.atoms.cell)
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
-
-        self.folder_name = folder
-        self.sigma_in = sigma_in
         self.is_able_to_calculate = True
-        self.broadening_shape = broadening_shape
-
-        if self.is_classic:
-            classic_string = 'classic'
-        else:
-            classic_string = 'quantum'
-        folder = self.folder_name + '/' + str (self.temperature) + '/' + classic_string + '/'
-        if self.sigma_in is not None:
-            folder += 'sigma_in_' + str (self.sigma_in).replace ('.', '_') + '/'
-        folders = [self.folder_name, folder]
-        for folder in folders:
-            if not os.path.exists (folder):
-                os.makedirs (folder)
-        if frequency_threshold is not None:
-            self.frequency_threshold = frequency_threshold
-        else:
-            self.frequency_threshold = FREQUENCY_THRESHOLD
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.list_of_replicas = self.finite_difference.list_of_replicas()
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=False, is_reduced_path=True)
     def k_points(self):
         k_points =  self.calculate_k_points()
         return k_points
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=True)
     def dynmat(self):
         dynmat =  self.calculate_dynamical_matrix()
         return dynmat
 
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):
         frequencies =  self.calculate_second_order_observable('frequencies')
         return frequencies
 
-    @lazy_property(is_storing=True)
+    @lazy_property(is_storing=True, is_reduced_path=True)
     def eigensystem(self):
         eigensystem =  self.calculate_eigensystem()
         return eigensystem
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def dynmat_derivatives(self):
+        dynmat_derivatives =  self.calculate_second_order_observable('dynmat_derivatives')
+        return dynmat_derivatives
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def velocities(self):
+        velocities =  self.calculate_second_order_observable('velocities')
+        return velocities
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def velocities_AF(self):
+        velocities_AF =  self.calculate_second_order_observable('velocities_AF')
+        return velocities_AF
+
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def dos(self):
+        dos = calculate_density_of_states(self.frequencies, self.kpts)
+        return dos
 
     @property
     def eigenvalues(self):
@@ -110,27 +119,6 @@ class HarmonicModel:
     def eigenvectors(self):
         eigenvectors = self.eigensystem[:, :, :-1]
         return eigenvectors
-
-    @lazy_property(is_storing=True)
-    def dynmat_derivatives(self):
-        dynmat_derivatives =  self.calculate_second_order_observable('dynmat_derivatives')
-        return dynmat_derivatives
-
-    @lazy_property(is_storing=True)
-    def velocities(self):
-        velocities =  self.calculate_second_order_observable('velocities')
-        return velocities
-
-    @lazy_property(is_storing=True)
-    def velocities_AF(self):
-        velocities_AF =  self.calculate_second_order_observable('velocities_AF')
-        return velocities_AF
-
-
-    @lazy_property(is_storing=True)
-    def dos(self):
-        dos = calculate_density_of_states(self.frequencies, self.kpts)
-        return dos
 
 
     def calculate_k_points(self):

@@ -1,11 +1,11 @@
 from opt_einsum import contract
 import numpy as np
-from .anharmonicmodel import AnharmonicModel
+from .anharmonic import Anharmonic
 MAX_ITERATIONS_SC = 500
 
 
 
-class ConductivityModel(AnharmonicModel):
+class Phonons(Anharmonic):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
