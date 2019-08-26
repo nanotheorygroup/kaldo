@@ -271,8 +271,14 @@ class Anharmonic(Harmonic):
             mupp_vec = interactions[:, 2]
             if is_plus:
                 dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec, mupp_vec]
+                # dirac_delta = density[index_k, mu] * density[index_kp_vec, mup_vec] * (
+                #             density[index_kpp_vec, mupp_vec] + 1)
+
             else:
                 dirac_delta = .5 * (1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
+                # dirac_delta = .5 * density[index_k, mu] * (density[index_kp_vec, mup_vec] + 1) * (
+                #             density[index_kpp_vec, mupp_vec] + 1)
+
             dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
             if np.array(sigma_small).size == 1:
                 dirac_delta *= broadening_function(

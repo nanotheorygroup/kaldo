@@ -84,20 +84,24 @@ class Harmonic:
         frequencies =  self.calculate_second_order_observable('frequencies')
         return frequencies
 
+
     @lazy_property(is_storing=True, is_reduced_path=True)
     def eigensystem(self):
         eigensystem =  self.calculate_eigensystem()
         return eigensystem
+
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def dynmat_derivatives(self):
         dynmat_derivatives =  self.calculate_second_order_observable('dynmat_derivatives')
         return dynmat_derivatives
 
+
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
         velocities =  self.calculate_second_order_observable('velocities')
         return velocities
+
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities_AF(self):
@@ -110,15 +114,24 @@ class Harmonic:
         dos = calculate_density_of_states(self.frequencies, self.kpts)
         return dos
 
+
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def physical_modes(self):
+        physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
+        return physical_modes
+
+
     @property
     def eigenvalues(self):
         eigenvalues = self.eigensystem[:, :, -1]
         return eigenvalues
 
+
     @property
     def eigenvectors(self):
         eigenvectors = self.eigensystem[:, :, :-1]
         return eigenvectors
+
 
 
     def chi(self, qvec):

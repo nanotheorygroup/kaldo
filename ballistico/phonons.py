@@ -9,46 +9,43 @@ class Phonons(Anharmonic):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
-        physical_modes = (frequencies > self.frequency_threshold)
-        gamma = self.gamma.reshape((self.n_phonons), order='C')
-
-        gamma_physical = np.zeros_like(gamma)
-        gamma_physical[physical_modes] = gamma[physical_modes]
-        self.tau = np.zeros_like(gamma)
-        self.tau[physical_modes] = 1 / gamma_physical[physical_modes]
+        frequencies = self.keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
+        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
+        self.tau = 1 / gamma
 
         # TODO: move this minus sign somewhere else
-        self.full_gamma_tensor = - 1 * self.gamma_tensor
-        self.full_gamma_tensor = contract('a,ab,b->ab', 1 / frequencies, self.full_gamma_tensor, frequencies)
-        scattering_matrix = np.diag(gamma_physical) + self.full_gamma_tensor
+        self.scattering_matrix_without_diagonal = - 1 * self.keep_only_physical(self.gamma_tensor)
+        self.scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, self.scattering_matrix_without_diagonal, frequencies)
+        self.scattering_matrix = np.diag(gamma) + self.scattering_matrix_without_diagonal
 
-        # Let's remove the unphysical modes from the matrix
-        index = np.outer(physical_modes, physical_modes)
-        self.scattering_matrix = scattering_matrix[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
+
+    def keep_only_physical(self, operator):
+        physical_modes = self.physical_modes
+        if operator.shape == (self.n_phonons, self.n_phonons):
+            index = np.outer(physical_modes, physical_modes)
+            return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
+        else:
+            return operator[physical_modes, ...]
+
 
 
 
     def conductivity(self, lambd):
+        physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
 
         # TODO: Change units conversion in this method
         volume = np.linalg.det(self.atoms.cell) / 1000
-        frequencies = self.frequencies.reshape((self.n_phonons), order='C')
-        physical_modes = (frequencies > self.frequency_threshold)
-        c_v = self.c_v.reshape((self.n_phonons), order='C') * 1e21
-        velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
+        c_v = self.keep_only_physical(self.c_v.reshape((self.n_phonons), order='C') * 1e21)
+        velocities = self.keep_only_physical(self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10)
         conductivity_per_mode = np.zeros((self.n_phonons, 3, 3))
-        conductivity_per_mode[physical_modes, :, :] = 1 / (volume * self.n_k_points) * c_v[physical_modes, np.newaxis, np.newaxis] * \
-                                                      velocities[physical_modes, :, np.newaxis] * lambd[physical_modes, np.newaxis, :]
+        conductivity_per_mode[physical_modes, :, :] = 1 / (volume * self.n_k_points) * c_v[:, np.newaxis, np.newaxis] * \
+                                                      velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
         return conductivity_per_mode
 
     def calculate_conductivity_inverse(self):
-        velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
-        frequencies = self.frequencies.reshape((self.n_k_points * self.n_modes), order='C')
-        physical_modes = (frequencies > self.frequency_threshold)
+        velocities = self.keep_only_physical(self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10)
         scattering_inverse = np.linalg.inv(self.scattering_matrix)
-        lambd = np.zeros((self.n_phonons, 3))
-        lambd[physical_modes, :] = scattering_inverse.dot(velocities[physical_modes, :])
+        lambd = scattering_inverse.dot(velocities[:, :])
         conductivity_per_mode = self.conductivity(lambd)
 
         #TODO: remove this debug info
@@ -74,7 +71,7 @@ class Phonons(Anharmonic):
         frequencies = self.frequencies.reshape((self.n_phonons), order='C')
         physical_modes = (frequencies > self.frequency_threshold)
 
-        velocities = self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10
+        velocities = self.keep_only_physical(self.velocities.real.reshape((self.n_phonons, 3), order='C') / 10)
 
 
         lambda_0 = self.tau[:, np.newaxis] * velocities[:, :]
@@ -84,8 +81,8 @@ class Phonons(Anharmonic):
 
         for n_iteration in range(max_n_iterations):
 
-            delta_lambda[:, :] = -1 * (self.tau[:, np.newaxis] * self.full_gamma_tensor[:, physical_modes]).dot(
-                delta_lambda[physical_modes, :])
+            delta_lambda[:, :] = -1 * (self.tau[:, np.newaxis] * self.scattering_matrix_without_diagonal[:, :]).dot(
+                delta_lambda[:, :])
             lambda_n += delta_lambda
 
             conductivity_value[:, :, n_iteration] = self.conductivity(lambda_n).sum(0)
