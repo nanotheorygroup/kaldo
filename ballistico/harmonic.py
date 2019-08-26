@@ -121,6 +121,13 @@ class Harmonic:
         return eigenvectors
 
 
+    def chi(self, qvec):
+        dxij = self.list_of_replicas
+        cell_inv = self.cell_inv
+        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+        return chi_k
+
+
     def calculate_k_points(self):
         k_size = self.kpts
         n_k_points = self.n_k_points
@@ -207,15 +214,11 @@ class Harmonic:
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-        cell_inv = np.linalg.inv(self.atoms.cell)
-        list_of_replicas = self.list_of_replicas
         is_amorphous = (self.kpts == (1, 1, 1)).all()
-        dxij = self.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
             dyn_s = dynmat[:, :, 0, :, :]
         else:
-            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
-            dyn_s = contract('ialjb,ilj->iajb', dynmat, chi_k)
+            dyn_s = contract('ialjb,l->iajb', dynmat, self.chi(qvec))
         dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
         if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
@@ -231,18 +234,15 @@ class Harmonic:
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
         geometry = atoms.positions
-        cell_inv = np.linalg.inv(self.atoms.cell)
         list_of_replicas = self.list_of_replicas
         is_amorphous = (self.kpts == (1, 1, 1)).all()
-        dxij = self.apply_boundary_with_cell(list_of_replicas[np.newaxis, :, np.newaxis, :])
         if is_amorphous:
             dxij = self.apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:
-            chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
             dxij = self.apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
                     geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
-            dynmat_derivatives = contract('ilja,ibljc,ilj->ibjca', dxij, dynmat, chi_k)
+            dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, self.chi(qvec))
         dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
         return dynmat_derivatives
 

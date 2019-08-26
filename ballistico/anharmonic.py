@@ -197,14 +197,9 @@ class Anharmonic(Harmonic):
                 chi = 1
             else:
                 chi = np.zeros((self.n_k_points, n_replicas), dtype=np.complex)
-                dxij = self.apply_boundary_with_cell(self.list_of_replicas)
                 for index_k in range(self.n_k_points):
-                    i_k = np.array(np.unravel_index(index_k, self.kpts, order='C'))
-
-                    #TODO: Is the following division correct? Should we unravel instead
-                    k_point = i_k / self.kpts
-                    realq = np.matmul(self.cell_inv * 2 * np.pi, k_point)
-                    chi[index_k] = np.exp(1j * dxij.dot(realq))
+                    k_point = self.k_points[index_k]
+                    chi[index_k] = self.chi(k_point)
 
             print('Projection started')
             n_modes = n_particles * 3
