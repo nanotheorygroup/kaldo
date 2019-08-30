@@ -122,6 +122,12 @@ class Harmonic:
 
 
     @property
+    def is_amorphous(self):
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        return is_amorphous
+
+
+    @property
     def eigenvalues(self):
         eigenvalues = self.eigensystem[:, :, -1]
         return eigenvalues
@@ -227,8 +233,7 @@ class Harmonic:
         geometry = atoms.positions
         n_particles = geometry.shape[0]
         n_phonons = n_particles * 3
-        is_amorphous = (self.kpts == (1, 1, 1)).all()
-        if is_amorphous:
+        if self.is_amorphous:
             dyn_s = dynmat[:, :, 0, :, :]
         else:
             dyn_s = contract('ialjb,l->iajb', dynmat, self.chi(qvec))
@@ -248,8 +253,7 @@ class Harmonic:
         n_phonons = n_particles * 3
         geometry = atoms.positions
         list_of_replicas = self.list_of_replicas
-        is_amorphous = (self.kpts == (1, 1, 1)).all()
-        if is_amorphous:
+        if self.is_amorphous:
             dxij = self.apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:

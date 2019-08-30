@@ -1,6 +1,7 @@
 from opt_einsum import contract
 import numpy as np
 from .anharmonic import Anharmonic
+from .helper import lazy_property
 MAX_ITERATIONS_SC = 500
 
 
@@ -9,15 +10,28 @@ class Phonons(Anharmonic):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        frequencies = self.keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def tau(self):
         gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
-        self.tau = 1 / gamma
+        return 1 / gamma
 
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def scattering_matrix_without_diagonal(self):
+        frequencies = self.keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
         # TODO: move this minus sign somewhere else
-        self.scattering_matrix_without_diagonal = - 1 * self.keep_only_physical(self.gamma_tensor)
-        self.scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, self.scattering_matrix_without_diagonal, frequencies)
-        self.scattering_matrix = np.diag(gamma) + self.scattering_matrix_without_diagonal
+        scattering_matrix_without_diagonal = - 1 * self.keep_only_physical(self.gamma_tensor)
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies,
+                                                           scattering_matrix_without_diagonal, frequencies)
+        return scattering_matrix_without_diagonal
 
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def scattering_matrix(self):
+        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
+        scattering_matrix = np.diag(gamma) + self.scattering_matrix_without_diagonal
+        return scattering_matrix
 
     def keep_only_physical(self, operator):
         physical_modes = self.physical_modes
@@ -114,18 +128,15 @@ class Phonons(Anharmonic):
             gamma = self.gamma.reshape((self.n_k_points, self.n_modes)).copy()
         omega = 2 * np.pi * self.frequencies
         physical_modes = (self.frequencies[:, :, np.newaxis] > self.frequency_threshold) * (self.frequencies[:, np.newaxis, :] > self.frequency_threshold)
-
         lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
                                                                            (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
         lorentz[np.invert(physical_modes)] = 0
         conductivity_per_mode = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3, 3))
         conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', self.c_v[:, :], self.velocities_AF[:, :, :, :], lorentz[:, :, :], self.velocities_AF[:, :, :, :])
         conductivity_per_mode = 1e22 / (volume * self.n_k_points) * conductivity_per_mode
-
         kappa = contract('knmab->knab', conductivity_per_mode)
         kappa = kappa.reshape((self.n_phonons, 3, 3))
-
-        return kappa
+        return -1 * kappa
 
 
     def calculate_conductivity(self, method='rta', max_n_iterations=None):
