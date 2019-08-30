@@ -3,10 +3,8 @@ import scipy.special
 import numpy as np
 from opt_einsum import contract
 import ase.units as units
-from .helper import timeit
-from .helper import lazy_property
+from .helper import timeit, lazy_property, is_calculated
 from .harmonic import Harmonic
-import os
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
@@ -100,7 +98,7 @@ class Anharmonic(Harmonic):
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def ps_and_gamma(self):
-        if self.ps_gamma_and_gamma_tensor is not None:
+        if is_calculated('ps_gamma_and_gamma_tensor', self):
             ps_and_gamma = self.ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.calculate_gamma_sparse(is_gamma_tensor_enabled=False)
@@ -192,9 +190,9 @@ class Anharmonic(Harmonic):
                 n_replicas = 1
             else:
                 n_replicas = self.list_of_replicas.shape[0]
-            is_amorphous = (self.kpts == (1, 1, 1)).all()
-            if is_amorphous:
-                chi = 1
+            if self.is_amorphous:
+                # TODO: change this definition
+                chi = np.array([1j])
             else:
                 chi = np.zeros((self.n_k_points, n_replicas), dtype=np.complex)
                 for index_k in range(self.n_k_points):
@@ -223,8 +221,8 @@ class Anharmonic(Harmonic):
                     sigma_small = self.sigma_in
                 for mu in range(n_modes):
                     nu_single = np.ravel_multi_index([index_k, mu], [self.n_k_points, n_modes], order='C')
-                    if nu_single % 200 == 0:
-                        print('calculating third', np.round(nu_single/self.n_phonons, 2) * 100, '%')
+                    if nu_single % 200 == 0 or self.is_amorphous:
+                        print('calculating third', nu_single, np.round(nu_single/self.n_phonons, 2) * 100, '%')
                     if self.frequencies[index_k, mu] > self.frequency_threshold:
                         scaled_potential = sparse.tensordot(self.finite_difference.third_order,
                                                             self.rescaled_eigenvectors.reshape((self.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
@@ -287,11 +285,12 @@ class Anharmonic(Harmonic):
                 dirac_delta *= broadening_function(
                     [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
                         index_kp_vec, mup_vec, mupp_vec]])
-            shapes = []
-            for tens in scaled_potential, first_evect, first_chi, second_evect, second_chi:
-                shapes.append(tens.shape)
-            scaled_potential = contract('litj,kni,kl,kmj,kt->knm', scaled_potential, first_evect, first_chi,
-                                        second_evect, second_chi)
+            if self.is_amorphous:
+                scaled_potential = contract('litj,kni,kmj->knm', scaled_potential, first_evect,
+                                            second_evect)
+            else:
+                scaled_potential = contract('litj,kni,kl,kmj,kt->knm', scaled_potential, first_evect, first_chi,
+                                            second_evect, second_chi)
             scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
             pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
 

@@ -1,9 +1,9 @@
 import numpy as np
 import time
-import inspect
 import os
 
 FOLDER_NAME = 'output'
+LAZY_PREFIX = '_lazy__'
 
 def timeit(method):
     def timed(*args, **kw):
@@ -39,7 +39,7 @@ def create_folder_name(phonons, is_reduced_path):
 
 def lazy_property(is_storing, is_reduced_path):
     def _lazy_property(fn):
-        attr = '_lazy__' + fn.__name__
+        attr = LAZY_PREFIX + fn.__name__
         @property
         def __lazy_property(self):
             if not hasattr(self, attr):
@@ -61,15 +61,20 @@ def lazy_property(is_storing, is_reduced_path):
         return __lazy_property
     return _lazy_property
 
-def get_class_that_defined_method(meth):
-    if inspect.ismethod(meth):
-        for cls in inspect.getmro(meth.__self__.__class__):
-           if cls.__dict__.get(meth.__name__) is meth:
-                return cls
-        meth = meth.__func__  # fallback to __qualname__ parsing
-    if inspect.isfunction(meth):
-        cls = getattr(inspect.getmodule(meth),
-                      meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
-        if isinstance(cls, type):
-            return cls
-    return getattr(meth, '__objclass__', None)
+def is_calculated(property, self, is_reduced_path=False):
+    attr = LAZY_PREFIX + property
+    try:
+        getattr(self, attr)
+    except AttributeError:
+        try:
+            folder_name = create_folder_name(self, is_reduced_path)
+            filename = folder_name + '/' + property + '.npy'
+            loaded_attr = np.load(filename)
+            setattr(self, attr, loaded_attr)
+            return True
+        except FileNotFoundError:
+            return False
+        return False
+    else:
+        return True
+
