@@ -13,7 +13,7 @@ def save_second_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder_name + '/' + filename
     finite_difference = phonons.finite_difference
-    second_order = phonons.finite_difference.second_order
+    second_order = phonons.second_order
     n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
     n_replicas = np.prod(finite_difference.supercell)
 
@@ -52,9 +52,9 @@ def save_second_order_qe_matrix(phonons):
     n_replicas = phonons.supercell.prod()
     n_particles = int(phonons.n_modes / 3)
     if phonons.finite_difference.is_reduced_second:
-        second_order = phonons.finite_difference.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+        second_order = phonons.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
     else:
-        second_order = phonons.finite_difference.second_order.reshape (
+        second_order = phonons.second_order.reshape (
             (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename

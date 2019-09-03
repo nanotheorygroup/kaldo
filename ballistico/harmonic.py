@@ -51,6 +51,10 @@ class Harmonic:
             self.frequency_threshold = kwargs['frequency_threshold']
         else:
             self.frequency_threshold = FREQUENCY_THRESHOLD
+        if 'conserve_momentum' in kwargs:
+            self.conserve_momentum = kwargs['conserve_momentum']
+        else:
+            self.conserve_momentum = False
 
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array (self.finite_difference.supercell)
@@ -167,6 +171,7 @@ class Harmonic:
     def calculate_dynamical_matrix(self):
         atoms = self.atoms
         second_order = self.finite_difference.second_order.copy()
+        n_unit_cell_atoms = self.atoms.positions.shape[0]
         list_of_replicas = self.list_of_replicas
         geometry = atoms.positions
         n_particles = geometry.shape[0]
@@ -176,6 +181,12 @@ class Harmonic:
             dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
         else:
             dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
+
+        if self.conserve_momentum:
+            for iat in range(n_unit_cell_atoms):
+                for alpha in range(3):
+                    for beta in range(3):
+                        dynmat[iat, alpha, 0, iat, beta] -= dynmat[iat, alpha, :, :, beta].sum()
         mass = np.sqrt(atoms.get_masses())
         dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
         dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
@@ -183,6 +194,7 @@ class Harmonic:
         # TODO: probably we want to move this unit conversion somewhere more appropriate
         dynmat *= EVTOTENJOVERMOL
         return dynmat
+
 
     def calculate_eigensystem(self, k_list=None):
         if k_list is not None:
