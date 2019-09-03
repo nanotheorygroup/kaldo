@@ -13,7 +13,7 @@ def save_second_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder_name + '/' + filename
     finite_difference = phonons.finite_difference
-    second_order = phonons.second_order
+    second_order = finite_difference.second_order
     n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
     n_replicas = np.prod(finite_difference.supercell)
 
