@@ -175,6 +175,24 @@ class Anharmonic(Harmonic):
                                   (temperature ** 2)
         return c_v
 
+
+    def calculate_c_v_2d(self):
+        frequencies = self.frequencies
+        c_v = np.zeros((self.n_k_points, self.n_modes, self.n_modes))
+        temperature = self.temperature * KELVINTOTHZ
+        physical_modes = frequencies > self.frequency_threshold
+
+        if (self.is_classic):
+            c_v[:, :, :] = KELVINTOJOULE
+        else:
+            f_be = self.occupations
+            c_v_omega = KELVINTOJOULE * f_be * (f_be + 1) * frequencies / (temperature ** 2)
+            c_v_omega[np.invert(physical_modes)] = 0
+            freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :]) / 2 * (c_v_omega[:, :, np.newaxis] + c_v_omega[:, np.newaxis, :]) / 2
+            c_v[:, :, :] = freq_sq
+        return c_v
+
+
     @timeit
     def calculate_gamma_sparse(self, is_gamma_tensor_enabled=False):
         # The ps and gamma matrix stores ps, gamma and then the scattering matrix
