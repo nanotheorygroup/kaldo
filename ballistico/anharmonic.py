@@ -5,6 +5,8 @@ from opt_einsum import contract
 import ase.units as units
 from .helper import timeit, lazy_property, is_calculated
 from .harmonic import Harmonic
+import tensorflow as tf
+
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
@@ -203,11 +205,7 @@ class Anharmonic(Harmonic):
         for is_plus in (1, 0):
             n_particles = self.atoms.positions.shape[0]
             print('Lifetime calculation')
-            # TODO: We should write this in a better way
-            if self.list_of_replicas.shape == (3,):
-                n_replicas = 1
-            else:
-                n_replicas = self.list_of_replicas.shape[0]
+            n_replicas = self.n_replicas
             if self.is_amorphous:
                 # TODO: change this definition
                 chi = np.array([1j])
@@ -242,19 +240,17 @@ class Anharmonic(Harmonic):
                     if nu_single % 200 == 0 or self.is_amorphous:
                         print('calculating third', nu_single, np.round(nu_single/self.n_phonons, 2) * 100, '%')
                     if self.frequencies[index_k, mu] > self.frequency_threshold:
-                        scaled_potential = sparse.tensordot(self.finite_difference.third_order,
-                                                            self.rescaled_eigenvectors.reshape((self.n_k_points * n_modes, n_modes),order='C')[nu_single, :], (0, 0))
-                        scaled_potential = scaled_potential.reshape((n_replicas, n_modes, n_replicas, n_modes),
-                                                                    order='C')
+
                         out = self.calculate_single_gamma(is_plus, index_k, mu, index_kp_vec, index_kpp_vec,
-                                                                first_evect, second_evect, first_chi, second_chi,
-                                                                scaled_potential, sigma_small, is_gamma_tensor_enabled)
+                                                          first_evect, second_evect, first_chi, second_chi,
+                                                          sigma_small, is_gamma_tensor_enabled)
                         if out is not None:
                             ps_and_gamma[nu_single] += out
         return ps_and_gamma
 
 
-    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, kpp_mapping, first_evect, second_evect, first_chi, second_chi, scaled_potential, sigma_small, is_gamma_tensor_enabled):
+    def calculate_single_gamma(self, is_plus, index_k, mu, index_kp_full, kpp_mapping, first_evect, second_evect, first_chi, second_chi, sigma_small, is_gamma_tensor_enabled):
+        nu_single = np.ravel_multi_index([index_k, mu], [self.n_k_points, self.n_modes], order='C')
         frequencies = self.frequencies
         density = self.occupations
         frequencies_threshold = self.frequency_threshold
@@ -280,6 +276,9 @@ class Anharmonic(Harmonic):
         # TODO: Benchmark something fast like
         # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
         if interactions.size != 0:
+            zeroth_evect = self.rescaled_eigenvectors.reshape((self.n_k_points * self.n_modes, self.n_modes), order='C')[
+                           nu_single, :]
+            scaled_potential = sparse.tensordot(self.finite_difference.third_order, zeroth_evect, (0, 0))
             # Create sparse index
             index_kp_vec = interactions[:, 0]
             index_kpp_vec = kpp_mapping[index_kp_vec]
@@ -304,9 +303,14 @@ class Anharmonic(Harmonic):
                     [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
                         index_kp_vec, mup_vec, mupp_vec]])
             if self.is_amorphous:
-                scaled_potential = contract('litj,kni,kmj->knm', scaled_potential, first_evect,
-                                            second_evect)
+                scaled_potential = contract('ij,ni,mj->nm', scaled_potential.real, first_evect[0].real,
+                                            second_evect[0].real, optimize='optimal')
+                scaled_potential = scaled_potential[np.newaxis, ...]
+
             else:
+                scaled_potential = scaled_potential.reshape(
+                    (self.n_replicas, self.n_modes, self.n_replicas, self.n_modes),
+                    order='C')
                 scaled_potential = contract('litj,kni,kl,kmj,kt->knm', scaled_potential, first_evect, first_chi,
                                             second_evect, second_chi)
             scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
