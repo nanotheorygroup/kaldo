@@ -24,6 +24,9 @@ def create_folder_name(phonons, is_reduced_path):
         folder_name = phonons.folder_name
     else:
         folder_name = FOLDER_NAME
+    if phonons.n_k_points > 1:
+        kpts = phonons.kpts
+        folder_name += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     if not is_reduced_path:
         folder_name += '/' + str(phonons.temperature)
         if phonons.is_classic:

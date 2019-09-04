@@ -61,14 +61,18 @@ class Harmonic:
         self.n_k_points = int(np.prod (self.kpts))
         self.n_modes = self.atoms.get_masses ().shape[0] * 3
         self.n_phonons = self.n_k_points * self.n_modes
+        self.is_able_to_calculate = True
 
-        # TODO: Move cell_inv and replicated_cell_inv to finitedifference
+        # TODO: Move following attributes to finitedifference
         self.cell_inv = np.linalg.inv(self.atoms.cell)
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
-        self.is_able_to_calculate = True
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.list_of_replicas = self.finite_difference.list_of_replicas()
+        if self.list_of_replicas.shape == (3,):
+            self.n_replicas = 1
+        else:
+            self.n_replicas = self.list_of_replicas.shape[0]
 
 
     @lazy_property(is_storing=False, is_reduced_path=True)
