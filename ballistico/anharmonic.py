@@ -72,8 +72,8 @@ class Anharmonic(Harmonic):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.is_classic = kwargs['is_classic']
-        self.temperature = kwargs['temperature']
+        self.is_classic = bool(kwargs['is_classic'])
+        self.temperature = float(kwargs['temperature'])
         if 'sigma_in' in kwargs:
             self.sigma_in = kwargs['sigma_in']
         else:
