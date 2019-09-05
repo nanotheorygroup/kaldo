@@ -5,8 +5,6 @@ from opt_einsum import contract
 import ase.units as units
 from .helper import timeit, lazy_property, is_calculated
 from .harmonic import Harmonic
-import tensorflow as tf
-
 
 DELTA_THRESHOLD = 2
 IS_DELTA_CORRECTION_ENABLED = False
