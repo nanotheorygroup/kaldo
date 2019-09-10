@@ -29,8 +29,9 @@ class Phonons(Anharmonic):
 
     @lazy_property(is_storing=False, is_reduced_path=False)
     def scattering_matrix(self):
+        scattering_matrix = self.scattering_matrix_without_diagonal
         gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
-        scattering_matrix = np.diag(gamma) + self.scattering_matrix_without_diagonal
+        scattering_matrix = scattering_matrix + np.diag(gamma)
         return scattering_matrix
 
     def keep_only_physical(self, operator):
