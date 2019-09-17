@@ -128,6 +128,17 @@ class Harmonic:
         physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
         return physical_modes
 
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def chi_k(self):
+        chi = np.zeros((self.n_k_points, self.n_replicas), dtype=np.complex)
+        for index_k in range(self.n_k_points):
+            k_point = self.k_points[index_k]
+            chi[index_k] = self.chi(k_point)
+        return chi
+
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def omegas(self):
+        return self.frequencies * 2 * np.pi
 
     @property
     def is_amorphous(self):

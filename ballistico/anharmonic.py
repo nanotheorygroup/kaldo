@@ -101,13 +101,15 @@ class Anharmonic(Harmonic):
         if is_calculated('ps_gamma_and_gamma_tensor', self):
             ps_and_gamma = self.ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self.calculate_gamma_sparse(is_gamma_tensor_enabled=False)
+            self.is_gamma_tensor_enabled = False
+            ps_and_gamma = self.calculate_gamma_sparse()
         return ps_and_gamma
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.calculate_gamma_sparse(is_gamma_tensor_enabled=True)
+        self.is_gamma_tensor_enabled=True
+        ps_gamma_and_gamma_tensor = self.calculate_gamma_sparse()
         return ps_gamma_and_gamma_tensor
 
 
@@ -205,9 +207,6 @@ class Anharmonic(Harmonic):
             broadening_function = triangular_delta
         else:
             raise TypeError('Broadening shape not supported')
-
-        n_particles = self.atoms.positions.shape[0]
-        n_modes = n_particles * 3
         index_kp_full = np.arange(self.n_k_points)
         i_kp_vec = np.array(np.unravel_index(index_kp_full, self.kpts, order='C'))
         i_k = np.array(np.unravel_index(index_k, self.kpts, order='C'))
@@ -285,31 +284,21 @@ class Anharmonic(Harmonic):
             return None
 
     @timeit
-    def calculate_gamma_sparse(self, is_gamma_tensor_enabled=False):
+    def calculate_gamma_sparse(self):
         # The ps and gamma matrix stores ps, gamma and then the scattering matrix
-
-        omegas = self.frequencies * 2 * np.pi
-
-        if is_gamma_tensor_enabled:
+        if self.is_gamma_tensor_enabled:
             ps_and_gamma = np.zeros((self.n_phonons, 2 + self.n_phonons))
         else:
             ps_and_gamma = np.zeros((self.n_phonons, 2))
         n_particles = self.atoms.positions.shape[0]
-        n_replicas = self.n_replicas
         print('Lifetime calculation')
         print('Projection started')
         n_modes = n_particles * 3
-
-        chi = np.zeros((self.n_k_points, n_replicas), dtype=np.complex)
-        for index_k in range(self.n_k_points):
-            k_point = self.k_points[index_k]
-            chi[index_k] = self.chi(k_point)
-
-        index_kp_full = np.arange(self.n_k_points)
-        i_kp_vec = np.array(np.unravel_index(index_kp_full, self.kpts, order='C'))
         for index_k in range(self.n_k_points):
             for mu in range(n_modes):
                 nu_single = np.ravel_multi_index([index_k, mu], [self.n_k_points, n_modes], order='C')
+
+
                 if nu_single % 200 == 0 or self.is_amorphous:
                     print('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
                           '%')
@@ -318,92 +307,100 @@ class Anharmonic(Harmonic):
                                                     self.rescaled_eigenvectors.reshape(
                                                         (self.n_k_points, self.n_modes, self.n_modes),
                                                         order='C')[index_k, mu, :], (0, 0))
+
                 if self.is_amorphous:
-                    ps_and_gamma[nu_single] = self.project_amorphous(potential_times_evect, index_k, mu, omegas)
+                    ps_and_gamma[nu_single] = self.project_amorphous(potential_times_evect, index_k, mu)
                 else:
-                    for is_plus in (1, 0):
-                        ps_and_gamma_sparse = self.project(is_plus, potential_times_evect, index_k, mu, omegas, chi, is_gamma_tensor_enabled)
-                        ps_and_gamma[nu_single] += ps_and_gamma_sparse
-
-
+                    ps_and_gamma[nu_single] = self.project_crystal(potential_times_evect, index_k, mu)
+                ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / self.frequencies[index_k, mu]
         return ps_and_gamma
 
-    def project_amorphous(self, potential_times_evect, index_k, mu, omegas):
+
+
+
+    def project_amorphous(self, potential_times_evect, index_k, mu):
         ps_and_gamma_sparse = np.zeros(2)
         out = self.calculate_dirac_delta(index_k, mu)
         if out:
-            dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
+            dirac_delta, _, mup_vec, _, mupp_vec = out
 
             scaled_potential = contract('ij,ni,mj->nm', potential_times_evect.real, self.rescaled_eigenvectors[0].real,
                                         self.rescaled_eigenvectors[0].real,
                                         optimize='optimal')
             scaled_potential = scaled_potential[np.newaxis, ...]
-            scaled_potential = scaled_potential[index_kp_vec, mup_vec, mupp_vec]
+            scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
             pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
 
             # TODO: move units conversion somewhere else
             gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[
-                index_k, mu] / self.n_k_points * gammatothz
-            ps_and_gamma_sparse = np.zeros(2)
+            pot_times_dirac = units._hbar / 8. * pot_times_dirac / self.n_k_points * gammatothz
             ps_and_gamma_sparse[0] = dirac_delta.sum()
             ps_and_gamma_sparse[1] = pot_times_dirac.sum()
         return ps_and_gamma_sparse
 
-    def project(self, is_plus, potential_times_evect, index_k, mu, omegas, chi, is_gamma_tensor_enabled):
-        if is_gamma_tensor_enabled:
+    def project_crystal(self, potential_times_evect, index_k, mu):
+        if self.is_gamma_tensor_enabled:
+            ps_and_gamma_sparse = np.zeros(2 + self.n_phonons)
+        else:
+            ps_and_gamma_sparse = np.zeros(2)
+        for is_plus in (1, 0):
+            out = self.calculate_dirac_delta(index_k, mu, is_plus)
+            if out:
+                potential_times_evect = potential_times_evect.reshape(
+                    (self.n_replicas, self.n_modes, self.n_replicas, self.n_modes),
+                    order='C')
+                ps_and_gamma_sparse += self.single_project(out, is_plus, potential_times_evect)
+        return ps_and_gamma_sparse
+
+    def single_project(self, out, is_plus, potential_times_evect):
+        if self.is_gamma_tensor_enabled:
             ps_and_gamma_sparse = np.zeros(2 + self.n_phonons)
         else:
             ps_and_gamma_sparse = np.zeros(2)
 
-        out = self.calculate_dirac_delta(index_k, mu, is_plus)
-        if out:
-            dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
-            potential_times_evect = potential_times_evect.reshape(
-                (self.n_replicas, self.n_modes, self.n_replicas, self.n_modes),
-                order='C')
+        dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
 
+        nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec], dtype=int),
+                                       np.array([self.n_k_points, self.n_modes]), order='C')
+        nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
+                                        np.array([self.n_k_points, self.n_modes]), order='C')
+
+        # The ps and gamma array stores first ps then gamma then the scattering array
+
+        if is_plus:
+
+            scaled_potential = contract('litj,ai,al,aj,at->a', potential_times_evect,
+                                        self.rescaled_eigenvectors[index_kp_vec, mup_vec],
+                                        self.chi_k[index_kp_vec],
+                                        self.rescaled_eigenvectors.conj()[index_kpp_vec, mupp_vec],
+                                        self.chi_k[index_kpp_vec].conj())
+        else:
+
+            scaled_potential = contract('litj,ai,al,aj,at->a', potential_times_evect,
+                                        self.rescaled_eigenvectors.conj()[index_kp_vec, mup_vec],
+                                        self.chi_k[index_kp_vec].conj(),
+                                        self.rescaled_eigenvectors.conj()[index_kpp_vec, mupp_vec],
+                                        self.chi_k[index_kpp_vec].conj())
+        pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
+
+        # TODO: move units conversion somewhere else
+        gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
+        pot_times_dirac = units._hbar / 8. * pot_times_dirac / self.n_k_points * gammatothz
+
+        if self.is_gamma_tensor_enabled:
+            # We need to use bincount together with fancy indexing here. See:
+            # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
             if is_plus:
-
-                scaled_potential = contract('litj,ai,al,aj,at->a', potential_times_evect,
-                                            self.rescaled_eigenvectors[index_kp_vec, mup_vec],
-                                            chi[index_kp_vec],
-                                            self.rescaled_eigenvectors.conj()[index_kpp_vec, mupp_vec],
-                                            chi.conj()[index_kpp_vec])
+                result = np.bincount(nup_vec, pot_times_dirac, self.n_phonons)
+                ps_and_gamma_sparse[2:] = -1 * result
             else:
+                result = np.bincount(nup_vec, pot_times_dirac, self.n_phonons)
+                ps_and_gamma_sparse[2:] = result
 
-                scaled_potential = contract('litj,ai,al,aj,at->a', potential_times_evect,
-                                            self.rescaled_eigenvectors.conj()[index_kp_vec, mup_vec],
-                                            chi.conj()[index_kp_vec],
-                                            self.rescaled_eigenvectors.conj()[index_kpp_vec, mupp_vec],
-                                            chi.conj()[index_kpp_vec])
-            pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-
-            # TODO: move units conversion somewhere else
-            gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-            pot_times_dirac = units._hbar * np.pi / 4. * pot_times_dirac / omegas[
-                index_k, mu] / self.n_k_points * gammatothz
-
-            nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec], dtype=int),
-                                           np.array([self.n_k_points, self.n_modes]), order='C')
-            nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
-                                            np.array([self.n_k_points, self.n_modes]), order='C')
-
-            # The ps and gamma array stores first ps then gamma then the scattering array
-            if is_gamma_tensor_enabled:
-                # We need to use bincount together with fancy indexing here. See:
-                # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
-                if is_plus:
-                    result = np.bincount(nup_vec, pot_times_dirac, self.n_phonons)
-                    ps_and_gamma_sparse[2:] = -1 * result
-                else:
-                    result = np.bincount(nup_vec, pot_times_dirac, self.n_phonons)
-                    ps_and_gamma_sparse[2:] = result
-
-                result = np.bincount(nupp_vec, pot_times_dirac, self.n_phonons)
-                ps_and_gamma_sparse[2:] += result
-            ps_and_gamma_sparse[0] = dirac_delta.sum()
-            ps_and_gamma_sparse[1] = pot_times_dirac.sum()
+            result = np.bincount(nupp_vec, pot_times_dirac, self.n_phonons)
+            ps_and_gamma_sparse[2:] += result
+        ps_and_gamma_sparse[0] = dirac_delta.sum()
+        ps_and_gamma_sparse[1] = pot_times_dirac.sum()
         return ps_and_gamma_sparse
 
     def calculate_broadening(self, index_kp_vec, index_kpp_vec):
