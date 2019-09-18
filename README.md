@@ -1,8 +1,8 @@
 Ballistico
 ==============================
 [//]: # (Badges)
-[![Travis Build Status](https://travis-ci.org/gbarbalinardo/Ballistico.png)](https://travis-ci.org/gbarbalinardo/Ballistico)
-[![codecov](https://codecov.io/gh/gbarbalinardo/Ballistico/branch/master/graph/badge.svg)](https://codecov.io/gh/gbarbalinardo/Ballistico/branch/master)
+[![Travis Build Status](https://travis-ci.org/gbarbalinardo/ballistico.png)](https://travis-ci.org/gbarbalinardo/ballistico)
+[![codecov](https://codecov.io/gh/gbarbalinardo/ballistico/branch/master/graph/badge.svg)](https://codecov.io/gh/gbarbalinardo/ballistico/branch/master)
 
 Anharmonic Lattice Dynamics
 
