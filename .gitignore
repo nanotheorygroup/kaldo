@@ -1,7 +1,9 @@
 .DS_Store
 *.pyc
 .idea
-examples/examples/examples/# Byte-compiled / optimized / DLL files
+examples
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
