@@ -193,6 +193,71 @@ def calculate_dirac_delta(phonons, index_k, mu, is_plus=None):
     except:
         return None
 
+def calculate_dirac_delta_amorphous(phonons, mu):
+
+    frequencies = phonons.frequencies
+    density = phonons.occupations
+    frequencies_threshold = phonons.frequency_threshold
+    if phonons.broadening_shape == 'gauss':
+        broadening_function = gaussian_delta
+    elif phonons.broadening_shape == 'lorentz':
+        broadening_function = lorentzian_delta
+    elif phonons.broadening_shape == 'triangle':
+        broadening_function = triangular_delta
+    else:
+        raise TypeError('Broadening shape not supported')
+
+    for is_plus in [1, 0]:
+        sigma_small = phonons.sigma_in
+
+        if phonons.frequencies[0, mu] > phonons.frequency_threshold:
+
+            second_sign = (int(is_plus) * 2 - 1)
+            omegas = 2 * np.pi * phonons.frequencies
+            omegas_difference = np.abs(
+                omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
+                omegas[0, np.newaxis, :])
+
+            condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
+                        (frequencies[0, :, np.newaxis] > frequencies_threshold) & \
+                        (frequencies[0, np.newaxis, :] > frequencies_threshold)
+            interactions = np.array(np.where(condition)).T
+
+            # TODO: Benchmark something fast like
+            # interactions = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+            if interactions.size != 0:
+                # Create sparse index
+
+                mup_vec = interactions[:, 0]
+                mupp_vec = interactions[:, 1]
+                if is_plus:
+                    dirac_delta = density[0, mup_vec] - density[0, mupp_vec]
+                    # dirac_delta = density[0, mu] * density[0, mup_vec] * (
+                    #             density[0, mupp_vec] + 1)
+
+                else:
+                    dirac_delta = .5 * (
+                            1 + density[0, mup_vec] + density[0, mupp_vec])
+                    # dirac_delta = .5 * density[0, mu] * (density[0, mup_vec] + 1) * (
+                    #             density[0, mupp_vec] + 1)
+
+                dirac_delta /= (omegas[0, mup_vec] * omegas[0, mupp_vec])
+                dirac_delta *= broadening_function(
+                    [omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small])
+
+                try:
+                    mup = np.concatenate([mup, mup_vec])
+                    mupp = np.concatenate([mupp, mupp_vec])
+                    current_delta = np.concatenate([current_delta, dirac_delta])
+                except NameError:
+                    mup = mup_vec
+                    mupp = mupp_vec
+                    current_delta = dirac_delta
+    try:
+        return current_delta, mup, mupp
+    except:
+        return None
+
 @timeit
 def calculate_gamma_sparse(phonons):
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
@@ -219,7 +284,7 @@ def calculate_gamma_sparse(phonons):
                                                     order='C')[index_k, mu, :], (0, 0))
 
             if phonons.is_amorphous:
-                ps_and_gamma[nu_single] = project_amorphous(phonons, potential_times_evect, index_k, mu)
+                ps_and_gamma[nu_single] = project_amorphous(phonons, potential_times_evect, mu)
             else:
                 ps_and_gamma[nu_single] = project_crystal(phonons, potential_times_evect, index_k, mu)
             ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons.frequencies[index_k, mu]
@@ -228,11 +293,11 @@ def calculate_gamma_sparse(phonons):
 
 
 
-def project_amorphous(phonons, potential_times_evect, index_k, mu):
+def project_amorphous(phonons, potential_times_evect, mu):
     ps_and_gamma_sparse = np.zeros(2)
-    out = calculate_dirac_delta(phonons, index_k, mu)
+    out = calculate_dirac_delta_amorphous(phonons, mu)
     if out:
-        dirac_delta, _, mup_vec, _, mupp_vec = out
+        dirac_delta, mup_vec, mupp_vec = out
 
         scaled_potential = contract('ij,ni,mj->nm', potential_times_evect.real, phonons.rescaled_eigenvectors[0].real,
                                     phonons.rescaled_eigenvectors[0].real,
