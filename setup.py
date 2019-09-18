@@ -46,7 +46,18 @@ setup(
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    # install_requires=[],              # Required packages, pulls from pip if needed; do not use for Conda deployment
+    install_requires=[
+        'numpy>=1.13',
+        'scipy>=1',
+        'ase>=3.18.0',
+        'sparse>=0.6',
+        'spglib>=1.11',
+        'seekpath>=1.8',
+        'tensorflow>=1.12',
+        'opt_einsum>=2.3',
+        'scikit-learn>=0.20'
+    ],              # Required packages, pulls from pip if needed; do not use for Conda deployment
+
     # platforms=['Linux',
     #            'Mac OS-X',
     #            'Unix',
