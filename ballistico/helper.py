@@ -19,25 +19,25 @@ def timeit(method):
     return timed
 
 
-def create_folder_name(phonons, is_reduced_path):
-    if phonons.folder_name:
-        folder_name = phonons.folder_name
+def create_folder(phonons, is_reduced_path):
+    if phonons.folder:
+        folder = phonons.folder
     else:
-        folder_name = FOLDER_NAME
+        folder = FOLDER_NAME
     if phonons.n_k_points > 1:
         kpts = phonons.kpts
-        folder_name += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+        folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     if not is_reduced_path:
-        folder_name += '/' + str(phonons.temperature)
+        folder += '/' + str(phonons.temperature)
         if phonons.is_classic:
-            folder_name += '/classic'
+            folder += '/classic'
         else:
-            folder_name += '/quantum'
+            folder += '/quantum'
         if phonons.sigma_in is not None:
-            folder_name += '/' + str(phonons.sigma_in)
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    return folder_name
+            folder += '/' + str(phonons.sigma_in)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    return folder
 
 
 def lazy_property(is_storing, is_reduced_path):
@@ -47,8 +47,8 @@ def lazy_property(is_storing, is_reduced_path):
         def __lazy_property(self):
             if not hasattr(self, attr):
                 if is_storing:
-                    folder_name = create_folder_name(self, is_reduced_path)
-                    filename = folder_name + '/' + fn.__name__ + '.npy'
+                    folder = create_folder(self, is_reduced_path)
+                    filename = folder + '/' + fn.__name__ + '.npy'
                     try:
                         loaded_attr = np.load (filename)
                     except FileNotFoundError:
@@ -70,8 +70,8 @@ def is_calculated(property, self, is_reduced_path=False):
         getattr(self, attr)
     except AttributeError:
         try:
-            folder_name = create_folder_name(self, is_reduced_path)
-            filename = folder_name + '/' + property + '.npy'
+            folder = create_folder(self, is_reduced_path)
+            filename = folder + '/' + property + '.npy'
             loaded_attr = np.load(filename)
             setattr(self, attr, loaded_attr)
             return True
