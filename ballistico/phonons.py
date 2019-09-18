@@ -77,6 +77,12 @@ class Phonons:
         frequencies = bha.calculate_second_order_observable(self, 'frequencies')
         return frequencies
 
+
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def omegas(self):
+        omegas = 2 * np.pi * self.frequencies
+        return omegas
+
     @lazy_property(is_storing=True, is_reduced_path=True)
     def eigensystem(self):
         eigensystem = bha.calculate_eigensystem(self)
@@ -151,15 +157,13 @@ class Phonons:
         if is_calculated('ps_gamma_and_gamma_tensor', self):
             ps_and_gamma = self.ps_gamma_and_gamma_tensor[:, :2]
         else:
-            self.is_gamma_tensor_enabled = False
-            ps_and_gamma = ban.calculate_gamma_sparse(self)
+            ps_and_gamma = ban.calculate_gamma_sparse(self, is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def ps_gamma_and_gamma_tensor(self):
-        self.is_gamma_tensor_enabled=True
-        ps_gamma_and_gamma_tensor = ban.calculate_gamma_sparse(self)
+        ps_gamma_and_gamma_tensor = ban.calculate_gamma_sparse(self, is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 

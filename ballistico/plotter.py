@@ -78,7 +78,7 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     plt.ylabel (observable_name, fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     plt.ylim(observable.min(), observable.max())
-    fig.savefig (phonons.folder + observable_name + '.pdf')
+    fig.savefig (phonons.folder + '/' + observable_name + '.pdf')
     if is_showing:
         plt.show ()
 
@@ -90,7 +90,7 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
     plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig (phonons.folder + 'dos.pdf')
+    fig.savefig (phonons.folder + '/' + 'dos.pdf')
     if is_showing:
         plt.show()
 
@@ -135,7 +135,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=200, is_showing=True):
     plt.plot (q, freqs_plot, ".")
     plt.grid ()
     plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
-    fig1.savefig (phonons.folder + 'dispersion' + '.pdf')
+    fig1.savefig (phonons.folder + '/' + 'dispersion' + '.pdf')
     if is_showing:
         plt.show()
 
@@ -146,7 +146,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=200, is_showing=True):
         plt.xlim(q[0], q[-1])
         plt.plot(q, vel_plot[:, :, alpha], ".")
         plt.grid()
-        fig2.savefig(phonons.folder + 'velocity.pdf')
+        fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
         if is_showing:
             plt.show()
 
@@ -156,6 +156,6 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=200, is_showing=True):
     plt.xlim(q[0], q[-1])
     plt.plot(q, vel_norm[:, :], ".")
     plt.grid()
-    fig2.savefig(phonons.folder + 'velocity.pdf')
+    fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
     if is_showing:
         plt.show()

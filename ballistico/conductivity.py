@@ -105,7 +105,7 @@ def calculate_conductivity_AF(phonons, gamma_in=None):
         gamma = gamma_in * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
         gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy()
-    omega = 2 * np.pi * phonons.frequencies
+    omega = phonons.omegas
     physical_modes = (phonons.frequencies[:, :, np.newaxis] > phonons.frequency_threshold) * \
                 (phonons.frequencies[:, np.newaxis, :] > phonons.frequency_threshold)
     lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (
