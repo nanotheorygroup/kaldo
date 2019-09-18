@@ -3,6 +3,7 @@ import numpy as np
 import ballistico.harmonic as bha
 import ballistico.anharmonic as ban
 import ballistico.conductivity as bac
+import ballistico.plotter as plotter
 from .helper import timeit, lazy_property, is_calculated
 
 from .helper import lazy_property
@@ -16,9 +17,9 @@ class Phonons:
     def __init__(self, **kwargs):
         self.finite_difference = kwargs['finite_difference']
         if 'folder' in kwargs:
-            self.folder_name = kwargs['folder']
+            self.folder = kwargs['folder']
         else:
-            self.folder_name = FOLDER_NAME
+            self.folder = FOLDER_NAME
         if 'kpts' in kwargs:
             self.kpts = np.array(kwargs['kpts'])
         else:
@@ -216,6 +217,13 @@ class Phonons:
         else:
             return operator[physical_modes, ...]
 
+    def apply_boundary_with_cell(self, dxij):
+        # exploit periodicity to calculate the shortest distance, which may not be the one we have
+        sxij = dxij.dot(self.replicated_cell_inv)
+        sxij = sxij - np.round(sxij)
+        dxij = sxij.dot(self.replicated_cell)
+        return dxij
+
 
     def chi(self, qvec):
         dxij = self.list_of_replicas
@@ -239,10 +247,9 @@ class Phonons:
             raise TypeError('Conductivity method not recognized')
         return conductivity
 
-    def apply_boundary_with_cell(self, dxij):
-        # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(self.replicated_cell_inv)
-        sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(self.replicated_cell)
-        return dxij
-
+    def plot_all(self):
+        plotter.plot_dispersion(self)
+        plotter.plot_dos(self)
+        plotter.plot_vs_frequency(self, self.c_v, 'cv')
+        plotter.plot_vs_frequency(self, self.gamma, 'gamma_THz')
+        plotter.plot_vs_frequency(self, self.ps, 'phase_space')
