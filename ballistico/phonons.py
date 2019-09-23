@@ -251,8 +251,11 @@ class Phonons:
             raise TypeError('Conductivity method not recognized')
         return conductivity
 
-    def plot_all(self):
-        plotter.plot_dispersion(self)
+    def plot_all(self, symmetry=None):
+        if symmetry:
+            plotter.plot_dispersion(self, symmetry=symmetry)
+        else:
+            plotter.plot_dispersion(self)
         plotter.plot_dos(self)
         plotter.plot_vs_frequency(self, self.c_v, 'cv')
         plotter.plot_vs_frequency(self, self.gamma, 'gamma_THz')
