@@ -143,7 +143,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
     if not symmetry == 'nw':
         for alpha in range(3):
             fig2 = plt.figure ()
-            plt.ylabel('v_$' + str(alpha) + '$/($10m/s$)', fontsize=25, fontweight='bold')
+            plt.ylabel('v_$' + str(alpha) + '$/($100m/s$)', fontsize=25, fontweight='bold')
             plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
             plt.xticks(Q, point_names)
             plt.xlim(q[0], q[-1])
@@ -154,7 +154,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
                 plt.show()
 
     fig2 = plt.figure ()
-    plt.ylabel('$|v|$/($10m/s$)', fontsize=25, fontweight='bold')
+    plt.ylabel('$|v|$/($100m/s$)', fontsize=25, fontweight='bold')
     plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
 
     plt.xticks(Q, point_names)
