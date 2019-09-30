@@ -259,19 +259,19 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
 
         print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
               '%')
-        potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
-                                                 phonons.rescaled_eigenvectors.reshape(
-                                                     (phonons.n_k_points * phonons.n_modes, phonons.n_modes),
-                                                     order='C')[nu_single, :], (0, 0))
 
         if is_gamma_tensor_enabled == True:
             raise ValueError('is_gamma_tensor_enabled=True not supported')
-        ps_and_gamma_sparse = np.zeros(2)
+        # ps_and_gamma_sparse = np.zeros(2)
         out = calculate_dirac_delta_amorphous(phonons, nu_single)
         if not out:
             continue
         dirac_delta, mup_vec, mupp_vec = out
 
+        potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
+                                                 phonons.rescaled_eigenvectors.reshape(
+                                                     (phonons.n_k_points * phonons.n_modes, phonons.n_modes),
+                                                     order='C')[nu_single, :], (0, 0))
         scaled_potential = contract('ij,ni,mj->nm', potential_times_evect.real,
                                     phonons.rescaled_eigenvectors[0].real,
                                     phonons.rescaled_eigenvectors[0].real,
@@ -286,6 +286,11 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
         ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
+
+        # THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
+        # print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
+        # print('\n')
+
     return ps_and_gamma
 
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
