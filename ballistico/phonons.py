@@ -192,12 +192,6 @@ class Phonons:
 
 
     @lazy_property(is_storing=False, is_reduced_path=False)
-    def tau(self):
-        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
-        return 1 / gamma
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
     def scattering_matrix_without_diagonal(self):
         frequencies = self.keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
         # TODO: move this minus sign somewhere else
@@ -206,12 +200,6 @@ class Phonons:
                                                            scattering_matrix_without_diagonal, frequencies)
         return scattering_matrix_without_diagonal
 
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def scattering_matrix(self):
-        scattering_matrix = self.scattering_matrix_without_diagonal
-        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
-        scattering_matrix = scattering_matrix + np.diag(gamma)
-        return scattering_matrix
 
     def keep_only_physical(self, operator):
         physical_modes = self.physical_modes
@@ -220,6 +208,7 @@ class Phonons:
             return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
         else:
             return operator[physical_modes, ...]
+
 
     def apply_boundary_with_cell(self, dxij):
         # exploit periodicity to calculate the shortest distance, which may not be the one we have
@@ -235,21 +224,17 @@ class Phonons:
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
 
-    def conductivity(self, method='rta', max_n_iterations=None):
-        if max_n_iterations and method != 'sc':
-            raise TypeError('Only phonons consistent method support n_iteration parameter')
 
+    def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None):
+        # if length is not None:
         if method == 'rta':
-            conductivity = bac.calculate_conductivity_rta(self)
-        elif method == 'af':
-            conductivity = bac.calculate_conductivity_AF(self)
-        elif method == 'inverse':
-            conductivity = bac.calculate_conductivity_inverse(self)
+            return bac.calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
         elif method == 'sc':
-            conductivity = bac.calculate_conductivity_sc(self, max_n_iterations)
+            return bac.calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+        elif (method == 'qhgk' or method == 'inverse'):
+            return bac.calculate_all(self, method=method, max_n_iterations=max_n_iterations,  gamma_in=gamma_in)
         else:
-            raise TypeError('Conductivity method not recognized')
-        return conductivity
+            raise TypeError('Conductivity method not implemented')
 
     def plot_all(self, symmetry=None):
         if symmetry:
@@ -260,3 +245,15 @@ class Phonons:
         plotter.plot_vs_frequency(self, self.c_v, 'cv')
         plotter.plot_vs_frequency(self, self.gamma, 'gamma_THz')
         plotter.plot_vs_frequency(self, self.ps, 'phase_space')
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def scattering_matrix(self):
+        scattering_matrix = self.scattering_matrix_without_diagonal
+        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
+        scattering_matrix = scattering_matrix + np.diag(gamma)
+        return scattering_matrix
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def tau(self):
+        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
+        return 1 / gamma
