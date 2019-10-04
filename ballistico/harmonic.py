@@ -62,8 +62,6 @@ def calculate_dynamical_matrix(phonons):
     mass = np.sqrt(atoms.get_masses())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-
-    # TODO: probably we want to move this unit conversion somewhere more appropriate
     dynmat *= EVTOTENJOVERMOL
     return dynmat
 

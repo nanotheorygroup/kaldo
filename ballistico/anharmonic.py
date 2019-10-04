@@ -83,7 +83,6 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
 
-        # TODO: move units conversion somewhere else
         gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
         pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * gammatothz
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
@@ -181,7 +180,6 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                                                 phonons._chi_k[index_kpp_full].conj())
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
-                # TODO: move units conversion somewhere else
                 gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
                 pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * gammatothz
 
