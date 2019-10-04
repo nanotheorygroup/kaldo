@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 
 # Add imports here
-from .phonons import *
+from .ballistico import *
 
 # Handle versioneer
 from ._version import get_versions
