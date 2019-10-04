@@ -10,21 +10,6 @@ KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 
 
 
-
-def calculate_rescaled_eigenvectors(phonons):
-    n_particles = phonons.atoms.positions.shape[0]
-    n_modes = phonons.n_modes
-    masses = phonons.atoms.get_masses()
-    rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
-        (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
-        masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_particles * 3, n_modes),
-                                                          order='C')
-    rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
-    return rescaled_eigenvectors
-
-
 def calculate_occupations(phonons):
     frequencies = phonons.frequencies
     temp = phonons.temperature * KELVINTOTHZ
@@ -58,13 +43,21 @@ def calculate_gamma_sparse(phonons, is_gamma_tensor_enabled=False):
     print('Projection started')
     if phonons.is_amorphous:
         ps_and_gamma = project_amorphous(phonons, is_gamma_tensor_enabled)
-
     else:
         ps_and_gamma = project_crystal(phonons, is_gamma_tensor_enabled)
     return ps_and_gamma
 
 
 def project_amorphous(phonons, is_gamma_tensor_enabled=False):
+    n_particles = phonons.atoms.positions.shape[0]
+    n_modes = phonons.n_modes
+    masses = phonons.atoms.get_masses()
+    rescaled_eigenvectors = phonons.eigenvectors.reshape(
+        (n_particles, 3, n_modes), order='C') / np.sqrt(
+        masses[:, np.newaxis, np.newaxis])
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((n_modes, n_modes),
+                                                          order='C')
+
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     for nu_single in range(phonons.n_phonons):
@@ -81,12 +74,10 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         dirac_delta, mup_vec, mupp_vec = out
 
         potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
-                                                 phonons.rescaled_eigenvectors.reshape(
-                                                     (phonons.n_k_points * phonons.n_modes, phonons.n_modes),
-                                                     order='C')[nu_single, :], (0, 0))
-        scaled_potential = contract('ij,ni,mj->nm', potential_times_evect.real,
-                                    phonons.rescaled_eigenvectors[0].real,
-                                    phonons.rescaled_eigenvectors[0].real,
+                                                 rescaled_eigenvectors[:, nu_single], (0, 0))
+        scaled_potential = contract('ij,in,jm->nm', potential_times_evect.real,
+                                    rescaled_eigenvectors.real,
+                                    rescaled_eigenvectors.real,
                                     optimize='optimal')
         scaled_potential = scaled_potential[np.newaxis, ...]
         scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
@@ -113,6 +104,16 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
     else:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2))
 
+    n_particles = phonons.atoms.positions.shape[0]
+    n_modes = phonons.n_modes
+    masses = phonons.atoms.get_masses()
+    rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
+        (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
+        masses[np.newaxis, :, np.newaxis, np.newaxis])
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_particles * 3, n_modes),
+                                                          order='C')
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
+
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
             nu_single = np.ravel_multi_index([index_k, mu], (phonons.n_k_points, phonons.n_modes), order='C')
@@ -121,9 +122,9 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                 print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
                       '%')
             potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
-                                                phonons.rescaled_eigenvectors.reshape(
-                                                    (phonons.n_k_points * phonons.n_modes, phonons.n_modes),
-                                                    order='C')[nu_single, :], (0, 0))
+                                                rescaled_eigenvectors.reshape(
+                                                    (phonons.n_k_points, phonons.n_modes, phonons.n_modes),
+                                                    order='C')[index_k, :, mu], (0, 0))
 
 
             for is_plus in (1, 0):
@@ -165,18 +166,18 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
                 if is_plus:
 
-                    scaled_potential = contract('litj,kmi,kl,knj,kt->kmn', potential_times_evect,
-                                                phonons.rescaled_eigenvectors,
+                    scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
+                                                rescaled_eigenvectors,
                                                 phonons.chi_k,
-                                                phonons.rescaled_eigenvectors[index_kpp_full].conj(),
+                                                rescaled_eigenvectors[index_kpp_full].conj(),
                                                 phonons.chi_k[index_kpp_full].conj()
                                                 )
                 else:
 
-                    scaled_potential = contract('litj,kmi,kl,knj,kt->kmn', potential_times_evect,
-                                                phonons.rescaled_eigenvectors.conj(),
+                    scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
+                                                rescaled_eigenvectors.conj(),
                                                 phonons.chi_k.conj(),
-                                                phonons.rescaled_eigenvectors[index_kpp_full].conj(),
+                                                rescaled_eigenvectors[index_kpp_full].conj(),
                                                 phonons.chi_k[index_kpp_full].conj())
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 

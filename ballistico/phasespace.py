@@ -77,7 +77,12 @@ def calculate_dirac_delta(phonons, index_k, mu, is_plus):
     if phonons.sigma_in is None:
         sigma_small = calculate_broadening(phonons, index_kpp_full)
     else:
-        sigma_small = phonons.sigma_in
+        try:
+            phonons.sigma_in.size
+        except AttributeError:
+            sigma_small = phonons.sigma_in
+        else:
+            sigma_small = phonons.sigma_in.reshape((phonons.n_k_points, phonons.n_modes))[index_k, mu]
 
     second_sign = (int(is_plus) * 2 - 1)
     omegas = phonons.omegas

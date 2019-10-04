@@ -167,15 +167,10 @@ class Phonons:
         return ps_gamma_and_gamma_tensor
 
 
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def rescaled_eigenvectors(self):
-        rescaled_eigenvectors = ban.calculate_rescaled_eigenvectors(self)
-        return rescaled_eigenvectors
-
 
     @property
     def gamma_tensor(self):
-        gamma_tensor = self.ps_gamma_and_gamma_tensor[:, 2:]
+        gamma_tensor = self.keep_only_physical(self.ps_gamma_and_gamma_tensor[:, 2:])
         return gamma_tensor
 
 
@@ -195,9 +190,7 @@ class Phonons:
     def scattering_matrix_without_diagonal(self):
         frequencies = self.keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
         # TODO: move this minus sign somewhere else
-        scattering_matrix_without_diagonal = - 1 * self.keep_only_physical(self.gamma_tensor)
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies,
-                                                           scattering_matrix_without_diagonal, frequencies)
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, self.gamma_tensor, frequencies)
         return scattering_matrix_without_diagonal
 
 
@@ -248,7 +241,7 @@ class Phonons:
 
     @lazy_property(is_storing=False, is_reduced_path=False)
     def scattering_matrix(self):
-        scattering_matrix = self.scattering_matrix_without_diagonal
+        scattering_matrix = -1 * self.scattering_matrix_without_diagonal
         gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
         scattering_matrix = scattering_matrix + np.diag(gamma)
         return scattering_matrix
