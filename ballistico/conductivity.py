@@ -9,15 +9,6 @@ KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 MAX_LENGTH_TRESHOLD = 1e15
 
 
-def scattering_matrix(phonons, gamma=None):
-    if gamma is None:
-        gamma = phonons.gamma
-    scattering_matrix = -1 * phonons._scattering_matrix_without_diagonal
-    scattering_matrix = scattering_matrix + np.diag(gamma)
-    return scattering_matrix
-
-
-
 def tau_caltech(lambd, length, velocity,  axis):
     kn = lambd[:, axis] / length
     transmission = (1 - kn * (1 - np.exp(- 1. / kn)))
@@ -42,6 +33,14 @@ def lambd_matthiesen(lambd, length, axis):
     lambd_out = lambd.copy()
     lambd_out[:, axis] = (1 / lambd[:, axis] + 1 / length) ** (-1)
     return lambd_out
+
+
+def scattering_matrix(phonons, gamma=None):
+    if gamma is None:
+        gamma = phonons.gamma
+    scattering_matrix = -1 * phonons._scattering_matrix_without_diagonal
+    scattering_matrix = scattering_matrix + np.diag(gamma)
+    return scattering_matrix
 
 
 def calculate_c_v_2d(phonons):
