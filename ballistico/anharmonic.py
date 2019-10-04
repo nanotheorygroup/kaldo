@@ -41,7 +41,7 @@ def calculate_c_v(phonons):
 @timeit
 def calculate_gamma_sparse(phonons, is_gamma_tensor_enabled=False):
     print('Projection started')
-    if phonons.is_amorphous:
+    if phonons._is_amorphous:
         ps_and_gamma = project_amorphous(phonons, is_gamma_tensor_enabled)
     else:
         ps_and_gamma = project_crystal(phonons, is_gamma_tensor_enabled)
@@ -168,17 +168,17 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
                     scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
                                                 rescaled_eigenvectors,
-                                                phonons.chi_k,
+                                                phonons._chi_k,
                                                 rescaled_eigenvectors[index_kpp_full].conj(),
-                                                phonons.chi_k[index_kpp_full].conj()
+                                                phonons._chi_k[index_kpp_full].conj()
                                                 )
                 else:
 
                     scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
                                                 rescaled_eigenvectors.conj(),
-                                                phonons.chi_k.conj(),
+                                                phonons._chi_k.conj(),
                                                 rescaled_eigenvectors[index_kpp_full].conj(),
-                                                phonons.chi_k[index_kpp_full].conj())
+                                                phonons._chi_k[index_kpp_full].conj())
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
                 # TODO: move units conversion somewhere else

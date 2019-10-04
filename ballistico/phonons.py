@@ -2,15 +2,12 @@ from opt_einsum import contract
 import numpy as np
 import ballistico.harmonic as bha
 import ballistico.anharmonic as ban
-import ballistico.conductivity as bac
-import ballistico.plotter as plotter
 from .helper import timeit, lazy_property, is_calculated
 
 from .helper import lazy_property
 
 FOLDER_NAME = 'output'
 FREQUENCY_THRESHOLD = 0.001
-
 
 
 class Phonons:
@@ -67,10 +64,12 @@ class Phonons:
         k_points = bha.calculate_k_points(self)
         return k_points
 
+
     @lazy_property(is_storing=True, is_reduced_path=True)
     def dynmat(self):
         dynmat = bha.calculate_dynamical_matrix(self)
         return dynmat
+
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):
@@ -78,67 +77,29 @@ class Phonons:
         return frequencies
 
 
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def omegas(self):
-        omegas = 2 * np.pi * self.frequencies
-        return omegas
-
     @lazy_property(is_storing=True, is_reduced_path=True)
     def eigensystem(self):
         eigensystem = bha.calculate_eigensystem(self)
         return eigensystem
 
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def dynmat_derivatives(self):
-        dynmat_derivatives = bha.calculate_second_order_observable(self, 'dynmat_derivatives')
-        return dynmat_derivatives
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
         velocities = bha.calculate_second_order_observable(self, 'velocities')
         return velocities
 
+
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities_AF(self):
         velocities_AF = bha.calculate_second_order_observable(self, 'velocities_AF')
         return velocities_AF
+
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def dos(self):
         dos = bha.calculate_density_of_states(self.frequencies, self.kpts)
         return dos
 
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def physical_modes(self):
-        physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
-        return physical_modes
-
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def chi_k(self):
-        chi = np.zeros((self.n_k_points, self.n_replicas), dtype=np.complex)
-        for index_k in range(self.n_k_points):
-            k_point = self.k_points[index_k]
-            chi[index_k] = self.chi(k_point)
-        return chi
-
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def omegas(self):
-        return self.frequencies * 2 * np.pi
-
-    @property
-    def is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all()
-        return is_amorphous
-
-    @property
-    def eigenvalues(self):
-        eigenvalues = self.eigensystem[:, :, -1]
-        return eigenvalues
-
-    @property
-    def eigenvectors(self):
-        eigenvectors = self.eigensystem[:, :, :-1]
-        return eigenvectors
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
@@ -152,50 +113,95 @@ class Phonons:
         return c_v
 
 
+    @property
+    def eigenvalues(self):
+        eigenvalues = self.eigensystem[:, :, -1]
+        return eigenvalues
+
+
+    @property
+    def eigenvectors(self):
+        eigenvectors = self.eigensystem[:, :, :-1]
+        return eigenvectors
+
+
+    @property
+    def gamma(self):
+        gamma = self._ps_and_gamma[:, 1]
+        return gamma
+
+
+    @property
+    def ps(self):
+        ps = self._ps_and_gamma[:, 0]
+        return ps
+
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def _dynmat_derivatives(self):
+        dynmat_derivatives = bha.calculate_second_order_observable(self, 'dynmat_derivatives')
+        return dynmat_derivatives
+
+
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def _physical_modes(self):
+        physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
+        return physical_modes
+
+
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def _chi_k(self):
+        chi = np.zeros((self.n_k_points, self.n_replicas), dtype=np.complex)
+        for index_k in range(self.n_k_points):
+            k_point = self.k_points[index_k]
+            chi[index_k] = self._chi(k_point)
+        return chi
+
+
+    @lazy_property(is_storing=False, is_reduced_path=True)
+    def _omegas(self):
+        return self.frequencies * 2 * np.pi
+
+
     @lazy_property(is_storing=True, is_reduced_path=False)
-    def ps_and_gamma(self):
+    def _ps_and_gamma(self):
         if is_calculated('ps_gamma_and_gamma_tensor', self):
-            ps_and_gamma = self.ps_gamma_and_gamma_tensor[:, :2]
+            ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = ban.calculate_gamma_sparse(self, is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
-    def ps_gamma_and_gamma_tensor(self):
+    def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = ban.calculate_gamma_sparse(self, is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 
-
-    @property
-    def gamma_tensor(self):
-        gamma_tensor = self.keep_only_physical(self.ps_gamma_and_gamma_tensor[:, 2:])
-        return gamma_tensor
-
-
-    @property
-    def gamma(self):
-        gamma = self.ps_and_gamma[:, 1]
-        return gamma
-
-
-    @property
-    def ps(self):
-        ps = self.ps_and_gamma[:, 0]
-        return ps
-
-
     @lazy_property(is_storing=False, is_reduced_path=False)
-    def scattering_matrix_without_diagonal(self):
-        frequencies = self.keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
-        # TODO: move this minus sign somewhere else
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, self.gamma_tensor, frequencies)
+    def _scattering_matrix_without_diagonal(self):
+        frequencies = self._keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
+        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, gamma_tensor, frequencies)
         return scattering_matrix_without_diagonal
 
 
-    def keep_only_physical(self, operator):
-        physical_modes = self.physical_modes
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def _scattering_matrix(self):
+        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
+        gamma = self._keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
+        scattering_matrix = scattering_matrix + np.diag(gamma)
+        return scattering_matrix
+
+
+    @property
+    def _is_amorphous(self):
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        return is_amorphous
+
+
+    def _keep_only_physical(self, operator):
+        physical_modes = self._physical_modes
         if operator.shape == (self.n_phonons, self.n_phonons):
             index = np.outer(physical_modes, physical_modes)
             return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
@@ -203,7 +209,7 @@ class Phonons:
             return operator[physical_modes, ...]
 
 
-    def apply_boundary_with_cell(self, dxij):
+    def _apply_boundary_with_cell(self, dxij):
         # exploit periodicity to calculate the shortest distance, which may not be the one we have
         sxij = dxij.dot(self.replicated_cell_inv)
         sxij = sxij - np.round(sxij)
@@ -211,42 +217,8 @@ class Phonons:
         return dxij
 
 
-    def chi(self, qvec):
+    def _chi(self, qvec):
         dxij = self.list_of_replicas
         cell_inv = self.cell_inv
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
-
-
-    def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None):
-        # if length is not None:
-        if method == 'rta':
-            return bac.calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
-        elif method == 'sc':
-            return bac.calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
-        elif (method == 'qhgk' or method == 'inverse'):
-            return bac.calculate_all(self, method=method, max_n_iterations=max_n_iterations,  gamma_in=gamma_in)
-        else:
-            raise TypeError('Conductivity method not implemented')
-
-    def plot_all(self, symmetry=None):
-        if symmetry:
-            plotter.plot_dispersion(self, symmetry=symmetry)
-        else:
-            plotter.plot_dispersion(self)
-        plotter.plot_dos(self)
-        plotter.plot_vs_frequency(self, self.c_v, 'cv')
-        plotter.plot_vs_frequency(self, self.gamma, 'gamma_THz')
-        plotter.plot_vs_frequency(self, self.ps, 'phase_space')
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def scattering_matrix(self):
-        scattering_matrix = -1 * self.scattering_matrix_without_diagonal
-        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
-        scattering_matrix = scattering_matrix + np.diag(gamma)
-        return scattering_matrix
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def tau(self):
-        gamma = self.keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
-        return 1 / gamma

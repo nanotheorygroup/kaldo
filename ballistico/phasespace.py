@@ -85,7 +85,7 @@ def calculate_dirac_delta(phonons, index_k, mu, is_plus):
             sigma_small = phonons.sigma_in.reshape((phonons.n_k_points, phonons.n_modes))[index_k, mu]
 
     second_sign = (int(is_plus) * 2 - 1)
-    omegas = phonons.omegas
+    omegas = phonons._omegas
     omegas_difference = np.abs(
         omegas[index_k, mu] + second_sign * omegas[:, :, np.newaxis] -
         omegas[index_kpp_full, np.newaxis, :])
@@ -151,7 +151,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         if phonons.frequencies[0, mu] > phonons.frequency_threshold:
 
             second_sign = (int(is_plus) * 2 - 1)
-            omegas = phonons.omegas
+            omegas = phonons._omegas
             omegas_difference = np.abs(
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])

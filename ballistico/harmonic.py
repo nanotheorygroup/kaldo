@@ -117,10 +117,10 @@ def calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=False):
     geometry = atoms.positions
     n_particles = geometry.shape[0]
     n_phonons = n_particles * 3
-    if phonons.is_amorphous:
+    if phonons._is_amorphous:
         dyn_s = dynmat[:, :, 0, :, :]
     else:
-        dyn_s = contract('ialjb,l->iajb', dynmat, phonons.chi(qvec))
+        dyn_s = contract('ialjb,l->iajb', dynmat, phonons._chi(qvec))
     dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
     if only_eigenvals:
         evals = np.linalg.eigvalsh(dyn_s)
@@ -137,13 +137,13 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
     n_phonons = n_particles * 3
     geometry = atoms.positions
     list_of_replicas = phonons.list_of_replicas
-    if phonons.is_amorphous:
-        dxij = phonons.apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+    if phonons._is_amorphous:
+        dxij = phonons._apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
         dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
     else:
-        dxij = phonons.apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
+        dxij = phonons._apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
                 geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
-        dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons.chi(qvec))
+        dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons._chi(qvec))
     dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
     return dynmat_derivatives
 
@@ -161,7 +161,7 @@ def calculate_velocities_AF_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
         k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C')
-        dynmat_derivatives = phonons.dynmat_derivatives[k_index]
+        dynmat_derivatives = phonons._dynmat_derivatives[k_index]
         frequencies = phonons.frequencies[k_index]
         eigenvects = phonons.eigenvectors[k_index]
     else:
