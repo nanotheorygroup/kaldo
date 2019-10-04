@@ -13,6 +13,8 @@ FREQUENCY_THRESHOLD = 0.001
 class Phonons:
     def __init__(self, **kwargs):
         self.finite_difference = kwargs['finite_difference']
+        self.is_classic = bool(kwargs['is_classic'])
+        self.temperature = float(kwargs['temperature'])
         if 'folder' in kwargs:
             self.folder = kwargs['folder']
         else:
@@ -29,8 +31,6 @@ class Phonons:
             self.conserve_momentum = kwargs['conserve_momentum']
         else:
             self.conserve_momentum = False
-        self.is_classic = bool(kwargs['is_classic'])
-        self.temperature = float(kwargs['temperature'])
         if 'sigma_in' in kwargs:
             self.sigma_in = kwargs['sigma_in']
         else:
@@ -47,7 +47,6 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
 
-        # TODO: Move following attributes to finitedifference
         self.cell_inv = np.linalg.inv(self.atoms.cell)
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
@@ -135,6 +134,11 @@ class Phonons:
     def ps(self):
         ps = self._ps_and_gamma[:, 0]
         return ps
+
+
+#################
+# Private methods
+#################
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)

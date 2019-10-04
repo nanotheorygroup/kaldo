@@ -39,8 +39,6 @@ def create_folder(phonons, is_reduced_path):
             except AttributeError:
                 folder += '/' + str(phonons.sigma_in)
             else:
-                # TODO: here we should probably use this
-                # https://stackoverflow.com/questions/534839/how-to-create-a-guid-uuid-in-python
                 folder += '/vec_' + str(phonons.sigma_in[-2])
                 print(folder)
     if not os.path.exists(folder):
