@@ -1,3 +1,9 @@
+# Test temporary folders
+ballistico/tests/tmp-folder/5_5_5/
+ballistico/tests/tmp-folder/5_5_5/300.0/
+ballistico/tests/tmp-folder/5_5_5/300.0/quantum/
+ballistico/tests/tmp-folder/5_5_5/300.0/classic/
+
 .DS_Store
 *.pyc
 .idea
