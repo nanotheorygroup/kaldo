@@ -12,7 +12,7 @@ MAX_LENGTH_TRESHOLD = 1e15
 def scattering_matrix(phonons, gamma=None):
     if gamma is None:
         gamma = phonons.gamma
-    scattering_matrix = phonons.scattering_matrix_without_diagonal
+    scattering_matrix = -1 * phonons.scattering_matrix_without_diagonal
     scattering_matrix = scattering_matrix + np.diag(gamma)
     return scattering_matrix
 
@@ -102,7 +102,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
                 ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
                 (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
 
-        lorentz[np.invert(physical_modes)] = 0
+        lorentz[np.isnan(lorentz)] = 0
         conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
         heat_capacity = calculate_c_v_2d(phonons)
 
@@ -110,7 +110,10 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
                                                         phonons.velocities_AF[:, :, :, :], lorentz[:, :, :],
                                                         phonons.velocities_AF[:, :, :, :])
         conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
+
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
+        conductivity_per_mode[np.invert(phonons.physical_modes), :, :] = 0
+
     elif method == 'inverse':
         velocities = phonons.keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
         scattering_inverse = np.linalg.inv(phonons.scattering_matrix)
@@ -157,7 +160,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         lambda_n = np.copy(lambda_0)
 
         for n_iteration in range(max_n_iterations):
-            delta_lambda = -1 * np.einsum('i,ij,ja->ia', phonons.tau, phonons.scattering_matrix_without_diagonal, delta_lambda)
+            delta_lambda = np.einsum('i,ij,ja->ia', phonons.tau, phonons.scattering_matrix_without_diagonal, delta_lambda)
             lambda_n += delta_lambda
 
 
@@ -168,6 +171,8 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
 
     else:
         raise TypeError('Conductivity method not recognized')
+    if np.isnan(conductivity_per_mode).sum() != 0:
+        print('nan')
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
 
@@ -185,9 +190,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     physical_modes = (frequencies > phonons.frequency_threshold) #& (velocities > 0)[:, 2]
     if not is_rta:
         # TODO: clean up the is_rta logic
-        scattering_matrix = phonons.gamma_tensor.reshape ((phonons.n_phonons,
-                                                                phonons.n_phonons), order='C')
-        scattering_matrix = np.einsum ('a,ab,b->ab', 1 / frequencies, scattering_matrix, frequencies)
+        scattering_matrix = phonons.scattering_matrix_without_diagonal
 
     for alpha in range (3):
         gamma = np.zeros (phonons.n_phonons)
@@ -238,8 +241,8 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         avg_conductivity = new_avg_conductivity
 
         tau_0 = tau_0.reshape ((phonons.n_phonons), order='C')
-        delta_lambd = tau_0[:, np.newaxis] * scattering_matrix.dot (lambd_n)
-        lambd_n = lambd_0 + delta_lambd
+        delta_lambd = tau_0[physical_modes, np.newaxis] * scattering_matrix.dot (lambd_n[physical_modes, :])
+        lambd_n[physical_modes, :] = lambd_0[physical_modes, :] + delta_lambd[:, :]
         cond_iterations.append(conductivity_per_mode.sum(axis=0))
 
     for alpha in range (3):

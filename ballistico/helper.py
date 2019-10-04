@@ -34,7 +34,13 @@ def create_folder(phonons, is_reduced_path):
         else:
             folder += '/quantum'
         if phonons.sigma_in is not None:
-            folder += '/' + str(phonons.sigma_in)
+            try:
+                phonons.sigma_in.size
+            except AttributeError:
+                folder += '/' + str(phonons.sigma_in)
+            else:
+                folder += '/vec_' + str(phonons.sigma_in[-2])
+                print(folder)
     if not os.path.exists(folder):
         os.makedirs(folder)
     return folder
