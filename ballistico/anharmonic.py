@@ -2,7 +2,7 @@ import sparse
 import numpy as np
 from opt_einsum import contract
 import ase.units as units
-from .helper import timeit, lazy_property, is_calculated
+from .tools import timeit, lazy_property, is_calculated
 from .phasespace import calculate_dirac_delta_amorphous, calculate_dirac_delta
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J

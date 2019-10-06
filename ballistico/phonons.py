@@ -2,9 +2,9 @@ from opt_einsum import contract
 import numpy as np
 import ballistico.harmonic as bha
 import ballistico.anharmonic as ban
-from .helper import timeit, lazy_property, is_calculated
+from .tools import timeit, lazy_property, is_calculated
 
-from .helper import lazy_property
+from .tools import lazy_property
 
 FOLDER_NAME = 'output'
 FREQUENCY_THRESHOLD = 0.001
