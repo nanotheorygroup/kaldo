@@ -9,7 +9,7 @@ from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
 import ase.units as units
 import shutil
-TMP_FOLDER = 'tmp-folder'
+TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 
 def create_phonons():
