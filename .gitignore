@@ -1,8 +1,5 @@
 # Test temporary folders
-ballistico/tests/tmp-folder/5_5_5/
-ballistico/tests/tmp-folder/5_5_5/300.0/
-ballistico/tests/tmp-folder/5_5_5/300.0/quantum/
-ballistico/tests/tmp-folder/5_5_5/300.0/classic/
+ballistico/tests/tmp-folder
 
 .DS_Store
 *.pyc
@@ -111,3 +108,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+ballistico/tests/si-amorphous/replicated_atoms.xyz
+ballistico/tests/si-amorphous/second.npy
+ballistico/tests/si-amorphous/third.npz
+ballistico/tests/si-crystal/replicated_atoms.xyz
+ballistico/tests/si-crystal/second.npy
+ballistico/tests/si-crystal/third.npz
