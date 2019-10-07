@@ -50,10 +50,10 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
+
+        print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
         print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
               '%')
-        print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
-
     return ps_and_gamma
 
 

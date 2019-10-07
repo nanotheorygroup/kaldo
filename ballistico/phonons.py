@@ -1,7 +1,7 @@
 from opt_einsum import contract
 import numpy as np
 import ballistico.harmonic as bha
-import ballistico.anharmonic as ban
+import ballistico.anharmonic_tf as ban
 import ballistico.statistic as bst
 import tensorflow as tf
 from .tools import timeit, lazy_property, is_calculated
