@@ -254,14 +254,14 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
 
 
-def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None):
+def conductivity(phonons, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None):
     # if length is not None:
     if method == 'rta':
-        return calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+        return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
     elif method == 'sc':
-        return calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+        return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
     elif (method == 'qhgk' or method == 'inverse'):
-        return calculate_all(self, method=method, max_n_iterations=max_n_iterations,  gamma_in=gamma_in)
+        return calculate_all(phonons, method=method, max_n_iterations=max_n_iterations, gamma_in=gamma_in)
     else:
         raise TypeError('Conductivity method not implemented')
 
