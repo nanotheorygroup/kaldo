@@ -57,14 +57,15 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
         return dirac_delta_tf, index_kp, mup, index_kpp, mupp
 
 def calculate_dirac_delta_amorphous(phonons, mu):
-
+    if phonons.frequencies[0, mu] < phonons.frequency_threshold:
+        return None
     density_tf = phonons.density_tf
     omega_tf = phonons.omega_tf
     sigma_tf = tf.constant(phonons.sigma_in, dtype=tf.float64)
     for is_plus in (1, 0):
         second_sign = (int(is_plus) * 2 - 1)
-        omegas_difference = np.abs(phonons.omegas[0, mu] + second_sign * phonons.omegas[0, :, np.newaxis] -
-                                   phonons.omegas[0, np.newaxis, :])
+        omegas_difference = np.abs(phonons._omegas[0, mu] + second_sign * phonons._omegas[0, :, np.newaxis] -
+                                   phonons._omegas[0, np.newaxis, :])
 
         condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
                     (phonons.frequencies[0, :, np.newaxis] > phonons.frequency_threshold) & \
@@ -79,10 +80,10 @@ def calculate_dirac_delta_amorphous(phonons, mu):
             else:
                 dirac_delta_tf = 1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec)
             dirac_delta_tf = dirac_delta_tf / tf.gather(omega_tf[0], mup_vec) / tf.gather(omega_tf[0], mupp_vec)
-            omegas_difference_tf = phonons.omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
+            omegas_difference_tf = phonons._omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
                                                                                                                 mupp_vec)
-            dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * sigma_tf ** 2) * np.exp(
-                - omegas_difference_tf ** 2 / (sigma_tf ** 2))
+            dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * np.exp(
+                - omegas_difference_tf ** 2 / ((2 * np.pi * sigma_tf) ** 2))
 
             try:
                 mup = tf.concat([mup, mup_vec], 0)
@@ -99,11 +100,23 @@ def calculate_dirac_delta_amorphous(phonons, mu):
 
 
 def project_amorphous(phonons, is_gamma_tensor_enabled=False):
+    if is_gamma_tensor_enabled == True:
+        raise ValueError('is_gamma_tensor_enabled=True not supported')
+    n_particles = phonons.atoms.positions.shape[0]
+    n_modes = phonons.n_modes
+    masses = phonons.atoms.get_masses()
+    rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
+        (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
+        masses[np.newaxis, :, np.newaxis, np.newaxis])
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_particles * 3, n_modes),
+                                                          order='C')
+    rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     print('Projection started')
     evect_tf = tf.convert_to_tensor(
-        phonons.rescaled_eigenvectors.reshape((phonons.n_phonons, phonons.n_modes)).astype(float))
+        rescaled_eigenvectors.reshape((phonons.n_phonons, phonons.n_modes)).astype(float))
 
     coords = phonons.finite_difference.third_order.coords
     data = phonons.finite_difference.third_order.data
@@ -113,18 +126,14 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * phonons.n_replicas) ** 2, phonons.n_modes))
     for nu_single in range(phonons.n_phonons):
-        print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
-                  '%')
-
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
-                                                    tf.reshape(evect_tf[nu_single, :], ((phonons.n_modes, 1))))
-        third_nu_tf = tf.reshape(third_nu_tf, (phonons.n_modes * phonons.n_replicas, phonons.n_modes * phonons.n_replicas))
-
-        if is_gamma_tensor_enabled == True:
-            raise ValueError('is_gamma_tensor_enabled=True not supported')
         out = calculate_dirac_delta_amorphous(phonons, nu_single)
         if not out:
             continue
+        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
+                                                    tf.reshape(evect_tf[nu_single, :], ((phonons.n_modes, 1))))
+        third_nu_tf = tf.reshape(third_nu_tf,
+                                 (phonons.n_modes * phonons.n_replicas, phonons.n_modes * phonons.n_replicas))
+
         dirac_delta_tf, mup_vec, mupp_vec = out
         scaled_potential_tf = tf.einsum('ij,ni,mj->nm', third_nu_tf, evect_tf, evect_tf)
         coords = tf.stack((mup_vec, mupp_vec), axis=-1)
@@ -137,9 +146,13 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         ps_and_gamma[nu_single, 0] = dirac_delta
         ps_and_gamma[nu_single, 1] = pot_times_dirac
         ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
+
+        THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
+        print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
+                  '%')
+        print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
+
     return ps_and_gamma
-
-
 
 
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
