@@ -1,7 +1,9 @@
 from opt_einsum import contract
 import numpy as np
 import ballistico.harmonic as bha
-import ballistico.anharmonic as ban
+import ballistico.anharmonic_tf as ban
+import ballistico.statistic as bst
+import tensorflow as tf
 from .tools import timeit, lazy_property, is_calculated
 
 from .tools import lazy_property
@@ -102,13 +104,13 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
-        occupations =  ban.calculate_occupations(self)
+        occupations =  bst.calculate_occupations(self)
         return occupations
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def c_v(self):
-        c_v =  ban.calculate_c_v(self)
+        c_v =  bst.calculate_c_v(self)
         return c_v
 
 
@@ -172,13 +174,13 @@ class Phonons:
         if is_calculated('ps_gamma_and_gamma_tensor', self):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = ban.calculate_gamma_sparse(self, is_gamma_tensor_enabled=False)
+            ps_and_gamma = self._calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = ban.calculate_gamma_sparse(self, is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self._calculate_ps_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 
@@ -226,3 +228,28 @@ class Phonons:
         cell_inv = self.cell_inv
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
+
+
+    def _calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
+        print('Projection started')
+        if self._is_amorphous:
+            ps_and_gamma = ban.project_amorphous(self, is_gamma_tensor_enabled)
+        else:
+            ps_and_gamma = ban.project_crystal(self, is_gamma_tensor_enabled)
+        return ps_and_gamma
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def frequencies_tf(self):
+        frequencies_tf = tf.convert_to_tensor(self.frequencies.astype(float))
+        return frequencies_tf
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def omega_tf(self):
+        omega_tf = tf.convert_to_tensor(self._omegas.astype(float))
+        return omega_tf
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def density_tf(self):
+        density_tf = tf.convert_to_tensor(self.occupations.astype(float))
+        return density_tf
