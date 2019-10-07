@@ -7,7 +7,7 @@ from finitedifference.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
-import os
+import shutil
 
 TMP_FOLDER = 'tmp-folder'
 
@@ -26,10 +26,7 @@ def create_phonons():
 
 
 def test_qhgk_conductivity():
-    try:
-        os.rmdir(TMP_FOLDER)
-    except FileNotFoundError:
-        pass
+    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
     phonons = create_phonons()
     cond = bac.conductivity(phonons, method='qhgk').sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
