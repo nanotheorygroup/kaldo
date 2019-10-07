@@ -81,7 +81,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
             if is_plus:
                 dirac_delta_tf = tf.gather(density_tf[0], mup_vec) - tf.gather(density_tf[0], mupp_vec)
             else:
-                dirac_delta_tf = 1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec)
+                dirac_delta_tf = 0.5 * (1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec))
             dirac_delta_tf = dirac_delta_tf / tf.gather(omega_tf[0], mup_vec) / tf.gather(omega_tf[0], mupp_vec)
             omegas_difference_tf = tf.abs(phonons._omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
                                                                                                                 mupp_vec))
