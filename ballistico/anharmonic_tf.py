@@ -59,6 +59,10 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
 def calculate_dirac_delta_amorphous(phonons, mu):
     if phonons.frequencies[0, mu] < phonons.frequency_threshold:
         return None
+    if phonons.broadening_shape == 'triangle':
+        delta_threshold = 1
+    else:
+        delta_threshold = DELTA_THRESHOLD
     density_tf = phonons.density_tf
     omega_tf = phonons.omega_tf
     sigma_tf = tf.constant(phonons.sigma_in, dtype=tf.float64)
@@ -66,8 +70,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         second_sign = (int(is_plus) * 2 - 1)
         omegas_difference = np.abs(phonons._omegas[0, mu] + second_sign * phonons._omegas[0, :, np.newaxis] -
                                    phonons._omegas[0, np.newaxis, :])
-
-        condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
+        condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
                     (phonons.frequencies[0, :, np.newaxis] > phonons.frequency_threshold) & \
                     (phonons.frequencies[0, np.newaxis, :] > phonons.frequency_threshold)
         interactions = tf.where(condition)
@@ -80,10 +83,16 @@ def calculate_dirac_delta_amorphous(phonons, mu):
             else:
                 dirac_delta_tf = 1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec)
             dirac_delta_tf = dirac_delta_tf / tf.gather(omega_tf[0], mup_vec) / tf.gather(omega_tf[0], mupp_vec)
-            omegas_difference_tf = phonons._omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
-                                                                                                                mupp_vec)
-            dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * np.exp(
-                - omegas_difference_tf ** 2 / ((2 * np.pi * sigma_tf) ** 2))
+            omegas_difference_tf = tf.abs(phonons._omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
+                                                                                                                mupp_vec))
+
+            if phonons.broadening_shape == 'gauss':
+                dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * np.exp(
+                    - omegas_difference_tf ** 2 / ((2 * np.pi * sigma_tf) ** 2))
+            elif phonons.broadening_shape == 'triangle':
+                dirac_delta_tf = dirac_delta_tf * 1. / (2 * np.pi * sigma_tf) * (1 - omegas_difference_tf / (2 * np.pi * sigma_tf))
+            else:
+                raise TypeError('Broadening function not implemented.')
 
             try:
                 mup = tf.concat([mup, mup_vec], 0)
