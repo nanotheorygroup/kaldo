@@ -11,6 +11,9 @@ KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 
 @timeit
 def project_amorphous(phonons, is_gamma_tensor_enabled=False):
+    if is_gamma_tensor_enabled == True:
+        raise ValueError('is_gamma_tensor_enabled=True not supported')
+
     n_particles = phonons.atoms.positions.shape[0]
     n_modes = phonons.n_modes
     masses = phonons.atoms.get_masses()
@@ -24,11 +27,6 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     for nu_single in range(phonons.n_phonons):
 
-        print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
-              '%')
-
-        if is_gamma_tensor_enabled == True:
-            raise ValueError('is_gamma_tensor_enabled=True not supported')
         # ps_and_gamma_sparse = np.zeros(2)
         out = calculate_dirac_delta_amorphous(phonons, nu_single)
         if not out:
@@ -51,9 +49,10 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
         ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
 
-        # THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-        # print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
-        # print('\n')
+        THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
+        print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
+              '%')
+        print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
 
     return ps_and_gamma
 
