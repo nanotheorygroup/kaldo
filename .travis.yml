@@ -37,6 +37,12 @@ install:
   - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
     # Activate the test environment
   - conda activate test
+  - wget http://drt.io/dl/dqunw/finite-difference.tar.gz
+  - tar -xzf finite-difference.tar.gz
+  - rm finite-difference.tar.gz
+  - cd finite-difference
+  - pip install .
+
     # Build and install package
   - python setup.py develop --no-deps
 
