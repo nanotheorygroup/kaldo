@@ -45,14 +45,14 @@ install:
   - cd ..
   - pip install pytest
     # Build and install package
-  - python setup.py develop --no-deps
+  - python setup.py develop
 
 
 script:
   - pytest -v --cov=ballistico ballistico/tests/
 
 notifications:
-    email: false
+    email: true
 
 after_success:
   - codecov
