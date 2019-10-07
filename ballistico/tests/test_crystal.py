@@ -13,7 +13,7 @@ TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 def create_phonons():
     # Create a finite difference object
-    finite_difference = FiniteDifference.import_from_dlpoly_folder(folder='si-crystal',
+    finite_difference = FiniteDifference.import_from_dlpoly_folder(folder='ballistico/tests/si-crystal',
                                                                    supercell=[3, 3, 3])
 
     # Create a phonon object
