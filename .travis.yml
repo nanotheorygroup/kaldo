@@ -45,8 +45,6 @@ install:
   - cd ..
   - pip install pytest
     # Build and install package
-  - pwd
-  - ls -ltr
   - python setup.py develop
 
 

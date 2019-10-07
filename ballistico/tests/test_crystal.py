@@ -9,7 +9,7 @@ from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
 import shutil
 
-TMP_FOLDER = 'tmp-folder'
+TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 def create_phonons():
     # Create a finite difference object
