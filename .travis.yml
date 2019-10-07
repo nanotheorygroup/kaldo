@@ -42,7 +42,8 @@ install:
   - rm finite-difference.tar.gz
   - cd finite-difference
   - pip install .
-
+  - cd ..
+  - pip install pytest
     # Build and install package
   - python setup.py develop --no-deps
 
