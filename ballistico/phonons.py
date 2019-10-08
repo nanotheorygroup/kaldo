@@ -1,7 +1,8 @@
 from opt_einsum import contract
 import numpy as np
 import ballistico.harmonic as bha
-import ballistico.anharmonic_tf as ban
+import ballistico.anharmonic as ban
+import ballistico.anharmonic_tf as bantf
 import ballistico.statistic as bst
 import tensorflow as tf
 from .tools import timeit, lazy_property, is_calculated
@@ -41,7 +42,10 @@ class Phonons:
             self.broadening_shape = kwargs['broadening_shape']
         else:
             self.broadening_shape = 'gauss'
-
+        if 'is_tf_backend' in kwargs:
+            self.is_tf_backend = kwargs['is_tf_backend']
+        else:
+            self.is_tf_backend = True
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -232,10 +236,14 @@ class Phonons:
 
     def _calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
         print('Projection started')
-        if self._is_amorphous:
-            ps_and_gamma = ban.project_amorphous(self, is_gamma_tensor_enabled)
+        if self.is_tf_backend:
+            controller = bantf
         else:
-            ps_and_gamma = ban.project_crystal(self, is_gamma_tensor_enabled)
+            controller = ban
+        if self._is_amorphous:
+            ps_and_gamma = controller.project_amorphous(self, is_gamma_tensor_enabled)
+        else:
+            ps_and_gamma = controller.project_crystal(self, is_gamma_tensor_enabled)
         return ps_and_gamma
 
 
