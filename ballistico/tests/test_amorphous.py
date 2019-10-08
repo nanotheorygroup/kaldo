@@ -8,12 +8,10 @@ import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
 import ase.units as units
-import shutil
 TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 
 def create_phonons():
-    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
 
     # Create a finite difference object
     finite_difference = FiniteDifference.import_from_dlpoly_folder(folder='ballistico/tests/si-amorphous')
