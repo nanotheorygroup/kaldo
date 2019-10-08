@@ -67,6 +67,8 @@ def lazy_property(is_storing, is_reduced_path):
                     loaded_attr = fn(self)
                 setattr(self, attr, loaded_attr)
             return getattr(self, attr)
+
+        __lazy_property.__doc__ = fn.__doc__
         return __lazy_property
     return _lazy_property
 
