@@ -1,10 +1,21 @@
-Ballistico
+Ballistico: Anharmonic Lattice Dynamics
 ==============================
 [//]: # (Badges)
 [![Travis Build Status](https://travis-ci.com/gbarbalinardo/ballistico.svg?token=EFWyhyp9aQcQnteZBpEr&branch=master)](https://travis-ci.com/gbarbalinardo/ballistico)
 [![codecov](https://codecov.io/gh/gbarbalinardo/ballistico/branch/master/graphs/badge.svg?token=tiC2xj2OQG)](https://codecov.io/gh/gbarbalinardo/ballistico/branch/master)
 
-Anharmonic Lattice Dynamics
+
+### Install
+
+Ballistico depends on `FiniteDifference`. Installation can be done using `pip`
+```bash
+pip install finitedifference
+pip install ballistico
+```
+
+### Examples
+
+Examples are currently written to run on Google Colab, and can be find in [this repo]([!https://github.com/gbarbalinardo/ballistico-examples).
 
 ### Copyright
 
