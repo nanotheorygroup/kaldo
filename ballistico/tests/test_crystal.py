@@ -24,17 +24,17 @@ def create_phonons():
     return phonons
 
 
+def test_sc_conductivity():
+    phonons = create_phonons()
+    cond = np.abs(np.mean(bac.conductivity(phonons, method='sc', max_n_iterations=71)[0].sum(axis=0).diagonal()))
+    np.testing.assert_approx_equal(cond, 255, significant=3)
+
+
 def test_qhgk_conductivity():
     phonons = create_phonons()
     cond = bac.conductivity(phonons, method='qhgk').sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 230, significant=3)
-
-
-def test_sc_conductivity():
-    phonons = create_phonons()
-    cond = np.abs(np.mean(bac.conductivity(phonons, method='sc', max_n_iterations=71)[0].sum(axis=0).diagonal()))
-    np.testing.assert_approx_equal(cond, 255, significant=3)
 
 
 def test_rta_conductivity():
