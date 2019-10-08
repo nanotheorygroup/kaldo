@@ -15,7 +15,7 @@ pip install ballistico
 
 ### Examples
 
-Examples are currently written to run on Google Colab, and can be find in [this repo]([!https://github.com/gbarbalinardo/ballistico-examples).
+Examples are currently written to run on Google Colab, and can be find in [this repo](https://github.com/gbarbalinardo/ballistico-examples).
 
 ### Copyright
 
