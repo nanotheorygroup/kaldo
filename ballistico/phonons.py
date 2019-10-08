@@ -14,6 +14,19 @@ FREQUENCY_THRESHOLD = 0.001
 
 class Phonons:
     def __init__(self, **kwargs):
+        """Short summary.
+
+        Parameters
+        ----------
+        **kwargs : type
+            Description of parameter `**kwargs`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
         self.finite_difference = kwargs['finite_difference']
         self.is_classic = bool(kwargs['is_classic'])
         self.temperature = float(kwargs['temperature'])
@@ -86,6 +99,22 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         velocities = bha.calculate_second_order_observable(self, 'velocities')
         return velocities
 
@@ -116,6 +145,22 @@ class Phonons:
 
     @property
     def eigenvalues(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         eigenvalues = self.eigensystem[:, :, -1]
         return eigenvalues
 
