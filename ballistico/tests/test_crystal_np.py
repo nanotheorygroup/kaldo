@@ -7,10 +7,12 @@ from finitedifference.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
+import shutil
 
 TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 def create_phonons():
+    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
     # Create a finite difference object
     finite_difference = FiniteDifference.import_from_dlpoly_folder(folder='ballistico/tests/si-crystal',
                                                                    supercell=[3, 3, 3])
@@ -20,7 +22,8 @@ def create_phonons():
                       kpts=[5, 5, 5],
                       is_classic=False,
                       temperature=300,
-                      folder=TMP_FOLDER)
+                      folder=TMP_FOLDER,
+                      is_tf_backend=False)
     return phonons
 
 

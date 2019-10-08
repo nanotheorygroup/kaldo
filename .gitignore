@@ -114,3 +114,13 @@ ballistico/tests/si-amorphous/third.npz
 ballistico/tests/si-crystal/replicated_atoms.xyz
 ballistico/tests/si-crystal/second.npy
 ballistico/tests/si-crystal/third.npz
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/_dynmat_derivatives.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/dynmat.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/eigensystem.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/frequencies.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/velocities.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/velocities_AF.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/_ps_and_gamma.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/_ps_gamma_and_gamma_tensor.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/c_v.npy
+ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/occupations.npy
