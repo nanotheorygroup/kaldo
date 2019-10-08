@@ -248,16 +248,16 @@ class Phonons:
 
 
     @lazy_property(is_storing=False, is_reduced_path=False)
-    def frequencies_tf(self):
+    def _frequencies_tf(self):
         frequencies_tf = tf.convert_to_tensor(self.frequencies.astype(float))
         return frequencies_tf
 
     @lazy_property(is_storing=False, is_reduced_path=False)
-    def omega_tf(self):
+    def _omega_tf(self):
         omega_tf = tf.convert_to_tensor(self._omegas.astype(float))
         return omega_tf
 
     @lazy_property(is_storing=False, is_reduced_path=False)
-    def density_tf(self):
+    def _occupations_tf(self):
         density_tf = tf.convert_to_tensor(self.occupations.astype(float))
         return density_tf

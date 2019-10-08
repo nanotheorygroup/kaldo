@@ -22,11 +22,11 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
     else:
         sigma_tf = calculate_broadening(phonons, index_kpp_full)
     second_sign = (int(is_plus) * 2 - 1)
-    omegas_difference = tf.abs(phonons.omega_tf[index_k, mu] + second_sign * phonons.omega_tf[:, :, tf.newaxis] -
-        tf.gather(phonons.omega_tf, index_kpp_full)[:, tf.newaxis, :])
+    omegas_difference = tf.abs(phonons._omega_tf[index_k, mu] + second_sign * phonons._omega_tf[:, :, tf.newaxis] -
+                               tf.gather(phonons._omega_tf, index_kpp_full)[:, tf.newaxis, :])
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
-                (phonons.frequencies_tf[:, :, tf.newaxis] > phonons.frequency_threshold) & \
-                (tf.gather(phonons.frequencies_tf, index_kpp_full)[:, tf.newaxis, :] > phonons.frequency_threshold)
+                (phonons._frequencies_tf[:, :, tf.newaxis] > phonons.frequency_threshold) & \
+                (tf.gather(phonons._frequencies_tf, index_kpp_full)[:, tf.newaxis, :] > phonons.frequency_threshold)
     interactions = tf.where(condition)
     if interactions.shape[0] > 0:
         index_kp_vec = tf.cast(interactions[:, 0], dtype=tf.int32)
@@ -43,13 +43,13 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
             coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
             sigma_tf = tf.gather_nd(sigma_tf, coords_3)
         if is_plus:
-            dirac_delta_tf = tf.gather_nd(phonons.density_tf, coords_1) - tf.gather_nd(phonons.density_tf, coords_2)
+            dirac_delta_tf = tf.gather_nd(phonons._occupations_tf, coords_1) - tf.gather_nd(phonons._occupations_tf, coords_2)
 
         else:
-            dirac_delta_tf = 0.5 * (1 + tf.gather_nd(phonons.density_tf, coords_1) + tf.gather_nd(phonons.density_tf, coords_2))
-        dirac_delta_tf /= (tf.gather_nd(phonons.omega_tf, coords_1) * tf.gather_nd(phonons.omega_tf, coords_2))
+            dirac_delta_tf = 0.5 * (1 + tf.gather_nd(phonons._occupations_tf, coords_1) + tf.gather_nd(phonons._occupations_tf, coords_2))
+        dirac_delta_tf /= (tf.gather_nd(phonons._omega_tf, coords_1) * tf.gather_nd(phonons._omega_tf, coords_2))
         dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * tf.exp(
-            - (phonons.omega_tf[index_k, mu] + second_sign * tf.gather_nd(phonons.omega_tf, coords_1) - tf.gather_nd(phonons.omega_tf, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
+            - (phonons._omega_tf[index_k, mu] + second_sign * tf.gather_nd(phonons._omega_tf, coords_1) - tf.gather_nd(phonons._omega_tf, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
         index_kp = index_kp_vec
         mup = mup_vec
         index_kpp = index_kpp_vec
@@ -63,8 +63,8 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         delta_threshold = 1
     else:
         delta_threshold = DELTA_THRESHOLD
-    density_tf = phonons.density_tf
-    omega_tf = phonons.omega_tf
+    density_tf = phonons._occupations_tf
+    omega_tf = phonons._omega_tf
     sigma_tf = tf.constant(phonons.sigma_in, dtype=tf.float64)
     for is_plus in (1, 0):
         second_sign = (int(is_plus) * 2 - 1)
