@@ -5,7 +5,8 @@ To compile the docs, first ensure that Sphinx and the ReadTheDocs theme are inst
 
 
 ```bash
-conda install sphinx sphinx_rtd_theme 
+conda install sphinx  
+pip install sphinx_rtd_theme
 ```
 
 

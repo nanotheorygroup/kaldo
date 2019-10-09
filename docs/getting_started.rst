@@ -1,4 +1,17 @@
 Getting Started
 ===============
 
-This page details how to get started with Ballistico. 
+Install Ballistico:
+
+.. code-block:: bash
+
+    pip install git+https://github.com/gbarbalinardo/finitedifference.git
+    pip install git+https://github.com/gbarbalinardo/ballistico.git@feature/conductivity-refactor
+
+You can find two examples of usage in a crystal here:
+
+https://github.com/gbarbalinardo/ballistico-examples/blob/master/crystal_presentation.ipynb
+
+and in an amorphous here:
+
+https://github.com/gbarbalinardo/ballistico-examples/blob/master/amorphous_presentation.ipynb
