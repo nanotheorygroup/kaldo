@@ -124,3 +124,15 @@ ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/_ps_and_gamma.n
 ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/_ps_gamma_and_gamma_tensor.npy
 ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/c_v.npy
 ballistico/tests/ballistico/tests/tmp-folder/5_5_5/300.0/quantum/occupations.npy
+docs/autosummary/ballistico.phonons.Phonons.c_v.rst
+docs/autosummary/ballistico.phonons.Phonons.dos.rst
+docs/autosummary/ballistico.phonons.Phonons.dynmat.rst
+docs/autosummary/ballistico.phonons.Phonons.eigenvalues.rst
+docs/autosummary/ballistico.phonons.Phonons.eigenvectors.rst
+docs/autosummary/ballistico.phonons.Phonons.frequencies.rst
+docs/autosummary/ballistico.phonons.Phonons.gamma.rst
+docs/autosummary/ballistico.phonons.Phonons.k_points.rst
+docs/autosummary/ballistico.phonons.Phonons.occupations.rst
+docs/autosummary/ballistico.phonons.Phonons.ps.rst
+docs/autosummary/ballistico.phonons.Phonons.rst
+docs/autosummary/ballistico.phonons.Phonons.velocities.rst
