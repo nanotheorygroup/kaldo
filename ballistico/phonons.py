@@ -132,131 +132,56 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
-
-        Returns
-        -------
-        e_value : float
-            Euler number
-        """
         frequencies = bha.calculate_second_order_observable(self, 'frequencies')
         return frequencies
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
-
-        Returns
-        -------
-        e_value : float
-            Euler number
-        """
         velocities = bha.calculate_second_order_observable(self, 'velocities')
         return velocities
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def dos(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
-
-        Returns
-        -------
-        e_value : float
-            Euler number
-        """
         dos = bha.calculate_density_of_states(self.frequencies, self.kpts)
         return dos
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
-
-        Returns
-        -------
-        e_value : float
-            Euler number
-        """
         occupations =  bst.calculate_occupations(self)
         return occupations
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def c_v(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+        """Calculate the heat capacity for each k point in k_points and each mode.
+        If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns
 
         .. math::
 
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+            c_\\mu = k_B \\frac{\\nu_\\mu^2}{ \\tilde T^2} n_\\mu (n_\\mu + 1)
 
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
+        where the frequency :math:`\\nu` and the temperature :math:`\\tilde T` are in THz.
 
         Returns
         -------
-        e_value : float
-            Euler number
+        c_v : np.array(n_k_points, n_modes)
+            heat capacity in W/m/K for each k point and each mode
         """
-        c_v =  bst.calculate_c_v(self)
+        c_v = bst.calculate_c_v(self)
         return c_v
 
 
     @property
     def eigenvalues(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
+        """Calculates the eigenvalues of the dynamical matrix in Thz^2.
 
         Returns
         -------
-        e_value : float
-            Euler number
+        eigenvalues : np array
+            (n_phonons) Eigenvalues of the dynamical matrix
         """
         eigenvalues = self._eigensystem[:, :, -1]
         return eigenvalues
@@ -264,21 +189,12 @@ class Phonons:
 
     @property
     def eigenvectors(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
+        """Calculates the eigenvectors of the dynamical matrix.
 
         Returns
         -------
-        e_value : float
-            Euler number
+        eigenvectors : np array
+            (n_phonons, n_phonons) Eigenvectors of the dynamical matrix
         """
         eigenvectors = self._eigensystem[:, :, :-1]
         return eigenvectors
@@ -286,44 +202,12 @@ class Phonons:
 
     @property
     def gamma(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
-
-        Returns
-        -------
-        e_value : float
-            Euler number
-        """
         gamma = self._ps_and_gamma[:, 1]
         return gamma
 
 
     @property
     def ps(self):
-        """Function to calculate Euler's number :math:`e` thorugh Taylor series
-
-        .. math::
-
-            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
-
-        Parameters
-        ----------
-        n : int
-            Specify the order of the truncated series
-
-        Returns
-        -------
-        e_value : float
-            Euler number
-        """
         ps = self._ps_and_gamma[:, 0]
         return ps
 
