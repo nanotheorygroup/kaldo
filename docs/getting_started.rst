@@ -6,7 +6,7 @@ Install Ballistico:
 .. code-block:: bash
 
     pip install git+https://github.com/gbarbalinardo/finitedifference.git
-    pip install git+https://github.com/gbarbalinardo/ballistico.git@feature/conductivity-refactor
+    pip install git+https://github.com/gbarbalinardo/ballistico.git
 
 You can find two examples of usage in a crystal here:
 
