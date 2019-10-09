@@ -13,6 +13,10 @@ pip install finitedifference
 pip install ballistico
 ```
 
+### Documentation
+
+A draft of the documentation can be found [here](http://169.237.38.203/ballistico/).
+
 ### Examples
 
 Examples are currently written to run on Google Colab, and can be find in [this repo](https://github.com/gbarbalinardo/ballistico-examples).
