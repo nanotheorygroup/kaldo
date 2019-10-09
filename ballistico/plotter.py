@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 import matplotlib.pyplot as plt
 import seekpath
 import ballistico.harmonic as bha

@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 from opt_einsum import contract
 import numpy as np
 import ballistico.harmonic as bha
@@ -15,17 +19,38 @@ FREQUENCY_THRESHOLD = 0.001
 
 class Phonons:
     def __init__(self, **kwargs):
-        """Short summary.
+        """The phonons object exposes all the phononic properties of a system,
 
         Parameters
         ----------
-        **kwargs : type
-            Description of parameter `**kwargs`.
-
+        finite_difference : FiniteDifference
+            contains all the information about the system and the derivatives of the potential.
+        is_classic : bool
+            specifies if the system is classic, `True` or quantum, `False`
+        temperature : float
+            defines the temperature of the simulation.
+        folder (optional) : string
+            specifies where to store the data files. Default is `output`.
+        kpts (optional) : (3) tuple
+            defines the number of k points to use to create the k mesh. Default is [1, 1, 1].
+        frequency_threshold (optional) : float
+            ignores all phonons with frequency below `frequency_threshold` THz, Default is 0.001.
+        sigma_in (optional) : float or None
+            defines the width of the energy conservation smearing in the phonons scattering calculation.
+            If `None` the width is calculated dynamically. Otherwise the input value corresponds to the
+            width in THz. Default is None.
+        broadening_shape (optional) : string
+            defines the algorithm to use to calculate the broadening. Available broadenings are `gauss` and `triangle`.
+            Default is `gauss`.
+        is_conserving_momentum (optional) : bool
+            defines if applying acousting sum rule or not. Thie is note fully tested. Default is False.
+        is_tf_backend (optional) : bool
+            defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
+            numpy (False). Default is True.
         Returns
         -------
-        type
-            Description of returned object.
+        Phonons
+            An instance of the `Phonons` class.
 
         """
         self.finite_difference = kwargs['finite_difference']
@@ -43,10 +68,6 @@ class Phonons:
             self.frequency_threshold = kwargs['frequency_threshold']
         else:
             self.frequency_threshold = FREQUENCY_THRESHOLD
-        if 'conserve_momentum' in kwargs:
-            self.conserve_momentum = kwargs['conserve_momentum']
-        else:
-            self.conserve_momentum = False
         if 'sigma_in' in kwargs:
             self.sigma_in = kwargs['sigma_in']
         else:
@@ -55,6 +76,10 @@ class Phonons:
             self.broadening_shape = kwargs['broadening_shape']
         else:
             self.broadening_shape = 'gauss'
+        if 'is_conserving_momentum' in kwargs:
+            self.is_conserving_momentum = kwargs['is_conserving_momentum']
+        else:
+            self.is_conserving_momentum = False
         if 'is_tf_backend' in kwargs:
             self.is_tf_backend = kwargs['is_tf_backend']
         else:
@@ -79,26 +104,52 @@ class Phonons:
 
     @lazy_property(is_storing=False, is_reduced_path=True)
     def k_points(self):
+        """List of k-points in units of :math:`2\pi/a` with :math:`a` unit cell size in the given direction.
+
+        Returns
+        -------
+        np.array
+            (n_kpoints, 3) tensor of k-points
+
+        """
         k_points = bha.calculate_k_points(self)
         return k_points
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def dynmat(self):
+        """Dynamical matrix calculated from the derivative of the input forcefield. Ouput in THz^2.
+
+        Returns
+        -------
+        np.array
+            (n_particles, 3, n_replicas, n_particles, 3) tensor containing the second order derivative of the dynamical matrix rescaled by the masses
+
+        """
         dynmat = bha.calculate_dynamical_matrix(self)
         return dynmat
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         frequencies = bha.calculate_second_order_observable(self, 'frequencies')
         return frequencies
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def eigensystem(self):
-        eigensystem = bha.calculate_eigensystem(self)
-        return eigensystem
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
@@ -124,25 +175,67 @@ class Phonons:
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
-    def velocities_AF(self):
-        velocities_AF = bha.calculate_second_order_observable(self, 'velocities_AF')
-        return velocities_AF
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
     def dos(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         dos = bha.calculate_density_of_states(self.frequencies, self.kpts)
         return dos
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         occupations =  bst.calculate_occupations(self)
         return occupations
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def c_v(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         c_v =  bst.calculate_c_v(self)
         return c_v
 
@@ -165,24 +258,72 @@ class Phonons:
         e_value : float
             Euler number
         """
-        eigenvalues = self.eigensystem[:, :, -1]
+        eigenvalues = self._eigensystem[:, :, -1]
         return eigenvalues
 
 
     @property
     def eigenvectors(self):
-        eigenvectors = self.eigensystem[:, :, :-1]
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
+        eigenvectors = self._eigensystem[:, :, :-1]
         return eigenvectors
 
 
     @property
     def gamma(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         gamma = self._ps_and_gamma[:, 1]
         return gamma
 
 
     @property
     def ps(self):
+        """Function to calculate Euler's number :math:`e` thorugh Taylor series
+
+        .. math::
+
+            e = 1 + \\sum_n^\\infty \\frac{1}{n!}
+
+        Parameters
+        ----------
+        n : int
+            Specify the order of the truncated series
+
+        Returns
+        -------
+        e_value : float
+            Euler number
+        """
         ps = self._ps_and_gamma[:, 0]
         return ps
 
@@ -196,6 +337,12 @@ class Phonons:
     def _dynmat_derivatives(self):
         dynmat_derivatives = bha.calculate_second_order_observable(self, 'dynmat_derivatives')
         return dynmat_derivatives
+
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def _eigensystem(self):
+        eigensystem = bha.calculate_eigensystem(self)
+        return eigensystem
 
 
     @lazy_property(is_storing=False, is_reduced_path=True)
@@ -216,6 +363,12 @@ class Phonons:
     @lazy_property(is_storing=False, is_reduced_path=True)
     def _omegas(self):
         return self.frequencies * 2 * np.pi
+
+
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def _velocities_af(self):
+        velocities_AF = bha.calculate_second_order_observable(self, 'velocities_AF')
+        return velocities_AF
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
@@ -247,6 +400,24 @@ class Phonons:
         gamma = self._keep_only_physical(self.gamma.reshape((self.n_phonons), order='C'))
         scattering_matrix = scattering_matrix + np.diag(gamma)
         return scattering_matrix
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def _frequencies_tf(self):
+        frequencies_tf = tf.convert_to_tensor(self.frequencies.astype(float))
+        return frequencies_tf
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def _omega_tf(self):
+        omega_tf = tf.convert_to_tensor(self._omegas.astype(float))
+        return omega_tf
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def _occupations_tf(self):
+        density_tf = tf.convert_to_tensor(self.occupations.astype(float))
+        return density_tf
 
 
     @property
@@ -291,18 +462,3 @@ class Phonons:
             ps_and_gamma = controller.project_crystal(self, is_gamma_tensor_enabled)
         return ps_and_gamma
 
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _frequencies_tf(self):
-        frequencies_tf = tf.convert_to_tensor(self.frequencies.astype(float))
-        return frequencies_tf
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _omega_tf(self):
-        omega_tf = tf.convert_to_tensor(self._omegas.astype(float))
-        return omega_tf
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _occupations_tf(self):
-        density_tf = tf.convert_to_tensor(self.occupations.astype(float))
-        return density_tf

@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 import numpy as np
 import ase.units as units
 from .tools import lazy_property, is_calculated

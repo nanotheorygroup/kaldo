@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 from opt_einsum import contract
 import numpy as np
 import ase.units as units
@@ -54,7 +58,7 @@ def calculate_dynamical_matrix(phonons):
     else:
         dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
 
-    if phonons.conserve_momentum:
+    if phonons.is_conserving_momentum:
         for iat in range(n_unit_cell_atoms):
             for alpha in range(3):
                 for beta in range(3):
@@ -181,7 +185,7 @@ def calculate_velocities_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
         k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C')
-        velocities_AF = phonons.velocities_AF[k_index]
+        velocities_AF = phonons._velocities_af[k_index]
     else:
         velocities_AF = calculate_velocities_AF_for_k(phonons, qvec)
 

@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 import sparse
 import numpy as np
 from opt_einsum import contract

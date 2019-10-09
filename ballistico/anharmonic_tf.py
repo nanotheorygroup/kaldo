@@ -1,4 +1,7 @@
-import scipy.special
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 import numpy as np
 from opt_einsum import contract
 import ase.units as units
