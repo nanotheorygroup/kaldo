@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
@@ -76,8 +80,8 @@ def calculate_qhgk(phonons, gamma_in=None):
     heat_capacity = calculate_c_v_2d(phonons)
 
     conductivity_per_mode = contract('knm,knma,knm,knmb->knmab', heat_capacity,
-                                     phonons.velocities_AF[:, :, :, :], lorentz[:, :, :],
-                                     phonons.velocities_AF[:, :, :, :])
+                                     phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
+                                     phonons._velocities_af[:, :, :, :])
     conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3)).real
     volume = np.linalg.det(phonons.atoms.cell)
@@ -106,8 +110,8 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         heat_capacity = calculate_c_v_2d(phonons)
 
         conductivity_per_mode[:, :, :, :, :] = contract('knm,knma,knm,knmb->knmab', heat_capacity,
-                                                        phonons.velocities_AF[:, :, :, :], lorentz[:, :, :],
-                                                        phonons.velocities_AF[:, :, :, :])
+                                                        phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
+                                                        phonons._velocities_af[:, :, :, :])
         conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
 
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))

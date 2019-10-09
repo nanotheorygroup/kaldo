@@ -1,3 +1,7 @@
+"""
+Ballistico
+Anharmonic Lattice Dynamics
+"""
 import pandas as pd
 import numpy as np
 from ballistico.phonons import Phonons
