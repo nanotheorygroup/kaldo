@@ -20,7 +20,7 @@ def create_phonons(temperature):
     phonons = Phonons (finite_difference=finite_difference,
                        is_classic=False,
                        temperature=temperature,
-                       folder='si-amorphous-ald')
+                       folder=TMP_FOLDER)
     return phonons
 
 def test_af_conductivity_50():
