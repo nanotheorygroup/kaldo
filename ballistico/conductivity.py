@@ -97,19 +97,19 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         if gamma_in is not None:
             gamma = gamma_in * np.ones((phonons.n_k_points, phonons.n_modes))
         else:
-            gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy()
+            gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
         omega = phonons._omegas
         physical_modes = (phonons.frequencies[:, :, np.newaxis] > phonons.frequency_threshold) * \
                          (phonons.frequencies[:, np.newaxis, :] > phonons.frequency_threshold)
-        lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (
-                ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+        lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / (
+                ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])) ** 2 +
                 (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
 
         lorentz[np.isnan(lorentz)] = 0
         conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
         heat_capacity = calculate_c_v_2d(phonons)
 
-        conductivity_per_mode[:, :, :, :, :] = contract('knm,knma,knm,knmb->knmab', heat_capacity,
+        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', phonons.c_v,
                                                         phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
                                                         phonons._velocities_af[:, :, :, :])
         conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
