@@ -25,7 +25,7 @@ def create_phonons(temperature):
 
 def test_af_conductivity_50():
     temperature = 50
-    gamma_in = 0.05 * 2 * np.pi / 4.135
+    gamma_in = 0.025
     phonons = create_phonons(temperature)
     cond = bac.conductivity(phonons, method='qhgk', gamma_in=gamma_in).sum(axis=0).diagonal().mean()
     expected_cond = 0.097
@@ -34,7 +34,7 @@ def test_af_conductivity_50():
 
 def test_af_conductivity_300():
     temperature = 300
-    gamma_in = 0.05 * 2 * np.pi / 4.135
+    gamma_in = 0.025
     phonons = create_phonons(temperature)
     cond = bac.conductivity(phonons, method='qhgk', gamma_in=gamma_in).sum(axis=0).diagonal().mean()
     expected_cond = 0.52
