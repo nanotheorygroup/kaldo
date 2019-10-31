@@ -5,6 +5,7 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import numpy as np
 import ase.units as units
+from scipy.linalg.lapack import dsyev
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
@@ -80,7 +81,10 @@ def calculate_eigensystem(phonons, k_list=None):
     n_k_points = k_points.shape[0]
 
     # Here we store the eigenvalues in the last column
-    eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)).astype(np.complex)
+    if phonons._is_amorphous:
+        eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1))
+    else:
+        eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)).astype(np.complex)
     for index_k in range(n_k_points):
         eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = calculate_eigensystem_for_k(phonons, k_points[index_k])
     return eigensystem
@@ -128,7 +132,10 @@ def calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=False):
         evals = np.linalg.eigvalsh(dyn_s)
         return evals
     else:
-        evals, evects = np.linalg.eigh(dyn_s)
+        if (qvec == [0, 0, 0]).all():
+            evals, evects = dsyev(dyn_s)[:2]
+        else:
+            evals, evects = np.linalg.eigh(dyn_s)
         return evals, evects
 
 def calculate_dynmat_derivatives_for_k(phonons, qvec):
