@@ -19,13 +19,13 @@ def phonons():
                                                                    supercell=[3, 3, 3])
 
     # Create a phonon object
-    si_bulk = Phonons(finite_difference=finite_difference,
+    phonons = Phonons(finite_difference=finite_difference,
                       kpts=[5, 5, 5],
                       is_classic=False,
                       temperature=300,
                       folder=TMP_FOLDER,
                       is_tf_backend=False)
-    yield si_bulk
+    yield phonons
     print ("Cleaning up.")
     shutil.rmtree(TMP_FOLDER, ignore_errors=True)
 
