@@ -7,7 +7,7 @@ from finitedifference.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
-import ase.units as units
+
 TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 
