@@ -75,8 +75,6 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
     rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
         (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
         masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_particles * 3, n_modes),
-                                                          order='C')
     rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
 
     for index_k in range(phonons.n_k_points):
@@ -87,9 +85,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                 print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
                       '%')
             potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
-                                                rescaled_eigenvectors.reshape(
-                                                    (phonons.n_k_points, phonons.n_modes, phonons.n_modes),
-                                                    order='C')[index_k, :, mu], (0, 0))
+                                                rescaled_eigenvectors[index_k, :, mu], (0, 0))
 
 
             for is_plus in (1, 0):
