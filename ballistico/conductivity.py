@@ -121,7 +121,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
         scattering_inverse = np.linalg.inv(phonons._scattering_matrix)
         lambd = scattering_inverse.dot(velocities[:, :])
-        physical_modes = (phonons.frequencies.reshape(phonons.n_phonons) > phonons.frequency_threshold)
+        physical_modes = phonons._physical_modes
 
         volume = np.linalg.det(phonons.atoms.cell)
         c_v = phonons._keep_only_physical(phonons.c_v.reshape((phonons.n_phonons), order='C'))
@@ -188,7 +188,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
     velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
     frequencies = phonons.frequencies.reshape ((phonons.n_phonons), order='C')
-    physical_modes = (frequencies > phonons.frequency_threshold) #& (velocities > 0)[:, 2]
+    physical_modes = phonons._physical_modes
     if not is_rta:
         scattering_matrix = phonons._scattering_matrix_without_diagonal
 
