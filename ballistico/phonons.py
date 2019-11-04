@@ -84,6 +84,10 @@ class Phonons:
             self.is_tf_backend = kwargs['is_tf_backend']
         else:
             self.is_tf_backend = True
+        if 'is_nw' in kwargs:
+            self.is_nw = True
+        else:
+            self.is_nw = False
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -232,6 +236,10 @@ class Phonons:
     @lazy_property(is_storing=False, is_reduced_path=True)
     def _physical_modes(self):
         physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
+        if self.is_nw:
+            physical_modes[:4] = False
+        else:
+            physical_modes[:3] = False
         return physical_modes
 
 
