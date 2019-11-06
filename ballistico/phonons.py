@@ -178,6 +178,23 @@ class Phonons:
         return c_v
 
 
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def evect_tf(self):
+        n_particles = self.atoms.positions.shape[0]
+        n_modes = self.n_modes
+        masses = self.atoms.get_masses()
+        rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
+            (self.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
+            masses[np.newaxis, :, np.newaxis, np.newaxis])
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_particles * 3, n_modes),
+                                                              order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
+        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors.reshape((self.n_phonons, self.n_modes)))
+        evect_tf = tf.reshape(evect_tf, (self.n_k_points, self.n_modes, self.n_modes))
+        return evect_tf
+
+
     @property
     def eigenvalues(self):
         """Calculates the eigenvalues of the dynamical matrix in Thz^2.

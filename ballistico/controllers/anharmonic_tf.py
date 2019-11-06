@@ -71,20 +71,9 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
 
     return ps_and_gamma
 
+
 @timeit
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
-
-    n_particles = phonons.atoms.positions.shape[0]
-    n_modes = phonons.n_modes
-    masses = phonons.atoms.get_masses()
-    rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
-        (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
-        masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_particles * 3, n_modes),
-                                                          order='C')
-    rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
-    evect_tf = tf.convert_to_tensor(rescaled_eigenvectors.reshape((phonons.n_phonons, phonons.n_modes)))
 
     coords = phonons.finite_difference.third_order.coords
     data = phonons.finite_difference.third_order.data
@@ -97,8 +86,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
     third_tf = tf.cast(third_tf, dtype=tf.complex128)
 
     chi_k = tf.convert_to_tensor(phonons._chi_k)
-    evect_tf = tf.reshape(evect_tf, (phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-
+    evect_tf = phonons.evect_tf
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2 + phonons.n_phonons))
@@ -116,8 +104,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                   '%')
         index_k, mu = np.unravel_index(nu_single, (phonons.n_k_points, phonons.n_modes), order='C')
 
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
-                                                    tf.reshape(evect_tf[index_k, mu, :], ((phonons.n_modes, 1))))
+        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, mu, :, tf.newaxis])
 
         third_nu_tf = tf.cast(
             tf.reshape(third_nu_tf, (phonons.n_replicas, phonons.n_modes, phonons.n_replicas, phonons.n_modes)),
@@ -130,11 +117,9 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
             kpp_vec = tf.math.floormod(kpp_vec, phonons.kpts[:, tf.newaxis])
             index_kpp_full = phonons.kpts[2] * phonons.kpts[1] * kpp_vec[0, :] + phonons.kpts[2] * kpp_vec[1,
                                                                                                    :] + kpp_vec[2, :]
-
             out = calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
             if not out:
                 continue
-
 
             if is_plus:
 
@@ -152,7 +137,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
             # The ps and gamma array stores first ps then gamma then the scattering array
 
 
-            scaled_potential = contract('litj,kl,kni,kt,kmj->knm', third_nu_tf, second_chi, second, third_chi, third, backend='tensorflow')
+            scaled_potential = tf.einsum('litj,kl,kni,kt,kmj->knm', third_nu_tf, second_chi, second, third_chi, third)
             scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
             pot_times_dirac = tf.abs(
                 scaled_potential) ** 2 * dirac_delta * units._hbar / 8. / phonons.n_k_points * GAMMATOTHZ
