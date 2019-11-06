@@ -4,14 +4,14 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import numpy as np
-import ballistico.harmonic as bha
-import ballistico.anharmonic as ban
-import ballistico.anharmonic_tf as bantf
-import ballistico.statistic as bst
+import ballistico.controllers.harmonic as bha
+import ballistico.controllers.anharmonic as ban
+import ballistico.controllers.anharmonic_tf as bantf
+import ballistico.controllers.statistic as bst
 import tensorflow as tf
-from .tools import timeit, lazy_property, is_calculated
+from ballistico.tools.tools import is_calculated
 
-from .tools import lazy_property
+from ballistico.tools.tools import lazy_property
 
 FOLDER_NAME = 'output'
 FREQUENCY_THRESHOLD = 0.001
