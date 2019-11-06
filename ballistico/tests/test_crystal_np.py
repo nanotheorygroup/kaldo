@@ -3,7 +3,7 @@ Unit and regression test for the ballistico package.
 """
 
 # Import package, test suite, and other packages as needed
-from finitedifference.finitedifference import FiniteDifference
+from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.conductivity as bac
