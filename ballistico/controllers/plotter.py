@@ -4,9 +4,8 @@ Anharmonic Lattice Dynamics
 """
 import matplotlib.pyplot as plt
 import seekpath
-import ballistico.harmonic as bha
+import ballistico.controllers.harmonic as bha
 from sklearn.neighbors.kde import KernelDensity
-from scipy.ndimage import map_coordinates
 import numpy as np
 from scipy import ndimage
 

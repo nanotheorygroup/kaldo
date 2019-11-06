@@ -10,11 +10,8 @@ from ase import Atoms
 from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
-import sparse
-from ballistico.dlpoly_helper import import_second_dlpoly, import_third_dlpoly
-import scipy
+from ballistico.tools.dlpoly_helper import import_second_dlpoly, import_third_dlpoly
 import h5py
-import pandas as pd
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'

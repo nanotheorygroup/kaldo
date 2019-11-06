@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 import ase.units as units
-from .tools import lazy_property, is_calculated
+
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12

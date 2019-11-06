@@ -6,7 +6,7 @@ Unit and regression test for the ballistico package.
 from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
-import ballistico.conductivity as bac
+import ballistico.controllers.conductivity as bac
 import ase.units as units
 import shutil
 import pytest
