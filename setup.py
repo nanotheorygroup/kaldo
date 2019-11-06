@@ -55,7 +55,9 @@ setup(
         'seekpath>=1.8',
         'tensorflow>=1.12',
         'opt_einsum>=2.3',
-        'scikit-learn>=0.20'
+        'scikit-learn>=0.20',
+        'h5py>=2.9',
+        'pandas>=0.21'
     ],              # Required packages, pulls from pip if needed; do not use for Conda deployment
 
     # platforms=['Linux',

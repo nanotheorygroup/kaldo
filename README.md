@@ -8,11 +8,11 @@ Ballistico: Anharmonic Lattice Dynamics
 
 ### Install
 
-Ballistico depends on `FiniteDifference`. Installation can be done using `pip`
+Ballistico installation can be done using `pip`
 ```bash
-pip install finitedifference
 pip install ballistico
 ```
+
 
 ### Documentation
 
@@ -22,6 +22,26 @@ A draft of the documentation can be found [here](http://169.237.38.203/ballistic
 
 Examples are currently written to run on Google Colab, and can be found in [this repo](https://github.com/gbarbalinardo/ballistico-examples).
 
+### Other configurations
+#### LAMMPS setup
+
+Compile LAMMPS as a lib
+```bash
+cd path/to/lammps/src
+make yes-manybody
+make yes-molecule
+make mpi mode=shlib
+make install-python
+```
+
+#### Quantum Espresso setup
+
+Set the environment variable:
+```bash
+export ASE_ESPRESSO_COMMAND="mpirun -np 4 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"
+```
+
 ### Copyright
 
 Copyright (c) 2019, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio
+

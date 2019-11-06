@@ -136,3 +136,13 @@ docs/autosummary/ballistico.phonons.Phonons.occupations.rst
 docs/autosummary/ballistico.phonons.Phonons.ps.rst
 docs/autosummary/ballistico.phonons.Phonons.rst
 docs/autosummary/ballistico.phonons.Phonons.velocities.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.calculate_second.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.calculate_third.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.gen_supercell.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.gradient.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.max_force.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.optimize.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.replicated_atoms.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.second_order.rst
+docs/autosummary/ballistico.finitedifference.FiniteDifference.third_order.rst
