@@ -3,13 +3,17 @@ Ballistico
 Anharmonic Lattice Dynamics
 """
 import sparse
-import numpy as np
 from opt_einsum import contract
 import ase.units as units
-from .tools import timeit, lazy_property, is_calculated
+from .tools import timeit
+import numpy as np
+
+
+DELTA_THRESHOLD = 2
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 
 
 @timeit
@@ -46,8 +50,7 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
 
-        gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-        pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * gammatothz
+        pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
         ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
@@ -91,7 +94,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
             for is_plus in (1, 0):
 
 
-                out = calculate_dirac_delta(phonons, index_k, mu, is_plus)
+                out = calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus)
                 if not out:
                     continue
                 potential_times_evect = potential_times_evect.reshape(
@@ -141,9 +144,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                                                 rescaled_eigenvectors[index_kpp_full].conj(),
                                                 phonons._chi_k[index_kpp_full].conj())
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
-
-                gammatothz = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-                pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * gammatothz
+                pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
                 if is_gamma_tensor_enabled:
                     # We need to use bincount together with fancy indexing here. See:
@@ -169,33 +170,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
     return ps_and_gamma
 
 
-import scipy.special
-import numpy as np
-
-
-DELTA_THRESHOLD = 2
-
-
-def gaussian_delta(params):
-    # alpha is a factor that tells whats the ration between the width of the gaussian
-    # and the width of allowed phase space
-    delta_energy = params[0]
-    # allowing processes with width sigma and creating a gaussian with width sigma/2
-    # we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
-    sigma = params[1]
-    gaussian = 1 / np.sqrt(np.pi * sigma ** 2) * np.exp(- delta_energy ** 2 / (sigma ** 2))
-    return gaussian
-
-
-def triangular_delta(params):
-    delta_energy = np.abs(params[0])
-    deltaa = np.abs(params[1])
-    out = np.zeros_like(delta_energy)
-    out[delta_energy < deltaa] = 1. / deltaa * (1 - delta_energy[delta_energy < deltaa] / deltaa)
-    return out
-
-
-def calculate_dirac_delta(phonons, index_k, mu, is_plus):
+def calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus):
     if phonons.frequencies[index_k, mu] <= phonons.frequency_threshold:
         return None
 
@@ -340,3 +315,21 @@ def calculate_broadening(phonons, index_kpp_vec):
     base_sigma = np.sqrt(base_sigma / 6.)
     return base_sigma
 
+
+def gaussian_delta(params):
+    # alpha is a factor that tells whats the ration between the width of the gaussian
+    # and the width of allowed phase space
+    delta_energy = params[0]
+    # allowing processes with width sigma and creating a gaussian with width sigma/2
+    # we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
+    sigma = params[1]
+    gaussian = 1 / np.sqrt(np.pi * sigma ** 2) * np.exp(- delta_energy ** 2 / (sigma ** 2))
+    return gaussian
+
+
+def triangular_delta(params):
+    delta_energy = np.abs(params[0])
+    deltaa = np.abs(params[1])
+    out = np.zeros_like(delta_energy)
+    out[delta_energy < deltaa] = 1. / deltaa * (1 - delta_energy[delta_energy < deltaa] / deltaa)
+    return out
