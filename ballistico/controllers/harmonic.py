@@ -159,7 +159,7 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
 def calculate_frequencies_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C')
+        k_index = np.ravel_multi_index(rescaled_qvec.astype(int) % phonons.kpts, phonons.kpts, order='C')
         eigenvals = phonons.eigenvalues[k_index]
     else:
         eigenvals = calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=True)
@@ -169,7 +169,7 @@ def calculate_frequencies_for_k(phonons, qvec):
 def calculate_velocities_AF_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C')
+        k_index = np.ravel_multi_index(rescaled_qvec.astype(int) % phonons.kpts, phonons.kpts, order='C')
         dynmat_derivatives = phonons._dynmat_derivatives[k_index]
         frequencies = phonons.frequencies[k_index]
         eigenvects = phonons.eigenvectors[k_index]
@@ -191,7 +191,7 @@ def calculate_velocities_AF_for_k(phonons, qvec):
 def calculate_velocities_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C')
+        k_index = np.ravel_multi_index(rescaled_qvec.astype(int) % phonons.kpts, phonons.kpts, order='C')
         velocities_AF = phonons._velocities_af[k_index]
     else:
         velocities_AF = calculate_velocities_AF_for_k(phonons, qvec)
