@@ -130,19 +130,18 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
                 if is_plus:
 
-                    scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
+                    scaled_potential = np.einsum('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
                                                 rescaled_eigenvectors,
                                                 phonons._chi_k,
                                                 rescaled_eigenvectors[index_kpp_full].conj(),
-                                                phonons._chi_k[index_kpp_full].conj()
-                                                )
+                                                phonons._chi_k[index_kpp_full].conj(), optimize=True)
                 else:
 
-                    scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
+                    scaled_potential = np.einsum('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
                                                 rescaled_eigenvectors.conj(),
                                                 phonons._chi_k.conj(),
                                                 rescaled_eigenvectors[index_kpp_full].conj(),
-                                                phonons._chi_k[index_kpp_full].conj())
+                                                phonons._chi_k[index_kpp_full].conj(), optimize=True)
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
                 pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
