@@ -87,9 +87,14 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
             if nu_single % 200 == 0:
                 print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
                       '%')
-            potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
-                                                rescaled_eigenvectors[index_k, :, mu], (0, 0))
+            potential_times_evect = np.zeros((phonons.n_replicas * phonons.n_modes, phonons.n_replicas * phonons.n_modes), dtype=np.complex)
+            for i in range(phonons.n_modes):
+                mask = phonons.finite_difference.third_order.coords[0] == i
+                potential_times_evect[phonons.finite_difference.third_order.coords[1][mask], phonons.finite_difference.third_order.coords[2][mask]] += phonons.finite_difference.third_order.data[mask] * rescaled_eigenvectors[index_k, i, mu]
 
+            potential_times_evect = potential_times_evect.reshape(
+                (phonons.n_replicas, phonons.n_modes, phonons.n_replicas, phonons.n_modes),
+                order='C')
 
             for is_plus in (1, 0):
 
@@ -97,10 +102,6 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                 out = calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus)
                 if not out:
                     continue
-                potential_times_evect = potential_times_evect.reshape(
-                    (phonons.n_replicas, phonons.n_modes, phonons.n_replicas, phonons.n_modes),
-                    order='C')
-
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
 
                 # The ps and gamma array stores first ps then gamma then the scattering array
