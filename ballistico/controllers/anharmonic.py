@@ -129,23 +129,6 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
-                # if is_plus:
-                #
-                #     scaled_potential = contract('litj,ai,al,aj,at->a', potential_times_evect,
-                #                                 phonons.rescaled_eigenvectors[index_kp_vec, mup_vec, :],
-                #                                 phonons.chi_k[index_kp_vec, :],
-                #                                 phonons.rescaled_eigenvectors[index_kpp_vec, mupp_vec, :].conj(),
-                #                                 phonons.chi_k[index_kpp_vec, :].conj()
-                #                                 )
-                # else:
-                #
-                #     scaled_potential = contract('litj,ai,al,aj,at->a', potential_times_evect,
-                #                                 phonons.rescaled_eigenvectors.conj()[index_kp_vec, mup_vec, :],
-                #                                 phonons.chi_k[index_kp_vec, :].conj(),
-                #                                 phonons.rescaled_eigenvectors[index_kpp_vec, mupp_vec, :].conj(),
-                #                                 phonons.chi_k[index_kpp_vec, :].conj())
-                # pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-
                 pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
                 if is_gamma_tensor_enabled:
@@ -207,10 +190,11 @@ def calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus):
     omegas_difference = np.abs(
         omegas[index_k, mu] + second_sign * omegas[:, :, np.newaxis] -
         omegas[index_kpp_full, np.newaxis, :])
-
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                (frequencies[:, :, np.newaxis] > frequencies_threshold) & \
-                (frequencies[index_kpp_full, np.newaxis, :] > frequencies_threshold)
+                (physical_modes[:, :, np.newaxis]) & \
+                (physical_modes[index_kpp_full, np.newaxis, :])
+
     interactions = np.array(np.where(condition)).T
 
     if interactions.size == 0:

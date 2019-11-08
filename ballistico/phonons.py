@@ -362,8 +362,10 @@ class Phonons:
     def _calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
         print('Projection started')
         if self.is_tf_backend:
+            print('Backend, tensorflow')
             controller = bantf
         else:
+            print('Backend, numpy')
             controller = ban
         if self._is_amorphous:
             ps_and_gamma = controller.project_amorphous(self, is_gamma_tensor_enabled)
