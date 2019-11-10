@@ -85,16 +85,13 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
     coords = phonons.finite_difference.third_order.coords
     data = phonons.finite_difference.third_order.data
-    coords = np.vstack([coords[1], coords[2], coords[0]])
-    third_tf = tf.SparseTensor(coords.T, data, (
-    phonons.n_modes * phonons.n_replicas, phonons.n_modes * phonons.n_replicas, phonons.n_modes))
-
-    third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * phonons.n_replicas) ** 2, phonons.n_modes))
-
-    third_tf = tf.cast(third_tf, dtype=tf.complex128)
+    coords = tf.stack([coords[1] * phonons.n_modes * phonons.n_replicas + coords[2], coords[0]], -1)
+    third_tf = tf.SparseTensor(coords, data, ((phonons.n_modes * phonons.n_replicas) ** 2, phonons.n_modes))
+    third_tf = tf.cast(third_tf, dtype=tf.complex64)
 
     chi_k = tf.convert_to_tensor(phonons._chi_k)
-    evect_tf = phonons.evect_tf
+    chi_k = tf.cast(chi_k, dtype=tf.complex64)
+    evect_tf = tf.cast(phonons.evect_tf, dtype=tf.complex64)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2 + phonons.n_phonons))
@@ -114,9 +111,11 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
         third_nu_tf = tf.cast(
             tf.reshape(third_nu_tf, (phonons.n_replicas, phonons.n_modes, phonons.n_replicas, phonons.n_modes)),
-            dtype=tf.complex128)
+            dtype=tf.complex64)
         third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
         third_nu_tf = tf.reshape(third_nu_tf, (phonons.n_replicas * phonons.n_replicas, phonons.n_modes, phonons.n_modes))
+
+
         for is_plus in (0, 1):
             index_kpp_full = calculate_index_kpp(phonons, index_k, is_plus)
             out = calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
@@ -145,7 +144,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
             scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
             pot_times_dirac = tf.abs(
-                scaled_potential) ** 2 * dirac_delta * units._hbar / 8. / phonons.n_k_points * GAMMATOTHZ
+                scaled_potential) ** 2 * dirac_delta
             if is_gamma_tensor_enabled:
                 # We need to use bincount together with fancy indexing here. See:
                 # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
@@ -164,6 +163,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta)
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(pot_times_dirac)
         ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] *= units._hbar / 8. / phonons.n_k_points * GAMMATOTHZ
     return ps_and_gamma
 
 
@@ -207,7 +207,7 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
         mup = mup_vec
         index_kpp = index_kpp_vec
         mupp = mupp_vec
-        return dirac_delta_tf, index_kp, mup, index_kpp, mupp
+        return tf.cast(dirac_delta_tf, dtype=tf.float32), index_kp, mup, index_kpp, mupp
 
 def calculate_dirac_delta_amorphous(phonons, mu):
     if phonons.frequencies[0, mu] < phonons.frequency_threshold:
