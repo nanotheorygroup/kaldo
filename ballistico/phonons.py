@@ -14,7 +14,7 @@ from ballistico.tools.tools import is_calculated
 from ballistico.tools.tools import lazy_property
 
 FOLDER_NAME = 'ald-output'
-FREQUENCY_THRESHOLD = 0.000
+FREQUENCY_THRESHOLD = 0.001
 
 
 class Phonons:
