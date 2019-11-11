@@ -57,9 +57,16 @@ def import_sparse_third(atoms, replicas=(1, 1, 1), filename='THIRD'):
     sparse_third = COO (coords, values, shape=(n_particles, 3, n_particles, 3, n_particles, 3))
     return sparse_third
 
-def import_dense_third(atoms, replicas, filename):
-    third = np.fromfile(filename, dtype=np.float)
+def import_dense_third(atoms, replicas, filename, is_reduced=True):
     replicas = np.array(replicas)
     n_replicas = np.prod(replicas)
-    n_particles = atoms.get_positions().shape[0] * n_replicas
-    return third.reshape((n_particles, 3, n_particles, 3, n_particles, 3))
+    n_particles = atoms.get_positions().shape[0]
+    if is_reduced:
+        total_rows = (n_particles *  3) * (n_particles * n_replicas * 3) ** 2
+        third = np.fromfile(filename, dtype=np.float, count=total_rows)
+        third = third.reshape((n_particles, 3, n_particles * n_replicas, 3, n_particles * n_replicas, 3))
+    else:
+        total_rows = (n_particles * n_replicas * 3) ** 3
+        third = np.fromfile(filename, dtype=np.float, count=total_rows)
+        third = third.reshape((n_particles * n_replicas, 3, n_particles * n_replicas, 3, n_particles * n_replicas, 3))
+    return third
