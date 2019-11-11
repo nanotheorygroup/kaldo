@@ -13,8 +13,8 @@ from ballistico.tools.tools import is_calculated
 
 from ballistico.tools.tools import lazy_property
 
-FOLDER_NAME = 'output'
-FREQUENCY_THRESHOLD = 0.001
+FOLDER_NAME = 'ald-output'
+FREQUENCY_THRESHOLD = 0.000
 
 
 class Phonons:
@@ -83,7 +83,7 @@ class Phonons:
         if 'is_tf_backend' in kwargs:
             self.is_tf_backend = kwargs['is_tf_backend']
         else:
-            self.is_tf_backend = True
+            self.is_tf_backend = False
         if 'is_nw' in kwargs:
             self.is_nw = True
         else:
