@@ -10,7 +10,7 @@ from ase import Atoms
 from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
-from ballistico.tools.dlpoly_helper import import_second_dlpoly, import_third_dlpoly
+from ballistico.tools.io import import_second, import_sparse_third, import_dense_third
 import h5py
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
@@ -337,7 +337,7 @@ class FiniteDifference(object):
                                 folder=folder)
 
         if dynmat_file:
-            second_dl = import_second_dlpoly(atoms, replicas=supercell, filename=dynmat_file)
+            second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
             is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
             if is_reduced_second:
                 second_shape = (1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
@@ -350,7 +350,11 @@ class FiniteDifference(object):
             finite_difference.is_reduced_second = is_reduced_second
 
         if third_file:
-            third_dl = import_third_dlpoly(atoms, replicas=supercell, filename=third_file)
+            try:
+                third_dl = import_sparse_third(atoms, replicas=supercell, filename=third_file)
+            except UnicodeDecodeError:
+                print('Trying reading binary third')
+                third_dl = import_dense_third(atoms, replicas=supercell, filename=third_file)
             third_dl = third_dl[:n_unit_atoms]
             third_shape = (
                 n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
