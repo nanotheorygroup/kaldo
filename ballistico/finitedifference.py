@@ -351,6 +351,7 @@ class FiniteDifference(object):
 
         if third_file:
             try:
+                print('Reading sparse third')
                 third_dl = import_sparse_third(atoms, replicas=supercell, filename=third_file)
             except UnicodeDecodeError:
                 print('Trying reading binary third')
