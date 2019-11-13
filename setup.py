@@ -53,7 +53,7 @@ setup(
         'sparse>=0.6',
         'spglib>=1.11',
         'seekpath>=1.8',
-        'tensorflow>=1.12',
+        'tensorflow>=2.0',
         'opt_einsum>=2.3',
         'scikit-learn>=0.20',
         'h5py>=2.9',
