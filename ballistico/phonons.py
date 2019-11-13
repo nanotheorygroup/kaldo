@@ -85,7 +85,7 @@ class Phonons:
         else:
             self.is_tf_backend = False
         if 'is_nw' in kwargs:
-            self.is_nw = True
+            self.is_nw = kwargs['is_nw']
         else:
             self.is_nw = False
         self.atoms = self.finite_difference.atoms
