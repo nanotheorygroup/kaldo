@@ -115,30 +115,17 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
                 index_kpp_full = calculate_index_kpp(phonons, index_k, is_plus)
                 if is_plus:
-                    scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
-                                                rescaled_eigenvectors,
-                                                phonons._chi_k,
-                                                rescaled_eigenvectors[index_kpp_full].conj(),
-                                                phonons._chi_k[index_kpp_full].conj()
-                                                )
-
-                    # chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k, phonons._chi_k[index_kpp_full].conj())
-                    # chi_prod = chi_prod.reshape((phonons.n_k_points, phonons.n_replicas ** 2))
-                    # scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
-                    # scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors)
-                    # scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
+                    chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k, phonons._chi_k[index_kpp_full].conj())
+                    chi_prod = chi_prod.reshape((phonons.n_k_points, phonons.n_replicas ** 2))
+                    scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
+                    scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors)
+                    scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
                 else:
-                    scaled_potential = contract('litj,kim,kl,kjn,kt->kmn', potential_times_evect,
-                                                rescaled_eigenvectors.conj(),
-                                                phonons._chi_k.conj(),
-                                                rescaled_eigenvectors[index_kpp_full].conj(),
-                                                phonons._chi_k[index_kpp_full].conj())
-
-                    # chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k.conj(), phonons._chi_k[index_kpp_full].conj())
-                    # chi_prod = chi_prod.reshape((phonons.n_k_points, phonons.n_replicas ** 2))
-                    # scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
-                    # scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors.conj())
-                    # scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
+                    chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k.conj(), phonons._chi_k[index_kpp_full].conj())
+                    chi_prod = chi_prod.reshape((phonons.n_k_points, phonons.n_replicas ** 2))
+                    scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
+                    scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors.conj())
+                    scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
 
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
