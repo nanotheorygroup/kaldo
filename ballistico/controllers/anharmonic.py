@@ -50,13 +50,12 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
 
-        pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
-        ps_and_gamma[nu_single, 1:] /= phonons.frequencies.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / 8. / phonons.n_k_points * units._hbar * GAMMATOTHZ
+        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons.frequencies.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-
         print(phonons.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
         print('calculating third', nu_single, np.round(nu_single / phonons.n_phonons, 2) * 100,
               '%')
