@@ -51,8 +51,7 @@ def calculate_c_v_2d(phonons):
     frequencies = phonons.frequencies
     c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     temperature = phonons.temperature * KELVINTOTHZ
-    physical_modes = frequencies > phonons.frequency_threshold
-
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     if (phonons.is_classic):
         c_v[:, :, :] = KELVINTOJOULE
     else:
@@ -99,8 +98,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         else:
             gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
         omega = phonons._omegas
-        physical_modes = (phonons.frequencies[:, :, np.newaxis] > phonons.frequency_threshold) * \
-                         (phonons.frequencies[:, np.newaxis, :] > phonons.frequency_threshold)
+
         lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / (
                 ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])) ** 2 +
                 (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
@@ -118,7 +116,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         conductivity_per_mode[np.invert(phonons._physical_modes), :, :] = 0
 
     elif method == 'inverse':
-        velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
+        velocities = phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C')[phonons._physical_modes, ...]
         scattering_inverse = np.linalg.inv(phonons._scattering_matrix)
         lambd = scattering_inverse.dot(velocities[:, :])
         physical_modes = phonons._physical_modes
@@ -187,7 +185,6 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     velocities = phonons.velocities.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
     velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
-    frequencies = phonons.frequencies.reshape ((phonons.n_phonons), order='C')
     physical_modes = phonons._physical_modes
     if not is_rta:
         scattering_matrix = phonons._scattering_matrix_without_diagonal
