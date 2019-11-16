@@ -346,7 +346,7 @@ class Phonons:
 
 
     def _apply_boundary_with_cell(self, dxij):
-        wrap_positions(dxij, self.replicated_cell)
+        dxij = wrap_positions(dxij, self.replicated_cell)
         return dxij
 
 
