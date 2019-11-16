@@ -11,6 +11,7 @@ import ballistico.controllers.statistic as bst
 import tensorflow as tf
 from ballistico.tools.tools import is_calculated
 
+from ase.geometry import wrap_positions
 from ballistico.tools.tools import lazy_property
 
 FOLDER_NAME = 'ald-output'
@@ -345,10 +346,7 @@ class Phonons:
 
 
     def _apply_boundary_with_cell(self, dxij):
-        # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(self.replicated_cell_inv)
-        sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(self.replicated_cell)
+        wrap_positions(dxij, self.replicated_cell)
         return dxij
 
 
