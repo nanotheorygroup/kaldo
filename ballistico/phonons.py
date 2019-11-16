@@ -11,7 +11,6 @@ import ballistico.controllers.statistic as bst
 import tensorflow as tf
 from ballistico.tools.tools import is_calculated
 
-from ase.geometry import wrap_positions
 from ballistico.tools.tools import lazy_property
 
 FOLDER_NAME = 'ald-output'
@@ -299,12 +298,7 @@ class Phonons:
     @lazy_property(is_storing=False, is_reduced_path=False)
     def _scattering_matrix_without_diagonal(self):
         frequencies = self._keep_only_physical(self.frequencies.reshape((self.n_phonons), order='C'))
-
-        physical_modes = self._physical_modes
-        gamma_tensor = self._ps_gamma_and_gamma_tensor[:, 2:]
-        index = np.outer(physical_modes, physical_modes)
-        gamma_tensor = gamma_tensor[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
-
+        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
         scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, gamma_tensor, frequencies)
         return scattering_matrix_without_diagonal
 
@@ -342,11 +336,19 @@ class Phonons:
 
 
     def _keep_only_physical(self, operator):
-        return operator[self._physical_modes, ...]
+        physical_modes = self._physical_modes
+        if operator.shape == (self.n_phonons, self.n_phonons):
+            index = np.outer(physical_modes, physical_modes)
+            return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
+        else:
+            return operator[physical_modes, ...]
 
 
     def _apply_boundary_with_cell(self, dxij):
-        dxij = wrap_positions(dxij, self.replicated_cell)
+        # exploit periodicity to calculate the shortest distance, which may not be the one we have
+        sxij = dxij.dot(self.replicated_cell_inv)
+        sxij = sxij - np.round(sxij)
+        dxij = sxij.dot(self.replicated_cell)
         return dxij
 
 

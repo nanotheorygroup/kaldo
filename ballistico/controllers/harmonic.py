@@ -173,20 +173,18 @@ def calculate_velocities_AF_for_k(phonons, qvec):
         dynmat_derivatives = phonons._dynmat_derivatives[k_index]
         frequencies = phonons.frequencies[k_index]
         eigenvects = phonons.eigenvectors[k_index]
-        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))[k_index]
     else:
         dynmat_derivatives = calculate_dynmat_derivatives_for_k(phonons, qvec)
         frequencies = calculate_frequencies_for_k(phonons, qvec)
         _, eigenvects = calculate_eigensystem_for_k(phonons, qvec)
-        if (qvec == (0, 0, 0)).all():
-            physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))[0]
-        else:
-            physical_modes = frequencies > phonons.frequency_threshold
+
+    frequencies_threshold = phonons.frequency_threshold
+    condition = frequencies > frequencies_threshold
     velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
     velocities_AF = contract('mna,mn->mna', velocities_AF,
                                       1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
-    velocities_AF[np.invert(physical_modes), :, :] = 0
-    velocities_AF[:, np.invert(physical_modes), :] = 0
+    velocities_AF[np.invert(condition), :, :] = 0
+    velocities_AF[:, np.invert(condition), :] = 0
     velocities_AF = velocities_AF / 2
     return velocities_AF
 

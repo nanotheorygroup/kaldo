@@ -15,7 +15,7 @@ def calculate_occupations(phonons):
     frequencies = phonons.frequencies
     temp = phonons.temperature * KELVINTOTHZ
     density = np.zeros_like(frequencies)
-    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = frequencies > phonons.frequency_threshold
     if phonons.is_classic is False:
         density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
     else:
@@ -26,7 +26,7 @@ def calculate_occupations(phonons):
 def calculate_c_v(phonons):
     frequencies = phonons.frequencies
     c_v = np.zeros_like (frequencies)
-    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = frequencies > phonons.frequency_threshold
     temperature = phonons.temperature * KELVINTOTHZ
 
     if (phonons.is_classic):
