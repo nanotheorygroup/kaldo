@@ -1,10 +1,10 @@
 # Test temporary folders
 ballistico/tests/tmp-folder
+examples_local
 
 .DS_Store
 *.pyc
 .idea
-examples
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
