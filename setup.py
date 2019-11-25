@@ -49,7 +49,7 @@ setup(
     install_requires=[
         'numpy>=1.13',
         'scipy>=1',
-        'ase>=3.18.0',
+        'ase>=3.18.1',
         'sparse>=0.6',
         'spglib>=1.11',
         'seekpath>=1.8',
