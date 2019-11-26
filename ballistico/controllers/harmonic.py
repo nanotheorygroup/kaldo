@@ -147,11 +147,10 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
     geometry = atoms.positions
     list_of_replicas = phonons.list_of_replicas
     if phonons._is_amorphous:
-        dxij = phonons._apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+        dxij = geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :]
         dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
     else:
-        dxij = phonons._apply_boundary_with_cell(geometry[:, np.newaxis, np.newaxis, :] - (
-                geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :]))
+        dxij = geometry[:, np.newaxis, np.newaxis, :] - (geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
         dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons._chi(qvec))
     dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
     return dynmat_derivatives
