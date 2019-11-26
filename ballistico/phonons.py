@@ -344,14 +344,6 @@ class Phonons:
             return operator[physical_modes, ...]
 
 
-    def _apply_boundary_with_cell(self, dxij):
-        # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(self.replicated_cell_inv)
-        sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(self.replicated_cell)
-        return dxij
-
-
     def _chi(self, qvec):
         dxij = self.list_of_replicas
         cell_inv = self.cell_inv
