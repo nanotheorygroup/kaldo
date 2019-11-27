@@ -18,7 +18,7 @@ def phonons():
     print ("Preparing phonons object.")
 
     # Create a finite difference object
-    finite_difference = FiniteDifference.import_from_dlpoly_folder(folder='ballistico/tests/si-amorphous')
+    finite_difference = FiniteDifference.import_from_dlpoly(folder='ballistico/tests/si-amorphous')
 
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,

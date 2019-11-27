@@ -17,7 +17,7 @@ atomic_numbers = atoms.get_atomic_numbers()
 atomic_numbers[atomic_numbers == 1] = 14
 atoms.set_atomic_numbers(atomic_numbers)
 
-finite_difference = FiniteDifference.import_from_dlpoly(atoms, dynmat_file, third_file, folder, supercell)
+finite_difference = FiniteDifference.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
 
 
 k = 5

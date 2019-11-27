@@ -5,6 +5,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 import time
 import os
+from itertools import takewhile, repeat
 
 FOLDER_NAME = 'output'
 LAZY_PREFIX = '_lazy__'
@@ -89,7 +90,29 @@ def is_calculated(property, self, is_reduced_path=False):
             return True
         except FileNotFoundError:
             return False
-        return False
     else:
         return True
 
+def count_rows(filename):
+    f = open(filename, 'rb')
+    bufgen = takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in repeat(None)))
+    return sum(buf.count(b'\n') for buf in bufgen if buf)
+
+
+def divmod(a, b):
+    #TODO: Remove this method
+    q = a / b
+    r = a % b
+    return q, r
+
+
+def split_index(index, nx, ny, nz):
+    #TODO: Remove this method
+    tmp1, ix = divmod(index - 1, nx, )
+    tmp2, iy = divmod(tmp1, ny)
+    iatom, iz = divmod(tmp2, nz)
+    ix = ix + 1
+    iy = iy + 1
+    iz = iz + 1
+    iatom = iatom + 1
+    return int(ix), int(iy), int(iz), int(iatom)
