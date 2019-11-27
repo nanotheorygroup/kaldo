@@ -39,27 +39,29 @@ def count_rows(filename):
 
 
 def import_sparse_third(atoms, replicas=(1, 1, 1), filename='THIRD'):
-    n_inter = count_rows(filename)
-    coords = np.zeros((n_inter * 3, 6), dtype=np.int16)
-    values = np.zeros((n_inter * 3))
     replicas = np.array(replicas)
     n_replicas = np.prod(replicas)
     n_unit_cell = atoms.get_positions().shape[0]
     n_particles = n_unit_cell * n_replicas
+    n_rows = count_rows(filename)
+    array_size = min(n_rows * 3, n_unit_cell * 3 * (n_particles * 3) ** 2)
+    coords = np.zeros((array_size, 6), dtype=np.int16)
+    values = np.zeros((array_size))
+    index_in_unit_cell = 0
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
             coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
-            if coords_to_write[0] >= n_unit_cell:
-                break
-            coords[3 * i:3 * (i + 1), :-1] = coords_to_write[np.newaxis, :]
-            coords[3 * i:3 * (i + 1), -1] = [0, 1, 2]
-            values[3 * i:3 * (i + 1)] = np.array(l_split[-3:], dtype=np.float) * tenjovermoltoev
+            if coords_to_write[0] < n_unit_cell:
+                coords[3 * index_in_unit_cell:3 * (index_in_unit_cell + 1), :-1] = coords_to_write[np.newaxis, :]
+                coords[3 * index_in_unit_cell:3 * (index_in_unit_cell + 1), -1] = [0, 1, 2]
+                values[3 * index_in_unit_cell:3 * (index_in_unit_cell + 1)] = np.array(l_split[-3:], dtype=np.float) * tenjovermoltoev
+                index_in_unit_cell = index_in_unit_cell + 1
             if i % 1000000 == 0:
-                print('reading third order: ', np.round(i / n_inter, 2) * 100, '%')
+                print('reading third order: ', np.round(i / n_rows, 2) * 100, '%')
     print('read', 3 * i, 'interactions')
-    coords = coords[:3 * i].T
-    values = values[:3 * i]
+    coords = coords[:3 * index_in_unit_cell].T
+    values = values[:3 * index_in_unit_cell]
     sparse_third = COO (coords, values, shape=(n_unit_cell, 3, n_particles, 3, n_particles, 3))
     return sparse_third
 
