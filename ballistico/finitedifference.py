@@ -6,11 +6,11 @@ Anharmonic Lattice Dynamics
 import os
 import ase.io
 import numpy as np
-from ase import Atoms
+from ase.io import read
 from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
-from ballistico.tools.io import import_second, import_sparse_third, import_dense_third
+from ballistico.tools.io import import_from_files, import_second_and_third_from_sheng, import_control_file
 import h5py
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
@@ -32,73 +32,22 @@ SECOND_ORDER_WITH_PROGRESS_FILE = 'second_order_progress.hdf5'
 THIRD_ORDER_WITH_PROGRESS_FILE = 'third_order_progress'
 
 
-def import_control_file(control_file):
-    positions = []
-    latt_vecs = []
-    lfactor = 1
-    with open(control_file, "r") as fo:
-        lines = fo.readlines()
-    for line in lines:
-        if 'lattvec' in line:
-            value = line.split('=')[1]
-            latt_vecs.append(np.fromstring(value, dtype=np.float, sep=' '))
-        if 'elements' in line and not ('nelements' in line):
-            value = line.split('=')[1]
-            # TODO: only one species at the moment
-            value = value.replace('"', '\'')
-            value = value.replace(" ", '')
-            value = value.replace("\n", '')
-            value = value.replace(',', '')
-            value = value.replace("''", '\t')
-            value = value.replace("'", '')
-            elements = value.split("\t")
+def convert_to_poscar(atoms, supercell=None):
+    list_of_types = []
+    for symbol in atoms.get_chemical_symbols():
+        for i in range(np.unique(atoms.get_chemical_symbols()).shape[0]):
+            if np.unique(atoms.get_chemical_symbols())[i] == symbol:
+                list_of_types.append(str(i))
 
-        if 'types' in line:
-            value = line.split('=')[1]
-
-            types = np.fromstring(value, dtype=np.int, sep=' ')
-        if 'positions' in line:
-            value = line.split('=')[1]
-            positions.append(np.fromstring(value, dtype=np.float, sep=' '))
-        if 'lfactor' in line:
-            lfactor = float(line.split('=')[1].split(',')[0])
-        if 'scell' in line:
-            value = line.split('=')[1]
-            scell = np.fromstring(value, dtype=np.int, sep=' ')
-    # l factor is in nanometer
-    cell = np.array(latt_vecs) * lfactor * 10
-    positions = np.array(positions).dot(cell)
-
-    supercell = scell
-    list_of_elem = []
-    for i in range(len(types)):
-        list_of_elem.append(elements[types[i] - 1])
-
-    atoms = Atoms(list_of_elem,
-                  positions=positions,
-                  cell=cell,
-                  pbc=[1, 1, 1])
-
-    print('Atoms object created.')
-    return atoms, supercell
-
-
-def divmod(a, b):
-    q = a / b
-    r = a % b
-    return q, r
-
-
-def split_index(index, nx, ny, nz):
-    tmp1, ix = divmod(index - 1, nx, )
-    tmp2, iy = divmod(tmp1, ny)
-    iatom, iz = divmod(tmp2, nz)
-    ix = ix + 1
-    iy = iy + 1
-    iz = iz + 1
-    iatom = iatom + 1
-    return int(ix), int(iy), int(iz), int(iatom)
-
+    poscar = {'lattvec': atoms.cell / 10,
+              'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
+              'elements': atoms.get_chemical_symbols(),
+              'types': list_of_types}
+    if supercell is not None:
+        poscar['na'] = supercell[0]
+        poscar['nb'] = supercell[1]
+        poscar['nc'] = supercell[2]
+    return poscar
 
 class FiniteDifference(object):
     """ Class for constructing the finite difference object to calculate
@@ -170,7 +119,7 @@ class FiniteDifference(object):
             if is_optimizing:
                 self.optimize()
 
-        self.folder_name = folder
+        self.folder = folder
         self.is_reduced_second = is_reduced_second
         self._replicated_atoms = None
         self._second_order = None
@@ -182,11 +131,41 @@ class FiniteDifference(object):
         if third_order is not None:
             self.third_order = third_order
 
+
+    @classmethod
+    def import_from_dlpoly(cls, folder, supercell=(1, 1, 1)):
+        config_file = str(folder) + "/CONFIG"
+        dynmat_file = str(folder) + "/Dyn.form"
+        third_file = str(folder) + "/THIRD"
+        atoms = ase.io.read(config_file, format='dlp4')
+        kwargs = import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+        return FiniteDifference(**kwargs)
+
+
+    @classmethod
+    def import_from_sheng_folder(cls, folder, supercell=(1, 1, 1)):
+        config_file = folder + '/' + 'CONTROL'
+        try:
+            atoms, supercell = import_control_file(config_file)
+        except FileNotFoundError as err:
+            config_file = folder + '/' + 'POSCAR'
+            print(err, 'Trying to open POSCAR')
+            atoms = read(config_file)
+
+        # Create a finite difference object
+        finite_difference = FiniteDifference(atoms=atoms, supercell=supercell, folder=folder)
+        second_order, is_reduced_second, third_order = import_second_and_third_from_sheng(finite_difference)
+        finite_difference.second_order = second_order
+        finite_difference.third_order = third_order
+        finite_difference.is_reduced_second = is_reduced_second
+        return finite_difference
+
     @property
     def second_order(self):
         """second_order method to return the second order force matrix.
         """
         return self._second_order
+
 
     @second_order.getter
     def second_order(self):
@@ -196,7 +175,7 @@ class FiniteDifference(object):
         # Once confirming that the second order does not exist, try load in
         if self._second_order is None:
             try:
-                folder = self.folder_name
+                folder = self.folder
                 folder += '/'
                 self._second_order = np.load(folder + SECOND_ORDER_FILE)
             except FileNotFoundError as e:
@@ -206,13 +185,14 @@ class FiniteDifference(object):
                 self.second_order = self.calculate_second()
         return self._second_order
 
+
     @second_order.setter
     def second_order(self, new_second_order):
         """Save the loaded/computed second order force constant matrix
             to preset proper folders.
         """
         # make the  folder and save the second order force constant matrix into it
-        folder = self.folder_name
+        folder = self.folder
         folder += '/'
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -223,11 +203,13 @@ class FiniteDifference(object):
             print(err)
         self._second_order = new_second_order
 
+
     @property
     def third_order(self):
         """third_order method to return the third order force matrix
         """
         return self._third_order
+
 
     @third_order.getter
     def third_order(self):
@@ -236,7 +218,7 @@ class FiniteDifference(object):
         """
         # Once confirming that the third order does not exist, try load in
         if self._third_order is None:
-            folder = self.folder_name
+            folder = self.folder
             folder += '/'
             try:
                 self._third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE)) \
@@ -246,6 +228,7 @@ class FiniteDifference(object):
                 # calculate the third order
                 self.third_order = self.calculate_third()
         return self._third_order
+
 
     @third_order.setter
     def third_order(self, new_third_order):
@@ -261,7 +244,7 @@ class FiniteDifference(object):
 
         # Make the folder and save the third order force constant matrix into it
         # Save the third order as npz to futher save memory
-        folder = self.folder_name
+        folder = self.folder
         folder += '/'
         # Remove the partial file if exists
         try:
@@ -273,12 +256,13 @@ class FiniteDifference(object):
         save_npz(folder + THIRD_ORDER_FILE_SPARSE, self._third_order.reshape((self.n_atoms * 3 * self.n_replicas *
                                                                               self.n_atoms * 3, self.n_replicas *
                                                                               self.n_atoms * 3)).to_scipy_sparse())
-
+        
     @property
     def replicated_atoms(self):
         """replicated method to return the duplicated atom geometry.
         """
         return self._replicated_atoms
+
 
     @replicated_atoms.getter
     def replicated_atoms(self):
@@ -293,94 +277,20 @@ class FiniteDifference(object):
                 self.replicated_atoms.set_calculator(self.calculator(**self.calculator_inputs))
         return self._replicated_atoms
 
+
     @replicated_atoms.setter
     def replicated_atoms(self, new_replicated_atoms):
         """Save the loaded/computed duplicated atom geometry
             to preset proper folders.
         """
         # Make the folder and save the replicated atom xyz files into it
-        folder = self.folder_name
+        folder = self.folder
         folder += '/'
         if not os.path.exists(folder):
             os.makedirs(folder)
         ase.io.write(folder + REPLICATED_ATOMS_FILE, new_replicated_atoms, format='extxyz')
         self._replicated_atoms = new_replicated_atoms
 
-    @classmethod
-    def import_from_dlpoly_folder(cls, folder, supercell=(1, 1, 1)):
-        config_file = str(folder) + "/CONFIG"
-        dynmat_file = str(folder) + "/Dyn.form"
-        third_file = str(folder) + "/THIRD"
-        atoms = ase.io.read(config_file, format='dlp4')
-        return cls.import_from_dlpoly(atoms, dynmat_file, third_file, folder, supercell)
-
-    @classmethod
-    def import_from_dlpoly(cls, atoms, dynmat_file=None, third_file=None, folder=MAIN_FOLDER, supercell=(1, 1, 1)):
-        n_replicas = np.prod(supercell)
-        n_total_atoms = atoms.positions.shape[0]
-        n_unit_atoms = int(n_total_atoms / n_replicas)
-        unit_symbols = []
-        unit_positions = []
-        for i in range(n_unit_atoms):
-            unit_symbols.append(atoms.get_chemical_symbols()[i])
-            unit_positions.append(atoms.positions[i])
-        unit_cell = atoms.cell / supercell
-
-        atoms = Atoms(unit_symbols,
-                      positions=unit_positions,
-                      cell=unit_cell,
-                      pbc=[1, 1, 1])
-
-        # Create a finite difference object
-        finite_difference = cls(atoms=atoms,
-                                supercell=supercell,
-                                folder=folder)
-
-        if dynmat_file:
-            second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
-            is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
-            if is_reduced_second:
-                second_shape = (1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
-            else:
-                second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
-
-            print('Is reduced second: ', is_reduced_second)
-            second_dl = second_dl.reshape(second_shape)
-            finite_difference.second_order = second_dl
-            finite_difference.is_reduced_second = is_reduced_second
-
-        if third_file:
-            try:
-                print('Reading sparse third')
-                third_dl = import_sparse_third(atoms, replicas=supercell, filename=third_file)
-            except UnicodeDecodeError:
-                print('Trying reading binary third')
-                third_dl = import_dense_third(atoms, replicas=supercell, filename=third_file)
-            third_dl = third_dl[:n_unit_atoms]
-            third_shape = (
-                n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
-            third_dl = third_dl.reshape(third_shape)
-            finite_difference.third_order = third_dl
-
-        return finite_difference
-
-    @classmethod
-    def import_from_sheng_folder(cls, folder, supercell=None):
-
-        config_file = folder + '/' + 'CONTROL'
-        try:
-            atoms, supercell = import_control_file(config_file)
-        except FileNotFoundError as err:
-            config_file = folder + '/' + 'POSCAR'
-            print(err, 'Trying to open POSCAR')
-            atoms = ase.io.read(config_file)
-
-        # Create a finite difference object
-        finite_difference = cls(atoms=atoms,
-                                supercell=supercell,
-                                is_reduced_second=False,
-                                folder=folder)
-        return finite_difference
 
     def list_of_replicas(self):
         n_replicas = np.prod(self.supercell)
@@ -400,109 +310,6 @@ class FiniteDifference(object):
         list_of_index = self.list_of_replicas().dot(np.linalg.inv(self.atoms.cell)).round(0).astype(int)
         return list_of_index
 
-    def import_second_and_third_from_sheng(self):
-        supercell = self.supercell
-        atoms = self.atoms
-        folder = self.folder_name
-
-        n_replicas = np.prod(supercell)
-        n_unit_atoms = self.atoms.positions.shape[0]
-
-        second_file = folder + '/' + 'FORCE_CONSTANTS_2ND'
-        if not os.path.isfile(second_file):
-            second_file = folder + '/' + 'FORCE_CONSTANTS'
-
-        nx, ny, nz = supercell
-        n_replicas = np.prod(supercell)
-        with open(second_file, 'r') as file:
-            n_rows = int(file.readline())
-            n_unit_atoms = int(n_rows / n_replicas)
-
-            second_order = np.zeros((n_unit_atoms, 3, supercell[0],
-                                     supercell[1], supercell[2], n_unit_atoms, 3))
-
-            line = file.readline()
-            while line:
-                try:
-                    i, j = np.fromstring(line, dtype=np.int, sep=' ')
-                except ValueError as err:
-                    print(err)
-                i_ix, i_iy, i_iz, i_iatom = split_index(i, supercell[0], supercell[1], supercell[2])
-                j_ix, j_iy, j_iz, j_iatom = split_index(j, supercell[0], supercell[1], supercell[2])
-                for alpha in range(3):
-                    if (i_ix == 1) and (i_iy == 1) and (i_iz == 1):
-                        second_order[i_iatom - 1, alpha, j_iz - 1, j_iy - 1, j_ix - 1, j_iatom - 1, :] = \
-                            np.fromstring(file.readline(), dtype=np.float, sep=' ')
-                    else:
-                        file.readline()
-                line = file.readline()
-        self.is_reduced_second = True
-        third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-
-        third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
-        second_cell_list = []
-        third_cell_list = []
-        with open(third_file, 'r') as file:
-            line = file.readline()
-            n_third = int(line)
-            list_1 = np.zeros((n_third, 3))
-            list_2 = np.zeros((n_third, 3))
-            for i in range(n_third):
-                file.readline()
-                file.readline()
-                second_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
-                second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
-                second_cell_list.append(second_cell_index)
-
-                # create mask to find the index
-                second_cell_id = (self.list_of_index()[:] == second_cell_index).prod(axis=1)
-                second_cell_id = np.argwhere(second_cell_id).flatten()
-
-                third_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
-                third_cell_index = third_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
-                third_cell_list.append(third_cell_index)
-
-                # create mask to find the index
-                third_cell_id = (self.list_of_index()[:] == third_cell_index).prod(axis=1)
-                third_cell_id = np.argwhere(third_cell_id).flatten()
-
-                atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=np.int, sep=' ') - 1
-                interactions = np.zeros((3, 3, 3))
-                for _ in range(27):
-                    values = np.fromstring(file.readline(), dtype=np.float, sep=' ')
-                    coords = values[:3].round(0).astype(int) - 1
-                    alpha, beta, gamma = values[:3].round(0).astype(int) - 1
-                    try:
-                        third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = values[
-                            3]
-                    except TypeError as err:
-                        print(err)
-                    except IndexError as err:
-                        print(err)
-        second_cell_list = np.array(second_cell_list)
-        third_cell_list = np.array(third_cell_list)
-        second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3), order='C')
-        third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
-                                           n_unit_atoms * 3), order='C')
-        self.second_order = second_order
-        self.third_order = third_order
-
-    def __convert_to_poscar(self, atoms, supercell=None):
-        list_of_types = []
-        for symbol in atoms.get_chemical_symbols():
-            for i in range(np.unique(atoms.get_chemical_symbols()).shape[0]):
-                if np.unique(atoms.get_chemical_symbols())[i] == symbol:
-                    list_of_types.append(str(i))
-
-        poscar = {'lattvec': atoms.cell / 10,
-                  'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
-                  'elements': atoms.get_chemical_symbols(),
-                  'types': list_of_types}
-        if supercell is not None:
-            poscar['na'] = supercell[0]
-            poscar['nb'] = supercell[1]
-            poscar['nc'] = supercell[2]
-        return poscar
 
     def gen_supercell(self):
         """Generate the geometry based on symmetry
@@ -511,6 +318,7 @@ class FiniteDifference(object):
         atoms = self.atoms
         replicated_atoms = atoms.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
         return replicated_atoms
+
 
     def optimize(self, method='CG', tol=MAX_FORCE):
         """Execute the geometry optimization by minimizing
@@ -532,6 +340,7 @@ class FiniteDifference(object):
         print('Final max force: ' + "{0:.4e}".format(self.max_force(self.atoms.positions, self.atoms)))
         return self.max_force(self.atoms.positions, self.atoms)
 
+
     def max_force(self, x, atoms):
         """Construct the maximum force component for a given structure
         """
@@ -539,6 +348,7 @@ class FiniteDifference(object):
         grad = self.gradient(x, atoms)
         # Maximum force component is set as the 2 norm of the gradient
         return np.linalg.norm(grad, 2)
+
 
     def gradient(self, x, input_atoms):
         """Construct the gradient based on the given structure and atom object
@@ -552,6 +362,7 @@ class FiniteDifference(object):
         grad = np.reshape(gr, gr.size, order='C')
         input_atoms.positions = atoms.positions
         return grad
+
 
     def calculate_single_second(self, atom_id):
         replicated_atoms = self.replicated_atoms
@@ -571,6 +382,7 @@ class FiniteDifference(object):
                                                                   replicated_atoms)
         return second_per_atom
 
+
     def calculate_second(self):
         """Core method to compute second order force constant matrices
         """
@@ -589,7 +401,7 @@ class FiniteDifference(object):
         # Shift the atom back and forth (-1 and +1) after specifying
         # the atom and direction to shift
         # Try to read the partial file if any
-        filename = self.folder_name + '/' + SECOND_ORDER_WITH_PROGRESS_FILE
+        filename = self.folder + '/' + SECOND_ORDER_WITH_PROGRESS_FILE
 
         for i in range(n_atoms):
             with h5py.File(filename, 'a') as partial_second:
@@ -646,7 +458,7 @@ class FiniteDifference(object):
 
             # Compute third order force constant matrices
             # by utilizing the geometry symmetry
-            poscar = self.__convert_to_poscar(self.atoms)
+            poscar = convert_to_poscar(self.atoms)
             f_range = None
             print("Analyzing symmetries")
             symops = SymmetryOperations(
@@ -654,7 +466,7 @@ class FiniteDifference(object):
             print("- Symmetry group {0} detected".format(symops.symbol))
             print("- {0} symmetry operations".format(symops.translations.shape[0]))
             print("Creating the supercell")
-            sposcar = self.__convert_to_poscar(self.replicated_atoms, self.supercell)
+            sposcar = convert_to_poscar(self.replicated_atoms, self.supercell)
             print("Computing all distances in the supercell")
             dmin, nequi, shifts = calc_dists(sposcar)
             if nneigh != None:
@@ -671,12 +483,9 @@ class FiniteDifference(object):
             two_atoms_mesh = wedge.build_list4()
             two_atoms_mesh = np.array(two_atoms_mesh)
             print('object created')
-
             k_coord_sparse = []
             mesh_index_sparse = []
             k_at_sparse = []
-
-
         else:
             # Compute third order force constant matrices by using the central
             # difference formula for the approximation for third order derivatives
@@ -685,12 +494,10 @@ class FiniteDifference(object):
             jat_sparse = []
             j_coord_sparse = []
             k_sparse = []
-
-
         value_sparse = []
         two_atoms_mesh_index = -1
         file = None
-        progress_filename = self.folder_name + '/' + THIRD_ORDER_WITH_PROGRESS_FILE
+        progress_filename = self.folder + '/' + THIRD_ORDER_WITH_PROGRESS_FILE
         try:
             file = open(progress_filename, 'r+')
         except FileNotFoundError as err:
@@ -707,7 +514,6 @@ class FiniteDifference(object):
                 two_atoms_mesh_index = np.ravel_multi_index((read_icoord, read_jcoord, read_iat, read_jat),
                                                             (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
                                                             order='C')
-
                 if is_symmetry_enabled:
                     # Here we need some index manipulation to use the results produced by the third order library
                     mask = (two_atoms_mesh[:] == np.array([jat, iat, jcoord, icoord]).astype(int))
@@ -771,6 +577,7 @@ class FiniteDifference(object):
             phipart = COO(coords, value_sparse, shape).todense()
             phifull = np.array(reconstruct_ifcs(phipart, self.wedge, two_atoms_mesh,
                                                 poscar, sposcar))
+            #TODO: use transpose here
             phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
             phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
             phifull = phifull.swapaxes(5, 4)
