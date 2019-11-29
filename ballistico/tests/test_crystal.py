@@ -15,8 +15,9 @@ TMP_FOLDER = 'ballistico/tests/tmp-folder'
 @pytest.yield_fixture(scope="session")
 def phonons():
     print ("Preparing phonons object.")
-    finite_difference = FiniteDifference.__from_dlpoly(folder='ballistico/tests/si-crystal',
-                                                       supercell=[3, 3, 3])
+    finite_difference = FiniteDifference.from_folder(folder='ballistico/tests/si-crystal',
+                                                     supercell=[3, 3, 3],
+                                                     format='dlpoly')
 
     phonons = Phonons(finite_difference=finite_difference,
                       kpts=[5, 5, 5],
