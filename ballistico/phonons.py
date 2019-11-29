@@ -9,9 +9,9 @@ import ballistico.controllers.anharmonic as ban
 import ballistico.controllers.anharmonic_tf as bantf
 import ballistico.controllers.statistic as bst
 import tensorflow as tf
-from ballistico.tools.tools import is_calculated
+from ballistico.helpers.tools import is_calculated
 
-from ballistico.tools.tools import lazy_property
+from ballistico.helpers.tools import lazy_property
 
 FOLDER_NAME = 'ald-output'
 FREQUENCY_THRESHOLD = 0.001

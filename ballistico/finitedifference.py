@@ -10,7 +10,8 @@ from ase.io import read
 from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
-from ballistico.tools.io import import_from_files, import_second_and_third_from_sheng, import_control_file
+import ballistico.helpers.io as io
+from ballistico.helpers.tools import convert_to_poscar
 import h5py
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
@@ -31,23 +32,6 @@ REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 SECOND_ORDER_WITH_PROGRESS_FILE = 'second_order_progress.hdf5'
 THIRD_ORDER_WITH_PROGRESS_FILE = 'third_order_progress'
 
-
-def convert_to_poscar(atoms, supercell=None):
-    list_of_types = []
-    for symbol in atoms.get_chemical_symbols():
-        for i in range(np.unique(atoms.get_chemical_symbols()).shape[0]):
-            if np.unique(atoms.get_chemical_symbols())[i] == symbol:
-                list_of_types.append(str(i))
-
-    poscar = {'lattvec': atoms.cell / 10,
-              'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
-              'elements': atoms.get_chemical_symbols(),
-              'types': list_of_types}
-    if supercell is not None:
-        poscar['na'] = supercell[0]
-        poscar['nb'] = supercell[1]
-        poscar['nc'] = supercell[2]
-    return poscar
 
 class FiniteDifference(object):
     """ Class for constructing the finite difference object to calculate
@@ -133,20 +117,35 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def import_from_dlpoly(cls, folder, supercell=(1, 1, 1)):
+    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell):
+        io.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+
+
+    @classmethod
+    def from_folder(cls, folder, supercell=None, format='dlpoly'):
+        if format == 'dlpoly':
+            return cls.__from_dlpoly(folder, supercell)
+        elif format == 'shengbte':
+            return cls.__from_shengbte(folder, supercell)
+        else:
+            raise ValueError
+
+
+    @classmethod
+    def __from_dlpoly(cls, folder, supercell=(1, 1, 1)):
         config_file = str(folder) + "/CONFIG"
         dynmat_file = str(folder) + "/Dyn.form"
         third_file = str(folder) + "/THIRD"
         atoms = ase.io.read(config_file, format='dlp4')
-        kwargs = import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
         return FiniteDifference(**kwargs)
 
 
     @classmethod
-    def import_from_sheng_folder(cls, folder, supercell=(1, 1, 1)):
+    def __from_shengbte(cls, folder, supercell=None):
         config_file = folder + '/' + 'CONTROL'
         try:
-            atoms, supercell = import_control_file(config_file)
+            atoms, supercell = io.import_control_file(config_file)
         except FileNotFoundError as err:
             config_file = folder + '/' + 'POSCAR'
             print(err, 'Trying to open POSCAR')
@@ -154,7 +153,7 @@ class FiniteDifference(object):
 
         # Create a finite difference object
         finite_difference = FiniteDifference(atoms=atoms, supercell=supercell, folder=folder)
-        second_order, is_reduced_second, third_order = import_second_and_third_from_sheng(finite_difference)
+        second_order, is_reduced_second, third_order = io.import_second_and_third_from_sheng(finite_difference)
         finite_difference.second_order = second_order
         finite_difference.third_order = third_order
         finite_difference.is_reduced_second = is_reduced_second

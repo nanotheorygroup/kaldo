@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 import sparse
 from opt_einsum import contract
 import ase.units as units
-from ballistico.tools.tools import timeit
+from ballistico.helpers.tools import timeit
 import numpy as np
 
 
