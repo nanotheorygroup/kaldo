@@ -14,7 +14,7 @@ TMP_FOLDER = 'ballistico/tests/tmp-folder'
 def create_phonons(temperature):
 
     # Create a finite difference object
-    finite_difference = FiniteDifference.import_from_dlpoly(folder='ballistico/tests/si-amorphous')
+    finite_difference = FiniteDifference.__from_dlpoly(folder='ballistico/tests/si-amorphous')
 
     # Create a phonon object# # Create a phonon object
     phonons = Phonons (finite_difference=finite_difference,

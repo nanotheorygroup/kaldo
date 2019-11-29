@@ -99,6 +99,23 @@ def count_rows(filename):
     return sum(buf.count(b'\n') for buf in bufgen if buf)
 
 
+def convert_to_poscar(atoms, supercell=None):
+    list_of_types = []
+    for symbol in atoms.get_chemical_symbols():
+        for i in range(np.unique(atoms.get_chemical_symbols()).shape[0]):
+            if np.unique(atoms.get_chemical_symbols())[i] == symbol:
+                list_of_types.append(str(i))
+
+    poscar = {'lattvec': atoms.cell / 10,
+              'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
+              'elements': atoms.get_chemical_symbols(),
+              'types': list_of_types}
+    if supercell is not None:
+        poscar['na'] = supercell[0]
+        poscar['nb'] = supercell[1]
+        poscar['nc'] = supercell[2]
+    return poscar
+
 def divmod(a, b):
     #TODO: Remove this method
     q = a / b

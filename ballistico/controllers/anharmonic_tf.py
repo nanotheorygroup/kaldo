@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 from opt_einsum import contract
 import ase.units as units
-from ballistico.tools.tools import timeit
+from ballistico.helpers.tools import timeit
 import tensorflow as tf
 
 DELTA_THRESHOLD = 2

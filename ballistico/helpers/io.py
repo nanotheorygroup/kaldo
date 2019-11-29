@@ -7,7 +7,7 @@ from sparse import COO
 import pandas as pd
 import ase.units as units
 import re
-from ballistico.tools.tools import count_rows, split_index
+from ballistico.helpers.tools import count_rows, split_index
 from ase import Atoms
 import os
 import re
