@@ -10,7 +10,9 @@ import numpy as np
 
 def test_max_freq_imported_dlpoly():
     supercell = np.array([3, 3, 3])
-    finite_difference = FiniteDifference.__from_dlpoly('ballistico/tests/si-crystal', supercell)
+    finite_difference = FiniteDifference.from_folder(folder='ballistico/tests/si-crystal',
+                                                     supercell=supercell,
+                                                     format='dlpoly')
     second_order = finite_difference.second_order / (28)
     eigv = np.linalg.eigh(second_order.reshape(162, 162))[0]
     freqs = np.sqrt(np.abs(eigv) * 9648.5) / (2 * np.pi)

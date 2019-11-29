@@ -122,7 +122,7 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=None, format='dlpoly'):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='dlpoly'):
         if format == 'dlpoly':
             return cls.__from_dlpoly(folder, supercell)
         elif format == 'shengbte':
