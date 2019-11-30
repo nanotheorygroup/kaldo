@@ -114,6 +114,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
                 index_kpp_full = calculate_index_kpp(phonons, index_k, is_plus)
                 if is_plus:
+                    #TODO: This can be faster using the contract opt_einsum
                     chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k, phonons._chi_k[index_kpp_full].conj())
                     chi_prod = chi_prod.reshape((phonons.n_k_points, phonons.n_replicas ** 2))
                     scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))

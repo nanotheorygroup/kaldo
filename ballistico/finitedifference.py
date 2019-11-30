@@ -33,6 +33,17 @@ SECOND_ORDER_WITH_PROGRESS_FILE = 'second_order_progress.hdf5'
 THIRD_ORDER_WITH_PROGRESS_FILE = 'third_order_progress'
 
 
+def calculate_symmetrize_dynmat(finite_difference):
+    if not finite_difference.is_reduced_second:
+        second_transpose = finite_difference.second_order.transpose((3, 4, 5, 0, 1, 2))
+        delta_symm = np.sum(np.abs(finite_difference.second_order - second_transpose))
+        print('asymmetry of dynmat', delta_symm)
+        finite_difference.second_order = 0.5 * (finite_difference.second_order + second_transpose)
+    else:
+        print('cannot symmetrize a reduced dynamical matrix')
+    return finite_difference
+
+
 class FiniteDifference(object):
     """ Class for constructing the finite difference object to calculate
         the second/third order force constant matrices after providing the
@@ -117,19 +128,26 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell, third_threshold=0.):
+    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell, third_threshold=0., is_symmetrizing=False):
         kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
-        return FiniteDifference(**kwargs)
+        fd = FiniteDifference(**kwargs)
+        if is_symmetrizing:
+            fd = calculate_symmetrize_dynmat(fd)
+        return fd
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='dlpoly'):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='dlpoly', is_symmetrizing=False):
         if format == 'dlpoly':
-            return cls.__from_dlpoly(folder, supercell)
+            fd = cls.__from_dlpoly(folder, supercell)
         elif format == 'shengbte':
-            return cls.__from_shengbte(folder, supercell)
+            fd = cls.__from_shengbte(folder, supercell)
         else:
             raise ValueError
+        if is_symmetrizing:
+            fd = calculate_symmetrize_dynmat(fd)
+        return fd
+
 
 
     @classmethod
