@@ -117,8 +117,9 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell):
-        io.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell, third_threshold):
+        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
+        return FiniteDifference(**kwargs)
 
 
     @classmethod

@@ -36,7 +36,7 @@ def import_dynamical_matrix(n_particles, replicas=(1, 1, 1), filename='dlpoly_fi
     return dynamical_matrix * tenjovermoltoev
 
 
-def import_sparse_third(atoms, replicas=(1, 1, 1), filename='THIRD'):
+def import_sparse_third(atoms, replicas=(1, 1, 1), filename='THIRD', third_threshold=0.):
     replicas = np.array(replicas)
     n_replicas = np.prod(replicas)
     n_unit_cell = atoms.get_positions().shape[0]
@@ -50,16 +50,19 @@ def import_sparse_third(atoms, replicas=(1, 1, 1), filename='THIRD'):
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
             coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
-            if coords_to_write[0] < n_unit_cell:
-                coords[3 * index_in_unit_cell:3 * (index_in_unit_cell + 1), :-1] = coords_to_write[np.newaxis, :]
-                coords[3 * index_in_unit_cell:3 * (index_in_unit_cell + 1), -1] = [0, 1, 2]
-                values[3 * index_in_unit_cell:3 * (index_in_unit_cell + 1)] = np.array(l_split[-3:], dtype=np.float) * tenjovermoltoev
-                index_in_unit_cell = index_in_unit_cell + 1
+            values_to_write = np.array(l_split[-3:], dtype=np.float)
+            mask_to_write = np.abs(values_to_write) > third_threshold
+            if mask_to_write.any() and coords_to_write[0] < n_unit_cell:
+                for alpha in np.arange(3)[mask_to_write]:
+                    coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+                    coords[index_in_unit_cell, -1] = alpha
+                    values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
+                    index_in_unit_cell = index_in_unit_cell + 1
             if i % 1000000 == 0:
                 print('reading third order: ', np.round(i / n_rows, 2) * 100, '%')
     print('read', 3 * i, 'interactions')
-    coords = coords[:3 * index_in_unit_cell].T
-    values = values[:3 * index_in_unit_cell]
+    coords = coords[:index_in_unit_cell].T
+    values = values[:index_in_unit_cell]
     sparse_third = COO (coords, values, shape=(n_unit_cell, 3, n_particles, 3, n_particles, 3))
     return sparse_third
 
@@ -79,7 +82,7 @@ def import_dense_third(atoms, replicas, filename, is_reduced=True):
     return third
 
 
-def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1)):
+def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0.):
     n_replicas = np.prod(supercell)
     n_total_atoms = atoms.positions.shape[0]
     n_unit_atoms = int(n_total_atoms / n_replicas)
@@ -116,8 +119,13 @@ def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, sup
     if third_file:
         try:
             print('Reading sparse third')
-            third_dl = import_sparse_third(atoms, replicas=supercell, filename=third_file)
+            third_dl = import_sparse_third(atoms=atoms,
+                                           replicas=supercell,
+                                           filename=third_file,
+                                           third_threshold=third_threshold)
         except UnicodeDecodeError:
+            if third_threshold != 0:
+                raise ValueError('Third threshold not supported for dense third')
             print('Trying reading binary third')
             third_dl = import_dense_third(atoms, replicas=supercell, filename=third_file)
         third_dl = third_dl[:n_unit_atoms]
