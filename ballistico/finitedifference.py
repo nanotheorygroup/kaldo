@@ -44,6 +44,24 @@ def calculate_symmetrize_dynmat(finite_difference):
     return finite_difference
 
 
+def calculate_acoustic_dynmat(finite_difference):
+    dynmat = finite_difference.second_order
+    n_unit = finite_difference.second_order[0].shape[0]
+    n_replicas =  finite_difference.second_order[0].shape[2]
+    sumrulecorr = 0.
+    for m in range(finite_difference.second_order.shape[0]):
+        for i in range(n_unit):
+            offdiagsum = 0.
+            for m in range(n_replicas):
+                for j in range(n_unit):
+                    offdiagsum += dynmat[m, i, :, m, j, :]
+            dynmat[m, i, :, 0, i, :] -= offdiagsum
+            sumrulecorr += offdiagsum
+    print(sumrulecorr)
+    finite_difference.second_order = dynmat
+    return finite_difference
+
+
 class FiniteDifference(object):
     """ Class for constructing the finite difference object to calculate
         the second/third order force constant matrices after providing the
@@ -128,16 +146,18 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell, third_threshold=0., is_symmetrizing=False):
+    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell, third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
         kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
         fd = FiniteDifference(**kwargs)
         if is_symmetrizing:
             fd = calculate_symmetrize_dynmat(fd)
+        if is_acoustic_sum:
+            fd = calculate_acoustic_dynmat(fd)
         return fd
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='dlpoly', is_symmetrizing=False):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='dlpoly', is_symmetrizing=False, is_acoustic_sum=False):
         if format == 'dlpoly':
             fd = cls.__from_dlpoly(folder, supercell)
         elif format == 'shengbte':
@@ -146,6 +166,8 @@ class FiniteDifference(object):
             raise ValueError
         if is_symmetrizing:
             fd = calculate_symmetrize_dynmat(fd)
+        if is_acoustic_sum:
+            fd = calculate_acoustic_dynmat(fd)
         return fd
 
 
