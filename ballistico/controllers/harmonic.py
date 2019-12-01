@@ -6,6 +6,7 @@ from opt_einsum import contract
 import numpy as np
 import ase.units as units
 from scipy.linalg.lapack import dsyev
+from ballistico.helpers.tools import apply_boundary_with_cell
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
@@ -49,10 +50,9 @@ def calculate_dynamical_matrix(phonons):
     atoms = phonons.atoms
     second_order = phonons.finite_difference.second_order.copy()
     n_unit_cell_atoms = phonons.atoms.positions.shape[0]
-    list_of_replicas = phonons.list_of_replicas
     geometry = atoms.positions
     n_particles = geometry.shape[0]
-    n_replicas = list_of_replicas.shape[0]
+    n_replicas = phonons.finite_difference.n_replicas
     is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
     if is_second_reduced:
         dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
@@ -145,11 +145,12 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
     n_particles = geometry.shape[0]
     n_phonons = n_particles * 3
     geometry = atoms.positions
-    list_of_replicas = phonons.list_of_replicas
     if phonons._is_amorphous:
-        dxij = phonons._apply_boundary_with_cell(geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :])
+        dxij = geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :]
+        dxij = apply_boundary_with_cell(dxij, phonons.replicated_cell, phonons.replicated_cell_inv)
         dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
     else:
+        list_of_replicas = phonons.finite_difference.list_of_replicas
         dxij = geometry[:, np.newaxis, np.newaxis, :] - (geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
         dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons._chi(qvec))
     dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
