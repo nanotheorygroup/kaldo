@@ -137,6 +137,7 @@ class FiniteDifference(object):
         self.folder = folder
         self.is_reduced_second = is_reduced_second
         self._replicated_atoms = None
+        self._list_of_replicas = None
         self._second_order = None
         self._third_order = None
 
