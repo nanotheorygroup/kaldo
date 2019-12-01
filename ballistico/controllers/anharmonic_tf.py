@@ -178,9 +178,12 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
     second_sign = (int(is_plus) * 2 - 1)
     omegas_difference = tf.abs(phonons._omega_tf[index_k, mu] + second_sign * phonons._omega_tf[:, :, tf.newaxis] -
                                tf.gather(phonons._omega_tf, index_kpp_full)[:, tf.newaxis, :])
+
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
-                (phonons._frequencies_tf[:, :, tf.newaxis] > phonons.frequency_threshold) & \
-                (tf.gather(phonons._frequencies_tf, index_kpp_full)[:, tf.newaxis, :] > phonons.frequency_threshold)
+                (physical_modes[:, :, np.newaxis]) & \
+                (physical_modes[index_kpp_full, np.newaxis, :])
     interactions = tf.where(condition)
     if interactions.shape[0] > 0:
         index_kp_vec = tf.cast(interactions[:, 0], dtype=tf.int32)
@@ -224,9 +227,10 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         second_sign = (int(is_plus) * 2 - 1)
         omegas_difference = np.abs(phonons._omegas[0, mu] + second_sign * phonons._omegas[0, :, np.newaxis] -
                                    phonons._omegas[0, np.newaxis, :])
+        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
         condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
-                    (phonons.frequencies[0, :, np.newaxis] > phonons.frequency_threshold) & \
-                    (phonons.frequencies[0, np.newaxis, :] > phonons.frequency_threshold)
+                (physical_modes[0, :, np.newaxis]) & \
+                (physical_modes[0, np.newaxis, :])
         interactions = tf.where(condition)
         if interactions.shape[0] > 0:
             # Create sparse index

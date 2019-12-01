@@ -42,7 +42,7 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
 
         potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order,
                                                  rescaled_eigenvectors[:, nu_single], (0, 0))
-        scaled_potential = contract('ij,in,jm->nm', potential_times_evect.real,
+        scaled_potential = np.einsum('ij,in,jm->nm', potential_times_evect.real,
                                     rescaled_eigenvectors.real,
                                     rescaled_eigenvectors.real,
                                     optimize='optimal')
@@ -254,9 +254,11 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])
 
+            physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+
             condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                        (frequencies[0, :, np.newaxis] > frequencies_threshold) & \
-                        (frequencies[0, np.newaxis, :] > frequencies_threshold)
+                        (physical_modes[0, :, np.newaxis]) & \
+                        (physical_modes[0, np.newaxis, :])
             interactions = np.array(np.where(condition)).T
 
             if interactions.size != 0:
