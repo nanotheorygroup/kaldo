@@ -182,7 +182,7 @@ class FiniteDifference(object):
         third_file = str(folder) + "/THIRD"
         atoms = ase.io.read(config_file, format='dlp4')
         kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
-        return FiniteDifference(**kwargs)
+        return cls(**kwargs)
 
 
     @classmethod
@@ -196,7 +196,7 @@ class FiniteDifference(object):
             atoms = read(config_file)
 
         # Create a finite difference object
-        finite_difference = FiniteDifference(atoms=atoms, supercell=supercell, folder=folder)
+        finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
         second_order, is_reduced_second, third_order = shengbte_io.import_second_and_third_from_sheng(finite_difference)
         finite_difference.second_order = second_order
         finite_difference.third_order = third_order
