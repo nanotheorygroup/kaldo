@@ -20,6 +20,7 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     if is_gamma_tensor_enabled == True:
         raise ValueError('is_gamma_tensor_enabled=True not supported')
     n_particles = phonons.atoms.positions.shape[0]
+    n_replicas = phonons.finite_difference.n_replicas
     n_modes = phonons.n_modes
     masses = phonons.atoms.get_masses()
     rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
@@ -39,9 +40,9 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     data = phonons.finite_difference.third_order.data
     coords = np.vstack([coords[1], coords[2], coords[0]])
     third_tf = tf.SparseTensor(coords.T, data, (
-    phonons.n_modes * phonons.n_replicas, phonons.n_modes * phonons.n_replicas, phonons.n_modes))
+    phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
 
-    third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * phonons.n_replicas) ** 2, phonons.n_modes))
+    third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
     for nu_single in range(phonons.n_phonons):
         out = calculate_dirac_delta_amorphous(phonons, nu_single)
         if not out:
@@ -49,7 +50,7 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
                                                     tf.reshape(evect_tf[nu_single, :], ((phonons.n_modes, 1))))
         third_nu_tf = tf.reshape(third_nu_tf,
-                                 (phonons.n_modes * phonons.n_replicas, phonons.n_modes * phonons.n_replicas))
+                                 (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas))
 
         dirac_delta_tf, mup_vec, mupp_vec = out
         scaled_potential_tf = tf.einsum('ij,ni,mj->nm', third_nu_tf, evect_tf, evect_tf)
@@ -82,11 +83,11 @@ def calculate_index_kpp(phonons, index_k, is_plus):
 
 @timeit
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
-
+    n_replicas = phonons.finite_difference.n_replicas
     coords = phonons.finite_difference.third_order.coords
     data = phonons.finite_difference.third_order.data
-    coords = tf.stack([coords[1] * phonons.n_modes * phonons.n_replicas + coords[2], coords[0]], -1)
-    third_tf = tf.SparseTensor(coords, data, ((phonons.n_modes * phonons.n_replicas) ** 2, phonons.n_modes))
+    coords = tf.stack([coords[1] * phonons.n_modes * n_replicas + coords[2], coords[0]], -1)
+    third_tf = tf.SparseTensor(coords, data, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
     third_tf = tf.cast(third_tf, dtype=tf.complex64)
 
     chi_k = tf.convert_to_tensor(phonons._chi_k)
@@ -110,10 +111,10 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, mu, :, tf.newaxis])
 
         third_nu_tf = tf.cast(
-            tf.reshape(third_nu_tf, (phonons.n_replicas, phonons.n_modes, phonons.n_replicas, phonons.n_modes)),
+            tf.reshape(third_nu_tf, (n_replicas, phonons.n_modes, n_replicas, phonons.n_modes)),
             dtype=tf.complex64)
         third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
-        third_nu_tf = tf.reshape(third_nu_tf, (phonons.n_replicas * phonons.n_replicas, phonons.n_modes, phonons.n_modes))
+        third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
 
 
         for is_plus in (0, 1):
@@ -137,7 +138,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
             # The ps and gamma array stores first ps then gamma then the scattering array
             chi_prod = tf.einsum('kt,kl->ktl', second_chi, third_chi)
-            chi_prod = tf.reshape(chi_prod, (phonons.n_k_points, phonons.n_replicas ** 2))
+            chi_prod = tf.reshape(chi_prod, (phonons.n_k_points, n_replicas ** 2))
             scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
             scaled_potential = tf.einsum('kij,kmi->kjm', scaled_potential, second)
             scaled_potential = tf.einsum('kjm,knj->kmn', scaled_potential, third)

@@ -133,3 +133,11 @@ def split_index(index, nx, ny, nz):
     iz = iz + 1
     iatom = iatom + 1
     return int(ix), int(iy), int(iz), int(iatom)
+
+
+def apply_boundary_with_cell(dxij, replicated_cell, replicated_cell_inv):
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
+    sxij = dxij.dot(replicated_cell_inv)
+    sxij = sxij - np.round(sxij)
+    dxij = sxij.dot(replicated_cell)
+    return dxij

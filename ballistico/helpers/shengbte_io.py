@@ -6,10 +6,144 @@ import pandas as pd
 import numpy as np
 from ballistico.phonons import Phonons
 from ase.units import Rydberg, Bohr
+from ase import Atoms
+import os
+import re
+from ballistico.helpers.tools import count_rows, split_index
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
 SHENGBTE_SCRIPT = 'ShengBTE.x'
+
+
+def list_of_index(finite_difference):
+    list_of_index = finite_difference.list_of_replicas.dot(np.linalg.inv(finite_difference.atoms.cell)).round(0).astype(int)
+    return list_of_index
+
+
+def import_second_and_third_from_sheng(finite_difference):
+    atoms = finite_difference.atoms
+    supercell = finite_difference.supercell
+    folder = finite_difference.folder
+    second_file = folder + '/' + 'FORCE_CONSTANTS_2ND'
+    if not os.path.isfile(second_file):
+        second_file = folder + '/' + 'FORCE_CONSTANTS'
+    n_replicas = np.prod(supercell)
+    with open(second_file, 'r') as file:
+        first_row = file.readline()
+        first_row_split = re.findall(r'\d+', first_row)
+        n_rows = int(list(map(int, first_row_split))[0])
+        n_unit_atoms = int(n_rows / n_replicas)
+
+        second_order = np.zeros((n_unit_atoms, 3, supercell[0],
+                                 supercell[1], supercell[2], n_unit_atoms, 3))
+
+        line = file.readline()
+        while line:
+            try:
+                i, j = np.fromstring(line, dtype=np.int, sep=' ')
+            except ValueError as err:
+                print(err)
+            i_ix, i_iy, i_iz, i_iatom = split_index(i, supercell[0], supercell[1], supercell[2])
+            j_ix, j_iy, j_iz, j_iatom = split_index(j, supercell[0], supercell[1], supercell[2])
+            for alpha in range(3):
+                if (i_ix == 1) and (i_iy == 1) and (i_iz == 1):
+                    second_order[i_iatom - 1, alpha, j_iz - 1, j_iy - 1, j_ix - 1, j_iatom - 1, :] = \
+                        np.fromstring(file.readline(), dtype=np.float, sep=' ')
+                else:
+                    file.readline()
+            line = file.readline()
+    is_reduced_second = True
+    third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+    third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
+    second_cell_list = []
+    third_cell_list = []
+    with open(third_file, 'r') as file:
+        line = file.readline()
+        n_third = int(line)
+        for i in range(n_third):
+            file.readline()
+            file.readline()
+            second_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
+            second_cell_list.append(second_cell_index)
+
+            # create mask to find the index
+            second_cell_id = (list_of_index(finite_difference)[:] == second_cell_index).prod(axis=1)
+            second_cell_id = np.argwhere(second_cell_id).flatten()
+
+            third_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            third_cell_index = third_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
+            third_cell_list.append(third_cell_index)
+
+            # create mask to find the index
+            third_cell_id = (list_of_index(finite_difference)[:] == third_cell_index).prod(axis=1)
+            third_cell_id = np.argwhere(third_cell_id).flatten()
+
+            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=np.int, sep=' ') - 1
+            for _ in range(27):
+                values = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+                alpha, beta, gamma = values[:3].round(0).astype(int) - 1
+                try:
+                    third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = values[
+                        3]
+                except TypeError as err:
+                    print(err)
+                except IndexError as err:
+                    print(err)
+    second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3), order='C')
+    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
+                                       n_unit_atoms * 3), order='C')
+    return second_order, is_reduced_second, third_order
+
+
+def import_control_file(control_file):
+    positions = []
+    latt_vecs = []
+    lfactor = 1
+    with open(control_file, "r") as fo:
+        lines = fo.readlines()
+    for line in lines:
+        if 'lattvec' in line:
+            value = line.split('=')[1]
+            latt_vecs.append(np.fromstring(value, dtype=np.float, sep=' '))
+        if 'elements' in line and not ('nelements' in line):
+            value = line.split('=')[1]
+            # TODO: only one species at the moment
+            value = value.replace('"', '\'')
+            value = value.replace(" ", '')
+            value = value.replace("\n", '')
+            value = value.replace(',', '')
+            value = value.replace("''", '\t')
+            value = value.replace("'", '')
+            elements = value.split("\t")
+
+        if 'types' in line:
+            value = line.split('=')[1]
+
+            types = np.fromstring(value, dtype=np.int, sep=' ')
+        if 'positions' in line:
+            value = line.split('=')[1]
+            positions.append(np.fromstring(value, dtype=np.float, sep=' '))
+        if 'lfactor' in line:
+            lfactor = float(line.split('=')[1].split(',')[0])
+        if 'scell' in line:
+            value = line.split('=')[1]
+            supercell = np.fromstring(value, dtype=np.int, sep=' ')
+    # l factor is in nanometer
+    cell = np.array(latt_vecs) * lfactor * 10
+    positions = np.array(positions).dot(cell)
+    list_of_elem = []
+    for i in range(len(types)):
+        list_of_elem.append(elements[types[i] - 1])
+
+    atoms = Atoms(list_of_elem,
+                  positions=positions,
+                  cell=cell,
+                  pbc=[1, 1, 1])
+
+    print('Atoms object created.')
+    return atoms, supercell
 
 
 def save_second_order_matrix(phonons):
@@ -19,7 +153,7 @@ def save_second_order_matrix(phonons):
     finite_difference = phonons.finite_difference
     second_order = finite_difference.second_order
     n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
-    n_replicas = np.prod(finite_difference.supercell)
+    n_replicas = phonons.finite_difference.n_replicas
 
     if not phonons.finite_difference.is_reduced_second:
         second_order = second_order.reshape((n_replicas, n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
@@ -53,7 +187,7 @@ def save_second_order_matrix(phonons):
 
 def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
-    n_replicas = phonons.supercell.prod()
+    n_replicas = phonons.finite_difference.n_replicas
     n_particles = int(phonons.n_modes / 3)
     if phonons.finite_difference.is_reduced_second:
         second_order = phonons.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
@@ -64,7 +198,7 @@ def save_second_order_qe_matrix(phonons):
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
 
-    list_of_index = phonons.finite_difference.list_of_index()
+    list_of_index = phonons.list_of_index()
 
     file.write (header(phonons))
     for alpha in range (3):
@@ -74,7 +208,7 @@ def save_second_order_qe_matrix(phonons):
                     file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
                     for id_replica in range(list_of_index.shape[0]):
 
-                        l_vec = (phonons.finite_difference.list_of_index()[id_replica] + 1)
+                        l_vec = (phonons.list_of_index()[id_replica] + 1)
                         for delta in range(3):
                             if l_vec[delta] <= 0:
                                 l_vec[delta] = phonons.finite_difference.supercell[delta]
@@ -97,7 +231,7 @@ def save_third_order_matrix(phonons):
     filename = phonons.folder + '/' + filename
     file = open ('%s' % filename, 'w+')
     n_in_unit_cell = len (phonons.atoms.numbers)
-    n_replicas = np.prod (phonons.supercell)
+    n_replicas = phonons.finite_difference.n_replicas
     third_order = phonons.finite_difference.third_order\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
@@ -114,10 +248,10 @@ def save_third_order_matrix(phonons):
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
                             block_counter += 1
                             file.write ('\n  ' + str (block_counter))
-                            rep_position = phonons.finite_difference.list_of_replicas()[n_1]
+                            rep_position = phonons.finite_difference.list_of_replicas[n_1]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
-                            rep_position = phonons.finite_difference.list_of_replicas()[n_2]
+                            rep_position = phonons.finite_difference.list_of_replicas[n_2]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
                             file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))

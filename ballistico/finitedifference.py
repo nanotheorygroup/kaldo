@@ -11,7 +11,8 @@ from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
 import ballistico.helpers.io as io
-from ballistico.helpers.tools import convert_to_poscar
+import ballistico.helpers.shengbte_io as shengbte_io
+from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
 import h5py
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
@@ -26,6 +27,7 @@ MAX_FORCE = 1e-20
 
 MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
+LIST_OF_REPLICAS_FILE = 'list_of_replicas.npy'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
@@ -47,7 +49,7 @@ def calculate_symmetrize_dynmat(finite_difference):
 def calculate_acoustic_dynmat(finite_difference):
     dynmat = finite_difference.second_order
     n_unit = finite_difference.second_order[0].shape[0]
-    n_replicas =  finite_difference.second_order[0].shape[2]
+    n_replicas =  finite_difference.n_replicas
     sumrulecorr = 0.
     for m in range(finite_difference.second_order.shape[0]):
         for i in range(n_unit):
@@ -186,7 +188,7 @@ class FiniteDifference(object):
     def __from_shengbte(cls, folder, supercell=None):
         config_file = folder + '/' + 'CONTROL'
         try:
-            atoms, supercell = io.import_control_file(config_file)
+            atoms, supercell = shengbte_io.import_control_file(config_file)
         except FileNotFoundError as err:
             config_file = folder + '/' + 'POSCAR'
             print(err, 'Trying to open POSCAR')
@@ -194,7 +196,7 @@ class FiniteDifference(object):
 
         # Create a finite difference object
         finite_difference = FiniteDifference(atoms=atoms, supercell=supercell, folder=folder)
-        second_order, is_reduced_second, third_order = io.import_second_and_third_from_sheng(finite_difference)
+        second_order, is_reduced_second, third_order = shengbte_io.import_second_and_third_from_sheng(finite_difference)
         finite_difference.second_order = second_order
         finite_difference.third_order = third_order
         finite_difference.is_reduced_second = is_reduced_second
@@ -332,24 +334,35 @@ class FiniteDifference(object):
         self._replicated_atoms = new_replicated_atoms
 
 
+    @property
     def list_of_replicas(self):
-        n_replicas = np.prod(self.supercell)
+        return self._list_of_replicas
+
+
+    @list_of_replicas.getter
+    def list_of_replicas(self):
+        if self._list_of_replicas is None:
+            self.list_of_replicas = self.calculate_list_of_replicas()
+        return self._list_of_replicas
+
+
+    @list_of_replicas.setter
+    def list_of_replicas(self, new_list_of_replicas):
+        self._list_of_replicas = new_list_of_replicas
+
+
+    def calculate_list_of_replicas(self):
+        n_replicas = self.n_replicas
         n_unit_atoms = self.atoms.positions.shape[0]
         # Create list of index
-        replicated_cell = self.replicated_atoms.cell
+        replicated_atoms = self.replicated_atoms
+        replicated_cell = replicated_atoms.cell
         replicated_cell_inv = np.linalg.inv(replicated_cell)
-        sxij = self.replicated_atoms.positions.dot(replicated_cell_inv)
-        sxij = sxij - np.round(sxij)
-
-        replicated_atoms_positions = sxij.dot(replicated_cell)
+        replicated_atoms_positions = apply_boundary_with_cell(replicated_atoms.positions, replicated_cell, replicated_cell_inv)
         list_of_replicas = (
                 replicated_atoms_positions.reshape((n_replicas, n_unit_atoms, 3)) -
                 self.atoms.positions[np.newaxis, :, :])
         return list_of_replicas[:, 0, :]
-
-    def list_of_index(self):
-        list_of_index = self.list_of_replicas().dot(np.linalg.inv(self.atoms.cell)).round(0).astype(int)
-        return list_of_index
 
 
     def gen_supercell(self):

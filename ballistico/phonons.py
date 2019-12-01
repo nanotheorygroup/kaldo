@@ -10,7 +10,6 @@ import ballistico.controllers.anharmonic_tf as bantf
 import ballistico.controllers.statistic as bst
 import tensorflow as tf
 from ballistico.helpers.tools import is_calculated
-
 from ballistico.helpers.tools import lazy_property
 
 FOLDER_NAME = 'ald-output'
@@ -98,12 +97,7 @@ class Phonons:
         self.cell_inv = np.linalg.inv(self.atoms.cell)
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
-        self.replicated_cell = self.finite_difference.replicated_atoms.cell
-        self.list_of_replicas = self.finite_difference.list_of_replicas()
-        if self.list_of_replicas.shape == (3,):
-            self.n_replicas = 1
-        else:
-            self.n_replicas = self.list_of_replicas.shape[0]
+
 
 
     @lazy_property(is_storing=False, is_reduced_path=True)
@@ -262,7 +256,7 @@ class Phonons:
 
     @lazy_property(is_storing=False, is_reduced_path=True)
     def _chi_k(self):
-        chi = np.zeros((self.n_k_points, self.n_replicas), dtype=np.complex)
+        chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_k in range(self.n_k_points):
             k_point = self.k_points[index_k]
             chi[index_k] = self._chi(k_point)
@@ -344,16 +338,8 @@ class Phonons:
             return operator[physical_modes, ...]
 
 
-    def _apply_boundary_with_cell(self, dxij):
-        # exploit periodicity to calculate the shortest distance, which may not be the one we have
-        sxij = dxij.dot(self.replicated_cell_inv)
-        sxij = sxij - np.round(sxij)
-        dxij = sxij.dot(self.replicated_cell)
-        return dxij
-
-
     def _chi(self, qvec):
-        dxij = self.list_of_replicas
+        dxij = self.finite_difference.list_of_replicas
         cell_inv = self.cell_inv
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
