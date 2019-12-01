@@ -51,13 +51,13 @@ def calculate_acoustic_dynmat(finite_difference):
     sumrulecorr = 0.
     for m in range(finite_difference.second_order.shape[0]):
         for i in range(n_unit):
-            offdiagsum = 0.
-            for m in range(n_replicas):
+            offdiagsum = np.zeros((3, 3))
+            for n in range(n_replicas):
                 for j in range(n_unit):
-                    offdiagsum += dynmat[m, i, :, m, j, :]
-            dynmat[m, i, :, 0, i, :] -= offdiagsum
-            sumrulecorr += offdiagsum
-    print(sumrulecorr)
+                    offdiagsum += dynmat[m, i, :, n, j, :]
+            dynmat[m, i, :, m, i, :] -= offdiagsum
+            sumrulecorr += np.sum(offdiagsum)
+    print('error sum rule', sumrulecorr)
     finite_difference.second_order = dynmat
     return finite_difference
 
@@ -340,6 +340,7 @@ class FiniteDifference(object):
         replicated_cell_inv = np.linalg.inv(replicated_cell)
         sxij = self.replicated_atoms.positions.dot(replicated_cell_inv)
         sxij = sxij - np.round(sxij)
+
         replicated_atoms_positions = sxij.dot(replicated_cell)
         list_of_replicas = (
                 replicated_atoms_positions.reshape((n_replicas, n_unit_atoms, 3)) -
