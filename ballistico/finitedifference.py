@@ -149,7 +149,7 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell, third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
+    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell=(1, 1, 1), third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
         kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
         fd = FiniteDifference(**kwargs)
         if is_symmetrizing:
