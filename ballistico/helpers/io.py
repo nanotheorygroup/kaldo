@@ -14,7 +14,7 @@ import re
 tenjovermoltoev = 10 * units.J / units.mol
 
 
-def import_second(atoms, replicas=(1, 1, 1), filename='dlpoly_files/Dyn.form'):
+def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     replicas = np.array(replicas)
     n_unit_cell = atoms.positions.shape[0]
     dyn_mat = import_dynamical_matrix(n_unit_cell, replicas, filename)
@@ -23,7 +23,7 @@ def import_second(atoms, replicas=(1, 1, 1), filename='dlpoly_files/Dyn.form'):
     return dyn_mat * mass
 
 
-def import_dynamical_matrix(n_particles, supercell=(1, 1, 1), filename='dlpoly_files/Dyn.form'):
+def import_dynamical_matrix(n_particles, supercell=(1, 1, 1), filename='Dyn.form'):
     supercell = np.array(supercell)
     dynamical_matrix_frame = pd.read_csv(filename, header=None, delim_whitespace=True)
     dynamical_matrix = dynamical_matrix_frame.values
