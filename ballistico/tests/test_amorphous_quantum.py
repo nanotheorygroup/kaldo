@@ -19,7 +19,7 @@ def phonons():
 
     # Create a finite difference object
     finite_difference = FiniteDifference.from_folder(folder='ballistico/tests/si-amorphous',
-                                                     format='dlpoly')
+                                                     format='eskm')
 
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,

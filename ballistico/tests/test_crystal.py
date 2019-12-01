@@ -17,7 +17,7 @@ def phonons():
     print ("Preparing phonons object.")
     finite_difference = FiniteDifference.from_folder(folder='ballistico/tests/si-crystal',
                                                      supercell=[3, 3, 3],
-                                                     format='dlpoly')
+                                                     format='eskm')
 
     phonons = Phonons(finite_difference=finite_difference,
                       kpts=[5, 5, 5],

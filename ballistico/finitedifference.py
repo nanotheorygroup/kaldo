@@ -160,9 +160,9 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='dlpoly', is_symmetrizing=False, is_acoustic_sum=False):
-        if format == 'dlpoly':
-            fd = cls.__from_dlpoly(folder, supercell)
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', is_symmetrizing=False, is_acoustic_sum=False):
+        if format == 'eskm':
+            fd = cls.__from_eskm(folder, supercell)
         elif format == 'shengbte':
             fd = cls.__from_shengbte(folder, supercell)
         else:
@@ -176,7 +176,7 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def __from_dlpoly(cls, folder, supercell=(1, 1, 1)):
+    def __from_eskm(cls, folder, supercell=(1, 1, 1)):
         config_file = str(folder) + "/CONFIG"
         dynmat_file = str(folder) + "/Dyn.form"
         third_file = str(folder) + "/THIRD"
