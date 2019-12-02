@@ -161,7 +161,9 @@ class FiniteDifference(object):
 
     @classmethod
     def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', is_symmetrizing=False, is_acoustic_sum=False):
-        if format == 'eskm':
+        if format == 'numpy':
+            fd = cls.__from_numpy(folder, supercell)
+        elif format == 'eskm':
             fd = cls.__from_eskm(folder, supercell)
         elif format == 'shengbte':
             fd = cls.__from_shengbte(folder, supercell)
@@ -173,6 +175,28 @@ class FiniteDifference(object):
             fd = calculate_acoustic_dynmat(fd)
         return fd
 
+
+    @classmethod
+    def __from_numpy(cls, folder, supercell=(1, 1, 1)):
+        if folder[-1] != '/':
+            folder = folder + '/'
+        config_file = folder + REPLICATED_ATOMS_FILE
+        n_replicas = np.prod(supercell)
+        atoms = ase.io.read(config_file, format='extxyz')
+        n_atoms = int(atoms.positions.shape[0] / n_replicas)
+        kwargs = io.import_from_files(atoms=atoms,
+                                      folder=folder,
+                                      supercell=supercell)
+        second_order = np.load(folder + SECOND_ORDER_FILE)
+        if second_order.size == (n_replicas * n_atoms * 3) ** 2:
+            kwargs['is_reduced_second'] = False
+        else:
+            kwargs['is_reduced_second'] = True
+        third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE)) \
+            .reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
+        kwargs['second_order'] = second_order
+        kwargs['third_order'] = third_order
+        return cls(**kwargs)
 
 
     @classmethod
