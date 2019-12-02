@@ -51,7 +51,7 @@ def calculate_c_v_2d(phonons):
     frequencies = phonons.frequencies
     c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     temperature = phonons.temperature * KELVINTOTHZ
-    physical_modes = frequencies > phonons.frequency_threshold
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
 
     if (phonons.is_classic):
         c_v[:, :, :] = KELVINTOJOULE
@@ -70,8 +70,8 @@ def calculate_qhgk(phonons, gamma_in=None):
     else:
         gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy()
     omega = phonons._omegas
-    physical_modes_2d = (phonons.frequencies[:, :, np.newaxis] > phonons.frequency_threshold) * \
-                        (phonons.frequencies[:, np.newaxis, :] > phonons.frequency_threshold)
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & physical_modes[:, np.newaxis, :]
     lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (
             ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
             (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
@@ -99,15 +99,16 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         else:
             gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
         omega = phonons._omegas
-        physical_modes = (phonons.frequencies[:, :, np.newaxis] > phonons.frequency_threshold) * \
-                         (phonons.frequencies[:, np.newaxis, :] > phonons.frequency_threshold)
+        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+        physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                            physical_modes[:, np.newaxis, :]
         lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / (
                 ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])) ** 2 +
                 (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
 
         lorentz[np.isnan(lorentz)] = 0
         conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
-        heat_capacity = calculate_c_v_2d(phonons)
+        # heat_capacity = calculate_c_v_2d(phonons)
 
         conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', phonons.c_v,
                                                         phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
@@ -136,7 +137,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
     elif method == 'rta':
         volume = np.linalg.det(phonons.atoms.cell)
         gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy()
-        physical_modes = (phonons.frequencies > phonons.frequency_threshold)
+        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
         tau = 1 / gamma
         tau[np.invert(physical_modes)] = 0
         phonons.velocities[np.isnan(phonons.velocities)] = 0
@@ -146,7 +147,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
                                                      phonons.velocities[:, :, :])
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
     elif method == 'sc':
-        physical_modes = (phonons.frequencies.reshape(phonons.n_phonons) > phonons.frequency_threshold)
+        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
         volume = np.linalg.det(phonons.atoms.cell)
         c_v = phonons._keep_only_physical(phonons.c_v.reshape((phonons.n_phonons), order='C'))
         velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))

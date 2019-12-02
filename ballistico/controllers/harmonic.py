@@ -159,7 +159,7 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
 def calculate_frequencies_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int) % phonons.kpts, phonons.kpts, order='C')
+        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C', mode='wrap')
         eigenvals = phonons.eigenvalues[k_index]
     else:
         eigenvals = calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=True)
@@ -169,29 +169,29 @@ def calculate_frequencies_for_k(phonons, qvec):
 def calculate_velocities_AF_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int) % phonons.kpts, phonons.kpts, order='C')
+        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C', mode='wrap')
         dynmat_derivatives = phonons._dynmat_derivatives[k_index]
         frequencies = phonons.frequencies[k_index]
         eigenvects = phonons.eigenvectors[k_index]
+        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))[k_index]
     else:
         dynmat_derivatives = calculate_dynmat_derivatives_for_k(phonons, qvec)
         frequencies = calculate_frequencies_for_k(phonons, qvec)
         _, eigenvects = calculate_eigensystem_for_k(phonons, qvec)
+        physical_modes = frequencies > phonons.frequency_threshold
 
-    frequencies_threshold = phonons.frequency_threshold
-    condition = frequencies > frequencies_threshold
     velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
     velocities_AF = contract('mna,mn->mna', velocities_AF,
                                       1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
-    velocities_AF[np.invert(condition), :, :] = 0
-    velocities_AF[:, np.invert(condition), :] = 0
+    velocities_AF[np.invert(physical_modes), :, :] = 0
+    velocities_AF[:, np.invert(physical_modes), :] = 0
     velocities_AF = velocities_AF / 2
     return velocities_AF
 
 def calculate_velocities_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int) % phonons.kpts, phonons.kpts, order='C')
+        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C', mode='wrap')
         velocities_AF = phonons._velocities_af[k_index]
     else:
         velocities_AF = calculate_velocities_AF_for_k(phonons, qvec)

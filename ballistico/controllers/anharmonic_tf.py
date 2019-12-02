@@ -169,7 +169,8 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
 
 def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus):
-    if phonons.frequencies[index_k, mu] <= phonons.frequency_threshold:
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    if not physical_modes[index_k, mu]:
         return None
     if phonons.sigma_in:
         sigma_tf = tf.constant(phonons.sigma_in, dtype=tf.float64)
@@ -214,7 +215,8 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
         return tf.cast(dirac_delta_tf, dtype=tf.float32), index_kp, mup, index_kpp, mupp
 
 def calculate_dirac_delta_amorphous(phonons, mu):
-    if phonons.frequencies[0, mu] < phonons.frequency_threshold:
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    if not physical_modes[0, mu]:
         return None
     if phonons.broadening_shape == 'triangle':
         delta_threshold = 1
