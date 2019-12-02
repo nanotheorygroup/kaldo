@@ -7,10 +7,9 @@ from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.controllers.conductivity as bac
-import shutil
+from tempfile import TemporaryDirectory
 import pytest
 
-TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
 @pytest.yield_fixture(scope="session")
 def phonons():
@@ -19,16 +18,16 @@ def phonons():
                                                      supercell=[3, 3, 3],
                                                      format='eskm')
 
-    # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference,
-                      kpts=[5, 5, 5],
-                      is_classic=False,
-                      temperature=300,
-                      folder=TMP_FOLDER,
-                      is_tf_backend=False)
-    yield phonons
-    print ("Cleaning up.")
-    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
+    with TemporaryDirectory() as td:
+        # Create a phonon object
+        phonons = Phonons(finite_difference=finite_difference,
+                          kpts=[5, 5, 5],
+                          is_classic=False,
+                          temperature=300,
+                          folder=td,
+                          is_tf_backend=False)
+        yield phonons
+        print ("Cleaning up.")
 
 
 def test_sc_conductivity(phonons):

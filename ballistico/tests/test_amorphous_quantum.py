@@ -7,10 +7,8 @@ from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ase.units as units
-import shutil
 import pytest
-
-TMP_FOLDER = 'ballistico/tests/tmp-folder'
+from tempfile import TemporaryDirectory
 
 
 @pytest.yield_fixture(scope="session")
@@ -22,16 +20,16 @@ def phonons():
                                                      format='eskm')
 
     # # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference,
-                      is_classic=False,
-                      temperature=300,
-                      folder=TMP_FOLDER,
-                      sigma_in= 0.05 / 4.135,
-                      broadening_shape='triangle')
+    with TemporaryDirectory() as td:
+        phonons = Phonons(finite_difference=finite_difference,
+                          is_classic=False,
+                          temperature=300,
+                          folder=td,
+                          sigma_in= 0.05 / 4.135,
+                          broadening_shape='triangle')
 
-    yield phonons
+        yield phonons
     print ("Cleaning up.")
-    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
 
 
 def test_first_gamma(phonons):

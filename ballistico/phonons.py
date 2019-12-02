@@ -54,7 +54,8 @@ class Phonons:
         """
         self.finite_difference = kwargs['finite_difference']
         self.is_classic = bool(kwargs['is_classic'])
-        self.temperature = float(kwargs['temperature'])
+        if 'temperature' in kwargs:
+            self.temperature = float(kwargs['temperature'])
         if 'folder' in kwargs:
             self.folder = kwargs['folder']
         else:
