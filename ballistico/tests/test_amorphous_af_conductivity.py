@@ -7,35 +7,38 @@ from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
 import ballistico.controllers.conductivity as bac
+from tempfile import TemporaryDirectory
+import pytest
 
-TMP_FOLDER = 'ballistico/tests/tmp-folder'
 
-
-def create_phonons(temperature):
+@pytest.yield_fixture(scope="function")
+def phonons():
+    print ("Preparing phonons object.")
 
     # Create a finite difference object
     finite_difference = FiniteDifference.from_folder(folder='ballistico/tests/si-amorphous', format='eskm')
 
-    # Create a phonon object# # Create a phonon object
-    phonons = Phonons (finite_difference=finite_difference,
-                       is_classic=False,
-                       temperature=temperature,
-                       folder=TMP_FOLDER)
-    return phonons
+    # # Create a phonon object
+    with TemporaryDirectory() as td:
+        phonons = Phonons(finite_difference=finite_difference,
+                          is_classic=False,
+                          folder=td)
 
-def test_af_conductivity_50():
-    temperature = 50
+        yield phonons
+    print ("Cleaning up.")
+
+
+def test_af_conductivity_50(phonons):
+    phonons.temperature = 50
     gamma_in = 0.025
-    phonons = create_phonons(temperature)
     cond = bac.conductivity(phonons, method='qhgk', gamma_in=gamma_in).sum(axis=0).diagonal().mean()
     expected_cond = 0.101
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
 
 
-def test_af_conductivity_300():
-    temperature = 300
+def test_af_conductivity_300(phonons):
+    phonons.temperature = 300
     gamma_in = 0.025
-    phonons = create_phonons(temperature)
     cond = bac.conductivity(phonons, method='qhgk', gamma_in=gamma_in).sum(axis=0).diagonal().mean()
     expected_cond = 0.532
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
