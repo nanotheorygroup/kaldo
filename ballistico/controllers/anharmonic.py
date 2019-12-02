@@ -158,12 +158,11 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
 
 def calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus):
-    if phonons.frequencies[index_k, mu] <= phonons.frequency_threshold:
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    if not physical_modes[index_k, mu]:
         return None
 
-    frequencies = phonons.frequencies
     density = phonons.occupations
-    frequencies_threshold = phonons.frequency_threshold
     if phonons.broadening_shape == 'gauss':
         broadening_function = gaussian_delta
     elif phonons.broadening_shape == 'triangle':
@@ -232,21 +231,18 @@ def calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus):
     return current_delta, index_kp, mup, index_kpp, mupp
 
 def calculate_dirac_delta_amorphous(phonons, mu):
-
-    frequencies = phonons.frequencies
     density = phonons.occupations
-    frequencies_threshold = phonons.frequency_threshold
     if phonons.broadening_shape == 'gauss':
         broadening_function = gaussian_delta
     elif phonons.broadening_shape == 'triangle':
         broadening_function = triangular_delta
     else:
         raise TypeError('Broadening shape not supported')
-
+    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     for is_plus in [1, 0]:
         sigma_small = phonons.sigma_in
 
-        if phonons.frequencies[0, mu] > phonons.frequency_threshold:
+        if physical_modes[0, mu]:
 
             second_sign = (int(is_plus) * 2 - 1)
             omegas = phonons._omegas
@@ -254,7 +250,6 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])
 
-            physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
 
             condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
                         (physical_modes[0, :, np.newaxis]) & \
