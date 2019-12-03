@@ -8,8 +8,8 @@ import ballistico.controllers.harmonic as bha
 from sklearn.neighbors.kde import KernelDensity
 import numpy as np
 from scipy import ndimage
-
-
+from ballistico.helpers.tools import convert_to_spg_structure
+from ase.dft.kpoints import BandPath
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
 
@@ -45,30 +45,49 @@ def interpolator(k_list, observable, fourier_order=0, interpolation_order=0, is_
     return out
 
 
-def create_k_and_symmetry_space(atoms, reference_distance=0.02):
-    cell = atoms.cell
-    scaled_positions = atoms.get_positions().dot(np.linalg.inv(atoms.cell))
-    inp = (cell, scaled_positions, atoms.get_atomic_numbers())
-    explicit_data = seekpath.getpaths.get_explicit_k_path(inp, reference_distance=reference_distance)
-    kpath = explicit_data['explicit_kpoints_rel']
-    n_k_points = kpath.shape[0]
-    label_positions = np.array(explicit_data['explicit_segments']).flatten()
-    label_names = np.array(explicit_data['path']).flatten()
-    x_label_positions = [label_positions[0]]
-    x_label_names = [label_names[0]]
-    for i in range(1, label_positions.size - 1, 2):
-        x_label_names.append((label_names[i]))
-        x_label_positions.append((label_positions[i] + label_positions[i+1]) / 2)
-    x_label_positions.append(label_positions[-1])
-    x_label_names.append(label_names[-1])
-    point_names = x_label_names
-    Q = np.array(x_label_positions)
-    Q /= Q.max()
-    q = np.linspace(0, 1, n_k_points)
-    for i in range(len(point_names)):
-        if point_names[i] == 'GAMMA':
-            point_names[i] = '$\Gamma$'
-    return kpath, q, Q, point_names
+def create_k_and_symmetry_space(atoms, n_k_points=300):
+    spg_struct = convert_to_spg_structure(atoms)
+    autopath = seekpath.get_path(spg_struct)
+    path_cleaned = []
+    for edge in autopath['path']:
+        edge_cleaned = []
+        for point in edge:
+            if point == 'GAMMA':
+                edge_cleaned.append('G')
+            else:
+                edge_cleaned.append(point.replace('_', ''))
+        path_cleaned.append(edge_cleaned)
+    point_coords_cleaned = {}
+    for key in autopath['point_coords'].keys():
+        if key == 'GAMMA':
+            point_coords_cleaned['G'] = autopath['point_coords'][key]
+        else:
+            point_coords_cleaned[key.replace('_', '')] = autopath['point_coords'][key]
+
+    density = n_k_points / 5
+    bandpath = atoms.cell.bandpath(path=path_cleaned,
+                                   density=density,
+                                   special_points=point_coords_cleaned)
+
+    previous_point_position = -1.
+    kpath = bandpath.kpts
+    points_positions = []
+    points_names = []
+    kpoint_axis = bandpath.get_linear_kpoint_axis()
+    for i in range(len(kpoint_axis[-2])):
+        point_position = kpoint_axis[-2][i]
+        point_name = kpoint_axis[-1][i]
+        if point_position != previous_point_position:
+            points_positions.append(point_position)
+            points_names.append(point_name)
+        previous_point_position = point_position
+
+    points_positions = np.array(points_positions)
+    points_positions /= points_positions.max()
+    for i in range(len(points_names)):
+        if points_names[i] == 'GAMMA':
+            points_names[i] = '$\Gamma$'
+    return kpath, points_positions, points_names
 
 
 
@@ -100,7 +119,6 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
 def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
     #TODO: remove useless symmetry flag
     atoms = phonons.atoms
-    reference_distance = 4/n_k_points
     fig1 = plt.figure ()
     if symmetry == 'nw':
         q = np.linspace(0, 0.5, n_k_points)
@@ -110,7 +128,9 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
         Q = [0, 0.5]
         point_names = ['$\\Gamma$', 'X']
     else:
-        k_list, q, Q, point_names = create_k_and_symmetry_space (atoms, reference_distance=reference_distance)
+        k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points)
+        q = np.linspace(0, 1, k_list.shape[0])
+
     if phonons.is_able_to_calculate:
         freqs_plot = bha.calculate_second_order_observable(phonons, 'frequencies', k_list)
         vel_plot = bha.calculate_second_order_observable(phonons, 'velocities', k_list)
@@ -136,7 +156,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
     plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
     plt.xticks (Q, point_names)
     plt.xlim (q[0], q[-1])
-    plt.plot (q, freqs_plot, 'b.', linewidth=1, markersize=4)
+    plt.plot (q, freqs_plot, '.', linewidth=1, markersize=4)
     plt.grid ()
     plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
     fig1.savefig (phonons.folder + '/' + 'dispersion' + '.pdf')
@@ -150,7 +170,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
             plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
             plt.xticks(Q, point_names)
             plt.xlim(q[0], q[-1])
-            plt.plot(q, vel_plot[:, :, alpha], 'b.', linewidth=1, markersize=4)
+            plt.plot(q, vel_plot[:, :, alpha], '.', linewidth=1, markersize=4)
             plt.grid()
             fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
             if is_showing:
@@ -162,7 +182,7 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
 
     plt.xticks(Q, point_names)
     plt.xlim(q[0], q[-1])
-    plt.plot(q, vel_norm[:, :], 'b.', linewidth=1, markersize=4)
+    plt.plot(q, vel_norm[:, :], '.', linewidth=1, markersize=4)
     plt.grid()
     fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
     if is_showing:

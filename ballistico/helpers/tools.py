@@ -141,3 +141,10 @@ def apply_boundary_with_cell(dxij, replicated_cell, replicated_cell_inv):
     sxij = sxij - np.round(sxij)
     dxij = sxij.dot(replicated_cell)
     return dxij
+
+
+def convert_to_spg_structure(atoms):
+    cell = atoms.cell
+    scaled_positions = atoms.get_positions().dot(np.linalg.inv(atoms.cell))
+    spg_struct = (cell, scaled_positions, atoms.get_atomic_numbers())
+    return spg_struct
