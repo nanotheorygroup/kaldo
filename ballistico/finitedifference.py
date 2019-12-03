@@ -6,7 +6,6 @@ Anharmonic Lattice Dynamics
 import os
 import ase.io
 import numpy as np
-from ase.io import read
 from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
@@ -149,7 +148,7 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file, folder, supercell=(1, 1, 1), third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
+    def from_files(cls, atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
         kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
         fd = FiniteDifference(**kwargs)
         if is_symmetrizing:
@@ -217,7 +216,7 @@ class FiniteDifference(object):
         except FileNotFoundError as err:
             config_file = folder + '/' + 'POSCAR'
             print(err, 'Trying to open POSCAR')
-            atoms = read(config_file)
+            atoms = ase.io.read(config_file)
 
         # Create a finite difference object
         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)

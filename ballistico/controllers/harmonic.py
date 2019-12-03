@@ -7,7 +7,6 @@ import numpy as np
 import ase.units as units
 from scipy.linalg.lapack import dsyev
 from ballistico.helpers.tools import apply_boundary_with_cell
-
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
@@ -136,6 +135,7 @@ def calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=False):
             evals, evects = dsyev(dyn_s)[:2]
         else:
             evals, evects = np.linalg.eigh(dyn_s)
+
         return evals, evects
 
 def calculate_dynmat_derivatives_for_k(phonons, qvec):
@@ -159,7 +159,7 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
 def calculate_frequencies_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C', mode='wrap')
+        k_index = int(np.argwhere((phonons.k_points == qvec).all(axis=1)).flatten())
         eigenvals = phonons.eigenvalues[k_index]
     else:
         eigenvals = calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=True)
@@ -169,7 +169,7 @@ def calculate_frequencies_for_k(phonons, qvec):
 def calculate_velocities_AF_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C', mode='wrap')
+        k_index = int(np.argwhere((phonons.k_points == qvec).all(axis=1)).flatten())
         dynmat_derivatives = phonons._dynmat_derivatives[k_index]
         frequencies = phonons.frequencies[k_index]
         eigenvects = phonons.eigenvectors[k_index]
@@ -191,7 +191,7 @@ def calculate_velocities_AF_for_k(phonons, qvec):
 def calculate_velocities_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = np.ravel_multi_index(rescaled_qvec.astype(int), phonons.kpts, order='C', mode='wrap')
+        k_index = int(np.argwhere((phonons.k_points == qvec).all(axis=1)).flatten())
         velocities_AF = phonons._velocities_af[k_index]
     else:
         velocities_AF = calculate_velocities_AF_for_k(phonons, qvec)
