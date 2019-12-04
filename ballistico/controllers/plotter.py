@@ -116,20 +116,21 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
     if is_showing:
         plt.show()
 
-def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True):
     #TODO: remove useless symmetry flag
     atoms = phonons.atoms
     fig1 = plt.figure ()
-    if symmetry == 'nw':
+    try:
+        k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points)
+        q = np.linspace(0, 1, k_list.shape[0])
+    except seekpath.hpkot.SymmetryDetectionError as err:
+        print(err)
         q = np.linspace(0, 0.5, n_k_points)
         k_list = np.zeros((n_k_points, 3))
         k_list[:, 0] = q
         k_list[:, 2] = q
         Q = [0, 0.5]
         point_names = ['$\\Gamma$', 'X']
-    else:
-        k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points)
-        q = np.linspace(0, 1, k_list.shape[0])
 
     if phonons.is_able_to_calculate:
         freqs_plot = bha.calculate_second_order_observable(phonons, 'frequencies', k_list)
@@ -163,18 +164,17 @@ def plot_dispersion(phonons, symmetry=None, n_k_points=300, is_showing=True):
     if is_showing:
         plt.show()
 
-    if not symmetry == 'nw':
-        for alpha in range(3):
-            fig2 = plt.figure ()
-            plt.ylabel('v_$' + str(alpha) + '$/($100m/s$)', fontsize=25, fontweight='bold')
-            plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
-            plt.xticks(Q, point_names)
-            plt.xlim(q[0], q[-1])
-            plt.plot(q, vel_plot[:, :, alpha], '.', linewidth=1, markersize=4)
-            plt.grid()
-            fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
-            if is_showing:
-                plt.show()
+    for alpha in range(3):
+        fig2 = plt.figure ()
+        plt.ylabel('v_$' + str(alpha) + '$/($100m/s$)', fontsize=25, fontweight='bold')
+        plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
+        plt.xticks(Q, point_names)
+        plt.xlim(q[0], q[-1])
+        plt.plot(q, vel_plot[:, :, alpha], '.', linewidth=1, markersize=4)
+        plt.grid()
+        fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
+        if is_showing:
+            plt.show()
 
     fig2 = plt.figure ()
     plt.ylabel('$|v|$/($100m/s$)', fontsize=25, fontweight='bold')
