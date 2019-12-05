@@ -41,6 +41,8 @@ class Phonons:
         broadening_shape (optional) : string
             defines the algorithm to use to calculate the broadening. Available broadenings are `gauss` and `triangle`.
             Default is `gauss`.
+        is_conserving_momentum (optional) : bool
+            defines if applying acousting sum rule or not. Thie is note fully tested. Default is False.
         is_tf_backend (optional) : bool
             defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
             numpy (False). Default is True.
@@ -74,6 +76,10 @@ class Phonons:
             self.broadening_shape = kwargs['broadening_shape']
         else:
             self.broadening_shape = 'gauss'
+        if 'is_conserving_momentum' in kwargs:
+            self.is_conserving_momentum = kwargs['is_conserving_momentum']
+        else:
+            self.is_conserving_momentum = False
         if 'is_tf_backend' in kwargs:
             self.is_tf_backend = kwargs['is_tf_backend']
         else:
