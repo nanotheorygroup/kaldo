@@ -57,12 +57,6 @@ def calculate_dynamical_matrix(phonons):
         dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
     else:
         dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
-
-    if phonons.is_conserving_momentum:
-        for iat in range(n_unit_cell_atoms):
-            for alpha in range(3):
-                for beta in range(3):
-                    dynmat[iat, alpha, 0, iat, beta] -= dynmat[iat, alpha, :, :, beta].sum()
     mass = np.sqrt(atoms.get_masses())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
