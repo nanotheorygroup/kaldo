@@ -59,6 +59,8 @@ def calculate_dynamical_matrix(phonons):
 def calculate_eigensystem(phonons, q_points=None):
     if q_points is None:
         q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
+    else:
+        q_points = apply_boundary_with_cell(q_points)
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]
@@ -76,6 +78,8 @@ def calculate_eigensystem(phonons, q_points=None):
 def calculate_second_order_observable(phonons, observable, q_points=None):
     if q_points is None:
         q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
+    else:
+        q_points = apply_boundary_with_cell(q_points)
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]

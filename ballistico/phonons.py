@@ -310,12 +310,15 @@ class Phonons:
         return is_amorphous
 
     def _q_index_from_q_vec(self, q_vec):
+        # the input q_vec is in the unit sphere
         rescaled_qpp = np.round((q_vec * self.kpts).T, 0).astype(np.int)
         q_index = np.ravel_multi_index(rescaled_qpp, self.kpts, mode='wrap')
         return q_index
 
     def _q_vec_from_q_index(self, q_index):
+        # the output q_vec is in the unit sphere
         q_vec = np.array(np.unravel_index(q_index, (self.kpts))).T / self.kpts
+        apply_boundary_with_cell(q_vec)
         return q_vec
 
     def allowed_index_qpp(self, index_q, is_plus):
