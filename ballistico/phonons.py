@@ -134,7 +134,7 @@ class Phonons:
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
-    def c_v(self):
+    def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns
 
