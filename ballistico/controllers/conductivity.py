@@ -226,6 +226,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     conductivity_per_mode = np.zeros ((phonons.n_phonons, 3, 3))
     avg_conductivity = None
     cond_iterations = []
+    n_iteration = 0
     for n_iteration in range (n_iterations):
         for alpha in range (3):
             for beta in range (3):
