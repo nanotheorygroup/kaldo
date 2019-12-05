@@ -11,6 +11,7 @@ import ballistico.controllers.statistic as bst
 import tensorflow as tf
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
+from ballistico.helpers.tools import apply_boundary_with_cell
 
 FOLDER_NAME = 'ald-output'
 FREQUENCY_THRESHOLD = 0.
@@ -41,8 +42,6 @@ class Phonons:
         broadening_shape (optional) : string
             defines the algorithm to use to calculate the broadening. Available broadenings are `gauss` and `triangle`.
             Default is `gauss`.
-        is_conserving_momentum (optional) : bool
-            defines if applying acousting sum rule or not. Thie is note fully tested. Default is False.
         is_tf_backend (optional) : bool
             defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
             numpy (False). Default is True.
@@ -76,10 +75,6 @@ class Phonons:
             self.broadening_shape = kwargs['broadening_shape']
         else:
             self.broadening_shape = 'gauss'
-        if 'is_conserving_momentum' in kwargs:
-            self.is_conserving_momentum = kwargs['is_conserving_momentum']
-        else:
-            self.is_conserving_momentum = False
         if 'is_tf_backend' in kwargs:
             self.is_tf_backend = kwargs['is_tf_backend']
         else:
@@ -98,21 +93,6 @@ class Phonons:
         self.cell_inv = np.linalg.inv(self.atoms.cell)
         self.replicated_cell = self.finite_difference.replicated_atoms.cell
         self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
-
-
-
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def k_points(self):
-        """List of k-points in units of :math:`2\pi/a` with :math:`a` unit cell size in the given direction.
-
-        Returns
-        -------
-        np.array
-            (n_kpoints, 3) tensor of k-points
-
-        """
-        k_points = bha.calculate_k_points(self)
-        return k_points
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
@@ -258,9 +238,9 @@ class Phonons:
     @lazy_property(is_storing=False, is_reduced_path=True)
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
-        for index_k in range(self.n_k_points):
-            k_point = self.k_points[index_k]
-            chi[index_k] = self._chi(k_point)
+        for index_q in range(self.n_k_points):
+            k_point = self._q_vec_from_q_index(index_q)
+            chi[index_q] = self._chi(k_point)
         return chi
 
 
@@ -329,6 +309,21 @@ class Phonons:
         is_amorphous = (self.kpts == (1, 1, 1)).all()
         return is_amorphous
 
+    def _q_index_from_q_vec(self, q_vec):
+        q_index = np.ravel_multi_index((q_vec * self.kpts).T.astype(np.int), self.kpts, mode='wrap')
+        return q_index
+
+    def _q_vec_from_q_index(self, q_index):
+        q_vec = np.array(np.unravel_index(q_index, (self.kpts))).T / self.kpts
+        return q_vec
+
+    def allowed_index_qpp(self, index_q, is_plus):
+        index_qp_full = np.arange(self.n_k_points)
+        q_vec = self._q_vec_from_q_index(index_q)
+        qp_vec = self._q_vec_from_q_index(index_qp_full)
+        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
+        index_qpp_full = self._q_index_from_q_vec(qpp_vec)
+        return index_qpp_full
 
     def _keep_only_physical(self, operator):
         physical_modes = self._physical_modes
