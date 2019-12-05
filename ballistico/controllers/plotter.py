@@ -86,7 +86,7 @@ def create_k_and_symmetry_space(atoms, n_k_points=300):
     points_positions /= points_positions.max()
     for i in range(len(points_names)):
         if points_names[i] == 'GAMMA':
-            points_names[i] = '$\Gamma$'
+            points_names[i] = '$\\Gamma$'
     return kpath, points_positions, points_names
 
 

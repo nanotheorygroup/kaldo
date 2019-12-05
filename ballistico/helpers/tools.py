@@ -136,13 +136,12 @@ def split_index(index, nx, ny, nz):
 
 
 def apply_boundary_with_cell(dxij, replicated_cell=None, replicated_cell_inv=None):
-    if not replicated_cell:
-        replicated_cell = np.diag((1,1,1))
-        replicated_cell_inv = replicated_cell
     # exploit periodicity to calculate the shortest distance, which may not be the one we have
-    sxij = dxij.dot(replicated_cell_inv)
-    sxij = sxij - np.round(sxij)
-    dxij = sxij.dot(replicated_cell)
+    if replicated_cell is not None:
+        dxij = dxij.dot(replicated_cell_inv)
+    dxij = dxij - np.round(dxij)
+    if replicated_cell is not None:
+        dxij = dxij.dot(replicated_cell)
     return dxij
 
 
