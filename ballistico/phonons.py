@@ -310,7 +310,8 @@ class Phonons:
         return is_amorphous
 
     def _q_index_from_q_vec(self, q_vec):
-        q_index = np.ravel_multi_index((q_vec * self.kpts).T.astype(np.int), self.kpts, mode='wrap')
+        rescaled_qpp = np.round((q_vec * self.kpts).T, 0).astype(np.int)
+        q_index = np.ravel_multi_index(rescaled_qpp, self.kpts, mode='wrap')
         return q_index
 
     def _q_vec_from_q_index(self, q_index):
