@@ -110,7 +110,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
         # heat_capacity = calculate_c_v_2d(phonons)
 
-        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', phonons.c_v,
+        conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', phonons.heat_capacity,
                                                         phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
                                                         phonons._velocities_af[:, :, :, :])
         conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
@@ -125,7 +125,7 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         physical_modes = phonons._physical_modes
 
         volume = np.linalg.det(phonons.atoms.cell)
-        c_v = phonons._keep_only_physical(phonons.c_v.reshape((phonons.n_phonons), order='C'))
+        c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
         conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
                                                       velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
@@ -142,14 +142,14 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         tau[np.invert(physical_modes)] = 0
         phonons.velocities[np.isnan(phonons.velocities)] = 0
         conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
-        conductivity_per_mode[:, :, :, :] = contract('kn,kna,kn,knb->knab', phonons.c_v[:, :],
+        conductivity_per_mode[:, :, :, :] = contract('kn,kna,kn,knb->knab', phonons.heat_capacity[:, :],
                                                      phonons.velocities[:, :, :], tau[:, :],
                                                      phonons.velocities[:, :, :])
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
     elif method == 'sc':
         physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
         volume = np.linalg.det(phonons.atoms.cell)
-        c_v = phonons._keep_only_physical(phonons.c_v.reshape((phonons.n_phonons), order='C'))
+        c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
         velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
 
@@ -220,7 +220,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         tau_0 = 1 / gamma
         tau_0[np.invert(physical_modes)] = 0
         lambd_0[:, alpha] = tau_0[:] * velocities[:, alpha]
-    c_v = phonons.c_v.reshape ((phonons.n_phonons), order='C')
+    c_v = phonons.heat_capacity.reshape ((phonons.n_phonons), order='C')
 
     lambd_n = lambd_0.copy ()
     conductivity_per_mode = np.zeros ((phonons.n_phonons, 3, 3))
