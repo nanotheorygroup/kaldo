@@ -62,15 +62,6 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     return ps_and_gamma
 
 
-def calculate_index_kpp(phonons, index_k, is_plus):
-    index_kp_full = np.arange(phonons.n_k_points)
-    kp_vec = np.array(np.unravel_index(index_kp_full, phonons.kpts, order='C'))
-    k = np.array(np.unravel_index(index_k, phonons.kpts, order='C'))
-    kpp_vec = k[:, np.newaxis] + (int(is_plus) * 2 - 1) * kp_vec[:, :]
-    index_kpp_full = np.ravel_multi_index(kpp_vec, phonons.kpts, order='C', mode='wrap')
-    return index_kpp_full
-
-
 @timeit
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
@@ -112,7 +103,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                 if not out:
                     continue
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
-                index_kpp_full = calculate_index_kpp(phonons, index_k, is_plus)
+                index_kpp_full = phonons.allowed_index_qpp(index_k, is_plus)
                 if is_plus:
                     #TODO: This can be faster using the contract opt_einsum
                     chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k, phonons._chi_k[index_kpp_full].conj())
@@ -157,9 +148,9 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
     return ps_and_gamma
 
 
-def calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus):
+def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
     physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
-    if not physical_modes[index_k, mu]:
+    if not physical_modes[index_q, mu]:
         return None
 
     density = phonons.occupations
@@ -169,66 +160,58 @@ def calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus):
         broadening_function = triangular_delta
     else:
         raise TypeError('Broadening shape not supported')
-    index_kp_full = np.arange(phonons.n_k_points)
-    i_kp_vec = np.array(np.unravel_index(index_kp_full, phonons.kpts, order='C'))
-    i_k = np.array(np.unravel_index(index_k, phonons.kpts, order='C'))
-    i_kpp_vec = i_k[:, np.newaxis] + (int(is_plus) * 2 - 1) * i_kp_vec[:, :]
-    index_kpp_full = np.ravel_multi_index(i_kpp_vec, phonons.kpts, order='C', mode='wrap')
+
+    index_qpp_full = phonons.allowed_index_qpp(index_q, is_plus)
     if phonons.sigma_in is None:
-        sigma_small = calculate_broadening(phonons, index_kpp_full)
+        sigma_small = calculate_broadening(phonons, index_qpp_full)
     else:
         try:
             phonons.sigma_in.size
         except AttributeError:
             sigma_small = phonons.sigma_in
         else:
-            sigma_small = phonons.sigma_in.reshape((phonons.n_k_points, phonons.n_modes))[index_k, mu]
+            sigma_small = phonons.sigma_in.reshape((phonons.n_k_points, phonons.n_modes))[index_q, mu]
 
     second_sign = (int(is_plus) * 2 - 1)
     omegas = phonons._omegas
     omegas_difference = np.abs(
-        omegas[index_k, mu] + second_sign * omegas[:, :, np.newaxis] -
-        omegas[index_kpp_full, np.newaxis, :])
+        omegas[index_q, mu] + second_sign * omegas[:, :, np.newaxis] -
+        omegas[index_qpp_full, np.newaxis, :])
     physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
                 (physical_modes[:, :, np.newaxis]) & \
-                (physical_modes[index_kpp_full, np.newaxis, :])
+                (physical_modes[index_qpp_full, np.newaxis, :])
 
     interactions = np.array(np.where(condition)).T
 
     if interactions.size == 0:
         return None
     # Create sparse index
-    index_kp_vec = interactions[:, 0]
-    index_kpp_vec = index_kpp_full[index_kp_vec]
+    index_qp = interactions[:, 0]
+    index_qpp = index_qpp_full[index_qp]
     mup_vec = interactions[:, 1]
     mupp_vec = interactions[:, 2]
     if is_plus:
-        dirac_delta = density[index_kp_vec, mup_vec] - density[index_kpp_vec, mupp_vec]
+        dirac_delta = density[index_qp, mup_vec] - density[index_qpp, mupp_vec]
         # dirac_delta = density[index_k, mu] * density[index_kp_vec, mup_vec] * (
         #             density[index_kpp_vec, mupp_vec] + 1)
 
     else:
         dirac_delta = .5 * (
-                1 + density[index_kp_vec, mup_vec] + density[index_kpp_vec, mupp_vec])
+                1 + density[index_qp, mup_vec] + density[index_qpp, mupp_vec])
         # dirac_delta = .5 * density[index_k, mu] * (density[index_kp_vec, mup_vec] + 1) * (
         #             density[index_kpp_vec, mupp_vec] + 1)
 
-    dirac_delta /= (omegas[index_kp_vec, mup_vec] * omegas[index_kpp_vec, mupp_vec])
+    dirac_delta /= (omegas[index_qp, mup_vec] * omegas[index_qpp, mupp_vec])
     if np.array(sigma_small).size == 1:
         dirac_delta *= broadening_function(
-            [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small])
+            [omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small])
     else:
         dirac_delta *= broadening_function(
-            [omegas_difference[index_kp_vec, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
-                index_kp_vec, mup_vec, mupp_vec]])
+            [omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
+                index_qp, mup_vec, mupp_vec]])
 
-    index_kp = index_kp_vec
-    mup = mup_vec
-    index_kpp = index_kpp_vec
-    mupp = mupp_vec
-    current_delta = dirac_delta
-    return current_delta, index_kp, mup, index_kpp, mupp
+    return dirac_delta, index_qp, mup_vec, index_qpp, mupp_vec
 
 def calculate_dirac_delta_amorphous(phonons, mu):
     density = phonons.occupations

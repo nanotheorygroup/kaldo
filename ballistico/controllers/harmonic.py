@@ -36,15 +36,6 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-
-def calculate_k_points(phonons):
-    k_size = phonons.kpts
-    n_k_points = phonons.n_k_points
-    k_points = np.zeros ((n_k_points, 3))
-    for index_k in range (n_k_points):
-        k_points[index_k] = np.unravel_index (index_k, k_size, order='C') / k_size
-    return k_points
-
 def calculate_dynamical_matrix(phonons):
     atoms = phonons.atoms
     second_order = phonons.finite_difference.second_order.copy()
@@ -58,11 +49,6 @@ def calculate_dynamical_matrix(phonons):
     else:
         dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
 
-    if phonons.is_conserving_momentum:
-        for iat in range(n_unit_cell_atoms):
-            for alpha in range(3):
-                for beta in range(3):
-                    dynmat[iat, alpha, 0, iat, beta] -= dynmat[iat, alpha, :, :, beta].sum()
     mass = np.sqrt(atoms.get_masses())
     dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
@@ -70,14 +56,12 @@ def calculate_dynamical_matrix(phonons):
     return dynmat
 
 
-def calculate_eigensystem(phonons, k_list=None):
-    if k_list is not None:
-        k_points = k_list
-    else:
-        k_points = phonons.k_points
+def calculate_eigensystem(phonons, q_points=None):
+    if q_points is None:
+        q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
-    n_k_points = k_points.shape[0]
+    n_k_points = q_points.shape[0]
 
     # Here we store the eigenvalues in the last column
     if phonons._is_amorphous:
@@ -85,18 +69,16 @@ def calculate_eigensystem(phonons, k_list=None):
     else:
         eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)).astype(np.complex)
     for index_k in range(n_k_points):
-        eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = calculate_eigensystem_for_k(phonons, k_points[index_k])
+        eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = calculate_eigensystem_for_k(phonons, q_points[index_k])
     return eigensystem
 
 
-def calculate_second_order_observable(phonons, observable, k_list=None):
-    if k_list is not None:
-        k_points = k_list
-    else:
-        k_points = phonons.k_points
+def calculate_second_order_observable(phonons, observable, q_points=None):
+    if q_points is None:
+        q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
-    n_k_points = k_points.shape[0]
+    n_k_points = q_points.shape[0]
     if observable == 'frequencies':
         tensor = np.zeros((n_k_points, n_unit_cell * 3))
         function = calculate_frequencies_for_k
@@ -112,7 +94,7 @@ def calculate_second_order_observable(phonons, observable, k_list=None):
     else:
         raise TypeError('Operator not recognized')
     for index_k in range(n_k_points):
-        tensor[index_k] = function(phonons, k_points[index_k])
+        tensor[index_k] = function(phonons, q_points[index_k])
     return tensor
 
 
@@ -159,8 +141,8 @@ def calculate_dynmat_derivatives_for_k(phonons, qvec):
 def calculate_frequencies_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = int(np.argwhere((phonons.k_points == qvec).all(axis=1)).flatten())
-        eigenvals = phonons.eigenvalues[k_index]
+        q_index = phonons._q_index_from_q_vec(qvec)
+        eigenvals = phonons.eigenvalues[q_index]
     else:
         eigenvals = calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=True)
     frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
@@ -169,11 +151,11 @@ def calculate_frequencies_for_k(phonons, qvec):
 def calculate_velocities_AF_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = int(np.argwhere((phonons.k_points == qvec).all(axis=1)).flatten())
-        dynmat_derivatives = phonons._dynmat_derivatives[k_index]
-        frequencies = phonons.frequencies[k_index]
-        eigenvects = phonons.eigenvectors[k_index]
-        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))[k_index]
+        q_index = phonons._q_index_from_q_vec(qvec)
+        dynmat_derivatives = phonons._dynmat_derivatives[q_index]
+        frequencies = phonons.frequencies[q_index]
+        eigenvects = phonons.eigenvectors[q_index]
+        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))[q_index]
     else:
         dynmat_derivatives = calculate_dynmat_derivatives_for_k(phonons, qvec)
         frequencies = calculate_frequencies_for_k(phonons, qvec)
@@ -191,8 +173,8 @@ def calculate_velocities_AF_for_k(phonons, qvec):
 def calculate_velocities_for_k(phonons, qvec):
     rescaled_qvec = qvec * phonons.kpts
     if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        k_index = int(np.argwhere((phonons.k_points == qvec).all(axis=1)).flatten())
-        velocities_AF = phonons._velocities_af[k_index]
+        q_index = phonons._q_index_from_q_vec(qvec)
+        velocities_AF = phonons._velocities_af[q_index]
     else:
         velocities_AF = calculate_velocities_AF_for_k(phonons, qvec)
 

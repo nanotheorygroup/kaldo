@@ -72,14 +72,6 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
 
     return ps_and_gamma
 
-def calculate_index_kpp(phonons, index_k, is_plus):
-    k = tf.unravel_index(index_k, phonons.kpts)
-    index_kp_full = tf.range(phonons.n_k_points)
-    kp_vec = tf.unravel_index(index_kp_full, phonons.kpts)
-    kpp_vec = k[:, tf.newaxis] + (int(is_plus) * 2 - 1) * kp_vec[:, :]
-    kpp_vec = tf.math.floormod(kpp_vec, phonons.kpts[:, tf.newaxis])
-    index_kpp_full = phonons.kpts[2] * phonons.kpts[1] * kpp_vec[0, :] + phonons.kpts[2] * kpp_vec[1, :] + kpp_vec[2, :]
-    return index_kpp_full
 
 @timeit
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
@@ -118,7 +110,8 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
 
         for is_plus in (0, 1):
-            index_kpp_full = calculate_index_kpp(phonons, index_k, is_plus)
+            index_kpp_full = phonons.allowed_index_qpp(index_k, is_plus)
+            index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
             out = calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
             if not out:
                 continue
@@ -188,10 +181,6 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
     interactions = tf.where(condition)
     if interactions.shape[0] > 0:
         index_kp_vec = tf.cast(interactions[:, 0], dtype=tf.int32)
-        # kp_vec = tf.unravel_index(index_kp_vec, phonons.kpts)
-        # kpp_vec = k[:, tf.newaxis] + (int(is_plus) * 2 - 1) * tf.cast(kp_vec[:, :], dtype=tf.int32)
-        # kpp_vec = tf.math.floormod(kpp_vec, phonons.kpts[:, tf.newaxis])
-        # index_kpp_vec = tf.cast(phonons.kpts[2] * phonons.kpts[1] * kpp_vec[0, :] + phonons.kpts[2] * kpp_vec[1, :] + kpp_vec[2, :], dtype=tf.int32)
         index_kpp_vec = tf.gather(index_kpp_full, index_kp_vec)
         mup_vec = tf.cast(interactions[:, 1], dtype=tf.int32)
         mupp_vec = tf.cast(interactions[:, 2], dtype=tf.int32)
