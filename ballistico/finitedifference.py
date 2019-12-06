@@ -148,8 +148,8 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
-        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
+    def from_files(cls, atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False, format='eskm'):
+        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold, format=format)
         fd = FiniteDifference(**kwargs)
         if is_symmetrizing:
             fd = calculate_symmetrize_dynmat(fd)
@@ -162,8 +162,8 @@ class FiniteDifference(object):
     def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', is_symmetrizing=False, is_acoustic_sum=False):
         if format == 'numpy':
             fd = cls.__from_numpy(folder, supercell)
-        elif format == 'eskm':
-            fd = cls.__from_eskm(folder, supercell)
+        elif format == 'eskm' or format=='lammps':
+            fd = cls.__from_eskm_or_lammps(folder, supercell, format=format)
         elif format == 'shengbte':
             fd = cls.__from_shengbte(folder, supercell)
         else:
@@ -185,7 +185,8 @@ class FiniteDifference(object):
         n_atoms = int(atoms.positions.shape[0] / n_replicas)
         kwargs = io.import_from_files(atoms=atoms,
                                       folder=folder,
-                                      supercell=supercell)
+                                      supercell=supercell,
+                                      format='numpy')
         second_order = np.load(folder + SECOND_ORDER_FILE)
         if second_order.size == (n_replicas * n_atoms * 3) ** 2:
             kwargs['is_reduced_second'] = False
@@ -199,12 +200,12 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def __from_eskm(cls, folder, supercell=(1, 1, 1)):
+    def __from_eskm_or_lammps(cls, folder, supercell=(1, 1, 1), format='eskm'):
         config_file = str(folder) + "/CONFIG"
         dynmat_file = str(folder) + "/Dyn.form"
         third_file = str(folder) + "/THIRD"
         atoms = ase.io.read(config_file, format='dlp4')
-        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, format=format)
         return cls(**kwargs)
 
 
