@@ -45,9 +45,9 @@ def interpolator(k_list, observable, fourier_order=0, interpolation_order=0, is_
     return out
 
 
-def create_k_and_symmetry_space(atoms, n_k_points=300):
+def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05):
     spg_struct = convert_to_spg_structure(atoms)
-    autopath = seekpath.get_path(spg_struct)
+    autopath = seekpath.get_path(spg_struct, symprec=symprec)
     path_cleaned = []
     for edge in autopath['path']:
         edge_cleaned = []
@@ -116,12 +116,12 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
     if is_showing:
         plt.show()
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     #TODO: remove useless symmetry flag
     atoms = phonons.atoms
     fig1 = plt.figure ()
     try:
-        k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points)
+        k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points, symprec=symprec)
         q = np.linspace(0, 1, k_list.shape[0])
     except seekpath.hpkot.SymmetryDetectionError as err:
         print(err)
