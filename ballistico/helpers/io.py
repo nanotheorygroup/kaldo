@@ -14,28 +14,22 @@ import re
 tenjovermoltoev = 10 * units.J / units.mol
 
 
-def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form', format='eskm'):
+def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     replicas = np.array(replicas)
     n_unit_cell = atoms.positions.shape[0]
-    dyn_mat = import_dynamical_matrix(n_unit_cell, replicas, filename, format=format)
+    dyn_mat = import_dynamical_matrix(n_unit_cell, replicas, filename)
     mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat * mass
 
 
-def import_dynamical_matrix(n_particles, supercell=(1, 1, 1), filename='Dyn.form', format='eskm'):
+def import_dynamical_matrix(n_particles, supercell=(1, 1, 1), filename='Dyn.form'):
     supercell = np.array(supercell)
     dynamical_matrix_frame = pd.read_csv(filename, header=None, delim_whitespace=True)
     dynamical_matrix = dynamical_matrix_frame.values
     n_replicas = np.prod(supercell)
     if dynamical_matrix.size == n_replicas * (n_particles * 3) ** 2:
-        if format == 'eskm':
-            dynamical_matrix = dynamical_matrix.reshape(1, n_particles, 3, n_replicas, n_particles, 3)
-        elif format == 'lammps':
-            dynamical_matrix = dynamical_matrix.reshape(n_replicas, n_particles, 3, 1, n_particles, 3)
-            dynamical_matrix = dynamical_matrix.transpose(3, 4, 5, 0, 1, 2)
-        else:
-            raise TypeError('dynmat format not supported')
+        dynamical_matrix = dynamical_matrix.reshape(1, n_particles, 3, n_replicas, n_particles, 3)
     else:
         dynamical_matrix = dynamical_matrix.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
     return dynamical_matrix * tenjovermoltoev
@@ -87,7 +81,7 @@ def import_dense_third(atoms, supercell, filename, is_reduced=True):
     return third
 
 
-def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0., format='eskm'):
+def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0.):
     n_replicas = np.prod(supercell)
     n_total_atoms = atoms.positions.shape[0]
     n_unit_atoms = int(n_total_atoms / n_replicas)
@@ -109,7 +103,7 @@ def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, sup
                          'folder' : folder}
 
     if dynmat_file:
-        second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file, format=format)
+        second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
         is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
         if is_reduced_second:
             second_shape = (1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
