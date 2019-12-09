@@ -165,7 +165,7 @@ class Phonons:
                                                               order='C')
         rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
         rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
-        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors.reshape((self.n_phonons, self.n_modes)))
+        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors)
         evect_tf = tf.reshape(evect_tf, (self.n_k_points, self.n_modes, self.n_modes))
         return evect_tf
 
