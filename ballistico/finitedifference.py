@@ -668,21 +668,18 @@ class FiniteDifference(object):
             shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
             phifull = COO(coords, np.array(value_sparse), shape)
 
-        # phifull = phifull.reshape(
-        #     (1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
-        phifull = phifull / (4. * dx * dx)
         phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
                                    self.n_atoms * 3))
         return phifull
 
-    def calculate_single_third_with_shift(self, shift):
+    def calculate_single_third_with_shift(self, shift, dx):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         n_in_unit_cell = len(atoms.numbers)
         replicated_atoms = replicated_atoms
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
-        phi_partial[:] = (-1. * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
+        phi_partial[:] = (-1. / (4. * dx * dx) * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
         return phi_partial
 
 
@@ -705,7 +702,7 @@ class FiniteDifference(object):
                 delta = np.zeros(3)
                 delta[jcoord] = jsign * dx
                 shift_2[jat, :] += delta
-                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2)
+                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2, dx)
         return phi_partial
 
 
@@ -726,5 +723,5 @@ class FiniteDifference(object):
                 shift_1 = sign_1 * dx * (evect[k_0, :, m_0] * chi[k_0, 0]).reshape((1, n_in_unit_cell, 3))
                 shift_2 = sign_2 * dx * (np.conj(evect[np.newaxis, k_2, :, m_2]) * np.conj(chi[k_2, :, np.newaxis])).reshape((self.n_replicas, n_in_unit_cell, 3))
                 shift = (shift_1 + shift_2).reshape((n_replicated_atoms, 3))
-                phi_partial += sign_1 * sign_2 * self.calculate_single_third_with_shift(shift)
+                phi_partial += sign_1 * sign_2 * self.calculate_single_third_with_shift(shift, dx)
         return phi_partial

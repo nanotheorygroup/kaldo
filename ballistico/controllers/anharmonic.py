@@ -57,6 +57,20 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     return ps_and_gamma
 
 
+def calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, k0, m0, k1, m1, k2, m2):
+    evect = phonons.rescaled_eigenvectors
+    phonons.finite_difference.third_order_delta = 0.001
+    third_k0m0_k2m2 = phonons.finite_difference.calculate_single_third_on_phonons(k0, m0, k2, m2, evect,
+                                                                                  phonons._chi_k)
+    third_k0m0_k2m2 = third_k0m0_k2m2.reshape((phonons.finite_difference.n_replicas, phonons.n_modes))
+    if is_plus:
+        third_k0m0_k1m1_k2m2 = np.einsum('li,l,i->', third_k0m0_k2m2, phonons._chi_k[k1, :],
+                                         evect[k1, :, m1])
+    else:
+        third_k0m0_k1m1_k2m2 = np.einsum('li,l,i->', third_k0m0_k2m2, phonons._chi_k[k1, :].conj(),
+                                         evect[k1, :, m1].conj())
+    return third_k0m0_k1m1_k2m2
+
 @timeit
 def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
@@ -106,6 +120,8 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                     scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
                     scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors.conj())
                     scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
+
+                # pot_small = calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, index_k, mu, index_kp_vec[0], mup_vec[0], index_kpp_vec[0], mupp_vec[0])
 
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
