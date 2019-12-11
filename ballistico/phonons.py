@@ -161,12 +161,8 @@ class Phonons:
         rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
             (self.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_particles * 3, n_modes),
-                                                              order='C')
-        rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
         rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
         evect_tf = tf.convert_to_tensor(rescaled_eigenvectors)
-        evect_tf = tf.reshape(evect_tf, (self.n_k_points, self.n_modes, self.n_modes))
         return evect_tf
 
 
@@ -359,3 +355,16 @@ class Phonons:
             ps_and_gamma = controller.project_crystal(self, is_gamma_tensor_enabled)
         return ps_and_gamma
 
+
+    def calculate_third_k0m0_k1m1_k2m2(self, is_plus, k0, m0, k1, m1, k2, m2):
+
+        third_k0m0_k2m2 = self.finite_difference.calculate_single_third_on_phonons(k0, m0, k2, m2, self.eigenvectors,
+                                                                             self._chi_k)
+        third_k0m0_k2m2 = third_k0m0_k2m2.reshape((self.finite_difference.n_replicas, self.n_modes))
+        if is_plus:
+            third_k0m0_k1m1_k2m2 = np.einsum('li,l,i->', third_k0m0_k2m2, self._chi_k[k1, :],
+                                             self.eigenvectors[k1, :, m1])
+        else:
+            third_k0m0_k1m1_k2m2 = np.einsum('li,l,i->', third_k0m0_k2m2, self._chi_k[k1, :].conj(),
+                                             self.eigenvectors[k1, :, m1].conj())
+        return third_k0m0_k1m1_k2m2

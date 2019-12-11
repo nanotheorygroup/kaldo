@@ -26,15 +26,11 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
         (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
         masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_particles * 3, n_modes),
-                                                          order='C')
-    rescaled_eigenvectors = rescaled_eigenvectors.swapaxes(1, 2)
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
+    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C').astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     print('Projection started')
-    evect_tf = tf.convert_to_tensor(
-        rescaled_eigenvectors.reshape((phonons.n_phonons, phonons.n_modes)).astype(float))
+    evect_tf = tf.convert_to_tensor(rescaled_eigenvectors)
 
     coords = phonons.finite_difference.third_order.coords
     data = phonons.finite_difference.third_order.data
@@ -48,12 +44,12 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
         if not out:
             continue
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
-                                                    tf.reshape(evect_tf[nu_single, :], ((phonons.n_modes, 1))))
+                                                    tf.reshape(evect_tf[:, nu_single], ((phonons.n_modes, 1))))
         third_nu_tf = tf.reshape(third_nu_tf,
                                  (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas))
 
         dirac_delta_tf, mup_vec, mupp_vec = out
-        scaled_potential_tf = tf.einsum('ij,ni,mj->nm', third_nu_tf, evect_tf, evect_tf)
+        scaled_potential_tf = tf.einsum('ij,in,jm->nm', third_nu_tf, evect_tf, evect_tf)
         coords = tf.stack((mup_vec, mupp_vec), axis=-1)
         # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 * dirac_delta_tf, (n_phonons, n_phonons))
 
@@ -100,7 +96,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
                   '%')
         index_k, mu = np.unravel_index(nu_single, (phonons.n_k_points, phonons.n_modes), order='C')
 
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, mu, :, tf.newaxis])
+        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
 
         third_nu_tf = tf.cast(
             tf.reshape(third_nu_tf, (n_replicas, phonons.n_modes, n_replicas, phonons.n_modes)),
@@ -133,8 +129,8 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
             chi_prod = tf.einsum('kt,kl->ktl', second_chi, third_chi)
             chi_prod = tf.reshape(chi_prod, (phonons.n_k_points, n_replicas ** 2))
             scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
-            scaled_potential = tf.einsum('kij,kmi->kjm', scaled_potential, second)
-            scaled_potential = tf.einsum('kjm,knj->kmn', scaled_potential, third)
+            scaled_potential = tf.einsum('kij,kim->kjm', scaled_potential, second)
+            scaled_potential = tf.einsum('kjm,kjn->kmn', scaled_potential, third)
 
             scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
             pot_times_dirac = tf.abs(
