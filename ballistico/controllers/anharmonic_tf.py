@@ -19,18 +19,12 @@ GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     if is_gamma_tensor_enabled == True:
         raise ValueError('is_gamma_tensor_enabled=True not supported')
-    n_particles = phonons.atoms.positions.shape[0]
     n_replicas = phonons.finite_difference.n_replicas
-    n_modes = phonons.n_modes
-    masses = phonons.atoms.get_masses()
-    rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
-        (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
-        masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C').astype(float)
+    rescaled_eigenvectors = phonons.rescaled_eigenvectors.astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     print('Projection started')
-    evect_tf = tf.convert_to_tensor(rescaled_eigenvectors)
+    evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
     coords = phonons.finite_difference.third_order.coords
     data = phonons.finite_difference.third_order.data
@@ -80,7 +74,8 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
 
     chi_k = tf.convert_to_tensor(phonons._chi_k)
     chi_k = tf.cast(chi_k, dtype=tf.complex64)
-    evect_tf = tf.cast(phonons.evect_tf, dtype=tf.complex64)
+    evect_tf = tf.convert_to_tensor(phonons.rescaled_eigenvectors)
+    evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2 + phonons.n_phonons))

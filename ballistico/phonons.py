@@ -154,7 +154,7 @@ class Phonons:
 
 
     @lazy_property(is_storing=False, is_reduced_path=False)
-    def evect_tf(self):
+    def rescaled_eigenvectors(self):
         n_particles = self.atoms.positions.shape[0]
         n_modes = self.n_modes
         masses = self.atoms.get_masses()
@@ -162,8 +162,7 @@ class Phonons:
             (self.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
         rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
-        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors)
-        return evect_tf
+        return rescaled_eigenvectors
 
 
     @property
