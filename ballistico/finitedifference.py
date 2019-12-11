@@ -137,9 +137,13 @@ class FiniteDifference(object):
 
         self.folder = folder
         self.is_reduced_second = is_reduced_second
+        self._second_order_order = None
         self._third_order = None
+        self._replicated_atoms = None
 
-        # Directly loading the third order force matrices
+        # Directly loading the second and third  order force matrices
+        if second_order is not None:
+            self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
 
