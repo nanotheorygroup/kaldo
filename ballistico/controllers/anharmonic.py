@@ -21,13 +21,8 @@ def project_amorphous(phonons, is_gamma_tensor_enabled=False):
     if is_gamma_tensor_enabled == True:
         raise ValueError('is_gamma_tensor_enabled=True not supported')
 
-    n_particles = phonons.atoms.positions.shape[0]
     n_modes = phonons.n_modes
-    masses = phonons.atoms.get_masses()
-    rescaled_eigenvectors = phonons.eigenvectors.reshape(
-        (n_particles, 3, n_modes), order='C') / np.sqrt(
-        masses[:, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((n_modes, n_modes),
+    rescaled_eigenvectors = phonons.rescaled_eigenvectors.reshape((n_modes, n_modes),
                                                           order='C')
 
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
@@ -71,13 +66,7 @@ def project_crystal(phonons, is_gamma_tensor_enabled=False):
     else:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_replicas = phonons.finite_difference.n_replicas
-    n_particles = phonons.atoms.positions.shape[0]
-    n_modes = phonons.n_modes
-    masses = phonons.atoms.get_masses()
-    rescaled_eigenvectors = phonons.eigenvectors[:, :, :].reshape(
-        (phonons.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
-        masses[np.newaxis, :, np.newaxis, np.newaxis])
-    rescaled_eigenvectors = rescaled_eigenvectors.reshape((phonons.n_k_points, n_modes, n_modes), order='C')
+    rescaled_eigenvectors = phonons.rescaled_eigenvectors
 
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
