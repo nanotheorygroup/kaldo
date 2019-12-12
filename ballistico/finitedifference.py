@@ -127,7 +127,7 @@ class FiniteDifference(object):
             self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
             self.second_order_delta = delta_shift
             self.third_order_delta = delta_shift
-            if third_order_symmerty_inputs:
+            if third_order_symmerty_inputs is not None:
                 self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
                 for k, v in third_order_symmerty_inputs.items():
                     self.third_order_symmerty_inputs[k.upper()] = v
