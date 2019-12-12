@@ -682,14 +682,12 @@ class FiniteDifference(object):
         return phifull
 
 
-    def calculate_single_third_without_symmetry(self):
-
+    def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-20):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         # TODO: Here we should create it sparse
         n_in_unit_cell = len(atoms.numbers)
         replicated_atoms = replicated_atoms
-        n_replicated_atoms = len(replicated_atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         dx = self.third_order_delta
 
@@ -701,70 +699,35 @@ class FiniteDifference(object):
         j_coord_sparse = []
         k_sparse = []
         value_sparse = []
-        two_atoms_mesh_index = -1
-        file = None
-        progress_filename = self.folder + '/' + THIRD_ORDER_WITH_PROGRESS_FILE
-        try:
-            file = open(progress_filename, 'r+')
-        except FileNotFoundError as err:
-            print(err)
-        else:
-            for line in file:
-                iat, icoord, jat, jcoord, k, value = np.fromstring(line, dtype=np.float, sep=' ')
-                read_iat = int(iat)
-                read_icoord = int(icoord)
-                read_jat = int(jat)
-                read_jcoord = int(jcoord)
-                read_k = int(k)
-                value_sparse.append(value)
-                two_atoms_mesh_index = np.ravel_multi_index((read_icoord, read_jcoord, read_iat, read_jat),
-                                                            (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
-                                                            order='C')
-
-                i_at_sparse.append(read_iat)
-                i_coord_sparse.append(read_icoord)
-                jat_sparse.append(read_jat)
-                j_coord_sparse.append(read_jcoord)
-                k_sparse.append(read_k)
-
-        two_atoms_mesh_index = two_atoms_mesh_index + 1
-
         n_tot_phonons = n_supercell * (n_in_unit_cell * 3) ** 2
-
-        for mesh_index_counter in range(two_atoms_mesh_index, n_tot_phonons):
-            if not file:
-                file = open(progress_filename, 'a+')
-            icoord, jcoord, iat, jat = np.unravel_index(mesh_index_counter,
-                                                        (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
-                                                        order='C')
-            # print(jat, iat, jcoord, icoord, two_atoms_mesh[mesh_index_counter])
-            value = self.calculate_single_third(iat, icoord, jat, jcoord)
-
-            sensitiviry = 1e-20
-            if (np.abs(value) > sensitiviry).any():
-                for k in np.argwhere(np.abs(value) > sensitiviry):
-                    k = k[0]
-                    file.write('%i %i %i %i %i %.8e\n' % (iat, icoord, jat, jcoord, k, value[k]))
-                    i_at_sparse.append(iat)
-                    i_coord_sparse.append(icoord)
-                    jat_sparse.append(jat)
-                    j_coord_sparse.append(jcoord)
-                    k_sparse.append(k)
-                    value_sparse.append(value[k])
-            if (mesh_index_counter % 500) == 0:
-                print('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
-
-        # TODO: remove this file.close and use with file instead
-        file.close()
+        mesh_index_counter = 0
+        for iat in range(n_in_unit_cell):
+            for icoord in range(3):
+                for jat in range(n_supercell * n_in_unit_cell):
+                    is_computing = True
+                    if (distance_threshold is not None):
+                        if (np.linalg.norm(atoms.positions[iat] - replicated_atoms.positions[jat]) > distance_threshold):
+                            is_computing = False
+                    if is_computing:
+                        for jcoord in range(3):
+                            value = self.calculate_single_third(iat, icoord, jat, jcoord)
+                            if (np.abs(value) > third_derivative_threshold).any():
+                                for k in np.argwhere(np.abs(value) > third_derivative_threshold):
+                                    k = k[0]
+                                    i_at_sparse.append(iat)
+                                    i_coord_sparse.append(icoord)
+                                    jat_sparse.append(jat)
+                                    j_coord_sparse.append(jcoord)
+                                    k_sparse.append(k)
+                                    value_sparse.append(value[k])
+                    mesh_index_counter += 3
+                    if (mesh_index_counter % 300) == 0:
+                        print('Calculate third derivatives', int(mesh_index_counter / n_tot_phonons * 100), '%')
 
         coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
         shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
         phifull = COO(coords, np.array(value_sparse), shape)
-
-        # phifull = phifull.reshape(
-        #     (1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
         phifull = phifull / (4. * dx * dx)
-        phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
-                                   self.n_atoms * 3))
+        phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas * self.n_atoms * 3))
 
         return phifull
