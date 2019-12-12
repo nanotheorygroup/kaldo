@@ -511,173 +511,18 @@ class FiniteDifference(object):
     def calculate_third(self):
         """Core method to compute third order force constant matrices
         """
-        atoms = self.atoms
-        replicated_atoms = self.replicated_atoms
-
-        # TODO: Here we should create it sparse
-        n_in_unit_cell = len(atoms.numbers)
-        replicated_atoms = replicated_atoms
-        n_replicated_atoms = len(replicated_atoms.numbers)
-        n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        dx = self.third_order_delta
         print('Calculating third order potential derivatives')
-
-        # Exploit the geometry symmetry prior to compute
-        # third order force constant matrices
         is_symmetry_enabled = (self.third_order_symmerty_inputs is not None)
-
         if is_symmetry_enabled:
-            from thirdorder_core import SymmetryOperations, Wedge, reconstruct_ifcs
-            from thirdorder_espresso import calc_frange, calc_dists
-            if self.third_order_symmerty_inputs['SYMPREC']:
-                symprec = self.third_order_symmerty_inputs['SYMPREC']
-            else:
-                symprec = SYMPREC_THIRD_ORDER
-
-            if self.third_order_symmerty_inputs['NNEIGH']:
-                nneigh = self.third_order_symmerty_inputs['NNEIGH']
-            else:
-                # default on full calculation
-                self.third_order_symmerty_inputs = None
-
-            # Compute third order force constant matrices
-            # by utilizing the geometry symmetry
-            poscar = convert_to_poscar(self.atoms)
-            f_range = None
-            print("Analyzing symmetries")
-            symops = SymmetryOperations(
-                poscar["lattvec"], poscar["types"], poscar["positions"].T, symprec)
-            print("- Symmetry group {0} detected".format(symops.symbol))
-            print("- {0} symmetry operations".format(symops.translations.shape[0]))
-            print("Creating the supercell")
-            sposcar = convert_to_poscar(self.replicated_atoms, self.supercell)
-            print("Computing all distances in the supercell")
-            dmin, nequi, shifts = calc_dists(sposcar)
-            if nneigh != None:
-                frange = calc_frange(poscar, sposcar, nneigh, dmin)
-                print("- Automatic cutoff: {0} nm".format(frange))
-            else:
-                frange = f_range
-                print("- User-defined cutoff: {0} nm".format(frange))
-            print("Looking for an irreducible set of third-order IFCs")
-            wedge = Wedge(poscar, sposcar, symops, dmin, nequi, shifts,
-                          frange)
-            self.wedge = wedge
-            print("- {0} triplet equivalence classes found".format(wedge.nlist))
-            two_atoms_mesh = wedge.build_list4()
-            two_atoms_mesh = np.array(two_atoms_mesh)
-            print('object created')
-            k_coord_sparse = []
-            mesh_index_sparse = []
-            k_at_sparse = []
+            # Exploit the geometry symmetry prior to compute
+            # third order force constant matrices
+            phifull = self.calculate_single_third_with_symmetry()
         else:
-            # Compute third order force constant matrices by using the central
-            # difference formula for the approximation for third order derivatives
-            i_at_sparse = []
-            i_coord_sparse = []
-            jat_sparse = []
-            j_coord_sparse = []
-            k_sparse = []
-        value_sparse = []
-        two_atoms_mesh_index = -1
-        file = None
-        progress_filename = self.folder + '/' + THIRD_ORDER_WITH_PROGRESS_FILE
-        try:
-            file = open(progress_filename, 'r+')
-        except FileNotFoundError as err:
-            print(err)
-        else:
-            for line in file:
-                iat, icoord, jat, jcoord, k, value = np.fromstring(line, dtype=np.float, sep=' ')
-                read_iat = int(iat)
-                read_icoord = int(icoord)
-                read_jat = int(jat)
-                read_jcoord = int(jcoord)
-                read_k = int(k)
-                value_sparse.append(value)
-                two_atoms_mesh_index = np.ravel_multi_index((read_icoord, read_jcoord, read_iat, read_jat),
-                                                            (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
-                                                            order='C')
-                if is_symmetry_enabled:
-                    # Here we need some index manipulation to use the results produced by the third order library
-                    mask = (two_atoms_mesh[:] == np.array([jat, iat, jcoord, icoord]).astype(int))
-                    two_atoms_mesh_index = np.argwhere(mask[:, 0] * mask[:, 1] * mask[:, 2] * mask[:, 3])[0, 0]
+            phifull = self.calculate_single_third_without_symmetry()
 
-                    mesh_index_sparse.append(two_atoms_mesh_index)
-                    read_kat, read_kcoord = np.unravel_index(read_k, (n_supercell * n_in_unit_cell, 3), order='C')
-                    k_at_sparse.append(read_kat)
-                    k_coord_sparse.append(read_kcoord)
-                else:
-                    i_at_sparse.append(read_iat)
-                    i_coord_sparse.append(read_icoord)
-                    jat_sparse.append(read_jat)
-                    j_coord_sparse.append(read_jcoord)
-                    k_sparse.append(read_k)
-
-        two_atoms_mesh_index = two_atoms_mesh_index + 1
-        if is_symmetry_enabled:
-            n_tot_phonons = two_atoms_mesh.shape[0]
-        else:
-            n_tot_phonons = n_supercell * (n_in_unit_cell * 3) ** 2
-
-        for mesh_index_counter in range(two_atoms_mesh_index, n_tot_phonons):
-            if not file:
-                file = open(progress_filename, 'a+')
-
-            if is_symmetry_enabled:
-                jat, iat, jcoord, icoord = two_atoms_mesh[mesh_index_counter]
-            else:
-                icoord, jcoord, iat, jat = np.unravel_index(mesh_index_counter,
-                                                            (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
-                                                            order='C')
-                # print(jat, iat, jcoord, icoord, two_atoms_mesh[mesh_index_counter])
-            value = self.calculate_single_third(iat, icoord, jat, jcoord)
-
-            sensitiviry = 1e-20
-            if (np.abs(value) > sensitiviry).any():
-                for k in np.argwhere(np.abs(value) > sensitiviry):
-                    k = k[0]
-                    file.write('%i %i %i %i %i %.8e\n' % (iat, icoord, jat, jcoord, k, value[k]))
-                    if is_symmetry_enabled:
-                        kat, kcoord = np.unravel_index(k, (n_supercell * n_in_unit_cell, 3), order='C')
-                        k_at_sparse.append(kat)
-                        k_coord_sparse.append(kcoord)
-                        mesh_index_sparse.append(mesh_index_counter)
-                    else:
-                        i_at_sparse.append(iat)
-                        i_coord_sparse.append(icoord)
-                        jat_sparse.append(jat)
-                        j_coord_sparse.append(jcoord)
-                        k_sparse.append(k)
-                    value_sparse.append(value[k])
-            if (mesh_index_counter % 500) == 0:
-                print('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
-
-        file.close()
-
-        if is_symmetry_enabled:
-            coords = np.array([k_coord_sparse, mesh_index_sparse, k_at_sparse])
-            shape = (3, two_atoms_mesh.shape[0], n_replicated_atoms)
-            phipart = COO(coords, value_sparse, shape).todense()
-            phifull = np.array(reconstruct_ifcs(phipart, self.wedge, two_atoms_mesh,
-                                                poscar, sposcar))
-            #TODO: use transpose here
-            phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
-            phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
-            phifull = phifull.swapaxes(5, 4)
-            phifull = COO.from_numpy(phifull)
-
-        else:
-            coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
-            shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
-            phifull = COO(coords, np.array(value_sparse), shape)
-
-        # phifull = phifull.reshape(
-        #     (1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
-        phifull = phifull / (4. * dx * dx)
-        phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
-                                   self.n_atoms * 3))
         return phifull
+
+
 
     def calculate_single_third(self, iat, icoord, jat, jcoord):
         atoms = self.atoms
@@ -704,3 +549,222 @@ class FiniteDifference(object):
             phi_partial[:] += isign * jsign * (
                     -1. * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
         return phi_partial
+
+
+    def calculate_single_third_with_symmetry(self):
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        # TODO: Here we should create it sparse
+        n_in_unit_cell = len(atoms.numbers)
+        replicated_atoms = replicated_atoms
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
+        dx = self.third_order_delta
+
+        # Exploit the geometry symmetry prior to compute
+        # third order force constant matrices
+        print('Calculating third order potential derivatives')
+        from thirdorder_core import SymmetryOperations, Wedge, reconstruct_ifcs
+        from thirdorder_espresso import calc_frange, calc_dists
+        if self.third_order_symmerty_inputs['SYMPREC']:
+            symprec = self.third_order_symmerty_inputs['SYMPREC']
+        else:
+            symprec = SYMPREC_THIRD_ORDER
+
+        if self.third_order_symmerty_inputs['NNEIGH']:
+            nneigh = self.third_order_symmerty_inputs['NNEIGH']
+        else:
+            # default on full calculation
+            self.third_order_symmerty_inputs = None
+
+        # Compute third order force constant matrices
+        # by utilizing the geometry symmetry
+        poscar = convert_to_poscar(self.atoms)
+        f_range = None
+        print("Analyzing symmetries")
+        symops = SymmetryOperations(
+            poscar["lattvec"], poscar["types"], poscar["positions"].T, symprec)
+        print("- Symmetry group {0} detected".format(symops.symbol))
+        print("- {0} symmetry operations".format(symops.translations.shape[0]))
+        print("Creating the supercell")
+        sposcar = convert_to_poscar(self.replicated_atoms, self.supercell)
+        print("Computing all distances in the supercell")
+        dmin, nequi, shifts = calc_dists(sposcar)
+        if nneigh != None:
+            frange = calc_frange(poscar, sposcar, nneigh, dmin)
+            print("- Automatic cutoff: {0} nm".format(frange))
+        else:
+            frange = f_range
+            print("- User-defined cutoff: {0} nm".format(frange))
+        print("Looking for an irreducible set of third-order IFCs")
+        wedge = Wedge(poscar, sposcar, symops, dmin, nequi, shifts,
+                      frange)
+        self.wedge = wedge
+        print("- {0} triplet equivalence classes found".format(wedge.nlist))
+        two_atoms_mesh = wedge.build_list4()
+        two_atoms_mesh = np.array(two_atoms_mesh)
+        print('object created')
+        k_coord_sparse = []
+        mesh_index_sparse = []
+        k_at_sparse = []
+        value_sparse = []
+        two_atoms_mesh_index = -1
+        file = None
+        progress_filename = self.folder + '/' + THIRD_ORDER_WITH_PROGRESS_FILE
+        try:
+            file = open(progress_filename, 'r+')
+        except FileNotFoundError as err:
+            print(err)
+        else:
+            for line in file:
+                iat, icoord, jat, jcoord, k, value = np.fromstring(line, dtype=np.float, sep=' ')
+                read_iat = int(iat)
+                read_icoord = int(icoord)
+                read_jat = int(jat)
+                read_jcoord = int(jcoord)
+                read_k = int(k)
+                value_sparse.append(value)
+                two_atoms_mesh_index = np.ravel_multi_index((read_icoord, read_jcoord, read_iat, read_jat),
+                                                            (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
+                                                            order='C')
+                # Here we need some index manipulation to use the results produced by the third order library
+                mask = (two_atoms_mesh[:] == np.array([jat, iat, jcoord, icoord]).astype(int))
+                two_atoms_mesh_index = np.argwhere(mask[:, 0] * mask[:, 1] * mask[:, 2] * mask[:, 3])[0, 0]
+
+                mesh_index_sparse.append(two_atoms_mesh_index)
+                read_kat, read_kcoord = np.unravel_index(read_k, (n_supercell * n_in_unit_cell, 3), order='C')
+                k_at_sparse.append(read_kat)
+                k_coord_sparse.append(read_kcoord)
+
+        two_atoms_mesh_index = two_atoms_mesh_index + 1
+        n_tot_phonons = two_atoms_mesh.shape[0]
+
+        for mesh_index_counter in range(two_atoms_mesh_index, n_tot_phonons):
+            if not file:
+                file = open(progress_filename, 'a+')
+
+            jat, iat, jcoord, icoord = two_atoms_mesh[mesh_index_counter]
+
+            value = self.calculate_single_third(iat, icoord, jat, jcoord)
+
+            sensitiviry = 1e-20
+            if (np.abs(value) > sensitiviry).any():
+                for k in np.argwhere(np.abs(value) > sensitiviry):
+                    k = k[0]
+                    file.write('%i %i %i %i %i %.8e\n' % (iat, icoord, jat, jcoord, k, value[k]))
+                    kat, kcoord = np.unravel_index(k, (n_supercell * n_in_unit_cell, 3), order='C')
+                    k_at_sparse.append(kat)
+                    k_coord_sparse.append(kcoord)
+                    mesh_index_sparse.append(mesh_index_counter)
+                    value_sparse.append(value[k])
+            if (mesh_index_counter % 500) == 0:
+                print('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
+
+        # TODO: remove this file.close and use with file instead
+        file.close()
+
+        coords = np.array([k_coord_sparse, mesh_index_sparse, k_at_sparse])
+        shape = (3, two_atoms_mesh.shape[0], n_replicated_atoms)
+        phipart = COO(coords, value_sparse, shape).todense()
+        phifull = np.array(reconstruct_ifcs(phipart, self.wedge, two_atoms_mesh,
+                                            poscar, sposcar))
+        #TODO: use transpose here
+        phifull = phifull.swapaxes(3, 2).swapaxes(1, 2).swapaxes(0, 1)
+        phifull = phifull.swapaxes(4, 3).swapaxes(3, 2)
+        phifull = phifull.swapaxes(5, 4)
+        phifull = COO.from_numpy(phifull)
+
+        # phifull = phifull.reshape(
+        #     (1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
+        phifull = phifull / (4. * dx * dx)
+        phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
+                                   self.n_atoms * 3))
+        return phifull
+
+
+    def calculate_single_third_without_symmetry(self):
+
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        # TODO: Here we should create it sparse
+        n_in_unit_cell = len(atoms.numbers)
+        replicated_atoms = replicated_atoms
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
+        dx = self.third_order_delta
+
+        # Compute third order force constant matrices by using the central
+        # difference formula for the approximation for third order derivatives
+        i_at_sparse = []
+        i_coord_sparse = []
+        jat_sparse = []
+        j_coord_sparse = []
+        k_sparse = []
+        value_sparse = []
+        two_atoms_mesh_index = -1
+        file = None
+        progress_filename = self.folder + '/' + THIRD_ORDER_WITH_PROGRESS_FILE
+        try:
+            file = open(progress_filename, 'r+')
+        except FileNotFoundError as err:
+            print(err)
+        else:
+            for line in file:
+                iat, icoord, jat, jcoord, k, value = np.fromstring(line, dtype=np.float, sep=' ')
+                read_iat = int(iat)
+                read_icoord = int(icoord)
+                read_jat = int(jat)
+                read_jcoord = int(jcoord)
+                read_k = int(k)
+                value_sparse.append(value)
+                two_atoms_mesh_index = np.ravel_multi_index((read_icoord, read_jcoord, read_iat, read_jat),
+                                                            (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
+                                                            order='C')
+
+                i_at_sparse.append(read_iat)
+                i_coord_sparse.append(read_icoord)
+                jat_sparse.append(read_jat)
+                j_coord_sparse.append(read_jcoord)
+                k_sparse.append(read_k)
+
+        two_atoms_mesh_index = two_atoms_mesh_index + 1
+
+        n_tot_phonons = n_supercell * (n_in_unit_cell * 3) ** 2
+
+        for mesh_index_counter in range(two_atoms_mesh_index, n_tot_phonons):
+            if not file:
+                file = open(progress_filename, 'a+')
+            icoord, jcoord, iat, jat = np.unravel_index(mesh_index_counter,
+                                                        (3, 3, n_in_unit_cell, n_supercell * n_in_unit_cell),
+                                                        order='C')
+            # print(jat, iat, jcoord, icoord, two_atoms_mesh[mesh_index_counter])
+            value = self.calculate_single_third(iat, icoord, jat, jcoord)
+
+            sensitiviry = 1e-20
+            if (np.abs(value) > sensitiviry).any():
+                for k in np.argwhere(np.abs(value) > sensitiviry):
+                    k = k[0]
+                    file.write('%i %i %i %i %i %.8e\n' % (iat, icoord, jat, jcoord, k, value[k]))
+                    i_at_sparse.append(iat)
+                    i_coord_sparse.append(icoord)
+                    jat_sparse.append(jat)
+                    j_coord_sparse.append(jcoord)
+                    k_sparse.append(k)
+                    value_sparse.append(value[k])
+            if (mesh_index_counter % 500) == 0:
+                print('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
+
+        # TODO: remove this file.close and use with file instead
+        file.close()
+
+        coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
+        shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
+        phifull = COO(coords, np.array(value_sparse), shape)
+
+        # phifull = phifull.reshape(
+        #     (1, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3, n_supercell, n_in_unit_cell, 3))
+        phifull = phifull / (4. * dx * dx)
+        phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas *
+                                   self.n_atoms * 3))
+
+        return phifull
