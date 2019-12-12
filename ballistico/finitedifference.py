@@ -127,9 +127,13 @@ class FiniteDifference(object):
             self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
             self.second_order_delta = delta_shift
             self.third_order_delta = delta_shift
-            self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
-            for k, v in third_order_symmerty_inputs.items():
-                self.third_order_symmerty_inputs[k.upper()] = v
+            if third_order_symmerty_inputs:
+                self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
+                for k, v in third_order_symmerty_inputs.items():
+                    self.third_order_symmerty_inputs[k.upper()] = v
+            else:
+                self.third_order_symmerty_inputs = None
+
             # Optimize the structure if optimizing flag is turned to true
             # and the calculation is set to start from the starch:
             if is_optimizing:
