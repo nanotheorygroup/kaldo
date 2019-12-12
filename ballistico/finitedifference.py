@@ -80,7 +80,8 @@ class FiniteDifference(object):
                  folder=MAIN_FOLDER,
                  third_order_symmerty_inputs=None,
                  is_reduced_second=False,
-                 is_optimizing=False):
+                 is_optimizing=False,
+                 third_distance_threshold=None):
 
         """Init with an instance of constructed FiniteDifference object.
 
@@ -141,6 +142,7 @@ class FiniteDifference(object):
 
         self.folder = folder
         self.is_reduced_second = is_reduced_second
+        self.third_distance_threshold = third_distance_threshold
         self._replicated_atoms = None
         self._list_of_replicas = None
         self._second_order = None
@@ -298,7 +300,7 @@ class FiniteDifference(object):
                               self.n_atoms * 3))
             except FileNotFoundError as e:
                 # calculate the third order
-                self.third_order = self.calculate_third()
+                self.third_order = self.calculate_third(self.third_distance_threshold)
         return self._third_order
 
 
@@ -508,17 +510,19 @@ class FiniteDifference(object):
         second = second / (2. * dx)
         return second
 
-    def calculate_third(self):
+    def calculate_third(self, distance_threshold=None):
         """Core method to compute third order force constant matrices
         """
         print('Calculating third order potential derivatives')
         is_symmetry_enabled = (self.third_order_symmerty_inputs is not None)
         if is_symmetry_enabled:
+            if distance_threshold is not None:
+                raise TypeError('If symmetry is enabled, no distance_threshold is allowed')
             # Exploit the geometry symmetry prior to compute
             # third order force constant matrices
             phifull = self.calculate_single_third_with_symmetry()
         else:
-            phifull = self.calculate_single_third_without_symmetry()
+            phifull = self.calculate_single_third_without_symmetry(distance_threshold=distance_threshold)
 
         return phifull
 
@@ -548,7 +552,7 @@ class FiniteDifference(object):
             shift[jat, :] += delta
             phi_partial[:] += isign * jsign * (
                     -1. * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
-        return phi_partial
+        return phi_partial / (4. * dx * dx)
 
 
     def calculate_single_third_with_symmetry(self):
@@ -682,7 +686,7 @@ class FiniteDifference(object):
         return phifull
 
 
-    def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-20):
+    def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-10):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         # TODO: Here we should create it sparse
@@ -690,7 +694,7 @@ class FiniteDifference(object):
         replicated_atoms = replicated_atoms
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         dx = self.third_order_delta
-
+        replicated_cell = np.linalg.inv(replicated_atoms.cell)
         # Compute third order force constant matrices by using the central
         # difference formula for the approximation for third order derivatives
         i_at_sparse = []
@@ -699,35 +703,44 @@ class FiniteDifference(object):
         j_coord_sparse = []
         k_sparse = []
         value_sparse = []
-        n_tot_phonons = n_supercell * (n_in_unit_cell * 3) ** 2
-        mesh_index_counter = 0
+        n_forces_to_calculate = n_supercell * (n_in_unit_cell * 3) ** 2
+        n_forces_done = 0
+        n_forces_skipped = 0
         for iat in range(n_in_unit_cell):
-            for icoord in range(3):
-                for jat in range(n_supercell * n_in_unit_cell):
-                    is_computing = True
-                    if (distance_threshold is not None):
-                        if (np.linalg.norm(atoms.positions[iat] - replicated_atoms.positions[jat]) > distance_threshold):
-                            is_computing = False
-                    if is_computing:
+            for jat in range(n_supercell * n_in_unit_cell):
+                is_computing = True
+                if (distance_threshold is not None):
+                    dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
+                    dxij = apply_boundary_with_cell(dxij, replicated_atoms.cell, replicated_cell)
+                    if (np.linalg.norm(dxij) > distance_threshold):
+                        is_computing = False
+                        n_forces_skipped += 9
+                if is_computing:
+                    for icoord in range(3):
                         for jcoord in range(3):
                             value = self.calculate_single_third(iat, icoord, jat, jcoord)
+
                             if (np.abs(value) > third_derivative_threshold).any():
                                 for k in np.argwhere(np.abs(value) > third_derivative_threshold):
                                     k = k[0]
+
                                     i_at_sparse.append(iat)
                                     i_coord_sparse.append(icoord)
                                     jat_sparse.append(jat)
                                     j_coord_sparse.append(jcoord)
                                     k_sparse.append(k)
                                     value_sparse.append(value[k])
-                    mesh_index_counter += 3
-                    if (mesh_index_counter % 300) == 0:
-                        print('Calculate third derivatives', int(mesh_index_counter / n_tot_phonons * 100), '%')
+                    n_forces_done += 9
+                if (n_forces_done + n_forces_skipped % 300) == 0:
+                    print('Calculate third derivatives', int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100), '%')
 
+        print('total forces to calculate :', n_forces_to_calculate)
+        print('forces calculated :', n_forces_done)
+        print('forces skipped (outside distance threshold) :', n_forces_skipped)
         coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
         shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
         phifull = COO(coords, np.array(value_sparse), shape)
-        phifull = phifull / (4. * dx * dx)
+        phifull = phifull
         phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas * self.n_atoms * 3))
 
         return phifull
