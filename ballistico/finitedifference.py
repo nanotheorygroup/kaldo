@@ -686,7 +686,7 @@ class FiniteDifference(object):
         return phifull
 
 
-    def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-10):
+    def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-20):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         # TODO: Here we should create it sparse
