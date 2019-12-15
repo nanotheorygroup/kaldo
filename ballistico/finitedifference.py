@@ -527,28 +527,6 @@ class FiniteDifference(object):
         return phifull
 
 
-    def calculate_single_third(self, iat, icoord, jat, jcoord):
-        atoms = self.atoms
-        replicated_atoms = self.replicated_atoms
-        dx = self.third_order_delta
-        n_in_unit_cell = len(atoms.numbers)
-        replicated_atoms = replicated_atoms
-        n_replicated_atoms = len(replicated_atoms.numbers)
-        n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
-        for isign in (1, -1):
-            shift_1 = np.zeros((n_replicated_atoms, 3))
-            delta = np.zeros(3)
-            delta[icoord] = isign * dx
-            shift_1[iat, :] += delta
-            for jsign in (1, -1):
-                shift_2 = np.zeros((n_replicated_atoms, 3))
-                delta = np.zeros(3)
-                delta[jcoord] = jsign * dx
-                shift_2[jat, :] += delta
-                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2, dx)
-        return phi_partial
-
 
     def calculate_single_third_with_symmetry(self):
         atoms = self.atoms
@@ -740,6 +718,29 @@ class FiniteDifference(object):
         return phifull
 
 
+    def calculate_single_third(self, iat, icoord, jat, jcoord):
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        dx = self.third_order_delta
+        n_in_unit_cell = len(atoms.numbers)
+        replicated_atoms = replicated_atoms
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
+        phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
+        for isign in (1, -1):
+            shift_1 = np.zeros((n_replicated_atoms, 3))
+            delta = np.zeros(3)
+            delta[icoord] = isign * dx
+            shift_1[iat, :] += delta
+            for jsign in (1, -1):
+                shift_2 = np.zeros((n_replicated_atoms, 3))
+                delta = np.zeros(3)
+                delta[jcoord] = jsign * dx
+                shift_2[jat, :] += delta
+                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2, dx)
+        return phi_partial / (4. * dx * dx)
+
+
     def calculate_single_third_on_phonons(self, k_0, m_0, k_2, m_2, evect, chi):
         #TODO: use a different dx value for the reciprocal space
         #TODO: we probably need to rescale by the mass
@@ -758,7 +759,7 @@ class FiniteDifference(object):
                 shift_2 = sign_2 * dx * (np.conj(evect[np.newaxis, k_2, :, m_2]) * np.conj(chi[k_2, :, np.newaxis])).reshape((self.n_replicas, n_in_unit_cell, 3))
                 shift = (shift_1 + shift_2).reshape((n_replicated_atoms, 3))
                 phi_partial += sign_1 * sign_2 * self.calculate_single_third_with_shift(shift, dx)
-        return phi_partial
+        return phi_partial / (4. * dx * dx)
 
 
     def calculate_single_third_with_shift(self, shift, dx):
@@ -768,5 +769,5 @@ class FiniteDifference(object):
         replicated_atoms = replicated_atoms
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
-        phi_partial[:] = (-1. / (4. * dx * dx) * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
+        phi_partial[:] = (-1. * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
         return phi_partial
