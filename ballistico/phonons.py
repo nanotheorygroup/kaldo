@@ -95,19 +95,6 @@ class Phonons:
         self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
 
 
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def dynmat(self):
-        """Dynamical matrix calculated from the derivative of the input forcefield. Ouput in THz^2.
-
-        Returns
-        -------
-        np.array
-            (n_particles, 3, n_replicas, n_particles, 3) tensor containing the second order derivative of the dynamical matrix rescaled by the masses
-
-        """
-        dynmat = bha.calculate_dynamical_matrix(self)
-        return dynmat
-
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):

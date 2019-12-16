@@ -6,7 +6,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 import ase.units as units
 from ballistico.helpers.tools import apply_boundary_with_cell
-from ballistico.controllers.harmonic_single_q import HarmonicSingleQ
+from ballistico.harmonic_single_q import HarmonicSingleQ
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
@@ -36,25 +36,6 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-def calculate_dynamical_matrix(phonons):
-    atoms = phonons.atoms
-    second_order = phonons.finite_difference.second_order.copy()
-    geometry = atoms.positions
-    n_particles = geometry.shape[0]
-    n_replicas = phonons.finite_difference.n_replicas
-    is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
-    if is_second_reduced:
-        dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
-    else:
-        dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
-
-    mass = np.sqrt(atoms.get_masses())
-    dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
-    dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    dynmat *= EVTOTENJOVERMOL
-    return dynmat
-
-
 def calculate_eigensystem(phonons, q_points=None):
     if q_points is None:
         q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
@@ -72,7 +53,7 @@ def calculate_eigensystem(phonons, q_points=None):
 
     for index_k in range(n_k_points):
         hsq = HarmonicSingleQ(qvec=q_points[index_k],
-                              dynmat=phonons.dynmat,
+                              dynmat=phonons.finite_difference.dynmat,
                               positions=phonons.atoms.positions,
                               replicated_cell=phonons.replicated_cell,
                               replicated_cell_inv=phonons.replicated_cell_inv,
@@ -106,7 +87,7 @@ def calculate_second_order_observable(phonons, observable, q_points=None):
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
         hsq = HarmonicSingleQ(qvec=qvec,
-                              dynmat=phonons.dynmat,
+                              dynmat=phonons.finite_difference.dynmat,
                               positions=phonons.atoms.positions,
                               replicated_cell=phonons.replicated_cell,
                               replicated_cell_inv=phonons.replicated_cell_inv,

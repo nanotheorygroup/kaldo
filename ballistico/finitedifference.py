@@ -12,11 +12,13 @@ from sparse import COO
 import ballistico.helpers.io as io
 import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
+import ase.units as units
 import h5py
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_SHIFT = 1e-5
 
 # Tolerance for symmetry search
@@ -26,6 +28,7 @@ MAX_FORCE = 1e-20
 
 MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
+DYNMAT_FILE = 'dynmat.npy'
 LIST_OF_REPLICAS_FILE = 'list_of_replicas.npy'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
@@ -147,6 +150,7 @@ class FiniteDifference(object):
         self._list_of_replicas = None
         self._second_order = None
         self._third_order = None
+        self._dynmat = None
 
         # Directly loading the second/third order force matrices
         if second_order is not None:
@@ -233,6 +237,53 @@ class FiniteDifference(object):
         finite_difference.third_order = third_order
         finite_difference.is_reduced_second = is_reduced_second
         return finite_difference
+
+
+    @property
+    def dynmat(self):
+        """Dynamical matrix calculated from the derivative of the input forcefield. Ouput in THz^2.
+
+        Returns
+        -------
+        np.array
+            (n_particles, 3, n_replicas, n_particles, 3) tensor containing the second order derivative of the dynamical matrix rescaled by the masses
+
+        """
+        return self._dynmat
+
+
+    @dynmat.getter
+    def dynmat(self):
+        """Obtain the second order force constant matrix either by loading in
+           or performing calculation using the provided calculator.
+        """
+        # Once confirming that the second order does not exist, try load in
+        if self._dynmat is None:
+            try:
+                folder = self.folder
+                folder += '/'
+                self._dynmat = np.load(folder + DYNMAT_FILE)
+            except FileNotFoundError as e:
+                print(e)
+                # After trying load in and still not exist,
+                # calculate the second order
+                self.dynmat = self.calculate_dynamical_matrix()
+        return self._dynmat
+
+
+    @dynmat.setter
+    def dynmat(self, new_dynmat):
+        """Save the loaded/computed second order force constant matrix
+            to preset proper folders.
+        """
+        # make the  folder and save the second order force constant matrix into it
+        folder = self.folder
+        folder += '/'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        np.save(folder + DYNMAT_FILE, new_dynmat)
+        self._dynmat = new_dynmat
+
 
     @property
     def second_order(self):
@@ -771,3 +822,22 @@ class FiniteDifference(object):
         phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
         phi_partial[:] = (-1. * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
         return phi_partial
+
+
+    def calculate_dynamical_matrix(self):
+        atoms = self.atoms
+        second_order = self.second_order.copy()
+        geometry = atoms.positions
+        n_particles = geometry.shape[0]
+        n_replicas = self.n_replicas
+        is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
+        if is_second_reduced:
+            dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
+        else:
+            dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
+
+        mass = np.sqrt(atoms.get_masses())
+        dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+        dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+        dynmat *= EVTOTENJOVERMOL
+        return dynmat
