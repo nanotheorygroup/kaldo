@@ -123,6 +123,7 @@ class FiniteDifference(object):
         self.n_atoms = self.atoms.get_masses().shape[0]
         self.n_replicas = np.prod(supercell)
         self.calculator = calculator
+        self.cell_inv = np.linalg.inv(self.atoms.cell)
 
         if calculator:
             if calculator_inputs:
@@ -151,7 +152,8 @@ class FiniteDifference(object):
         self._second_order = None
         self._third_order = None
         self._dynmat = None
-
+        self._replicated_cell_inv = None
+        
         # Directly loading the second/third order force matrices
         if second_order is not None:
             self.second_order = second_order
@@ -432,6 +434,23 @@ class FiniteDifference(object):
     @list_of_replicas.setter
     def list_of_replicas(self, new_list_of_replicas):
         self._list_of_replicas = new_list_of_replicas
+
+
+    @property
+    def replicated_cell_inv(self):
+        return self._list_of_replicas
+
+
+    @replicated_cell_inv.getter
+    def replicated_cell_inv(self):
+        if self._replicated_cell_inv is None:
+            self.replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
+        return self._replicated_cell_inv
+
+
+    @replicated_cell_inv.setter
+    def replicated_cell_inv(self, new_replicated_cell_inv):
+        self._replicated_cell_inv = new_replicated_cell_inv
 
 
     def calculate_list_of_replicas(self):

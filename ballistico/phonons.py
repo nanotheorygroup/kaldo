@@ -3,7 +3,6 @@ Ballistico
 Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
-import numpy as np
 import ballistico.controllers.anharmonic as ban
 import ballistico.controllers.anharmonic_tf as bantf
 import ballistico.controllers.statistic as bst
@@ -99,9 +98,6 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
 
-        self.cell_inv = np.linalg.inv(self.atoms.cell)
-        self.replicated_cell = self.finite_difference.replicated_atoms.cell
-        self.replicated_cell_inv = np.linalg.inv(self.replicated_cell)
 
 
 
@@ -325,7 +321,7 @@ class Phonons:
 
     def _chi(self, qvec):
         dxij = self.finite_difference.list_of_replicas
-        cell_inv = self.cell_inv
+        cell_inv = self.finite_difference.cell_inv
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
 
@@ -375,12 +371,7 @@ class Phonons:
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
             hsq = HarmonicSingleQ(qvec=qvec,
-                                  dynmat=self.finite_difference.dynmat,
-                                  positions=self.atoms.positions,
-                                  replicated_cell=self.replicated_cell,
-                                  replicated_cell_inv=self.replicated_cell_inv,
-                                  cell_inv=self.cell_inv,
-                                  list_of_replicas=self.finite_difference.list_of_replicas,
+                                  finite_difference=self.finite_difference,
                                   frequency_threshold=self.frequency_threshold
                                   )
             if observable == 'frequencies':

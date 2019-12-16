@@ -9,13 +9,17 @@ class HarmonicSingleQ:
     def __init__(self, **kwargs):
         self.qvec = kwargs.pop('qvec', (0, 0, 0))
         self.qvec = apply_boundary_with_cell(self.qvec)
-        self.dynmat = kwargs.pop('dynmat')
-        self.positions = kwargs.pop('positions')
-        self.replicated_cell = kwargs.pop('replicated_cell')
-        self.replicated_cell_inv = kwargs.pop('replicated_cell_inv')
-        self.cell_inv = kwargs.pop('cell_inv')
-        self.list_of_replicas = kwargs.pop('list_of_replicas')
         self.frequency_threshold = kwargs.pop('frequency_threshold')
+        finite_difference = kwargs.pop('finite_difference')
+        self.dynmat = finite_difference.dynmat
+        self.positions = finite_difference.atoms.positions
+        self.replicated_cell = finite_difference.replicated_atoms.cell
+        self.replicated_cell_inv = finite_difference.replicated_cell_inv
+        self.cell_inv = finite_difference.cell_inv
+        self.list_of_replicas = finite_difference.list_of_replicas
+        self.n_particles = self.positions.shape[0]
+        self.n_phonons = self.n_particles * 3
+
         self._is_at_gamma = (self.qvec == (0, 0, 0)).all()
 
         if self._is_at_gamma:
@@ -28,14 +32,11 @@ class HarmonicSingleQ:
 
     def calculate_eigensystem(self, only_eigenvals=False):
         dynmat = self.dynmat
-        positions = self.positions
-        n_particles = positions.shape[0]
-        n_phonons = n_particles * 3
         if self._is_at_gamma:
             dyn_s = contract('ialjb->iajb', dynmat)
         else:
             dyn_s = contract('ialjb,l->iajb', dynmat, self.chi())
-        dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
+        dyn_s = dyn_s.reshape((self.n_phonons, self.n_phonons), order='C')
         if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
             return evals
@@ -50,8 +51,6 @@ class HarmonicSingleQ:
     def calculate_dynmat_derivatives(self):
         dynmat = self.dynmat
         positions = self.positions
-        n_particles = positions.shape[0]
-        n_phonons = n_particles * 3
         if self._is_at_gamma:
             dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             dxij = apply_boundary_with_cell(dxij, self.replicated_cell, self.replicated_cell_inv)
@@ -61,7 +60,7 @@ class HarmonicSingleQ:
             dxij = positions[:, np.newaxis, np.newaxis, :] - (
                         positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
             dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, self.chi())
-        dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
+        dynmat_derivatives = dynmat_derivatives.reshape((self.n_phonons, self.n_phonons, 3), order='C')
         return dynmat_derivatives
 
 
