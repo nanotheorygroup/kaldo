@@ -4,17 +4,26 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import numpy as np
-import ballistico.controllers.harmonic as bha
 import ballistico.controllers.anharmonic as ban
 import ballistico.controllers.anharmonic_tf as bantf
 import ballistico.controllers.statistic as bst
 import tensorflow as tf
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
+import numpy as np
+import ase.units as units
 from ballistico.helpers.tools import apply_boundary_with_cell
+from ballistico.harmonic_single_q import HarmonicSingleQ
+
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
+DELTA_DOS = 1
+NUM_DOS = 100
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+KELVINTOJOULE = units.kB / units.J
+THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
+FREQUENCY_THRESHOLD = 0.
 
 FOLDER_NAME = 'ald-output'
-FREQUENCY_THRESHOLD = 0.
 
 
 class Phonons:
@@ -98,20 +107,14 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):
-        frequencies = bha.calculate_second_order_observable(self, 'frequencies')
+        frequencies = self.calculate_second_order_observable('frequencies')
         return frequencies
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
-        velocities = bha.calculate_second_order_observable(self, 'velocities')
+        velocities = self.calculate_second_order_observable('velocities')
         return velocities
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def dos(self):
-        dos = bha.calculate_density_of_states(self.frequencies, self.kpts)
-        return dos
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
@@ -197,13 +200,13 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def _dynmat_derivatives(self):
-        dynmat_derivatives = bha.calculate_second_order_observable(self, 'dynmat_derivatives')
+        dynmat_derivatives = self.calculate_second_order_observable('dynmat_derivatives')
         return dynmat_derivatives
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def _eigensystem(self):
-        eigensystem = bha.calculate_second_order_observable(self, 'eigensystem', q_points=None)
+        eigensystem = self.calculate_second_order_observable('eigensystem', q_points=None)
         return eigensystem
 
 
@@ -233,7 +236,7 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def _velocities_af(self):
-        velocities_AF = bha.calculate_second_order_observable(self, 'velocities_AF')
+        velocities_AF = self.calculate_second_order_observable('velocities_AF')
         return velocities_AF
 
 
@@ -341,3 +344,56 @@ class Phonons:
             ps_and_gamma = controller.project_crystal(self, is_gamma_tensor_enabled)
         return ps_and_gamma
 
+    
+    def calculate_second_order_observable(self, observable, q_points=None):
+        if q_points is None:
+            q_points = self._q_vec_from_q_index(np.arange(self.n_k_points))
+        else:
+            q_points = apply_boundary_with_cell(q_points)
+    
+        atoms = self.atoms
+        n_unit_cell = atoms.positions.shape[0]
+        n_k_points = q_points.shape[0]
+    
+        if observable == 'frequencies':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3))
+        elif observable == 'dynmat_derivatives':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+        elif observable == 'velocities_AF':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+        elif observable == 'velocities':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
+        elif observable == 'eigensystem':
+            # Here we store the eigenvalues in the last column
+            if self._is_amorphous:
+                tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3))
+            else:
+                tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)).astype(np.complex)
+        else:
+            raise ValueError('observable not recognized')
+    
+        for index_k in range(n_k_points):
+            qvec = q_points[index_k]
+            hsq = HarmonicSingleQ(qvec=qvec,
+                                  dynmat=self.finite_difference.dynmat,
+                                  positions=self.atoms.positions,
+                                  replicated_cell=self.replicated_cell,
+                                  replicated_cell_inv=self.replicated_cell_inv,
+                                  cell_inv=self.cell_inv,
+                                  list_of_replicas=self.finite_difference.list_of_replicas,
+                                  frequency_threshold=self.frequency_threshold
+                                  )
+            if observable == 'frequencies':
+                tensor[index_k] = hsq.calculate_frequencies()
+            elif observable == 'dynmat_derivatives':
+                tensor[index_k] = hsq.calculate_dynmat_derivatives()
+            elif observable == 'velocities_AF':
+                tensor[index_k] = hsq.calculate_velocities_AF()
+            elif observable == 'velocities':
+                tensor[index_k] = hsq.calculate_velocities()
+            elif observable == 'eigensystem':
+                tensor[index_k] = hsq.calculate_eigensystem()
+            else:
+                raise ValueError('observable not recognized')
+    
+        return tensor
