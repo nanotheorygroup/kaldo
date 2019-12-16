@@ -2,11 +2,11 @@
 Ballistico
 Anharmonic Lattice Dynamics
 """
-from opt_einsum import contract
+
 import numpy as np
 import ase.units as units
-from scipy.linalg.lapack import dsyev
 from ballistico.helpers.tools import apply_boundary_with_cell
+from ballistico.controllers.harmonic_single_q import HarmonicSingleQ
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
 NUM_DOS = 100
@@ -39,7 +39,6 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
 def calculate_dynamical_matrix(phonons):
     atoms = phonons.atoms
     second_order = phonons.finite_difference.second_order.copy()
-    n_unit_cell_atoms = phonons.atoms.positions.shape[0]
     geometry = atoms.positions
     n_particles = geometry.shape[0]
     n_replicas = phonons.finite_difference.n_replicas
@@ -70,8 +69,18 @@ def calculate_eigensystem(phonons, q_points=None):
         eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1))
     else:
         eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)).astype(np.complex)
+
     for index_k in range(n_k_points):
-        eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = calculate_eigensystem_for_k(phonons, q_points[index_k])
+        hsq = HarmonicSingleQ(qvec=q_points[index_k],
+                              dynmat=phonons.dynmat,
+                              positions=phonons.atoms.positions,
+                              replicated_cell=phonons.replicated_cell,
+                              replicated_cell_inv=phonons.replicated_cell_inv,
+                              cell_inv=phonons.cell_inv,
+                              list_of_replicas=phonons.finite_difference.list_of_replicas,
+                              frequency_threshold=phonons.frequency_threshold
+                              )
+        eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = hsq.calculate_eigensystem()
     return eigensystem
 
 
@@ -80,107 +89,39 @@ def calculate_second_order_observable(phonons, observable, q_points=None):
         q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
     else:
         q_points = apply_boundary_with_cell(q_points)
+
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]
+
     if observable == 'frequencies':
         tensor = np.zeros((n_k_points, n_unit_cell * 3))
-        function = calculate_frequencies_for_k
     elif observable == 'dynmat_derivatives':
-        tensor = np.zeros((n_k_points, n_unit_cell * 3,  n_unit_cell * 3, 3)).astype(np.complex)
-        function = calculate_dynmat_derivatives_for_k
+        tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
     elif observable == 'velocities_AF':
         tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
-        function = calculate_velocities_AF_for_k
     elif observable == 'velocities':
         tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
-        function = calculate_velocities_for_k
-    else:
-        raise TypeError('Operator not recognized')
+
     for index_k in range(n_k_points):
-        tensor[index_k] = function(phonons, q_points[index_k])
+        qvec = q_points[index_k]
+        hsq = HarmonicSingleQ(qvec=qvec,
+                              dynmat=phonons.dynmat,
+                              positions=phonons.atoms.positions,
+                              replicated_cell=phonons.replicated_cell,
+                              replicated_cell_inv=phonons.replicated_cell_inv,
+                              cell_inv=phonons.cell_inv,
+                              list_of_replicas=phonons.finite_difference.list_of_replicas,
+                              frequency_threshold=phonons.frequency_threshold
+                              )
+        if observable == 'frequencies':
+            tensor[index_k] = hsq.calculate_frequencies()
+        elif observable == 'dynmat_derivatives':
+            tensor[index_k] = hsq.calculate_dynmat_derivatives()
+        elif observable == 'velocities_AF':
+            tensor[index_k] = hsq.calculate_velocities_AF()
+        elif observable == 'velocities':
+            tensor[index_k] = hsq.calculate_velocities()
+
     return tensor
 
-
-def calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=False):
-    dynmat = phonons.dynmat
-    atoms = phonons.atoms
-    geometry = atoms.positions
-    n_particles = geometry.shape[0]
-    n_phonons = n_particles * 3
-    if phonons._is_amorphous:
-        dyn_s = dynmat[:, :, 0, :, :]
-    else:
-        dyn_s = contract('ialjb,l->iajb', dynmat, phonons._chi(qvec))
-    dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
-    if only_eigenvals:
-        evals = np.linalg.eigvalsh(dyn_s)
-        return evals
-    else:
-        if (qvec == [0, 0, 0]).all():
-            evals, evects = dsyev(dyn_s)[:2]
-        else:
-            evals, evects = np.linalg.eigh(dyn_s)
-
-        return evals, evects
-
-def calculate_dynmat_derivatives_for_k(phonons, qvec):
-    dynmat = phonons.dynmat
-    atoms = phonons.atoms
-    geometry = atoms.positions
-    n_particles = geometry.shape[0]
-    n_phonons = n_particles * 3
-    geometry = atoms.positions
-    if phonons._is_amorphous:
-        dxij = geometry[:, np.newaxis, :] - geometry[np.newaxis, :, :]
-        dxij = apply_boundary_with_cell(dxij, phonons.replicated_cell, phonons.replicated_cell_inv)
-        dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
-    else:
-        list_of_replicas = phonons.finite_difference.list_of_replicas
-        dxij = geometry[:, np.newaxis, np.newaxis, :] - (geometry[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
-        dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons._chi(qvec))
-    dynmat_derivatives = dynmat_derivatives.reshape((n_phonons, n_phonons, 3), order='C')
-    return dynmat_derivatives
-
-def calculate_frequencies_for_k(phonons, qvec):
-    rescaled_qvec = qvec * phonons.kpts
-    if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        q_index = phonons._q_index_from_q_vec(qvec)
-        eigenvals = phonons.eigenvalues[q_index]
-    else:
-        eigenvals = calculate_eigensystem_for_k(phonons, qvec, only_eigenvals=True)
-    frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-    return frequencies
-
-def calculate_velocities_AF_for_k(phonons, qvec):
-    rescaled_qvec = qvec * phonons.kpts
-    if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        q_index = phonons._q_index_from_q_vec(qvec)
-        dynmat_derivatives = phonons._dynmat_derivatives[q_index]
-        frequencies = phonons.frequencies[q_index]
-        eigenvects = phonons.eigenvectors[q_index]
-        physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))[q_index]
-    else:
-        dynmat_derivatives = calculate_dynmat_derivatives_for_k(phonons, qvec)
-        frequencies = calculate_frequencies_for_k(phonons, qvec)
-        _, eigenvects = calculate_eigensystem_for_k(phonons, qvec)
-        physical_modes = frequencies > phonons.frequency_threshold
-
-    velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
-    velocities_AF = contract('mna,mn->mna', velocities_AF,
-                                      1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(frequencies[np.newaxis, :])))
-    velocities_AF[np.invert(physical_modes), :, :] = 0
-    velocities_AF[:, np.invert(physical_modes), :] = 0
-    velocities_AF = velocities_AF / 2
-    return velocities_AF
-
-def calculate_velocities_for_k(phonons, qvec):
-    rescaled_qvec = qvec * phonons.kpts
-    if (np.round(rescaled_qvec) == qvec * phonons.kpts).all():
-        q_index = phonons._q_index_from_q_vec(qvec)
-        velocities_AF = phonons._velocities_af[q_index]
-    else:
-        velocities_AF = calculate_velocities_AF_for_k(phonons, qvec)
-
-    velocities = 1j * np.diagonal(velocities_AF).T
-    return velocities
