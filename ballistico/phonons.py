@@ -161,7 +161,7 @@ class Phonons:
         eigenvalues : np array
             (n_phonons) Eigenvalues of the dynamical matrix
         """
-        eigenvalues = self._eigensystem[:, :, -1]
+        eigenvalues = self._eigensystem[:, 0, :]
         return eigenvalues
 
 
@@ -174,7 +174,7 @@ class Phonons:
         eigenvectors : np array
             (n_phonons, n_phonons) Eigenvectors of the dynamical matrix
         """
-        eigenvectors = self._eigensystem[:, :, :-1]
+        eigenvectors = self._eigensystem[:, 1:, :]
         return eigenvectors
 
 
@@ -203,7 +203,7 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def _eigensystem(self):
-        eigensystem = bha.calculate_eigensystem(self)
+        eigensystem = bha.calculate_second_order_observable(self, 'eigensystem', q_points=None)
         return eigensystem
 
 

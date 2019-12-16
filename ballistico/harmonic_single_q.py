@@ -44,7 +44,7 @@ class HarmonicSingleQ:
                 evals, evects = dsyev(dyn_s)[:2]
             else:
                 evals, evects = np.linalg.eigh(dyn_s)
-            return evals, evects
+            return np.vstack((evals, evects))
 
 
     def calculate_dynmat_derivatives(self):
@@ -74,7 +74,7 @@ class HarmonicSingleQ:
     def calculate_velocities_AF(self):
         dynmat_derivatives = self.calculate_dynmat_derivatives()
         frequencies = self.calculate_frequencies()
-        _, eigenvects = self.calculate_eigensystem()
+        eigenvects = self.calculate_eigensystem()[1:, :]
         physical_modes = frequencies > self.frequency_threshold
         if self._is_at_gamma:
             physical_modes[:self._first_physical_index] = False

@@ -36,35 +36,6 @@ def calculate_density_of_states(frequencies, k_mesh, delta=DELTA_DOS, num=NUM_DO
     return omega_e, dos_e
 
 
-def calculate_eigensystem(phonons, q_points=None):
-    if q_points is None:
-        q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
-    else:
-        q_points = apply_boundary_with_cell(q_points)
-    atoms = phonons.atoms
-    n_unit_cell = atoms.positions.shape[0]
-    n_k_points = q_points.shape[0]
-
-    # Here we store the eigenvalues in the last column
-    if phonons._is_amorphous:
-        eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1))
-    else:
-        eigensystem = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)).astype(np.complex)
-
-    for index_k in range(n_k_points):
-        hsq = HarmonicSingleQ(qvec=q_points[index_k],
-                              dynmat=phonons.finite_difference.dynmat,
-                              positions=phonons.atoms.positions,
-                              replicated_cell=phonons.replicated_cell,
-                              replicated_cell_inv=phonons.replicated_cell_inv,
-                              cell_inv=phonons.cell_inv,
-                              list_of_replicas=phonons.finite_difference.list_of_replicas,
-                              frequency_threshold=phonons.frequency_threshold
-                              )
-        eigensystem[index_k, :, -1], eigensystem[index_k, :, :-1] = hsq.calculate_eigensystem()
-    return eigensystem
-
-
 def calculate_second_order_observable(phonons, observable, q_points=None):
     if q_points is None:
         q_points = phonons._q_vec_from_q_index(np.arange(phonons.n_k_points))
@@ -83,6 +54,14 @@ def calculate_second_order_observable(phonons, observable, q_points=None):
         tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
     elif observable == 'velocities':
         tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
+    elif observable == 'eigensystem':
+        # Here we store the eigenvalues in the last column
+        if phonons._is_amorphous:
+            tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3))
+        else:
+            tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)).astype(np.complex)
+    else:
+        raise ValueError('observable not recognized')
 
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
@@ -103,6 +82,10 @@ def calculate_second_order_observable(phonons, observable, q_points=None):
             tensor[index_k] = hsq.calculate_velocities_AF()
         elif observable == 'velocities':
             tensor[index_k] = hsq.calculate_velocities()
+        elif observable == 'eigensystem':
+            tensor[index_k] = hsq.calculate_eigensystem()
+        else:
+            raise ValueError('observable not recognized')
 
     return tensor
 
