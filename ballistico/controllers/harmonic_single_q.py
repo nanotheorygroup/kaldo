@@ -32,7 +32,7 @@ class HarmonicSingleQ:
         n_particles = positions.shape[0]
         n_phonons = n_particles * 3
         if self._is_at_gamma:
-            dyn_s = dynmat[:, :, 0, :, :]
+            dyn_s = contract('ialjb->iajb', dynmat)
         else:
             dyn_s = contract('ialjb,l->iajb', dynmat, self.chi())
         dyn_s = dyn_s.reshape((n_phonons, n_phonons), order='C')
