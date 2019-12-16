@@ -4,7 +4,6 @@ Anharmonic Lattice Dynamics
 """
 import matplotlib.pyplot as plt
 import seekpath
-import ballistico.controllers.harmonic as bha
 from sklearn.neighbors.kde import KernelDensity
 import numpy as np
 from scipy import ndimage
@@ -133,8 +132,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
         point_names = ['$\\Gamma$', 'X']
 
     if phonons.is_able_to_calculate:
-        freqs_plot = bha.calculate_second_order_observable(phonons, 'frequencies', k_list)
-        vel_plot = bha.calculate_second_order_observable(phonons, 'velocities', k_list)
+        freqs_plot = phonons.calculate_second_order_observable('frequencies', k_list)
+        vel_plot = phonons.calculate_second_order_observable('velocities', k_list)
         vel_norm = np.linalg.norm(vel_plot, axis=-1)
         # print(vel_plot)
     else:
