@@ -284,7 +284,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
 
 
 def calculate_broadening(phonons, index_kpp_vec):
-    cellinv = phonons.cell_inv
+    cellinv = phonons.finite_difference.cell_inv
     k_size = phonons.kpts
     velocity = phonons.velocities[:, :, np.newaxis, :] - phonons.velocities[index_kpp_vec, np.newaxis, :, :]
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
