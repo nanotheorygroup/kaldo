@@ -188,12 +188,12 @@ def save_second_order_matrix(phonons):
 def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
     n_replicas = phonons.finite_difference.n_replicas
-    n_particles = int(phonons.n_modes / 3)
+    n_atoms = int(phonons.n_modes / 3)
     if phonons.finite_difference.is_reduced_second:
-        second_order = phonons.second_order.reshape((n_particles, 3, n_replicas, n_particles, 3))
+        second_order = phonons.second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     else:
         second_order = phonons.second_order.reshape (
-            (n_replicas, n_particles, 3, n_replicas, n_particles, 3))[0]
+            (n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))[0]
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
@@ -203,8 +203,8 @@ def save_second_order_qe_matrix(phonons):
     file.write (header(phonons))
     for alpha in range (3):
         for beta in range (3):
-            for i in range (n_particles):
-                for j in range (n_particles):
+            for i in range (n_atoms):
+                for j in range (n_atoms):
                     file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
                     for id_replica in range(list_of_index.shape[0]):
 

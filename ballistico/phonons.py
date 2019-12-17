@@ -3,16 +3,15 @@ Ballistico
 Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
-import ballistico.controllers.anharmonic as ban
-import ballistico.controllers.anharmonic_tf as bantf
 import ballistico.controllers.statistic as bst
 import tensorflow as tf
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
 import numpy as np
 import ase.units as units
-from ballistico.helpers.tools import apply_boundary_with_cell
+from ballistico.helpers.tools import apply_boundary_with_cell, q_index_from_q_vec, q_vec_from_q_index
 from ballistico.harmonic_single_q import HarmonicSingleQ
+from ballistico.anharmonic import Anharmonic
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
@@ -94,7 +93,8 @@ class Phonons:
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
-        self.n_modes = self.atoms.get_masses().shape[0] * 3
+        self.n_atoms = self.finite_difference.n_atoms
+        self.n_modes = self.finite_difference.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
 
@@ -141,11 +141,11 @@ class Phonons:
 
     @lazy_property(is_storing=False, is_reduced_path=False)
     def rescaled_eigenvectors(self):
-        n_particles = self.atoms.positions.shape[0]
+        n_atoms = self.n_atoms
         n_modes = self.n_modes
         masses = self.atoms.get_masses()
         rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
-            (self.n_k_points, n_particles, 3, n_modes), order='C') / np.sqrt(
+            (self.n_k_points, n_atoms, 3, n_modes), order='C') / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
         rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
         return rescaled_eigenvectors
@@ -220,7 +220,7 @@ class Phonons:
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
-            k_point = self._q_vec_from_q_index(index_q)
+            k_point = q_vec_from_q_index(index_q, self.kpts)
             chi[index_q] = self._chi(k_point)
         return chi
 
@@ -290,25 +290,6 @@ class Phonons:
         is_amorphous = (self.kpts == (1, 1, 1)).all()
         return is_amorphous
 
-    def _q_index_from_q_vec(self, q_vec):
-        # the input q_vec is in the unit sphere
-        rescaled_qpp = np.round((q_vec * self.kpts).T, 0).astype(np.int)
-        q_index = np.ravel_multi_index(rescaled_qpp, self.kpts, mode='wrap')
-        return q_index
-
-    def _q_vec_from_q_index(self, q_index):
-        # the output q_vec is in the unit sphere
-        q_vec = np.array(np.unravel_index(q_index, (self.kpts))).T / self.kpts
-        apply_boundary_with_cell(q_vec)
-        return q_vec
-
-    def allowed_index_qpp(self, index_q, is_plus):
-        index_qp_full = np.arange(self.n_k_points)
-        q_vec = self._q_vec_from_q_index(index_q)
-        qp_vec = self._q_vec_from_q_index(index_qp_full)
-        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        index_qpp_full = self._q_index_from_q_vec(qpp_vec)
-        return index_qpp_full
 
     def _keep_only_physical(self, operator):
         physical_modes = self._physical_modes
@@ -328,22 +309,29 @@ class Phonons:
 
     def _calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
         print('Projection started')
-        if self.is_tf_backend:
-            print('Backend, tensorflow')
-            controller = bantf
-        else:
-            print('Backend, numpy')
-            controller = ban
+
+        controller = Anharmonic(finite_difference=self.finite_difference,
+                                frequencies=self.frequencies,
+                                kpts=self.kpts,
+                                rescaled_eigenvectors=self.rescaled_eigenvectors,
+                                is_gamma_tensor_enabled=is_gamma_tensor_enabled,
+                                chi_k=self._chi_k,
+                                velocities=self.velocities,
+                                physical_modes=self._physical_modes,
+                                occupations=self.occupations,
+                                sigma_in=self.sigma_in,
+                                broadening_shape=self.broadening_shape
+                                )
         if self._is_amorphous:
-            ps_and_gamma = controller.project_amorphous(self, is_gamma_tensor_enabled)
+            ps_and_gamma = controller.project_amorphous()
         else:
-            ps_and_gamma = controller.project_crystal(self, is_gamma_tensor_enabled)
+            ps_and_gamma = controller.project_crystal()
         return ps_and_gamma
 
     
     def calculate_second_order_observable(self, observable, q_points=None):
         if q_points is None:
-            q_points = self._q_vec_from_q_index(np.arange(self.n_k_points))
+            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
         else:
             q_points = apply_boundary_with_cell(q_points)
     
