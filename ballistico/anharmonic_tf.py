@@ -35,9 +35,7 @@ class Anharmonic(object):
         self.occupations = tf.convert_to_tensor(kwargs.pop('occupations').astype(float))
 
     @timeit
-    def project_amorphous(self, is_gamma_tensor_enabled=False):
-        if is_gamma_tensor_enabled == True:
-            raise ValueError('is_gamma_tensor_enabled=True not supported')
+    def project_amorphous(self):
         n_replicas = self.finite_difference.n_replicas
         rescaled_eigenvectors = self.rescaled_eigenvectors.astype(float)
         # The ps and gamma matrix stores ps, gamma and then the scattering matrix
@@ -83,7 +81,8 @@ class Anharmonic(object):
     
     
     @timeit
-    def project_crystal(self, is_gamma_tensor_enabled=False):
+    def project_crystal(self):
+        is_gamma_tensor_enabled = self.is_gamma_tensor_enabled
         n_replicas = self.finite_difference.n_replicas
         coords = self.finite_difference.third_order.coords
         data = self.finite_difference.third_order.data
