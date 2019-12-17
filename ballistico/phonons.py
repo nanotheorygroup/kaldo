@@ -4,14 +4,12 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import ballistico.controllers.statistic as bst
-import tensorflow as tf
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
 import numpy as np
 import ase.units as units
 from ballistico.helpers.tools import apply_boundary_with_cell, q_index_from_q_vec, q_vec_from_q_index
 from ballistico.harmonic_single_q import HarmonicSingleQ
-from ballistico.anharmonic import Anharmonic
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 DELTA_DOS = 1
@@ -267,24 +265,6 @@ class Phonons:
         return scattering_matrix
 
 
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _frequencies_tf(self):
-        frequencies_tf = tf.convert_to_tensor(self.frequencies.astype(float))
-        return frequencies_tf
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _omega_tf(self):
-        omega_tf = tf.convert_to_tensor(self._omegas.astype(float))
-        return omega_tf
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _occupations_tf(self):
-        density_tf = tf.convert_to_tensor(self.occupations.astype(float))
-        return density_tf
-
-
     @property
     def _is_amorphous(self):
         is_amorphous = (self.kpts == (1, 1, 1)).all()
@@ -309,6 +289,10 @@ class Phonons:
 
     def _calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
         print('Projection started')
+        if self.is_tf_backend:
+            from ballistico.anharmonic_tf import Anharmonic
+        else:
+            from ballistico.anharmonic import Anharmonic
 
         controller = Anharmonic(finite_difference=self.finite_difference,
                                 frequencies=self.frequencies,

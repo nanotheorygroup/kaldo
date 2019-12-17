@@ -164,3 +164,13 @@ def q_vec_from_q_index(q_index, kpts):
     q_vec = np.array(np.unravel_index(q_index, (kpts))).T / kpts
     apply_boundary_with_cell(q_vec)
     return q_vec
+
+
+def allowed_index_qpp(index_q, is_plus, kpts):
+    n_k_points = np.prod(kpts)
+    index_qp_full = np.arange(n_k_points)
+    q_vec = q_vec_from_q_index(index_q, kpts)
+    qp_vec = q_vec_from_q_index(index_qp_full, kpts)
+    qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
+    index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
+    return index_qpp_full

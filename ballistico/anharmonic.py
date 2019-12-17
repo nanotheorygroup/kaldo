@@ -3,9 +3,8 @@ Ballistico
 Anharmonic Lattice Dynamics
 """
 import sparse
-from opt_einsum import contract
 import ase.units as units
-from ballistico.helpers.tools import timeit, q_index_from_q_vec, q_vec_from_q_index
+from ballistico.helpers.tools import timeit, allowed_index_qpp
 import numpy as np
 
 
@@ -148,7 +147,7 @@ class Anharmonic(object):
                     if not out:
                         continue
                     dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
-                    index_kpp_full = self.allowed_index_qpp(index_k, is_plus)
+                    index_kpp_full = allowed_index_qpp(index_k, is_plus, self.kpts)
                     if is_plus:
                         #TODO: This can be faster using the contract opt_einsum
                         chi_prod = np.einsum('kt,kl->ktl', self.chi_k, self.chi_k[index_kpp_full].conj())
@@ -208,7 +207,7 @@ class Anharmonic(object):
         else:
             raise TypeError('Broadening shape not supported')
 
-        index_qpp_full = self.allowed_index_qpp(index_q, is_plus)
+        index_qpp_full = allowed_index_qpp(index_q, is_plus, self.kpts)
         if self.sigma_in is None:
             sigma_small = self.calculate_broadening(index_qpp_full)
         else:
@@ -331,10 +330,3 @@ class Anharmonic(object):
         return base_sigma
 
 
-    def allowed_index_qpp(self, index_q, is_plus):
-        index_qp_full = np.arange(self.n_k_points)
-        q_vec = q_vec_from_q_index(index_q, self.kpts)
-        qp_vec = q_vec_from_q_index(index_qp_full, self.kpts)
-        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        index_qpp_full = q_index_from_q_vec(qpp_vec, self.kpts)
-        return index_qpp_full
