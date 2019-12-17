@@ -1,6 +1,0 @@
-"""
-Ballistico
-Anharmonic Lattice Dynamics
-"""
-
-

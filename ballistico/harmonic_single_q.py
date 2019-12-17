@@ -17,8 +17,8 @@ class HarmonicSingleQ:
         self.replicated_cell_inv = finite_difference.replicated_cell_inv
         self.cell_inv = finite_difference.cell_inv
         self.list_of_replicas = finite_difference.list_of_replicas
-        self.n_particles = self.positions.shape[0]
-        self.n_phonons = self.n_particles * 3
+        self.n_atoms = finite_difference.n_atoms
+        self.n_modes = self.n_atoms * 3
 
         self._is_at_gamma = (self.qvec == (0, 0, 0)).all()
 
@@ -36,7 +36,7 @@ class HarmonicSingleQ:
             dyn_s = contract('ialjb->iajb', dynmat)
         else:
             dyn_s = contract('ialjb,l->iajb', dynmat, self.chi())
-        dyn_s = dyn_s.reshape((self.n_phonons, self.n_phonons), order='C')
+        dyn_s = dyn_s.reshape((self.n_modes, self.n_modes), order='C')
         if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
             return evals
@@ -60,7 +60,7 @@ class HarmonicSingleQ:
             dxij = positions[:, np.newaxis, np.newaxis, :] - (
                         positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
             dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, self.chi())
-        dynmat_derivatives = dynmat_derivatives.reshape((self.n_phonons, self.n_phonons, 3), order='C')
+        dynmat_derivatives = dynmat_derivatives.reshape((self.n_modes, self.n_modes, 3), order='C')
         return dynmat_derivatives
 
 

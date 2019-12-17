@@ -150,3 +150,17 @@ def convert_to_spg_structure(atoms):
     scaled_positions = atoms.get_positions().dot(np.linalg.inv(atoms.cell))
     spg_struct = (cell, scaled_positions, atoms.get_atomic_numbers())
     return spg_struct
+
+
+def q_index_from_q_vec(q_vec, kpts):
+    # the input q_vec is in the unit sphere
+    rescaled_qpp = np.round((q_vec * kpts).T, 0).astype(np.int)
+    q_index = np.ravel_multi_index(rescaled_qpp, kpts, mode='wrap')
+    return q_index
+
+
+def q_vec_from_q_index(q_index, kpts):
+    # the output q_vec is in the unit sphere
+    q_vec = np.array(np.unravel_index(q_index, (kpts))).T / kpts
+    apply_boundary_with_cell(q_vec)
+    return q_vec

@@ -23,25 +23,25 @@ def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     return dyn_mat * mass
 
 
-def import_dynamical_matrix(n_particles, supercell=(1, 1, 1), filename='Dyn.form'):
+def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     supercell = np.array(supercell)
     dynamical_matrix_frame = pd.read_csv(filename, header=None, delim_whitespace=True)
     dynamical_matrix = dynamical_matrix_frame.values
     n_replicas = np.prod(supercell)
-    if dynamical_matrix.size == n_replicas * (n_particles * 3) ** 2:
-        dynamical_matrix = dynamical_matrix.reshape(1, n_particles, 3, n_replicas, n_particles, 3)
+    if dynamical_matrix.size == n_replicas * (n_atoms * 3) ** 2:
+        dynamical_matrix = dynamical_matrix.reshape(1, n_atoms, 3, n_replicas, n_atoms, 3)
     else:
-        dynamical_matrix = dynamical_matrix.reshape(n_replicas, n_particles, 3, n_replicas, n_particles, 3)
+        dynamical_matrix = dynamical_matrix.reshape(n_replicas, n_atoms, 3, n_replicas, n_atoms, 3)
     return dynamical_matrix * tenjovermoltoev
 
 
 def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_threshold=0.):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
-    n_unit_cell = atoms.get_positions().shape[0]
-    n_particles = n_unit_cell * n_replicas
+    n_atoms = atoms.get_positions().shape[0]
+    n_replicated_atoms = n_atoms * n_replicas
     n_rows = count_rows(filename)
-    array_size = min(n_rows * 3, n_unit_cell * 3 * (n_particles * 3) ** 2)
+    array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
     coords = np.zeros((array_size, 6), dtype=np.int16)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
@@ -51,7 +51,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_thre
             coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
             values_to_write = np.array(l_split[-3:], dtype=np.float)
             mask_to_write = np.abs(values_to_write) > third_threshold
-            if mask_to_write.any() and coords_to_write[0] < n_unit_cell:
+            if mask_to_write.any() and coords_to_write[0] < n_atoms:
                 for alpha in np.arange(3)[mask_to_write]:
                     coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
                     coords[index_in_unit_cell, -1] = alpha
@@ -62,22 +62,22 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_thre
     print('read', 3 * i, 'interactions')
     coords = coords[:index_in_unit_cell].T
     values = values[:index_in_unit_cell]
-    sparse_third = COO (coords, values, shape=(n_unit_cell, 3, n_particles, 3, n_particles, 3))
+    sparse_third = COO (coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
     return sparse_third
 
 
 def import_dense_third(atoms, supercell, filename, is_reduced=True):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
-    n_particles = atoms.get_positions().shape[0]
+    n_atoms = atoms.get_positions().shape[0]
     if is_reduced:
-        total_rows = (n_particles *  3) * (n_particles * n_replicas * 3) ** 2
+        total_rows = (n_atoms *  3) * (n_atoms * n_replicas * 3) ** 2
         third = np.fromfile(filename, dtype=np.float, count=total_rows)
-        third = third.reshape((n_particles, 3, n_particles * n_replicas, 3, n_particles * n_replicas, 3))
+        third = third.reshape((n_atoms, 3, n_atoms * n_replicas, 3, n_atoms * n_replicas, 3))
     else:
-        total_rows = (n_particles * n_replicas * 3) ** 3
+        total_rows = (n_atoms * n_replicas * 3) ** 3
         third = np.fromfile(filename, dtype=np.float, count=total_rows)
-        third = third.reshape((n_particles * n_replicas, 3, n_particles * n_replicas, 3, n_particles * n_replicas, 3))
+        third = third.reshape((n_atoms * n_replicas, 3, n_atoms * n_replicas, 3, n_atoms * n_replicas, 3))
     return third
 
 

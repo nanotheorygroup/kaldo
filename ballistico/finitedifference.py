@@ -121,6 +121,7 @@ class FiniteDifference(object):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
+        self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.calculator = calculator
         self.cell_inv = np.linalg.inv(self.atoms.cell)
@@ -153,7 +154,7 @@ class FiniteDifference(object):
         self._third_order = None
         self._dynmat = None
         self._replicated_cell_inv = None
-        
+
         # Directly loading the second/third order force matrices
         if second_order is not None:
             self.second_order = second_order
@@ -847,13 +848,13 @@ class FiniteDifference(object):
         atoms = self.atoms
         second_order = self.second_order.copy()
         geometry = atoms.positions
-        n_particles = geometry.shape[0]
+        n_atoms = self.n_atoms
         n_replicas = self.n_replicas
-        is_second_reduced = (second_order.size == n_particles * 3 * n_replicas * n_particles * 3)
+        is_second_reduced = (second_order.size == n_atoms * 3 * n_replicas * n_atoms * 3)
         if is_second_reduced:
-            dynmat = second_order.reshape((n_particles, 3, n_replicas, n_particles, 3), order='C')
+            dynmat = second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3), order='C')
         else:
-            dynmat = second_order.reshape((n_replicas, n_particles, 3, n_replicas, n_particles, 3), order='C')[0]
+            dynmat = second_order.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3), order='C')[0]
 
         mass = np.sqrt(atoms.get_masses())
         dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
