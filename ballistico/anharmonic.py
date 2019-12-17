@@ -53,10 +53,7 @@ class Anharmonic(object):
         self.omegas = 2 * np.pi * self.frequencies
 
     @timeit
-    def project_amorphous(self, is_gamma_tensor_enabled=False):
-        if is_gamma_tensor_enabled == True:
-            raise ValueError('is_gamma_tensor_enabled=True not supported')
-
+    def project_amorphous(self):
         n_modes = self.n_modes
         rescaled_eigenvectors = self.rescaled_eigenvectors.reshape((n_modes, n_modes),
                                                                    order='C')
@@ -113,8 +110,8 @@ class Anharmonic(object):
         return third_k0m0_k1m1_k2m2
 
     @timeit
-    def project_crystal(self, is_gamma_tensor_enabled=False):
-
+    def project_crystal(self, ):
+        is_gamma_tensor_enabled = self.is_gamma_tensor_enabled
         # The ps and gamma matrix stores ps, gamma and then the scattering matrix
         if is_gamma_tensor_enabled:
             ps_and_gamma = np.zeros((self.n_phonons, 2 + self.n_phonons))
