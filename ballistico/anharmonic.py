@@ -78,7 +78,7 @@ class Anharmonic(object):
             scaled_potential = scaled_potential[np.newaxis, ...]
             scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
 
-            # pot_small = calculate_third_k0m0_k1m1_k2m2(phonons, False, 0, nu_single, 0, mup_vec[0],
+            # pot_small = self.calculate_third_k0m0_k1m1_k2m2(False, 0, nu_single, 0, mup_vec[0],
             #                                            0, mupp_vec[0])
 
             pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
