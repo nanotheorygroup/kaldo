@@ -19,12 +19,12 @@ import h5py
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
-DELTA_SHIFT = 1e-5
+DELTA_SHIFT = 1e-4
 
 # Tolerance for symmetry search
 SYMPREC_THIRD_ORDER = 1e-5
 # Tolerance for geometry optimization
-MAX_FORCE = 1e-20
+MAX_FORCE = 1e-5
 
 MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
@@ -477,7 +477,7 @@ class FiniteDifference(object):
         return replicated_atoms
 
 
-    def optimize(self, method='CG', tol=MAX_FORCE):
+    def optimize(self, method='Newton-CG', tol=MAX_FORCE):
         """Execute the geometry optimization by minimizing
            the maximum force component
         """
