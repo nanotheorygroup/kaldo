@@ -847,7 +847,6 @@ class FiniteDifference(object):
     def calculate_dynamical_matrix(self):
         atoms = self.atoms
         second_order = self.second_order.copy()
-        geometry = atoms.positions
         n_atoms = self.n_atoms
         n_replicas = self.n_replicas
         is_second_reduced = (second_order.size == n_atoms * 3 * n_replicas * n_atoms * 3)
