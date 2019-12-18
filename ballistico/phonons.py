@@ -112,7 +112,7 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
-        occupations =  self.calculate_occupations(self)
+        occupations =  self.calculate_occupations()
         return occupations
 
 
@@ -132,7 +132,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = self.calculate_c_v(self)
+        c_v = self.calculate_c_v()
         return c_v
 
 
