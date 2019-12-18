@@ -2,7 +2,7 @@
 Ballistico
 Anharmonic Lattice Dynamics
 """
-
+from ase import Atoms
 import os
 import ase.io
 import numpy as np
@@ -84,7 +84,7 @@ class FiniteDifference(object):
                  third_order_symmerty_inputs=None,
                  is_reduced_second=False,
                  is_optimizing=False,
-                 third_distance_threshold=None):
+                 distance_threshold=None):
 
         """Init with an instance of constructed FiniteDifference object.
 
@@ -123,6 +123,7 @@ class FiniteDifference(object):
         self.n_atoms = self.atoms.get_masses().shape[0]
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
+        self.n_replicated_atoms = self.n_replicas * self.n_atoms
         self.calculator = calculator
         self.cell_inv = np.linalg.inv(self.atoms.cell)
 
@@ -147,7 +148,7 @@ class FiniteDifference(object):
 
         self.folder = folder
         self.is_reduced_second = is_reduced_second
-        self.third_distance_threshold = third_distance_threshold
+        self.distance_threshold = distance_threshold
         self._replicated_atoms = None
         self._list_of_replicas = None
         self._second_order = None
@@ -163,13 +164,13 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0., is_symmetrizing=False, is_acoustic_sum=False):
-        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_threshold)
-        fd = FiniteDifference(**kwargs)
+    def from_files(cls, atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
+        fd = cls.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_energy_threshold, distance_threshold)
         if is_symmetrizing:
             fd = calculate_symmetrize_dynmat(fd)
         if is_acoustic_sum:
             fd = calculate_acoustic_dynmat(fd)
+        fd.distance_threshold = distance_threshold
         return fd
 
 
@@ -189,6 +190,66 @@ class FiniteDifference(object):
             fd = calculate_acoustic_dynmat(fd)
         return fd
 
+    @classmethod
+    def import_from_files(cls, atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1),
+                          third_energy_threshold=0., distance_threshold=None):
+        n_replicas = np.prod(supercell)
+        n_total_atoms = atoms.positions.shape[0]
+        n_unit_atoms = int(n_total_atoms / n_replicas)
+        unit_symbols = []
+        unit_positions = []
+        for i in range(n_unit_atoms):
+            unit_symbols.append(atoms.get_chemical_symbols()[i])
+            unit_positions.append(atoms.positions[i])
+        unit_cell = atoms.cell / supercell
+
+        atoms = Atoms(unit_symbols,
+                      positions=unit_positions,
+                      cell=unit_cell,
+                      pbc=[1, 1, 1])
+
+        # Create a finite difference object
+        finite_difference = {'atoms': atoms,
+                             'supercell': supercell,
+                             'folder': folder}
+        fd = cls(**finite_difference)
+
+        if dynmat_file:
+            second_dl = io.import_second(atoms, replicas=supercell, filename=dynmat_file)
+            is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
+            if is_reduced_second:
+                second_shape = (1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+            else:
+                second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+
+            print('Is reduced second: ', is_reduced_second)
+            second_dl = second_dl.reshape(second_shape)
+            fd.second_order = second_dl
+            fd.is_reduced_second = is_reduced_second
+
+        if third_file:
+            try:
+                print('Reading sparse third')
+                third_dl = io.import_sparse_third(atoms=atoms,
+                                                  supercell=supercell,
+                                                  filename=third_file,
+                                                  third_energy_threshold=third_energy_threshold,
+                                                  distance_threshold=distance_threshold,
+                                                  replicated_atoms=fd.replicated_atoms,
+                                                  replicated_cell_inv=fd.replicated_cell_inv)
+            except UnicodeDecodeError:
+                if third_energy_threshold != 0:
+                    raise ValueError('Third threshold not supported for dense third')
+                print('Trying reading binary third')
+                third_dl = io.import_dense_third(atoms, supercell=supercell, filename=third_file)
+            third_dl = third_dl[:n_unit_atoms]
+            third_shape = (
+                n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
+            third_dl = third_dl.reshape(third_shape)
+            fd.third_order = third_dl
+
+        return fd
+
 
     @classmethod
     def __from_numpy(cls, folder, supercell=(1, 1, 1)):
@@ -198,19 +259,19 @@ class FiniteDifference(object):
         n_replicas = np.prod(supercell)
         atoms = ase.io.read(config_file, format='extxyz')
         n_atoms = int(atoms.positions.shape[0] / n_replicas)
-        kwargs = io.import_from_files(atoms=atoms,
+        fd = cls.import_from_files(atoms=atoms,
                                       folder=folder,
                                       supercell=supercell)
         second_order = np.load(folder + SECOND_ORDER_FILE)
         if second_order.size == (n_replicas * n_atoms * 3) ** 2:
-            kwargs['is_reduced_second'] = False
+            fd.is_reduced_second = False
         else:
-            kwargs['is_reduced_second'] = True
+            fd.is_reduced_second = True
         third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE)) \
             .reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
-        kwargs['second_order'] = second_order
-        kwargs['third_order'] = third_order
-        return cls(**kwargs)
+        fd.second_order = second_order
+        fd.third_order = third_order
+        return fd
 
 
     @classmethod
@@ -219,8 +280,8 @@ class FiniteDifference(object):
         dynmat_file = str(folder) + "/Dyn.form"
         third_file = str(folder) + "/THIRD"
         atoms = ase.io.read(config_file, format='dlp4')
-        kwargs = io.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
-        return cls(**kwargs)
+        fd = cls.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+        return fd
 
 
     @classmethod
@@ -354,7 +415,7 @@ class FiniteDifference(object):
                               self.n_atoms * 3))
             except FileNotFoundError as e:
                 # calculate the third order
-                self.third_order = self.calculate_third(self.third_distance_threshold)
+                self.third_order = self.calculate_third(self.distance_threshold)
         return self._third_order
 
 
@@ -452,6 +513,47 @@ class FiniteDifference(object):
     @replicated_cell_inv.setter
     def replicated_cell_inv(self, new_replicated_cell_inv):
         self._replicated_cell_inv = new_replicated_cell_inv
+
+
+    def unfold_third_order(self, distance_threshold):
+        third_dl = self.third_order
+        n_unit_atoms = self.n_atoms
+        atoms = self.atoms
+        n_replicas = self.n_replicas
+        third_matrix = third_dl.reshape(
+            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+        replicated_positions = self.replicated_atoms.positions.reshape(
+            (n_replicas, n_unit_atoms, 3))
+        dxij = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
+        indices = np.argwhere(np.linalg.norm(dxij, axis=3) < distance_threshold)
+
+
+        sxij = replicated_positions[:, :, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, np.newaxis, :,
+                                                                       :, :]
+        coords = []
+        values = []
+
+
+        np.linalg.norm(sxij, axis=-1)
+
+        for index in indices:
+            print(index)
+            for l in range(n_replicas):
+                for j in range(n_unit_atoms):
+                    if (np.linalg.norm(
+                            replicated_positions[0, index[0]] - replicated_positions[l, j]) < distance_threshold) \
+                            & (np.linalg.norm(
+                        replicated_positions[index[1], index[2]] - replicated_positions[l, j]) < distance_threshold):
+                        coords.append([index[0], index[1], index[2], l, j])
+                        values.append(third_matrix[index[0], :, index[1], index[2], :, l, j, :])
+                        # print(np.abs(
+                        #     third_matrix[index[0], :, index[1], index[2], :, l, j, :] - third_matrix[index[0], :, 0,
+                        #                                                                 index[2], :, 0, j,
+                        #                                                                 :]).sum())
+
+        shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms * 3)
+        expanded_third = COO(np.array(coords).T, np.array(values), shape)
+        return expanded_third
 
 
     def calculate_list_of_replicas(self):
