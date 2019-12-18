@@ -60,6 +60,7 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
                     is_storing = True
                 else:
                     dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
+                    dxij = apply_boundary_with_cell(dxij, replicated_atoms.cell, replicated_cell_inv)
                     if (np.linalg.norm(dxij) <= distance_threshold):
                         is_storing = True
                 if is_storing:
