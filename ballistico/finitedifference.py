@@ -175,11 +175,14 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', is_symmetrizing=False, is_acoustic_sum=False):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
+        if (format != 'eskm') & ((third_energy_threshold != 0.) | (distance_threshold is not None)):
+            raise ValueError('third_energy_threshold and distance_threshold are not supported by %s format' %(format))
         if format == 'numpy':
             fd = cls.__from_numpy(folder, supercell)
         elif format == 'eskm':
-            fd = cls.__from_eskm(folder, supercell)
+            fd = cls.__from_eskm(folder, supercell,
+                          third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
         elif format == 'shengbte':
             fd = cls.__from_shengbte(folder, supercell)
         else:
@@ -275,12 +278,14 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def __from_eskm(cls, folder, supercell=(1, 1, 1)):
+    def __from_eskm(cls, folder, supercell=(1, 1, 1),
+                          third_energy_threshold=0., distance_threshold=None):
         config_file = str(folder) + "/CONFIG"
         dynmat_file = str(folder) + "/Dyn.form"
         third_file = str(folder) + "/THIRD"
         atoms = ase.io.read(config_file, format='dlp4')
-        fd = cls.import_from_files(atoms, dynmat_file, third_file, folder, supercell)
+        fd = cls.import_from_files(atoms, dynmat_file, third_file, folder, supercell,
+                          third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
         return fd
 
 
