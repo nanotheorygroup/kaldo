@@ -3,22 +3,21 @@ Ballistico
 Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
-import ballistico.controllers.statistic as bst
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
+from ballistico.helpers.tools import apply_boundary_with_cell, q_vec_from_q_index
+from ballistico.harmonic_single_q import HarmonicSingleQ
 import numpy as np
 import ase.units as units
-from ballistico.helpers.tools import apply_boundary_with_cell, q_index_from_q_vec, q_vec_from_q_index
-from ballistico.harmonic_single_q import HarmonicSingleQ
 
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-DELTA_DOS = 1
-NUM_DOS = 100
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
 THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-FREQUENCY_THRESHOLD = 0.
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
+DELTA_DOS = 1
+NUM_DOS = 100
+FREQUENCY_THRESHOLD = 0.
 FOLDER_NAME = 'ald-output'
 
 
@@ -113,7 +112,7 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=False)
     def occupations(self):
-        occupations =  bst.calculate_occupations(self)
+        occupations =  self.calculate_occupations(self)
         return occupations
 
 
@@ -133,7 +132,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = bst.calculate_c_v(self)
+        c_v = self.calculate_c_v(self)
         return c_v
 
 
@@ -360,3 +359,31 @@ class Phonons:
                 raise ValueError('observable not recognized')
     
         return tensor
+
+
+    def calculate_occupations(self):
+        frequencies = self.frequencies
+        temp = self.temperature * KELVINTOTHZ
+        density = np.zeros_like(frequencies)
+        physical_modes = self._physical_modes.reshape((self.n_k_points, self.n_modes))
+        if self.is_classic is False:
+            density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
+        else:
+            density[physical_modes] = temp / frequencies[physical_modes]
+        return density
+
+
+    def calculate_c_v(self):
+        frequencies = self.frequencies
+        c_v = np.zeros_like (frequencies)
+        physical_modes = self._physical_modes.reshape((self.n_k_points, self.n_modes))
+        temperature = self.temperature * KELVINTOTHZ
+
+        if (self.is_classic):
+            c_v[physical_modes] = KELVINTOJOULE
+        else:
+            f_be = self.occupations
+            c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * self.frequencies[physical_modes] ** 2 / \
+                                  (temperature ** 2)
+        return c_v
+
