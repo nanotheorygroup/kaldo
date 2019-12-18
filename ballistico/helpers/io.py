@@ -6,8 +6,9 @@ import numpy as np
 from sparse import COO
 import pandas as pd
 import ase.units as units
-from ballistico.helpers.tools import count_rows
+from ballistico.helpers.tools import count_rows, apply_boundary_with_cell
 from ase import Atoms
+
 
 import re
 
@@ -35,7 +36,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     return dynamical_matrix * tenjovermoltoev
 
 
-def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_threshold=0.):
+def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0., distance_threshold=None, replicated_cell_inv=None):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]
@@ -50,13 +51,23 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_thre
             l_split = re.split('\s+', line.strip())
             coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
             values_to_write = np.array(l_split[-3:], dtype=np.float)
-            mask_to_write = np.abs(values_to_write) > third_threshold
+            mask_to_write = np.abs(values_to_write) > third_energy_threshold
             if mask_to_write.any() and coords_to_write[0] < n_atoms:
-                for alpha in np.arange(3)[mask_to_write]:
-                    coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
-                    coords[index_in_unit_cell, -1] = alpha
-                    values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
-                    index_in_unit_cell = index_in_unit_cell + 1
+                iat = coords_to_write[0]
+                jat = coords_to_write[2]
+                is_storing = False
+                if (distance_threshold is None):
+                    is_storing = True
+                else:
+                    dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
+                    if (np.linalg.norm(dxij) <= distance_threshold):
+                        is_storing = True
+                if is_storing:
+                    for alpha in np.arange(3)[mask_to_write]:
+                        coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+                        coords[index_in_unit_cell, -1] = alpha
+                        values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
+                        index_in_unit_cell = index_in_unit_cell + 1
             if i % 1000000 == 0:
                 print('reading third order: ', np.round(i / n_rows, 2) * 100, '%')
     print('read', 3 * i, 'interactions')
@@ -81,7 +92,7 @@ def import_dense_third(atoms, supercell, filename, is_reduced=True):
     return third
 
 
-def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1), third_threshold=0.):
+def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1), third_energy_threshold=0., distance_threshold=None):
     n_replicas = np.prod(supercell)
     n_total_atoms = atoms.positions.shape[0]
     n_unit_atoms = int(n_total_atoms / n_replicas)
@@ -121,9 +132,10 @@ def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, sup
             third_dl = import_sparse_third(atoms=atoms,
                                            supercell=supercell,
                                            filename=third_file,
-                                           third_threshold=third_threshold)
+                                           third_energy_threshold=third_energy_threshold,
+                                           distance_threshold=distance_threshold)
         except UnicodeDecodeError:
-            if third_threshold != 0:
+            if third_energy_threshold != 0:
                 raise ValueError('Third threshold not supported for dense third')
             print('Trying reading binary third')
             third_dl = import_dense_third(atoms, supercell=supercell, filename=third_file)
