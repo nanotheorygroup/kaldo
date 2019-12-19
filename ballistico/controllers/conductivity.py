@@ -5,8 +5,10 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
+from ballistico.helpers.tools import log
 
-MAX_ITERATIONS_SC = 500
+
+MAX_ITERATIONS_SC = 200
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -130,9 +132,9 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
         conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
                                                       velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
         neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
-        print('negative on diagonal : ', neg_diag)
+        log('negative on diagonal : ', neg_diag)
         evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-        print('negative eigenvals : ', (evals < 0).sum())
+        log('negative eigenvals : ', (evals < 0).sum())
 
     elif method == 'rta':
         volume = np.linalg.det(phonons.atoms.cell)
@@ -169,12 +171,12 @@ def calculate_all(phonons, method, max_n_iterations, gamma_in=None):
 
         conductivity_per_mode[physical_modes, :, :] = np.einsum('i,ia,ib->iab', c_v, velocities ,lambda_n)
         if n_iteration == (max_n_iterations - 1):
-            print('Max iterations reached')
+            log('Max iterations reached')
 
     else:
         raise TypeError('Conductivity method not recognized')
     if np.isnan(conductivity_per_mode).sum() != 0:
-        print('nan')
+        log('nan')
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
 
@@ -188,7 +190,6 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     velocities = phonons.velocities.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
     velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
-    frequencies = phonons.frequencies.reshape ((phonons.n_phonons), order='C')
     physical_modes = phonons._physical_modes
     if not is_rta:
         scattering_matrix = phonons._scattering_matrix_without_diagonal
@@ -209,7 +210,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
 
                     elif finite_size_method == 'caltech':
 
-                        kn = abs(velocity / (length * single_gamma))
+                        kn = abs(velocity) / (length * single_gamma)
                         transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
                         gamma[mu] = abs(velocity) / length / transmission
 
@@ -253,19 +254,19 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
                 physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
 
     if n_iteration == (MAX_ITERATIONS_SC - 1):
-        print ('Convergence not reached')
+        log('Convergence not reached')
     if is_rta:
         return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
     else:
         return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
 
 
-def conductivity(phonons, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None):
+def conductivity(phonons, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None):
     # if length is not None:
     if method == 'rta':
         return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
     elif method == 'sc':
-        return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+        return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
     elif (method == 'qhgk' or method == 'inverse'):
         return calculate_all(phonons, method=method, max_n_iterations=max_n_iterations, gamma_in=gamma_in)
     else:
