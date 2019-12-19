@@ -67,26 +67,30 @@ def calculate_c_v_2d(phonons):
 
 
 def calculate_conductivity_qhgk(phonons, gamma_in=None):
+    volume = np.linalg.det(phonons.atoms.cell)
     if gamma_in is not None:
         gamma = gamma_in * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
-        gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy()
+        gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
     omega = phonons._omegas
     physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
-    physical_modes_2d = physical_modes[:, :, np.newaxis] & physical_modes[:, np.newaxis, :]
-    lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2 / (
-            ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / 2) ** 2 +
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                        physical_modes[:, np.newaxis, :]
+    lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / (
+            ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])) ** 2 +
             (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
 
-    lorentz[np.invert(physical_modes_2d)] = 0
-    heat_capacity = calculate_c_v_2d(phonons)
+    lorentz[np.isnan(lorentz)] = 0
+    conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
+    # heat_capacity = calculate_c_v_2d(phonons)
 
-    conductivity_per_mode = contract('knm,knma,knm,knmb->knmab', heat_capacity,
-                                     phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
-                                     phonons._velocities_af[:, :, :, :])
+    conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', phonons.heat_capacity,
+                                                    phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
+                                                    phonons._velocities_af[:, :, :, :])
     conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
-    conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3)).real
-    volume = np.linalg.det(phonons.atoms.cell)
+
+    conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
+    conductivity_per_mode[np.invert(phonons._physical_modes), :, :] = 0
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
 
@@ -133,7 +137,6 @@ def calculate_qhgk(phonons, method, max_n_iterations, gamma_in=None):
 
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
     conductivity_per_mode[np.invert(phonons._physical_modes), :, :] = 0
-
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
 

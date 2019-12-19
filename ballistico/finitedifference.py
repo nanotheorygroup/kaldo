@@ -532,34 +532,28 @@ class FiniteDifference(object):
             (n_replicas, n_unit_atoms, 3))
         dxij = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
         indices = np.argwhere(np.linalg.norm(dxij, axis=3) < distance_threshold)
-
-
         sxij = replicated_positions[:, :, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, np.newaxis, :,
                                                                        :, :]
         coords = []
         values = []
-
-
         np.linalg.norm(sxij, axis=-1)
-
         for index in indices:
-            log(index)
+            # log(index)
             for l in range(n_replicas):
                 for j in range(n_unit_atoms):
                     if (np.linalg.norm(
                             replicated_positions[0, index[0]] - replicated_positions[l, j]) < distance_threshold) \
                             & (np.linalg.norm(
                         replicated_positions[index[1], index[2]] - replicated_positions[l, j]) < distance_threshold):
-                        coords.append([index[0], index[1], index[2], l, j])
-                        values.append(third_matrix[index[0], :, index[1], index[2], :, l, j, :])
-                        # log(np.abs(
-                        #     third_matrix[index[0], :, index[1], index[2], :, l, j, :] - third_matrix[index[0], :, 0,
-                        #                                                                 index[2], :, 0, j,
-                        #                                                                 :]).sum())
+                        for alpha in range(3):
+                            for beta in range(3):
+                                for gamma in range(3):
+                                    coords.append([index[0], alpha, index[1], index[2], beta, l, j, gamma])
+                                    values.append(third_matrix[index[0], alpha, 0, index[2], beta, 0, j, gamma])
 
-        shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms * 3)
+        shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
         expanded_third = COO(np.array(coords).T, np.array(values), shape)
-        return expanded_third
+        self.third_order = expanded_third
 
 
     def calculate_list_of_replicas(self):
