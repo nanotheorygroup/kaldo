@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 import sparse
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
-from ballistico.helpers.tools import log
+import logging
 import numpy as np
 
 
@@ -90,8 +90,8 @@ class Anharmonic(object):
             ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / self.frequencies.flatten()[nu_single]
 
             THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-            log(self.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
-            log('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
+            logging.info(self.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
+            logging.info('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
                   '%')
         return ps_and_gamma
 
@@ -126,7 +126,7 @@ class Anharmonic(object):
                 nu_single = np.ravel_multi_index([index_k, mu], (self.n_k_points, self.n_modes), order='C')
 
                 if nu_single % 200 == 0:
-                    log('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
+                    logging.info('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
                           '%')
                 potential_times_evect = np.zeros((n_replicas * self.n_modes, n_replicas * self.n_modes), dtype=np.complex)
                 for i in range(self.n_modes):

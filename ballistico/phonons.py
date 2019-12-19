@@ -106,7 +106,7 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
-        """Calculates the velocities using Hellmann-Feynman theorem..
+        """Calculates the velocities using Hellmann-Feynman theorem.
         Returns
         -------
         velocities : np array
