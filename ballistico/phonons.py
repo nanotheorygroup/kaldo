@@ -289,11 +289,17 @@ class Phonons:
     def _calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
         print('Projection started')
         if self.is_tf_backend:
-            from ballistico.anharmonic_tf import Anharmonic
+            try:
+                from ballistico.anharmonic_tf import Anharmonic
+            except ModuleNotFoundError as err:
+                print(err)
+                print('tensorflow>=2.0 is required to run accelerated routines. Please consider installing tensorflow>=2.0. More info here: https://www.tensorflow.org/install/pip')
+                print('Using numpy engine instead.')
+                from ballistico.anharmonic import Anharmonic
         else:
             from ballistico.anharmonic import Anharmonic
 
-        controller = Anharmonic(finite_difference=self.finite_difference,
+        anharmonic = Anharmonic(finite_difference=self.finite_difference,
                                 frequencies=self.frequencies,
                                 kpts=self.kpts,
                                 rescaled_eigenvectors=self.rescaled_eigenvectors,
@@ -306,9 +312,9 @@ class Phonons:
                                 broadening_shape=self.broadening_shape
                                 )
         if self._is_amorphous:
-            ps_and_gamma = controller.project_amorphous()
+            ps_and_gamma = anharmonic.project_amorphous()
         else:
-            ps_and_gamma = controller.project_crystal()
+            ps_and_gamma = anharmonic.project_crystal()
         return ps_and_gamma
 
     

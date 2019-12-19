@@ -14,6 +14,7 @@ import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
 import ase.units as units
 import h5py
+from ballistico.helpers.tools import log
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
@@ -41,10 +42,10 @@ def calculate_symmetrize_dynmat(finite_difference):
     if not finite_difference.is_reduced_second:
         second_transpose = finite_difference.second_order.transpose((3, 4, 5, 0, 1, 2))
         delta_symm = np.sum(np.abs(finite_difference.second_order - second_transpose))
-        print('asymmetry of dynmat', delta_symm)
+        log('asymmetry of dynmat', delta_symm)
         finite_difference.second_order = 0.5 * (finite_difference.second_order + second_transpose)
     else:
-        print('cannot symmetrize a reduced dynamical matrix')
+        log('cannot symmetrize a reduced dynamical matrix')
     return finite_difference
 
 
@@ -61,7 +62,7 @@ def calculate_acoustic_dynmat(finite_difference):
                     offdiagsum += dynmat[m, i, :, n, j, :]
             dynmat[m, i, :, m, i, :] -= offdiagsum
             sumrulecorr += np.sum(offdiagsum)
-    print('error sum rule', sumrulecorr)
+    log('error sum rule', sumrulecorr)
     finite_difference.second_order = dynmat
     return finite_difference
 
@@ -225,14 +226,14 @@ class FiniteDifference(object):
             else:
                 second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
 
-            print('Is reduced second: ', is_reduced_second)
+            log('Is reduced second: ', is_reduced_second)
             second_dl = second_dl.reshape(second_shape)
             fd.second_order = second_dl
             fd.is_reduced_second = is_reduced_second
 
         if third_file:
             try:
-                print('Reading sparse third')
+                log('Reading sparse third')
                 third_dl = io.import_sparse_third(atoms=atoms,
                                                   supercell=supercell,
                                                   filename=third_file,
@@ -243,7 +244,7 @@ class FiniteDifference(object):
             except UnicodeDecodeError:
                 if third_energy_threshold != 0:
                     raise ValueError('Third threshold not supported for dense third')
-                print('Trying reading binary third')
+                log('Trying reading binary third')
                 third_dl = io.import_dense_third(atoms, supercell=supercell, filename=third_file)
             third_dl = third_dl[:n_unit_atoms]
             third_shape = (
@@ -296,7 +297,7 @@ class FiniteDifference(object):
             atoms, supercell = shengbte_io.import_control_file(config_file)
         except FileNotFoundError as err:
             config_file = folder + '/' + 'POSCAR'
-            print(err, 'Trying to open POSCAR')
+            log(err, 'Trying to open POSCAR')
             atoms = ase.io.read(config_file)
 
         # Create a finite difference object
@@ -333,7 +334,7 @@ class FiniteDifference(object):
                 folder += '/'
                 self._dynmat = np.load(folder + DYNMAT_FILE)
             except FileNotFoundError as e:
-                print(e)
+                log(e)
                 # After trying load in and still not exist,
                 # calculate the second order
                 self.dynmat = self.calculate_dynamical_matrix()
@@ -373,7 +374,7 @@ class FiniteDifference(object):
                 folder += '/'
                 self._second_order = np.load(folder + SECOND_ORDER_FILE)
             except FileNotFoundError as e:
-                print(e)
+                log(e)
                 # After trying load in and still not exist,
                 # calculate the second order
                 self.second_order = self.calculate_second()
@@ -394,7 +395,7 @@ class FiniteDifference(object):
         try:
             os.remove(folder + SECOND_ORDER_WITH_PROGRESS_FILE)
         except FileNotFoundError as err:
-            print(err)
+            log(err)
         self._second_order = new_second_order
 
 
@@ -444,7 +445,7 @@ class FiniteDifference(object):
         try:
             os.remove(folder + THIRD_ORDER_WITH_PROGRESS_FILE)
         except FileNotFoundError as err:
-            print(err)
+            log(err)
         if not os.path.exists(folder):
             os.makedirs(folder)
         save_npz(folder + THIRD_ORDER_FILE_SPARSE, self._third_order.reshape((self.n_atoms * 3 * self.n_replicas *
@@ -542,7 +543,7 @@ class FiniteDifference(object):
         np.linalg.norm(sxij, axis=-1)
 
         for index in indices:
-            print(index)
+            log(index)
             for l in range(n_replicas):
                 for j in range(n_unit_atoms):
                     if (np.linalg.norm(
@@ -551,7 +552,7 @@ class FiniteDifference(object):
                         replicated_positions[index[1], index[2]] - replicated_positions[l, j]) < distance_threshold):
                         coords.append([index[0], index[1], index[2], l, j])
                         values.append(third_matrix[index[0], :, index[1], index[2], :, l, j, :])
-                        # print(np.abs(
+                        # log(np.abs(
                         #     third_matrix[index[0], :, index[1], index[2], :, l, j, :] - third_matrix[index[0], :, 0,
                         #                                                                 index[2], :, 0, j,
                         #                                                                 :]).sum())
@@ -590,18 +591,18 @@ class FiniteDifference(object):
         """
         # Compute the maximum force component based on initial geometry
         # and specified method
-        print('Initial max force: ' + "{0:.4e}".format(self.max_force(self.atoms.positions, self.atoms)))
-        print('Optimization method ' + method)
+        log('Initial max force: ' + "{0:.4e}".format(self.max_force(self.atoms.positions, self.atoms)))
+        log('Optimization method ' + method)
 
         # Execute the minimization and display the
         # optimized the maximum force component
         result = minimize(self.max_force, self.atoms.positions, args=self.atoms, jac=self.gradient, method=method,
                           tol=tol)
-        print(result.message)
+        log(result.message)
         # Rewrite the atomic position based on the optimized geometry
         self.atoms.positions = result.x.reshape((int(result.x.size / 3), 3))
         ase.io.write('minimized_' + str(self.atoms.get_chemical_formula()) + '.xyz', self.atoms, format='extxyz')
-        print('Final max force: ' + "{0:.4e}".format(self.max_force(self.atoms.positions, self.atoms)))
+        log('Final max force: ' + "{0:.4e}".format(self.max_force(self.atoms.positions, self.atoms)))
         return self.max_force(self.atoms.positions, self.atoms)
 
 
@@ -651,7 +652,7 @@ class FiniteDifference(object):
         """Core method to compute second order force constant matrices
         """
         atoms = self.atoms
-        print('Calculating second order potential derivatives')
+        log('Calculating second order potential derivatives')
         n_unit_cell_atoms = len(atoms.numbers)
         replicated_atoms = self.replicated_atoms
         n_replicated_atoms = len(replicated_atoms.numbers)
@@ -671,7 +672,7 @@ class FiniteDifference(object):
             with h5py.File(filename, 'a') as partial_second:
                 i_force_atom_exists = str(i) in partial_second
                 if not i_force_atom_exists:
-                    print('Moving atom ' + str(i))
+                    log('Moving atom ' + str(i))
                     partial_second.create_dataset(str(i), data=self.calculate_single_second(i), chunks=True)
         with h5py.File(filename, 'r') as partial_second:
             for i in range(n_atoms):
@@ -691,7 +692,7 @@ class FiniteDifference(object):
     def calculate_third(self, distance_threshold=None):
         """Core method to compute third order force constant matrices
         """
-        print('Calculating third order potential derivatives')
+        log('Calculating third order potential derivatives')
         is_symmetry_enabled = (self.third_order_symmerty_inputs is not None)
         if is_symmetry_enabled:
             if distance_threshold is not None:
@@ -701,9 +702,7 @@ class FiniteDifference(object):
             phifull = self.calculate_single_third_with_symmetry()
         else:
             phifull = self.calculate_single_third_without_symmetry(distance_threshold=distance_threshold)
-
         return phifull
-
 
 
     def calculate_single_third_with_symmetry(self):
@@ -718,7 +717,7 @@ class FiniteDifference(object):
 
         # Exploit the geometry symmetry prior to compute
         # third order force constant matrices
-        print('Calculating third order potential derivatives')
+        log('Calculating third order potential derivatives')
         from thirdorder_core import SymmetryOperations, Wedge, reconstruct_ifcs
         from thirdorder_espresso import calc_frange, calc_dists
         if self.third_order_symmerty_inputs['SYMPREC']:
@@ -736,29 +735,29 @@ class FiniteDifference(object):
         # by utilizing the geometry symmetry
         poscar = convert_to_poscar(self.atoms)
         f_range = None
-        print("Analyzing symmetries")
+        log("Analyzing symmetries")
         symops = SymmetryOperations(
             poscar["lattvec"], poscar["types"], poscar["positions"].T, symprec)
-        print("- Symmetry group {0} detected".format(symops.symbol))
-        print("- {0} symmetry operations".format(symops.translations.shape[0]))
-        print("Creating the supercell")
+        log("- Symmetry group {0} detected".format(symops.symbol))
+        log("- {0} symmetry operations".format(symops.translations.shape[0]))
+        log("Creating the supercell")
         sposcar = convert_to_poscar(self.replicated_atoms, self.supercell)
-        print("Computing all distances in the supercell")
+        log("Computing all distances in the supercell")
         dmin, nequi, shifts = calc_dists(sposcar)
         if nneigh != None:
             frange = calc_frange(poscar, sposcar, nneigh, dmin)
-            print("- Automatic cutoff: {0} nm".format(frange))
+            log("- Automatic cutoff: {0} nm".format(frange))
         else:
             frange = f_range
-            print("- User-defined cutoff: {0} nm".format(frange))
-        print("Looking for an irreducible set of third-order IFCs")
+            log("- User-defined cutoff: {0} nm".format(frange))
+        log("Looking for an irreducible set of third-order IFCs")
         wedge = Wedge(poscar, sposcar, symops, dmin, nequi, shifts,
                       frange)
         self.wedge = wedge
-        print("- {0} triplet equivalence classes found".format(wedge.nlist))
+        log("- {0} triplet equivalence classes found".format(wedge.nlist))
         two_atoms_mesh = wedge.build_list4()
         two_atoms_mesh = np.array(two_atoms_mesh)
-        print('object created')
+        log('object created')
         k_coord_sparse = []
         mesh_index_sparse = []
         k_at_sparse = []
@@ -769,7 +768,7 @@ class FiniteDifference(object):
         try:
             file = open(progress_filename, 'r+')
         except FileNotFoundError as err:
-            print(err)
+            log(err)
         else:
             for line in file:
                 iat, icoord, jat, jcoord, k, value = np.fromstring(line, dtype=np.float, sep=' ')
@@ -813,7 +812,7 @@ class FiniteDifference(object):
                     mesh_index_sparse.append(mesh_index_counter)
                     value_sparse.append(value[k])
             if (mesh_index_counter % 500) == 0:
-                print('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
+                log('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
 
         # TODO: remove this file.close and use with file instead
         file.close()
@@ -882,11 +881,11 @@ class FiniteDifference(object):
                                     value_sparse.append(value[k])
                     n_forces_done += 9
                 if (n_forces_done + n_forces_skipped % 300) == 0:
-                    print('Calculate third derivatives', int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100), '%')
+                    log('Calculate third derivatives', int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100), '%')
 
-        print('total forces to calculate :', n_forces_to_calculate)
-        print('forces calculated :', n_forces_done)
-        print('forces skipped (outside distance threshold) :', n_forces_skipped)
+        log('total forces to calculate :', n_forces_to_calculate)
+        log('forces calculated :', n_forces_done)
+        log('forces skipped (outside distance threshold) :', n_forces_skipped)
         coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
         shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
         phifull = COO(coords, np.array(value_sparse), shape)
