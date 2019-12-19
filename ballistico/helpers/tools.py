@@ -175,27 +175,3 @@ def allowed_index_qpp(index_q, is_plus, kpts):
     index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
     return index_qpp_full
 
-
-
-def log(*args, **kwargs):
-    level = kwargs.pop('level', 0)
-    errortype = kwargs.pop('errortype', ValueError)
-    is_raising_for_warnings = kwargs.pop('is_raising_for_warnings', False)
-    message = ''
-    for i in range(len(args)):
-        message += (str(args[i]) + ' ')
-
-    if level == 0:
-        level_string = 'info'
-    elif level == 1:
-        level_string = 'warning'
-    else:
-        level_string = 'error'
-    if is_raising_for_warnings:
-        level_to_raise = 1
-    else:
-        level_to_raise = 2
-    if level < level_to_raise:
-        print(level_string.upper(), ' : ' , message)
-    else:
-        raise(errortype(message))

@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-from ballistico.helpers.tools import log
+import logging
 
 
 MAX_ITERATIONS_SC = 200
@@ -106,9 +106,9 @@ def calculate_conductivity_inverse(phonons):
     conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
                                                   velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
     neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
-    log('negative on diagonal : ', neg_diag)
+    logging.info('negative on diagonal : ', neg_diag)
     evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-    log('negative eigenvals : ', (evals < 0).sum())
+    logging.info('negative eigenvals : ', (evals < 0).sum())
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
 
@@ -214,7 +214,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
                 physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
 
     if n_iteration == (MAX_ITERATIONS_SC - 1):
-        log('Convergence not reached')
+        logging.info('Convergence not reached')
     if is_rta:
         return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
     else:
