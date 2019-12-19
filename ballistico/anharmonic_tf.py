@@ -5,6 +5,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
+from ballistico.helpers.tools import log
 import tensorflow as tf
 
 
@@ -40,7 +41,7 @@ class Anharmonic(object):
         rescaled_eigenvectors = self.rescaled_eigenvectors.astype(float)
         # The ps and gamma matrix stores ps, gamma and then the scattering matrix
         ps_and_gamma = np.zeros((self.n_phonons, 2))
-        print('Projection started')
+        log('Projection started')
         evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
     
         coords = self.finite_difference.third_order.coords
@@ -73,9 +74,9 @@ class Anharmonic(object):
             ps_and_gamma[nu_single, 1:] /= self.frequencies.flatten()[nu_single]
     
             THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-            print('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
+            log('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
                       '%')
-            print(self.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
+            log(self.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
     
         return ps_and_gamma
     
@@ -99,13 +100,13 @@ class Anharmonic(object):
             ps_and_gamma = np.zeros((self.n_phonons, 2 + self.n_phonons))
         else:
             ps_and_gamma = np.zeros((self.n_phonons, 2))
-        print('Projection started')
+        log('Projection started')
         second_minus = tf.math.conj(evect_tf)
         second_minus_chi = tf.math.conj(chi_k)
     
         for nu_single in range(self.n_phonons):
             if nu_single % 200 == 0:
-                print('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
+                log('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
                       '%')
             index_k, mu = np.unravel_index(nu_single, (self.n_k_points, self.n_modes), order='C')
     
