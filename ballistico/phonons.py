@@ -106,6 +106,12 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocities(self):
+        """Calculates the velocities using Hellmann-Feynman theorem..
+        Returns
+        -------
+        velocities : np array
+            (n_k_points, n_unit_cell * 3, 3) velocities in 100m/s or A/ps
+        """
         velocities = self.calculate_second_order_observable('velocities')
         return velocities
 
