@@ -521,7 +521,12 @@ class FiniteDifference(object):
         self._replicated_cell_inv = new_replicated_cell_inv
 
 
-    def unfold_third_order(self, distance_threshold):
+    def unfold_third_order(self, distance_threshold=None):
+        if distance_threshold is None:
+            if self.distance_threshold is not None:
+                distance_threshold = self.distance_threshold
+            else:
+                raise ValueError('Please specify a distance threshold in Armstrong')
         third_dl = self.third_order
         n_unit_atoms = self.n_atoms
         atoms = self.atoms
@@ -538,7 +543,6 @@ class FiniteDifference(object):
         values = []
         np.linalg.norm(sxij, axis=-1)
         for index in indices:
-            # logging.info(index)
             for l in range(n_replicas):
                 for j in range(n_unit_atoms):
                     if (np.linalg.norm(
