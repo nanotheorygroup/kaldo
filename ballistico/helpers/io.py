@@ -8,6 +8,7 @@ import pandas as pd
 import ase.units as units
 from ballistico.helpers.tools import count_rows, apply_boundary_with_cell
 from ase import Atoms
+import logging
 
 
 import re
@@ -30,9 +31,9 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     dynamical_matrix = dynamical_matrix_frame.values
     n_replicas = np.prod(supercell)
     if dynamical_matrix.size == n_replicas * (n_atoms * 3) ** 2:
-        dynamical_matrix = dynamical_matrix.reshape(1, n_atoms, 3, n_replicas, n_atoms, 3)
+        dynamical_matrix = dynamical_matrix.reshape((1, n_atoms, 3, n_replicas, n_atoms, 3))
     else:
-        dynamical_matrix = dynamical_matrix.reshape(n_replicas, n_atoms, 3, n_replicas, n_atoms, 3)
+        dynamical_matrix = dynamical_matrix.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))
     return dynamical_matrix * tenjovermoltoev
 
 
@@ -70,8 +71,8 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
                         values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
                         index_in_unit_cell = index_in_unit_cell + 1
             if i % 1000000 == 0:
-                print('reading third order: ', np.round(i / n_rows, 2) * 100, '%')
-    print('read', 3 * i, 'interactions')
+                logging.info('reading third order: ', np.round(i / n_rows, 2) * 100, '%')
+    logging.info('read', 3 * i, 'interactions')
     coords = coords[:index_in_unit_cell].T
     values = values[:index_in_unit_cell]
     sparse_third = COO (coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
@@ -122,14 +123,14 @@ def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, sup
         else:
             second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
 
-        print('Is reduced second: ', is_reduced_second)
+        logging.info('Is reduced second: ', is_reduced_second)
         second_dl = second_dl.reshape(second_shape)
         finite_difference['second_order'] = second_dl
         finite_difference['is_reduced_second'] = is_reduced_second
 
     if third_file:
         try:
-            print('Reading sparse third')
+            logging.info('Reading sparse third')
             third_dl = import_sparse_third(atoms=atoms,
                                            supercell=supercell,
                                            filename=third_file,
@@ -138,7 +139,7 @@ def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, sup
         except UnicodeDecodeError:
             if third_energy_threshold != 0:
                 raise ValueError('Third threshold not supported for dense third')
-            print('Trying reading binary third')
+            logging.info('Trying reading binary third')
             third_dl = import_dense_third(atoms, supercell=supercell, filename=third_file)
         third_dl = third_dl[:n_unit_atoms]
         third_shape = (
