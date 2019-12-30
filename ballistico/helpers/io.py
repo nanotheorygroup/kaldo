@@ -37,7 +37,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     return dynamical_matrix * tenjovermoltoev
 
 
-def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0., distance_threshold=None, replicated_cell_inv=None):
+def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0., distance_threshold=None):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]
@@ -47,22 +47,37 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
     coords = np.zeros((array_size, 6), dtype=np.int16)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
+
+    # Create list of index
+    replicated_cell = replicated_atoms.cell
+    replicated_cell_inv = np.linalg.inv(replicated_cell)
+    replicated_atoms_positions = replicated_atoms.positions.reshape(
+        (n_replicas, n_atoms, 3)) - atoms.positions[np.newaxis, :, :]
+    replicated_atoms_positions = apply_boundary_with_cell(replicated_atoms_positions, replicated_cell,
+                                                          replicated_cell_inv)
+    list_of_replicas = replicated_atoms_positions[:, 0, :]
+
+
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
             coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
             values_to_write = np.array(l_split[-3:], dtype=np.float)
+            #TODO: add 'if' third_energy_threshold before calculating the mask
             mask_to_write = np.abs(values_to_write) > third_energy_threshold
             if mask_to_write.any() and coords_to_write[0] < n_atoms:
                 iat = coords_to_write[0]
                 jat = coords_to_write[2]
+                kat = coords_to_write[4]
                 is_storing = False
                 if (distance_threshold is None):
                     is_storing = True
                 else:
-                    dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
-                    dxij = apply_boundary_with_cell(dxij, replicated_atoms.cell, replicated_cell_inv)
-                    if (np.linalg.norm(dxij) <= distance_threshold):
+
+                    l, jsmall = np.unravel_index(jat, (n_replicas, n_atoms))
+                    dxij = atoms.positions[iat] - (list_of_replicas[l] + atoms.positions[jsmall])
+                    is_interacting = (np.linalg.norm(dxij) <= distance_threshold)
+                    if is_interacting:
                         is_storing = True
                 if is_storing:
                     for alpha in np.arange(3)[mask_to_write]:

@@ -8,7 +8,7 @@ from sklearn.neighbors.kde import KernelDensity
 import numpy as np
 from scipy import ndimage
 from ballistico.helpers.tools import convert_to_spg_structure
-from ase.dft.kpoints import BandPath
+
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
 
