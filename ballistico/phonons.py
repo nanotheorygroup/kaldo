@@ -350,12 +350,13 @@ class Phonons:
                 tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)).astype(np.complex)
         else:
             raise ValueError('observable not recognized')
-    
+
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
             hsq = HarmonicSingleQ(qvec=qvec,
                                   finite_difference=self.finite_difference,
-                                  frequency_threshold=self.frequency_threshold
+                                  frequency_threshold=self.frequency_threshold,
+                                  is_amorphous=self._is_amorphous
                                   )
             if observable == 'frequencies':
                 tensor[index_k] = hsq.calculate_frequencies()

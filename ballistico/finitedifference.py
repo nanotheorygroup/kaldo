@@ -116,6 +116,8 @@ class FiniteDifference(object):
             matrix for the elementary unit cell
         is_optimizing:boolean
             boolean flag to instruct if initial input atom geometry be optimized
+        distance_threshold: float
+            the maximum distance between two interacting atoms
         """
 
         # Store the user defined information to the object
@@ -177,10 +179,8 @@ class FiniteDifference(object):
 
     @classmethod
     def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
-        if (format != 'eskm') & ((third_energy_threshold != 0.) | (distance_threshold is not None)):
-            raise ValueError('third_energy_threshold and distance_threshold are not supported by %s format' %(format))
         if format == 'numpy':
-            fd = cls.__from_numpy(folder, supercell)
+            fd = cls.__from_numpy(folder, supercell, distance_threshold=distance_threshold)
         elif format == 'eskm':
             fd = cls.__from_eskm(folder, supercell,
                           third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
@@ -239,8 +239,7 @@ class FiniteDifference(object):
                                                   filename=third_file,
                                                   third_energy_threshold=third_energy_threshold,
                                                   distance_threshold=distance_threshold,
-                                                  replicated_atoms=fd.replicated_atoms,
-                                                  replicated_cell_inv=fd.replicated_cell_inv)
+                                                  replicated_atoms=fd.replicated_atoms)
             except UnicodeDecodeError:
                 if third_energy_threshold != 0:
                     raise ValueError('Third threshold not supported for dense third')
@@ -256,7 +255,7 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def __from_numpy(cls, folder, supercell=(1, 1, 1)):
+    def __from_numpy(cls, folder, supercell=(1, 1, 1), distance_threshold=None):
         if folder[-1] != '/':
             folder = folder + '/'
         config_file = folder + REPLICATED_ATOMS_FILE
@@ -275,6 +274,8 @@ class FiniteDifference(object):
             .reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
         fd.second_order = second_order
         fd.third_order = third_order
+        if distance_threshold is not None:
+            fd.third_order = fd.prune_sparse_third_with_distance_threshold(distance_threshold)
         return fd
 
 
@@ -299,7 +300,6 @@ class FiniteDifference(object):
             config_file = folder + '/' + 'POSCAR'
             logging.info(err, 'Trying to open POSCAR')
             atoms = ase.io.read(config_file)
-
         # Create a finite difference object
         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
         second_order, is_reduced_second, third_order = shengbte_io.import_second_and_third_from_sheng(finite_difference)
@@ -307,6 +307,24 @@ class FiniteDifference(object):
         finite_difference.third_order = third_order
         finite_difference.is_reduced_second = is_reduced_second
         return finite_difference
+
+
+    @property
+    def atoms(self):
+        """Atoms object in ase format"""
+        return self._atoms
+
+
+    @atoms.getter
+    def atoms(self):
+        return self._atoms
+
+
+    @atoms.setter
+    def atoms(self, new_atoms):
+        new_atoms.positions = new_atoms.positions - new_atoms.positions.min(axis=0)
+        new_atoms.positions = new_atoms.positions - new_atoms.cell.diagonal() / 2
+        self._atoms = new_atoms
 
 
     @property
@@ -506,7 +524,7 @@ class FiniteDifference(object):
 
     @property
     def replicated_cell_inv(self):
-        return self._list_of_replicas
+        return self._replicated_cell_inv
 
 
     @replicated_cell_inv.getter
@@ -521,45 +539,6 @@ class FiniteDifference(object):
         self._replicated_cell_inv = new_replicated_cell_inv
 
 
-    def unfold_third_order(self, distance_threshold=None):
-        if distance_threshold is None:
-            if self.distance_threshold is not None:
-                distance_threshold = self.distance_threshold
-            else:
-                raise ValueError('Please specify a distance threshold in Armstrong')
-        third_dl = self.third_order
-        n_unit_atoms = self.n_atoms
-        atoms = self.atoms
-        n_replicas = self.n_replicas
-        third_matrix = third_dl.reshape(
-            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-        replicated_positions = self.replicated_atoms.positions.reshape(
-            (n_replicas, n_unit_atoms, 3))
-        dxij = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
-        indices = np.argwhere(np.linalg.norm(dxij, axis=3) < distance_threshold)
-        sxij = replicated_positions[:, :, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, np.newaxis, :,
-                                                                       :, :]
-        coords = []
-        values = []
-        np.linalg.norm(sxij, axis=-1)
-        for index in indices:
-            for l in range(n_replicas):
-                for j in range(n_unit_atoms):
-                    if (np.linalg.norm(
-                            replicated_positions[0, index[0]] - replicated_positions[l, j]) < distance_threshold) \
-                            & (np.linalg.norm(
-                        replicated_positions[index[1], index[2]] - replicated_positions[l, j]) < distance_threshold):
-                        for alpha in range(3):
-                            for beta in range(3):
-                                for gamma in range(3):
-                                    coords.append([index[0], alpha, index[1], index[2], beta, l, j, gamma])
-                                    values.append(third_matrix[index[0], alpha, 0, index[2], beta, 0, j, gamma])
-
-        shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
-        expanded_third = COO(np.array(coords).T, np.array(values), shape)
-        self.third_order = expanded_third
-
-
     def calculate_list_of_replicas(self):
         n_replicas = self.n_replicas
         n_unit_atoms = self.atoms.positions.shape[0]
@@ -567,11 +546,10 @@ class FiniteDifference(object):
         replicated_atoms = self.replicated_atoms
         replicated_cell = replicated_atoms.cell
         replicated_cell_inv = np.linalg.inv(replicated_cell)
-        replicated_atoms_positions = apply_boundary_with_cell(replicated_atoms.positions, replicated_cell, replicated_cell_inv)
-        list_of_replicas = (
-                replicated_atoms_positions.reshape((n_replicas, n_unit_atoms, 3)) -
-                self.atoms.positions[np.newaxis, :, :])
-        return list_of_replicas[:, 0, :]
+        replica_positions = replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3)) - self.atoms.positions[np.newaxis, :, :]
+        replica_positions = apply_boundary_with_cell(replica_positions, replicated_cell, replicated_cell_inv)
+        list_of_replicas = replica_positions[:, 0, :]
+        return list_of_replicas
 
 
     def gen_supercell(self):
@@ -836,12 +814,10 @@ class FiniteDifference(object):
     def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-20):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        # TODO: Here we should create it sparse
         n_in_unit_cell = len(atoms.numbers)
         replicated_atoms = replicated_atoms
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        dx = self.third_order_delta
-        replicated_cell = np.linalg.inv(replicated_atoms.cell)
+
         # Compute third order force constant matrices by using the central
         # difference formula for the approximation for third order derivatives
         i_at_sparse = []
@@ -856,9 +832,9 @@ class FiniteDifference(object):
         for iat in range(n_in_unit_cell):
             for jat in range(n_supercell * n_in_unit_cell):
                 is_computing = True
+                m, j_small = np.unravel_index(jat, (n_supercell, n_in_unit_cell))
                 if (distance_threshold is not None):
-                    dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
-                    dxij = apply_boundary_with_cell(dxij, replicated_atoms.cell, replicated_cell)
+                    dxij = atoms.positions[iat] - (self.list_of_replicas[m] + atoms.positions[j_small])
                     if (np.linalg.norm(dxij) > distance_threshold):
                         is_computing = False
                         n_forces_skipped += 9
@@ -898,7 +874,6 @@ class FiniteDifference(object):
         replicated_atoms = self.replicated_atoms
         dx = self.third_order_delta
         n_in_unit_cell = len(atoms.numbers)
-        replicated_atoms = replicated_atoms
         n_replicated_atoms = len(replicated_atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
@@ -912,7 +887,7 @@ class FiniteDifference(object):
                 delta = np.zeros(3)
                 delta[jcoord] = jsign * dx
                 shift_2[jat, :] += delta
-                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2, dx)
+                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2)
         return phi_partial / (4. * dx * dx)
 
 
@@ -933,11 +908,11 @@ class FiniteDifference(object):
                 shift_1 = sign_1 * dx * (evect[k_0, :, m_0] * chi[k_0, 0]).reshape((1, n_in_unit_cell, 3))
                 shift_2 = sign_2 * dx * (np.conj(evect[np.newaxis, k_2, :, m_2]) * np.conj(chi[k_2, :, np.newaxis])).reshape((self.n_replicas, n_in_unit_cell, 3))
                 shift = (shift_1 + shift_2).reshape((n_replicated_atoms, 3))
-                phi_partial += sign_1 * sign_2 * self.calculate_single_third_with_shift(shift, dx)
+                phi_partial += sign_1 * sign_2 * self.calculate_single_third_with_shift(shift)
         return phi_partial / (4. * dx * dx)
 
 
-    def calculate_single_third_with_shift(self, shift, dx):
+    def calculate_single_third_with_shift(self, shift):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         n_in_unit_cell = len(atoms.numbers)
@@ -964,3 +939,76 @@ class FiniteDifference(object):
         dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
         dynmat *= EVTOTENJOVERMOL
         return dynmat
+
+
+    def prune_sparse_third_with_distance_threshold(self, distance_threshold):
+        n_replicated_atoms = self.n_atoms * self.n_replicas
+        shape = (self.n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+        reshaped_third = self.third_order.reshape(shape)
+        coords = reshaped_third.coords
+        atoms = self.atoms
+        data = reshaped_third.data
+        c2_m, c2_at = np.unravel_index(coords[2], (self.n_replicas, self.n_atoms))
+        dxij = atoms.positions[coords[0]] - (self.list_of_replicas[c2_m] + atoms.positions[c2_at])
+        mask = (np.linalg.norm(dxij, axis=1) < distance_threshold)
+        coords = np.vstack(
+            [coords[0][mask], coords[1][mask], coords[2][mask], coords[3][mask], coords[4][mask], coords[5][mask]])
+        data = data[mask]
+        shape = (self.n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+        third_order = COO(coords, data, shape)
+        return third_order.reshape((self.n_atoms * 3, n_replicated_atoms * 3, n_replicated_atoms * 3))
+
+
+    def unfold_third_order(self, reduced_third=None, distance_threshold=None, with_pruned_original=False):
+        if distance_threshold is None:
+            if self.distance_threshold is not None:
+                distance_threshold = self.distance_threshold
+            else:
+                raise ValueError('Please specify a distance threshold in Armstrong')
+        if reduced_third is None:
+            reduced_third = self.third_order
+        n_unit_atoms = self.n_atoms
+        atoms = self.atoms
+        n_replicas = self.n_replicas
+        reduced_third = reduced_third.reshape(
+            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+        replicated_positions = self.list_of_replicas[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
+        dxij = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
+        dxij_full = replicated_positions[:, :, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, np.newaxis, :, :, :]
+        indices = np.argwhere(np.linalg.norm(dxij, axis=-1) < distance_threshold)
+        full_third = self.third_order.reshape(
+            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+        coords = []
+        values = []
+        if with_pruned_original:
+            values_original = []
+        for index in indices:
+            for j in range(n_unit_atoms):
+                for l in range(n_replicas):
+                    dx2 = dxij[index[0], l, j]
+                    is_storing = (np.linalg.norm(dx2) < distance_threshold)
+                    dx3 = dxij_full[index[1], index[2], l, j]
+                    is_storing *= (np.linalg.norm(dx3) < distance_threshold)
+                    if is_storing:
+
+                        for alpha in range(3):
+                            for beta in range(3):
+                                for gamma in range(3):
+                                    coords.append([index[0], alpha, index[1], index[2], beta, l, j, gamma])
+                                    values.append(reduced_third[index[0], alpha, 0, index[2], beta, 0, j, gamma])
+                                    if with_pruned_original:
+                                        values_original.append(
+                                            full_third[index[0], alpha, index[1], index[2], beta, l, j, gamma])
+
+        print('Created unfolded third order')
+
+        shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+        expanded_third = COO(np.array(coords).T, np.array(values), shape)
+        expanded_third = expanded_third.reshape(
+            (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+        if with_pruned_original:
+            pruned_third = COO(np.array(coords).T, np.array(values_original), shape)
+            pruned_third = pruned_third.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            return expanded_third, pruned_third
+        else:
+            return expanded_third

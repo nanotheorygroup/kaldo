@@ -10,15 +10,18 @@ class HarmonicSingleQ:
         self.qvec = kwargs.pop('qvec', (0, 0, 0))
         self.qvec = apply_boundary_with_cell(self.qvec)
         self.frequency_threshold = kwargs.pop('frequency_threshold')
+        self.is_amorphous = kwargs.pop('is_amorphous')
         finite_difference = kwargs.pop('finite_difference')
         self.dynmat = finite_difference.dynmat
         self.positions = finite_difference.atoms.positions
+        self.replicated_atoms = finite_difference.replicated_atoms
         self.replicated_cell = finite_difference.replicated_atoms.cell
         self.replicated_cell_inv = finite_difference.replicated_cell_inv
         self.cell_inv = finite_difference.cell_inv
         self.list_of_replicas = finite_difference.list_of_replicas
         self.n_atoms = finite_difference.n_atoms
         self.n_modes = self.n_atoms * 3
+        self.n_replicas = finite_difference.n_replicas
 
         self._is_at_gamma = (self.qvec == (0, 0, 0)).all()
 
@@ -51,7 +54,7 @@ class HarmonicSingleQ:
     def calculate_dynmat_derivatives(self):
         dynmat = self.dynmat
         positions = self.positions
-        if self._is_at_gamma:
+        if self.is_amorphous:
             dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             dxij = apply_boundary_with_cell(dxij, self.replicated_cell, self.replicated_cell_inv)
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
