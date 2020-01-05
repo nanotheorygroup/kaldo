@@ -74,9 +74,8 @@ class Anharmonic(object):
             ps_and_gamma[nu_single, 1:] /= self.frequencies.flatten()[nu_single]
     
             THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-            logging.info('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
-                      '%')
-            logging.info(self.frequencies[0, nu_single], ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi))
+            logging.info('calculating third ' + str(nu_single) + ': ', str(np.round(nu_single / self.n_phonons, 2) * 100) + '%')
+            logging.info(str(self.frequencies[0, nu_single]) + ': ' + str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
     
         return ps_and_gamma
     
@@ -106,8 +105,7 @@ class Anharmonic(object):
     
         for nu_single in range(self.n_phonons):
             if nu_single % 200 == 0:
-                logging.info('calculating third', nu_single, np.round(nu_single / self.n_phonons, 2) * 100,
-                      '%')
+                logging.info('calculating third ' + str(nu_single) +  ', ' + str(np.round(nu_single / self.n_phonons, 2) * 100) + '%')
             index_k, mu = np.unravel_index(nu_single, (self.n_k_points, self.n_modes), order='C')
     
             third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])

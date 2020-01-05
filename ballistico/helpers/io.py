@@ -86,8 +86,8 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
                         values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
                         index_in_unit_cell = index_in_unit_cell + 1
             if i % 1000000 == 0:
-                logging.info('reading third order: ', np.round(i / n_rows, 2) * 100, '%')
-    logging.info('read', 3 * i, 'interactions')
+                logging.info('reading third order: ' + str(np.round(i / n_rows, 2) * 100) + '%')
+    logging.info('read ' + str(3 * i) + ' interactions')
     coords = coords[:index_in_unit_cell].T
     values = values[:index_in_unit_cell]
     sparse_third = COO (coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
@@ -138,7 +138,7 @@ def import_from_files(atoms, dynmat_file=None, third_file=None, folder=None, sup
         else:
             second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
 
-        logging.info('Is reduced second: ', is_reduced_second)
+        logging.info('Is reduced second: ' + str(is_reduced_second))
         second_dl = second_dl.reshape(second_shape)
         finite_difference['second_order'] = second_dl
         finite_difference['is_reduced_second'] = is_reduced_second
