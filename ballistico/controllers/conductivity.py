@@ -107,9 +107,9 @@ def calculate_conductivity_inverse(phonons):
     conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
                                                   velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
     neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
-    logging.info('negative on diagonal : ', neg_diag)
+    logging.info('negative on diagonal : ' + str(neg_diag))
     evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-    logging.info('negative eigenvals : ', (evals < 0).sum())
+    logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
@@ -136,9 +136,9 @@ def calculate_conductivity_with_evects(phonons):
     conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
                                                   velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
     neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
-    logging.info('negative on diagonal : ', neg_diag)
+    logging.info('negative on diagonal : ' + str(neg_diag))
     evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-    logging.info('negative eigenvals : ', (evals < 0).sum())
+    logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 

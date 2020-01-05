@@ -42,7 +42,7 @@ def calculate_symmetrize_dynmat(finite_difference):
     if not finite_difference.is_reduced_second:
         second_transpose = finite_difference.second_order.transpose((3, 4, 5, 0, 1, 2))
         delta_symm = np.sum(np.abs(finite_difference.second_order - second_transpose))
-        logging.info('asymmetry of dynmat', delta_symm)
+        logging.info('asymmetry of dynmat: ' + str(delta_symm))
         finite_difference.second_order = 0.5 * (finite_difference.second_order + second_transpose)
     else:
         logging.info('cannot symmetrize a reduced dynamical matrix')
@@ -62,7 +62,7 @@ def calculate_acoustic_dynmat(finite_difference):
                     offdiagsum += dynmat[m, i, :, n, j, :]
             dynmat[m, i, :, m, i, :] -= offdiagsum
             sumrulecorr += np.sum(offdiagsum)
-    logging.info('error sum rule', sumrulecorr)
+    logging.info('error sum rule: ' + str(sumrulecorr))
     finite_difference.second_order = dynmat
     return finite_difference
 
@@ -226,7 +226,7 @@ class FiniteDifference(object):
             else:
                 second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
 
-            logging.info('Is reduced second: ', is_reduced_second)
+            logging.info('Is reduced second: ' + str(is_reduced_second))
             second_dl = second_dl.reshape(second_shape)
             fd.second_order = second_dl
             fd.is_reduced_second = is_reduced_second
@@ -298,7 +298,7 @@ class FiniteDifference(object):
             atoms, supercell = shengbte_io.import_control_file(config_file)
         except FileNotFoundError as err:
             config_file = folder + '/' + 'POSCAR'
-            logging.info(err, 'Trying to open POSCAR')
+            logging.info(str(err) + '\nTrying to open POSCAR')
             atoms = ase.io.read(config_file)
         # Create a finite difference object
         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
@@ -788,7 +788,7 @@ class FiniteDifference(object):
                     mesh_index_sparse.append(mesh_index_counter)
                     value_sparse.append(value[k])
             if (mesh_index_counter % 500) == 0:
-                logging.info('Calculate third ', mesh_index_counter / n_tot_phonons * 100, '%')
+                logging.info('Calculate third ' + str(mesh_index_counter / n_tot_phonons * 100) + '%')
 
         # TODO: remove this file.close and use with file instead
         file.close()
@@ -855,11 +855,11 @@ class FiniteDifference(object):
                                     value_sparse.append(value[k])
                     n_forces_done += 9
                 if (n_forces_done + n_forces_skipped % 300) == 0:
-                    logging.info('Calculate third derivatives', int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100), '%')
+                    logging.info('Calculate third derivatives ' + str(int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
 
-        logging.info('total forces to calculate :', n_forces_to_calculate)
-        logging.info('forces calculated :', n_forces_done)
-        logging.info('forces skipped (outside distance threshold) :', n_forces_skipped)
+        logging.info('total forces to calculate : ' + str(n_forces_to_calculate))
+        logging.info('forces calculated : ' + str(n_forces_done))
+        logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
         coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
         shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
         phifull = COO(coords, np.array(value_sparse), shape)
