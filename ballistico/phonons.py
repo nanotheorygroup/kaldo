@@ -17,7 +17,6 @@ EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
 DELTA_DOS = 1
 NUM_DOS = 100
-FREQUENCY_THRESHOLD = 0.
 FOLDER_NAME = 'ald-output'
 
 
@@ -37,8 +36,10 @@ class Phonons:
             specifies where to store the data files. Default is `output`.
         kpts (optional) : (3) tuple
             defines the number of k points to use to create the k mesh. Default is [1, 1, 1].
-        frequency_threshold (optional) : float
-            ignores all phonons with frequency below `frequency_threshold` THz, Default is 0.001.
+        min_frequency (optional) : float
+            ignores all phonons with frequency below `min_frequency` THz, Default is None..
+        max_frequency (optional) : float
+            ignores all phonons with frequency above `max_frequency` THz, Default is None.
         sigma_in (optional) : float or None
             defines the width of the energy conservation smearing in the phonons scattering calculation.
             If `None` the width is calculated dynamically. Otherwise the input value corresponds to the
@@ -55,38 +56,20 @@ class Phonons:
             An instance of the `Phonons` class.
 
         """
-        self.finite_difference = kwargs['finite_difference']
-        self.is_classic = bool(kwargs['is_classic'])
+        self.finite_difference = kwargs.pop('finite_difference')
+        if 'is_classic' in kwargs:
+            self.is_classic = bool(kwargs['is_classic'])
         if 'temperature' in kwargs:
             self.temperature = float(kwargs['temperature'])
-        if 'folder' in kwargs:
-            self.folder = kwargs['folder']
-        else:
-            self.folder = FOLDER_NAME
-        if 'kpts' in kwargs:
-            self.kpts = np.array(kwargs['kpts'])
-        else:
-            self.kpts = np.array([1, 1, 1])
-        if 'frequency_threshold' in kwargs:
-            self.frequency_threshold = kwargs['frequency_threshold']
-        else:
-            self.frequency_threshold = FREQUENCY_THRESHOLD
-        if 'sigma_in' in kwargs:
-            self.sigma_in = kwargs['sigma_in']
-        else:
-            self.sigma_in = None
-        if 'broadening_shape' in kwargs:
-            self.broadening_shape = kwargs['broadening_shape']
-        else:
-            self.broadening_shape = 'gauss'
-        if 'is_tf_backend' in kwargs:
-            self.is_tf_backend = kwargs['is_tf_backend']
-        else:
-            self.is_tf_backend = False
-        if 'is_nw' in kwargs:
-            self.is_nw = kwargs['is_nw']
-        else:
-            self.is_nw = False
+        self.folder = kwargs.pop('folder', FOLDER_NAME)
+        self.kpts = kwargs.pop('kpts', (1, 1, 1))
+        self.kpts = np.array(self.kpts)
+        self.min_frequency = kwargs.pop('min_frequency', None)
+        self.max_frequency = kwargs.pop('max_frequency', None)
+        self.sigma_in = kwargs.pop('sigma_in', None)
+        self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
+        self.is_tf_backend = kwargs.pop('is_tf_backend', False)
+        self.is_nw = kwargs.pop('is_nw', False)
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -211,7 +194,11 @@ class Phonons:
 
     @lazy_property(is_storing=False, is_reduced_path=True)
     def _physical_modes(self):
-        physical_modes = (self.frequencies.reshape(self.n_phonons) > self.frequency_threshold)
+        physical_modes = np.ones_like(self.frequencies.reshape(self.n_phonons), dtype=bool)
+        if self.min_frequency is not None:
+            physical_modes = physical_modes & (self.frequencies.reshape(self.n_phonons) > self.min_frequency)
+        if self.max_frequency is not None:
+            physical_modes = physical_modes & (self.frequencies.reshape(self.n_phonons) < self.max_frequency)
         if self.is_nw:
             physical_modes[:4] = False
         else:
@@ -355,7 +342,8 @@ class Phonons:
             qvec = q_points[index_k]
             hsq = HarmonicSingleQ(qvec=qvec,
                                   finite_difference=self.finite_difference,
-                                  frequency_threshold=self.frequency_threshold,
+                                  min_frequency=self.min_frequency,
+                                  max_frequency=self.max_frequency,
                                   is_amorphous=self._is_amorphous
                                   )
             if observable == 'frequencies':
