@@ -9,7 +9,8 @@ class HarmonicSingleQ:
     def __init__(self, **kwargs):
         self.qvec = kwargs.pop('qvec', (0, 0, 0))
         self.qvec = apply_boundary_with_cell(self.qvec)
-        self.frequency_threshold = kwargs.pop('frequency_threshold')
+        self.min_frequency = kwargs.pop('min_frequency')
+        self.max_frequency = kwargs.pop('max_frequency')
         self.is_amorphous = kwargs.pop('is_amorphous')
         finite_difference = kwargs.pop('finite_difference')
         self.dynmat = finite_difference.dynmat
@@ -77,7 +78,11 @@ class HarmonicSingleQ:
         dynmat_derivatives = self.calculate_dynmat_derivatives()
         frequencies = self.calculate_frequencies()
         eigenvects = self.calculate_eigensystem()[1:, :]
-        physical_modes = frequencies > self.frequency_threshold
+        physical_modes = np.ones_like(frequencies, dtype=bool)
+        if self.min_frequency is not None:
+            physical_modes = physical_modes & (frequencies > self.min_frequency)
+        if self.max_frequency is not None:
+            physical_modes = physical_modes & (frequencies < self.max_frequency)
         if self._is_at_gamma:
             physical_modes[:self._first_physical_index] = False
 

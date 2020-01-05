@@ -916,7 +916,6 @@ class FiniteDifference(object):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         n_in_unit_cell = len(atoms.numbers)
-        replicated_atoms = replicated_atoms
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
         phi_partial[:] = (-1. * self.gradient(replicated_atoms.positions + shift, replicated_atoms))
