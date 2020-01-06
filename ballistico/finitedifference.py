@@ -20,7 +20,7 @@ import logging
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
-DELTA_SHIFT = 1e-4
+DELTA_SHIFT = 1e-5
 
 # Tolerance for symmetry search
 SYMPREC_THIRD_ORDER = 1e-5
@@ -129,14 +129,13 @@ class FiniteDifference(object):
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
         self.calculator = calculator
         self.cell_inv = np.linalg.inv(self.atoms.cell)
-
+        self.second_order_delta = delta_shift
+        self.third_order_delta = delta_shift
         if calculator:
             if calculator_inputs:
                 calculator_inputs['keep_alive'] = True
                 self.calculator_inputs = calculator_inputs
             self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
-            self.second_order_delta = delta_shift
-            self.third_order_delta = delta_shift
             if third_order_symmerty_inputs is not None:
                 self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
                 for k, v in third_order_symmerty_inputs.items():
@@ -167,8 +166,8 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_files(cls, atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
-        fd = cls.import_from_files(atoms, dynmat_file, third_file, folder, supercell, third_energy_threshold, distance_threshold)
+    def from_files(cls, replicated_atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
+        fd = cls.import_from_files(replicated_atoms, dynmat_file, third_file, folder, supercell, third_energy_threshold, distance_threshold)
         if is_symmetrizing:
             fd = calculate_symmetrize_dynmat(fd)
         if is_acoustic_sum:
@@ -869,25 +868,21 @@ class FiniteDifference(object):
         return phifull
 
 
-    def calculate_single_third(self, iat, icoord, jat, jcoord):
+    def calculate_single_third(self, iat, icoord, jat, jcoord, dx=None):
+        if dx is None:
+            dx = self.third_order_delta
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        dx = self.third_order_delta
         n_in_unit_cell = len(atoms.numbers)
         n_replicated_atoms = len(replicated_atoms.numbers)
         n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
         phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
         for isign in (1, -1):
-            shift_1 = np.zeros((n_replicated_atoms, 3))
-            delta = np.zeros(3)
-            delta[icoord] = isign * dx
-            shift_1[iat, :] += delta
             for jsign in (1, -1):
-                shift_2 = np.zeros((n_replicated_atoms, 3))
-                delta = np.zeros(3)
-                delta[jcoord] = jsign * dx
-                shift_2[jat, :] += delta
-                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift_1 + shift_2)
+                shift = np.zeros((n_replicated_atoms, 3))
+                shift[iat, icoord] += isign * dx
+                shift[jat, jcoord] += jsign * dx
+                phi_partial[:] += isign * jsign * self.calculate_single_third_with_shift(shift)
         return phi_partial / (4. * dx * dx)
 
 
@@ -982,8 +977,8 @@ class FiniteDifference(object):
         if with_pruned_original:
             values_original = []
         for index in indices:
-            for j in range(n_unit_atoms):
-                for l in range(n_replicas):
+            for l in range(n_replicas):
+                for j in range(n_unit_atoms):
                     dx2 = dxij[index[0], l, j]
                     is_storing = (np.linalg.norm(dx2) < distance_threshold)
                     dx3 = dxij_full[index[1], index[2], l, j]
