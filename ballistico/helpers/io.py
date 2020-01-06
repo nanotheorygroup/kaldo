@@ -68,7 +68,6 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
             if mask_to_write.any() and coords_to_write[0] < n_atoms:
                 iat = coords_to_write[0]
                 jat = coords_to_write[2]
-                kat = coords_to_write[4]
                 is_storing = False
                 if (distance_threshold is None):
                     is_storing = True
