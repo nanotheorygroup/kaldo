@@ -959,6 +959,10 @@ class FiniteDifference(object):
                 distance_threshold = self.distance_threshold
             else:
                 raise ValueError('Please specify a distance threshold in Armstrong')
+        if (self.atoms.cell[0, 0] / 2 < distance_threshold) | \
+                (self.atoms.cell[1, 1] / 2 < distance_threshold) | \
+                (self.atoms.cell[2, 2] / 2 < distance_threshold):
+            logging.warning('The cell size should be at least twice the distance threshold')
         if reduced_third is None:
             reduced_third = self.third_order
         n_unit_atoms = self.n_atoms
