@@ -598,6 +598,7 @@ class FiniteDifference(object):
         atoms = input_atoms.copy()
         input_atoms.positions = np.reshape(x, (int(x.size / 3.), 3), order='C')
         # Force is the negative of the gradient
+
         gr = -1. * input_atoms.get_forces()
         grad = np.reshape(gr, gr.size, order='C')
         input_atoms.positions = atoms.positions
@@ -677,6 +678,9 @@ class FiniteDifference(object):
             phifull = self.calculate_single_third_with_symmetry()
         else:
             phifull = self.calculate_single_third_without_symmetry(distance_threshold=distance_threshold)
+        if distance_threshold:
+            phifull = self.prune_sparse_third_with_distance_threshold(phifull)
+        self.distance_threshold = distance_threshold
         return phifull
 
 
@@ -841,17 +845,17 @@ class FiniteDifference(object):
                     for icoord in range(3):
                         for jcoord in range(3):
                             value = self.calculate_single_third(iat, icoord, jat, jcoord)
-
-                            if (np.abs(value) > third_derivative_threshold).any():
-                                for k in np.argwhere(np.abs(value) > third_derivative_threshold):
-                                    k = k[0]
+                            mask = np.argwhere(np.abs(value) > third_derivative_threshold)
+                            if mask.any():
+                                for id in mask:
+                                    id = id[0]
 
                                     i_at_sparse.append(iat)
                                     i_coord_sparse.append(icoord)
                                     jat_sparse.append(jat)
                                     j_coord_sparse.append(jcoord)
-                                    k_sparse.append(k)
-                                    value_sparse.append(value[k])
+                                    k_sparse.append(id)
+                                    value_sparse.append(value[id])
                     n_forces_done += 9
                 if (n_forces_done + n_forces_skipped % 300) == 0:
                     logging.info('Calculate third derivatives ' + str(int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
@@ -862,9 +866,7 @@ class FiniteDifference(object):
         coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
         shape = (n_in_unit_cell, 3, n_supercell * n_in_unit_cell, 3, n_supercell * n_in_unit_cell * 3)
         phifull = COO(coords, np.array(value_sparse), shape)
-        phifull = phifull
         phifull = phifull.reshape((self.n_atoms * 3, self.n_replicas * self.n_atoms * 3, self.n_replicas * self.n_atoms * 3))
-
         return phifull
 
 
@@ -935,19 +937,31 @@ class FiniteDifference(object):
         return dynmat
 
 
-    def prune_sparse_third_with_distance_threshold(self, distance_threshold):
+    def prune_sparse_third_with_distance_threshold(self, third_order=None, distance_threshold=None):
+        if third_order is None:
+            third_order = self.third_order
+        if distance_threshold is None:
+            distance_threshold = self.distance_threshold
         n_replicated_atoms = self.n_atoms * self.n_replicas
         shape = (self.n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
-        reshaped_third = self.third_order.reshape(shape)
-        coords = reshaped_third.coords
+        third_order = third_order.reshape(shape)
+        coords = third_order.coords
         atoms = self.atoms
-        data = reshaped_third.data
         c2_m, c2_at = np.unravel_index(coords[2], (self.n_replicas, self.n_atoms))
         dxij = atoms.positions[coords[0]] - (self.list_of_replicas[c2_m] + atoms.positions[c2_at])
         mask = (np.linalg.norm(dxij, axis=1) < distance_threshold)
+
+        c4_m, c4_at = np.unravel_index(coords[4], (self.n_replicas, self.n_atoms))
+        dxij = self.list_of_replicas[c2_m] + atoms.positions[c2_at] - (
+                    self.list_of_replicas[c4_m] + atoms.positions[c4_at])
+        mask *= (np.linalg.norm(dxij, axis=1) < distance_threshold)
+
+        dxij = (self.list_of_replicas[c4_m] + atoms.positions[c4_at]) - atoms.positions[coords[0]]
+        mask *= (np.linalg.norm(dxij, axis=1) < distance_threshold)
+
         coords = np.vstack(
             [coords[0][mask], coords[1][mask], coords[2][mask], coords[3][mask], coords[4][mask], coords[5][mask]])
-        data = data[mask]
+        data = third_order.data[mask]
         shape = (self.n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
         third_order = COO(coords, data, shape)
         return third_order.reshape((self.n_atoms * 3, n_replicated_atoms * 3, n_replicated_atoms * 3))
@@ -988,7 +1002,6 @@ class FiniteDifference(object):
                     dx3 = dxij_full[index[1], index[2], l, j]
                     is_storing *= (np.linalg.norm(dx3) < distance_threshold)
                     if is_storing:
-
                         for alpha in range(3):
                             for beta in range(3):
                                 for gamma in range(3):
