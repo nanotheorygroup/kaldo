@@ -15,6 +15,8 @@ from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
 import ase.units as units
 import h5py
 import logging
+import ase.units as units
+tenjovermoltoev = 10 * units.J / units.mol
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
@@ -1023,3 +1025,28 @@ class FiniteDifference(object):
             return expanded_third, pruned_third
         else:
             return expanded_third
+
+
+    def export_third_eskm(self, out_filename='THIRD', min_force=1e-6):
+        n_atoms = self.n_atoms
+        n_replicas = self.n_replicas
+        n_replicated_atoms = n_atoms * n_replicas
+        third = self.third_order.reshape((n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)) / tenjovermoltoev
+        with open(out_filename, 'w') as out_file:
+            for i in range(n_atoms):
+                for alpha in range(3):
+                    for j in range(n_replicated_atoms):
+                        for beta in range(3):
+                            value = third[i, alpha, j, beta].todense()
+                            mask = np.argwhere(np.linalg.norm(value, axis=1) > min_force)
+                            if mask.any():
+                                for k in mask:
+                                    k = k[0]
+                                    out_file.write("{:5d} ".format(i + 1))
+                                    out_file.write("{:5d} ".format(alpha + 1))
+                                    out_file.write("{:5d} ".format(j + 1))
+                                    out_file.write("{:5d} ".format(beta + 1))
+                                    out_file.write("{:5d} ".format(k + 1))
+                                    for gamma in range(3):
+                                        out_file.write(' {:16.6f}'.format(third[i, alpha, j, beta, k, gamma]))
+                                    out_file.write('\n')
