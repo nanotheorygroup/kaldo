@@ -119,17 +119,25 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     #TODO: remove useless symmetry flag
     atoms = phonons.atoms
     fig1 = plt.figure ()
-    try:
-        k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points, symprec=symprec)
-        q = np.linspace(0, 1, k_list.shape[0])
-    except seekpath.hpkot.SymmetryDetectionError as err:
-        print(err)
+    if phonons.is_nw:
         q = np.linspace(0, 0.5, n_k_points)
         k_list = np.zeros((n_k_points, 3))
         k_list[:, 0] = q
         k_list[:, 2] = q
         Q = [0, 0.5]
         point_names = ['$\\Gamma$', 'X']
+    else:
+        try:
+            k_list, Q, point_names = create_k_and_symmetry_space (atoms, n_k_points=n_k_points, symprec=symprec)
+            q = np.linspace(0, 1, k_list.shape[0])
+        except seekpath.hpkot.SymmetryDetectionError as err:
+            print(err)
+            q = np.linspace(0, 0.5, n_k_points)
+            k_list = np.zeros((n_k_points, 3))
+            k_list[:, 0] = q
+            k_list[:, 2] = q
+            Q = [0, 0.5]
+            point_names = ['$\\Gamma$', 'X']
 
     if phonons.is_able_to_calculate:
         freqs_plot = phonons.calculate_second_order_observable('frequencies', k_list)
