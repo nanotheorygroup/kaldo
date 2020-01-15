@@ -816,7 +816,7 @@ class FiniteDifference(object):
         return phifull
 
 
-    def calculate_single_third_without_symmetry(self, distance_threshold=None, third_derivative_threshold=1e-20):
+    def calculate_single_third_without_symmetry(self, distance_threshold=None):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         n_in_unit_cell = len(atoms.numbers)
@@ -847,17 +847,14 @@ class FiniteDifference(object):
                     for icoord in range(3):
                         for jcoord in range(3):
                             value = self.calculate_single_third(iat, icoord, jat, jcoord)
-                            mask = np.argwhere(np.abs(value) > third_derivative_threshold)
-                            if mask.any():
-                                for id in mask:
-                                    id = id[0]
-
-                                    i_at_sparse.append(iat)
-                                    i_coord_sparse.append(icoord)
-                                    jat_sparse.append(jat)
-                                    j_coord_sparse.append(jcoord)
-                                    k_sparse.append(id)
-                                    value_sparse.append(value[id])
+                            # mask = np.linalg.norm(value.reshape(n_supercell * n_in_unit_cell, 3), axis=1) > 1e-6
+                            for id in range(value.shape[0]):
+                                i_at_sparse.append(iat)
+                                i_coord_sparse.append(icoord)
+                                jat_sparse.append(jat)
+                                j_coord_sparse.append(jcoord)
+                                k_sparse.append(id)
+                                value_sparse.append(value[id])
                     n_forces_done += 9
                 if (n_forces_done + n_forces_skipped % 300) == 0:
                     logging.info('Calculate third derivatives ' + str(int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
