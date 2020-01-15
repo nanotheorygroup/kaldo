@@ -74,7 +74,7 @@ class Anharmonic(object):
             ps_and_gamma[nu_single, 1:] /= self.frequencies.flatten()[nu_single]
     
             THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-            logging.info('calculating third ' + str(nu_single) + ': ', str(np.round(nu_single / self.n_phonons, 2) * 100) + '%')
+            logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / self.n_phonons, 2) * 100) + '%')
             logging.info(str(self.frequencies[0, nu_single]) + ': ' + str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
     
         return ps_and_gamma
