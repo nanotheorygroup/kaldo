@@ -967,11 +967,14 @@ class FiniteDifference(object):
 
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None, with_pruned_original=False):
+        logging.info('Unfolding third order matrix')
         if distance_threshold is None:
             if self.distance_threshold is not None:
                 distance_threshold = self.distance_threshold
             else:
                 raise ValueError('Please specify a distance threshold in Armstrong')
+
+        logging.info('Distance threshold: ' + str(distance_threshold) + ' A')
         if (self.atoms.cell[0, 0] / 2 < distance_threshold) | \
                 (self.atoms.cell[1, 1] / 2 < distance_threshold) | \
                 (self.atoms.cell[2, 2] / 2 < distance_threshold):
