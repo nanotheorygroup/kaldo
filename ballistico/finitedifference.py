@@ -169,7 +169,20 @@ class FiniteDifference(object):
 
     @classmethod
     def from_files(cls, replicated_atoms, dynmat_file, third_file=None, folder=None, supercell=(1, 1, 1), third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
-        fd = cls.import_from_files(replicated_atoms, dynmat_file, third_file, folder, supercell, third_energy_threshold, distance_threshold)
+        """
+        Create a finite difference object from files
+        :param replicated_atoms:
+        :param dynmat_file:
+        :param third_file:
+        :param folder:
+        :param supercell:
+        :param third_energy_threshold:
+        :param distance_threshold:
+        :param is_symmetrizing:
+        :param is_acoustic_sum:
+        :return:
+        """
+        fd = cls._import_from_files(replicated_atoms, dynmat_file, third_file, folder, supercell, third_energy_threshold, distance_threshold)
         if is_symmetrizing:
             fd = calculate_symmetrize_dynmat(fd)
         if is_acoustic_sum:
@@ -180,6 +193,17 @@ class FiniteDifference(object):
 
     @classmethod
     def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None, is_symmetrizing=False, is_acoustic_sum=False):
+        """
+        Create a finite difference object from a folder
+        :param folder:
+        :param supercell:
+        :param format:
+        :param third_energy_threshold:
+        :param distance_threshold:
+        :param is_symmetrizing:
+        :param is_acoustic_sum:
+        :return:
+        """
         if format == 'numpy':
             fd = cls.__from_numpy(folder, supercell, distance_threshold=distance_threshold)
         elif format == 'eskm':
@@ -196,8 +220,8 @@ class FiniteDifference(object):
         return fd
 
     @classmethod
-    def import_from_files(cls, atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1),
-                          third_energy_threshold=0., distance_threshold=None):
+    def _import_from_files(cls, atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1),
+                           third_energy_threshold=0., distance_threshold=None):
         n_replicas = np.prod(supercell)
         n_total_atoms = atoms.positions.shape[0]
         n_unit_atoms = int(n_total_atoms / n_replicas)
@@ -263,9 +287,9 @@ class FiniteDifference(object):
         n_replicas = np.prod(supercell)
         atoms = ase.io.read(config_file, format='extxyz')
         n_atoms = int(atoms.positions.shape[0] / n_replicas)
-        fd = cls.import_from_files(atoms=atoms,
-                                      folder=folder,
-                                      supercell=supercell)
+        fd = cls._import_from_files(atoms=atoms,
+                                    folder=folder,
+                                    supercell=supercell)
         second_order = np.load(folder + SECOND_ORDER_FILE)
         if second_order.size == (n_replicas * n_atoms * 3) ** 2:
             fd.is_reduced_second = False
@@ -287,8 +311,8 @@ class FiniteDifference(object):
         dynmat_file = str(folder) + "/Dyn.form"
         third_file = str(folder) + "/THIRD"
         atoms = ase.io.read(config_file, format='dlp4')
-        fd = cls.import_from_files(atoms, dynmat_file, third_file, folder, supercell,
-                          third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
+        fd = cls._import_from_files(atoms, dynmat_file, third_file, folder, supercell,
+                                    third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
         return fd
 
 
