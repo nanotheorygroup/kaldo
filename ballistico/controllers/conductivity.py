@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-from ballistico.helpers.tools import get_logger
+from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
 MAX_ITERATIONS_SC = 200
