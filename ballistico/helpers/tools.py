@@ -7,19 +7,31 @@ import time
 import os
 from itertools import takewhile, repeat
 import sys
+from time import gmtime, strftime
 import logging
-import logging.config
 
+datetime = strftime("%a_%d_%b__%Y_%H_%M_%S", gmtime())
+logname = 'ballistico_' + str(datetime) + '.log'
+logger = logging.getLogger('ballistico')
+format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+log_level = logging.DEBUG
+logging.basicConfig(filename=logname,
+                            filemode='a',
+                            format=format,
+                            datefmt='%H:%M:%S',
+                            level=log_level)
+logger.setLevel(log_level)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(log_level)
+handler_file = logging.FileHandler(logname)
+handler_file.setLevel(log_level)
+formatter = logging.Formatter(format)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.addHandler(handler_file)
 FOLDER_NAME = 'output'
 LAZY_PREFIX = '_lazy__'
 
-logger = logging.getLogger('ballistico')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 def timeit(method):
     def timed(*args, **kw):
