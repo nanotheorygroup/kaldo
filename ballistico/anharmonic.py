@@ -6,9 +6,8 @@ import sparse
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
 import numpy as np
-import logging
-from ballistico.helpers.tools import init_logger
-logging = init_logger()
+from ballistico.helpers.tools import get_logger
+logging = get_logger()
 
 
 DELTA_THRESHOLD = 2

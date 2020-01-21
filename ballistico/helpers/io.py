@@ -9,8 +9,8 @@ import ase.units as units
 from ballistico.helpers.tools import count_rows, apply_boundary_with_cell
 from ase import Atoms
 import re
-from ballistico.helpers.tools import init_logger
-logging = init_logger()
+from ballistico.helpers.tools import get_logger
+logging = get_logger()
 
 tenjovermoltoev = 10 * units.J / units.mol
 
