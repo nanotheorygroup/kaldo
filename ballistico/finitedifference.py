@@ -14,7 +14,7 @@ import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
 import h5py
 import ase.units as units
-from ballistico.helpers.tools import get_logger
+from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
 
@@ -320,7 +320,7 @@ class FiniteDifference(object):
             atoms, supercell = shengbte_io.import_control_file(config_file)
         except FileNotFoundError as err:
             config_file = folder + '/' + 'POSCAR'
-            logging.info(str(err) + '\nTrying to open POSCAR')
+            logging.info('\nTrying to open POSCAR')
             atoms = ase.io.read(config_file)
         # Create a finite difference object
         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
@@ -374,7 +374,7 @@ class FiniteDifference(object):
                 folder += '/'
                 self._dynmat = np.load(folder + DYNMAT_FILE)
             except FileNotFoundError as e:
-                logging.info(e)
+                logging.info('No dynamical matrix file found.')
                 # After trying load in and still not exist,
                 # calculate the second order
                 self.dynmat = self.calculate_dynamical_matrix()
@@ -435,7 +435,7 @@ class FiniteDifference(object):
         try:
             os.remove(folder + SECOND_ORDER_WITH_PROGRESS_FILE)
         except FileNotFoundError as err:
-            logging.info(err)
+            logging.info('No second order progress file found.')
         self._second_order = new_second_order
 
 
@@ -485,7 +485,7 @@ class FiniteDifference(object):
         try:
             os.remove(folder + THIRD_ORDER_WITH_PROGRESS_FILE)
         except FileNotFoundError as err:
-            logging.info(err)
+            logging.info('No third order progress file found')
         if not os.path.exists(folder):
             os.makedirs(folder)
         save_npz(folder + THIRD_ORDER_FILE_SPARSE, self._third_order.reshape((self.n_atoms * 3 * self.n_replicas *
@@ -770,7 +770,7 @@ class FiniteDifference(object):
         try:
             file = open(progress_filename, 'r+')
         except FileNotFoundError as err:
-            logging.info(err)
+            logging.info('No third order progress file found')
         else:
             for line in file:
                 iat, icoord, jat, jcoord, k, value = np.fromstring(line, dtype=np.float, sep=' ')

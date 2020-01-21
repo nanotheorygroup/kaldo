@@ -6,29 +6,9 @@ import numpy as np
 import time
 import os
 from itertools import takewhile, repeat
-import sys
-from time import gmtime, strftime
-import logging
+from ballistico.helpers.logger import get_logger
+logging = get_logger()
 
-datetime = strftime("%a_%d_%b__%Y_%H_%M_%S", gmtime())
-logname = 'ballistico_' + str(datetime) + '.log'
-logger = logging.getLogger('ballistico')
-format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-log_level = logging.DEBUG
-logging.basicConfig(filename=logname,
-                            filemode='a',
-                            format=format,
-                            datefmt='%H:%M:%S',
-                            level=log_level)
-logger.setLevel(log_level)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(log_level)
-handler_file = logging.FileHandler(logname)
-handler_file.setLevel(log_level)
-formatter = logging.Formatter(format)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.addHandler(handler_file)
 FOLDER_NAME = 'output'
 LAZY_PREFIX = '_lazy__'
 
@@ -42,7 +22,7 @@ def timeit(method):
             name = kw.get('log_name', method.__name__.upper())
             kw['log_time'][name] = int((te - ts) * 1000)
         else:
-            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+            logging.info('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
         return result
     return timed
 
@@ -68,7 +48,7 @@ def create_folder(phonons, is_reduced_path):
                 folder += '/' + str(phonons.sigma_in)
             else:
                 folder += '/vec_' + str(phonons.sigma_in[-2])
-                print(folder)
+        logging.info('Folder: ' + str(folder))
     if not os.path.exists(folder):
         os.makedirs(folder)
     return folder
@@ -86,11 +66,11 @@ def lazy_property(is_storing, is_reduced_path):
                     try:
                         loaded_attr = np.load (filename)
                     except FileNotFoundError:
-                        print(filename, 'not found, calculating', fn.__name__)
+                        logging.info(str(filename) + ' not found in memory, calculating ' + str(fn.__name__))
                         loaded_attr = fn(self)
                         np.save (filename, loaded_attr)
                     else:
-                        print('loading', filename)
+                        logging.info('Loading ' + str(filename))
                 else:
                     loaded_attr = fn(self)
                 setattr(self, attr, loaded_attr)
@@ -199,9 +179,3 @@ def allowed_index_qpp(index_q, is_plus, kpts):
     qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
     index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
     return index_qpp_full
-
-
-def get_logger():
-    logger = logging.getLogger('ballistico')
-    return logger
-

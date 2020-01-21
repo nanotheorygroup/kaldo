@@ -6,7 +6,7 @@ import numpy as np
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
 import tensorflow as tf
-from ballistico.helpers.tools import get_logger
+from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
 
