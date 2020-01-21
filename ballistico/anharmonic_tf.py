@@ -5,8 +5,9 @@ Anharmonic Lattice Dynamics
 import numpy as np
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
-import logging
 import tensorflow as tf
+from ballistico.helpers.tools import init_logger
+logging = init_logger()
 
 
 DELTA_THRESHOLD = 2

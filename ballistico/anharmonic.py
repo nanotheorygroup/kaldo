@@ -5,8 +5,10 @@ Anharmonic Lattice Dynamics
 import sparse
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
-import logging
 import numpy as np
+import logging
+from ballistico.helpers.tools import init_logger
+logging = init_logger()
 
 
 DELTA_THRESHOLD = 2

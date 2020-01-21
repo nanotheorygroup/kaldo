@@ -12,10 +12,12 @@ from sparse import COO
 import ballistico.helpers.io as io
 import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
-import ase.units as units
 import h5py
-import logging
 import ase.units as units
+from ballistico.helpers.tools import init_logger
+logging = init_logger()
+
+
 tenjovermoltoev = 10 * units.J / units.mol
 
 # see bug report: https://github.com/h5py/h5py/issues/1101
