@@ -8,10 +8,18 @@ import os
 from itertools import takewhile, repeat
 import sys
 import logging
+import logging.config
 
 FOLDER_NAME = 'output'
 LAZY_PREFIX = '_lazy__'
-_current_logger = None
+
+logger = logging.getLogger('ballistico')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def timeit(method):
     def timed(*args, **kw):
@@ -181,15 +189,7 @@ def allowed_index_qpp(index_q, is_plus, kpts):
     return index_qpp_full
 
 
-def init_logger():
-    if _current_logger is not None:
-        return _current_logger
-    else:
-        logger = logging.getLogger('ballistico')
-        logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+def get_logger():
+    logger = logging.getLogger('ballistico')
     return logger
+

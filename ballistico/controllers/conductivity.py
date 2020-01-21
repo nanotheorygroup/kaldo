@@ -5,8 +5,8 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-from ballistico.helpers.tools import init_logger
-logging = init_logger()
+from ballistico.helpers.tools import get_logger
+logging = get_logger()
 
 MAX_ITERATIONS_SC = 200
 EVTOTENJOVERMOL = units.mol / (10 * units.J)

@@ -14,8 +14,8 @@ import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
 import h5py
 import ase.units as units
-from ballistico.helpers.tools import init_logger
-logging = init_logger()
+from ballistico.helpers.tools import get_logger
+logging = get_logger()
 
 
 tenjovermoltoev = 10 * units.J / units.mol
