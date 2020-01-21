@@ -54,16 +54,11 @@ def calculate_symmetrize_dynmat(finite_difference):
 def calculate_acoustic_dynmat(finite_difference):
     dynmat = finite_difference.second_order
     n_unit = finite_difference.second_order[0].shape[0]
-    n_replicas =  finite_difference.n_replicas
     sumrulecorr = 0.
-    for m in range(finite_difference.second_order.shape[0]):
-        for i in range(n_unit):
-            offdiagsum = np.zeros((3, 3))
-            for n in range(n_replicas):
-                for j in range(n_unit):
-                    offdiagsum += dynmat[m, i, :, n, j, :]
-            dynmat[m, i, :, m, i, :] -= offdiagsum
-            sumrulecorr += np.sum(offdiagsum)
+    for i in range(n_unit):
+        off_diag_sum = np.sum(dynmat[0, i, :, :, :, :], axis=(-2, -3))
+        dynmat[0, i, :, 0, i, :] -= off_diag_sum
+        sumrulecorr += np.sum(off_diag_sum)
     logging.info('error sum rule: ' + str(sumrulecorr))
     finite_difference.second_order = dynmat
     return finite_difference
