@@ -6,9 +6,12 @@ import numpy as np
 import time
 import os
 from itertools import takewhile, repeat
+import sys
+import logging
 
 FOLDER_NAME = 'output'
 LAZY_PREFIX = '_lazy__'
+_current_logger = None
 
 def timeit(method):
     def timed(*args, **kw):
@@ -177,3 +180,16 @@ def allowed_index_qpp(index_q, is_plus, kpts):
     index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
     return index_qpp_full
 
+
+def init_logger():
+    if _current_logger is not None:
+        return _current_logger
+    else:
+        logger = logging.getLogger('ballistico')
+        logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    return logger
