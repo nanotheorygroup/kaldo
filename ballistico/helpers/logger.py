@@ -15,12 +15,9 @@ logging.basicConfig(filename=logname,
 logger.setLevel(log_level)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(log_level)
-handler_file = logging.FileHandler(logname)
-handler_file.setLevel(log_level)
 formatter = logging.Formatter(format)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger.addHandler(handler_file)
 
 def get_logger():
     logger = logging.getLogger('ballistico')
