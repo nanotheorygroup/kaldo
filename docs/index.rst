@@ -12,6 +12,21 @@ Welcome to Ballistico's documentation!
 
    README.md
 
+
+.. toctree::
+   :glob:
+   :caption: Crystal example:
+
+   crystal_presentation.ipynb
+
+.. toctree::
+   :glob:
+   :caption: Amorphous example:
+
+   amorphous_presentation.ipynb
+
+
+
 .. toctree::
    :maxdepth: 2
    :caption: API References:
