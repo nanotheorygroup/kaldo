@@ -48,5 +48,12 @@ export ASE_ESPRESSO_COMMAND="mpirun -np 4 /path/to/pw.x -in PREFIX.pwi > PREFIX.
 
 ### Copyright
 
-Copyright (c) 2019, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio
+Copyright (c) 2020, Your name (or your organization/company/team)
+
+
+#### Acknowledgements
+
+Project based on the
+[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.1.
+
 
