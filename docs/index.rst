@@ -7,11 +7,17 @@ Welcome to Ballistico's documentation!
 =========================================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :glob:
+   :caption: Introduction:
 
-   getting_started
-   api
+   README.md
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API References:
+
+   api_finite_difference
+   api_phonons
 
 
 
