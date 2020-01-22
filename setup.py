@@ -57,7 +57,8 @@ setup(
         'opt_einsum>=2.3',
         'scikit-learn>=0.20',
         'h5py>=2.9',
-        'pandas>=0.21'
+        'pandas>=0.21',
+        'recommonmark>=0.6'
     ],              # Required packages, pulls from pip if needed; do not use for Conda deployment
 
     # platforms=['Linux',
