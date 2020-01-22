@@ -58,7 +58,9 @@ setup(
         'scikit-learn>=0.20',
         'h5py>=2.9',
         'pandas>=0.21',
-        'recommonmark>=0.6'
+        'recommonmark>=0.6',
+        'nbsphinx>=0.5.0',
+        'pandoc>=1.0.2'
     ],              # Required packages, pulls from pip if needed; do not use for Conda deployment
 
     # platforms=['Linux',
