@@ -172,3 +172,5 @@ texinfo_documents = [
 ]
 
 nbsphinx_execute = 'never'
+
+latex_engine = 'pdflatex'
