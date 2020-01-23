@@ -64,6 +64,7 @@ class HarmonicSingleQ:
             dxij = positions[:, np.newaxis, np.newaxis, :] - (
                         positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
             dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, self.chi())
+
         dynmat_derivatives = dynmat_derivatives.reshape((self.n_modes, self.n_modes, 3), order='C')
         return dynmat_derivatives
 
@@ -74,10 +75,17 @@ class HarmonicSingleQ:
         return frequencies
 
 
-    def calculate_velocities_AF(self):
+    def calculate_sij(self, is_antisymmetrizing=False):
+        # TODO: THis should be lazy loaded instead
         dynmat_derivatives = self.calculate_dynmat_derivatives()
         frequencies = self.calculate_frequencies()
+
+        # n_phonons = self.n_atoms * self.n_replicas * 3
+        # evects = np.loadtxt('/Users/juicy/Development/davide-scripts/0_Si-a216-sw/EIGVEC.form')
+        # evects = evects.reshape((n_phonons, n_phonons)).swapaxes(0, 1)
+        # eigenvects = evects
         eigenvects = self.calculate_eigensystem()[1:, :]
+
         physical_modes = np.ones_like(frequencies, dtype=bool)
         if self.min_frequency is not None:
             physical_modes = physical_modes & (frequencies > self.min_frequency)
@@ -86,18 +94,33 @@ class HarmonicSingleQ:
         if self._is_at_gamma:
             physical_modes[:self._first_physical_index] = False
 
-        velocities_AF = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
-        velocities_AF = contract('mna,mn->mna', velocities_AF,
+        is_antisymmetrizing = True
+        if is_antisymmetrizing:
+            error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
+            dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
+            # velocities_AF = (velocities_AF - velocities_AF.swapaxes(0, 1)) / 2
+            # error = np.linalg.norm((velocities_AF + velocities_AF.swapaxes(0, 1)) / 2)
+            print('Symmetrization errror: ' + str(error))
+        if self.is_amorphous:
+            sij = contract('im,ija,jn->mna', eigenvects[:, :], dynmat_derivatives, eigenvects[:, :])
+        else:
+            sij = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
+
+        return sij
+
+
+    def calculate_velocities_af(self, is_antisymmetrizing=False):
+        frequencies = self.calculate_frequencies()
+        # TODO: Here we should reuse the phonons._sij
+        sij = self.calculate_sij(is_antisymmetrizing)
+        velocities_AF = contract('mna,mn->mna', sij,
                                  1 / (2 * np.pi * np.sqrt(frequencies[:, np.newaxis]) * np.sqrt(
-                                     frequencies[np.newaxis, :])))
-        velocities_AF[np.invert(physical_modes), :, :] = 0
-        velocities_AF[:, np.invert(physical_modes), :] = 0
-        velocities_AF = velocities_AF / 2
+                                     frequencies[np.newaxis, :]))) / 2
         return velocities_AF
 
 
-    def calculate_velocities(self):
-        velocities_AF = self.calculate_velocities_AF()
+    def calculate_velocities(self, is_antisymmetrizing=False):
+        velocities_AF = self.calculate_velocities_af(is_antisymmetrizing=is_antisymmetrizing)
         velocities = 1j * np.diagonal(velocities_AF).T
         return velocities
 
