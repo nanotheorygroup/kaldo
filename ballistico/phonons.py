@@ -226,6 +226,12 @@ class Phonons:
         return velocities_AF
 
 
+    @lazy_property(is_storing=True, is_reduced_path=True)
+    def _sij(self):
+        sij = self.calculate_second_order_observable('sij')
+        return sij
+
+
     @lazy_property(is_storing=True, is_reduced_path=False)
     def _ps_and_gamma(self):
         if is_calculated('ps_gamma_and_gamma_tensor', self):
@@ -327,6 +333,8 @@ class Phonons:
             tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
         elif observable == 'velocities_AF':
             tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+        elif observable == 'sij':
+            tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
         elif observable == 'velocities':
             tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
         elif observable == 'eigensystem':
@@ -350,8 +358,10 @@ class Phonons:
                 tensor[index_k] = hsq.calculate_frequencies()
             elif observable == 'dynmat_derivatives':
                 tensor[index_k] = hsq.calculate_dynmat_derivatives()
+            elif observable == 'sij':
+                tensor[index_k] = hsq.calculate_sij()
             elif observable == 'velocities_AF':
-                tensor[index_k] = hsq.calculate_velocities_AF()
+                tensor[index_k] = hsq.calculate_velocities_af()
             elif observable == 'velocities':
                 tensor[index_k] = hsq.calculate_velocities()
             elif observable == 'eigensystem':

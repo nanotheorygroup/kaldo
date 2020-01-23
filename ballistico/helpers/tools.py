@@ -47,7 +47,7 @@ def create_folder(phonons, is_reduced_path):
             except AttributeError:
                 folder += '/' + str(phonons.sigma_in)
             else:
-                folder += '/vec_' + str(phonons.sigma_in[-2])
+                folder += '/vec_' + str(phonons.sigma_in)
         logging.info('Folder: ' + str(folder))
     if not os.path.exists(folder):
         os.makedirs(folder)
