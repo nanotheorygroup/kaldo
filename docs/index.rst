@@ -12,6 +12,12 @@ Welcome to Ballistico's documentation!
 
    README.md
 
+.. toctree::
+   :glob:
+   :caption: Engine:
+
+   main_equations.md
+
 
 .. toctree::
    :glob:
