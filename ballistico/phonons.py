@@ -83,6 +83,13 @@ class Phonons:
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequencies(self):
+        """
+        Calculate phonons frequencies
+        Returns
+        -------
+        frequencies : np array
+            (n_k_points, n_modes) frequencies in THz
+        """
         frequencies = self.calculate_second_order_observable('frequencies')
         return frequencies
 
