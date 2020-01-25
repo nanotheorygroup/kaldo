@@ -79,13 +79,7 @@ class HarmonicSingleQ:
         # TODO: THis should be lazy loaded instead
         dynmat_derivatives = self.calculate_dynmat_derivatives()
         frequencies = self.calculate_frequencies()
-
-        # n_phonons = self.n_atoms * self.n_replicas * 3
-        # evects = np.loadtxt('/Users/juicy/Development/davide-scripts/0_Si-a216-sw/EIGVEC.form')
-        # evects = evects.reshape((n_phonons, n_phonons)).swapaxes(0, 1)
-        # eigenvects = evects
         eigenvects = self.calculate_eigensystem()[1:, :]
-
         physical_modes = np.ones_like(frequencies, dtype=bool)
         if self.min_frequency is not None:
             physical_modes = physical_modes & (frequencies > self.min_frequency)
@@ -94,18 +88,14 @@ class HarmonicSingleQ:
         if self._is_at_gamma:
             physical_modes[:self._first_physical_index] = False
 
-        is_antisymmetrizing = True
         if is_antisymmetrizing:
             error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
             dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
-            # velocities_AF = (velocities_AF - velocities_AF.swapaxes(0, 1)) / 2
-            # error = np.linalg.norm((velocities_AF + velocities_AF.swapaxes(0, 1)) / 2)
             print('Symmetrization errror: ' + str(error))
         if self.is_amorphous:
             sij = contract('im,ija,jn->mna', eigenvects[:, :], dynmat_derivatives, eigenvects[:, :])
         else:
             sij = contract('im,ija,jn->mna', eigenvects[:, :].conj(), dynmat_derivatives, eigenvects[:, :])
-
         return sij
 
 
