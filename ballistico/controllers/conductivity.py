@@ -5,6 +5,7 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
+import ase.units
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -79,20 +80,22 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None):
     lorentz = (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :]) / (
             ((gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])) ** 2 +
             (omega[:, :, np.newaxis] - omega[:, np.newaxis, :]) ** 2)
-
     lorentz[np.isnan(lorentz)] = 0
-    conductivity_per_mode = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
-    # heat_capacity = calculate_c_v_2d(phonons)
 
-    conductivity_per_mode[:, :, :, :, :] = contract('kn,knma,knm,knmb->knmab', phonons.heat_capacity,
-                                                    phonons._velocities_af[:, :, :, :], lorentz[:, :, :],
-                                                    phonons._velocities_af[:, :, :, :])
-    conductivity_per_mode = contract('knmab->knab', conductivity_per_mode)
+    sij = phonons._sij
+    sij[np.invert(physical_modes_2d)] = 0
+    prefactor = 1 / omega[:, :, np.newaxis] / omega[:,np.newaxis, :] / 4
+
+    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
+    conductivity_per_mode = contract('kn,knab->knab', phonons.heat_capacity, diffusivity)
 
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
-    conductivity_per_mode[np.invert(phonons._physical_modes), :, :] = 0
-    return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
-
+    conductivity_per_mode = conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
+    cond = conductivity_per_mode.sum(axis=0).diagonal().mean()
+    diff = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity)
+    # print('diffusivity_davide', np.sum(diff))
+    # print('kappa', cond)
+    return conductivity_per_mode, diff
 
 def calculate_conductivity_inverse(phonons):
     velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
