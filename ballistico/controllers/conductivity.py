@@ -93,22 +93,9 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None):
     conductivity_per_mode = conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
     cond = conductivity_per_mode.sum(axis=0).diagonal().mean()
     diff = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity)
-    print('diffusivity_davide', np.sum(diff))
-    print('kappa', cond)
-
-
-    prefactor = (omega[:, :, np.newaxis] + omega[:, np.newaxis, :]) ** 2
-    prefactor = contract('kn,km,knm->knm', 1 / omega ** 2, 1 / omega ** 2, prefactor) / 16.0
-    diffusivity_davide = 1 / 100. * contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij).real
-    conductivity_per_mode_davide = 1e22 / volume * np.einsum('km,kmab->kmab', phonons.heat_capacity, diffusivity_davide)
-    conductivity_per_mode_davide = conductivity_per_mode_davide * 100
-    diffusivity_davide = diffusivity_davide.reshape((phonons.n_phonons, 3, 3))
-    diff = diffusivity_davide.sum(axis=0).diagonal().mean()
-    print('diffusivity_davide', diff)
-    conductivity_per_mode_davide = conductivity_per_mode_davide.reshape((phonons.n_phonons, 3, 3))
-    cond = conductivity_per_mode_davide.sum(axis=0).diagonal().mean()
-    print('kappa_davide', cond)
-    return conductivity_per_mode_davide
+    # print('diffusivity_davide', np.sum(diff))
+    # print('kappa', cond)
+    return conductivity_per_mode, diff
 
 def calculate_conductivity_inverse(phonons):
     velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
