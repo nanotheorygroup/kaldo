@@ -36,7 +36,7 @@ def test_sc_conductivity(phonons):
 
 
 def test_qhgk_conductivity(phonons):
-    cond = bac.conductivity(phonons, method='qhgk').sum(axis=0)
+    cond = bac.conductivity(phonons, method='qhgk')[0].sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 230, significant=3)
 
