@@ -70,7 +70,7 @@ def calculate_c_v_2d(phonons):
     return c_v
 
 
-def calculate_conductivity_qhgk(phonons, gamma_in=None):
+def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
     init = time.time()
 
     volume = np.linalg.det(phonons.atoms.cell)
@@ -82,25 +82,22 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None):
     physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     physical_modes_2d = physical_modes[:, :, np.newaxis] & \
                         physical_modes[:, np.newaxis, :]
-    delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
-    sigma = 2 * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
-    params = [delta_energy, sigma]
-    lorentz = lorentz_delta(params)
-    lorentz = lorentz * np.pi
+    if delta_threshold is None:
+        delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
+        sigma = 2 * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
+        lorentz = lorentz_delta(delta_energy, sigma)
+        lorentz = lorentz * np.pi
+    else:
+        omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
+        condition = (omegas_difference < delta_threshold * 2 * np.pi * gamma_in)
 
-    # DELTA_THRESHOLD = 10
-    # omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
-    # condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * gamma_in)
-    #
-    # coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-    # sigma = 2 * (gamma[coords[:, 0], coords[:, 1]] + gamma[coords[:, 0], coords[:, 2]])
-    # delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-    # params = [delta_energy, sigma]
-    # data = lorentz_delta(params)
-    # data = data * np.pi
-    # # data = sigma / (sigma ** 2 + delta_energy ** 2)
-    # lorentz_sparse = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-    # lorentz = lorentz_sparse.todense()
+        coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+        sigma = 2 * (gamma[coords[:, 0], coords[:, 1]] + gamma[coords[:, 0], coords[:, 2]])
+        delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
+        data = lorentz_delta(delta_energy, sigma, delta_threshold)
+        data = data * np.pi
+        lorentz_sparse = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+        lorentz = lorentz_sparse.todense()
 
     lorentz[np.isnan(lorentz)] = 0
     sij = phonons._sij
@@ -250,14 +247,14 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
 
 
-def conductivity(phonons, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None):
+def conductivity(phonons, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None, delta_threshold=None):
     # if length is not None:
     if method == 'rta':
         return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
     elif method == 'sc':
         return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
     elif (method == 'qhgk'):
-        return calculate_conductivity_qhgk(phonons, gamma_in=gamma_in)
+        return calculate_conductivity_qhgk(phonons, gamma_in=gamma_in, delta_threshold=delta_threshold)
     elif (method == 'inverse'):
         return calculate_conductivity_inverse(phonons)
     elif (method == 'eigenvectors'):
