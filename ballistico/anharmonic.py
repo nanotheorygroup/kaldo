@@ -231,11 +231,11 @@ class Anharmonic(object):
         dirac_delta /= (omegas[index_qp, mup_vec] * omegas[index_qpp, mupp_vec])
         if np.array(sigma_small).size == 1:
             dirac_delta *= broadening_function(
-                [omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small])
+                omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small)
         else:
             dirac_delta *= broadening_function(
-                [omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
-                    index_qp, mup_vec, mupp_vec]])
+                omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small[
+                    index_qp, mup_vec, mupp_vec])
 
         return dirac_delta, index_qp, mup_vec, index_qpp, mupp_vec
 
@@ -283,7 +283,7 @@ class Anharmonic(object):
 
                     dirac_delta /= (omegas[0, mup_vec] * omegas[0, mupp_vec])
                     dirac_delta *= broadening_function(
-                        [omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small])
+                        omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small)
 
                     try:
                         mup = np.concatenate([mup, mup_vec])
