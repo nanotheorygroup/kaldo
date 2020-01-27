@@ -6,6 +6,7 @@ import sparse
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
 import numpy as np
+from ballistico.helpers.dirac_kernel import gaussian_delta, triangular_delta
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -15,25 +16,6 @@ EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
-
-
-def gaussian_delta(params):
-    # alpha is a factor that tells whats the ration between the width of the gaussian
-    # and the width of allowed phase space
-    delta_energy = params[0]
-    # allowing processes with width sigma and creating a gaussian with width sigma/2
-    # we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
-    sigma = params[1]
-    gaussian = 1 / np.sqrt(np.pi * sigma ** 2) * np.exp(- delta_energy ** 2 / (sigma ** 2))
-    return gaussian
-
-
-def triangular_delta(params):
-    delta_energy = np.abs(params[0])
-    deltaa = np.abs(params[1])
-    out = np.zeros_like(delta_energy)
-    out[delta_energy < deltaa] = 1. / deltaa * (1 - delta_energy[delta_energy < deltaa] / deltaa)
-    return out
 
 
 class Anharmonic(object):
