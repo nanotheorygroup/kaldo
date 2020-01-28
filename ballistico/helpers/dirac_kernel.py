@@ -1,22 +1,21 @@
 import scipy.special
 import numpy as np
-IS_DELTA_CORRECTION_ENABLED = False
+from ballistico.helpers.logger import get_logger
+logging = get_logger()
+
 DELTA_THRESHOLD = 2
 
-def gaussian_delta(delta_omega, sigma):
-    # alpha is a factor that tells whats the ration between the width of the gaussian
-    # and the width of allowed phase space
-    # allowing processes with width sigma and creating a gaussian with width sigma/2
-    # we include 95% (erf(2/sqrt(2)) of the probability of scattering. The erf makes the total area 1
-    gaussian = 1 / np.sqrt(np.pi * sigma ** 2) * np.exp(- delta_omega ** 2 / (sigma ** 2))
-    if IS_DELTA_CORRECTION_ENABLED:
-        correction = scipy.special.erf(DELTA_THRESHOLD / np.sqrt(2))
+def gaussian_delta(delta_omega, sigma, delta_threshold=None):
+    gaussian = 1 / np.sqrt(np.pi * sigma ** 2) * np.exp(-delta_omega ** 2 / (sigma ** 2))
+    if delta_threshold is None:
+        return gaussian
     else:
-        correction = 1
-    return gaussian / correction
+        return gaussian / (scipy.special.erf(delta_threshold))
 
 
-def triangular_delta(delta_omega, sigma):
+def triangular_delta(delta_omega, sigma, delta_threshold=None):
+    if delta_threshold is not None:
+        logging.warning('Calculation with triangular delta do not support delta_threshold')
     delta_omega = np.abs(delta_omega)
     deltaa = np.abs(sigma)
     out = np.zeros_like(delta_omega)
@@ -24,10 +23,9 @@ def triangular_delta(delta_omega, sigma):
     return out
 
 
-def lorentz_delta(delta_omega, sigma, delta_threshold=DELTA_THRESHOLD):
-    if IS_DELTA_CORRECTION_ENABLED:
-        correction = 2 / np.pi * np.arctan(2 * delta_threshold)
-    else:
-        correction = 1
+def lorentz_delta(delta_omega, sigma, delta_threshold=None):
     lorentzian = 1 / np.pi * 1 / 2 * sigma / (delta_omega ** 2 + (sigma / 2) ** 2)
-    return lorentzian / correction
+    if delta_threshold is None:
+        return lorentzian
+    else:
+        return lorentzian / (2 / np.pi * np.arctan(2 * delta_threshold))
