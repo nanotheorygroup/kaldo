@@ -35,12 +35,12 @@ def phonons():
 
 def test_first_gamma(phonons):
     THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-    np.testing.assert_approx_equal(phonons.gamma[3] * THZTOMEV / (2 * np.pi), 22.451, significant=3)
+    np.testing.assert_approx_equal(phonons.bandwidth[3] * THZTOMEV / (2 * np.pi), 22.451, significant=3)
 
 
 def test_second_gamma(phonons):
     THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-    np.testing.assert_approx_equal(phonons.gamma[4] * THZTOMEV / (2 * np.pi), 23.980, significant=3)
+    np.testing.assert_approx_equal(phonons.bandwidth[4] * THZTOMEV / (2 * np.pi), 23.980, significant=3)
 
 
 def test_qhgk_conductivity(phonons):

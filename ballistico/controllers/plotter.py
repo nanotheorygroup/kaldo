@@ -4,10 +4,11 @@ Anharmonic Lattice Dynamics
 """
 import matplotlib.pyplot as plt
 import seekpath
-from sklearn.neighbors.kde import KernelDensity
 import numpy as np
+from sklearn.neighbors.kde import KernelDensity
 from scipy import ndimage
 from ballistico.helpers.tools import convert_to_spg_structure
+from ballistico.controllers.harmonic import calculate_frequencies, calculate_velocities
 
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
@@ -91,7 +92,7 @@ def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05):
 
 
 def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
-    frequencies = phonons.frequencies.flatten ()
+    frequencies = phonons.frequency.flatten ()
     observable = observable.flatten ()
     fig = plt.figure ()
     plt.scatter(frequencies[3:], observable[3:],s=5)
@@ -105,8 +106,8 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
 
 def plot_dos(phonons, bandwidth=.3, is_showing=True):
     fig = plt.figure ()
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequencies.flatten(order='C').reshape(-1, 1))
-    x = np.linspace(phonons.frequencies.min(), phonons.frequencies.max(), 200)
+    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequency.flatten(order='C').reshape(-1, 1))
+    x = np.linspace(phonons.frequency.min(), phonons.frequency.max(), 200)
     y = np.exp(kde.score_samples(x.reshape((-1, 1), order='C')))
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
@@ -140,8 +141,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
             point_names = ['$\\Gamma$', 'X']
 
     if phonons.is_able_to_calculate:
-        freqs_plot = phonons.calculate_frequencies(k_list)
-        vel_plot = phonons.calculate_velocities(k_list)
+        freqs_plot = calculate_frequencies(phonons, k_list)
+        vel_plot = calculate_velocities(phonons, k_list)
         vel_norm = np.linalg.norm(vel_plot, axis=-1)
         # print(vel_plot)
     else:
@@ -149,10 +150,10 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
         vel_plot = np.zeros((k_list.shape[0], phonons.n_modes, 3))
         vel_norm = np.zeros((k_list.shape[0], phonons.n_modes))
 
-        frequencies = phonons.frequencies.reshape((phonons.kpts[0], phonons.kpts[1],
-                                                        phonons.kpts[2], phonons.n_modes), order='C')
-        velocities = phonons.velocities.reshape((phonons.kpts[0], phonons.kpts[1],
-                                                       phonons.kpts[2], phonons.n_modes, 3), order='C')
+        frequencies = phonons.frequency.reshape((phonons.kpts[0], phonons.kpts[1],
+                                                 phonons.kpts[2], phonons.n_modes), order='C')
+        velocities = phonons.velocity.reshape((phonons.kpts[0], phonons.kpts[1],
+                                               phonons.kpts[2], phonons.n_modes, 3), order='C')
         for mode in range(phonons.n_modes):
             freqs_plot[:, mode] = interpolator(k_list, frequencies[..., mode], fourier_order=5, interpolation_order=2)
 
