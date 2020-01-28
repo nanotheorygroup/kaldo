@@ -7,7 +7,7 @@ import ase.units as units
 import numpy as np
 import time
 from sparse import COO
-from ballistico.helpers.dirac_kernel import lorentz_delta, triangular_delta
+from ballistico.helpers.dirac_kernel import lorentz_delta
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
@@ -87,6 +87,7 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
         sigma = 2 * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
         lorentz = lorentz_delta(delta_energy, sigma)
         lorentz = lorentz * np.pi
+        lorentz[np.isnan(lorentz)] = 0
     else:
         omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
         condition = (omegas_difference < delta_threshold * 2 * np.pi * gamma_in)
@@ -99,7 +100,6 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
         lorentz_sparse = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
         lorentz = lorentz_sparse.todense()
 
-    lorentz[np.isnan(lorentz)] = 0
     sij = phonons._sij
     sij[np.invert(physical_modes_2d)] = 0
 

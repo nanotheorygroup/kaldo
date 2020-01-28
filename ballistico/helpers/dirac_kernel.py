@@ -1,8 +1,7 @@
 import scipy.special
 import numpy as np
-IS_DELTA_CORRECTION_ENABLED = True
+IS_DELTA_CORRECTION_ENABLED = False
 DELTA_THRESHOLD = 2
-LORENTZ_CORRECTIONS = [1, 0.704833, 0.844042, 0.894863, 0.920833, 0.936549, 0.947071, 0.954604, 0.960263, 0.964669,  0.968195]
 
 def gaussian_delta(delta_omega, sigma):
     # alpha is a factor that tells whats the ration between the width of the gaussian
@@ -27,9 +26,7 @@ def triangular_delta(delta_omega, sigma):
 
 def lorentz_delta(delta_omega, sigma, delta_threshold=DELTA_THRESHOLD):
     if IS_DELTA_CORRECTION_ENABLED:
-        # TODO: replace these hardcoded values
-        # numerical value of the integral of a lorentzian over +- DELTA_TRESHOLD * sigma
-        correction = LORENTZ_CORRECTIONS[delta_threshold]
+        correction = 2 / np.pi * np.arctan(2 * delta_threshold)
     else:
         correction = 1
     lorentzian = 1 / np.pi * 1 / 2 * sigma / (delta_omega ** 2 + (sigma / 2) ** 2)
