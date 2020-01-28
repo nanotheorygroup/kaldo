@@ -388,7 +388,7 @@ class Phonons:
 
         n_unit_cell = atoms.positions.shape[0]
         n_k_points = q_points.shape[0]
-        tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+        ddyn = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
             if self._is_amorphous:
@@ -400,10 +400,8 @@ class Phonons:
                 dxij = positions[:, np.newaxis, np.newaxis, :] - (
                         positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
                 dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, self.chi(qvec))
-
-            dynmat_derivatives = dynmat_derivatives.reshape((self.n_modes, self.n_modes, 3), order='C')
-            tensor[index_k] = dynmat_derivatives
-        return tensor
+            ddyn[index_k] = dynmat_derivatives.reshape((self.n_modes, self.n_modes, 3), order='C')
+        return ddyn
 
 
     def calculate_sij(self, q_points=None, is_antisymmetrizing=False):
@@ -416,9 +414,10 @@ class Phonons:
             q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
-
-        # TODO: THis should be lazy loaded instead
-        dynmat_derivatives = self.calculate_dynmat_derivatives(q_points)
+        if is_main_mesh:
+            dynmat_derivatives = self._dynmat_derivatives
+        else:
+            dynmat_derivatives = self.calculate_dynmat_derivatives(q_points)
         eigenvects = self.calculate_eigensystem(q_points)[:, 1:, :]
         if is_antisymmetrizing:
             error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
@@ -442,8 +441,10 @@ class Phonons:
         else:
             q_points = apply_boundary_with_cell(q_points)
         frequencies = self.calculate_frequencies(q_points)
-        # TODO: Here we should reuse the phonons._sij
-        sij = self.calculate_sij(q_points, is_antisymmetrizing)
+        if is_main_mesh:
+            sij = self._sij
+        else:
+            sij = self.calculate_sij(q_points, is_antisymmetrizing)
         velocities_AF = contract('kmna,kmn->kmna', sij,
                                  1 / (2 * np.pi * np.sqrt(frequencies[:, :, np.newaxis]) * np.sqrt(
                                      frequencies[:, np.newaxis, :]))) / 2
@@ -460,8 +461,11 @@ class Phonons:
             q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
-        velocities_AF = self.calculate_velocities_af(q_points, is_antisymmetrizing=is_antisymmetrizing)
-        velocities = 1j * np.einsum('kmma->kma', velocities_AF)
+        if is_main_mesh:
+            velocities_AF = self._velocities_af
+        else:
+            velocities_AF = self.calculate_velocities_af(q_points, is_antisymmetrizing=is_antisymmetrizing)
+        velocities = 1j * contract('kmma->kma', velocities_AF)
         return velocities.real
 
 
@@ -484,9 +488,9 @@ class Phonons:
         else:
             dtype = np.complex
         if only_eigenvals:
-            tensor = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
+            esystem = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
         else:
-            tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
+            esystem = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
             is_at_gamma = (qvec == (0, 0, 0)).all()
@@ -499,14 +503,14 @@ class Phonons:
             dyn_s = dyn_s.reshape((self.n_modes, self.n_modes), order='C')
             if only_eigenvals:
                 evals = np.linalg.eigvalsh(dyn_s)
-                tensor[index_k] =  evals
+                esystem[index_k] =  evals
             else:
                 if is_at_gamma:
                     evals, evects = dsyev(dyn_s)[:2]
                 else:
                     evals, evects = np.linalg.eigh(dyn_s)
-                tensor[index_k] =  np.vstack((evals, evects))
-        return tensor
+                esystem[index_k] =  np.vstack((evals, evects))
+        return esystem
 
 
     def chi(self, qvec):
