@@ -34,12 +34,12 @@ phonons = Phonons(finite_difference=finite_difference,
 print('AF conductivity')
 print(bac.conductivity(phonons, method='qhgk').sum(axis=0))
 
-plt.scatter(phonons.frequencies.flatten()[3:], phonons.gamma.flatten()[3:], s=5)
+plt.scatter(phonons.frequency.flatten()[3:], phonons.bandwidth.flatten()[3:], s=5)
 plt.ylabel('gamma_THz', fontsize=16, fontweight='bold')
 plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
 plt.show()
 
-plt.scatter(phonons.frequencies.flatten()[3:], phonons.ps.flatten()[3:], s=5)
+plt.scatter(phonons.frequency.flatten()[3:], phonons.phase_space.flatten()[3:], s=5)
 plt.ylabel('ps', fontsize=16, fontweight='bold')
 plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
 plt.show()

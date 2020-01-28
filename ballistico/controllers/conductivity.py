@@ -47,22 +47,22 @@ def lambd_matthiesen(lambd, length, axis):
 
 def scattering_matrix(phonons, gamma=None):
     if gamma is None:
-        gamma = phonons.gamma
+        gamma = phonons.bandwidth
     scattering_matrix = -1 * phonons._scattering_matrix_without_diagonal
     scattering_matrix = scattering_matrix + np.diag(gamma)
     return scattering_matrix
 
 
 def calculate_c_v_2d(phonons):
-    frequencies = phonons.frequencies
+    frequencies = phonons.frequency
     c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     temperature = phonons.temperature * KELVINTOTHZ
-    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
 
     if (phonons.is_classic):
         c_v[:, :, :] = KELVINTOJOULE
     else:
-        f_be = phonons.occupations
+        f_be = phonons.population
         c_v_omega = KELVINTOJOULE * f_be * (f_be + 1) * frequencies / (temperature ** 2)
         c_v_omega[np.invert(physical_modes)] = 0
         freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :]) / 2 * (c_v_omega[:, :, np.newaxis] + c_v_omega[:, np.newaxis, :]) / 2
@@ -77,9 +77,9 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
     if gamma_in is not None:
         gamma = gamma_in * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
-        gamma = phonons.gamma.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
+        gamma = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
     omega = phonons._omegas
-    physical_modes = phonons._physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     physical_modes_2d = physical_modes[:, :, np.newaxis] & \
                         physical_modes[:, np.newaxis, :]
     if delta_threshold is None:
@@ -105,7 +105,7 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
         data = np.pi * lorentz_delta(delta_energy, sigma, delta_threshold)
         lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
         s_ij = [COO(coords.T, phonons._sij[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
-                          shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
                        COO(coords.T, phonons._sij[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
                            shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
                        COO(coords.T, phonons._sij[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
@@ -132,11 +132,11 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
     return conductivity_per_mode, diff
 
 def calculate_conductivity_inverse(phonons):
-    velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
+    velocities = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
     scattering_inverse = np.linalg.inv(phonons._scattering_matrix)
 
     lambd = scattering_inverse.dot(velocities[:, :])
-    physical_modes = phonons._physical_modes
+    physical_modes = phonons.physical_modes
 
     volume = np.linalg.det(phonons.atoms.cell)
     c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
@@ -152,7 +152,7 @@ def calculate_conductivity_inverse(phonons):
 
 
 def calculate_conductivity_with_evects(phonons):
-    velocities = phonons._keep_only_physical(phonons.velocities.real.reshape((phonons.n_phonons, 3), order='C'))
+    velocities = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
 
     evals, evects = np.linalg.eig(phonons._scattering_matrix)
     first_positive = np.argwhere(evals >= 0)[0, 0]
@@ -165,7 +165,7 @@ def calculate_conductivity_with_evects(phonons):
     # a = v.dot(np.diag(e)).dot(np.linalg.inv(v))
 
     lambd = scattering_inverse.dot(velocities[:, :])
-    physical_modes = phonons._physical_modes
+    physical_modes = phonons.physical_modes
 
     volume = np.linalg.det(phonons.atoms.cell)
     c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
@@ -187,10 +187,10 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         length_thresholds = np.array([None, None, None])
         length_thresholds[axis] = length
     volume = np.linalg.det (phonons.atoms.cell)
-    velocities = phonons.velocities.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
+    velocities = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
     velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
-    physical_modes = phonons._physical_modes
+    physical_modes = phonons.physical_modes
     if not is_rta:
         scattering_matrix = phonons._scattering_matrix_without_diagonal
 
@@ -202,7 +202,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
                 if length_thresholds[alpha]:
                     velocity = velocities[mu, alpha]
                     length = length_thresholds[alpha]
-                    single_gamma = phonons.gamma.reshape((phonons.n_phonons), order='C')[mu]
+                    single_gamma = phonons.bandwidth.reshape((phonons.n_phonons), order='C')[mu]
                     if finite_size_method == 'matthiessen':
                         gamma[mu] = single_gamma + 2 * abs(velocity) / length
                         # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
@@ -215,9 +215,9 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
                         gamma[mu] = abs(velocity) / length / transmission
 
                 else:
-                    gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu]
+                    gamma[mu] = phonons.bandwidth.reshape ((phonons.n_phonons), order='C')[mu]
             else:
-                gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu]
+                gamma[mu] = phonons.bandwidth.reshape ((phonons.n_phonons), order='C')[mu]
         tau_0 = 1 / gamma
         tau_0[np.invert(physical_modes)] = 0
         lambd_0[:, alpha] = tau_0[:] * velocities[:, alpha]

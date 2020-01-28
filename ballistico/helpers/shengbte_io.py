@@ -411,8 +411,8 @@ def import_from_shengbte(finite_difference, kpts, is_classic, temperature, folde
 
     new_shape = [phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], phonons.n_modes]
     energies = read_energy_data(phonons).reshape(new_shape)
-    phonons.frequencies = energies / (2 * np.pi)
-    phonons.velocities = read_velocity_data(phonons) * 10
+    phonons.frequency = energies / (2 * np.pi)
+    phonons.velocity = read_velocity_data(phonons) * 10
     phonons.gamma = read_decay_rate_data(phonons).reshape(new_shape)
     # phonons.scattering_matrix = import_scattering_matrix(phonons)
     return phonons
