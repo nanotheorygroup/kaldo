@@ -140,8 +140,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
             point_names = ['$\\Gamma$', 'X']
 
     if phonons.is_able_to_calculate:
-        freqs_plot = phonons.calculate_second_order_observable('frequencies', k_list)
-        vel_plot = phonons.calculate_second_order_observable('velocities', k_list)
+        freqs_plot = phonons.calculate_frequencies(k_list)
+        vel_plot = phonons.calculate_velocities(k_list)
         vel_norm = np.linalg.norm(vel_plot, axis=-1)
         # print(vel_plot)
     else:
