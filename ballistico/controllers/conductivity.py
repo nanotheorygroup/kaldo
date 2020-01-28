@@ -88,6 +88,14 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
         lorentz = lorentz_delta(delta_energy, sigma)
         lorentz = lorentz * np.pi
         lorentz[np.isnan(lorentz)] = 0
+
+        sij = phonons._sij
+        sij[np.invert(physical_modes_2d)] = 0
+
+        prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
+        diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
+        conductivity_per_mode = contract('kn,knab->knab', phonons.heat_capacity, diffusivity)
+
     else:
         omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
         condition = (omegas_difference < delta_threshold * 2 * np.pi * gamma_in)
@@ -95,16 +103,24 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
         coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
         sigma = 2 * (gamma[coords[:, 0], coords[:, 1]] + gamma[coords[:, 0], coords[:, 2]])
         delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-        data = lorentz_delta(delta_energy, sigma, delta_threshold)
-        data = data * np.pi
+        data = np.pi * lorentz_delta(delta_energy, sigma, delta_threshold)
         lorentz_sparse = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+        s_ij_sparse = [COO(coords.T, phonons._sij[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
+                          shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+                       COO(coords.T, phonons._sij[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
+                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+                       COO(coords.T, phonons._sij[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
+                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
+
         lorentz = lorentz_sparse.todense()
 
-    sij = phonons._sij
-    sij[np.invert(physical_modes_2d)] = 0
+        prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
+        prefactor[np.invert(physical_modes_2d)] = 0
+        diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
+        for alpha in range(3):
+            for beta in range(3):
+                diffusivity[..., alpha, beta] = contract('knm,knm,knm,knm->kn', s_ij_sparse[alpha].todense(), prefactor, lorentz, s_ij_sparse[beta].todense())
 
-    prefactor = 1 / omega[:, :, np.newaxis] / omega[:,np.newaxis, :] / 4
-    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
     conductivity_per_mode = contract('kn,knab->knab', phonons.heat_capacity, diffusivity)
 
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
