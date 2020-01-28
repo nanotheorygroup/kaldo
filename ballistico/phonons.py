@@ -6,7 +6,7 @@ from opt_einsum import contract
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
 from ballistico.helpers.tools import apply_boundary_with_cell, q_vec_from_q_index
-from ballistico.harmonic_single_q import HarmonicSingleQ
+from scipy.linalg.lapack import dsyev
 import numpy as np
 import ase.units as units
 
@@ -185,6 +185,11 @@ class Phonons:
 # Private methods
 #################
 
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def _main_q_mesh(self):
+        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+        return q_mesh
+
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def _dynmat_derivatives(self):
@@ -350,113 +355,124 @@ class Phonons:
 
 
     def calculate_frequencies(self, q_points=None):
-        if q_points is None:
-            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+        is_main_mesh = True if q_points is None else False
+        if not is_main_mesh:
+            if q_points.shape == self._main_q_mesh.shape:
+                if (q_points == self._main_q_mesh).all():
+                    is_main_mesh = True
+        if is_main_mesh:
+            q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
-        atoms = self.atoms
-        n_unit_cell = atoms.positions.shape[0]
-        n_k_points = q_points.shape[0]
-        tensor = np.zeros((n_k_points, n_unit_cell * 3))
-        for index_k in range(n_k_points):
-            qvec = q_points[index_k]
-            hsq = HarmonicSingleQ(qvec=qvec,
-                                  finite_difference=self.finite_difference,
-                                  min_frequency=self.min_frequency,
-                                  max_frequency=self.max_frequency,
-                                  is_amorphous=self._is_amorphous
-                                  )
-            tensor[index_k] = hsq.calculate_frequencies()
-        return tensor
+        eigenvals = self.calculate_eigensystem(q_points, only_eigenvals=True)
+        frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
+        return frequencies.real
 
 
     def calculate_dynmat_derivatives(self, q_points=None):
-        if q_points is None:
-            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+        is_main_mesh = True if q_points is None else False
+        if not is_main_mesh:
+            if q_points.shape == self._main_q_mesh.shape:
+                if (q_points == self._main_q_mesh).all():
+                    is_main_mesh = True
+        if is_main_mesh:
+            q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
         atoms = self.atoms
+        list_of_replicas = self.finite_difference.list_of_replicas
+        replicated_cell = self.finite_difference.replicated_atoms.cell
+        replicated_cell_inv = self.finite_difference.replicated_cell_inv
+        dynmat = self.finite_difference.dynmat
+        positions = self.finite_difference.atoms.positions
+
         n_unit_cell = atoms.positions.shape[0]
         n_k_points = q_points.shape[0]
         tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
-            hsq = HarmonicSingleQ(qvec=qvec,
-                                  finite_difference=self.finite_difference,
-                                  min_frequency=self.min_frequency,
-                                  max_frequency=self.max_frequency,
-                                  is_amorphous=self._is_amorphous
-                                  )
-            tensor[index_k] = hsq.calculate_dynmat_derivatives()
+            if self._is_amorphous:
+                dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
+                dxij = apply_boundary_with_cell(dxij, replicated_cell, replicated_cell_inv)
+                dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
+            else:
+                list_of_replicas = list_of_replicas
+                dxij = positions[:, np.newaxis, np.newaxis, :] - (
+                        positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, self.chi(qvec))
+
+            dynmat_derivatives = dynmat_derivatives.reshape((self.n_modes, self.n_modes, 3), order='C')
+            tensor[index_k] = dynmat_derivatives
         return tensor
 
 
-    def calculate_sij(self, q_points=None):
-        if q_points is None:
-            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+    def calculate_sij(self, q_points=None, is_antisymmetrizing=False):
+        is_main_mesh = True if q_points is None else False
+        if not is_main_mesh:
+            if q_points.shape == self._main_q_mesh.shape:
+                if (q_points == self._main_q_mesh).all():
+                    is_main_mesh = True
+        if is_main_mesh:
+            q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
-        atoms = self.atoms
-        n_unit_cell = atoms.positions.shape[0]
-        n_k_points = q_points.shape[0]
-        tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
-        for index_k in range(n_k_points):
-            qvec = q_points[index_k]
-            hsq = HarmonicSingleQ(qvec=qvec,
-                                  finite_difference=self.finite_difference,
-                                  min_frequency=self.min_frequency,
-                                  max_frequency=self.max_frequency,
-                                  is_amorphous=self._is_amorphous
-                                  )
-            tensor[index_k] = hsq.calculate_sij()
-        return tensor
+
+        # TODO: THis should be lazy loaded instead
+        dynmat_derivatives = self.calculate_dynmat_derivatives(q_points)
+        eigenvects = self.calculate_eigensystem(q_points)[:, 1:, :]
+        if is_antisymmetrizing:
+            error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
+            dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
+            print('Symmetrization error: ' + str(error))
+        if self._is_amorphous:
+            sij = contract('kim,kija,kjn->kmna', eigenvects, dynmat_derivatives, eigenvects)
+        else:
+            sij = contract('kim,kija,kjn->kmna', eigenvects.conj(), dynmat_derivatives, eigenvects)
+        return sij
 
 
-    def calculate_velocities_af(self, q_points=None):
-        if q_points is None:
-            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+    def calculate_velocities_af(self, q_points=None, is_antisymmetrizing=False):
+        is_main_mesh = True if q_points is None else False
+        if not is_main_mesh:
+            if q_points.shape == self._main_q_mesh.shape:
+                if (q_points == self._main_q_mesh).all():
+                    is_main_mesh = True
+        if is_main_mesh:
+            q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
-        atoms = self.atoms
-        n_unit_cell = atoms.positions.shape[0]
-        n_k_points = q_points.shape[0]
-        tensor = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
-        for index_k in range(n_k_points):
-            qvec = q_points[index_k]
-            hsq = HarmonicSingleQ(qvec=qvec,
-                                  finite_difference=self.finite_difference,
-                                  min_frequency=self.min_frequency,
-                                  max_frequency=self.max_frequency,
-                                  is_amorphous=self._is_amorphous
-                                  )
-            tensor[index_k] = hsq.calculate_velocities_af()
-        return tensor
+        frequencies = self.calculate_frequencies(q_points)
+        # TODO: Here we should reuse the phonons._sij
+        sij = self.calculate_sij(q_points, is_antisymmetrizing)
+        velocities_AF = contract('kmna,kmn->kmna', sij,
+                                 1 / (2 * np.pi * np.sqrt(frequencies[:, :, np.newaxis]) * np.sqrt(
+                                     frequencies[:, np.newaxis, :]))) / 2
+        return velocities_AF
 
 
-    def calculate_velocities(self, q_points=None):
-        if q_points is None:
-            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+    def calculate_velocities(self, q_points=None, is_antisymmetrizing=False):
+        is_main_mesh = True if q_points is None else False
+        if not is_main_mesh:
+            if q_points.shape == self._main_q_mesh.shape:
+                if (q_points == self._main_q_mesh).all():
+                    is_main_mesh = True
+        if is_main_mesh:
+            q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
-        atoms = self.atoms
-        n_unit_cell = atoms.positions.shape[0]
-        n_k_points = q_points.shape[0]
-        tensor = np.zeros((n_k_points, n_unit_cell * 3, 3))
-        for index_k in range(n_k_points):
-            qvec = q_points[index_k]
-            hsq = HarmonicSingleQ(qvec=qvec,
-                                  finite_difference=self.finite_difference,
-                                  min_frequency=self.min_frequency,
-                                  max_frequency=self.max_frequency,
-                                  is_amorphous=self._is_amorphous
-                                  )
-            tensor[index_k] = hsq.calculate_velocities()
-        return tensor
+        velocities_AF = self.calculate_velocities_af(q_points, is_antisymmetrizing=is_antisymmetrizing)
+        velocities = 1j * np.einsum('kmma->kma', velocities_AF)
+        return velocities.real
 
 
-    def calculate_eigensystem(self, q_points=None):
-        if q_points is None:
-            q_points = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+    def calculate_eigensystem(self, q_points=None, only_eigenvals=False):
+        is_main_mesh = True if q_points is None else False
+        if not is_main_mesh:
+            if q_points.shape == self._main_q_mesh.shape:
+                if (q_points == self._main_q_mesh).all():
+                    is_main_mesh = True
+        if is_main_mesh:
+            q_points = self._main_q_mesh
         else:
             q_points = apply_boundary_with_cell(q_points)
         atoms = self.atoms
@@ -464,17 +480,37 @@ class Phonons:
         n_k_points = q_points.shape[0]
         # Here we store the eigenvalues in the last column
         if self._is_amorphous:
-            tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3))
+            dtype = np.float
         else:
-            tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)).astype(np.complex)
+            dtype = np.complex
+        if only_eigenvals:
+            tensor = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
+        else:
+            tensor = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
-            hsq = HarmonicSingleQ(qvec=qvec,
-                                  finite_difference=self.finite_difference,
-                                  min_frequency=self.min_frequency,
-                                  max_frequency=self.max_frequency,
-                                  is_amorphous=self._is_amorphous
-                                  )
-            tensor[index_k] = hsq.calculate_eigensystem()
+            is_at_gamma = (qvec == (0, 0, 0)).all()
+            dynmat = self.finite_difference.dynmat
+            if is_at_gamma:
+                dyn_s = contract('ialjb->iajb', dynmat)
+            else:
+                # TODO: the following espression could be done on the whole main_q_mesh
+                dyn_s = contract('ialjb,l->iajb', dynmat, self.chi(qvec))
+            dyn_s = dyn_s.reshape((self.n_modes, self.n_modes), order='C')
+            if only_eigenvals:
+                evals = np.linalg.eigvalsh(dyn_s)
+                tensor[index_k] =  evals
+            else:
+                if is_at_gamma:
+                    evals, evects = dsyev(dyn_s)[:2]
+                else:
+                    evals, evects = np.linalg.eigh(dyn_s)
+                tensor[index_k] =  np.vstack((evals, evects))
         return tensor
 
+
+    def chi(self, qvec):
+        dxij = self.finite_difference.list_of_replicas
+        cell_inv = self.finite_difference.cell_inv
+        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+        return chi_k
