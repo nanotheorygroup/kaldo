@@ -489,22 +489,22 @@ def read_decay_rate_data(phonons, type=None):
 
 def read_velocity_data(phonons):
     shenbte_folder = phonons.folder
-    velocities = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
-    n_velocities = velocities.shape[0]
+    velocity = pd.read_csv (shenbte_folder + '/BTE.v_full', header=None, delim_whitespace=True)
+    n_velocity = velocity.shape[0]
     n_qpoints = qpoints_mapper(phonons).shape[0]
-    n_modes = int(n_velocities / n_qpoints)
+    n_modes = int(n_velocity / n_qpoints)
 
-    velocity_array = velocities.values.reshape (n_modes, n_qpoints, 3)
+    velocity_array = velocity.values.reshape (n_modes, n_qpoints, 3)
 
-    velocities = np.zeros((phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], n_modes, 3))
+    velocity = np.zeros((phonons.kpts[0], phonons.kpts[1], phonons.kpts[2], n_modes, 3))
 
     z = 0
     for k in range (phonons.kpts[2]):
         for j in range(phonons.kpts[1]):
             for i in range (phonons.kpts[0]):
-                velocities[i, j, k, :, :] = velocity_array[:, z, :]
+                velocity[i, j, k, :, :] = velocity_array[:, z, :]
                 z += 1
-    return velocities
+    return velocity
 
 
 def read_conductivity(phonons, converged=True):

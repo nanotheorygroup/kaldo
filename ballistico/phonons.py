@@ -5,14 +5,15 @@ Anharmonic Lattice Dynamics
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
-from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequencies, calculate_velocities, \
+from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
-    calculate_velocities_af, calculate_sij
+    calculate_velocity_af, calculate_sij
 from ballistico.controllers.conductivity import calculate_conductivity_sc, calculate_conductivity_qhgk, \
     calculate_conductivity_inverse, calculate_conductivity_with_evects
 import numpy as np
 import ase.units as units
 from opt_einsum import contract
+
 
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -101,26 +102,26 @@ class Phonons:
     @lazy_property(is_storing=True, is_reduced_path=True)
     def frequency(self):
         """
-        Calculate phonons frequencies
+        Calculate phonons frequency
         Returns
         -------
-        frequencies : np array
-            (n_k_points, n_modes) frequencies in THz
+        frequency : np array
+            (n_k_points, n_modes) frequency in THz
         """
-        frequencies = calculate_frequencies(self)
-        return frequencies
+        frequency = calculate_frequency(self)
+        return frequency
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
     def velocity(self):
-        """Calculates the velocities using Hellmann-Feynman theorem.
+        """Calculates the velocity using Hellmann-Feynman theorem.
         Returns
         -------
-        velocities : np array
-            (n_k_points, n_unit_cell * 3, 3) velocities in 100m/s or A/ps
+        velocity : np array
+            (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
         """
-        velocities = calculate_velocities(self)
-        return velocities
+        velocity = calculate_velocity(self)
+        return velocity
 
 
     @lazy_property(is_storing=True, is_reduced_path=False)
@@ -229,9 +230,9 @@ class Phonons:
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
-    def _velocities_af(self):
-        velocities_AF = calculate_velocities_af(self)
-        return velocities_AF
+    def _velocity_af(self):
+        velocity_AF = calculate_velocity_af(self)
+        return velocity_AF
 
 
     @lazy_property(is_storing=True, is_reduced_path=True)
@@ -257,9 +258,9 @@ class Phonons:
 
     @lazy_property(is_storing=False, is_reduced_path=False)
     def _scattering_matrix_without_diagonal(self):
-        frequencies = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
+        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
         gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequencies, gamma_tensor, frequencies)
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
         return scattering_matrix_without_diagonal
 
 
@@ -269,6 +270,12 @@ class Phonons:
         gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
         scattering_matrix = scattering_matrix + np.diag(gamma)
         return scattering_matrix
+
+
+    @lazy_property(is_storing=False, is_reduced_path=False)
+    def omegas(self):
+        omegas = 2 * np.pi * self.frequency
+        return omegas
 
 
     @property
@@ -323,31 +330,24 @@ class Phonons:
         print('Projection started')
         if self.is_tf_backend:
             try:
-                from ballistico.anharmonic_tf import Anharmonic
-            except ModuleNotFoundError as err:
+                from ballistico.anharmonic_tf import aha
+            except ImportError as err:
                 print(err)
                 print('tensorflow>=2.0 is required to run accelerated routines. Please consider installing tensorflow>=2.0. More info here: https://www.tensorflow.org/install/pip')
                 print('Using numpy engine instead.')
-                from ballistico.anharmonic import Anharmonic
-        else:
-            from ballistico.anharmonic import Anharmonic
+                import ballistico.anharmonic as aha
 
-        anharmonic = Anharmonic(finite_difference=self.finite_difference,
-                                frequencies=self.frequency,
-                                kpts=self.kpts,
-                                rescaled_eigenvectors=self.rescaled_eigenvectors,
-                                is_gamma_tensor_enabled=is_gamma_tensor_enabled,
-                                chi_k=self._chi_k,
-                                velocities=self.velocity,
-                                physical_modes=self.physical_modes,
-                                occupations=self.population,
-                                sigma_in=self.sigma_in,
-                                broadening_shape=self.broadening_shape
-                                )
-        if self._is_amorphous:
-            ps_and_gamma = anharmonic.project_amorphous()
         else:
-            ps_and_gamma = anharmonic.project_crystal()
+            import ballistico.anharmonic as aha
+
+        self.n_k_points = np.prod(self.kpts)
+        self.n_phonons = self.n_k_points * self.n_modes
+        self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
+
+        if self._is_amorphous:
+            ps_and_gamma = aha.project_amorphous(self)
+        else:
+            ps_and_gamma = aha.project_crystal(self)
         return ps_and_gamma
 
 
