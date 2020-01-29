@@ -6,7 +6,6 @@ Unit and regression test for the ballistico package.
 from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
-import ballistico.controllers.conductivity as bac
 import ase.units as units
 import pytest
 from tempfile import TemporaryDirectory
@@ -44,7 +43,7 @@ def test_second_gamma(phonons):
 
 
 def test_qhgk_conductivity(phonons):
-    cond = bac.conductivity(phonons, method='qhgk')[0].sum(axis=0)
+    cond = phonons.conductivity(method='qhgk')[0].sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 0.996, significant=2)
 
