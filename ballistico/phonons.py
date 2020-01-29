@@ -158,7 +158,7 @@ class Phonons:
         return occupations
 
 
-    @property
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
     def bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
@@ -171,7 +171,7 @@ class Phonons:
         return gamma
 
 
-    @property
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
     def phase_space(self):
         """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
@@ -204,7 +204,7 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
     def _ps_and_gamma(self):
-        if is_calculated('ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>'):
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>'):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
