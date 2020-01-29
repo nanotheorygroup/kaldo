@@ -1,7 +1,6 @@
 from ballistico.finitedifference import FiniteDifference
 from ballistico.phonons import Phonons
 import matplotlib.pyplot as plt
-import ballistico.controllers.conductivity as bac
 from ase.io import read
 import numpy as np
 
@@ -32,7 +31,7 @@ phonons = Phonons(finite_difference=finite_difference,
                   temperature=temperature)
 
 print('AF conductivity')
-print(bac.conductivity(phonons, method='qhgk').sum(axis=0))
+print(phonons.conductivity(method='qhgk').sum(axis=0))
 
 plt.scatter(phonons.frequency.flatten()[3:], phonons.bandwidth.flatten()[3:], s=5)
 plt.ylabel('gamma_THz', fontsize=16, fontweight='bold')

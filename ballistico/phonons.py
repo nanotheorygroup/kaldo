@@ -5,9 +5,15 @@ Anharmonic Lattice Dynamics
 from ballistico.helpers.tools import is_calculated
 from ballistico.helpers.tools import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
-from ballistico.controllers.harmonic import *
+from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequencies, calculate_velocities, \
+    calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
+    calculate_velocities_af, calculate_sij
+from ballistico.controllers.conductivity import calculate_conductivity_sc, calculate_conductivity_qhgk, \
+    calculate_conductivity_inverse, calculate_conductivity_with_evects
 import numpy as np
 import ase.units as units
+from opt_einsum import contract
+
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
@@ -351,3 +357,19 @@ class Phonons:
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
 
+
+
+    def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None, delta_threshold=None):
+        # if length is not None:
+        if method == 'rta':
+            return calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+        elif method == 'sc':
+            return calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
+        elif (method == 'qhgk'):
+            return calculate_conductivity_qhgk(self, gamma_in=gamma_in, delta_threshold=delta_threshold)
+        elif (method == 'inverse'):
+            return calculate_conductivity_inverse(self)
+        elif (method == 'eigenvectors'):
+            return calculate_conductivity_with_evects(self)
+        else:
+            raise TypeError('Conductivity method not implemented')

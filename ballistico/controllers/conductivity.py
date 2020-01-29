@@ -260,19 +260,3 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     else:
         return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
 
-
-def conductivity(phonons, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None, delta_threshold=None):
-    # if length is not None:
-    if method == 'rta':
-        return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
-    elif method == 'sc':
-        return calculate_conductivity_sc(phonons, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
-    elif (method == 'qhgk'):
-        return calculate_conductivity_qhgk(phonons, gamma_in=gamma_in, delta_threshold=delta_threshold)
-    elif (method == 'inverse'):
-        return calculate_conductivity_inverse(phonons)
-    elif (method == 'eigenvectors'):
-        return calculate_conductivity_with_evects(phonons)
-    else:
-        raise TypeError('Conductivity method not implemented')
-
