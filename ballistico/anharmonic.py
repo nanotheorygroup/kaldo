@@ -6,7 +6,7 @@ import sparse
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
 import numpy as np
-from ballistico.helpers.dirac_kernel import gaussian_delta, triangular_delta
+from ballistico.controllers.dirac_kernel import gaussian_delta, triangular_delta
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 

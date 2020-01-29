@@ -7,7 +7,7 @@ import ase.units as units
 import numpy as np
 import time
 from sparse import COO
-from ballistico.helpers.dirac_kernel import lorentz_delta
+from ballistico.controllers.dirac_kernel import lorentz_delta
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
