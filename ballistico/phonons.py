@@ -2,8 +2,8 @@
 Ballistico
 Anharmonic Lattice Dynamics
 """
-from ballistico.helpers.tools import is_calculated
-from ballistico.helpers.tools import lazy_property
+from ballistico.helpers.lazy_loading import is_calculated
+from ballistico.helpers.lazy_loading import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
@@ -13,7 +13,6 @@ from ballistico.controllers.conductivity import calculate_conductivity_sc, calcu
 import numpy as np
 import ase.units as units
 from opt_einsum import contract
-
 
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -85,7 +84,7 @@ class Phonons:
         self.is_able_to_calculate = True
 
 
-    @lazy_property(is_storing=True, is_reduced_path=True)
+    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
     def physical_modes(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
@@ -99,7 +98,7 @@ class Phonons:
         return physical_modes
 
 
-    @lazy_property(is_storing=True, is_reduced_path=True)
+    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
     def frequency(self):
         """
         Calculate phonons frequency
@@ -112,7 +111,7 @@ class Phonons:
         return frequency
 
 
-    @lazy_property(is_storing=True, is_reduced_path=True)
+    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
         Returns
@@ -124,7 +123,7 @@ class Phonons:
         return velocity
 
 
-    @lazy_property(is_storing=True, is_reduced_path=False)
+    @lazy_property(label='<temperature>/<statistics>', is_storing=True, is_sparse=False, is_binary=False)
     def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the
@@ -144,7 +143,7 @@ class Phonons:
         return c_v
 
 
-    @lazy_property(is_storing=True, is_reduced_path=False)
+    @lazy_property(label='<temperature>/<statistics>', is_storing=True, is_sparse=False, is_binary=False)
     def population(self):
         """Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
@@ -185,7 +184,90 @@ class Phonons:
         return ps
 
 
-    @lazy_property(is_storing=False, is_reduced_path=False)
+    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    def _dynmat_derivatives(self):
+        dynmat_derivatives = calculate_dynmat_derivatives(self)
+        return dynmat_derivatives
+
+
+    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    def _eigensystem(self):
+        eigensystem = calculate_eigensystem(self)
+        return eigensystem
+
+
+    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    def _sij(self):
+        sij = calculate_sij(self)
+        return sij
+
+
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
+    def _ps_and_gamma(self):
+        if is_calculated('ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>'):
+            ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
+        else:
+            ps_and_gamma = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
+        return ps_and_gamma
+
+
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
+    def _ps_gamma_and_gamma_tensor(self):
+        ps_gamma_and_gamma_tensor = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=True)
+        return ps_gamma_and_gamma_tensor
+
+
+# Helpers properties, lazy loaded only in memory
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def _chi_k(self):
+        chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
+        for index_q in range(self.n_k_points):
+            k_point = q_vec_from_q_index(index_q, self.kpts)
+            chi[index_q] = self._chi(k_point)
+        return chi
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def _omegas(self):
+        return self.frequency * 2 * np.pi
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def _main_q_mesh(self):
+        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+        return q_mesh
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def _velocity_af(self):
+        velocity_AF = calculate_velocity_af(self)
+        return velocity_AF
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def _scattering_matrix_without_diagonal(self):
+        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
+        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
+        return scattering_matrix_without_diagonal
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def _scattering_matrix(self):
+        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
+        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
+        scattering_matrix = scattering_matrix + np.diag(gamma)
+        return scattering_matrix
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    def omegas(self):
+        omegas = 2 * np.pi * self.frequency
+        return omegas
+
+
+    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
     def rescaled_eigenvectors(self):
         n_atoms = self.n_atoms
         n_modes = self.n_modes
@@ -195,87 +277,6 @@ class Phonons:
             masses[np.newaxis, :, np.newaxis, np.newaxis])
         rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
         return rescaled_eigenvectors
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _main_q_mesh(self):
-        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
-        return q_mesh
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def _dynmat_derivatives(self):
-        dynmat_derivatives = calculate_dynmat_derivatives(self)
-        return dynmat_derivatives
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def _eigensystem(self):
-        eigensystem = calculate_eigensystem(self)
-        return eigensystem
-
-
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def _chi_k(self):
-        chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
-        for index_q in range(self.n_k_points):
-            k_point = q_vec_from_q_index(index_q, self.kpts)
-            chi[index_q] = self._chi(k_point)
-        return chi
-
-
-    @lazy_property(is_storing=False, is_reduced_path=True)
-    def _omegas(self):
-        return self.frequency * 2 * np.pi
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def _velocity_af(self):
-        velocity_AF = calculate_velocity_af(self)
-        return velocity_AF
-
-
-    @lazy_property(is_storing=True, is_reduced_path=True)
-    def _sij(self):
-        sij = calculate_sij(self)
-        return sij
-
-
-    @lazy_property(is_storing=True, is_reduced_path=False)
-    def _ps_and_gamma(self):
-        if is_calculated('ps_gamma_and_gamma_tensor', self):
-            ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
-        else:
-            ps_and_gamma = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
-        return ps_and_gamma
-
-
-    @lazy_property(is_storing=True, is_reduced_path=False)
-    def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=True)
-        return ps_gamma_and_gamma_tensor
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _scattering_matrix_without_diagonal(self):
-        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
-        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
-        return scattering_matrix_without_diagonal
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def _scattering_matrix(self):
-        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
-        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
-        scattering_matrix = scattering_matrix + np.diag(gamma)
-        return scattering_matrix
-
-
-    @lazy_property(is_storing=False, is_reduced_path=False)
-    def omegas(self):
-        omegas = 2 * np.pi * self.frequency
-        return omegas
 
 
     @property
