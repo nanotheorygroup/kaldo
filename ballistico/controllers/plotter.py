@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.neighbors.kde import KernelDensity
 from scipy import ndimage
 from ballistico.helpers.tools import convert_to_spg_structure
-from ballistico.controllers.harmonic import calculate_frequencies, calculate_velocities
+from ballistico.controllers.harmonic import calculate_frequency, calculate_velocity
 
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots/'
@@ -92,10 +92,10 @@ def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05):
 
 
 def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
-    frequencies = phonons.frequency.flatten ()
+    frequency = phonons.frequency.flatten ()
     observable = observable.flatten ()
     fig = plt.figure ()
-    plt.scatter(frequencies[3:], observable[3:],s=5)
+    plt.scatter(frequency[3:], observable[3:],s=5)
     observable[np.isnan(observable)] = 0
     plt.ylabel (observable_name, fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
@@ -141,8 +141,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
             point_names = ['$\\Gamma$', 'X']
 
     if phonons.is_able_to_calculate:
-        freqs_plot = calculate_frequencies(phonons, k_list)
-        vel_plot = calculate_velocities(phonons, k_list)
+        freqs_plot = calculate_frequency(phonons, k_list)
+        vel_plot = calculate_velocity(phonons, k_list)
         vel_norm = np.linalg.norm(vel_plot, axis=-1)
         # print(vel_plot)
     else:
@@ -150,16 +150,16 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
         vel_plot = np.zeros((k_list.shape[0], phonons.n_modes, 3))
         vel_norm = np.zeros((k_list.shape[0], phonons.n_modes))
 
-        frequencies = phonons.frequency.reshape((phonons.kpts[0], phonons.kpts[1],
+        frequency = phonons.frequency.reshape((phonons.kpts[0], phonons.kpts[1],
                                                  phonons.kpts[2], phonons.n_modes), order='C')
-        velocities = phonons.velocity.reshape((phonons.kpts[0], phonons.kpts[1],
+        velocity = phonons.velocity.reshape((phonons.kpts[0], phonons.kpts[1],
                                                phonons.kpts[2], phonons.n_modes, 3), order='C')
         for mode in range(phonons.n_modes):
-            freqs_plot[:, mode] = interpolator(k_list, frequencies[..., mode], fourier_order=5, interpolation_order=2)
+            freqs_plot[:, mode] = interpolator(k_list, frequency[..., mode], fourier_order=5, interpolation_order=2)
 
             for alpha in range(3):
-                vel_plot[:, mode, alpha] = interpolator(k_list, velocities[..., mode, alpha], interpolation_order=0, is_wrapping=False)
-            vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocities[..., mode, :],axis=-1), interpolation_order=0, is_wrapping=False)
+                vel_plot[:, mode, alpha] = interpolator(k_list, velocity[..., mode, alpha], interpolation_order=0, is_wrapping=False)
+            vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocity[..., mode, :],axis=-1), interpolation_order=0, is_wrapping=False)
 
     plt.ylabel ('frequency/$THz$', fontsize=25, fontweight='bold')
     plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')

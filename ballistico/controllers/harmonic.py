@@ -15,20 +15,20 @@ FOLDER_NAME = 'ald-output'
 
 
 def calculate_occupations(phonons):
-    frequencies = phonons.frequency
+    frequency = phonons.frequency
     temp = phonons.temperature * KELVINTOTHZ
-    density = np.zeros_like(frequencies)
+    density = np.zeros_like(frequency)
     physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     if phonons.is_classic is False:
-        density[physical_modes] = 1. / (np.exp(frequencies[physical_modes] / temp) - 1.)
+        density[physical_modes] = 1. / (np.exp(frequency[physical_modes] / temp) - 1.)
     else:
-        density[physical_modes] = temp / frequencies[physical_modes]
+        density[physical_modes] = temp / frequency[physical_modes]
     return density
 
 
 def calculate_heat_capacity(phonons):
-    frequencies = phonons.frequency
-    c_v = np.zeros_like(frequencies)
+    frequency = phonons.frequency
+    c_v = np.zeros_like(frequency)
     physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     temperature = phonons.temperature * KELVINTOTHZ
     if (phonons.is_classic):
@@ -41,7 +41,7 @@ def calculate_heat_capacity(phonons):
     return c_v
 
 
-def calculate_frequencies(phonons, q_points=None):
+def calculate_frequency(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
         if q_points.shape == phonons._main_q_mesh.shape:
@@ -52,8 +52,8 @@ def calculate_frequencies(phonons, q_points=None):
     else:
         q_points = apply_boundary_with_cell(q_points)
     eigenvals = calculate_eigensystem(phonons, q_points, only_eigenvals=True)
-    frequencies = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-    return frequencies.real
+    frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
+    return frequency.real
 
 
 def calculate_dynmat_derivatives(phonons, q_points=None):
@@ -119,7 +119,7 @@ def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
     return sij
 
 
-def calculate_velocities_af(phonons, q_points=None, is_antisymmetrizing=False):
+def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
         if q_points.shape == phonons._main_q_mesh.shape:
@@ -131,17 +131,17 @@ def calculate_velocities_af(phonons, q_points=None, is_antisymmetrizing=False):
         q_points = apply_boundary_with_cell(q_points)
     if is_main_mesh:
         sij = phonons._sij
-        frequencies = phonons.frequency
+        frequency = phonons.frequency
     else:
         sij = calculate_sij(phonons, q_points, is_antisymmetrizing)
-        frequencies = calculate_frequencies(phonons, q_points)
-    velocities_AF = contract('kmna,kmn->kmna', sij,
-                             1 / (2 * np.pi * np.sqrt(frequencies[:, :, np.newaxis]) * np.sqrt(
-                                 frequencies[:, np.newaxis, :]))) / 2
-    return velocities_AF
+        frequency = calculate_frequency(phonons, q_points)
+    velocity_AF = contract('kmna,kmn->kmna', sij,
+                             1 / (2 * np.pi * np.sqrt(frequency[:, :, np.newaxis]) * np.sqrt(
+                                 frequency[:, np.newaxis, :]))) / 2
+    return velocity_AF
 
 
-def calculate_velocities(phonons, q_points=None, is_antisymmetrizing=False):
+def calculate_velocity(phonons, q_points=None, is_antisymmetrizing=False):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
         if q_points.shape == phonons._main_q_mesh.shape:
@@ -152,11 +152,11 @@ def calculate_velocities(phonons, q_points=None, is_antisymmetrizing=False):
     else:
         q_points = apply_boundary_with_cell(q_points)
     if is_main_mesh:
-        velocities_AF = phonons._velocities_af
+        velocity_AF = phonons._velocity_af
     else:
-        velocities_AF = calculate_velocities_af(phonons, q_points, is_antisymmetrizing=is_antisymmetrizing)
-    velocities = 1j * contract('kmma->kma', velocities_AF)
-    return velocities.real
+        velocity_AF = calculate_velocity_af(phonons, q_points, is_antisymmetrizing=is_antisymmetrizing)
+    velocity = 1j * contract('kmma->kma', velocity_AF)
+    return velocity.real
 
 
 def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):

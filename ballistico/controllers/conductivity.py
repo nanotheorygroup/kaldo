@@ -132,17 +132,17 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
     return conductivity_per_mode, diff
 
 def calculate_conductivity_inverse(phonons):
-    velocities = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
+    velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
     scattering_inverse = np.linalg.inv(phonons._scattering_matrix)
 
-    lambd = scattering_inverse.dot(velocities[:, :])
+    lambd = scattering_inverse.dot(velocity[:, :])
     physical_modes = phonons.physical_modes
 
     volume = np.linalg.det(phonons.atoms.cell)
     c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
     conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
     conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
-                                                  velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
+                                                  velocity[:, :, np.newaxis] * lambd[:, np.newaxis, :]
     neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
     logging.info('negative on diagonal : ' + str(neg_diag))
     evals = np.linalg.eigvalsh(phonons._scattering_matrix)
@@ -152,7 +152,7 @@ def calculate_conductivity_inverse(phonons):
 
 
 def calculate_conductivity_with_evects(phonons):
-    velocities = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
+    velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
 
     evals, evects = np.linalg.eig(phonons._scattering_matrix)
     first_positive = np.argwhere(evals >= 0)[0, 0]
@@ -164,14 +164,14 @@ def calculate_conductivity_with_evects(phonons):
     # e, v = np.linalg.eig(a)
     # a = v.dot(np.diag(e)).dot(np.linalg.inv(v))
 
-    lambd = scattering_inverse.dot(velocities[:, :])
+    lambd = scattering_inverse.dot(velocity[:, :])
     physical_modes = phonons.physical_modes
 
     volume = np.linalg.det(phonons.atoms.cell)
     c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
     conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
     conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
-                                                  velocities[:, :, np.newaxis] * lambd[:, np.newaxis, :]
+                                                  velocity[:, :, np.newaxis] * lambd[:, np.newaxis, :]
     neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
     logging.info('negative on diagonal : ' + str(neg_diag))
     evals = np.linalg.eigvalsh(phonons._scattering_matrix)
@@ -187,9 +187,9 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         length_thresholds = np.array([None, None, None])
         length_thresholds[axis] = length
     volume = np.linalg.det (phonons.atoms.cell)
-    velocities = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
+    velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
-    velocities = velocities.reshape((phonons.n_phonons, 3), order='C')
+    velocity = velocity.reshape((phonons.n_phonons, 3), order='C')
     physical_modes = phonons.physical_modes
     if not is_rta:
         scattering_matrix = phonons._scattering_matrix_without_diagonal
@@ -200,17 +200,17 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         for mu in range (phonons.n_phonons):
             if length:
                 if length_thresholds[alpha]:
-                    velocity = velocities[mu, alpha]
+                    single_velocity = velocity[mu, alpha]
                     length = length_thresholds[alpha]
                     single_gamma = phonons.bandwidth.reshape((phonons.n_phonons), order='C')[mu]
                     if finite_size_method == 'matthiessen':
-                        gamma[mu] = single_gamma + 2 * abs(velocity) / length
+                        gamma[mu] = single_gamma + 2 * abs(single_velocity) / length
                         # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
-                        #         np.abs (velocities[mu, alpha]) / length_thresholds[alpha]
+                        #         np.abs (velocity[mu, alpha]) / length_thresholds[alpha]
 
                     elif finite_size_method == 'caltech':
 
-                        kn = abs(velocity) / (length * single_gamma)
+                        kn = abs(single_velocity) / (length * single_gamma)
                         transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
                         gamma[mu] = abs(velocity) / length / transmission
 
@@ -220,7 +220,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
                 gamma[mu] = phonons.bandwidth.reshape ((phonons.n_phonons), order='C')[mu]
         tau_0 = 1 / gamma
         tau_0[np.invert(physical_modes)] = 0
-        lambd_0[:, alpha] = tau_0[:] * velocities[:, alpha]
+        lambd_0[:, alpha] = tau_0[:] * velocity[:, alpha]
     c_v = phonons.heat_capacity.reshape ((phonons.n_phonons), order='C')
 
     lambd_n = lambd_0.copy ()
@@ -231,7 +231,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     for n_iteration in range (n_iterations):
         for alpha in range (3):
             for beta in range (3):
-                conductivity_per_mode[physical_modes, alpha, beta] = c_v[physical_modes] * velocities[
+                conductivity_per_mode[physical_modes, alpha, beta] = c_v[physical_modes] * velocity[
                                                                          physical_modes, alpha] * lambd_n[
                                                                          physical_modes, beta]
         new_avg_conductivity = np.diag (np.sum (conductivity_per_mode, 0)).mean ()
@@ -251,7 +251,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     for alpha in range (3):
         for beta in range (3):
             conductivity_per_mode[physical_modes, alpha, beta] = c_v[
-                physical_modes] * velocities[physical_modes, alpha] * lambd_n[physical_modes, beta]
+                physical_modes] * velocity[physical_modes, alpha] * lambd_n[physical_modes, beta]
 
     if n_iteration == (MAX_ITERATIONS_SC - 1):
         logging.info('Convergence not reached')
