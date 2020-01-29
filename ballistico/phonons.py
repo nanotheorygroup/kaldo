@@ -330,10 +330,10 @@ class Phonons:
         print('Projection started')
         if self.is_tf_backend:
             try:
-                from ballistico.controllers.anharmonic_tf import aha
+                import ballistico.controllers.anharmonic_tf as aha
             except ImportError as err:
                 print(err)
-                print('tensorflow>=2.0 is required to run accelerated routines. Please consider installing tensorflow>=2.0. More info here: https://www.tensorflow.org/install/pip')
+                print('tensorflow>=2.0 is required to run accelerated algoritgms. Please consider installing tensorflow>=2.0. More info here: https://www.tensorflow.org/install/pip')
                 print('Using numpy engine instead.')
                 import ballistico.controllers.anharmonic as aha
 
