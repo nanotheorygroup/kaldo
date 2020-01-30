@@ -7,11 +7,32 @@ LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
 
 
-def create_folder(phonons, label):
-    if phonons.folder:
-        folder = phonons.folder
+def load(filename, format='formatted'):
+    if format == 'numpy':
+        loaded = np.load(filename + '.npy')
+        return loaded
+    elif format == 'formatted':
+        loaded = np.loadtxt(filename + '.dat', skiprows=1)
+        return loaded
     else:
-        folder = FOLDER_NAME
+        raise ValueError('Storing format not implemented')
+
+
+def save(filename, loaded_attr, format='formatted'):
+    if format == 'numpy':
+        np.save(filename + '.npy', loaded_attr)
+    elif format == 'formatted':
+        np.savetxt(filename + '.dat', loaded_attr, header=str(loaded_attr.shape))
+    else:
+        raise ValueError('Storing format not implemented')
+
+
+def get_folder_from_label(phonons, label='', folder=None):
+    if folder is None:
+        if phonons.folder:
+            folder = phonons.folder
+        else:
+            folder = FOLDER_NAME
     if phonons.n_k_points > 1:
         kpts = phonons.kpts
         folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
@@ -34,21 +55,22 @@ def create_folder(phonons, label):
     return folder
 
 
-def lazy_property(label, is_storing, is_sparse, is_binary):
+def lazy_property(label='', format='formatted'):
+    is_storing = (format != 'memory')
     def _lazy_property(fn):
         attr = LAZY_PREFIX + fn.__name__
         @property
         def __lazy_property(self):
             if not hasattr(self, attr):
                 if is_storing:
-                    folder = create_folder(self, label)
-                    filename = folder + '/' + fn.__name__ + '.npy'
+                    folder = get_folder_from_label(self, label)
+                    filename = folder + '/' + fn.__name__
                     try:
-                        loaded_attr = np.load (filename)
-                    except FileNotFoundError:
+                        loaded_attr, exc = load(filename, format=format)
+                    except FileNotFoundError and OSError:
                         logging.info(str(filename) + ' not found in memory, calculating ' + str(fn.__name__))
                         loaded_attr = fn(self)
-                        np.save (filename, loaded_attr)
+                        save(filename, loaded_attr, format=format)
                     else:
                         logging.info('Loading ' + str(filename))
                 else:
@@ -61,18 +83,18 @@ def lazy_property(label, is_storing, is_sparse, is_binary):
     return _lazy_property
 
 
-def is_calculated(property, self, label=''):
+def is_calculated(property, self, label='', format='formatted'):
+    # TODO: remove this function
     attr = LAZY_PREFIX + property
     try:
         getattr(self, attr)
     except AttributeError:
         try:
-            folder = create_folder(self, label)
-            filename = folder + '/' + property + '.npy'
-            loaded_attr = np.load(filename)
+            folder = get_folder_from_label(self, label)
+            loaded_attr = load(folder + '/' + property, format=format)
             setattr(self, attr, loaded_attr)
             return True
-        except FileNotFoundError:
+        except FileNotFoundError and OSError:
             return False
     else:
         return True

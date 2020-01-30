@@ -9,9 +9,10 @@ from sklearn.neighbors.kde import KernelDensity
 from scipy import ndimage
 from ballistico.helpers.tools import convert_to_spg_structure
 from ballistico.controllers.harmonic import calculate_frequency, calculate_velocity
+from ballistico.helpers.lazy_loading import get_folder_from_label
 
 BUFFER_PLOT = .2
-DEFAULT_FOLDER = 'plots/'
+DEFAULT_FOLDER = 'plots'
 
 
 def resample_fourier(observable, increase_factor):
@@ -100,7 +101,8 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     plt.ylabel (observable_name, fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     plt.ylim(observable.min(), observable.max())
-    fig.savefig (phonons.folder + '/' + observable_name + '.pdf')
+    folder = get_folder_from_label(phonons, folder=DEFAULT_FOLDER)
+    fig.savefig (folder + '/' + observable_name + '.pdf')
     if is_showing:
         plt.show ()
 
@@ -112,7 +114,8 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
     plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    fig.savefig (phonons.folder + '/' + 'dos.pdf')
+    folder = get_folder_from_label(phonons, folder=DEFAULT_FOLDER)
+    fig.savefig (folder + '/' + 'dos.pdf')
     if is_showing:
         plt.show()
 
@@ -168,7 +171,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     plt.plot (q, freqs_plot, '.', linewidth=1, markersize=4)
     plt.grid ()
     plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
-    fig1.savefig (phonons.folder + '/' + 'dispersion' + '.pdf')
+    folder = get_folder_from_label(phonons, folder=DEFAULT_FOLDER)
+    fig1.savefig (folder + '/' + 'dispersion' + '.pdf')
     if is_showing:
         plt.show()
 
@@ -180,7 +184,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
         plt.xlim(q[0], q[-1])
         plt.plot(q, vel_plot[:, :, alpha], '.', linewidth=1, markersize=4)
         plt.grid()
-        fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
+        fig2.savefig(folder + '/' + 'velocity.pdf')
         if is_showing:
             plt.show()
 
@@ -192,6 +196,6 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     plt.xlim(q[0], q[-1])
     plt.plot(q, vel_norm[:, :], '.', linewidth=1, markersize=4)
     plt.grid()
-    fig2.savefig(phonons.folder + '/' + 'velocity.pdf')
+    fig2.savefig(folder + '/' + 'velocity.pdf')
     if is_showing:
         plt.show()

@@ -84,7 +84,7 @@ class Phonons:
         self.is_able_to_calculate = True
 
 
-    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='numpy')
     def physical_modes(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
@@ -98,7 +98,7 @@ class Phonons:
         return physical_modes
 
 
-    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='numpy')
     def frequency(self):
         """
         Calculate phonons frequency
@@ -111,7 +111,7 @@ class Phonons:
         return frequency
 
 
-    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='numpy')
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
         Returns
@@ -123,7 +123,7 @@ class Phonons:
         return velocity
 
 
-    @lazy_property(label='<temperature>/<statistics>', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='<temperature>/<statistics>', format='numpy')
     def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the
@@ -143,7 +143,7 @@ class Phonons:
         return c_v
 
 
-    @lazy_property(label='<temperature>/<statistics>', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='<temperature>/<statistics>', format='numpy')
     def population(self):
         """Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
@@ -158,7 +158,7 @@ class Phonons:
         return occupations
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
     def bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
@@ -171,7 +171,7 @@ class Phonons:
         return gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
     def phase_space(self):
         """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
@@ -184,34 +184,34 @@ class Phonons:
         return ps
 
 
-    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='numpy')
     def _dynmat_derivatives(self):
         dynmat_derivatives = calculate_dynmat_derivatives(self)
         return dynmat_derivatives
 
 
-    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='numpy')
     def _eigensystem(self):
         eigensystem = calculate_eigensystem(self)
         return eigensystem
 
 
-    @lazy_property(label='', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='numpy')
     def _sij(self):
         sij = calculate_sij(self)
         return sij
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
     def _ps_and_gamma(self):
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>'):
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>', format='numpy'):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', is_storing=True, is_sparse=False, is_binary=False)
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
@@ -219,7 +219,7 @@ class Phonons:
 
 # Helpers properties, lazy loaded only in memory
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
@@ -228,24 +228,24 @@ class Phonons:
         return chi
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def _omegas(self):
         return self.frequency * 2 * np.pi
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def _main_q_mesh(self):
         q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
         return q_mesh
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def _velocity_af(self):
         velocity_AF = calculate_velocity_af(self)
         return velocity_AF
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def _scattering_matrix_without_diagonal(self):
         frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
         gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
@@ -253,7 +253,7 @@ class Phonons:
         return scattering_matrix_without_diagonal
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def _scattering_matrix(self):
         scattering_matrix = -1 * self._scattering_matrix_without_diagonal
         gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
@@ -261,13 +261,13 @@ class Phonons:
         return scattering_matrix
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def omegas(self):
         omegas = 2 * np.pi * self.frequency
         return omegas
 
 
-    @lazy_property(label='', is_storing=False, is_sparse=False, is_binary=False)
+    @lazy_property(label='', format='memory')
     def rescaled_eigenvectors(self):
         n_atoms = self.n_atoms
         n_modes = self.n_modes
