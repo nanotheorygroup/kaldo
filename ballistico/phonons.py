@@ -202,6 +202,19 @@ class Phonons:
         diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', _generalized_diffusivity)
         return diffusivity
 
+
+    @lazy_property(label='', format='hdf5')
+    def flux(self):
+        """Calculate the flux, for each couple of k point in k_points/modes.
+
+        Returns
+        -------
+        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
+        """
+        sij = calculate_sij(self)
+        return sij
+
+
     @lazy_property(label='', format='hdf5')
     def _dynmat_derivatives(self):
         dynmat_derivatives = calculate_dynmat_derivatives(self)
@@ -213,11 +226,6 @@ class Phonons:
         eigensystem = calculate_eigensystem(self)
         return eigensystem
 
-
-    @lazy_property(label='', format='hdf5')
-    def _sij(self):
-        sij = calculate_sij(self)
-        return sij
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='hdf5')
