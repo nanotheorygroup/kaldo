@@ -71,8 +71,6 @@ def calculate_c_v_2d(phonons):
 
 
 def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
-    init = time.time()
-
     volume = np.linalg.det(phonons.atoms.cell)
     if gamma_in is not None:
         gamma = gamma_in * np.ones((phonons.n_k_points, phonons.n_modes))
@@ -127,9 +125,8 @@ def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
     # print('diffusivity', np.sum(diff))
     # cond = conductivity_per_mode.sum(axis=0).diagonal().mean()
     # print('kappa', cond)
-    print('time elapsed', time.time() - init)
 
-    return conductivity_per_mode, diff
+    return conductivity_per_mode#, diff
 
 def calculate_conductivity_inverse(phonons):
     velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
@@ -255,8 +252,8 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
 
     if n_iteration == (MAX_ITERATIONS_SC - 1):
         logging.info('Convergence not reached')
-    if is_rta:
-        return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
-    else:
-        return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
+    # if is_rta:
+    return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
+    # else:
+    #     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
 

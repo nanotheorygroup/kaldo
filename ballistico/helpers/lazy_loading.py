@@ -27,7 +27,13 @@ def load(property, folder, format='formatted'):
             loaded = []
             for alpha in range(3):
                 loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
-            loaded = np.array(loaded).transpose(2, 0, 1)
+            loaded = np.array(loaded).transpose(1, 2, 0)
+        elif property == 'conductivity':
+            loaded = []
+            for alpha in range(3):
+                for beta in range(3):
+                    loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
+            loaded = np.array(loaded).reshape((3, 3, ...)).transpose(2, 3, 0, 1)
         else:
             loaded = np.loadtxt(name + '.dat', skiprows=1)
         return loaded
@@ -54,6 +60,15 @@ def save(property, folder, loaded_attr, format='formatted'):
         if property == 'velocity':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
+        elif 'conductivity' in property:
+            for alpha in range(3):
+                for beta in range(3):
+                    try:
+                        np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', loaded_attr[..., alpha, beta], fmt=fmt,
+                               header=str(loaded_attr[..., 0, 0].shape))
+
+                    except IndexError:
+                        print('error')
         else:
             np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
     else:
@@ -80,7 +95,7 @@ def get_folder_from_label(phonons, label='', base_folder=None):
         if '<sigma_in>' in label:
             if phonons.sigma_in is not None:
                 base_folder += '/' + str(np.mean(phonons.sigma_in))
-        logging.info('Folder: ' + str(base_folder))
+        # logging.info('Folder: ' + str(base_folder))
     return base_folder
 
 
@@ -94,7 +109,6 @@ def lazy_property(label='', format='formatted'):
                 if is_storing:
                     folder = get_folder_from_label(self, label)
                     property = fn.__name__
-
                     try:
                         loaded_attr = load(property, folder, format=format)
                     except (FileNotFoundError, OSError, KeyError):
@@ -107,7 +121,6 @@ def lazy_property(label='', format='formatted'):
                     loaded_attr = fn(self)
                 setattr(self, attr, loaded_attr)
             return getattr(self, attr)
-
         __lazy_property.__doc__ = fn.__doc__
         return __lazy_property
     return _lazy_property
