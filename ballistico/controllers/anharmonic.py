@@ -170,15 +170,15 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
         raise TypeError('Broadening shape not supported')
 
     index_qpp_full = allowed_index_qpp(index_q, is_plus, phonons.kpts)
-    if phonons.sigma_in is None:
+    if phonons.third_bandwidth is None:
         sigma_small = calculate_broadening(phonons, index_qpp_full)
     else:
         try:
-            phonons.sigma_in.size
+            phonons.third_bandwidth.size
         except AttributeError:
-            sigma_small = phonons.sigma_in
+            sigma_small = phonons.third_bandwidth
         else:
-            sigma_small = phonons.sigma_in.reshape((phonons.n_k_points, phonons.n_modes))[index_q, mu]
+            sigma_small = phonons.third_bandwidth.reshape((phonons.n_k_points, phonons.n_modes))[index_q, mu]
 
     second_sign = (int(is_plus) * 2 - 1)
     omegas = phonons.omegas
@@ -231,7 +231,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         raise TypeError('Broadening shape not supported')
     physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     for is_plus in [1, 0]:
-        sigma_small = phonons.sigma_in
+        sigma_small = phonons.third_bandwidth
 
         if physical_modes[0, mu]:
 
@@ -241,10 +241,12 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])
 
-
-            condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                        (physical_modes[0, :, np.newaxis]) & \
-                        (physical_modes[0, np.newaxis, :])
+            try:
+                condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
+                            (physical_modes[0, :, np.newaxis]) & \
+                            (physical_modes[0, np.newaxis, :])
+            except TypeError:
+                print('typeerror')
             interactions = np.array(np.where(condition)).T
 
             if interactions.size != 0:

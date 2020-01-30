@@ -3,6 +3,8 @@ from ballistico.helpers.tools import apply_boundary_with_cell
 from scipy.linalg.lapack import dsyev
 import numpy as np
 import ase.units as units
+from sparse import COO
+from ballistico.controllers.dirac_kernel import lorentz_delta
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
@@ -214,3 +216,48 @@ def calculate_physical_modes(phonons):
     else:
         physical_modes[:3] = False
     return physical_modes
+
+
+def calculate_generalized_diffusivity(phonons, bandwidth_diffusivity=None, diffusivity_threshold=None):
+    omega = phonons._omegas
+    gamma = bandwidth_diffusivity
+    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                        physical_modes[:, np.newaxis, :]
+    if diffusivity_threshold is None:
+        delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
+        sigma = 2 * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
+        lorentz = lorentz_delta(delta_energy, sigma)
+        lorentz = lorentz * np.pi
+        lorentz[np.isnan(lorentz)] = 0
+
+        sij = phonons._sij
+        sij[np.invert(physical_modes_2d)] = 0
+
+        prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
+        diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
+
+    else:
+        omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
+        condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * bandwidth_diffusivity)
+
+        coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+        sigma = 2 * (gamma[coords[:, 0], coords[:, 1]] + gamma[coords[:, 0], coords[:, 2]])
+        delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
+        data = np.pi * lorentz_delta(delta_energy, sigma, diffusivity_threshold)
+        lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+        s_ij = [COO(coords.T, phonons._sij[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
+                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+                       COO(coords.T, phonons._sij[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
+                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+                       COO(coords.T, phonons._sij[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
+                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
+        prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
+        prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
+        prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+
+        diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
+        for alpha in range(3):
+            for beta in range(3):
+                diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
+    return diffusivity

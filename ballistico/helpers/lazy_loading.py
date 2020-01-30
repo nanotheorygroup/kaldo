@@ -35,7 +35,11 @@ def load(property, folder, format='formatted'):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
             loaded = np.array(loaded).reshape((3, 3, ...)).transpose(2, 3, 0, 1)
         else:
-            loaded = np.loadtxt(name + '.dat', skiprows=1)
+            if property == 'diffusivity':
+                dt = np.complex
+            else:
+                dt = np.float
+            loaded = np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
         return loaded
     else:
         raise ValueError('Storing format not implemented')
@@ -92,9 +96,9 @@ def get_folder_from_label(phonons, label='', base_folder=None):
                 base_folder += '/classic'
             else:
                 base_folder += '/quantum'
-        if '<sigma_in>' in label:
-            if phonons.sigma_in is not None:
-                base_folder += '/' + str(np.mean(phonons.sigma_in))
+        if '<third_bandwidth>' in label:
+            if phonons.third_bandwidth is not None:
+                base_folder += '/' + str(np.mean(phonons.third_bandwidth))
         # logging.info('Folder: ' + str(base_folder))
     return base_folder
 

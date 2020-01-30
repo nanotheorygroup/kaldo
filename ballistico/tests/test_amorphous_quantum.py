@@ -25,7 +25,7 @@ def phonons():
                           is_classic=False,
                           temperature=300,
                           folder=td,
-                          sigma_in= 0.05 / 4.135,
+                          third_bandwidth= 0.05 / 4.135,
                           broadening_shape='triangle')
 
         yield phonons

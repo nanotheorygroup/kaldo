@@ -8,7 +8,7 @@ from ballistico.helpers.tools import q_vec_from_q_index
 from ballistico.helpers.lazy_loading import save, get_folder_from_label
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
-    calculate_velocity_af, calculate_sij
+    calculate_velocity_af, calculate_sij, calculate_generalized_diffusivity
 from ballistico.controllers.conductivity import calculate_conductivity_sc, calculate_conductivity_qhgk, \
     calculate_conductivity_inverse, calculate_conductivity_with_evects
 import numpy as np
@@ -45,7 +45,7 @@ class Phonons:
             ignores all phonons with frequency below `min_frequency` THz, Default is None..
         max_frequency (optional) : float
             ignores all phonons with frequency above `max_frequency` THz, Default is None.
-        sigma_in (optional) : float or None
+        third_bandwidth (optional) : float or None
             defines the width of the energy conservation smearing in the phonons scattering calculation.
             If `None` the width is calculated dynamically. Otherwise the input value corresponds to the
             width in THz. Default is None.
@@ -71,10 +71,15 @@ class Phonons:
         self.kpts = np.array(self.kpts)
         self.min_frequency = kwargs.pop('min_frequency', None)
         self.max_frequency = kwargs.pop('max_frequency', None)
-        self.sigma_in = kwargs.pop('sigma_in', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
         self.is_tf_backend = kwargs.pop('is_tf_backend', False)
         self.is_nw = kwargs.pop('is_nw', False)
+
+        # Set up bandwidths
+        self.third_bandwidth = kwargs.pop('third_bandwidth', None)
+        self.bandwidth_diffusivity = kwargs.pop('bandwidth_diffusivity', None)
+
+        self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -158,7 +163,7 @@ class Phonons:
         return occupations
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='formatted')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='formatted')
     def bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
@@ -171,7 +176,7 @@ class Phonons:
         return gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='formatted')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='formatted')
     def phase_space(self):
         """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
@@ -183,6 +188,19 @@ class Phonons:
         ps = self._ps_and_gamma[:, 0]
         return ps
 
+
+    @lazy_property(label='', format='formatted')
+    def diffusivity(self):
+        """Calculate the diffusivity, for each k point in k_points and each mode.
+
+        Returns
+        -------
+        diffusivity : np.array(n_k_points, n_modes)
+            diffusivity in mm^2/s
+        """
+        _generalized_diffusivity = self._generalized_diffusivity
+        diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', _generalized_diffusivity)
+        return diffusivity
 
     @lazy_property(label='', format='hdf5')
     def _dynmat_derivatives(self):
@@ -202,20 +220,32 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='hdf5')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='hdf5')
     def _ps_and_gamma(self):
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>', format='hdf5'):
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', format='hdf5'):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='hdf5')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='hdf5')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
+
+    @lazy_property(label='', format='hdf5')
+    def _generalized_diffusivity(self):
+        if self.bandwidth_diffusivity is not None:
+            bandwidth_diffusivity = self.bandwidth_diffusivity * np.ones((self.n_k_points, self.n_modes))
+        else:
+            bandwidth_diffusivity = self.bandwidth.reshape((self.n_k_points, self.n_modes)).copy() / 2.
+
+        _generalized_diffusivity = calculate_generalized_diffusivity(self,
+                                                                     bandwidth_diffusivity=bandwidth_diffusivity,
+                                                                     diffusivity_threshold=self.diffusivity_threshold)
+        return _generalized_diffusivity
 
 # Helpers properties, lazy loaded only in memory
 
@@ -351,19 +381,19 @@ class Phonons:
         return ps_and_gamma
 
 
-    def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None, delta_threshold=None):
+    def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', tolerance=None):
         if method == 'rta':
             conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
         elif method == 'sc':
             conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
         elif (method == 'qhgk'):
-            conductivity = calculate_conductivity_qhgk(self, gamma_in=gamma_in, delta_threshold=delta_threshold)
+            conductivity = calculate_conductivity_qhgk(self)
         elif (method == 'inverse'):
             conductivity = calculate_conductivity_inverse(self)
         elif (method == 'eigenvectors'):
             conductivity = calculate_conductivity_with_evects(self)
         else:
             raise TypeError('Conductivity method not implemented')
-        folder = get_folder_from_label(self, '<temperature>/<statistics>/<sigma_in>')
+        folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
         save('conductivity_' + method, folder, conductivity, format='formatted')
         return conductivity
