@@ -207,13 +207,13 @@ class Phonons:
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>', format='hdf5'):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
+            ps_and_gamma = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='hdf5')
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 
@@ -224,7 +224,7 @@ class Phonons:
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
             k_point = q_vec_from_q_index(index_q, self.kpts)
-            chi[index_q] = self._chi(k_point)
+            chi[index_q] = self.chi(k_point)
         return chi
 
 
@@ -320,31 +320,30 @@ class Phonons:
             return operator[physical_modes, ...]
 
 
-    def _chi(self, qvec):
+    def chi(self, qvec):
         dxij = self.finite_difference.list_of_replicas
         cell_inv = self.finite_difference.cell_inv
         chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
 
 
-    def calculate_ps_and_gamma(self, is_gamma_tensor_enabled=True):
+    def phasespace_and_gamma_wrapper(self, is_gamma_tensor_enabled=True):
         print('Projection started')
         if self.is_tf_backend:
             try:
                 import ballistico.controllers.anharmonic_tf as aha
             except ImportError as err:
                 print(err)
-                print('tensorflow>=2.0 is required to run accelerated algoritgms. Please consider installing tensorflow>=2.0. More info here: https://www.tensorflow.org/install/pip')
+                print('In order to run accelerated algoritgms, tensorflow>=2.0 is required. \
+                Please consider installing tensorflow>=2.0. More info here: \
+                https://www.tensorflow.org/install/pip')
                 print('Using numpy engine instead.')
                 import ballistico.controllers.anharmonic as aha
-
         else:
             import ballistico.controllers.anharmonic as aha
-
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
-
         if self._is_amorphous:
             ps_and_gamma = aha.project_amorphous(self)
         else:
@@ -352,15 +351,7 @@ class Phonons:
         return ps_and_gamma
 
 
-    def chi(phonons, qvec):
-        dxij = phonons.finite_difference.list_of_replicas
-        cell_inv = phonons.finite_difference.cell_inv
-        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
-        return chi_k
-
-
     def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None, delta_threshold=None):
-        # if length is not None:
         if method == 'rta':
             conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
         elif method == 'sc':
@@ -373,7 +364,6 @@ class Phonons:
             conductivity = calculate_conductivity_with_evects(self)
         else:
             raise TypeError('Conductivity method not implemented')
-        label = '<temperature>/<statistics>/<sigma_in>'
-        folder = get_folder_from_label(self, label)
+        folder = get_folder_from_label(self, '<temperature>/<statistics>/<sigma_in>')
         save('conductivity_' + method, folder, conductivity, format='formatted')
         return conductivity
