@@ -34,6 +34,11 @@ def load(property, folder, format='formatted'):
                 for beta in range(3):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
             loaded = np.array(loaded).reshape((3, 3, ...)).transpose(2, 3, 0, 1)
+        elif property == 'flux':
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
+            loaded = np.array(loaded).transpose(1, 0)
         else:
             if property == 'diffusivity':
                 dt = np.complex
@@ -64,6 +69,9 @@ def save(property, folder, loaded_attr, format='formatted'):
         if property == 'velocity':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
+        elif property == 'flux':
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
         elif 'conductivity' in property:
             for alpha in range(3):
                 for beta in range(3):

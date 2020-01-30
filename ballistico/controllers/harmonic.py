@@ -132,11 +132,12 @@ def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
     else:
         q_points = apply_boundary_with_cell(q_points)
     if is_main_mesh:
-        sij = phonons._sij
+        sij = phonons.flux
         frequency = phonons.frequency
     else:
         sij = calculate_sij(phonons, q_points, is_antisymmetrizing)
         frequency = calculate_frequency(phonons, q_points)
+    sij = sij.reshape((q_points.shape[0], phonons.n_modes, phonons.n_modes, 3))
     velocity_AF = contract('kmna,kmn->kmna', sij,
                              1 / (2 * np.pi * np.sqrt(frequency[:, :, np.newaxis]) * np.sqrt(
                                  frequency[:, np.newaxis, :]))) / 2
@@ -231,7 +232,7 @@ def calculate_generalized_diffusivity(phonons, bandwidth_diffusivity=None, diffu
         lorentz = lorentz * np.pi
         lorentz[np.isnan(lorentz)] = 0
 
-        sij = phonons._sij
+        sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
         sij[np.invert(physical_modes_2d)] = 0
 
         prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
@@ -246,11 +247,11 @@ def calculate_generalized_diffusivity(phonons, bandwidth_diffusivity=None, diffu
         delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
         data = np.pi * lorentz_delta(delta_energy, sigma, diffusivity_threshold)
         lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-        s_ij = [COO(coords.T, phonons._sij[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
+        s_ij = [COO(coords.T, phonons.flux[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
                     shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                       COO(coords.T, phonons._sij[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
+                       COO(coords.T, phonons.flux[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
                            shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                       COO(coords.T, phonons._sij[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
+                       COO(coords.T, phonons.flux[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
                            shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
         prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
         prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
