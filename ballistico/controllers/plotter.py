@@ -208,8 +208,9 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
         plt.show()
 
 def plot_crystal(phonons):
+    plot_vs_frequency(phonons, phonons.diffusivity, 'diffusivity mm2overs')
     plot_dispersion(phonons)
     plot_dos(phonons)
-    plot_vs_frequency(phonons, phonons.heat_capacity, 'cv')
+    plot_vs_frequency(phonons, phonons.heat_capacity, 'heat_capacity')
     plot_vs_frequency(phonons, phonons.bandwidth, 'gamma_THz')
     plot_vs_frequency(phonons, phonons.phase_space, 'phase_space')

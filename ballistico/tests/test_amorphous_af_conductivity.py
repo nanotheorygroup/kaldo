@@ -29,15 +29,15 @@ def phonons():
 
 def test_af_conductivity_50(phonons):
     phonons.temperature = 50
-    gamma_in = 0.025
-    cond = phonons.conductivity(method='qhgk', gamma_in=gamma_in)[0].sum(axis=0).diagonal().mean()
+    phonons.bandwidth_diffusivity = 0.025
+    cond = phonons.conductivity(method='qhgk').sum(axis=0).diagonal().mean()
     expected_cond = 0.098
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
 
 
 def test_af_conductivity_300(phonons):
     phonons.temperature = 300
-    gamma_in = 0.025
-    cond = phonons.conductivity(method='qhgk', gamma_in=gamma_in)[0].sum(axis=0).diagonal().mean()
+    phonons.bandwidth_diffusivity = 0.025
+    cond = phonons.conductivity(method='qhgk').sum(axis=0).diagonal().mean()
     expected_cond = 0.532
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)

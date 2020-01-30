@@ -31,12 +31,12 @@ def phonons():
 
 
 def test_sc_conductivity(phonons):
-    cond = np.abs(np.mean(phonons.conductivity(method='sc', max_n_iterations=71)[0].sum(axis=0).diagonal()))
+    cond = np.abs(np.mean(phonons.conductivity(method='sc', max_n_iterations=71).sum(axis=0).diagonal()))
     np.testing.assert_approx_equal(cond, 255, significant=3)
 
 
 def test_qhgk_conductivity(phonons):
-    cond = phonons.conductivity(method='qhgk')[0].sum(axis=0)
+    cond = phonons.conductivity(method='qhgk').sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 230, significant=3)
 

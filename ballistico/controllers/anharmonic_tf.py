@@ -155,8 +155,8 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
     physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
     if not physical_modes[index_k, mu]:
         return None
-    if phonons.sigma_in:
-        sigma_tf = tf.constant(phonons.sigma_in, dtype=tf.float64)
+    if phonons.third_bandwidth:
+        sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
     else:
         sigma_tf = calculate_broadening(phonons, index_kpp_full)
     second_sign = (int(is_plus) * 2 - 1)
@@ -204,7 +204,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         delta_threshold = DELTA_THRESHOLD
     density_tf = phonons.population
     omega_tf = phonons.omegas
-    sigma_tf = tf.constant(phonons.sigma_in, dtype=tf.float64)
+    sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
     for is_plus in (1, 0):
         second_sign = (int(is_plus) * 2 - 1)
         omegas_difference = np.abs(phonons.omegas[0, mu] + second_sign * phonons.omegas[0, :, np.newaxis] -

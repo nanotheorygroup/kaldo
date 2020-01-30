@@ -171,3 +171,4 @@ ballistico/tests/si-crystal/5_5_5/300.0/quantum/_ps_and_gamma.npy
 ballistico/tests/si-crystal/5_5_5/300.0/quantum/_ps_gamma_and_gamma_tensor.npy
 ballistico/tests/si-crystal/5_5_5/300.0/quantum/heat_capacity.npy
 ballistico/tests/si-crystal/5_5_5/300.0/quantum/occupations.npy
+*.hdf5

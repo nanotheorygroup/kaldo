@@ -5,9 +5,6 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-import time
-from sparse import COO
-from ballistico.controllers.dirac_kernel import lorentz_delta
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
@@ -70,58 +67,14 @@ def calculate_c_v_2d(phonons):
     return c_v
 
 
-def calculate_conductivity_qhgk(phonons, gamma_in=None, delta_threshold=None):
+def calculate_conductivity_qhgk(phonons):
     volume = np.linalg.det(phonons.atoms.cell)
-    if gamma_in is not None:
-        gamma = gamma_in * np.ones((phonons.n_k_points, phonons.n_modes))
-    else:
-        gamma = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
-    omega = phonons._omegas
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
-    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
-                        physical_modes[:, np.newaxis, :]
-    if delta_threshold is None:
-        delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
-        sigma = 2 * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
-        lorentz = lorentz_delta(delta_energy, sigma)
-        lorentz = lorentz * np.pi
-        lorentz[np.isnan(lorentz)] = 0
-
-        sij = phonons._sij
-        sij[np.invert(physical_modes_2d)] = 0
-
-        prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
-        diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
-
-    else:
-        omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
-        condition = (omegas_difference < delta_threshold * 2 * np.pi * gamma_in)
-
-        coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-        sigma = 2 * (gamma[coords[:, 0], coords[:, 1]] + gamma[coords[:, 0], coords[:, 2]])
-        delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-        data = np.pi * lorentz_delta(delta_energy, sigma, delta_threshold)
-        lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-        s_ij = [COO(coords.T, phonons._sij[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
-                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                       COO(coords.T, phonons._sij[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
-                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                       COO(coords.T, phonons._sij[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
-                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
-        prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
-        prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
-        prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-
-        diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
-        for alpha in range(3):
-            for beta in range(3):
-                diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
-
+    diffusivity = phonons._generalized_diffusivity
     conductivity_per_mode = contract('kn,knab->knab', phonons.heat_capacity, diffusivity)
 
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
     conductivity_per_mode = conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
-    diff = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity)
+    # diff = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity)
     # print('diffusivity', np.sum(diff))
     # cond = conductivity_per_mode.sum(axis=0).diagonal().mean()
     # print('kappa', cond)
