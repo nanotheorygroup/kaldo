@@ -192,6 +192,16 @@ class Phonons:
 
     @lazy_property(label='', format='hdf5')
     def _eigensystem(self):
+        """Calculate the eigensystems, for each k point in k_points.
+
+        Returns
+        -------
+        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)
+            eigensystem is calculated for each k point, the three dimensional array
+            records the eigenvalues in the last column of the last dimension.
+
+            If the system is not amorphous, these values are stored as complex numbers.
+        """
         eigensystem = calculate_eigensystem(self)
         return eigensystem
 
