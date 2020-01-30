@@ -84,7 +84,7 @@ class Phonons:
         self.is_able_to_calculate = True
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='', format='formatted')
     def physical_modes(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
@@ -98,7 +98,7 @@ class Phonons:
         return physical_modes
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='', format='formatted')
     def frequency(self):
         """
         Calculate phonons frequency
@@ -111,7 +111,7 @@ class Phonons:
         return frequency
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='', format='hdf5')
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
         Returns
@@ -123,7 +123,7 @@ class Phonons:
         return velocity
 
 
-    @lazy_property(label='<temperature>/<statistics>', format='numpy')
+    @lazy_property(label='<temperature>/<statistics>', format='formatted')
     def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the
@@ -143,7 +143,7 @@ class Phonons:
         return c_v
 
 
-    @lazy_property(label='<temperature>/<statistics>', format='numpy')
+    @lazy_property(label='<temperature>/<statistics>', format='formatted')
     def population(self):
         """Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
@@ -158,7 +158,7 @@ class Phonons:
         return occupations
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='formatted')
     def bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
@@ -171,7 +171,7 @@ class Phonons:
         return gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='formatted')
     def phase_space(self):
         """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
@@ -184,34 +184,34 @@ class Phonons:
         return ps
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='', format='hdf5')
     def _dynmat_derivatives(self):
         dynmat_derivatives = calculate_dynmat_derivatives(self)
         return dynmat_derivatives
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='', format='hdf5')
     def _eigensystem(self):
         eigensystem = calculate_eigensystem(self)
         return eigensystem
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='', format='hdf5')
     def _sij(self):
         sij = calculate_sij(self)
         return sij
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='hdf5')
     def _ps_and_gamma(self):
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>', format='numpy'):
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<sigma_in>', format='hdf5'):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='numpy')
+    @lazy_property(label='<temperature>/<statistics>/<sigma_in>', format='hdf5')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.calculate_ps_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor

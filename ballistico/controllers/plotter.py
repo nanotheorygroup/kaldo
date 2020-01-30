@@ -10,6 +10,7 @@ from scipy import ndimage
 from ballistico.helpers.tools import convert_to_spg_structure
 from ballistico.controllers.harmonic import calculate_frequency, calculate_velocity
 from ballistico.helpers.lazy_loading import get_folder_from_label
+import os
 
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots'
@@ -101,7 +102,9 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     plt.ylabel (observable_name, fontsize=16, fontweight='bold')
     plt.xlabel ("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
     plt.ylim(observable.min(), observable.max())
-    folder = get_folder_from_label(phonons, folder=DEFAULT_FOLDER)
+    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
     fig.savefig (folder + '/' + observable_name + '.pdf')
     if is_showing:
         plt.show ()
@@ -114,7 +117,9 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
     plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
-    folder = get_folder_from_label(phonons, folder=DEFAULT_FOLDER)
+    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
     fig.savefig (folder + '/' + 'dos.pdf')
     if is_showing:
         plt.show()
@@ -171,7 +176,9 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     plt.plot (q, freqs_plot, '.', linewidth=1, markersize=4)
     plt.grid ()
     plt.ylim (freqs_plot.min (), freqs_plot.max () * 1.05)
-    folder = get_folder_from_label(phonons, folder=DEFAULT_FOLDER)
+    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
     fig1.savefig (folder + '/' + 'dispersion' + '.pdf')
     if is_showing:
         plt.show()
@@ -199,3 +206,10 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     fig2.savefig(folder + '/' + 'velocity.pdf')
     if is_showing:
         plt.show()
+
+def plot_crystal(phonons):
+    plot_dispersion(phonons)
+    plot_dos(phonons)
+    plot_vs_frequency(phonons, phonons.heat_capacity, 'cv')
+    plot_vs_frequency(phonons, phonons.bandwidth, 'gamma_THz')
+    plot_vs_frequency(phonons, phonons.phase_space, 'phase_space')
