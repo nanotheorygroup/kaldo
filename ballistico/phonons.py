@@ -84,7 +84,7 @@ class Phonons:
         self.is_able_to_calculate = True
 
 
-    @lazy_property(label='', format='formatted')
+    @lazy_property(label='', format='memory')
     def physical_modes(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
