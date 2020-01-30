@@ -5,6 +5,7 @@ Anharmonic Lattice Dynamics
 from ballistico.helpers.lazy_loading import is_calculated
 from ballistico.helpers.lazy_loading import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
+from ballistico.helpers.lazy_loading import save, get_folder_from_label
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij
@@ -13,7 +14,6 @@ from ballistico.controllers.conductivity import calculate_conductivity_sc, calcu
 import numpy as np
 import ase.units as units
 from opt_einsum import contract
-
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
@@ -359,18 +359,21 @@ class Phonons:
         return chi_k
 
 
-
     def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', gamma_in=None, tolerance=None, delta_threshold=None):
         # if length is not None:
         if method == 'rta':
-            return calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+            conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
         elif method == 'sc':
-            return calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
+            conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
         elif (method == 'qhgk'):
-            return calculate_conductivity_qhgk(self, gamma_in=gamma_in, delta_threshold=delta_threshold)
+            conductivity = calculate_conductivity_qhgk(self, gamma_in=gamma_in, delta_threshold=delta_threshold)
         elif (method == 'inverse'):
-            return calculate_conductivity_inverse(self)
+            conductivity = calculate_conductivity_inverse(self)
         elif (method == 'eigenvectors'):
-            return calculate_conductivity_with_evects(self)
+            conductivity = calculate_conductivity_with_evects(self)
         else:
             raise TypeError('Conductivity method not implemented')
+        label = '<temperature>/<statistics>/<sigma_in>'
+        folder = get_folder_from_label(self, label)
+        save('conductivity_' + method, folder, conductivity, format='formatted')
+        return conductivity
