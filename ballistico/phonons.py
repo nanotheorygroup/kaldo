@@ -198,8 +198,8 @@ class Phonons:
         diffusivity : np.array(n_k_points, n_modes)
             diffusivity in mm^2/s
         """
-        _generalized_diffusivity = self._generalized_diffusivity
-        diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', _generalized_diffusivity)
+        generalized_diffusivity = self._generalized_diffusivity
+        diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', generalized_diffusivity)
         return diffusivity
 
 
