@@ -21,6 +21,8 @@ def load(property, folder, format='formatted'):
             return loaded.value
     elif format == 'formatted':
         loaded = np.loadtxt(name + '.dat', skiprows=1)
+        if property == 'physical_modes':
+            loaded = np.round(loaded, 0).astype(np.bool)
         return loaded
     else:
         raise ValueError('Storing format not implemented')
@@ -37,7 +39,11 @@ def save(property, folder, loaded_attr, format='formatted'):
     elif format == 'formatted':
         if not os.path.exists(folder):
             os.makedirs(folder)
-        np.savetxt(name + '.dat', loaded_attr, header=str(loaded_attr.shape))
+        if property == 'physical_modes':
+            fmt = '%d'
+        else:
+            fmt = '%.18e'
+        np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
     else:
         raise ValueError('Storing format not implemented')
 
