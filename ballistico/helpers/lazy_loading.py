@@ -20,9 +20,16 @@ def load(property, folder, format='formatted'):
             loaded = storage[name]
             return loaded.value
     elif format == 'formatted':
-        loaded = np.loadtxt(name + '.dat', skiprows=1)
         if property == 'physical_modes':
+            loaded = np.loadtxt(name + '.dat', skiprows=1)
             loaded = np.round(loaded, 0).astype(np.bool)
+        elif property == 'velocity':
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
+            loaded = np.array(loaded).transpose(2, 0, 1)
+        else:
+            loaded = np.loadtxt(name + '.dat', skiprows=1)
         return loaded
     else:
         raise ValueError('Storing format not implemented')
@@ -37,13 +44,18 @@ def save(property, folder, loaded_attr, format='formatted'):
             if not name in storage:
                 storage.create_dataset(name, data=loaded_attr, chunks=True)
     elif format == 'formatted':
+        loaded_attr = np.nan_to_num(loaded_attr)
         if not os.path.exists(folder):
             os.makedirs(folder)
         if property == 'physical_modes':
             fmt = '%d'
         else:
             fmt = '%.18e'
-        np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
+        if property == 'velocity':
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
+        else:
+            np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
     else:
         raise ValueError('Storing format not implemented')
 

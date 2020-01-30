@@ -111,7 +111,7 @@ class Phonons:
         return frequency
 
 
-    @lazy_property(label='', format='hdf5')
+    @lazy_property(label='', format='formatted')
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
         Returns
