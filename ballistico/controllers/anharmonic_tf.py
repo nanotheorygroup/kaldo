@@ -57,7 +57,7 @@ def project_amorphous(phonons):
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
         logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-        logging.info(str(phonons.frequency[0, nu_single]) + ': ' + str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
+        logging.info(str(phonons.frequency[nu_single]) + ': ' + str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
 
     return ps_and_gamma
 
@@ -152,7 +152,7 @@ def project_crystal(phonons):
 
 
 def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus):
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     if not physical_modes[index_k, mu]:
         return None
     if phonons.third_bandwidth:
@@ -163,7 +163,7 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
     omegas_difference = tf.abs(phonons.omegas[index_k, mu] + second_sign * phonons.omegas[:, :, tf.newaxis] -
                                tf.gather(phonons.omegas, index_kpp_full)[:, tf.newaxis, :])
 
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
 
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
                 (physical_modes[:, :, np.newaxis]) & \
@@ -195,21 +195,21 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
 
 
 def calculate_dirac_delta_amorphous(phonons, mu):
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     if not physical_modes[0, mu]:
         return None
     if phonons.broadening_shape == 'triangle':
         delta_threshold = 1
     else:
         delta_threshold = DELTA_THRESHOLD
-    density_tf = phonons.population
+    density_tf = phonons.population.reshape((phonons.n_k_points, phonons.n_modes))
     omega_tf = phonons.omegas
     sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
     for is_plus in (1, 0):
         second_sign = (int(is_plus) * 2 - 1)
         omegas_difference = np.abs(phonons.omegas[0, mu] + second_sign * phonons.omegas[0, :, np.newaxis] -
                                    phonons.omegas[0, np.newaxis, :])
-        physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+        physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
         condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
                 (physical_modes[0, :, np.newaxis]) & \
                 (physical_modes[0, np.newaxis, :])

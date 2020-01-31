@@ -20,7 +20,7 @@ def load(property, folder, format='formatted'):
             loaded = storage[name]
             return loaded.value
     elif format == 'formatted':
-        if property == 'physical_modes':
+        if property == 'physical_mode':
             loaded = np.loadtxt(name + '.dat', skiprows=1)
             loaded = np.round(loaded, 0).astype(np.bool)
         elif property == 'velocity':
@@ -53,6 +53,8 @@ def load(property, folder, format='formatted'):
 def save(property, folder, loaded_attr, format='formatted'):
     name = folder + '/' + property
     if format == 'numpy':
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         np.save(name + '.npy', loaded_attr)
     elif format == 'hdf5':
         with h5py.File(name.split('/')[0] + '.hdf5', 'a') as storage:
@@ -62,7 +64,7 @@ def save(property, folder, loaded_attr, format='formatted'):
         loaded_attr = np.nan_to_num(loaded_attr)
         if not os.path.exists(folder):
             os.makedirs(folder)
-        if property == 'physical_modes':
+        if property == 'physical_mode':
             fmt = '%d'
         else:
             fmt = '%.18e'
@@ -75,12 +77,8 @@ def save(property, folder, loaded_attr, format='formatted'):
         elif 'conductivity' in property:
             for alpha in range(3):
                 for beta in range(3):
-                    try:
-                        np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', loaded_attr[..., alpha, beta], fmt=fmt,
-                               header=str(loaded_attr[..., 0, 0].shape))
-
-                    except IndexError:
-                        print('error')
+                    np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', loaded_attr[..., alpha, beta], fmt=fmt,
+                           header=str(loaded_attr[..., 0, 0].shape))
         else:
             np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
     else:

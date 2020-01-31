@@ -6,6 +6,9 @@ import ase.units as units
 from sparse import COO
 from ballistico.controllers.dirac_kernel import lorentz_delta
 
+from ballistico.helpers.logger import get_logger
+logging = get_logger()
+
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
 THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
@@ -17,10 +20,10 @@ FOLDER_NAME = 'ald-output'
 
 
 def calculate_occupations(phonons):
-    frequency = phonons.frequency
+    frequency = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
     temp = phonons.temperature * KELVINTOTHZ
-    density = np.zeros_like(frequency)
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    density = np.zeros((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     if phonons.is_classic is False:
         density[physical_modes] = 1. / (np.exp(frequency[physical_modes] / temp) - 1.)
     else:
@@ -31,7 +34,7 @@ def calculate_occupations(phonons):
 def calculate_heat_capacity(phonons):
     frequency = phonons.frequency
     c_v = np.zeros_like(frequency)
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode
     temperature = phonons.temperature * KELVINTOTHZ
     if (phonons.is_classic):
         c_v[physical_modes] = KELVINTOJOULE
@@ -46,6 +49,7 @@ def calculate_heat_capacity(phonons):
 def calculate_frequency(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
+        # TODO: we could do the check on the whole grid instead of the shape
         if q_points.shape == phonons._main_q_mesh.shape:
             if (q_points == phonons._main_q_mesh).all():
                 is_main_mesh = True
@@ -61,6 +65,7 @@ def calculate_frequency(phonons, q_points=None):
 def calculate_dynmat_derivatives(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
+        # TODO: we could do the check on the whole grid instead of the shape
         if q_points.shape == phonons._main_q_mesh.shape:
             if (q_points == phonons._main_q_mesh).all():
                 is_main_mesh = True
@@ -96,6 +101,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
 def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
+        # TODO: we could do the check on the whole grid instead of the shape
         if q_points.shape == phonons._main_q_mesh.shape:
             if (q_points == phonons._main_q_mesh).all():
                 is_main_mesh = True
@@ -113,7 +119,7 @@ def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
     if is_antisymmetrizing:
         error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
         dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
-        print('Symmetrization error: ' + str(error))
+        logging.info('Symmetrization error: ' + str(error))
     if phonons._is_amorphous:
         sij = contract('kim,kija,kjn->kmna', eigenvects, dynmat_derivatives, eigenvects)
     else:
@@ -121,9 +127,24 @@ def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
     return sij
 
 
+def calculate_sij_sparse(phonons, bandwidth_diffusivity=None, diffusivity_threshold=None):
+    omega = phonons._omegas
+    omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
+    condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * bandwidth_diffusivity)
+    coords = np.array(np.unravel_index(np.flatnonzero(condition), condition.shape)).T
+    s_ij = [COO(coords.T, phonons.flux[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
+                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+            COO(coords.T, phonons.flux[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
+                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+            COO(coords.T, phonons.flux[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
+                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
+    return s_ij
+
+
 def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
+        # TODO: we could do the check on the whole grid instead of the shape
         if q_points.shape == phonons._main_q_mesh.shape:
             if (q_points == phonons._main_q_mesh).all():
                 is_main_mesh = True
@@ -147,6 +168,7 @@ def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
 def calculate_velocity(phonons, q_points=None, is_antisymmetrizing=False):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
+        # TODO: we could do the check on the whole grid instead of the shape
         if q_points.shape == phonons._main_q_mesh.shape:
             if (q_points == phonons._main_q_mesh).all():
                 is_main_mesh = True
@@ -165,6 +187,7 @@ def calculate_velocity(phonons, q_points=None, is_antisymmetrizing=False):
 def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
+        # TODO: we could do the check on the whole grid instead of the shape
         if q_points.shape == phonons._main_q_mesh.shape:
             if (q_points == phonons._main_q_mesh).all():
                 is_main_mesh = True
@@ -219,46 +242,68 @@ def calculate_physical_modes(phonons):
     return physical_modes
 
 
-def calculate_generalized_diffusivity(phonons, bandwidth_diffusivity=None, diffusivity_threshold=None):
-    omega = phonons._omegas
-    gamma = bandwidth_diffusivity
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+def calculate_diffusivity_dense(phonons):
+    omega = phonons._omegas.reshape((phonons.n_k_points, phonons.n_modes))
+    if phonons.bandwidth_diffusivity is not None:
+        bandwidth_diffusivity = phonons.bandwidth_diffusivity * np.ones((phonons.n_k_points, phonons.n_modes))
+    else:
+        bandwidth_diffusivity = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     physical_modes_2d = physical_modes[:, :, np.newaxis] & \
                         physical_modes[:, np.newaxis, :]
-    if diffusivity_threshold is None:
-        delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
-        sigma = 2 * (gamma[:, :, np.newaxis] + gamma[:, np.newaxis, :])
-        lorentz = lorentz_delta(delta_energy, sigma)
-        lorentz = lorentz * np.pi
-        lorentz[np.isnan(lorentz)] = 0
+    delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
+    sigma = 2 * (bandwidth_diffusivity[:, :, np.newaxis] + bandwidth_diffusivity[:, np.newaxis, :])
+    lorentz = lorentz_delta(delta_energy, sigma)
+    lorentz = lorentz * np.pi
+    lorentz[np.isnan(lorentz)] = 0
 
-        sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
-        sij[np.invert(physical_modes_2d)] = 0
+    sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
+    sij[np.invert(physical_modes_2d)] = 0
 
-        prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
-        diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
+    prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
+    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
+    return diffusivity
 
+
+def calculate_diffusivity_sparse(phonons):
+    try:
+        diffusivity_threshold = phonons.diffusivity_threshold
+    except AttributeError:
+        logging.error('Please provide diffusivity_threshold if you want to use a sparse diffusivity.')
+
+    if phonons.bandwidth_diffusivity is not None:
+        bandwidth_diffusivity = phonons.bandwidth_diffusivity * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
-        omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
-        condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * bandwidth_diffusivity)
+        bandwidth_diffusivity = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
 
-        coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-        sigma = 2 * (gamma[coords[:, 0], coords[:, 1]] + gamma[coords[:, 0], coords[:, 2]])
-        delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-        data = np.pi * lorentz_delta(delta_energy, sigma, diffusivity_threshold)
-        lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-        s_ij = [COO(coords.T, phonons.flux[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
-                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                       COO(coords.T, phonons.flux[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
-                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                       COO(coords.T, phonons.flux[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
-                           shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
-        prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
-        prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
-        prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+    omega = phonons._omegas
 
-        diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
-        for alpha in range(3):
-            for beta in range(3):
-                diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                        physical_modes[:, np.newaxis, :]
+    omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
+    condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * bandwidth_diffusivity)
+
+    coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
+    sigma = 2 * (bandwidth_diffusivity[coords[:, 0], coords[:, 1]] + bandwidth_diffusivity[coords[:, 0], coords[:, 2]])
+    delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
+    data = np.pi * lorentz_delta(delta_energy, sigma, diffusivity_threshold)
+    lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+    s_ij = phonons.flux
+    prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
+    prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
+    prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+
+    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
+    for alpha in range(3):
+        for beta in range(3):
+            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
+    return diffusivity
+
+
+def calculate_generalized_diffusivity(phonons):
+    if phonons.diffusivity_threshold is not None:
+        diffusivity = calculate_diffusivity_sparse(phonons)
+    else:
+        diffusivity = calculate_diffusivity_dense(phonons)
     return diffusivity

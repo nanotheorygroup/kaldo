@@ -157,7 +157,7 @@ def project_crystal(phonons, ):
 
 
 def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     if not physical_modes[index_q, mu]:
         return None
 
@@ -185,7 +185,7 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
     omegas_difference = np.abs(
         omegas[index_q, mu] + second_sign * omegas[:, :, np.newaxis] -
         omegas[index_qpp_full, np.newaxis, :])
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
                 (physical_modes[:, :, np.newaxis]) & \
                 (physical_modes[index_qpp_full, np.newaxis, :])
@@ -229,7 +229,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         broadening_function = triangular_delta
     else:
         raise TypeError('Broadening shape not supported')
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     for is_plus in [1, 0]:
         sigma_small = phonons.third_bandwidth
 
@@ -241,12 +241,9 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])
 
-            try:
-                condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
+            condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
                             (physical_modes[0, :, np.newaxis]) & \
                             (physical_modes[0, np.newaxis, :])
-            except TypeError:
-                print('typeerror')
             interactions = np.array(np.where(condition)).T
 
             if interactions.size != 0:

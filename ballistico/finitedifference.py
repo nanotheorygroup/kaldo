@@ -1034,7 +1034,7 @@ class FiniteDifference(object):
                                         values_original.append(
                                             full_third[index[0], alpha, index[1], index[2], beta, l, j, gamma])
 
-        print('Created unfolded third order')
+        logging.info('Created unfolded third order')
 
         shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
         expanded_third = COO(np.array(coords).T, np.array(values), shape)
