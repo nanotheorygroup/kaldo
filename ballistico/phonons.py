@@ -437,6 +437,7 @@ class Phonons:
             logging.error('Conductivity method not implemented')
         folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
         save('conductivity_', folder + '/' + method, conductivity.reshape(self.n_k_points, self.n_modes, 3, 3), format='formatted')
-        if (conductivity.imag).sum() > 0:
-            logging.warning('The conductivity has an immaginary part.')
+        sum = (conductivity.imag).sum()
+        if sum > 1e-3:
+            logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
         return conductivity.real

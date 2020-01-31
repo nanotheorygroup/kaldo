@@ -72,10 +72,10 @@ def calculate_conductivity_qhgk(phonons):
     diffusivity = phonons._generalized_diffusivity
     heat_capacity = phonons.heat_capacity.reshape(phonons.n_k_points, phonons.n_modes)
     conductivity_per_mode = contract('kn,knab->knab', heat_capacity, diffusivity)
-
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
     conductivity_per_mode = conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
     return conductivity_per_mode
+
 
 def calculate_conductivity_inverse(phonons):
     velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
