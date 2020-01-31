@@ -8,12 +8,15 @@ from ballistico.helpers.tools import q_vec_from_q_index
 from ballistico.helpers.lazy_loading import save, get_folder_from_label
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
-    calculate_velocity_af, calculate_sij, calculate_generalized_diffusivity
+    calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
 from ballistico.controllers.conductivity import calculate_conductivity_sc, calculate_conductivity_qhgk, \
     calculate_conductivity_inverse, calculate_conductivity_with_evects
 import numpy as np
 import ase.units as units
 from opt_einsum import contract
+
+from ballistico.helpers.logger import get_logger
+logging = get_logger()
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
@@ -80,6 +83,7 @@ class Phonons:
         self.bandwidth_diffusivity = kwargs.pop('bandwidth_diffusivity', None)
 
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
+
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -90,17 +94,17 @@ class Phonons:
 
 
     @lazy_property(label='', format='formatted')
-    def physical_modes(self):
+    def physical_mode(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
         modes outside the frequency range min_frequency and max_frequency.
         Returns
         -------
-        physical_modes : np array
+        physical_mode : np array
             (n_k_points, n_modes) bool
         """
-        physical_modes = calculate_physical_modes(self)
-        return physical_modes
+        physical_mode = calculate_physical_modes(self)
+        return physical_mode.reshape(self.n_k_points, self.n_modes)
 
 
     @lazy_property(label='', format='formatted')
@@ -113,7 +117,7 @@ class Phonons:
             (n_k_points, n_modes) frequency in THz
         """
         frequency = calculate_frequency(self)
-        return frequency
+        return frequency.reshape(self.n_k_points, self.n_modes)
 
 
     @lazy_property(label='', format='formatted')
@@ -144,7 +148,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = calculate_heat_capacity(self)
+        c_v = calculate_heat_capacity(self).reshape(self.n_k_points, self.n_modes)
         return c_v
 
 
@@ -172,7 +176,7 @@ class Phonons:
         bandwidth : np.array(n_k_points, n_modes)
             bandwidth for each k point and each mode
         """
-        gamma = self._ps_and_gamma[:, 1]
+        gamma = self._ps_and_gamma[:, 1].reshape(self.n_k_points, self.n_modes)
         return gamma
 
 
@@ -185,7 +189,7 @@ class Phonons:
         phase_space : np.array(n_k_points, n_modes)
             phase_space for each k point and each mode
         """
-        ps = self._ps_and_gamma[:, 0]
+        ps = self._ps_and_gamma[:, 0].reshape(self.n_k_points, self.n_modes)
         return ps
 
 
@@ -203,8 +207,23 @@ class Phonons:
         return diffusivity
 
 
-    @lazy_property(label='', format='hdf5')
+    @property
     def flux(self):
+        """Calculate the flux, for each couple of k point in k_points/modes.
+
+        Returns
+        -------
+        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
+        """
+        if self.diffusivity_threshold is not None:
+            sij = self.flux_sparse
+        else:
+            sij = self.flux_dense
+        return sij
+
+
+    @lazy_property(label='', format='numpy')
+    def flux_dense(self):
         """Calculate the flux, for each couple of k point in k_points/modes.
 
         Returns
@@ -215,13 +234,25 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='', format='hdf5')
+    @lazy_property(label='', format='numpy')
+    def flux_sparse(self):
+        """Calculate the flux, for each couple of k point in k_points/modes.
+
+        Returns
+        -------
+        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
+        """
+        sij = calculate_sij_sparse(self)
+        return sij
+
+
+    @lazy_property(label='', format='numpy')
     def _dynmat_derivatives(self):
         dynmat_derivatives = calculate_dynmat_derivatives(self)
         return dynmat_derivatives
 
 
-    @lazy_property(label='', format='hdf5')
+    @lazy_property(label='', format='numpy')
     def _eigensystem(self):
         """Calculate the eigensystems, for each k point in k_points.
 
@@ -237,33 +268,25 @@ class Phonons:
         return eigensystem
 
 
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='hdf5')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='numpy')
     def _ps_and_gamma(self):
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', format='hdf5'):
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', format='numpy'):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='hdf5')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='numpy')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 
-    @lazy_property(label='', format='hdf5')
+    @lazy_property(label='', format='numpy')
     def _generalized_diffusivity(self):
-        if self.bandwidth_diffusivity is not None:
-            bandwidth_diffusivity = self.bandwidth_diffusivity * np.ones((self.n_k_points, self.n_modes))
-        else:
-            bandwidth_diffusivity = self.bandwidth.reshape((self.n_k_points, self.n_modes)).copy() / 2.
-
-        _generalized_diffusivity = calculate_generalized_diffusivity(self,
-                                                                     bandwidth_diffusivity=bandwidth_diffusivity,
-                                                                     diffusivity_threshold=self.diffusivity_threshold)
-        return _generalized_diffusivity
+        generalized_diffusivity = calculate_generalized_diffusivity(self)
+        return generalized_diffusivity
 
 # Helpers properties, lazy loaded only in memory
 
@@ -311,7 +334,7 @@ class Phonons:
 
     @lazy_property(label='', format='memory')
     def omegas(self):
-        omegas = 2 * np.pi * self.frequency
+        omegas = 2 * np.pi * self.frequency.reshape(self.n_k_points, self.n_modes)
         return omegas
 
 
@@ -360,12 +383,12 @@ class Phonons:
 
 
     def _keep_only_physical(self, operator):
-        physical_modes = self.physical_modes
+        physical_modes = self.physical_mode.reshape(self.n_phonons)
         if operator.shape == (self.n_phonons, self.n_phonons):
             index = np.outer(physical_modes, physical_modes)
             return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
         else:
-            return operator[physical_modes, ...]
+            return operator[physical_modes]
 
 
     def chi(self, qvec):
@@ -411,7 +434,9 @@ class Phonons:
         elif (method == 'eigenvectors'):
             conductivity = calculate_conductivity_with_evects(self)
         else:
-            raise TypeError('Conductivity method not implemented')
+            logging.error('Conductivity method not implemented')
         folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
-        save('conductivity_' + method, folder, conductivity, format='formatted')
-        return conductivity
+        save('conductivity_' + method, folder, conductivity.reshape(self.n_k_points, self.n_modes, 3, 3), format='formatted')
+        if (conductivity.imag).sum() > 0:
+            logging.warning('The conductivity has an immaginary part.')
+        return conductivity.real

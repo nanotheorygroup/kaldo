@@ -54,7 +54,7 @@ def calculate_c_v_2d(phonons):
     frequencies = phonons.frequency
     c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     temperature = phonons.temperature * KELVINTOTHZ
-    physical_modes = phonons.physical_modes.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
 
     if (phonons.is_classic):
         c_v[:, :, :] = KELVINTOJOULE
@@ -70,23 +70,19 @@ def calculate_c_v_2d(phonons):
 def calculate_conductivity_qhgk(phonons):
     volume = np.linalg.det(phonons.atoms.cell)
     diffusivity = phonons._generalized_diffusivity
-    conductivity_per_mode = contract('kn,knab->knab', phonons.heat_capacity, diffusivity)
+    heat_capacity = phonons.heat_capacity.reshape(phonons.n_k_points, phonons.n_modes)
+    conductivity_per_mode = contract('kn,knab->knab', heat_capacity, diffusivity)
 
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
     conductivity_per_mode = conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
-    # diff = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity)
-    # print('diffusivity', np.sum(diff))
-    # cond = conductivity_per_mode.sum(axis=0).diagonal().mean()
-    # print('kappa', cond)
-
-    return conductivity_per_mode#, diff
+    return conductivity_per_mode
 
 def calculate_conductivity_inverse(phonons):
     velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
     scattering_inverse = np.linalg.inv(phonons._scattering_matrix)
 
     lambd = scattering_inverse.dot(velocity[:, :])
-    physical_modes = phonons.physical_modes
+    physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
 
     volume = np.linalg.det(phonons.atoms.cell)
     c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
@@ -115,7 +111,7 @@ def calculate_conductivity_with_evects(phonons):
     # a = v.dot(np.diag(e)).dot(np.linalg.inv(v))
 
     lambd = scattering_inverse.dot(velocity[:, :])
-    physical_modes = phonons.physical_modes
+    physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
 
     volume = np.linalg.det(phonons.atoms.cell)
     c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
@@ -140,7 +136,7 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
     velocity = velocity.reshape((phonons.n_phonons, 3), order='C')
-    physical_modes = phonons.physical_modes
+    physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
     if not is_rta:
         scattering_matrix = phonons._scattering_matrix_without_diagonal
 
