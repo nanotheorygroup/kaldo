@@ -1,14 +1,22 @@
 import numpy as np
 import os
+from sparse import COO
+import re
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
+import pandas as pd
 import h5py
 # see bug report: https://github.com/h5py/h5py/issues/1101
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
+
+
+def parse_pair(txt):
+    return complex(txt.strip("()"))
+
 
 def load(property, folder, format='formatted'):
     name = folder + '/' + property
@@ -34,11 +42,18 @@ def load(property, folder, format='formatted'):
                 for beta in range(3):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
             loaded = np.array(loaded).reshape((3, 3, ...)).transpose(2, 3, 0, 1)
-        elif property == 'flux':
+        elif 'flux' in property:
             loaded = []
             for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
-            loaded = np.array(loaded).transpose(1, 0)
+                if 'dense' in property:
+                    loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
+                    loaded = np.array(loaded).transpose(1, 0)
+                elif 'sparse' in property:
+                    data = pd.read_csv(name + '_' + str(alpha) + '.dat', delim_whitespace=True, converters={4: parse_pair})
+                    # TODO: we should specify the shape of the sparse tensor here
+                    loaded.append(COO(data.values[:, 0:3].T.astype(np.int), data.values[:, 3].astype(np.complex)))
+                else:
+                    logging.error('Flux not loaded')
         else:
             if property == 'diffusivity':
                 dt = np.complex
@@ -61,7 +76,7 @@ def save(property, folder, loaded_attr, format='formatted'):
             if not name in storage:
                 storage.create_dataset(name, data=loaded_attr, chunks=True)
     elif format == 'formatted':
-        loaded_attr = np.nan_to_num(loaded_attr)
+        # loaded_attr = np.nan_to_num(loaded_attr)
         if not os.path.exists(folder):
             os.makedirs(folder)
         if property == 'physical_mode':
@@ -71,9 +86,17 @@ def save(property, folder, loaded_attr, format='formatted'):
         if property == 'velocity':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
-        elif property == 'flux':
+        elif 'flux' in property:
             for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
+                if 'dense' in property:
+                    np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
+                elif 'sparse' in property:
+                    value = pd.DataFrame(data=loaded_attr[alpha].data, columns=['value'])
+                    coords = pd.DataFrame(data=loaded_attr[alpha].coords.T,columns=['k', 'm', 'n'])
+                    data = pd.concat([coords, value], axis=1)
+                    data.to_csv(path_or_buf=name + '_' + str(alpha) + '.dat', sep=' ')
+                else:
+                    logging.error('Error while saving the flux')
         elif 'conductivity' in property:
             for alpha in range(3):
                 for beta in range(3):
@@ -105,6 +128,12 @@ def get_folder_from_label(phonons, label='', base_folder=None):
         if '<third_bandwidth>' in label:
             if phonons.third_bandwidth is not None:
                 base_folder += '/' + str(np.mean(phonons.third_bandwidth))
+        if '<diffusivity_bandwidth>' in label:
+            if phonons.diffusivity_bandwidth is not None:
+                base_folder += '/' + str(np.mean(phonons.diffusivity_bandwidth))
+        if '<diffusivity_threshold>' in label:
+            if phonons.diffusivity_threshold is not None:
+                base_folder += '/' + str(phonons.diffusivity_threshold)
         # logging.info('Folder: ' + str(base_folder))
     return base_folder
 

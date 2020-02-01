@@ -80,7 +80,7 @@ class Phonons:
 
         # Set up bandwidths
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
-        self.bandwidth_diffusivity = kwargs.pop('bandwidth_diffusivity', None)
+        self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
 
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
 
@@ -222,7 +222,7 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='<diffusivity_bandwidth>', format='numpy')
     def flux_dense(self):
         """Calculate the flux, for each couple of k point in k_points/modes.
 
@@ -234,7 +234,7 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='', format='numpy')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>', format='formatted')
     def flux_sparse(self):
         """Calculate the flux, for each couple of k point in k_points/modes.
 
