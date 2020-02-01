@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 from ballistico.helpers.lazy_loading import is_calculated
 from ballistico.helpers.lazy_loading import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
-from ballistico.helpers.lazy_loading import save, get_folder_from_label
+from ballistico.helpers.lazy_loading import save, get_folder_from_label, DEFAULT_STORE_FORMATS
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
@@ -58,6 +58,10 @@ class Phonons:
         is_tf_backend (optional) : bool
             defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
             numpy (False). Default is True.
+        storage (optional) : 'default', 'numpy', 'memory', 'hdf5'
+            defines the storing strategy used to store the observables. The `default` strategy stores formatted output
+            and numpy arrays. `memory` storage doesn't generate any output.
+
         Returns
         -------
         Phonons
@@ -77,13 +81,10 @@ class Phonons:
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
         self.is_tf_backend = kwargs.pop('is_tf_backend', False)
         self.is_nw = kwargs.pop('is_nw', False)
-
-        # Set up bandwidths
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
-
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
-
+        self.storage = kwargs.pop('storage', 'default')
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -92,8 +93,14 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
 
+        self.store_format = {}
+        for observable in DEFAULT_STORE_FORMATS:
+            self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
+                if self.storage == 'default' else self.storage
 
-    @lazy_property(label='', format='formatted')
+
+
+    @lazy_property(label='')
     def physical_mode(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
@@ -107,7 +114,7 @@ class Phonons:
         return physical_mode.reshape(self.n_k_points, self.n_modes)
 
 
-    @lazy_property(label='', format='formatted')
+    @lazy_property(label='')
     def frequency(self):
         """
         Calculate phonons frequency
@@ -120,7 +127,7 @@ class Phonons:
         return frequency.reshape(self.n_k_points, self.n_modes)
 
 
-    @lazy_property(label='', format='formatted')
+    @lazy_property(label='')
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
         Returns
@@ -132,7 +139,7 @@ class Phonons:
         return velocity
 
 
-    @lazy_property(label='<temperature>/<statistics>', format='formatted')
+    @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the
@@ -152,7 +159,7 @@ class Phonons:
         return c_v
 
 
-    @lazy_property(label='<temperature>/<statistics>', format='formatted')
+    @lazy_property(label='<temperature>/<statistics>')
     def population(self):
         """Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
@@ -167,7 +174,7 @@ class Phonons:
         return occupations
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='formatted')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
@@ -180,7 +187,7 @@ class Phonons:
         return gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='formatted')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def phase_space(self):
         """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
@@ -193,7 +200,7 @@ class Phonons:
         return ps
 
 
-    @lazy_property(label='', format='formatted')
+    @lazy_property(label='')
     def diffusivity(self):
         """Calculate the diffusivity, for each k point in k_points and each mode.
 
@@ -222,7 +229,7 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='<diffusivity_bandwidth>', format='numpy')
+    @lazy_property(label='<diffusivity_bandwidth>')
     def flux_dense(self):
         """Calculate the flux, for each couple of k point in k_points/modes.
 
@@ -234,7 +241,7 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>', format='formatted')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>')
     def flux_sparse(self):
         """Calculate the flux, for each couple of k point in k_points/modes.
 
@@ -246,117 +253,7 @@ class Phonons:
         return sij
 
 
-    @lazy_property(label='', format='numpy')
-    def _dynmat_derivatives(self):
-        dynmat_derivatives = calculate_dynmat_derivatives(self)
-        return dynmat_derivatives
-
-
-    @lazy_property(label='', format='numpy')
-    def _eigensystem(self):
-        """Calculate the eigensystems, for each k point in k_points.
-
-        Returns
-        -------
-        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)
-            eigensystem is calculated for each k point, the three dimensional array
-            records the eigenvalues in the last column of the last dimension.
-
-            If the system is not amorphous, these values are stored as complex numbers.
-        """
-        eigensystem = calculate_eigensystem(self)
-        return eigensystem
-
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='numpy')
-    def _ps_and_gamma(self):
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', format='numpy'):
-            ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
-        else:
-            ps_and_gamma = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=False)
-        return ps_and_gamma
-
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>', format='numpy')
-    def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=True)
-        return ps_gamma_and_gamma_tensor
-
-
-    @lazy_property(label='', format='numpy')
-    def _generalized_diffusivity(self):
-        generalized_diffusivity = calculate_generalized_diffusivity(self)
-        return generalized_diffusivity
-
-# Helpers properties, lazy loaded only in memory
-
-    @lazy_property(label='', format='memory')
-    def _chi_k(self):
-        chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
-        for index_q in range(self.n_k_points):
-            k_point = q_vec_from_q_index(index_q, self.kpts)
-            chi[index_q] = self.chi(k_point)
-        return chi
-
-
-    @lazy_property(label='', format='memory')
-    def _omegas(self):
-        return self.frequency * 2 * np.pi
-
-
-    @lazy_property(label='', format='memory')
-    def _main_q_mesh(self):
-        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
-        return q_mesh
-
-
-    @lazy_property(label='', format='memory')
-    def _velocity_af(self):
-        velocity_AF = calculate_velocity_af(self)
-        return velocity_AF
-
-
-    @lazy_property(label='', format='memory')
-    def _scattering_matrix_without_diagonal(self):
-        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
-        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
-        return scattering_matrix_without_diagonal
-
-
-    @lazy_property(label='', format='memory')
-    def _scattering_matrix(self):
-        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
-        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
-        scattering_matrix = scattering_matrix + np.diag(gamma)
-        return scattering_matrix
-
-
-    @lazy_property(label='', format='memory')
-    def omegas(self):
-        omegas = 2 * np.pi * self.frequency.reshape(self.n_k_points, self.n_modes)
-        return omegas
-
-
-    @lazy_property(label='', format='memory')
-    def rescaled_eigenvectors(self):
-        n_atoms = self.n_atoms
-        n_modes = self.n_modes
-        masses = self.atoms.get_masses()
-        rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
-            (self.n_k_points, n_atoms, 3, n_modes), order='C') / np.sqrt(
-            masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
-        return rescaled_eigenvectors
-
-
-    @property
-    def _is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all()
-        return is_amorphous
-
-
-    @property
+    @lazy_property(label='')
     def eigenvalues(self):
         """Calculates the eigenvalues of the dynamical matrix in Thz^2.
 
@@ -380,6 +277,112 @@ class Phonons:
         """
         eigenvectors = self._eigensystem[:, 1:, :]
         return eigenvectors
+
+
+
+    @lazy_property(label='')
+    def _dynmat_derivatives(self):
+        dynmat_derivatives = calculate_dynmat_derivatives(self)
+        return dynmat_derivatives
+
+
+    @lazy_property(label='')
+    def _eigensystem(self):
+        """Calculate the eigensystems, for each k point in k_points.
+
+        Returns
+        -------
+        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)
+            eigensystem is calculated for each k point, the three dimensional array
+            records the eigenvalues in the last column of the last dimension.
+
+            If the system is not amorphous, these values are stored as complex numbers.
+        """
+        eigensystem = calculate_eigensystem(self)
+        return eigensystem
+
+
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    def _ps_and_gamma(self):
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
+                         format=self.store_format['_ps_gamma_and_gamma_tensor']):
+            ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
+        else:
+            ps_and_gamma = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=False)
+        return ps_and_gamma
+
+
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    def _ps_gamma_and_gamma_tensor(self):
+        ps_gamma_and_gamma_tensor = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=True)
+        return ps_gamma_and_gamma_tensor
+
+
+    @lazy_property(label='')
+    def _generalized_diffusivity(self):
+        generalized_diffusivity = calculate_generalized_diffusivity(self)
+        return generalized_diffusivity
+
+# Helpers properties, lazy loaded only in memory
+
+    @lazy_property(label='')
+    def _chi_k(self):
+        chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
+        for index_q in range(self.n_k_points):
+            k_point = q_vec_from_q_index(index_q, self.kpts)
+            chi[index_q] = self.chi(k_point)
+        return chi
+
+
+    @lazy_property(label='')
+    def _omegas(self):
+        return self.frequency * 2 * np.pi
+
+
+    @lazy_property(label='')
+    def _main_q_mesh(self):
+        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
+        return q_mesh
+
+
+    @lazy_property(label='')
+    def _velocity_af(self):
+        velocity_AF = calculate_velocity_af(self)
+        return velocity_AF
+
+
+    @lazy_property(label='')
+    def _scattering_matrix_without_diagonal(self):
+        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
+        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
+        return scattering_matrix_without_diagonal
+
+
+    @lazy_property(label='')
+    def _scattering_matrix(self):
+        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
+        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
+        scattering_matrix = scattering_matrix + np.diag(gamma)
+        return scattering_matrix
+
+
+    @lazy_property(label='')
+    def _rescaled_eigenvectors(self):
+        n_atoms = self.n_atoms
+        n_modes = self.n_modes
+        masses = self.atoms.get_masses()
+        rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
+            (self.n_k_points, n_atoms, 3, n_modes), order='C') / np.sqrt(
+            masses[np.newaxis, :, np.newaxis, np.newaxis])
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
+        return rescaled_eigenvectors
+
+
+    @property
+    def _is_amorphous(self):
+        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        return is_amorphous
 
 
     def _keep_only_physical(self, operator):
@@ -436,7 +439,7 @@ class Phonons:
         else:
             logging.error('Conductivity method not implemented')
         folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
-        save('conductivity_', folder + '/' + method, conductivity.reshape(self.n_k_points, self.n_modes, 3, 3), format='formatted')
+        save('conductivity', folder + '/' + method, conductivity.reshape(self.n_k_points, self.n_modes, 3, 3), format=self.store_format['conductivity'])
         sum = (conductivity.imag).sum()
         if sum > 1e-3:
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))

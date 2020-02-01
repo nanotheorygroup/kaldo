@@ -13,6 +13,22 @@ os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
 
+DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
+                         'frequency': 'formatted',
+                         'velocity': 'formatted',
+                         'heat_capacity': 'formatted',
+                         'population': 'formatted',
+                         'bandwidth': 'formatted',
+                         'phase_space': 'formatted',
+                         'diffusivity': 'formatted',
+                         'flux_dense': 'formatted',
+                         'flux_sparse': 'formatted',
+                         'conductivity': 'formatted',
+                         '_dynmat_derivatives': 'numpy',
+                         '_eigensystem': 'numpy',
+                         '_ps_and_gamma': 'numpy',
+                         '_ps_gamma_and_gamma_tensor': 'numpy',
+                         '_generalized_diffusivity': 'numpy'}
 
 def parse_pair(txt):
     return complex(txt.strip("()"))
@@ -104,6 +120,8 @@ def save(property, folder, loaded_attr, format='formatted'):
                            header=str(loaded_attr[..., 0, 0].shape))
         else:
             np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
+    elif format=='memory':
+        logging.warning('Impossible to store in memory ' + str(property) + ' property.')
     else:
         raise ValueError('Storing format not implemented')
 
@@ -138,14 +156,17 @@ def get_folder_from_label(phonons, label='', base_folder=None):
     return base_folder
 
 
-def lazy_property(label='', format='formatted'):
-    is_storing = (format != 'memory')
+def lazy_property(label=''):
     def _lazy_property(fn):
         attr = LAZY_PREFIX + fn.__name__
         @property
         def __lazy_property(self):
             if not hasattr(self, attr):
-                if is_storing:
+                try:
+                    format = self.store_format[fn.__name__]
+                except KeyError:
+                    format = 'memory'
+                if (format != 'memory'):
                     folder = get_folder_from_label(self, label)
                     property = fn.__name__
                     try:
