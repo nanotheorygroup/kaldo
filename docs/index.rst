@@ -14,6 +14,12 @@ Welcome to Ballistico's documentation!
 
 .. toctree::
    :glob:
+   :caption: Output formats:
+
+   output.md
+
+.. toctree::
+   :glob:
    :caption: Engine:
 
    main_equations.md

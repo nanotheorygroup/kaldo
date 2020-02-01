@@ -45,10 +45,12 @@ def project_amorphous(phonons):
         dirac_delta_tf, mup_vec, mupp_vec = out
         scaled_potential_tf = tf.einsum('ij,in,jm->nm', third_nu_tf, evect_tf, evect_tf)
         coords = tf.stack((mup_vec, mupp_vec), axis=-1)
-        # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 * dirac_delta_tf, (n_phonons, n_phonons))
+        # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 \
+        # * dirac_delta_tf, (n_phonons, n_phonons))
 
         pot_times_dirac = tf.reduce_sum(tf.abs(tf.gather_nd(scaled_potential_tf,
-                                                            coords)) ** 2 * dirac_delta_tf).numpy() * units._hbar / 8. / phonons.n_k_points * GAMMATOTHZ
+                                                            coords)) ** 2 * dirac_delta_tf).numpy() * units._hbar / 8. \
+                          / phonons.n_k_points * GAMMATOTHZ
         dirac_delta = tf.reduce_sum(dirac_delta_tf).numpy()
 
         ps_and_gamma[nu_single, 0] = dirac_delta
@@ -56,8 +58,10 @@ def project_amorphous(phonons):
         ps_and_gamma[nu_single, 1:] /= phonons.frequency.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-        logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-        logging.info(str(phonons.frequency[nu_single]) + ': ' + str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
+        logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / \
+                                                                                 phonons.n_phonons, 2) * 100) + '%')
+        logging.info(str(phonons.frequency.reshape(phonons.n_phonons)[nu_single]) + ': ' + \
+                     str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
 
     return ps_and_gamma
 
@@ -87,7 +91,8 @@ def project_crystal(phonons):
 
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
-            logging.info('calculating third ' + str(nu_single) +  ', ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
+            logging.info('calculating third ' + str(nu_single) +  ', ' + \
+                         str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
         index_k, mu = np.unravel_index(nu_single, (phonons.n_k_points, phonons.n_modes), order='C')
 
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
