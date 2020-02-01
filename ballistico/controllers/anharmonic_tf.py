@@ -20,7 +20,7 @@ GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 @timeit
 def project_amorphous(phonons):
     n_replicas = phonons.finite_difference.n_replicas
-    rescaled_eigenvectors = phonons.rescaled_eigenvectors.astype(float)
+    rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     logging.info('Projection started')
@@ -78,7 +78,7 @@ def project_crystal(phonons):
 
     _chi_k = tf.convert_to_tensor(phonons._chi_k)
     _chi_k = tf.cast(_chi_k, dtype=tf.complex64)
-    evect_tf = tf.convert_to_tensor(phonons.rescaled_eigenvectors)
+    evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
     evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
@@ -165,8 +165,8 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
     else:
         sigma_tf = calculate_broadening(phonons, index_kpp_full)
     second_sign = (int(is_plus) * 2 - 1)
-    omegas_difference = tf.abs(phonons.omegas[index_k, mu] + second_sign * phonons.omegas[:, :, tf.newaxis] -
-                               tf.gather(phonons.omegas, index_kpp_full)[:, tf.newaxis, :])
+    omegas_difference = tf.abs(phonons._omegas[index_k, mu] + second_sign * phonons._omegas[:, :, tf.newaxis] -
+                               tf.gather(phonons._omegas, index_kpp_full)[:, tf.newaxis, :])
 
     physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
 
@@ -189,9 +189,9 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
 
         else:
             dirac_delta_tf = 0.5 * (1 + tf.gather_nd(phonons.population, coords_1) + tf.gather_nd(phonons.population, coords_2))
-        dirac_delta_tf /= (tf.gather_nd(phonons.omegas, coords_1) * tf.gather_nd(phonons.omegas, coords_2))
+        dirac_delta_tf /= (tf.gather_nd(phonons._omegas, coords_1) * tf.gather_nd(phonons._omegas, coords_2))
         dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * tf.exp(
-            - (phonons.omegas[index_k, mu] + second_sign * tf.gather_nd(phonons.omegas, coords_1) - tf.gather_nd(phonons.omegas, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
+            - (phonons._omegas[index_k, mu] + second_sign * tf.gather_nd(phonons._omegas, coords_1) - tf.gather_nd(phonons._omegas, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
         index_kp = index_kp_vec
         mup = mup_vec
         index_kpp = index_kpp_vec
@@ -208,12 +208,12 @@ def calculate_dirac_delta_amorphous(phonons, mu):
     else:
         delta_threshold = DELTA_THRESHOLD
     density_tf = phonons.population.reshape((phonons.n_k_points, phonons.n_modes))
-    omega_tf = phonons.omegas
+    omega_tf = phonons._omegas
     sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
     for is_plus in (1, 0):
         second_sign = (int(is_plus) * 2 - 1)
-        omegas_difference = np.abs(phonons.omegas[0, mu] + second_sign * phonons.omegas[0, :, np.newaxis] -
-                                   phonons.omegas[0, np.newaxis, :])
+        omegas_difference = np.abs(phonons._omegas[0, mu] + second_sign * phonons._omegas[0, :, np.newaxis] -
+                                   phonons._omegas[0, np.newaxis, :])
         physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
         condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
                 (physical_modes[0, :, np.newaxis]) & \
@@ -228,8 +228,8 @@ def calculate_dirac_delta_amorphous(phonons, mu):
             else:
                 dirac_delta_tf = 0.5 * (1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec))
             dirac_delta_tf = dirac_delta_tf / tf.gather(omega_tf[0], mup_vec) / tf.gather(omega_tf[0], mupp_vec)
-            omegas_difference_tf = tf.abs(phonons.omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
-                                                                                                                          mupp_vec))
+            omegas_difference_tf = tf.abs(phonons._omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
+                                                                                                                             mupp_vec))
 
             if phonons.broadening_shape == 'gauss':
                 dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * np.exp(

@@ -21,8 +21,8 @@ GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 @timeit
 def project_amorphous(phonons):
     n_modes = phonons.n_modes
-    rescaled_eigenvectors = phonons.rescaled_eigenvectors.reshape((n_modes, n_modes),
-                                                               order='C')
+    rescaled_eigenvectors = phonons._rescaled_eigenvectors.reshape((n_modes, n_modes),
+                                                                   order='C')
 
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
@@ -62,7 +62,7 @@ def project_amorphous(phonons):
 
 
 def calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, k0, m0, k1, m1, k2, m2):
-    evect = phonons.rescaled_eigenvectors
+    evect = phonons._rescaled_eigenvectors
     phonons.finite_difference.third_order_delta = 0.001
     third_k0m0_k2m2 = phonons.finite_difference.calculate_single_third_on_phonons(k0, m0, k2, m2, evect,
                                                                                phonons._chi_k)
@@ -84,7 +84,7 @@ def project_crystal(phonons, ):
     else:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_replicas = phonons.finite_difference.n_replicas
-    rescaled_eigenvectors = phonons.rescaled_eigenvectors
+    rescaled_eigenvectors = phonons._rescaled_eigenvectors
 
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
@@ -181,7 +181,7 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
             sigma_small = phonons.third_bandwidth.reshape((phonons.n_k_points, phonons.n_modes))[index_q, mu]
 
     second_sign = (int(is_plus) * 2 - 1)
-    omegas = phonons.omegas
+    omegas = phonons._omegas
     omegas_difference = np.abs(
         omegas[index_q, mu] + second_sign * omegas[:, :, np.newaxis] -
         omegas[index_qpp_full, np.newaxis, :])
@@ -236,7 +236,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         if physical_modes[0, mu]:
 
             second_sign = (int(is_plus) * 2 - 1)
-            omegas = phonons.omegas
+            omegas = phonons._omegas
             omegas_difference = np.abs(
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])
