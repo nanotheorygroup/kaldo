@@ -6,7 +6,6 @@ Unit and regression test for the ballistico package.
 from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
-from tempfile import TemporaryDirectory
 import pytest
 
 
@@ -18,14 +17,11 @@ def phonons():
     finite_difference = FiniteDifference.from_folder(folder='ballistico/tests/si-amorphous', format='eskm')
 
     # # Create a phonon object
-    with TemporaryDirectory() as td:
-        phonons = Phonons(finite_difference=finite_difference,
-                          is_classic=False,
-                          folder=td)
-
-        yield phonons
-    print ("Cleaning up.")
-
+    phonons = Phonons(finite_difference=finite_difference,
+                      is_classic=False,
+                      folder='temp',
+                      storage='memory')
+    return phonons
 
 def test_af_conductivity_50(phonons):
     phonons.temperature = 50

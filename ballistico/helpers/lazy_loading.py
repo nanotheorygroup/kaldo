@@ -77,6 +77,8 @@ def load(property, folder, format='formatted'):
                 dt = np.float
             loaded = np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
         return loaded
+    elif format == 'memory':
+        logging.warning('Impossible to store in memory ' + str(property) + ' property.')
     else:
         raise ValueError('Storing format not implemented')
 
@@ -190,14 +192,15 @@ def is_calculated(property, self, label='', format='formatted'):
     # TODO: remove this function
     attr = LAZY_PREFIX + property
     try:
-        getattr(self, attr)
+        is_calculated = not getattr(self, attr) is None
     except AttributeError:
+        is_calculated = False
+    if not is_calculated:
         try:
             folder = get_folder_from_label(self, label)
             loaded_attr = load(property, folder, format=format)
             setattr(self, attr, loaded_attr)
-            return True
+            return not loaded_attr is None
         except (FileNotFoundError, OSError, KeyError):
             return False
-    else:
-        return True
+    return is_calculated
