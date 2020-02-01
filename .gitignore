@@ -172,3 +172,12 @@ ballistico/tests/si-crystal/5_5_5/300.0/quantum/_ps_gamma_and_gamma_tensor.npy
 ballistico/tests/si-crystal/5_5_5/300.0/quantum/heat_capacity.npy
 ballistico/tests/si-crystal/5_5_5/300.0/quantum/occupations.npy
 *.hdf5
+docs/autosummary/ballistico.phonons.Phonons.bandwidth.rst
+docs/autosummary/ballistico.phonons.Phonons.diffusivity.rst
+docs/autosummary/ballistico.phonons.Phonons.flux_dense.rst
+docs/autosummary/ballistico.phonons.Phonons.flux_sparse.rst
+docs/autosummary/ballistico.phonons.Phonons.frequency.rst
+docs/autosummary/ballistico.phonons.Phonons.phase_space.rst
+docs/autosummary/ballistico.phonons.Phonons.physical_mode.rst
+docs/autosummary/ballistico.phonons.Phonons.population.rst
+docs/autosummary/ballistico.phonons.Phonons.velocity.rst

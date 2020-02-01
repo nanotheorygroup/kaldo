@@ -174,3 +174,8 @@ texinfo_documents = [
 nbsphinx_execute = 'never'
 
 latex_engine = 'pdflatex'
+
+mathjax_config = {
+    'extensions': ['tex2jax.js'],
+    'jax': ['input/TeX', 'output/HTML-CSS'],
+}
