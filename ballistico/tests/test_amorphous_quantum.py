@@ -8,7 +8,6 @@ import numpy as np
 from ballistico.phonons import Phonons
 import ase.units as units
 import pytest
-from tempfile import TemporaryDirectory
 
 
 @pytest.yield_fixture(scope="session")
@@ -20,17 +19,14 @@ def phonons():
                                                      format='eskm')
 
     # # Create a phonon object
-    with TemporaryDirectory() as td:
-        phonons = Phonons(finite_difference=finite_difference,
-                          is_classic=False,
-                          temperature=300,
-                          folder=td,
-                          third_bandwidth= 0.05 / 4.135,
-                          broadening_shape='triangle')
-
-        yield phonons
-    print ("Cleaning up.")
-
+    phonons = Phonons(finite_difference=finite_difference,
+                      is_classic=False,
+                      temperature=300,
+                      third_bandwidth= 0.05 / 4.135,
+                      broadening_shape='triangle',
+                      folder='temp',
+                      storage='memory')
+    return phonons
 
 def test_first_gamma(phonons):
     THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15

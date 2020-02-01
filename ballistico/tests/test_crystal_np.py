@@ -6,8 +6,6 @@ Unit and regression test for the ballistico package.
 from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
-
-from tempfile import TemporaryDirectory
 import pytest
 
 
@@ -18,16 +16,15 @@ def phonons():
                                                      supercell=[3, 3, 3],
                                                      format='eskm')
 
-    with TemporaryDirectory() as td:
-        # Create a phonon object
-        phonons = Phonons(finite_difference=finite_difference,
-                          kpts=[5, 5, 5],
-                          is_classic=False,
-                          temperature=300,
-                          folder=td,
-                          is_tf_backend=False)
-        yield phonons
-        print ("Cleaning up.")
+    # Create a phonon object
+    phonons = Phonons(finite_difference=finite_difference,
+                      kpts=[5, 5, 5],
+                      is_classic=False,
+                      temperature=300,
+                      is_tf_backend=False,
+                      folder='temp',
+                      storage='memory')
+    return phonons
 
 
 def test_sc_conductivity(phonons):
