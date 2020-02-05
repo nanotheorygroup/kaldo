@@ -1,5 +1,5 @@
 from opt_einsum import contract
-from ballistico.helpers.tools import apply_boundary_with_cell
+from ballistico.helpers.tools import wrap_positions_with_cell
 from scipy.linalg.lapack import dsyev
 import numpy as np
 import ase.units as units
@@ -56,7 +56,7 @@ def calculate_frequency(phonons, q_points=None):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = apply_boundary_with_cell(q_points)
+        q_points = wrap_positions_with_cell(q_points)
     eigenvals = calculate_eigensystem(phonons, q_points, only_eigenvals=True)
     frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
     return frequency.real
@@ -72,7 +72,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = apply_boundary_with_cell(q_points)
+        q_points = wrap_positions_with_cell(q_points)
     atoms = phonons.atoms
     list_of_replicas = phonons.finite_difference.list_of_replicas
     replicated_cell = phonons.finite_difference.replicated_atoms.cell
@@ -87,7 +87,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
         qvec = q_points[index_k]
         if phonons._is_amorphous:
             dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
-            dxij = apply_boundary_with_cell(dxij, replicated_cell, replicated_cell_inv)
+            dxij = wrap_positions_with_cell(dxij, replicated_cell, replicated_cell_inv)
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:
             list_of_replicas = list_of_replicas
@@ -108,7 +108,7 @@ def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = apply_boundary_with_cell(q_points)
+        q_points = wrap_positions_with_cell(q_points)
     if is_main_mesh:
         dynmat_derivatives = phonons._dynmat_derivatives
         eigenvects = phonons._eigensystem[:, 1:, :]
@@ -157,7 +157,7 @@ def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = apply_boundary_with_cell(q_points)
+        q_points = wrap_positions_with_cell(q_points)
     if is_main_mesh:
         sij = phonons.flux
         frequency = phonons.frequency
@@ -181,7 +181,7 @@ def calculate_velocity(phonons, q_points=None, is_antisymmetrizing=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = apply_boundary_with_cell(q_points)
+        q_points = wrap_positions_with_cell(q_points)
     if is_main_mesh:
         velocity_AF = phonons._velocity_af
     else:
@@ -200,7 +200,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = apply_boundary_with_cell(q_points)
+        q_points = wrap_positions_with_cell(q_points)
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]

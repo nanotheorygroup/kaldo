@@ -5,7 +5,7 @@
 When using the default storage option `default`, Ballistico stores the following dense tensor as formatted, human readable, files:
 - `frequency` $(n_{kpoints}, n_{modes})$. mode changes first k changes after
 - `velocity_alpha` $(n_{kpoints}, n_{modes})$
-- `physical_modes_<min_freq>_<max_freq>_<is_nw>` $(n_{kpoints}, n_{modes})$
+- `physical_mode_<min_freq>_<max_freq>_<is_nw>` $(n_{kpoints}, n_{modes})$
 
 - `<temperature>/<statistics>/heat_capacity` $(n_{kpoints}, n_{modes})$
 - `<temperature>/<statistics>/population` $(n_{kpoints}, n_{modes})$
@@ -30,5 +30,5 @@ The following tensors are stored in raw binary format and help saving time when 
 - `<temperature>/<statistics>/<third_bandwidth>/_ps_and_gamma`, when only RTA conductivity is required
 
 # Alternative storages
-Other options available are `numpy` and `hdf5` where all the files are saved as one of those formats.
+Other storage options available are `numpy` and `hdf5` where all the files are saved as one of those formats. Finally the `memory` option doesn't store any file.
 

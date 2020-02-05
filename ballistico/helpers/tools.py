@@ -67,15 +67,28 @@ def split_index(index, nx, ny, nz):
     return int(ix), int(iy), int(iz), int(iatom)
 
 
-def apply_boundary_with_cell(dxij, replicated_cell=None, replicated_cell_inv=None):
+def wrap_positions_with_cell(dxij, cell=None, cell_inv=None):
     # exploit periodicity to calculate the shortest distance, which may not be the one we have
-    if replicated_cell is not None and replicated_cell_inv is None:
-        replicated_cell_inv = np.linalg.inv(replicated_cell)
-    if replicated_cell is not None:
-        dxij = dxij.dot(replicated_cell_inv)
+    if cell is not None and cell_inv is None:
+        cell_inv = np.linalg.inv(cell)
+    if cell is not None:
+        dxij = dxij.dot(cell_inv)
     dxij = dxij - np.round(dxij)
-    if replicated_cell is not None:
-        dxij = dxij.dot(replicated_cell)
+    if cell is not None:
+        dxij = dxij.dot(cell)
+    return dxij
+
+
+def unwrap_positions_with_cell(dxij, cell=None, cell_inv=None):
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
+    if cell is not None and cell_inv is None:
+        cell_inv = np.linalg.inv(cell)
+    if cell is not None:
+        dxij = dxij.dot(cell_inv)
+    dxij = dxij + np.round(dxij)
+    dxij = (dxij + (dxij < 0).astype(np.int))
+    if cell is not None:
+        dxij = dxij.dot(cell)
     return dxij
 
 
@@ -96,7 +109,7 @@ def q_index_from_q_vec(q_vec, kpts):
 def q_vec_from_q_index(q_index, kpts):
     # the output q_vec is in the unit sphere
     q_vec = np.array(np.unravel_index(q_index, (kpts))).T / kpts
-    apply_boundary_with_cell(q_vec)
+    wrap_positions_with_cell(q_vec)
     return q_vec
 
 
