@@ -11,7 +11,7 @@ from scipy.sparse import load_npz, save_npz
 from sparse import COO
 import ballistico.helpers.io as io
 import ballistico.helpers.shengbte_io as shengbte_io
-from ballistico.helpers.tools import convert_to_poscar, apply_boundary_with_cell
+from ballistico.helpers.tools import convert_to_poscar, wrap_positions_with_cell
 import h5py
 import ase.units as units
 from ballistico.helpers.logger import get_logger
@@ -344,8 +344,6 @@ class FiniteDifference(object):
 
     @atoms.setter
     def atoms(self, new_atoms):
-        new_atoms.positions = new_atoms.positions - new_atoms.positions.min(axis=0)
-        new_atoms.positions = new_atoms.positions - new_atoms.cell.diagonal() / 2
         self._atoms = new_atoms
 
 
@@ -569,7 +567,7 @@ class FiniteDifference(object):
         replicated_cell = replicated_atoms.cell
         replicated_cell_inv = np.linalg.inv(replicated_cell)
         replica_positions = replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3)) - self.atoms.positions[np.newaxis, :, :]
-        replica_positions = apply_boundary_with_cell(replica_positions, replicated_cell, replicated_cell_inv)
+        replica_positions = wrap_positions_with_cell(replica_positions, replicated_cell, replicated_cell_inv)
         list_of_replicas = replica_positions[:, 0, :]
         return list_of_replicas
 
@@ -1049,6 +1047,7 @@ class FiniteDifference(object):
 
 
     def export_third_eskm(self, out_filename='THIRD', min_force=1e-6):
+        logging.info('Exporting third in eskm format')
         n_atoms = self.n_atoms
         n_replicas = self.n_replicas
         n_replicated_atoms = n_atoms * n_replicas
@@ -1071,3 +1070,4 @@ class FiniteDifference(object):
                                     for gamma in range(3):
                                         out_file.write(' {:16.6f}'.format(third[i, alpha, j, beta, k, gamma]))
                                     out_file.write('\n')
+        logging.info('Done exporting third.')
