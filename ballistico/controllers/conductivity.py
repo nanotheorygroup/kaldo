@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-
+from ballistico.helpers.lazy_loading import save, get_folder_from_label
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -14,40 +14,7 @@ EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 MAX_LENGTH_TRESHOLD = 1e15
-
-
-def tau_caltech(lambd, length, velocity,  axis):
-    kn = lambd[:, axis] / length
-    transmission = (1 - kn * (1 - np.exp(- 1. / kn)))
-    tau = transmission / lambd[:, axis] * velocity[:, axis]
-    return tau
-
-
-def tau_matthiesen(lambd, length, velocity, axis):
-    tau = (1 / lambd[:, axis] + 1 / length) ** (-1) / velocity[:, axis]
-    return tau
-
-
-def lambd_caltech(lambd, length, axis):
-    lambd_out = lambd.copy()
-    kn = lambd[axis] / length
-    transmission = (1 - kn * (1 - np.exp(- 1. / kn)))
-    lambd_out[axis] = transmission / lambd[axis]
-    return lambd_out
-
-
-def lambd_matthiesen(lambd, length, axis):
-    lambd_out = lambd.copy()
-    lambd_out[:, axis] = (1 / lambd[:, axis] + 1 / length) ** (-1)
-    return lambd_out
-
-
-def scattering_matrix(phonons, gamma=None):
-    if gamma is None:
-        gamma = phonons.bandwidth
-    scattering_matrix = -1 * phonons._scattering_matrix_without_diagonal
-    scattering_matrix = scattering_matrix + np.diag(gamma)
-    return scattering_matrix
+PRINT_NEGATIVE_SCATTERING_EIGENVALS = True
 
 
 def calculate_c_v_2d(phonons):
@@ -67,34 +34,68 @@ def calculate_c_v_2d(phonons):
     return c_v
 
 
+def conductivity(phonons, method='rta', max_n_iterations=None, length=None, finite_length_method='matthiessen', tolerance=None):
+    if method == 'rta':
+        conductivity = calculate_conductivity_sc(phonons, length=length, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
+    elif method == 'sc':
+        conductivity = calculate_conductivity_sc(phonons, length=length, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
+    elif (method == 'qhgk'):
+        conductivity = calculate_conductivity_qhgk(phonons)
+    elif (method == 'inverse'):
+        conductivity = calculate_conductivity_inverse(phonons, length=length, finite_size_method=finite_length_method)
+    elif (method == 'eigenvectors'):
+        conductivity = calculate_conductivity_with_evects(phonons)
+    else:
+        logging.error('Conductivity method not implemented')
+    folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
+    save('conductivity', folder + '/' + method, conductivity.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
+         format=phonons.store_format['conductivity'])
+    sum = (conductivity.imag).sum()
+    if sum > 1e-3:
+        logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
+    return conductivity.real
+
+
 def calculate_conductivity_qhgk(phonons):
     volume = np.linalg.det(phonons.atoms.cell)
     diffusivity = phonons._generalized_diffusivity
     heat_capacity = phonons.heat_capacity.reshape(phonons.n_k_points, phonons.n_modes)
     conductivity_per_mode = contract('kn,knab->knab', heat_capacity, diffusivity)
     conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
-    conductivity_per_mode = conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
+    conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
     return conductivity_per_mode
 
 
-def calculate_conductivity_inverse(phonons):
-    velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3), order='C'))
-    scattering_inverse = np.linalg.inv(phonons._scattering_matrix)
+def calculate_conductivity_inverse(phonons, length=np.array([None, None, None]), finite_size_method='matthiesen'):
 
-    lambd = scattering_inverse.dot(velocity[:, :])
     physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
-
-    volume = np.linalg.det(phonons.atoms.cell)
-    c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
     conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
-    conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
-                                                  velocity[:, :, np.newaxis] * lambd[:, np.newaxis, :]
-    neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
-    logging.info('negative on diagonal : ' + str(neg_diag))
-    evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-    logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
-    return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
+    for alpha in range (3):
+        velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
+        gamma = phonons.bandwidth.reshape(phonons.n_phonons)
+        if length is not None:
+            scattering_matrix = - 1 * phonons._scattering_matrix_without_diagonal + \
+                            np.diag(gamma_with_finite_size(gamma, velocity[:, alpha], length[alpha], finite_size_method)[physical_modes])
+        else:
+            scattering_matrix = - 1 * phonons._scattering_matrix_without_diagonal + np.diag(gamma[physical_modes])
+        scattering_inverse = np.linalg.inv(scattering_matrix)
+
+        try:
+            velocity = phonons._keep_only_physical(velocity)
+        except IndexError:
+            print('Index')
+            velocity = phonons._keep_only_physical(velocity)
+
+        lambd = scattering_inverse.dot(velocity[:, alpha])
+
+        volume = np.linalg.det(phonons.atoms.cell)
+        c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons), order='C'))
+        physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
+        conductivity_per_mode[physical_modes, :, alpha] = c_v[:, np.newaxis] * \
+                                                      velocity[:, :] * lambd[:, np.newaxis]
+
+    return conductivity_per_mode / (volume * phonons.n_k_points)
 
 
 def calculate_conductivity_with_evects(phonons):
@@ -120,18 +121,17 @@ def calculate_conductivity_with_evects(phonons):
                                                   velocity[:, :, np.newaxis] * lambd[:, np.newaxis, :]
     neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
     logging.info('negative on diagonal : ' + str(neg_diag))
-    evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-    logging.info('negative eigenvals : ' + str((evals < 0).sum()))
+    if PRINT_NEGATIVE_SCATTERING_EIGENVALS:
+        evals = np.linalg.eigvalsh(phonons._scattering_matrix)
+        logging.info('negative eigenvals : ' + str((evals < 0).sum()))
+    return conductivity_per_mode / (volume * phonons.n_k_points)
 
-    return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
 
-
-def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, is_rta=False, n_iterations=MAX_ITERATIONS_SC, finite_size_method='matthiesen'):
+def calculate_conductivity_sc(phonons, tolerance=None, length=np.array([None, None, None]),
+                              is_rta=False, n_iterations=MAX_ITERATIONS_SC, finite_size_method='matthiesen'):
     if n_iterations is None:
         n_iterations = MAX_ITERATIONS_SC
-    if length is not None:
-        length_thresholds = np.array([None, None, None])
-        length_thresholds[axis] = length
+
     volume = np.linalg.det (phonons.atoms.cell)
     velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3), order='C')
     lambd_0 = np.zeros ((phonons.n_k_points * phonons.n_modes, 3))
@@ -141,29 +141,10 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
         scattering_matrix = phonons._scattering_matrix_without_diagonal
 
     for alpha in range (3):
-        gamma = np.zeros (phonons.n_phonons)
-
-        for mu in range (phonons.n_phonons):
-            if length:
-                if length_thresholds[alpha]:
-                    single_velocity = velocity[mu, alpha]
-                    length = length_thresholds[alpha]
-                    single_gamma = phonons.bandwidth.reshape((phonons.n_phonons), order='C')[mu]
-                    if finite_size_method == 'matthiessen':
-                        gamma[mu] = single_gamma + 2 * abs(single_velocity) / length
-                        # gamma[mu] = phonons.gamma.reshape ((phonons.n_phonons), order='C')[mu] + \
-                        #         np.abs (velocity[mu, alpha]) / length_thresholds[alpha]
-
-                    elif finite_size_method == 'caltech':
-
-                        kn = abs(single_velocity) / (length * single_gamma)
-                        transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
-                        gamma[mu] = abs(velocity) / length / transmission
-
-                else:
-                    gamma[mu] = phonons.bandwidth.reshape ((phonons.n_phonons), order='C')[mu]
-            else:
-                gamma[mu] = phonons.bandwidth.reshape ((phonons.n_phonons), order='C')[mu]
+        gamma = phonons.bandwidth.reshape(phonons.n_phonons)
+        if length:
+            if length[alpha] and length[alpha] != 0:
+                gamma = gamma_with_finite_size(gamma, velocity[:, alpha], length[alpha], finite_size_method)
         tau_0 = 1 / gamma
         tau_0[np.invert(physical_modes)] = 0
         lambd_0[:, alpha] = tau_0[:] * velocity[:, alpha]
@@ -202,7 +183,46 @@ def calculate_conductivity_sc(phonons, tolerance=None, length=None, axis=None, i
     if n_iteration == (MAX_ITERATIONS_SC - 1):
         logging.info('Convergence not reached')
     # if is_rta:
-    return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points)
+    return conductivity_per_mode / (volume * phonons.n_k_points)
     # else:
     #     return conductivity_per_mode * 1e22 / (volume * phonons.n_k_points), np.array(cond_iterations) * 1e22 / (volume * phonons.n_k_points)
+
+
+
+def gamma_with_finite_size(gamma, velocity, length, method):
+    if method == 'matthiessen':
+        gamma = gamma + 2 * abs(velocity) / length
+    elif method == 'caltech':
+        kn = abs(velocity) / (length * gamma)
+        transmission = (1 - kn * (1 - np.exp(- 1. / kn))) * kn
+        gamma = abs(velocity) / length / transmission
+    else:
+        raise logging.error(str(method) + ' not recognized.')
+    return gamma
+
+
+def tau_caltech(lambd, length, velocity,  axis):
+    kn = lambd[:, axis] / length
+    transmission = (1 - kn * (1 - np.exp(- 1. / kn)))
+    tau = transmission / lambd[:, axis] * velocity[:, axis]
+    return tau
+
+
+def tau_matthiesen(lambd, length, velocity, axis):
+    tau = (1 / lambd[:, axis] + 1 / length) ** (-1) / velocity[:, axis]
+    return tau
+
+
+def lambd_caltech(lambd, length, axis):
+    lambd_out = lambd.copy()
+    kn = lambd[axis] / length
+    transmission = (1 - kn * (1 - np.exp(- 1. / kn)))
+    lambd_out[axis] = transmission / lambd[axis]
+    return lambd_out
+
+
+def lambd_matthiesen(lambd, length, axis):
+    lambd_out = lambd.copy()
+    lambd_out[:, axis] = (1 / lambd[:, axis] + 1 / length) ** (-1)
+    return lambd_out
 

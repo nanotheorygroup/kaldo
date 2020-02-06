@@ -43,7 +43,7 @@ def calculate_heat_capacity(phonons):
         c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * phonons.frequency[
             physical_modes] ** 2 / \
                               (temperature ** 2)
-    return c_v
+    return c_v * 1e22
 
 
 def calculate_frequency(phonons, q_points=None):

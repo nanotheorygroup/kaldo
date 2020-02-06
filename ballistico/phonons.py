@@ -9,8 +9,7 @@ from ballistico.helpers.lazy_loading import save, get_folder_from_label, DEFAULT
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
-from ballistico.controllers.conductivity import calculate_conductivity_sc, calculate_conductivity_qhgk, \
-    calculate_conductivity_inverse, calculate_conductivity_with_evects
+from ballistico.controllers.conductivity import conductivity
 import numpy as np
 import ase.units as units
 from opt_einsum import contract
@@ -390,6 +389,8 @@ class Phonons:
         if operator.shape == (self.n_phonons, self.n_phonons):
             index = np.outer(physical_modes, physical_modes)
             return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
+        elif operator.shape == (self.n_phonons, 3):
+            return operator[physical_modes, :]
         else:
             return operator[physical_modes]
 
@@ -425,23 +426,15 @@ class Phonons:
         return ps_and_gamma
 
 
-    def conductivity(self, method='rta', max_n_iterations=None, length=None, axis=None, finite_length_method='matthiessen', tolerance=None):
-        if method == 'rta':
-            conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=True, finite_size_method=finite_length_method, n_iterations=max_n_iterations)
-        elif method == 'sc':
-            conductivity = calculate_conductivity_sc(self, length=length, axis=axis, is_rta=False, finite_size_method=finite_length_method, n_iterations=max_n_iterations, tolerance=tolerance)
-        elif (method == 'qhgk'):
-            conductivity = calculate_conductivity_qhgk(self)
-        elif (method == 'inverse'):
-            conductivity = calculate_conductivity_inverse(self)
-        elif (method == 'eigenvectors'):
-            conductivity = calculate_conductivity_with_evects(self)
-        else:
-            logging.error('Conductivity method not implemented')
+    def conductivity(self, method='rta', max_n_iterations=None, length=None, finite_length_method='matthiessen',
+                     tolerance=None):
+        cond = conductivity(self, method, max_n_iterations, length, finite_length_method, tolerance)
         folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
-        save('conductivity', folder + '/' + method, conductivity.reshape(self.n_k_points, self.n_modes, 3, 3), \
+        save('conductivity', folder + '/' + method, cond.reshape(self.n_k_points, self.n_modes, 3, 3), \
              format=self.store_format['conductivity'])
-        sum = (conductivity.imag).sum()
+        sum = (cond.imag).sum()
         if sum > 1e-3:
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
-        return conductivity.real
+        return cond
+
+

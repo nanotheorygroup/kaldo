@@ -211,6 +211,7 @@ def plot_crystal(phonons):
     plot_vs_frequency(phonons, phonons.diffusivity, 'diffusivity mm2overs')
     plot_dispersion(phonons)
     plot_dos(phonons)
+    # heat_capacity in 10-23 m2 kg s-2 K-1
     plot_vs_frequency(phonons, phonons.heat_capacity, 'heat_capacity')
     plot_vs_frequency(phonons, phonons.bandwidth, 'gamma_THz')
     plot_vs_frequency(phonons, phonons.phase_space, 'phase_space')
