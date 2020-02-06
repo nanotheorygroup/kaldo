@@ -27,10 +27,13 @@ $$
 $$
 
 The classical heat capacity is defined as
+
 $$
 {c}_\mu = \mathrm{kelvintojoule}
 $$
+
 while the quantum
+
 $$
 {c}_\mu= \frac{\nu_\mu^2}{\tilde T^2}n_\mu (n_\mu + 1)\mathrm{kelvintojoule}
 $$
