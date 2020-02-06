@@ -1,8 +1,10 @@
-# Input
+Here is a draft of the main equations implemented in the code with a reference to the units.
+
+# Input Units
 Potential derivatives are in
 $eV/A^2$ or $eV/A^3$. Distances are in $A$. Masses are in $g/N_A$
 
-# Density and heat capacity
+# Density
 $$
 \mathrm{kelvintothz} = 10^{-12} \frac{k_B}{ 2 \pi \hbar J} =0.02083
 $$
@@ -12,31 +14,40 @@ $$
 \tilde T =  T\mathrm{kelvintothz}
 $$
 the Bose Einstein distribution for each phonon mode $\mu$
+
 $$
 n_\mu= \frac{1}{e^{\nu_\mu/\tilde T}-1}
 $$
-Heat capacity:
+
+## Heat capacity
+
+If we define
 $$
 \mathrm{kelvintojoule} = \frac{k_B}{J}=1.38064852\cdot 10^{-23}
 $$
-classical
+
+The classical heat capacity is defined as
 $$
 {c}_\mu = \mathrm{kelvintojoule}
 $$
-quantum
+while the quantum
 $$
 {c}_\mu= \frac{\nu_\mu^2}{\tilde T^2}n_\mu (n_\mu + 1)\mathrm{kelvintojoule}
 $$
 
 # Dynamical matrix
+
 If $C$ are the cell vectors
 $$
 \mathbf k = 2 \pi C^{-1}\mathbf q
 $$
+
 We introduce the Bloch waves unitary tranformation
+
 $$
 \chi(\mathbf k)_l = e^{i \mathbf R_l\dot\mathbf k}
 $$
+
 where $l$ is the index of the cell replica.
 
 We rewrite the second derivative of the potential
@@ -45,8 +56,9 @@ V_{lil'i'} =\frac{V_{lil'i'}}{\sqrt{m_im_i'}}\mathrm{evtotenjovermol}
 $$
 where $i$ is the index of the atom in the unit cell (replica). $\mathrm{evtotenjovermol}=9648.53$
 Units:
+
 $$
-[V] =\frac{10J}{mol}\frac{1}{\AA^2 g/mol}
+[V] =\frac{10J}{mol}\frac{1}{A^2 g/mol}
 = 10^24\frac{J}{m^2 kg} = THz^2
 $$
 
@@ -69,7 +81,7 @@ $$
 [\omega] = \sqrt{THz^2} = THz
 $$
 $$
-[v] = \frac{1}{THz}\AA THz^2 = \AA\cdot THz = 100m/s
+[v] = \frac{1}{THz}A THz^2 = A\cdot THz = 100m/s
 $$
 # Lifetime
 $$
@@ -107,7 +119,8 @@ Units
 $$
 [\gamma^\pm]=THz
 $$
-# Conductivity
+
+## Conductivity
 $$
 \lambda_{\mu\alpha} ={\gamma_\mu}{v_{\mu\alpha}}
 $$

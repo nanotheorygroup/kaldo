@@ -408,11 +408,11 @@ class Phonons:
             try:
                 import ballistico.controllers.anharmonic_tf as aha
             except ImportError as err:
-                print(err)
-                print('In order to run accelerated algoritgms, tensorflow>=2.0 is required. \
+                logging.info(err)
+                logging.warning('In order to run accelerated algoritgms, tensorflow>=2.0 is required. \
                 Please consider installing tensorflow>=2.0. More info here: \
                 https://www.tensorflow.org/install/pip')
-                print('Using numpy engine instead.')
+                logging.info('Using numpy engine instead.')
                 import ballistico.controllers.anharmonic as aha
         else:
             import ballistico.controllers.anharmonic as aha
