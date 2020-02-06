@@ -59,17 +59,19 @@ def load(property, folder, format='formatted'):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
             loaded = np.array(loaded).reshape((3, 3, ...)).transpose(2, 3, 0, 1)
         elif 'flux' in property:
-            loaded = []
-            for alpha in range(3):
-                if 'dense' in property:
+            if 'dense' in property:
+                loaded = []
+                for alpha in range(3):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
-                    loaded = np.array(loaded).transpose(1, 0)
-                elif 'sparse' in property:
+                loaded = np.array(loaded).transpose(1, 0)
+            elif 'sparse' in property:
+                loaded = []
+                for alpha in range(3):
                     data = pd.read_csv(name + '_' + str(alpha) + '.dat', delim_whitespace=True, converters={4: parse_pair})
-                    # TODO: we should specify the shape of the sparse tensor here
-                    loaded.append(COO(data.values[:, 0:3].T.astype(np.int), data.values[:, 3].astype(np.complex)))
-                else:
-                    logging.error('Flux not loaded')
+                # TODO: we should specify the shape of the sparse tensor here
+                loaded.append(COO(data.values[:, 0:3].T.astype(np.int), data.values[:, 3].astype(np.complex)))
+            else:
+                logging.error('Flux not loaded')
         else:
             if property == 'diffusivity':
                 dt = np.complex
