@@ -428,6 +428,8 @@ class Phonons:
 
     def conductivity(self, method='rta', max_n_iterations=None, length=None, finite_length_method='matthiessen',
                      tolerance=None):
+        if method == 'inverse' and finite_length_method == 'caltech':
+            logging.error('Not yet implemented, conductivity ' + method + ', ' + finite_length_method)
         cond = conductivity(self, method, max_n_iterations, length, finite_length_method, tolerance)
         folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
         save('conductivity', folder + '/' + method, cond.reshape(self.n_k_points, self.n_modes, 3, 3), \
