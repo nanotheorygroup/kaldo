@@ -93,7 +93,7 @@ def project_crystal(phonons):
         if nu_single % 200 == 0:
             logging.info('calculating third ' + str(nu_single) +  ', ' + \
                          str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-        index_k, mu = np.unravel_index(nu_single, (phonons.n_k_points, phonons.n_modes), order='C')
+        index_k, mu = np.unravel_index(nu_single, (phonons.n_k_points, phonons.n_modes))
 
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
 

@@ -113,7 +113,7 @@ def plot_dos(phonons, bandwidth=.3, is_showing=True):
     fig = plt.figure ()
     kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequency.flatten(order='C').reshape(-1, 1))
     x = np.linspace(phonons.frequency.min(), phonons.frequency.max(), 200)
-    y = np.exp(kde.score_samples(x.reshape((-1, 1), order='C')))
+    y = np.exp(kde.score_samples(x.reshape((-1, 1))))
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
     plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
@@ -159,9 +159,9 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
         vel_norm = np.zeros((k_list.shape[0], phonons.n_modes))
 
         frequency = phonons.frequency.reshape((phonons.kpts[0], phonons.kpts[1],
-                                                 phonons.kpts[2], phonons.n_modes), order='C')
+                                                 phonons.kpts[2], phonons.n_modes))
         velocity = phonons.velocity.reshape((phonons.kpts[0], phonons.kpts[1],
-                                               phonons.kpts[2], phonons.n_modes, 3), order='C')
+                                               phonons.kpts[2], phonons.n_modes, 3))
         for mode in range(phonons.n_modes):
             freqs_plot[:, mode] = interpolator(k_list, frequency[..., mode], fourier_order=5, interpolation_order=2)
 
