@@ -94,7 +94,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
             dxij = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
             dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons.chi(qvec))
-        ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3), order='C')
+        ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3))
     return ddyn
 
 
@@ -222,7 +222,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
         else:
             # TODO: the following espression could be done on the whole main_q_mesh
             dyn_s = contract('ialjb,l->iajb', dynmat, phonons.chi(qvec))
-        dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes), order='C')
+        dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes))
         if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
             esystem[index_k] = evals

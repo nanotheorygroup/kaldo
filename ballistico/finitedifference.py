@@ -617,11 +617,11 @@ class FiniteDifference(object):
         # Set a copy for the atom object so that
         # the progress of the optimization is traceable
         atoms = input_atoms.copy()
-        input_atoms.positions = np.reshape(x, (int(x.size / 3.), 3), order='C')
+        input_atoms.positions = np.reshape(x, (int(x.size / 3.), 3))
         # Force is the negative of the gradient
 
         gr = -1. * input_atoms.get_forces()
-        grad = np.reshape(gr, gr.size, order='C')
+        grad = np.reshape(gr, gr.size)
         input_atoms.positions = atoms.positions
         return grad
 
@@ -630,10 +630,10 @@ class FiniteDifference(object):
         replicated_atoms = self.replicated_atoms
         n_replicated_atoms = len(replicated_atoms.numbers)
         dx = self.second_order_delta
-        second_per_atom = np.zeros((3, n_replicated_atoms * 3), order='C')
+        second_per_atom = np.zeros((3, n_replicated_atoms * 3))
         for alpha in range(3):
             for move in (-1, 1):
-                shift = np.zeros((n_replicated_atoms, 3), order='C')
+                shift = np.zeros((n_replicated_atoms, 3))
                 shift[atom_id, alpha] += move * dx
 
                 # Compute the numerator of the approximated second matrices
@@ -658,7 +658,7 @@ class FiniteDifference(object):
             n_atoms = n_unit_cell_atoms
         else:
             n_atoms = n_replicated_atoms
-        second = np.zeros((n_atoms, 3, n_replicated_atoms * 3), order='C')
+        second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
 
         # Shift the atom back and forth (-1 and +1) after specifying
         # the atom and direction to shift
@@ -677,7 +677,7 @@ class FiniteDifference(object):
 
         n_supercell = np.prod(self.supercell)
         if self.is_reduced_second:
-            second = second.reshape((n_unit_cell_atoms, 3, n_supercell, n_unit_cell_atoms, 3), order='C')
+            second = second.reshape((n_unit_cell_atoms, 3, n_supercell, n_unit_cell_atoms, 3))
         else:
             second = second.reshape((n_supercell, n_unit_cell_atoms, 3, n_supercell, n_unit_cell_atoms, 3), order="C")
 
@@ -786,7 +786,7 @@ class FiniteDifference(object):
                 two_atoms_mesh_index = np.argwhere(mask[:, 0] * mask[:, 1] * mask[:, 2] * mask[:, 3])[0, 0]
 
                 mesh_index_sparse.append(two_atoms_mesh_index)
-                read_kat, read_kcoord = np.unravel_index(read_k, (n_supercell * n_in_unit_cell, 3), order='C')
+                read_kat, read_kcoord = np.unravel_index(read_k, (n_supercell * n_in_unit_cell, 3))
                 k_at_sparse.append(read_kat)
                 k_coord_sparse.append(read_kcoord)
 
@@ -806,7 +806,7 @@ class FiniteDifference(object):
                 for k in np.argwhere(np.abs(value) > sensitiviry):
                     k = k[0]
                     file.write('%i %i %i %i %i %.8e\n' % (iat, icoord, jat, jcoord, k, value[k]))
-                    kat, kcoord = np.unravel_index(k, (n_supercell * n_in_unit_cell, 3), order='C')
+                    kat, kcoord = np.unravel_index(k, (n_supercell * n_in_unit_cell, 3))
                     k_at_sparse.append(kat)
                     k_coord_sparse.append(kcoord)
                     mesh_index_sparse.append(mesh_index_counter)
@@ -944,9 +944,9 @@ class FiniteDifference(object):
         n_replicas = self.n_replicas
         is_second_reduced = (second_order.size == n_atoms * 3 * n_replicas * n_atoms * 3)
         if is_second_reduced:
-            dynmat = second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3), order='C')
+            dynmat = second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
         else:
-            dynmat = second_order.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3), order='C')[0]
+            dynmat = second_order.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))[0]
 
         mass = np.sqrt(atoms.get_masses())
         dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]

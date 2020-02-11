@@ -352,7 +352,7 @@ class Phonons:
 
     @lazy_property(label='')
     def _scattering_matrix_without_diagonal(self):
-        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons), order='C'))
+        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons)))
         gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
         scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
         return scattering_matrix_without_diagonal
@@ -361,7 +361,7 @@ class Phonons:
     @lazy_property(label='')
     def _scattering_matrix(self):
         scattering_matrix = -1 * self._scattering_matrix_without_diagonal
-        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons), order='C'))
+        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons)))
         scattering_matrix = scattering_matrix + np.diag(gamma)
         return scattering_matrix
 
@@ -372,9 +372,9 @@ class Phonons:
         n_modes = self.n_modes
         masses = self.atoms.get_masses()
         rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
-            (self.n_k_points, n_atoms, 3, n_modes), order='C') / np.sqrt(
+            (self.n_k_points, n_atoms, 3, n_modes)) / np.sqrt(
             masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes), order='C')
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes))
         return rescaled_eigenvectors
 
 
@@ -388,7 +388,7 @@ class Phonons:
         physical_modes = self.physical_mode.reshape(self.n_phonons)
         if operator.shape == (self.n_phonons, self.n_phonons):
             index = np.outer(physical_modes, physical_modes)
-            return operator[index].reshape((physical_modes.sum(), physical_modes.sum()), order='C')
+            return operator[index].reshape((physical_modes.sum(), physical_modes.sum()))
         elif operator.shape == (self.n_phonons, 3):
             return operator[physical_modes, :]
         else:

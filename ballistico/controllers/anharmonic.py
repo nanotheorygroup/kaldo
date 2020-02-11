@@ -88,7 +88,7 @@ def project_crystal(phonons, ):
 
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
-            nu_single = np.ravel_multi_index([index_k, mu], (phonons.n_k_points, phonons.n_modes), order='C')
+            nu_single = np.ravel_multi_index([index_k, mu], (phonons.n_k_points, phonons.n_modes))
 
             if nu_single % 200 == 0:
                 logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
@@ -134,9 +134,9 @@ def project_crystal(phonons, ):
                     # We need to use bincount together with fancy indexing here. See:
                     # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
                     nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec], dtype=int),
-                                                   np.array([phonons.n_k_points, phonons.n_modes]), order='C')
+                                                   np.array([phonons.n_k_points, phonons.n_modes]))
                     nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
-                                                    np.array([phonons.n_k_points, phonons.n_modes]), order='C')
+                                                    np.array([phonons.n_k_points, phonons.n_modes]))
 
                     result = np.bincount(nup_vec, pot_times_dirac, phonons.n_phonons)
 
