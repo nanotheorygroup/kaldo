@@ -5,7 +5,8 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-from ballistico.helpers.lazy_loading import save, get_folder_from_label
+from ballistico.helpers.storage import save, get_folder_from_label
+from ballistico.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -57,6 +58,7 @@ class Conductivity:
     def __init__(self, **kwargs):
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
+        self.storage = kwargs.pop('storage', 'default')
         if self.method == 'rta':
             self.n_iterations = 0
         else:
@@ -64,10 +66,52 @@ class Conductivity:
         self.length = kwargs.pop('length', np.array([None, None, None]))
         self.finite_length_method = kwargs.pop('finite_length_method', 'matthiessen')
         self.tolerance = kwargs.pop('tolerance', None)
+        self.folder = self.phonons.folder
+        self.store_format = {}
+        self.kpts = self.phonons.kpts
+        self.n_k_points = self.phonons.n_k_points
+        self.n_modes = self.phonons.n_modes
+        self.n_phonons = self.phonons.n_phonons
+        self.temperature = self.phonons.temperature
+        self.is_classic = self.phonons.is_classic
+        self.third_bandwidth = self.phonons.third_bandwidth
+        for observable in DEFAULT_STORE_FORMATS:
+            self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
+                if self.storage == 'default' else self.storage
 
 
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    def conductivity(self):
+        method = self.method
+        phonons = self.phonons
+        if method == 'rta':
+            cond = self.calculate_conductivity_sc()
+        elif method == 'sc':
+            cond = self.calculate_conductivity_sc()
+        elif (method == 'qhgk'):
+            cond = self.calculate_conductivity_qhgk()
+        elif (method == 'inverse'):
+            cond = self.calculate_conductivity_inverse()
+        elif (method == 'eigenvectors'):
+            cond = self.calculate_conductivity_with_evects()
+        else:
+            logging.error('Conductivity method not implemented')
+        # TODO: remove this debugging info
+        if method == 'eigenvectors':
+            neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
+            logging.info('negative on diagonal : ' + str(neg_diag))
+            evals = np.linalg.eigvalsh(phonons._scattering_matrix)
+            logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
-    
+        # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
+        # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
+        #      format=phonons.store_format['conductivity'])
+        sum = (cond.imag).sum()
+        if sum > 1e-3:
+            logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
+        return cond.real
+
+
     def calculate_c_v_2d(self):
         phonons = self.phonons
         frequencies = phonons.frequency
@@ -84,38 +128,7 @@ class Conductivity:
             freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :]) / 2 * (c_v_omega[:, :, np.newaxis] + c_v_omega[:, np.newaxis, :]) / 2
             c_v[:, :, :] = freq_sq
         return c_v
-    
-    @property
-    def conductivity(self):
-        method = self.method
-        phonons = self.phonons
-        if method == 'rta':
-            conductivity = self.calculate_conductivity_sc()
-        elif method == 'sc':
-            conductivity = self.calculate_conductivity_sc()
-        elif (method == 'qhgk'):
-            conductivity = self.calculate_conductivity_qhgk()
-        elif (method == 'inverse'):
-            conductivity = self.calculate_conductivity_inverse()
-        elif (method == 'eigenvectors'):
-            conductivity = self.calculate_conductivity_with_evects()
-        else:
-            logging.error('Conductivity method not implemented')
-        # TODO: remove this debugging info
-        if method == 'eigenvectors':
-            neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
-            logging.info('negative on diagonal : ' + str(neg_diag))
-            evals = np.linalg.eigvalsh(phonons._scattering_matrix)
-            logging.info('negative eigenvals : ' + str((evals < 0).sum()))
-    
-        folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
-        save('conductivity', folder + '/' + method, conductivity.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
-             format=phonons.store_format['conductivity'])
-        sum = (conductivity.imag).sum()
-        if sum > 1e-3:
-            logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
-        return conductivity.real
-    
+
 
     def calculate_conductivity_qhgk(self):
         phonons = self.phonons

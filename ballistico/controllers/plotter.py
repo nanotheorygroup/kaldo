@@ -9,7 +9,7 @@ from sklearn.neighbors.kde import KernelDensity
 from scipy import ndimage
 from ballistico.helpers.tools import convert_to_spg_structure
 from ballistico.controllers.harmonic import calculate_frequency, calculate_velocity
-from ballistico.helpers.lazy_loading import get_folder_from_label
+from ballistico.helpers.storage import get_folder_from_label
 import os
 
 BUFFER_PLOT = .2
