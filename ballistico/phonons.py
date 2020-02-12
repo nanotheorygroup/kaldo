@@ -9,7 +9,6 @@ from ballistico.helpers.lazy_loading import save, get_folder_from_label, DEFAULT
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
-from ballistico.controllers.conductivity import conductivity
 import numpy as np
 import ase.units as units
 from opt_einsum import contract
@@ -425,19 +424,4 @@ class Phonons:
         else:
             ps_and_gamma = aha.project_crystal(self)
         return ps_and_gamma
-
-
-    def conductivity(self, method='rta', max_n_iterations=None, length=None, finite_length_method='matthiessen',
-                     tolerance=None):
-        if method == 'inverse' and finite_length_method == 'caltech':
-            logging.error('Not yet implemented, conductivity ' + method + ', ' + finite_length_method)
-        cond = conductivity(self, method, max_n_iterations, length, finite_length_method, tolerance)
-        folder = get_folder_from_label(self, '<temperature>/<statistics>/<third_bandwidth>')
-        save('conductivity', folder + '/' + method, cond.reshape(self.n_k_points, self.n_modes, 3, 3), \
-             format=self.store_format['conductivity'])
-        sum = (cond.imag).sum()
-        if sum > 1e-3:
-            logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
-        return cond
-
 
