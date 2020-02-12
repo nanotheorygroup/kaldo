@@ -6,6 +6,7 @@ Unit and regression test for the ballistico package.
 from ballistico.finitedifference import FiniteDifference
 import numpy as np
 from ballistico.phonons import Phonons
+from ballistico.conductivity import Conductivity
 import pytest
 
 
@@ -26,7 +27,7 @@ def phonons():
 def test_af_conductivity_50(phonons):
     phonons.temperature = 50
     phonons.diffusivity_bandwidth = 0.025
-    cond = phonons.conductivity(method='qhgk').sum(axis=0).diagonal().mean()
+    cond = Conductivity(phonons=phonons, method='qhgk').conductivity.sum(axis=0).diagonal().mean()
     expected_cond = 0.098
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
 
@@ -34,6 +35,6 @@ def test_af_conductivity_50(phonons):
 def test_af_conductivity_300(phonons):
     phonons.temperature = 300
     phonons.diffusivity_bandwidth = 0.025
-    cond = phonons.conductivity(method='qhgk').sum(axis=0).diagonal().mean()
+    cond = Conductivity(phonons=phonons, method='qhgk').conductivity.sum(axis=0).diagonal().mean()
     expected_cond = 0.532
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
