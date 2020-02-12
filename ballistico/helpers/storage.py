@@ -34,7 +34,7 @@ def parse_pair(txt):
     return complex(txt.strip("()"))
 
 
-def load(property, folder, phonons, format='formatted'):
+def load(property, folder, instance, format='formatted'):
     name = folder + '/' + property
     if format == 'numpy':
         loaded = np.load(name + '.npy')
@@ -57,7 +57,7 @@ def load(property, folder, phonons, format='formatted'):
             for alpha in range(3):
                 for beta in range(3):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
-            loaded = np.array(loaded).reshape((3, 3, ...)).transpose(2, 3, 0, 1)
+            loaded = np.array(loaded).reshape((3, 3, instance.n_phonons)).transpose(2, 0, 1)
         elif 'flux' in property:
             if 'dense' in property:
                 loaded = []
@@ -80,9 +80,9 @@ def load(property, folder, phonons, format='formatted'):
             loaded = np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
         return loaded
     elif format == 'memory':
-        if hasattr(phonons, LAZY_PREFIX + property):
+        if hasattr(instance, LAZY_PREFIX + property):
             logging.info('Loading from memory ' + str(property) + ' property.')
-            return getattr(phonons, LAZY_PREFIX + property)
+            return getattr(instance, LAZY_PREFIX + property)
         else:
             logging.info(str(property) + ' not found.')
             raise KeyError('Property not found')
@@ -135,33 +135,52 @@ def save(property, folder, loaded_attr, format='formatted'):
         raise ValueError('Storing format not implemented')
 
 
-def get_folder_from_label(phonons, label='', base_folder=None):
+def get_folder_from_label(instance, label='', base_folder=None):
     if base_folder is None:
-        if phonons.folder:
-            base_folder = phonons.folder
+        if instance.folder:
+            base_folder = instance.folder
         else:
             base_folder = FOLDER_NAME
-    if phonons.n_k_points > 1:
-        kpts = phonons.kpts
+    if np.prod(instance.kpts) > 1:
+        kpts = instance.kpts
         base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     if label != '':
         if '<temperature>' in label:
-            base_folder += '/' + str(phonons.temperature)
+            base_folder += '/' + str(instance.temperature)
         if '<statistics>' in label:
-            if phonons.is_classic:
+            if instance.is_classic:
                 base_folder += '/classic'
             else:
                 base_folder += '/quantum'
         if '<third_bandwidth>' in label:
-            if phonons.third_bandwidth is not None:
-                base_folder += '/' + str(np.mean(phonons.third_bandwidth))
+            if instance.third_bandwidth is not None:
+                base_folder += '/' + str(np.mean(instance.third_bandwidth))
         if '<diffusivity_bandwidth>' in label:
-            if phonons.diffusivity_bandwidth is not None:
-                base_folder += '/' + str(np.mean(phonons.diffusivity_bandwidth))
+            if instance.diffusivity_bandwidth is not None:
+                base_folder += '/' + str(np.mean(instance.diffusivity_bandwidth))
         if '<diffusivity_threshold>' in label:
-            if phonons.diffusivity_threshold is not None:
-                base_folder += '/' + str(phonons.diffusivity_threshold)
-        # logging.info('Folder: ' + str(base_folder))
+            if instance.diffusivity_threshold is not None:
+                base_folder += '/' + str(instance.diffusivity_threshold)
+        if '<method>' in label:
+            base_folder += '/' + str(instance.method)
+            if (instance.method == 'rta' or instance.method == 'sc') \
+                    and (instance.length is not None):
+                if not (np.array(instance.length) == np.array([None, None, None])).all()\
+                    and not (np.array(instance.length) == np.array([0, 0, 0])).all():
+                    if '<length>' in label:
+                        base_folder += '/'
+                        for alpha in range(3):
+                            if instance.length[alpha] is not None:
+                                base_folder += '_' + str(instance.length[alpha])
+                            else:
+                                base_folder += '_0'
+                    if '<finite_length_method>' in label:
+                        if instance.finite_length_method is not None:
+                            base_folder += '/' + str(instance.finite_length_method)
+
+
+
+    # logging.info('Folder: ' + str(base_folder))
     return base_folder
 
 

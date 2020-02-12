@@ -2,10 +2,10 @@
 Ballistico
 Anharmonic Lattice Dynamics
 """
-from ballistico.helpers.lazy_loading import is_calculated
-from ballistico.helpers.lazy_loading import lazy_property
+from ballistico.helpers.storage import is_calculated
+from ballistico.helpers.storage import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
-from ballistico.helpers.lazy_loading import save, get_folder_from_label, DEFAULT_STORE_FORMATS
+from ballistico.helpers.storage import save, get_folder_from_label, DEFAULT_STORE_FORMATS
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
