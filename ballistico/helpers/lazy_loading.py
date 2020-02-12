@@ -34,7 +34,7 @@ def parse_pair(txt):
     return complex(txt.strip("()"))
 
 
-def load(property, folder, format='formatted'):
+def load(property, folder, phonons, format='formatted'):
     name = folder + '/' + property
     if format == 'numpy':
         loaded = np.load(name + '.npy')
@@ -80,7 +80,12 @@ def load(property, folder, format='formatted'):
             loaded = np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
         return loaded
     elif format == 'memory':
-        logging.warning('Impossible to store in memory ' + str(property) + ' property.')
+        if hasattr(phonons, LAZY_PREFIX + property):
+            logging.info('Loading from memory ' + str(property) + ' property.')
+            return getattr(phonons, LAZY_PREFIX + property)
+        else:
+            logging.info(str(property) + ' not found.')
+            raise KeyError('Property not found')
     else:
         raise ValueError('Storing format not implemented')
 
@@ -125,7 +130,7 @@ def save(property, folder, loaded_attr, format='formatted'):
         else:
             np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
     elif format=='memory':
-        logging.warning('Impossible to store in memory ' + str(property) + ' property.')
+        logging.warning('Property ' + str(property) + ' will be lost when calculation is over.')
     else:
         raise ValueError('Storing format not implemented')
 
@@ -174,7 +179,7 @@ def lazy_property(label=''):
                     folder = get_folder_from_label(self, label)
                     property = fn.__name__
                     try:
-                        loaded_attr = load(property, folder, format=format)
+                        loaded_attr = load(property, folder, self, format=format)
                     except (FileNotFoundError, OSError, KeyError):
                         logging.info(str(property) + ' not found in memory, calculating ' + str(fn.__name__))
                         loaded_attr = fn(self)
@@ -200,7 +205,7 @@ def is_calculated(property, self, label='', format='formatted'):
     if not is_calculated:
         try:
             folder = get_folder_from_label(self, label)
-            loaded_attr = load(property, folder, format=format)
+            loaded_attr = load(property, folder, self, format=format)
             setattr(self, attr, loaded_attr)
             return not loaded_attr is None
         except (FileNotFoundError, OSError, KeyError):
