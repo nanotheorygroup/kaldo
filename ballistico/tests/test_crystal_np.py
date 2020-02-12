@@ -22,8 +22,8 @@ def phonons():
                       is_classic=False,
                       temperature=300,
                       is_tf_backend=False,
-                      folder='temp',
                       storage='memory')
+
     return phonons
 
 

@@ -324,7 +324,7 @@ class Phonons:
 
 # Helpers properties, lazy loaded only in memory
 
-    @lazy_property(label='')
+    @property
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
@@ -333,32 +333,33 @@ class Phonons:
         return chi
 
 
-    @lazy_property(label='')
+    @property
     def _omegas(self):
         return self.frequency * 2 * np.pi
 
 
-    @lazy_property(label='')
+    @property
     def _main_q_mesh(self):
         q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
         return q_mesh
 
 
-    @lazy_property(label='')
+    @property
     def _velocity_af(self):
         velocity_AF = calculate_velocity_af(self)
         return velocity_AF
 
 
-    @lazy_property(label='')
+    @property
     def _scattering_matrix_without_diagonal(self):
         frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons)))
-        gamma_tensor = self._keep_only_physical(self._ps_gamma_and_gamma_tensor[:, 2:])
+        _ps_gamma_and_gamma_tensor = self._ps_gamma_and_gamma_tensor
+        gamma_tensor = self._keep_only_physical(_ps_gamma_and_gamma_tensor[:, 2:])
         scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
         return scattering_matrix_without_diagonal
 
 
-    @lazy_property(label='')
+    @property
     def _scattering_matrix(self):
         scattering_matrix = -1 * self._scattering_matrix_without_diagonal
         gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons)))
@@ -366,7 +367,7 @@ class Phonons:
         return scattering_matrix
 
 
-    @lazy_property(label='')
+    @property
     def _rescaled_eigenvectors(self):
         n_atoms = self.n_atoms
         n_modes = self.n_modes
