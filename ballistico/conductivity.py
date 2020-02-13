@@ -90,12 +90,6 @@ class Conductivity:
             cond = self.calculate_conductivity_with_evects()
         else:
             logging.error('Conductivity method not implemented')
-        # TODO: remove this debugging info
-        if method == 'relaxons':
-            neg_diag = (self._scattering_matrix.diagonal() < 0).sum()
-            logging.info('negative on diagonal : ' + str(neg_diag))
-            evals = np.linalg.eigvalsh(self._scattering_matrix)
-            logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
@@ -113,14 +107,6 @@ class Conductivity:
         gamma_tensor = self._keep_only_physical(_ps_gamma_and_gamma_tensor[:, 2:])
         scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
         return scattering_matrix_without_diagonal
-
-
-    @property
-    def _scattering_matrix(self):
-        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
-        gamma = self._keep_only_physical(self.phonons.bandwidth.reshape((self.n_phonons)))
-        scattering_matrix = scattering_matrix + np.diag(gamma)
-        return scattering_matrix
 
 
     def _keep_only_physical(self, operator):
@@ -199,14 +185,20 @@ class Conductivity:
     def calculate_conductivity_with_evects(self):
         phonons = self.phonons
         velocity = self._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3)))
-    
-        evals, evects = np.linalg.eig(self._scattering_matrix)
+        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
+        gamma = self._keep_only_physical(self.phonons.bandwidth.reshape((self.n_phonons)))
+        _scattering_matrix = scattering_matrix + np.diag(gamma)
+        evals, evects = np.linalg.eig(_scattering_matrix)
+
+        neg_diag = (_scattering_matrix.diagonal() < 0).sum()
+        logging.info('negative on diagonal : ' + str(neg_diag))
+        logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
         # TODO: find a better way to filter states
         new_physical_states = np.argwhere(evals >= 0)[0, 0]
         reduced_evects = evects[new_physical_states:, new_physical_states:]
         reduced_evals = evals[new_physical_states:]
-        reduced_scattering_inverse = np.zeros_like(self._scattering_matrix)
+        reduced_scattering_inverse = np.zeros_like(_scattering_matrix)
         reduced_scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot(np.linalg.inv(reduced_evects))
         scattering_inverse = reduced_scattering_inverse
         # e, v = np.linalg.eig(a)
