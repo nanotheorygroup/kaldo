@@ -163,7 +163,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
                 base_folder += '/' + str(instance.diffusivity_threshold)
         if '<method>' in label:
             base_folder += '/' + str(instance.method)
-            if (instance.method == 'rta' or instance.method == 'sc') \
+            if (instance.method == 'rta' or instance.method == 'sc' or instance.method == 'inverse') \
                     and (instance.length is not None):
                 if not (np.array(instance.length) == np.array([None, None, None])).all()\
                     and not (np.array(instance.length) == np.array([0, 0, 0])).all():
