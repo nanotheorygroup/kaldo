@@ -9,7 +9,7 @@ from ballistico.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
-MAX_ITERATIONS_SC = 50
+MAX_ITERATIONS_SC = 200
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
