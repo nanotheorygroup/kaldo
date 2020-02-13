@@ -40,15 +40,11 @@ def mfp_matthiessen(gamma, velocity, length, physical_modes):
 
 
 def mfp_caltech(lambd, velocity, length, physical_modes):
-    for alpha in range(3):
-        reduced_physical_modes = physical_modes.copy() & (velocity[:, alpha] != 0)
-        if length:
-            if length[alpha]:
-                lambd[reduced_physical_modes, alpha] = lambd[reduced_physical_modes, alpha] * \
-                                                       (1 - np.abs(lambd[reduced_physical_modes, alpha]) / length[
-                                                           alpha] *
-                                                        (1 - np.exp(-length[alpha] / np.abs(
-                                                            lambd[reduced_physical_modes, alpha]))))
+    reduced_physical_modes = physical_modes.copy() & (velocity[:] != 0)
+    lambd[reduced_physical_modes] = lambd[reduced_physical_modes] * \
+                                           (1 - np.abs(lambd[reduced_physical_modes]) / (length / 2) *
+                                            (1 - np.exp(- length / 2 / np.abs(
+                                                lambd[reduced_physical_modes]))))
     return lambd
 
 
@@ -171,31 +167,32 @@ class Conductivity:
         length = self.length
         phonons = self.phonons
         finite_size_method = self.finite_length_method
-        if finite_size_method != 'matthiessen' and length is not None:
-            logging.error(finite_size_method + ' not supported.')
         volume = np.linalg.det(phonons.atoms.cell)
         physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
-    
+        velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
+
         for alpha in range (3):
-            velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
             scattering_matrix = - 1 * self._scattering_matrix_without_diagonal
-            if length is not None:
-                if length[alpha]:
-                    scattering_matrix += np.diag(gamma_with_matthiessen(gamma, velocity[:, alpha],
-                                                                        length[alpha])[physical_modes])
-                else:
-                    scattering_matrix += np.diag(gamma[physical_modes])
-            else:
-                scattering_matrix += np.diag(gamma[physical_modes])
+            if finite_size_method == 'matthiessen':
+                if length is not None:
+                    if length[alpha]:
+                        gamma = gamma_with_matthiessen(gamma, velocity[:, alpha],
+                                                                            length[alpha])
+
+            scattering_matrix += np.diag(gamma[physical_modes])
             scattering_inverse = np.linalg.inv(scattering_matrix)
-            velocity = self._keep_only_physical(velocity)
-            lambd = scattering_inverse.dot(velocity[:, alpha])
-            c_v = self._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons)))
+            lambd = np.zeros_like(gamma)
+            lambd[physical_modes] = scattering_inverse.dot(velocity[physical_modes, alpha])
+            if finite_size_method == 'caltech':
+                if length is not None:
+                    if length[alpha]:
+                        lambd = mfp_caltech(lambd, velocity[:, alpha], length[alpha], physical_modes)
+            c_v = phonons.heat_capacity.reshape((phonons.n_phonons))
             physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
-            conductivity_per_mode[physical_modes, :, alpha] = c_v[:, np.newaxis] * \
-                                                          velocity[:, :] * lambd[:, np.newaxis]
+            conductivity_per_mode[physical_modes, :, alpha] = c_v[physical_modes, np.newaxis] * \
+                                                          velocity[physical_modes, :] * lambd[physical_modes, np.newaxis]
         return conductivity_per_mode / (volume * phonons.n_k_points)
     
     
@@ -238,7 +235,8 @@ class Conductivity:
         else:
             lambd_n = self.calculate_sc_mfp()
         if finite_size_method == 'caltech':
-            lambd_n = mfp_caltech(lambd_n, velocity, self.length, physical_modes)
+            for alpha in range(3):
+                lambd_n[:, alpha] = mfp_caltech(lambd_n[:, alpha], velocity[:, alpha], self.length[alpha], physical_modes)
 
         conductivity_per_mode = calculate_conductivity_per_mode(phonons.heat_capacity.reshape((phonons.n_phonons)),
                                                                 velocity, lambd_n, physical_modes, phonons.n_phonons)
