@@ -5,7 +5,6 @@ Anharmonic Lattice Dynamics
 from opt_einsum import contract
 import ase.units as units
 import numpy as np
-from ballistico.helpers.storage import save, get_folder_from_label
 from ballistico.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
@@ -92,15 +91,15 @@ class Conductivity:
             cond = self.calculate_conductivity_qhgk()
         elif (method == 'inverse'):
             cond = self.calculate_conductivity_inverse()
-        elif (method == 'eigenvectors'):
+        elif (method == 'relaxons'):
             cond = self.calculate_conductivity_with_evects()
         else:
             logging.error('Conductivity method not implemented')
         # TODO: remove this debugging info
-        if method == 'eigenvectors':
-            neg_diag = (phonons._scattering_matrix.diagonal() < 0).sum()
+        if method == 'relaxons':
+            neg_diag = (self._scattering_matrix.diagonal() < 0).sum()
             logging.info('negative on diagonal : ' + str(neg_diag))
-            evals = np.linalg.eigvalsh(phonons._scattering_matrix)
+            evals = np.linalg.eigvalsh(self._scattering_matrix)
             logging.info('negative eigenvals : ' + str((evals < 0).sum()))
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
@@ -110,6 +109,34 @@ class Conductivity:
         if sum > 1e-3:
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
         return cond.real
+
+
+    @property
+    def _scattering_matrix_without_diagonal(self):
+        frequency = self._keep_only_physical(self.phonons.frequency.reshape((self.n_phonons)))
+        _ps_gamma_and_gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor
+        gamma_tensor = self._keep_only_physical(_ps_gamma_and_gamma_tensor[:, 2:])
+        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
+        return scattering_matrix_without_diagonal
+
+
+    @property
+    def _scattering_matrix(self):
+        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
+        gamma = self._keep_only_physical(self.phonons.bandwidth.reshape((self.n_phonons)))
+        scattering_matrix = scattering_matrix + np.diag(gamma)
+        return scattering_matrix
+
+
+    def _keep_only_physical(self, operator):
+        physical_modes = self.phonons.physical_mode.reshape(self.n_phonons)
+        if operator.shape == (self.n_phonons, self.n_phonons):
+            index = np.outer(physical_modes, physical_modes)
+            return operator[index].reshape((physical_modes.sum(), physical_modes.sum()))
+        elif operator.shape == (self.n_phonons, 3):
+            return operator[physical_modes, :]
+        else:
+            return operator[physical_modes]
 
 
     def calculate_c_v_2d(self):
@@ -154,15 +181,15 @@ class Conductivity:
         for alpha in range (3):
             velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
-            scattering_matrix = - 1 * phonons._scattering_matrix_without_diagonal + np.diag(gamma[physical_modes])
+            scattering_matrix = - 1 * self._scattering_matrix_without_diagonal + np.diag(gamma[physical_modes])
             if length is not None:
                 if length[alpha]:
                     scattering_matrix += np.diag(gamma_with_matthiessen(gamma, velocity[:, alpha],
                                                                         length[alpha])[physical_modes])
             scattering_inverse = np.linalg.inv(scattering_matrix)
-            velocity = phonons._keep_only_physical(velocity)
+            velocity = self._keep_only_physical(velocity)
             lambd = scattering_inverse.dot(velocity[:, alpha])
-            c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons)))
+            c_v = self._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons)))
             physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
             conductivity_per_mode[physical_modes, :, alpha] = c_v[:, np.newaxis] * \
                                                           velocity[:, :] * lambd[:, np.newaxis]
@@ -171,14 +198,16 @@ class Conductivity:
     
     def calculate_conductivity_with_evects(self):
         phonons = self.phonons
-        velocity = phonons._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3)))
+        velocity = self._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3)))
     
-        evals, evects = np.linalg.eig(phonons._scattering_matrix)
-        new_physical_states = np.argwhere(evals >= 0)
-        reduced_evects = evects[new_physical_states, new_physical_states]
-        reduced_evals = evals[new_physical_states]
-        reduced_scattering_inverse = np.zeros_like(phonons._scattering_matrix)
-        reduced_scattering_inverse[new_physical_states, new_physical_states] = reduced_evects.dot(np.diag(1/reduced_evals)).dot(np.linalg.inv(reduced_evects))
+        evals, evects = np.linalg.eig(self._scattering_matrix)
+
+        # TODO: find a better way to filter states
+        new_physical_states = np.argwhere(evals >= 0)[0, 0]
+        reduced_evects = evects[new_physical_states:, new_physical_states:]
+        reduced_evals = evals[new_physical_states:]
+        reduced_scattering_inverse = np.zeros_like(self._scattering_matrix)
+        reduced_scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot(np.linalg.inv(reduced_evects))
         scattering_inverse = reduced_scattering_inverse
         # e, v = np.linalg.eig(a)
         # a = v.dot(np.diag(e)).dot(np.linalg.inv(v))
@@ -187,7 +216,7 @@ class Conductivity:
         physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
     
         volume = np.linalg.det(phonons.atoms.cell)
-        c_v = phonons._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons)))
+        c_v = self._keep_only_physical(phonons.heat_capacity.reshape((phonons.n_phonons)))
         conductivity_per_mode = np.zeros((phonons.n_phonons, 3, 3))
         conductivity_per_mode[physical_modes, :, :] = c_v[:, np.newaxis, np.newaxis] * \
                                                       velocity[:, :, np.newaxis] * lambd[:, np.newaxis, :]
@@ -232,7 +261,7 @@ class Conductivity:
             lambd_n = np.zeros_like(lambd_0)
             avg_conductivity = None
             n_iteration = 0
-            scattering_matrix = phonons._scattering_matrix_without_diagonal
+            scattering_matrix = self._scattering_matrix_without_diagonal
             for n_iteration in range (n_iterations):
                 conductivity_per_mode = calculate_conductivity_per_mode(phonons.heat_capacity.reshape((phonons.n_phonons)),
                                                                         velocity, lambd_n, physical_modes, phonons.n_phonons)

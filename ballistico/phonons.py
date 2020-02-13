@@ -82,7 +82,7 @@ class Phonons:
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
-        self.storage = kwargs.pop('storage', 'default')
+        self.storage = kwargs.pop('storage', 'numpy')
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -94,8 +94,7 @@ class Phonons:
         self.store_format = {}
         for observable in DEFAULT_STORE_FORMATS:
             self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
-                if self.storage == 'default' else self.storage
-
+                if self.storage == 'formatted' else self.storage
 
 
     @lazy_property(label='')
@@ -306,13 +305,13 @@ class Phonons:
                          format=self.store_format['_ps_gamma_and_gamma_tensor']):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=False)
+            ps_and_gamma = self.calculate_phase_space_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.phasespace_and_gamma_wrapper(is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self.calculate_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 
@@ -321,7 +320,7 @@ class Phonons:
         generalized_diffusivity = calculate_generalized_diffusivity(self)
         return generalized_diffusivity
 
-# Helpers properties, lazy loaded only in memory
+# Helpers properties
 
     @property
     def _chi_k(self):
@@ -350,23 +349,6 @@ class Phonons:
 
 
     @property
-    def _scattering_matrix_without_diagonal(self):
-        frequency = self._keep_only_physical(self.frequency.reshape((self.n_phonons)))
-        _ps_gamma_and_gamma_tensor = self._ps_gamma_and_gamma_tensor
-        gamma_tensor = self._keep_only_physical(_ps_gamma_and_gamma_tensor[:, 2:])
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
-        return scattering_matrix_without_diagonal
-
-
-    @property
-    def _scattering_matrix(self):
-        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
-        gamma = self._keep_only_physical(self.bandwidth.reshape((self.n_phonons)))
-        scattering_matrix = scattering_matrix + np.diag(gamma)
-        return scattering_matrix
-
-
-    @property
     def _rescaled_eigenvectors(self):
         n_atoms = self.n_atoms
         n_modes = self.n_modes
@@ -384,17 +366,6 @@ class Phonons:
         return is_amorphous
 
 
-    def _keep_only_physical(self, operator):
-        physical_modes = self.physical_mode.reshape(self.n_phonons)
-        if operator.shape == (self.n_phonons, self.n_phonons):
-            index = np.outer(physical_modes, physical_modes)
-            return operator[index].reshape((physical_modes.sum(), physical_modes.sum()))
-        elif operator.shape == (self.n_phonons, 3):
-            return operator[physical_modes, :]
-        else:
-            return operator[physical_modes]
-
-
     def chi(self, qvec):
         dxij = self.finite_difference.list_of_replicas
         cell_inv = self.finite_difference.cell_inv
@@ -402,7 +373,7 @@ class Phonons:
         return chi_k
 
 
-    def phasespace_and_gamma_wrapper(self, is_gamma_tensor_enabled=True):
+    def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         print('Projection started')
         if self.is_tf_backend:
             try:
