@@ -9,7 +9,7 @@ from ballistico.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
-MAX_ITERATIONS_SC = 200
+MAX_ITERATIONS_SC = 50
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
@@ -25,7 +25,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_modes
 
 
 def gamma_with_matthiessen(gamma, velocity, length):
-    gamma = gamma + abs(velocity) / length
+    gamma = gamma + 2 * np.abs(velocity) / length
     return gamma
 
 
@@ -34,7 +34,7 @@ def mfp_matthiessen(gamma, velocity, length, physical_modes):
     for alpha in range(3):
         if length is not None:
             if length[alpha] and length[alpha] != 0:
-                gamma = gamma + abs(velocity[:, alpha]) / length[alpha]
+                gamma = gamma + 2 * abs(velocity[:, alpha]) / length[alpha]
         lambd_0[physical_modes, alpha] = 1 / gamma[physical_modes] * velocity[physical_modes, alpha]
     return lambd_0
 
@@ -57,7 +57,7 @@ class Conductivity:
     def __init__(self, **kwargs):
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
-        self.storage = kwargs.pop('storage', 'default')
+        self.storage = kwargs.pop('storage', 'formatted')
         if self.method == 'rta':
             self.n_iterations = 0
         else:
@@ -66,7 +66,6 @@ class Conductivity:
         self.finite_length_method = kwargs.pop('finite_length_method', 'matthiessen')
         self.tolerance = kwargs.pop('tolerance', None)
         self.folder = self.phonons.folder
-        self.store_format = {}
         self.kpts = self.phonons.kpts
         self.n_k_points = self.phonons.n_k_points
         self.n_modes = self.phonons.n_modes
@@ -74,6 +73,7 @@ class Conductivity:
         self.temperature = self.phonons.temperature
         self.is_classic = self.phonons.is_classic
         self.third_bandwidth = self.phonons.third_bandwidth
+        self.store_format = {}
         for observable in DEFAULT_STORE_FORMATS:
             self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
                 if self.storage == 'default' else self.storage
@@ -82,7 +82,6 @@ class Conductivity:
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
         method = self.method
-        phonons = self.phonons
         if method == 'rta':
             cond = self.calculate_conductivity_sc()
         elif method == 'sc':
@@ -181,11 +180,15 @@ class Conductivity:
         for alpha in range (3):
             velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
-            scattering_matrix = - 1 * self._scattering_matrix_without_diagonal + np.diag(gamma[physical_modes])
+            scattering_matrix = - 1 * self._scattering_matrix_without_diagonal
             if length is not None:
                 if length[alpha]:
                     scattering_matrix += np.diag(gamma_with_matthiessen(gamma, velocity[:, alpha],
                                                                         length[alpha])[physical_modes])
+                else:
+                    scattering_matrix += np.diag(gamma[physical_modes])
+            else:
+                scattering_matrix += np.diag(gamma[physical_modes])
             scattering_inverse = np.linalg.inv(scattering_matrix)
             velocity = self._keep_only_physical(velocity)
             lambd = scattering_inverse.dot(velocity[:, alpha])
