@@ -1,4 +1,8 @@
+# Structure
+![engine](_resources/engine.png)
 Here is a draft of the main equations implemented in the code with a reference to the units.
+
+
 
 # Input Units
 Potential derivatives are in
