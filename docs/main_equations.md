@@ -1,7 +1,12 @@
 # Structure
-![engine](_resources/engine.png)
-Here is a draft of the main equations implemented in the code with a reference to the units.
 
+It follows the code structure with inputs and outputs.
+![engine](_resources/engine.png)
+
+
+# Main equations
+
+Here is a draft of the main equations implemented in the code with a reference to the units.
 
 
 # Input Units
