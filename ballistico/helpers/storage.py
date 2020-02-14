@@ -99,7 +99,7 @@ def save(property, folder, loaded_attr, format='formatted'):
     elif format == 'hdf5':
         with h5py.File(name.split('/')[0] + '.hdf5', 'a') as storage:
             if not name in storage:
-                storage.create_dataset(name, data=loaded_attr, chunks=True)
+                storage.create_dataset(name, data=loaded_attr, chunks=True, compression='gzip', compression_opts=9)
     elif format == 'formatted':
         # loaded_attr = np.nan_to_num(loaded_attr)
         if not os.path.exists(folder):
