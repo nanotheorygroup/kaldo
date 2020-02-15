@@ -109,7 +109,7 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     if is_showing:
         plt.show ()
 
-def plot_dos(phonons, bandwidth=.3, is_showing=True):
+def plot_dos(phonons, bandwidth=.1, is_showing=True):
     fig = plt.figure ()
     kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequency.flatten(order='C').reshape(-1, 1))
     x = np.linspace(phonons.frequency.min(), phonons.frequency.max(), 200)
