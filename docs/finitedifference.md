@@ -1,4 +1,4 @@
-# The FiniteDifference Object
+# FiniteDifference Object
 ## Input
 - `supercell`
 - `calculator`
