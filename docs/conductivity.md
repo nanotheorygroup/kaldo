@@ -1,4 +1,4 @@
-# The Conductivity Object
+# Conductivity Object
 ## Input
 - `method`
 - `length`
