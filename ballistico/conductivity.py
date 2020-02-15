@@ -51,6 +51,38 @@ def mfp_caltech(lambd, velocity, length, physical_modes):
 class Conductivity:
 
     def __init__(self, **kwargs):
+
+        """The conductivity object is responsible for mean free path and conductivity calculations.
+
+        Parameters
+        ----------
+        phonons : Phonons
+            contains all the information about the calculated phononic properties of the system
+        method : 'rta', 'sc', 'qhgk', 'inverse'
+            specifies the method used to calculate the conductivity.
+        tolerance : int
+            in the self consistent conductivity calculation, it specifies the difference in W/m/K between n
+            and n+1 step, to set as exit/convergence condition.
+        n_iterations : int
+            specifies the max number of iterations to set as exit condition in the self consistent conductivity
+            calculation
+        tolerance : int
+            in the self consistent conductivity calculation, it specifies the difference in W/m/K between n
+            and n+1 step, to set as exit/convergence condition.
+        length: (float, float, float)
+            specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values
+            corresponds to the infinity length limit.
+        finite_length_method : 'matthiessen', 'ms', 'caltech'
+            specifies how to calculate the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
+        storage : 'formatted', 'hdf5', 'numpy', 'memory'
+            defines the type of storage used for the simulation.
+
+        Returns
+        -------
+        Conductivity
+            An instance of the `Conductivity` class.
+
+        """
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
         self.storage = kwargs.pop('storage', 'formatted')
@@ -59,7 +91,7 @@ class Conductivity:
         else:
             self.n_iterations = kwargs.pop('n_iterations', None)
         self.length = kwargs.pop('length', np.array([None, None, None]))
-        self.finite_length_method = kwargs.pop('finite_length_method', 'matthiessen')
+        self.finite_length_method = kwargs.pop('finite_length_method', 'ms')
         self.tolerance = kwargs.pop('tolerance', None)
         self.folder = self.phonons.folder
         self.kpts = self.phonons.kpts
@@ -77,6 +109,13 @@ class Conductivity:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
+        """
+        Calculate the thermal conductivity per mode in W/m/K
+        Returns
+        -------
+        conductivity : np array
+            (n_k_points, n_modes, 3, 3) float
+        """
         method = self.method
         if method == 'rta':
             cond = self.calculate_conductivity_sc()
@@ -161,7 +200,7 @@ class Conductivity:
         for alpha in range (3):
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
             scattering_matrix = - 1 * self._scattering_matrix_without_diagonal
-            if finite_size_method == 'matthiessen':
+            if finite_size_method == 'ms':
                 if length is not None:
                     if length[alpha]:
                         gamma = gamma_with_matthiessen(gamma, velocity[:, alpha],
@@ -222,7 +261,7 @@ class Conductivity:
         velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3))
         velocity = velocity.reshape((phonons.n_phonons, 3))
 
-        if finite_size_method == 'matthiessen':
+        if finite_size_method == 'ms':
             lambd_n = self.calculate_sc_mfp(matthiessen_length=self.length)
         else:
             lambd_n = self.calculate_sc_mfp()

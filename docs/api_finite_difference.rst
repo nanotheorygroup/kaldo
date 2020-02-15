@@ -1,5 +1,5 @@
-The FiniteDifference Object
-============================
+FiniteDifference API Reference
+==============================
 
 .. autosummary::
    :toctree: autosummary
