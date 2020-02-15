@@ -1,5 +1,5 @@
-The Phonons Object
-==================
+Phonons API Reference
+=====================
 
 .. autosummary::
    :toctree: autosummary

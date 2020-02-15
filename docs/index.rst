@@ -3,48 +3,45 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Ballistico's documentation!
+Ballistico, Anharmonic Lattice Dynamics
 =========================================================
 
 .. toctree::
    :glob:
-   :caption: Introduction:
+   :caption: Introduction
 
-   README.md
-
-.. toctree::
-   :glob:
-   :caption: Output formats:
-
-   output.md
-
-.. toctree::
-   :glob:
-   :caption: Engine:
-
-   main_equations.md
-
-
-.. toctree::
-   :glob:
-   :caption: Crystal example:
-
-   crystal_presentation.ipynb
-
-.. toctree::
-   :glob:
-   :caption: Amorphous example:
-
-   amorphous_presentation.ipynb
-
+   introduction.md
 
 
 .. toctree::
    :maxdepth: 2
-   :caption: API References:
+   :caption: Documentation
 
+   class_schema.md
+   finitedifference.md
    api_finite_difference
+   phonons.md
    api_phonons
+   conductivity.md
+   api_conductivity
+   interface.md
+   output.md
+
+
+.. toctree::
+   :glob:
+   :caption: Conductivity Theory
+
+   mckelvey-schockley.md
+   caltech.md
+
+
+.. toctree::
+   :glob:
+   :caption: Tutorials
+
+   crystal_presentation.ipynb
+   amorphous_presentation.ipynb
 
 
 
