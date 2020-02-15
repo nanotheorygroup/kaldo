@@ -19,8 +19,10 @@ def triangular_delta(delta_omega, sigma, delta_threshold=None):
     delta_omega = np.abs(delta_omega)
     deltaa = np.abs(sigma)
     out = np.zeros_like(delta_omega)
-    out[delta_omega < deltaa] = 1. / deltaa * (1 - delta_omega[delta_omega < deltaa] / deltaa)
+    if (delta_omega < deltaa).any():
+        out[delta_omega < deltaa] = 1. / deltaa[delta_omega < deltaa] * (1 - delta_omega[delta_omega < deltaa] / deltaa[delta_omega < deltaa])
     return out
+
 
 
 def lorentz_delta(delta_omega, sigma, delta_threshold=None):
