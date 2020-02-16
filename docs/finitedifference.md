@@ -20,20 +20,20 @@
 - `replicated_atoms`
 
 
-## Equations  (draft)
+# Finite Difference Theory  (draft)
 
-### Input
+## Input
 Potential derivatives are in
 $eV/A^2$ or $eV/A^3$. Distances are in $A$. Masses are in $g/N_A$
 
-### Dynamical matrix
+## Dynamical matrix
 If $C$ are the cell vectors
 $$
 \mathbf k = 2 \pi C^{-1}\mathbf q
 $$
 We introduce the Bloch waves unitary tranformation
 $$
-\chi_l(\mathbf k) = e^{i \mathbf R_l\dot\mathbf k}
+\chi_l(\mathbf k)=e^{i\mathbf R_l\dot\mathbf k}
 $$
 where $l$ is the index of the cell replica.
 We rewrite the second derivative of the potential
@@ -48,11 +48,13 @@ $$
 $$
 In order to calculate frequencies and velocities, we create two new tensors
 $$
-D(\mathbf k)_{ii'} = \sum_l V_{0ili'}\chi(\mathbf k)_l
+D_{ii'}(\mathbf k) = \sum_l V_{0ili'}\chi(\mathbf k)_l
 $$
+
 $$
-E(\mathbf k)_{ii'\alpha} = i R_{l \alpha} V_{0ili'}\chi(\mathbf k)_l
+E_{ii'\alpha}(\mathbf k) = i R_{l \alpha} V_{0ili'}\chi(\mathbf k)_l
 $$
+
 And diagonalize them
 $$
 \omega(\mathbf k)_\mu^2 = \sum_{ij}\eta_{\mu i}^{*T}D_{ii'}(\mathbf k)\eta_{i'\mu} =

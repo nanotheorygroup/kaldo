@@ -29,9 +29,9 @@
 
 
 
-## Equations  (draft)
+# Phonons Theory  (draft)
 
-### Density and heat capacity
+## Density and heat capacity
 $$
 \mathrm{kelvintothz} = 10^{-12} \frac{k_B}{ 2 \pi \hbar J} =0.02083
 $$
@@ -49,7 +49,7 @@ $$
 n_\mu= \frac{1}{e^{\nu_\mu/\tilde T}-1}
 $$
 
-### Heat capacity
+## Heat capacity
 
 If we define
 $$
@@ -66,7 +66,7 @@ $$
 $$
 
 
-### Lifetime
+## Lifetime
 $$
 \tilde{\eta}_{i\mu} = \frac{{\eta}_{i\mu}}{\sqrt{m_\mu}}
 $$
