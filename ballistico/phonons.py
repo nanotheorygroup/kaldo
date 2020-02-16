@@ -77,7 +77,7 @@ class Phonons:
         self.min_frequency = kwargs.pop('min_frequency', None)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
-        self.is_tf_backend = kwargs.pop('is_tf_backend', False)
+        self.is_tf_backend = kwargs.pop('is_tf_backend', True)
         self.is_nw = kwargs.pop('is_nw', False)
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)

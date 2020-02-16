@@ -1,14 +1,11 @@
 import numpy as np
 import os
 from sparse import COO
-import re
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
 import pandas as pd
 import h5py
-# see bug report: https://github.com/h5py/h5py/issues/1101
-os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
@@ -200,7 +197,7 @@ def lazy_property(label=''):
                     try:
                         loaded_attr = load(property, folder, self, format=format)
                     except (FileNotFoundError, OSError, KeyError):
-                        logging.info(str(property) + ' not found in memory, calculating ' + str(fn.__name__))
+                        logging.info(str(property) + ' not found in ' + format + ', calculating ' + str(fn.__name__))
                         loaded_attr = fn(self)
                         save(property, folder, loaded_attr, format=format)
                     else:
