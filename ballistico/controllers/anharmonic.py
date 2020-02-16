@@ -6,7 +6,7 @@ import sparse
 import ase.units as units
 from ballistico.helpers.tools import timeit, allowed_index_qpp
 import numpy as np
-from ballistico.controllers.dirac_kernel import gaussian_delta, triangular_delta
+from ballistico.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -166,6 +166,9 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
         broadening_function = gaussian_delta
     elif phonons.broadening_shape == 'triangle':
         broadening_function = triangular_delta
+    elif phonons.broadening_shape == 'lorentz':
+        broadening_function = lorentz_delta
+
     else:
         raise TypeError('Broadening shape not supported')
 
