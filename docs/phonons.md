@@ -35,11 +35,14 @@
 $$
 \mathrm{kelvintothz} = 10^{-12} \frac{k_B}{ 2 \pi \hbar J} =0.02083
 $$
+
 $k_B$ is in $eV/K$ and $J$ means $J/eV=1/e$.
 Define the tilde-temperature in $THz$
+
 $$
 \tilde T =  T\mathrm{kelvintothz}
 $$
+
 the Bose Einstein distribution for each phonon mode $\mu$
 
 $$
@@ -82,16 +85,21 @@ $$
 $$
 g^+_{\mu\mu'\mu''} =\frac{(n_{\mu'}-n_{\mu''})}{\omega_\mu\omega_{\mu'}\omega_{\mu''}} \delta^+_{\mu\mu'\mu''}
 $$
+
 $$
 g^-_{\mu\mu'\mu''} =\frac{(1 + n_{\mu'}+n_{\mu''})}{\omega_\mu\omega_{\mu'}\omega_{\mu''}} \delta^-_{\mu\mu'\mu''}
 $$
+
 units:
+
 $$
 [g]=  \frac{1}{[\omega]^4}
 $$
+
 $$
 \mathrm{gammatothz} = 10^{11}N_A\mathrm{evtotenjovermol}^2
 $$
+
 $$
 \gamma^\pm_{\mu\mu'\mu''} = \frac{\hbar\pi}{4}\frac{1}{N_k}|V^\pm_{\mu\mu'\mu''}|^2 g^\pm_{\mu\mu'\mu''} \mathrm{gammatothz}
 $$

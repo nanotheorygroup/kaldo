@@ -33,7 +33,7 @@ $$
 $$
 We introduce the Bloch waves unitary tranformation
 $$
-\chi(\mathbf k)_l = e^{i \mathbf R_l\dot\mathbf k}
+\chi_l(\mathbf k) = e^{i \mathbf R_l\dot\mathbf k}
 $$
 where $l$ is the index of the cell replica.
 We rewrite the second derivative of the potential
@@ -55,10 +55,10 @@ E(\mathbf k)_{ii'\alpha} = i R_{l \alpha} V_{0ili'}\chi(\mathbf k)_l
 $$
 And diagonalize them
 $$
-\omega(\mathbf k)^2_\mu = \sum_{ij}(\eta)^{*T}_{\mu i}D(\mathbf k)_{ii'}\eta_{i'\mu} =
+\omega(\mathbf k)_\mu^2 = \sum_{ij}\eta_{\mu i}^{*T}D_{ii'}(\mathbf k)\eta_{i'\mu} =
 $$
 $$
-v(\mathbf k)_{\mu\alpha} = \frac{1}{2\omega(\mathbf k)_\mu}\sum_{ij}(\eta)^{*T}_{\mu i}E(\mathbf k)_{ii'\alpha}\eta_{i'\mu}
+v_{\mu\alpha}(\mathbf k) = \frac{1}{2\omega_\mu(\mathbf k)}\sum_{ij}(\eta)^{*T}_{\mu i}E(\mathbf k)_{ii'\alpha}\eta_{i'\mu}
 $$
 Units
 $$
