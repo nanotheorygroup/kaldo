@@ -35,9 +35,19 @@ Examples can be found in the `examples` folder. There are also two tutorials ava
 Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio
 
 
+### References
+
+- Ballistico
+- ASE (link)
+- Lammps (link)
+- Quantum Espresso (link)
+- Seekpath
+- ThirdOrder (link)
+
+
 #### Acknowledgements
+
+We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.
 
 Project based on the
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.1.
-
-

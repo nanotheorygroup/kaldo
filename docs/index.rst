@@ -11,13 +11,13 @@ Ballistico, Anharmonic Lattice Dynamics
    :caption: Introduction
 
    introduction.md
+   class_schema.md
 
 
 .. toctree::
    :maxdepth: 2
    :caption: Documentation
 
-   class_schema.md
    finitedifference.md
    api_finite_difference
    phonons.md
@@ -26,14 +26,6 @@ Ballistico, Anharmonic Lattice Dynamics
    api_conductivity
    interface.md
    output.md
-
-
-.. toctree::
-   :glob:
-   :caption: Conductivity Theory
-
-   mckelvey-schockley.md
-   caltech.md
 
 
 .. toctree::

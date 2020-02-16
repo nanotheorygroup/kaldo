@@ -36,26 +36,31 @@ class Phonons:
             contains all the information about the system and the derivatives of the potential.
         is_classic : bool
             specifies if the system is classic, `True` or quantum, `False`
-        temperature : float
-            defines the temperature of the simulation.
-        folder (optional) : string
-            specifies where to store the data files. Default is `output`.
         kpts (optional) : (3) tuple
             defines the number of k points to use to create the k mesh. Default is [1, 1, 1].
+        temperature : float
+            defines the temperature of the simulation. Units: K.
         min_frequency (optional) : float
             ignores all phonons with frequency below `min_frequency` THz, Default is None..
         max_frequency (optional) : float
             ignores all phonons with frequency above `max_frequency` THz, Default is None.
-        third_bandwidth (optional) : float or None
+        third_bandwidth (optional) : float
             defines the width of the energy conservation smearing in the phonons scattering calculation.
             If `None` the width is calculated dynamically. Otherwise the input value corresponds to the
-            width in THz. Default is None.
+            width. Units: THz.
+        diffusivity_bandwidth (optional) : float
+            Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
+            thermal conductivity in amorphous systems. Units: rad/ps
+        diffusivity_threshold (optional) : float
+            This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
         broadening_shape (optional) : string
-            defines the algorithm to use to calculate the broadening. Available broadenings are `gauss` and `triangle`.
+            defines the algorithm to use to calculate the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.
             Default is `gauss`.
         is_tf_backend (optional) : bool
             defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
             numpy (False). Default is True.
+        folder (optional) : string
+            specifies where to store the data files. Default is `output`.
         storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
             defines the storing strategy used to store the observables. The `default` strategy stores formatted output
             and numpy arrays. `memory` storage doesn't generate any output.
