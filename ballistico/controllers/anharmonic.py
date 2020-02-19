@@ -76,13 +76,12 @@ def calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, k0, m0, k1, m1, k2, m2):
     return third_k0m0_k1m1_k2m2
 
 @timeit
-def project_crystal(phonons, ):
+def project_crystal(phonons):
     is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
-        ps_and_gamma = np.zeros((phonons.n_phonons, 2 + phonons.n_phonons))
-    else:
-        ps_and_gamma = np.zeros((phonons.n_phonons, 2))
+        scattering_tensor = np.zeros((phonons.n_phonons, phonons.n_phonons))
+    ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_replicas = phonons.finite_difference.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors
 
@@ -138,23 +137,20 @@ def project_crystal(phonons, ):
                     nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
                                                     np.array([phonons.n_k_points, phonons.n_modes]))
 
-                    result = np.bincount(nup_vec, pot_times_dirac, phonons.n_phonons)
-
                     # The ps and gamma array stores first ps then gamma then the scattering array
-                    if is_plus:
-                        ps_and_gamma[nu_single, 2:] -= result
-                    else:
-                        ps_and_gamma[nu_single, 2:] += result
-
-                    result = np.bincount(nupp_vec, pot_times_dirac, phonons.n_phonons)
-                    ps_and_gamma[nu_single, 2:] += result
+                    sign = -1 if is_plus else 1
+                    scattering_tensor[nu_single] += sign * np.bincount(nup_vec, pot_times_dirac, phonons.n_phonons)
+                    scattering_tensor[nu_single] += np.bincount(nupp_vec, pot_times_dirac, phonons.n_phonons)
                 ps_and_gamma[nu_single, 0] += dirac_delta.sum()
                 ps_and_gamma[nu_single, 1] += pot_times_dirac.sum()
 
             ps_and_gamma[nu_single, 1:] /= phonons.frequency.flatten()[nu_single]
-
-    return ps_and_gamma
-
+            if is_gamma_tensor_enabled:
+                scattering_tensor[nu_single] /= phonons.frequency.flatten()[nu_single]
+    if is_gamma_tensor_enabled:
+        return np.hstack([ps_and_gamma, scattering_tensor])
+    else:
+        return ps_and_gamma
 
 def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
     physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
@@ -204,14 +200,14 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
     mupp_vec = interactions[:, 2]
     if is_plus:
         dirac_delta = density[index_qp, mup_vec] - density[index_qpp, mupp_vec]
-        # dirac_delta = density[index_k, mu] * density[index_kp_vec, mup_vec] * (
-        #             density[index_kpp_vec, mupp_vec] + 1)
+        # dirac_delta = density[index_q, mu] * density[index_qp, mup_vec] * (
+        #             density[index_qpp, mupp_vec] + 1)
 
     else:
         dirac_delta = .5 * (
                 1 + density[index_qp, mup_vec] + density[index_qpp, mupp_vec])
-        # dirac_delta = .5 * density[index_k, mu] * (density[index_kp_vec, mup_vec] + 1) * (
-        #             density[index_kpp_vec, mupp_vec] + 1)
+        # dirac_delta = .5 * density[index_q, mu] * (density[index_qp, mup_vec] + 1) * (
+        #             density[index_qpp, mupp_vec] + 1)
 
     dirac_delta /= (omegas[index_qp, mup_vec] * omegas[index_qpp, mupp_vec])
     if np.array(sigma_small).size == 1:
