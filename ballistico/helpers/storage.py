@@ -143,7 +143,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
         base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     if label != '':
         if '<temperature>' in label:
-            base_folder += '/' + str(instance.temperature)
+            base_folder += '/' + str(int(instance.temperature))
         if '<statistics>' in label:
             if instance.is_classic:
                 base_folder += '/classic'
