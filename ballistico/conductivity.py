@@ -214,6 +214,18 @@ class Conductivity:
                 if length is not None:
                     if length[alpha]:
                         lambd = mfp_caltech(lambd, velocity[:, alpha], length[alpha], physical_modes)
+            if finite_size_method == 'matthiessen':
+                if (self.length[alpha] is not None) and (self.length[alpha] != 0):
+                    lambd[physical_modes] = 1 / (
+                                np.sign(velocity[physical_modes, alpha]) / lambd[physical_modes] + 1 /
+                                np.array(self.length)[np.newaxis, alpha]) * np.sign(velocity[physical_modes, alpha])
+                else:
+                    lambd[physical_modes] = 1 / (
+                                np.sign(velocity[physical_modes, alpha]) / lambd[physical_modes]) * np.sign(
+                        velocity[physical_modes, alpha])
+
+                lambd[velocity[:, alpha] == 0] = 0
+
             c_v = phonons.heat_capacity.reshape((phonons.n_phonons))
             physical_modes = phonons.physical_mode.reshape(phonons.n_phonons)
             conductivity_per_mode[physical_modes, :, alpha] = c_v[physical_modes, np.newaxis] * \
@@ -268,10 +280,19 @@ class Conductivity:
         if finite_size_method == 'caltech':
             for alpha in range(3):
                 lambd_n[:, alpha] = mfp_caltech(lambd_n[:, alpha], velocity[:, alpha], self.length[alpha], physical_modes)
+        if finite_size_method == 'matthiessen':
+            mfp = lambd_n.copy()
+            for alpha in range(3):
+                if (self.length[alpha] is not None) and (self.length[alpha] != 0):
+                    lambd_n[physical_modes, alpha] = 1 / (np.sign(velocity[physical_modes, alpha]) / mfp[physical_modes, alpha] + 1 / np.array(self.length)[np.newaxis, alpha]) * np.sign(velocity[physical_modes, alpha])
+                else:
+                    lambd_n[physical_modes, alpha] = 1 / (np.sign(velocity[physical_modes, alpha]) / mfp[physical_modes, alpha]) * np.sign(velocity[physical_modes, alpha])
+
+                lambd_n[velocity[:, alpha]==0, alpha] = 0
 
         conductivity_per_mode = calculate_conductivity_per_mode(phonons.heat_capacity.reshape((phonons.n_phonons)),
                                                                 velocity, lambd_n, physical_modes, phonons.n_phonons)
-    
+
         volume = np.linalg.det (phonons.atoms.cell)
         return conductivity_per_mode / (volume * phonons.n_k_points)
     
