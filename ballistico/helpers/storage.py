@@ -21,6 +21,7 @@ DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          'flux_dense': 'formatted',
                          'flux_sparse': 'formatted',
                          'conductivity': 'formatted',
+                         'mean_free_path': 'formatted',
                          '_dynmat_derivatives': 'numpy',
                          '_eigensystem': 'numpy',
                          '_ps_and_gamma': 'numpy',
@@ -45,6 +46,11 @@ def load(property, folder, instance, format='formatted'):
             loaded = np.loadtxt(name + '.dat', skiprows=1)
             loaded = np.round(loaded, 0).astype(np.bool)
         elif property == 'velocity':
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
+            loaded = np.array(loaded).transpose(1, 2, 0)
+        elif property == 'mean_free_path':
             loaded = []
             for alpha in range(3):
                 loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
@@ -108,6 +114,12 @@ def save(property, folder, loaded_attr, format='formatted'):
         if property == 'velocity':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
+
+        elif property == 'mean_free_path':
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,
+                           header=str(loaded_attr[..., 0].shape))
+
         elif 'flux' in property:
             for alpha in range(3):
                 if 'dense' in property:
