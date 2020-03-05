@@ -84,7 +84,16 @@ class Conductivity:
         Conductivity
             An instance of the `Conductivity` class.
 
+        Examples
+        --------
+        Here's an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes
+        
+        ```
+        Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
+        ```
         """
+
+
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
         self.storage = kwargs.pop('storage', 'formatted')
