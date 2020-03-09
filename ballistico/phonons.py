@@ -88,6 +88,8 @@ class Phonons:
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.storage = kwargs.pop('storage', 'numpy')
+        self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
+        self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
