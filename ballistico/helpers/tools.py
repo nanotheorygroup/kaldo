@@ -67,7 +67,7 @@ def split_index(index, nx, ny, nz):
     return int(ix), int(iy), int(iz), int(iatom)
 
 
-def wrap_positions_with_cell(dxij, cell=None, cell_inv=None):
+def wrap_coordinates(dxij, cell=None, cell_inv=None):
     # exploit periodicity to calculate the shortest distance, which may not be the one we have
     if cell is not None and cell_inv is None:
         cell_inv = np.linalg.inv(cell)
@@ -109,7 +109,7 @@ def q_index_from_q_vec(q_vec, kpts):
 def q_vec_from_q_index(q_index, kpts):
     # the output q_vec is in the unit sphere
     q_vec = np.array(np.unravel_index(q_index, (kpts))).T / kpts
-    wrap_positions_with_cell(q_vec)
+    wrap_coordinates(q_vec)
     return q_vec
 
 

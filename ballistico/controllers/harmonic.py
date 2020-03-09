@@ -1,5 +1,5 @@
 from opt_einsum import contract
-from ballistico.helpers.tools import wrap_positions_with_cell
+from ballistico.helpers.tools import wrap_coordinates
 from scipy.linalg.lapack import dsyev
 import numpy as np
 import ase.units as units
@@ -56,7 +56,7 @@ def calculate_frequency(phonons, q_points=None):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = wrap_positions_with_cell(q_points)
+        q_points = wrap_coordinates(q_points)
     eigenvals = calculate_eigensystem(phonons, q_points, only_eigenvals=True)
     frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
     return frequency.real
@@ -72,7 +72,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = wrap_positions_with_cell(q_points)
+        q_points = wrap_coordinates(q_points)
     atoms = phonons.atoms
     list_of_replicas = phonons.finite_difference.list_of_replicas
     replicated_cell = phonons.finite_difference.replicated_atoms.cell
@@ -87,10 +87,9 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
         qvec = q_points[index_k]
         if phonons._is_amorphous:
             dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
-            dxij = wrap_positions_with_cell(dxij, replicated_cell, replicated_cell_inv)
+            dxij = wrap_coordinates(dxij, replicated_cell, replicated_cell_inv)
             dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
         else:
-            list_of_replicas = list_of_replicas
             dxij = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
             dynmat_derivatives = contract('ilja,ibljc,l->ibjca', dxij, dynmat, phonons.chi(qvec))
@@ -98,7 +97,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
     return ddyn
 
 
-def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
+def calculate_sij(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
         # TODO: we could do the check on the whole grid instead of the shape
@@ -108,7 +107,7 @@ def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = wrap_positions_with_cell(q_points)
+        q_points = wrap_coordinates(q_points)
     if is_main_mesh:
         dynmat_derivatives = phonons._dynmat_derivatives
         eigenvects = phonons._eigensystem[:, 1:, :]
@@ -116,10 +115,16 @@ def calculate_sij(phonons, q_points=None, is_antisymmetrizing=False):
         dynmat_derivatives = calculate_dynmat_derivatives(phonons, q_points)
         eigenvects = calculate_eigensystem(phonons, q_points)[:, 1:, :]
 
-    if is_antisymmetrizing:
-        error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
-        dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
-        logging.info('Symmetrization error: ' + str(error))
+    if phonons.is_antisymmetrizing_velocity:
+        # TODO: Clean up the following logic to make it independent of the system
+        if phonons._is_amorphous:
+            error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
+            dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
+        else:
+            error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(1, 2).conj()) / 2
+            dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(1, 2).conj()) / 2
+
+        logging.info('Velocity anti-symmetrization error: ' + str(error))
     if phonons._is_amorphous:
         sij = contract('kim,kija,kjn->kmna', eigenvects, dynmat_derivatives, eigenvects)
     else:
@@ -147,7 +152,7 @@ def calculate_sij_sparse(phonons):
     return s_ij
 
 
-def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
+def calculate_velocity_af(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
         # TODO: we could do the check on the whole grid instead of the shape
@@ -157,12 +162,12 @@ def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = wrap_positions_with_cell(q_points)
+        q_points = wrap_coordinates(q_points)
     if is_main_mesh:
         sij = phonons.flux
         frequency = phonons.frequency
     else:
-        sij = calculate_sij(phonons, q_points, is_antisymmetrizing)
+        sij = calculate_sij(phonons, q_points)
         frequency = calculate_frequency(phonons, q_points)
     sij = sij.reshape((q_points.shape[0], phonons.n_modes, phonons.n_modes, 3))
     velocity_AF = contract('kmna,kmn->kmna', sij,
@@ -171,7 +176,7 @@ def calculate_velocity_af(phonons, q_points=None, is_antisymmetrizing=False):
     return velocity_AF
 
 
-def calculate_velocity(phonons, q_points=None, is_antisymmetrizing=False):
+def calculate_velocity(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if not is_main_mesh:
         # TODO: we could do the check on the whole grid instead of the shape
@@ -181,11 +186,11 @@ def calculate_velocity(phonons, q_points=None, is_antisymmetrizing=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = wrap_positions_with_cell(q_points)
+        q_points = wrap_coordinates(q_points)
     if is_main_mesh:
         velocity_AF = phonons._velocity_af
     else:
-        velocity_AF = calculate_velocity_af(phonons, q_points, is_antisymmetrizing=is_antisymmetrizing)
+        velocity_AF = calculate_velocity_af(phonons, q_points)
     velocity = 1j * contract('kmma->kma', velocity_AF)
     return velocity.real
 
@@ -200,7 +205,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     else:
-        q_points = wrap_positions_with_cell(q_points)
+        q_points = wrap_coordinates(q_points)
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]
@@ -223,6 +228,11 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
             # TODO: the following espression could be done on the whole main_q_mesh
             dyn_s = contract('ialjb,l->iajb', dynmat, phonons.chi(qvec))
         dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes))
+        if phonons.is_symmetrizing_frequency:
+            dyn_s = 0.5 * (dyn_s + dyn_s.T.conj())
+            error = np.sum(np.abs(0.5 * (dyn_s - dyn_s.T.conj())))
+            logging.info('Frequency symmetrization error: ' + str(error))
+
         if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
             esystem[index_k] = evals

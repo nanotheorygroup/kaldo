@@ -6,7 +6,7 @@ import numpy as np
 from sparse import COO
 import pandas as pd
 import ase.units as units
-from ballistico.helpers.tools import count_rows, wrap_positions_with_cell
+from ballistico.helpers.tools import count_rows, wrap_coordinates
 from ase import Atoms
 import re
 from ballistico.helpers.logger import get_logger
@@ -52,8 +52,8 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
     replicated_cell_inv = np.linalg.inv(replicated_cell)
     replicated_atoms_positions = replicated_atoms.positions.reshape(
         (n_replicas, n_atoms, 3)) - atoms.positions[np.newaxis, :, :]
-    replicated_atoms_positions = wrap_positions_with_cell(replicated_atoms_positions, replicated_cell,
-                                                          replicated_cell_inv)
+    replicated_atoms_positions = wrap_coordinates(replicated_atoms_positions, replicated_cell,
+                                                  replicated_cell_inv)
     list_of_replicas = replicated_atoms_positions[:, 0, :]
 
 
