@@ -82,8 +82,8 @@ class FiniteDifference(object):
                  delta_shift=DELTA_SHIFT,
                  folder=MAIN_FOLDER,
                  third_order_symmerty_inputs=None,
-                 is_reduced_second=False,
-                 is_optimizing=False,
+                 is_reduced_second=True,
+                 optimization_method=None,
                  distance_threshold=None):
 
         """Init with an instance of constructed FiniteDifference object.
@@ -113,8 +113,10 @@ class FiniteDifference(object):
             to True (default).When providing a supercell != (1, 1, 1) and
             it's set to False, it provides only the reduced second order
             matrix for the elementary unit cell
-        is_optimizing:boolean
-            boolean flag to instruct if initial input atom geometry be optimized
+        optimization_method:string, default is None
+            optional optimization method to instruct if initial input atom geometry be optimized. Some options are
+            ‘CG’, ‘BFGS’, ‘Newton-CG’, and ‘L-BFGS-B’. For the list of all available optimization methods see:
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
         distance_threshold: float
             the maximum distance between two interacting atoms
         """
@@ -130,6 +132,7 @@ class FiniteDifference(object):
         self.cell_inv = np.linalg.inv(self.atoms.cell)
         self.second_order_delta = delta_shift
         self.third_order_delta = delta_shift
+        self.optimization_method = optimization_method
         if calculator:
             if calculator_inputs:
                 calculator_inputs['keep_alive'] = True
@@ -144,7 +147,7 @@ class FiniteDifference(object):
 
             # Optimize the structure if optimizing flag is turned to true
             # and the calculation is set to start from the starch:
-            if is_optimizing:
+            if self.optimization_method is not None:
                 self.optimize()
 
         self.folder = folder
@@ -581,12 +584,13 @@ class FiniteDifference(object):
         return replicated_atoms
 
 
-    def optimize(self, method='Newton-CG', tol=MAX_FORCE):
+    def optimize(self, tol=MAX_FORCE):
         """Execute the geometry optimization by minimizing
            the maximum force component
         """
         # Compute the maximum force component based on initial geometry
         # and specified method
+        method = self.optimization_method
         logging.info('Initial max force: ' + "{0:.4e}".format(self.max_force(self.atoms.positions, self.atoms)))
         logging.info('Optimization method ' + method)
 
