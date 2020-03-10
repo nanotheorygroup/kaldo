@@ -111,7 +111,10 @@ class Conductivity:
         self.n_phonons = self.phonons.n_phonons
         self.temperature = self.phonons.temperature
         self.is_classic = self.phonons.is_classic
-        self.third_bandwidth = self.phonons.third_bandwidth
+        if not self.phonons.third_bandwidth:
+            self.third_bandwidth = self.phonons.diffusivity_bandwidth
+        else:
+            self.third_bandwidth = self.phonons.third_bandwidth
         self.store_format = {}
         for observable in DEFAULT_STORE_FORMATS:
             self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
