@@ -322,7 +322,7 @@ class Phonons:
         return ps_gamma_and_gamma_tensor
 
 
-    @lazy_property(label='')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>')
     def _generalized_diffusivity(self):
         generalized_diffusivity = calculate_generalized_diffusivity(self)
         return generalized_diffusivity
