@@ -125,8 +125,11 @@ def calculate_sij(phonons, q_points=None):
             dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(1, 2).conj()) / 2
 
         logging.info('Velocity anti-symmetrization error: ' + str(error))
+    logging.info('Calculating the flux operators')
     if phonons._is_amorphous:
-        sij = contract('kim,kija,kjn->kmna', eigenvects, dynmat_derivatives, eigenvects)
+        sij = np.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
+        sij = np.tensordot(eigenvects[0], sij, (0, 1))
+        sij = sij.reshape((1, sij.shape[0], sij.shape[1], sij.shape[2]))
     else:
         sij = contract('kim,kija,kjn->kmna', eigenvects.conj(), dynmat_derivatives, eigenvects)
     return sij
