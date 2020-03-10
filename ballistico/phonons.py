@@ -306,7 +306,7 @@ class Phonons:
         return eigensystem
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
                          format=self.store_format['_ps_gamma_and_gamma_tensor']):
@@ -316,7 +316,7 @@ class Phonons:
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.calculate_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor

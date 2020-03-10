@@ -99,10 +99,12 @@ def save(property, folder, loaded_attr, format='formatted'):
         if not os.path.exists(folder):
             os.makedirs(folder)
         np.save(name + '.npy', loaded_attr)
+        logging.info(name + ' stored')
     elif format == 'hdf5':
         with h5py.File(name.split('/')[0] + '.hdf5', 'a') as storage:
             if not name in storage:
                 storage.create_dataset(name, data=loaded_attr, chunks=True, compression='gzip', compression_opts=9)
+        logging.info(name + 'stored')
     elif format == 'formatted':
         # loaded_attr = np.nan_to_num(loaded_attr)
         if not os.path.exists(folder):
@@ -154,6 +156,13 @@ def get_folder_from_label(instance, label='', base_folder=None):
         kpts = instance.kpts
         base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     if label != '':
+        if '<diffusivity_bandwidth>' in label:
+            if instance.diffusivity_bandwidth is not None:
+                base_folder += '/db_' + str(np.mean(instance.diffusivity_bandwidth))
+        if '<diffusivity_threshold>' in label:
+            if instance.diffusivity_threshold is not None:
+                base_folder += '/dt_' + str(instance.diffusivity_threshold)
+
         if '<temperature>' in label:
             base_folder += '/' + str(int(instance.temperature))
         if '<statistics>' in label:
@@ -163,13 +172,8 @@ def get_folder_from_label(instance, label='', base_folder=None):
                 base_folder += '/quantum'
         if '<third_bandwidth>' in label:
             if instance.third_bandwidth is not None:
-                base_folder += '/' + str(np.mean(instance.third_bandwidth))
-        if '<diffusivity_bandwidth>' in label:
-            if instance.diffusivity_bandwidth is not None:
-                base_folder += '/' + str(np.mean(instance.diffusivity_bandwidth))
-        if '<diffusivity_threshold>' in label:
-            if instance.diffusivity_threshold is not None:
-                base_folder += '/' + str(instance.diffusivity_threshold)
+                base_folder += '/tb_' + str(np.mean(instance.third_bandwidth))
+
         if '<method>' in label:
             base_folder += '/' + str(instance.method)
             if (instance.method == 'rta' or instance.method == 'sc' or instance.method == 'inverse') \
@@ -177,7 +181,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
                 if not (np.array(instance.length) == np.array([None, None, None])).all()\
                     and not (np.array(instance.length) == np.array([0, 0, 0])).all():
                     if '<length>' in label:
-                        base_folder += '/'
+                        base_folder += '/l'
                         for alpha in range(3):
                             if instance.length[alpha] is not None:
                                 base_folder += '_' + str(instance.length[alpha])
@@ -185,7 +189,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
                                 base_folder += '_0'
                     if '<finite_length_method>' in label:
                         if instance.finite_length_method is not None:
-                            base_folder += '/' + str(instance.finite_length_method)
+                            base_folder += '/fs' + str(instance.finite_length_method)
 
 
 
@@ -209,11 +213,11 @@ def lazy_property(label=''):
                     try:
                         loaded_attr = load(property, folder, self, format=format)
                     except (FileNotFoundError, OSError, KeyError):
-                        logging.info(str(property) + ' not found in ' + format + ', calculating ' + str(fn.__name__))
+                        logging.info(folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(fn.__name__))
                         loaded_attr = fn(self)
                         save(property, folder, loaded_attr, format=format)
                     else:
-                        logging.info('Loading ' + str(property))
+                        logging.info('Loading ' + folder + '/' + str(property))
                 else:
                     loaded_attr = fn(self)
                 setattr(self, attr, loaded_attr)

@@ -111,17 +111,16 @@ class Conductivity:
         self.n_phonons = self.phonons.n_phonons
         self.temperature = self.phonons.temperature
         self.is_classic = self.phonons.is_classic
-        if not self.phonons.third_bandwidth:
-            self.third_bandwidth = self.phonons.diffusivity_bandwidth
-        else:
-            self.third_bandwidth = self.phonons.third_bandwidth
+        self.third_bandwidth = self.phonons.third_bandwidth
+        self.diffusivity_bandwidth = self.phonons.diffusivity_bandwidth
+        self.diffusivity_threshold = self.phonons.diffusivity_threshold
         self.store_format = {}
         for observable in DEFAULT_STORE_FORMATS:
             self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
                 if self.storage == 'default' else self.storage
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
         """
         Calculate the thermal conductivity per mode in W/m/K
@@ -141,7 +140,7 @@ class Conductivity:
                                                                     self.n_phonons)
 
             volume = np.linalg.det(self.phonons.atoms.cell)
-            return conductivity_per_mode / (volume * self.n_k_points)
+            cond = conductivity_per_mode / (volume * self.n_k_points)
         else:
             logging.error('Conductivity method not implemented')
 
@@ -151,10 +150,11 @@ class Conductivity:
         sum = (cond.imag).sum()
         if sum > 1e-3:
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
+        logging.info('Conductivity calculated')
         return cond.real
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
     def mean_free_path(self):
         """
         Calculate the mean_free_path per mode in A
@@ -243,8 +243,8 @@ class Conductivity:
         velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
         lambd = np.zeros_like(velocity)
         for alpha in range (3):
-            gamma = phonons.bandwidth.reshape(phonons.n_phonons)
             scattering_matrix = - 1 * self._scattering_matrix_without_diagonal
+            gamma = phonons.bandwidth.reshape(phonons.n_phonons)
             if finite_size_method == 'ms':
                 if length is not None:
                     if length[alpha]:
