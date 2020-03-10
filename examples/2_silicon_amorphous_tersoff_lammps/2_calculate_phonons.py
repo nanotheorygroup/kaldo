@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from ase.io import read
 import numpy as np
 
-supercell = np.array([3, 3, 3])
+supercell = np.array([1, 1, 1])
 # finite_difference = FiniteDifference.import_from_dlpoly_folder('si-dlpoly', supercell)
 folder = '.'
 config_file = str(folder) + '/replicated_coords.lmp'
