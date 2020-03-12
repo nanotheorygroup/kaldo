@@ -38,3 +38,7 @@ def test_af_conductivity_300(phonons):
     cond = Conductivity(phonons=phonons, method='qhgk').conductivity.sum(axis=0).diagonal().mean()
     expected_cond = 0.532
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
+
+def test_2(phonons):
+    frequencies = phonons.frequency.flatten()
+    np.testing.assert_approx_equal(frequencies[5],1.64, significant=2)
