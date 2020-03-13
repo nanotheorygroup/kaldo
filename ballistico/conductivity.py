@@ -207,6 +207,15 @@ class Conductivity:
 
 
     def calculate_c_v_2d(self):
+        """
+        Calculates the constant-volume heat capacity for each mode at the temperature of the input phonons object.
+        The array is returned in units of J/K.
+
+        Returns
+        -------
+        c_v : np.array
+            (phonons.n_k_points, phonons.n_modes) float
+        """
         phonons = self.phonons
         frequencies = phonons.frequency
         c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
@@ -225,6 +234,15 @@ class Conductivity:
 
 
     def calculate_conductivity_qhgk(self):
+        """
+        Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.
+        The tensor is returned individual modes along the first axis and has units of W/m/K.
+
+        Returns
+        -------
+        conductivity_per_mode : np.array
+            (n_phonons, 3, 3)
+        """
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell)
         diffusivity = phonons._generalized_diffusivity
@@ -236,6 +254,13 @@ class Conductivity:
     
     
     def calculate_mfp_inverse(self):
+        """
+        This method calculates the inverse of the mean free path for each phonon
+
+        Returns
+        -------
+
+        """
         length = self.length
         phonons = self.phonons
         finite_size_method = self.finite_length_method
