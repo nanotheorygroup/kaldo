@@ -48,7 +48,7 @@ export ASE_ESPRESSO_COMMAND="mpirun -np 4 /path/to/pw.x -in PREFIX.pwi > PREFIX.
 
 ### Copyright
 
-Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio
+Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas Lundgren, Davide Donadio
 
 
 #### Acknowledgements
