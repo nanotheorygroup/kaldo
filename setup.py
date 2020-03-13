@@ -22,7 +22,7 @@ except:
 setup(
     # Self-descriptive entries which should always be present
     name='ballistico',
-    author='Giuseppe Barbalinardo, Zekun Chen, Davide Donadio',
+    author='Ballistico Developers',
     author_email='gbarbalinardo@ucdavis.edu',
     description=short_description[0],
     long_description=long_description,
