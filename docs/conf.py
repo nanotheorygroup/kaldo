@@ -23,9 +23,9 @@ import ballistico
 # -- Project information -----------------------------------------------------
 
 project = 'Ballistico'
-copyright = ("2019, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio. Project structure based on the "
+copyright = ("2019, Ballistico Developers. Project structure based on the "
              "Computational Molecular Science Python Cookiecutter version 1.1")
-author = 'Giuseppe Barbalinardo, Zekun Chen, Davide Donadio'
+author = 'Ballistico Developers'
 
 # The short X.Y version
 version = ''
