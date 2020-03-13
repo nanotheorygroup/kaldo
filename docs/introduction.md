@@ -32,8 +32,7 @@ Examples can be found in the `examples` folder. There are also two tutorials ava
 
 ### Copyright
 
-Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio
-
+Copyright (c) 2020, [Ballistico Developers](https://github.com/gbarbalinardo/ballistico/graphs/contributors)
 
 ### References
 
@@ -45,7 +44,7 @@ Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Davide Donadio
 - ThirdOrder (link)
 
 
-#### Acknowledgements
+### Acknowledgements
 
 We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.
 
