@@ -96,7 +96,7 @@ class Conductivity:
 
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
-        self.storage = kwargs.pop('storage', 'formatted')
+        self.storage = kwargs.pop('storage', 'numpy')
         if self.method == 'rta':
             self.n_iterations = 0
         else:
@@ -117,7 +117,7 @@ class Conductivity:
         self.store_format = {}
         for observable in DEFAULT_STORE_FORMATS:
             self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
-                if self.storage == 'default' else self.storage
+                if self.storage == 'formatted' else self.storage
 
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
