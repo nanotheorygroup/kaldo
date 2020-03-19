@@ -24,6 +24,7 @@ def phonons():
                       storage='memory')
     return phonons
 
+
 def test_af_conductivity_50(phonons):
     phonons.temperature = 50
     phonons.diffusivity_bandwidth = 0.025
@@ -39,6 +40,7 @@ def test_af_conductivity_300(phonons):
     expected_cond = 0.532
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
 
-def test_2(phonons):
+
+def test_frequency(phonons):
     frequencies = phonons.frequency.flatten()
-    np.testing.assert_approx_equal(frequencies[5],1.64, significant=2)
+    np.testing.assert_approx_equal(frequencies[5], 1.64, significant=2)
