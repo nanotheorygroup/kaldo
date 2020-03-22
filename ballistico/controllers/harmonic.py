@@ -266,7 +266,7 @@ def calculate_diffusivity_dense(phonons):
     if phonons.diffusivity_bandwidth is not None:
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
-        diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy()
+        diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
     physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     physical_modes_2d = physical_modes[:, :, np.newaxis] & \
                         physical_modes[:, np.newaxis, :]
@@ -293,7 +293,7 @@ def calculate_diffusivity_sparse(phonons):
     if phonons.diffusivity_bandwidth is not None:
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
-        diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy()
+        diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
 
     omega = phonons._omegas.reshape(phonons.n_k_points, phonons.n_modes)
 
