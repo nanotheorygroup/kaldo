@@ -1,4 +1,4 @@
-1. Please run pwd in command line to make sure you are inside the folder.
+1. Please run pwd in command line to make sure you are inside this example folder.
 
 2. If you have not yet complied lammps as python library (please see the documentation for this set up), please run the following 
    commands in orders to run the example with precaclulated folders:
