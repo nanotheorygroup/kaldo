@@ -7,7 +7,7 @@
    python 4_calculate_phonons.py
 
 
-3. If you have finished the set up, please please run the following 
+3. If you have finished the set up, please run the following 
    commands in orders to run the example from the scratch:
    
    python 1_prepare_reference_structures.py
