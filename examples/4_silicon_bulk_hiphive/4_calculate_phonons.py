@@ -28,6 +28,7 @@ qhgk_cond_matrix = Conductivity(phonons=phonons, method='qhgk').conductivity.sum
 print('Qhgk conductivity (W/mK): %.3f'%(np.mean(np.diag(qhgk_cond_matrix))))
 print(qhgk_cond_matrix)
 
+print('\n')
 inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0))
 print('Inverse conductivity (W/mK): %.3f'%(np.mean(np.diag(inv_cond_matrix))))
 print(inv_cond_matrix)
