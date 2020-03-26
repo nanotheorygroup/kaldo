@@ -15,6 +15,7 @@ from ballistico.helpers.tools import convert_to_poscar, wrap_coordinates
 import h5py
 import ase.units as units
 from ballistico.helpers.logger import get_logger
+from hiphive import ForceConstants
 logging = get_logger()
 
 
@@ -336,15 +337,16 @@ class FiniteDifference(object):
         finite_difference.is_reduced_second = is_reduced_second
         return finite_difference
 
-     @classmethod
-     def __from_hiphive(cls, folder, supercell=None):
+
+	@classmethod
+	def __from_hiphive(cls, folder, supercell=None):
         atom_prime_file = str(folder) + '/atom_prim.xyz'
         second_hiphive_file = str(folder) + '/model2.fcs'
         third_hiphive_file  = str(folder) + '/model3.fcs'
         atoms = ase.io.read(atom_prime_file)
         supercell = np.array(supercell)
         # Create a finite difference object
-         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
+		finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
         if 'model2.fcs' in os.listdir(str(folder)):
             fcs2 = ForceConstants.read(second_hiphive_file)
             second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
@@ -357,7 +359,7 @@ class FiniteDifference(object):
             fcs3 = ForceConstants.read(third_hiphive_file)
             third_order = fcs3.get_fc_array(3).transpose(0, 3, 1, 4, 2, 5).reshape(n_sc, n_prim, dim, n_sc, n_prim, dim, n_sc, n_prim, dim)
             finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim, n_sc*n_prim*dim)
-	return finite_difference
+		return finite_difference
 	
 
 
