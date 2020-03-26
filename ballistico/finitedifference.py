@@ -210,7 +210,10 @@ class FiniteDifference(object):
             fd = cls.__from_eskm(folder, supercell,
                           third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
         elif format == 'shengbte':
-            fd = cls.__from_shengbte(folder, supercell)
+            fd = cls.__from_shengbte(folder, supercell)	
+	elif format == 'hiphive':
+            fd = cls.__from_hiphive(folder, supercell)
+
         else:
             raise ValueError
         if is_symmetrizing:
@@ -332,6 +335,30 @@ class FiniteDifference(object):
         finite_difference.third_order = third_order
         finite_difference.is_reduced_second = is_reduced_second
         return finite_difference
+
+     @classmethod
+     def __from_hiphive(cls, folder, supercell=None):
+        atom_prime_file = str(folder) + '/atom_prim.xyz'
+        second_hiphive_file = str(folder) + '/model2.fcs'
+        third_hiphive_file  = str(folder) + '/model3.fcs'
+        atoms = ase.io.read(atom_prime_file)
+        supercell = np.array(supercell)
+        # Create a finite difference object
+         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
+        if 'model2.fcs' in os.listdir(str(folder)):
+            fcs2 = ForceConstants.read(second_hiphive_file)
+            second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
+            finite_difference.second_order = second_order
+        if 'model3.fcs' in os.listdir(str(folder)):
+            # Derive constants used for third-order reshape
+            n_prim = atoms.copy().get_masses().shape[0]
+            n_sc = np.prod(supercell)
+            dim = len(supercell[supercell > 1])
+            fcs3 = ForceConstants.read(third_hiphive_file)
+            third_order = fcs3.get_fc_array(3).transpose(0, 3, 1, 4, 2, 5).reshape(n_sc, n_prim, dim, n_sc, n_prim, dim, n_sc, n_prim, dim)
+            finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim, n_sc*n_prim*dim)
+	return finite_difference
+	
 
 
     @property
