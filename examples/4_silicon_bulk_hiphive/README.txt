@@ -1,0 +1,2 @@
+If you have not yet complied lammps as python library (please see the documentation for this set up), please use run.sh to run this example with precalcated folder. 
+If you have finished the set sup, please use run_all.sh to run this example from the scratch.
