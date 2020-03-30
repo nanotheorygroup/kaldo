@@ -121,3 +121,20 @@ def allowed_index_qpp(index_q, is_plus, kpts):
     qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
     index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
     return index_qpp_full
+
+
+def generate_index_grid(grid, is_wrapping, is_centering, order):
+    if is_wrapping * is_centering == 1:
+        raise ValueError('is_centering and is_wrapping cannot be simultaneously True')
+    grid_size = grid[0] * grid[1] * grid[2]
+    index_grid = np.array(np.unravel_index(np.arange(grid_size), grid), order=order).T
+    if is_wrapping:
+         index_grid = wrap_coordinates(index_grid, np.diag(grid))
+    if is_centering:
+         index_grid = index_grid - np.rint(np.array(grid)[np.newaxis, :] / 2)
+    return np.rint(index_grid).astype(np.int)
+
+
+def generate_unitary_grid(grid, is_wrapping, is_centering, order):
+    return generate_index_grid(grid, is_wrapping, is_centering, order) / grid
+
