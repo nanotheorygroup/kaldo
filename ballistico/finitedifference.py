@@ -134,10 +134,13 @@ class FiniteDifference(object):
         self.third_order_delta = delta_shift
         self.optimization_method = optimization_method
         if calculator:
-            if calculator_inputs:
+            if calculator_inputs is not None:
                 calculator_inputs['keep_alive'] = True
                 self.calculator_inputs = calculator_inputs
-            self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
+                self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
+            else:
+                self.calculator_inputs = None
+                self.atoms.set_calculator(self.calculator())
             if third_order_symmerty_inputs is not None:
                 self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
                 for k, v in third_order_symmerty_inputs.items():
@@ -510,7 +513,10 @@ class FiniteDifference(object):
         if self._replicated_atoms is None:
             self.replicated_atoms = self.gen_supercell()
             if self.calculator:
-                self.replicated_atoms.set_calculator(self.calculator(**self.calculator_inputs))
+                if self.calculator_inputs is not None:
+                    self.replicated_atoms.set_calculator(self.calculator(**self.calculator_inputs))
+                else:
+                    self.replicated_atoms.set_calculator(self.calculator())
         return self._replicated_atoms
 
 
