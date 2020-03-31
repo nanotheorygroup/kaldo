@@ -1,5 +1,5 @@
 import numpy as np
-from ballistico.helpers.tools import generate_unitary_grid, generate_index_grid
+from ballistico.grid import Grid
 
 replica_grid = np.array([[0, 0, 0],
                          [ 0,  0,  1],
@@ -256,14 +256,11 @@ k_grid = np.array([[-0.4, -0.4, -0.4],
 
 def test_k_mesh():
     grid_shape = (5, 5, 5)
-    generated_grid = generate_index_grid(grid=grid_shape,
-                                         order='F',
-                                         is_wrapping=True,
-                                         is_centering=False)
-    np.testing.assert_equal(replica_grid, generated_grid)
+    generated_grid = Grid(grid_shape=grid_shape, order='F', is_centering=False)
+    np.testing.assert_equal(replica_grid, generated_grid.grid(is_wrapping=True))
 
 
 def test_q_mesh():
     grid_shape = (5, 5, 5)
-    generated_k_grid = generate_unitary_grid(grid_shape, order='F', is_wrapping=False, is_centering=True)
-    np.testing.assert_equal(k_grid, generated_k_grid)
+    generated_grid = Grid(grid_shape=grid_shape, order='F', is_centering=True)
+    np.testing.assert_equal(k_grid, generated_grid.unitary_grid(is_wrapping=False))

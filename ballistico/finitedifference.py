@@ -14,6 +14,7 @@ import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, wrap_coordinates
 import h5py
 import ase.units as units
+from ballistico.grid import Grid
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -128,12 +129,31 @@ class FiniteDifference(object):
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
-        self.calculator = calculator
         self.cell_inv = np.linalg.inv(self.atoms.cell)
-        self.second_order_delta = delta_shift
-        self.third_order_delta = delta_shift
-        self.optimization_method = optimization_method
+
+        self.folder = folder
+        self.is_reduced_second = is_reduced_second
+        self.distance_threshold = distance_threshold
+        self._replicated_atoms = None
+        self._list_of_replicas = None
+        self._second_order = None
+        self._third_order = None
+        self._dynmat = None
+        self._replicated_cell_inv = None
+
+        # Directly loading the second/third order force matrices
+        if second_order is not None:
+            self.second_order = second_order
+        if third_order is not None:
+            self.third_order = third_order
+
+        # Initialize calculator
         if calculator:
+            self._is_able_to_calculate = True
+            self.calculator = calculator
+            self.second_order_delta = delta_shift
+            self.third_order_delta = delta_shift
+            self.optimization_method = optimization_method
             if calculator_inputs is not None:
                 calculator_inputs['keep_alive'] = True
                 self.calculator_inputs = calculator_inputs
@@ -153,21 +173,6 @@ class FiniteDifference(object):
             if self.optimization_method is not None:
                 self.optimize()
 
-        self.folder = folder
-        self.is_reduced_second = is_reduced_second
-        self.distance_threshold = distance_threshold
-        self._replicated_atoms = None
-        self._list_of_replicas = None
-        self._second_order = None
-        self._third_order = None
-        self._dynmat = None
-        self._replicated_cell_inv = None
-
-        # Directly loading the second/third order force matrices
-        if second_order is not None:
-            self.second_order = second_order
-        if third_order is not None:
-            self.third_order = third_order
 
 
     @classmethod
