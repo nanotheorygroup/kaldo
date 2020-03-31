@@ -160,6 +160,6 @@ def phonons():
         return phonons
 
 
-def test_inverse_conductivity(phonons):
+def test_frequency_with_finite_difference(phonons):
     calculated_frequency = phonons.frequency
     np.testing.assert_equal(np.round(calculated_frequency - frequency, 2), 0)
