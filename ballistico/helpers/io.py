@@ -42,7 +42,7 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
     n_atoms = atoms.get_positions().shape[0]
     n_replicated_atoms = n_atoms * n_replicas
     n_rows = count_rows(filename)
-    array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
+    array_size = min(n_rows * 3, np.power(np.float64(n_replicated_atoms * 3),2))
     coords = np.zeros((array_size, 6), dtype=np.int16)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
