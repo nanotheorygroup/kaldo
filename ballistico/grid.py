@@ -24,7 +24,7 @@ class Grid:
 
     def id_to_grid_index(self, id):
         grid_shape = self.grid_shape
-        index_grid = np.array(np.unravel_index(id, grid_shape), order=self.order).T
+        index_grid = np.array(np.unravel_index(id, grid_shape, order=self.order)).T
         if self.is_centering:
             index_grid = index_grid - np.rint(np.array(grid_shape)[np.newaxis, :] / 2)
         return np.rint(index_grid).astype(np.int)

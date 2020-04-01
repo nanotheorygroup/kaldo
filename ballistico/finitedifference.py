@@ -577,16 +577,8 @@ class FiniteDifference(object):
 
 
     def calculate_list_of_replicas(self):
-        n_replicas = self.n_replicas
-        n_unit_atoms = self.atoms.positions.shape[0]
-        # Create list of index
-        replicated_atoms = self.replicated_atoms
-        replicated_cell = replicated_atoms.cell
-        replicated_cell_inv = np.linalg.inv(replicated_cell)
-        replica_positions = replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3)) - self.atoms.positions[np.newaxis, :, :]
-        replica_positions = wrap_coordinates(replica_positions, replicated_cell, replicated_cell_inv)
-        list_of_replicas = replica_positions[:, 0, :]
-        return list_of_replicas
+        list_of_index = self._space_grid.grid(is_wrapping=True)
+        return list_of_index.dot(self.atoms.cell)
 
 
     def gen_supercell(self):
@@ -595,6 +587,9 @@ class FiniteDifference(object):
         supercell = self.supercell
         atoms = self.atoms
         replicated_atoms = atoms.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
+
+        replicated_positions = self._space_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell))[np.newaxis, :, :]
+        replicated_atoms.positions = replicated_positions.reshape(self.n_replicas * self.n_atoms, 3)
         return replicated_atoms
 
 
