@@ -273,7 +273,7 @@ def test_ase_grid():
     supercell = (5, 5, 5)
     replicated_atoms = atoms.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
 
-    ase_calculated_replica = np.round(replicated_atoms.positions.dot(np.linalg.inv(atoms.cell)), 2) \
+    ase_calculated_replica = np.round(replicated_atoms.positions.dot(np.linalg.inv(atoms.cell)), 5) \
                                  .reshape(supercell[0], supercell[1], supercell[2], n_atoms, 3)
 
     space_grid = Grid(supercell, is_centering=False, order='F')
