@@ -586,8 +586,7 @@ class FiniteDifference(object):
         """
         supercell = self.supercell
         atoms = self.atoms
-        replicated_atoms = atoms.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
-
+        replicated_atoms = atoms.copy() * (supercell[0], supercell[1], supercell[2])
         replicated_positions = self._space_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell))[np.newaxis, :, :]
         replicated_atoms.positions = replicated_positions.reshape(self.n_replicas * self.n_atoms, 3)
         return replicated_atoms
