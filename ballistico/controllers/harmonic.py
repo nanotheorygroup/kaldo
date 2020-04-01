@@ -294,6 +294,15 @@ def calculate_diffusivity_dense(phonons):
 
 
 def calculate_diffusivity_sparse(phonons):
+    if phonons.diffusivity_shape == 'lorentz':
+        curve = lorentz_delta
+    elif phonons.diffusivity_shape == 'gauss':
+        curve = gaussian_delta
+    elif phonons.diffusivity_shape == 'triangle':
+        curve = triangular_delta
+    else:
+        logging.error('Diffusivity shape not implemented')
+
     try:
         diffusivity_threshold = phonons.diffusivity_threshold
     except AttributeError:
@@ -315,7 +324,7 @@ def calculate_diffusivity_sparse(phonons):
     coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
     sigma = 2 * (diffusivity_bandwidth[coords[:, 0], coords[:, 1]] + diffusivity_bandwidth[coords[:, 0], coords[:, 2]])
     delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-    data = np.pi * lorentz_delta(delta_energy, sigma, diffusivity_threshold)
+    data = np.pi * curve(delta_energy, sigma, diffusivity_threshold)
     lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     s_ij = phonons.flux
     prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
