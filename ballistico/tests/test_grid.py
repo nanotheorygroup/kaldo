@@ -1,5 +1,6 @@
 import numpy as np
 from ballistico.grid import Grid
+from ase.build import bulk
 
 replica_grid = np.array([[0, 0, 0],
                          [ 0,  0,  1],
@@ -254,13 +255,28 @@ k_grid = np.array([[-0.4, -0.4, -0.4],
        [ 0.4,  0.4,  0.4]])
 
 
-def test_k_mesh():
+def test_r_mesh():
     grid_shape = (5, 5, 5)
-    generated_grid = Grid(grid_shape=grid_shape, order='F', is_centering=False)
+    generated_grid = Grid(grid_shape=grid_shape, order='C', is_centering=False)
     np.testing.assert_equal(replica_grid, generated_grid.grid(is_wrapping=True))
 
 
 def test_q_mesh():
     grid_shape = (5, 5, 5)
-    generated_grid = Grid(grid_shape=grid_shape, order='F', is_centering=True)
+    generated_grid = Grid(grid_shape=grid_shape, order='C', is_centering=True)
     np.testing.assert_equal(k_grid, generated_grid.unitary_grid(is_wrapping=False))
+
+
+def test_ase_grid():
+    atoms = bulk('Si', 'diamond', a=5.43)
+    n_atoms = atoms.positions.shape[0]
+    supercell = (5, 5, 5)
+    replicated_atoms = atoms.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
+
+    ase_calculated_replica = np.round(replicated_atoms.positions.dot(np.linalg.inv(atoms.cell)), 2) \
+                                 .reshape(supercell[0], supercell[1], supercell[2], n_atoms, 3)
+
+    space_grid = Grid(supercell, is_centering=False, order='F')
+    fd_calculated_replica = (space_grid.grid()[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell)) \
+        [np.newaxis, :, :]).reshape(supercell[0],supercell[1],supercell[2],n_atoms, 3)
+    np.testing.assert_equal(ase_calculated_replica, fd_calculated_replica)
