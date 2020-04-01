@@ -4,7 +4,7 @@ from scipy.linalg.lapack import dsyev
 import numpy as np
 import ase.units as units
 from sparse import COO
-from ballistico.controllers.dirac_kernel import lorentz_delta
+from ballistico.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
@@ -272,15 +272,24 @@ def calculate_diffusivity_dense(phonons):
                         physical_modes[:, np.newaxis, :]
     delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
     sigma = 2 * (diffusivity_bandwidth[:, :, np.newaxis] + diffusivity_bandwidth[:, np.newaxis, :])
-    lorentz = lorentz_delta(delta_energy, sigma)
-    lorentz = lorentz * np.pi
-    lorentz[np.isnan(lorentz)] = 0
+    if phonons.diffusivity_shape == 'lorentz':
+        curve = lorentz_delta
+    elif phonons.diffusivity_shape == 'gauss':
+        curve = gaussian_delta
+    elif phonons.diffusivity_shape == 'triangle':
+        curve = triangular_delta
+    else:
+        logging.error('Diffusivity shape not implemented')
+
+    kernel = curve(delta_energy, sigma)
+    kernel = kernel * np.pi
+    kernel[np.isnan(kernel)] = 0
 
     sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
     sij[np.invert(physical_modes_2d)] = 0
 
     prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
-    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, lorentz, sij)
+    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, kernel, sij)
     return diffusivity
 
 
