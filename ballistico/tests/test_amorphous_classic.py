@@ -40,7 +40,7 @@ def test_second_gamma(phonons):
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method='qhgk').conductivity.sum(axis=0)
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 0.996, significant=2)
 

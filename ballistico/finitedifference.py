@@ -126,6 +126,7 @@ class FiniteDifference(object):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
+        self._space_grid = Grid(supercell, is_centering=False, order='F')
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
@@ -517,11 +518,13 @@ class FiniteDifference(object):
         # try load in from the provided xyz file
         if self._replicated_atoms is None:
             self.replicated_atoms = self.gen_supercell()
-            if self.calculator:
+            try:
                 if self.calculator_inputs is not None:
                     self.replicated_atoms.set_calculator(self.calculator(**self.calculator_inputs))
                 else:
                     self.replicated_atoms.set_calculator(self.calculator())
+            except AttributeError:
+                logging.info('No calculator found')
         return self._replicated_atoms
 
 
