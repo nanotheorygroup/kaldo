@@ -11,7 +11,6 @@ from scipy.sparse import load_npz, save_npz
 from sparse import COO
 import ballistico.helpers.io as io
 import ballistico.helpers.shengbte_io as shengbte_io
-from ballistico.helpers.tools import convert_to_poscar, wrap_coordinates
 import h5py
 import ase.units as units
 from ballistico.grid import Grid
@@ -41,6 +40,24 @@ THIRD_ORDER_FILE = 'third.npy'
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 SECOND_ORDER_WITH_PROGRESS_FILE = 'second_order_progress.hdf5'
 THIRD_ORDER_WITH_PROGRESS_FILE = 'third_order_progress'
+
+
+def convert_to_poscar(atoms, supercell=None):
+    list_of_types = []
+    for symbol in atoms.get_chemical_symbols():
+        for i in range(np.unique(atoms.get_chemical_symbols()).shape[0]):
+            if np.unique(atoms.get_chemical_symbols())[i] == symbol:
+                list_of_types.append(str(i))
+
+    poscar = {'lattvec': atoms.cell / 10,
+              'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
+              'elements': atoms.get_chemical_symbols(),
+              'types': list_of_types}
+    if supercell is not None:
+        poscar['na'] = supercell[0]
+        poscar['nb'] = supercell[1]
+        poscar['nc'] = supercell[2]
+    return poscar
 
 
 def calculate_symmetrize_dynmat(finite_difference):

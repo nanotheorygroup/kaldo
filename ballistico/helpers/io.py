@@ -6,7 +6,7 @@ import numpy as np
 from sparse import COO
 import pandas as pd
 import ase.units as units
-from ballistico.helpers.tools import count_rows, wrap_coordinates
+from ballistico.helpers.tools import count_rows
 from ase import Atoms
 import re
 from ballistico.helpers.logger import get_logger
@@ -14,6 +14,16 @@ logging = get_logger()
 
 tenjovermoltoev = 10 * units.J / units.mol
 
+def wrap_coordinates(dxij, cell=None, cell_inv=None):
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
+    if cell is not None and cell_inv is None:
+        cell_inv = np.linalg.inv(cell)
+    if cell is not None:
+        dxij = dxij.dot(cell_inv)
+    dxij = dxij - np.round(dxij)
+    if cell is not None:
+        dxij = dxij.dot(cell)
+    return dxij
 
 def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     replicas = np.array(replicas)
