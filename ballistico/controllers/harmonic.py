@@ -270,7 +270,7 @@ def calculate_diffusivity_dense(phonons):
     physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     physical_modes_2d = physical_modes[:, :, np.newaxis] & \
                         physical_modes[:, np.newaxis, :]
-    delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
+
     sigma = 2 * (diffusivity_bandwidth[:, :, np.newaxis] + diffusivity_bandwidth[:, np.newaxis, :])
     if phonons.diffusivity_shape == 'lorentz':
         curve = lorentz_delta
@@ -281,7 +281,11 @@ def calculate_diffusivity_dense(phonons):
     else:
         logging.error('Diffusivity shape not implemented')
 
+    delta_energy = omega[:, :, np.newaxis] - omega[:, np.newaxis, :]
     kernel = curve(delta_energy, sigma)
+    if phonons.is_diffusivity_including_antiresonant:
+        sum_energy = omega[:, :, np.newaxis] + omega[:, np.newaxis, :]
+        kernel += curve(sum_energy, sigma)
     kernel = kernel * np.pi
     kernel[np.isnan(kernel)] = 0
 
