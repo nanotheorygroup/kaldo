@@ -298,6 +298,8 @@ def calculate_diffusivity_dense(phonons):
 
 
 def calculate_diffusivity_sparse(phonons):
+    if phonons.is_diffusivity_including_antiresonant:
+        logging.error('is_diffusivity_including_antiresonant not yet implemented for with thresholds and sparse.')
     if phonons.diffusivity_shape == 'lorentz':
         curve = lorentz_delta
     elif phonons.diffusivity_shape == 'gauss':
