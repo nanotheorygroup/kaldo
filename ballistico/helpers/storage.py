@@ -35,7 +35,7 @@ def parse_pair(txt):
 def load(property, folder, instance, format='formatted'):
     name = folder + '/' + property
     if format == 'numpy':
-        loaded = np.load(name + '.npy')
+        loaded = np.load(name + '.npy', allow_pickle=True)
         return loaded
     elif format == 'hdf5':
         with h5py.File(name.split('/')[0] + '.hdf5', 'r') as storage:
