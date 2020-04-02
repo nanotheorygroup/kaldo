@@ -6,6 +6,7 @@ from ballistico.helpers.storage import is_calculated
 from ballistico.helpers.storage import lazy_property
 from ballistico.helpers.tools import q_vec_from_q_index
 from ballistico.helpers.storage import DEFAULT_STORE_FORMATS
+from ballistico.grid import Grid
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
@@ -53,6 +54,9 @@ class Phonons:
             thermal conductivity in amorphous systems. Units: rad/ps
         diffusivity_threshold (optional) : float
             This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
+        diffusivity_shape (optional) : string
+            defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
+            Default is `lorentz`.
         broadening_shape (optional) : string
             defines the algorithm to use to calculate the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.
             Default is `gauss`.
@@ -78,7 +82,10 @@ class Phonons:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)
         self.kpts = kwargs.pop('kpts', (1, 1, 1))
+        self._space_grid = Grid(self.kpts, is_centering=False, order='C')
+
         self.kpts = np.array(self.kpts)
+
         self.min_frequency = kwargs.pop('min_frequency', None)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
@@ -346,8 +353,7 @@ class Phonons:
 
     @property
     def _main_q_mesh(self):
-        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
-        return q_mesh
+        return self._space_grid.unitary_grid()
 
 
     @property
