@@ -339,27 +339,31 @@ class FiniteDifference(object):
 
     @classmethod
     def __from_hiphive(cls, folder, supercell=None):
+      try:
+        import ballistico.helpers.hiphive_io as hiphive_io
+      except ImportError as err:
+        logging.info(err)
+        logging.error('In order to use hiphive along with ballistico, hiphive is required. \
+                Please consider installing hihphive. More info can be found at: \
+                https://hiphive.materialsmodeling.org/')
+        import sys
+        sys.exit()
       atom_prime_file = str(folder) + '/atom_prim.xyz'
-      second_hiphive_file = str(folder) + '/model2.fcs'
-      third_hiphive_file  = str(folder) + '/model3.fcs'
       atoms = ase.io.read(atom_prime_file)
-      supercell = np.array(supercell)    
       # Create a finite difference object
       finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
       if 'model2.fcs' in os.listdir(str(folder)):
-        fcs2 = ForceConstants.read(second_hiphive_file)
-        second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
+        second_order = hiphive_io.import_second_from_hiphive(finite_difference)
         finite_difference.second_order = second_order
       if 'model3.fcs' in os.listdir(str(folder)):
         # Derive constants used for third-order reshape
+        supercell = np.array(supercell)
         n_prim = atoms.copy().get_masses().shape[0]
         n_sc = np.prod(supercell)
         dim = len(supercell[supercell > 1])
-        fcs3 = ForceConstants.read(third_hiphive_file)
-        third_order = fcs3.get_fc_array(3).transpose(0, 3, 1, 4, 2, 5).reshape(n_sc, n_prim, dim, 
-          n_sc, n_prim, dim, n_sc, n_prim,dim)
-        finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim, 
-  				n_sc*n_prim*dim)
+        third_order = hiphive_io.import_third_from_hiphive(finite_difference)
+        finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim,
+            n_sc*n_prim*dim)
       return finite_difference
 		
 
