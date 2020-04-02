@@ -279,4 +279,4 @@ def test_ase_grid():
     space_grid = Grid(supercell, is_centering=False, order='F')
     fd_calculated_replica = (space_grid.grid()[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell)) \
         [np.newaxis, :, :]).reshape(supercell[0],supercell[1],supercell[2],n_atoms, 3)
-    np.testing.assert_equal(ase_calculated_replica, fd_calculated_replica)
+    np.testing.assert_array_almost_equal(ase_calculated_replica, fd_calculated_replica)
