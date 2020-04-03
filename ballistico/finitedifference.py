@@ -30,7 +30,7 @@ DELTA_SHIFT = 1e-5
 # Tolerance for symmetry search
 SYMPREC_THIRD_ORDER = 1e-5
 # Tolerance for geometry optimization
-MAX_FORCE = 1e-5
+MAX_FORCE = 1e-4
 
 MAIN_FOLDER = 'displacement'
 SECOND_ORDER_FILE = 'second.npy'
@@ -220,6 +220,9 @@ class FiniteDifference(object):
                           third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
         elif format == 'shengbte':
             fd = cls.__from_shengbte(folder, supercell)
+
+        elif format == 'hiphive':
+            fd = cls.__from_hiphive(folder, supercell)    
         else:
             raise ValueError
         if is_symmetrizing:
@@ -342,6 +345,35 @@ class FiniteDifference(object):
         finite_difference.is_reduced_second = is_reduced_second
         return finite_difference
 
+    @classmethod
+    def __from_hiphive(cls, folder, supercell=None):
+      try:
+        import ballistico.helpers.hiphive_io as hiphive_io
+      except ImportError as err:
+        logging.info(err)
+        logging.error('In order to use hiphive along with ballistico, hiphive is required. \
+                Please consider installing hihphive. More info can be found at: \
+                https://hiphive.materialsmodeling.org/')
+        import sys
+        sys.exit()
+      atom_prime_file = str(folder) + '/atom_prim.xyz'
+      atoms = ase.io.read(atom_prime_file)
+      # Create a finite difference object
+      finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
+      if 'model2.fcs' in os.listdir(str(folder)):
+        second_order = hiphive_io.import_second_from_hiphive(finite_difference)
+        finite_difference.second_order = second_order
+      if 'model3.fcs' in os.listdir(str(folder)):
+        # Derive constants used for third-order reshape
+        supercell = np.array(supercell)
+        n_prim = atoms.copy().get_masses().shape[0]
+        n_sc = np.prod(supercell)
+        dim = len(supercell[supercell > 1])
+        third_order = hiphive_io.import_third_from_hiphive(finite_difference)
+        finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim,
+            n_sc*n_prim*dim)
+      return finite_difference
+		
 
     @property
     def atoms(self):
