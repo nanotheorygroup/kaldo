@@ -20,7 +20,6 @@ def phonons():
     # # Create a phonon object
     phonons = Phonons(finite_difference=finite_difference,
                       is_classic=False,
-                      folder='temp',
                       storage='memory')
     return phonons
 
@@ -28,7 +27,7 @@ def phonons():
 def test_af_conductivity_50(phonons):
     phonons.temperature = 50
     phonons.diffusivity_bandwidth = 0.025
-    cond = Conductivity(phonons=phonons, method='qhgk').conductivity.sum(axis=0).diagonal().mean()
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0).diagonal().mean()
     expected_cond = 0.098
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
 
@@ -36,7 +35,7 @@ def test_af_conductivity_50(phonons):
 def test_af_conductivity_300(phonons):
     phonons.temperature = 300
     phonons.diffusivity_bandwidth = 0.025
-    cond = Conductivity(phonons=phonons, method='qhgk').conductivity.sum(axis=0).diagonal().mean()
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0).diagonal().mean()
     expected_cond = 0.532
     np.testing.assert_approx_equal(cond, expected_cond, significant=2)
 

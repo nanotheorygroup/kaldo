@@ -121,3 +121,4 @@ def allowed_index_qpp(index_q, is_plus, kpts):
     qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
     index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
     return index_qpp_full
+
