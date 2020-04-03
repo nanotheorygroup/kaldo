@@ -11,6 +11,7 @@ def gaussian_delta(delta_omega, sigma, delta_threshold=None, is_rescaling=IS_DEF
     if delta_threshold is None or is_rescaling == False:
         return gaussian
     else:
+        logging.log('Rescaling gaussian')
         return gaussian / (scipy.special.erf(delta_threshold))
 
 
@@ -31,4 +32,5 @@ def lorentz_delta(delta_omega, sigma, delta_threshold=None, is_rescaling=IS_DEFA
     if delta_threshold is None or is_rescaling == False:
         return lorentzian
     else:
+        logging.log('Rescaling lorentzian')
         return lorentzian / (2 / np.pi * np.arctan(2 * delta_threshold))
