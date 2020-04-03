@@ -53,6 +53,12 @@ class Phonons:
             thermal conductivity in amorphous systems. Units: rad/ps
         diffusivity_threshold (optional) : float
             This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
+        diffusivity_shape (optional) : string
+            defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
+            Default is `lorentz`.
+        is_diffusivity_including_antiresonant (optional) : bool
+            defines if you want to include or not anti-resonant terms in diffusivity calculations.
+            Default is `False`.
         broadening_shape (optional) : string
             defines the algorithm to use to calculate the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.
             Default is `gauss`.
@@ -87,8 +93,10 @@ class Phonons:
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
+        self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
         self.storage = kwargs.pop('storage', 'numpy')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
+        self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)

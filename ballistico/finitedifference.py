@@ -14,6 +14,7 @@ import ballistico.helpers.shengbte_io as shengbte_io
 from ballistico.helpers.tools import convert_to_poscar, wrap_coordinates
 import h5py
 import ase.units as units
+from ballistico.grid import Grid
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -125,30 +126,11 @@ class FiniteDifference(object):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
+        self._space_grid = Grid(supercell, is_centering=False, order='F')
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
-        self.calculator = calculator
         self.cell_inv = np.linalg.inv(self.atoms.cell)
-        self.second_order_delta = delta_shift
-        self.third_order_delta = delta_shift
-        self.optimization_method = optimization_method
-        if calculator:
-            if calculator_inputs:
-                calculator_inputs['keep_alive'] = True
-                self.calculator_inputs = calculator_inputs
-            self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
-            if third_order_symmerty_inputs is not None:
-                self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
-                for k, v in third_order_symmerty_inputs.items():
-                    self.third_order_symmerty_inputs[k.upper()] = v
-            else:
-                self.third_order_symmerty_inputs = None
-
-            # Optimize the structure if optimizing flag is turned to true
-            # and the calculation is set to start from the starch:
-            if self.optimization_method is not None:
-                self.optimize()
 
         self.folder = folder
         self.is_reduced_second = is_reduced_second
@@ -165,6 +147,33 @@ class FiniteDifference(object):
             self.second_order = second_order
         if third_order is not None:
             self.third_order = third_order
+
+        # Initialize calculator
+        if calculator:
+            self._is_able_to_calculate = True
+            self.calculator = calculator
+            self.second_order_delta = delta_shift
+            self.third_order_delta = delta_shift
+            self.optimization_method = optimization_method
+            if calculator_inputs is not None:
+                calculator_inputs['keep_alive'] = True
+                self.calculator_inputs = calculator_inputs
+                self.atoms.set_calculator(self.calculator(**self.calculator_inputs))
+            else:
+                self.calculator_inputs = None
+                self.atoms.set_calculator(self.calculator())
+            if third_order_symmerty_inputs is not None:
+                self.third_order_symmerty_inputs = third_order_symmerty_inputs.copy()
+                for k, v in third_order_symmerty_inputs.items():
+                    self.third_order_symmerty_inputs[k.upper()] = v
+            else:
+                self.third_order_symmerty_inputs = None
+
+            # Optimize the structure if optimizing flag is turned to true
+            # and the calculation is set to start from the starch:
+            if self.optimization_method is not None:
+                self.optimize()
+
 
 
     @classmethod
@@ -541,8 +550,13 @@ class FiniteDifference(object):
         # try load in from the provided xyz file
         if self._replicated_atoms is None:
             self.replicated_atoms = self.gen_supercell()
-            if self.calculator:
-                self.replicated_atoms.set_calculator(self.calculator(**self.calculator_inputs))
+            try:
+                if self.calculator_inputs is not None:
+                    self.replicated_atoms.set_calculator(self.calculator(**self.calculator_inputs))
+                else:
+                    self.replicated_atoms.set_calculator(self.calculator())
+            except AttributeError:
+                logging.info('No calculator found')
         return self._replicated_atoms
 
 
@@ -595,16 +609,8 @@ class FiniteDifference(object):
 
 
     def calculate_list_of_replicas(self):
-        n_replicas = self.n_replicas
-        n_unit_atoms = self.atoms.positions.shape[0]
-        # Create list of index
-        replicated_atoms = self.replicated_atoms
-        replicated_cell = replicated_atoms.cell
-        replicated_cell_inv = np.linalg.inv(replicated_cell)
-        replica_positions = replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3)) - self.atoms.positions[np.newaxis, :, :]
-        replica_positions = wrap_coordinates(replica_positions, replicated_cell, replicated_cell_inv)
-        list_of_replicas = replica_positions[:, 0, :]
-        return list_of_replicas
+        list_of_index = self._space_grid.grid(is_wrapping=True)
+        return list_of_index.dot(self.atoms.cell)
 
 
     def gen_supercell(self):
@@ -612,7 +618,9 @@ class FiniteDifference(object):
         """
         supercell = self.supercell
         atoms = self.atoms
-        replicated_atoms = atoms.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
+        replicated_atoms = atoms.copy() * (supercell[0], supercell[1], supercell[2])
+        replicated_positions = self._space_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
+        replicated_atoms.set_positions(replicated_positions.reshape(self.n_replicas * self.n_atoms, 3))
         return replicated_atoms
 
 
