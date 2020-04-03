@@ -15,7 +15,6 @@ from ballistico.helpers.tools import convert_to_poscar, wrap_coordinates
 import h5py
 import ase.units as units
 from ballistico.helpers.logger import get_logger
-from hiphive import ForceConstants
 logging = get_logger()
 
 
