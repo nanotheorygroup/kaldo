@@ -29,19 +29,19 @@ def phonons():
 
 
 def test_sc_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method='sc', max_n_iterations=71,storage = 'memory').conductivity
+    cond = Conductivity(phonons=phonons, method='sc', max_n_iterations=71, storage='memory').conductivity
     cond = np.abs(np.mean(cond.sum(axis=0).diagonal()))
     np.testing.assert_approx_equal(cond, 255, significant=3)
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method='qhgk',storage = 'memory').conductivity.sum(axis=0)
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 230, significant=3)
 
 
 def test_rta_conductivity(phonons):
-    cond = np.abs(np.mean(Conductivity(phonons=phonons, method='rta',storage = 'memory').conductivity.sum(axis=0).diagonal()))
+    cond = np.abs(np.mean(Conductivity(phonons=phonons, method='rta', storage='memory').conductivity.sum(axis=0).diagonal()))
     np.testing.assert_approx_equal(cond, 226, significant=3)
 
 
