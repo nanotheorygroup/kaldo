@@ -1,18 +1,5 @@
 import numpy as np
-
-
-
-def wrap_coordinates(dxij, cell=None, cell_inv=None):
-    # exploit periodicity to calculate the shortest distance, which may not be the one we have
-    if cell is not None and cell_inv is None:
-        cell_inv = np.linalg.inv(cell)
-    if cell is not None:
-        dxij = dxij.dot(cell_inv)
-    dxij = dxij - np.round(dxij)
-    if cell is not None:
-        dxij = dxij.dot(cell)
-    return dxij
-
+from ballistico.helpers.tools import wrap_coordinates
 
 class Grid:
     def __init__(self, grid_shape, is_centering, order='C'):
