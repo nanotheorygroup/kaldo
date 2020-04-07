@@ -143,7 +143,7 @@ class FiniteDifference(object):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
-        self._space_grid = Grid(supercell, is_centering=False, order='F')
+        self._direct_grid = Grid(supercell, is_centering=False, order='F')
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
@@ -626,7 +626,7 @@ class FiniteDifference(object):
 
 
     def calculate_list_of_replicas(self):
-        list_of_index = self._space_grid.grid(is_wrapping=True)
+        list_of_index = self._direct_grid.grid(is_wrapping=True)
         return list_of_index.dot(self.atoms.cell)
 
 
@@ -636,7 +636,7 @@ class FiniteDifference(object):
         supercell = self.supercell
         atoms = self.atoms
         replicated_atoms = atoms.copy() * (supercell[0], supercell[1], supercell[2])
-        replicated_positions = self._space_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
+        replicated_positions = self._direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
         replicated_atoms.set_positions(replicated_positions.reshape(self.n_replicas * self.n_atoms, 3))
         return replicated_atoms
 

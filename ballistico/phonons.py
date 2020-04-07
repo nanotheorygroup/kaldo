@@ -85,7 +85,7 @@ class Phonons:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)
         self.kpts = kwargs.pop('kpts', (1, 1, 1))
-        self._space_grid = Grid(self.kpts, is_centering=False, order='C')
+        self._reciprocal_grid = Grid(self.kpts, is_centering=False, order='C')
 
         self.kpts = np.array(self.kpts)
 
@@ -357,7 +357,7 @@ class Phonons:
 
     @property
     def _main_q_mesh(self):
-        return self._space_grid.unitary_grid()
+        return self._reciprocal_grid.unitary_grid()
 
 
     @property
