@@ -344,7 +344,7 @@ class Phonons:
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
-            k_point = self._reciprocal_grid.q_vec_from_q_index(index_q)
+            k_point = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
             chi[index_q] = self.chi(k_point)
         return chi
 
@@ -413,3 +413,12 @@ class Phonons:
             ps_and_gamma = aha.project_crystal(self)
         return ps_and_gamma
 
+
+    def _allowed_third_phonons_index(self, index_q, is_plus):
+        q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
+        qp_vec = self._reciprocal_grid.unitary_grid()
+        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
+        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
+        rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
+        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise')
+        return index_qpp_full
