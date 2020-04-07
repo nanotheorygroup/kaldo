@@ -1,5 +1,5 @@
 from opt_einsum import contract
-from ballistico.helpers.tools import wrap_coordinates
+from ballistico.grid import wrap_coordinates
 from scipy.linalg.lapack import dsyev
 import numpy as np
 import ase.units as units

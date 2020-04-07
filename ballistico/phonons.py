@@ -4,7 +4,6 @@ Anharmonic Lattice Dynamics
 """
 from ballistico.helpers.storage import is_calculated
 from ballistico.helpers.storage import lazy_property
-from ballistico.helpers.tools import q_vec_from_q_index
 from ballistico.helpers.storage import DEFAULT_STORE_FORMATS
 from ballistico.grid import Grid
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
@@ -345,7 +344,7 @@ class Phonons:
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
-            k_point = q_vec_from_q_index(index_q, self.kpts)
+            k_point = self._reciprocal_grid.q_vec_from_q_index(index_q)
             chi[index_q] = self.chi(k_point)
         return chi
 

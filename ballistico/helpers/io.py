@@ -6,7 +6,8 @@ import numpy as np
 from sparse import COO
 import pandas as pd
 import ase.units as units
-from ballistico.helpers.tools import count_rows, wrap_coordinates
+from ballistico.helpers.tools import count_rows
+from ballistico.grid import wrap_coordinates
 import re
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
