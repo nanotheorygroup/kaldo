@@ -30,6 +30,11 @@ class Grid:
         return np.rint(index_grid).astype(np.int)
 
 
+    def id_to_unitary_grid_index(self, id):
+        q_vec = self.id_to_grid_index(id) / self.grid_shape
+        return q_vec
+
+
     def generate_index_grid(self):
         ids = np.arange(self.grid_size)
         grid = self.id_to_grid_index(ids)
@@ -50,28 +55,3 @@ class Grid:
             index_grid = wrap_coordinates(index_grid, np.diag(self.grid_shape))
         return np.rint(index_grid).astype(np.int)
 
-
-
-    def q_index_from_q_vec(self, q_vec):
-        kpts = self.grid_shape
-        rescaled_qpp = np.round((q_vec * kpts).T, 0).astype(np.int)
-        q_index = np.ravel_multi_index(rescaled_qpp, kpts, mode='wrap')
-        return q_index
-
-
-    def q_vec_from_q_index(self, q_index):
-        kpts = self.grid_shape
-        q_vec = np.array(np.unravel_index(q_index, (kpts))).T / kpts
-        wrap_coordinates(q_vec)
-        return q_vec
-
-
-    def allowed_index_qpp(self, index_q, is_plus):
-        kpts = self.grid_shape
-        n_k_points = np.prod(kpts)
-        index_qp_full = np.arange(n_k_points)
-        q_vec = self.q_vec_from_q_index(index_q)
-        qp_vec = self.q_vec_from_q_index(index_qp_full)
-        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        index_qpp_full = self.q_index_from_q_vec(qpp_vec)
-        return index_qpp_full

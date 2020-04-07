@@ -108,7 +108,7 @@ def project_crystal(phonons):
                 if not out:
                     continue
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
-                index_kpp_full = phonons._reciprocal_grid.allowed_index_qpp(index_k, is_plus)
+                index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
                 if is_plus:
                     #TODO: This can be faster using the contract opt_einsum
                     chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k, phonons._chi_k[index_kpp_full].conj())
@@ -168,7 +168,7 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
     else:
         raise TypeError('Broadening shape not supported')
 
-    index_qpp_full = phonons._reciprocal_grid.allowed_index_qpp(index_q, is_plus)
+    index_qpp_full = phonons._allowed_third_phonons_index(index_q, is_plus)
     if phonons.third_bandwidth is None:
         sigma_small = calculate_broadening(phonons, index_qpp_full)
     else:
