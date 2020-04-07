@@ -30,17 +30,6 @@ def count_rows(filename):
     return sum(buf.count(b'\n') for buf in bufgen if buf)
 
 
-def wrap_coordinates(dxij, cell=None, cell_inv=None):
-    # exploit periodicity to calculate the shortest distance, which may not be the one we have
-    if cell is not None and cell_inv is None:
-        cell_inv = np.linalg.inv(cell)
-    if cell is not None:
-        dxij = dxij.dot(cell_inv)
-    dxij = dxij - np.round(dxij)
-    if cell is not None:
-        dxij = dxij.dot(cell)
-    return dxij
-
 
 def convert_to_spg_structure(atoms):
     cell = atoms.cell
@@ -48,27 +37,4 @@ def convert_to_spg_structure(atoms):
     spg_struct = (cell, scaled_positions, atoms.get_atomic_numbers())
     return spg_struct
 
-
-def q_index_from_q_vec(q_vec, kpts):
-    # the input q_vec is in the unit sphere
-    rescaled_qpp = np.round((q_vec * kpts).T, 0).astype(np.int)
-    q_index = np.ravel_multi_index(rescaled_qpp, kpts, mode='wrap')
-    return q_index
-
-
-def q_vec_from_q_index(q_index, kpts):
-    # the output q_vec is in the unit sphere
-    q_vec = np.array(np.unravel_index(q_index, (kpts))).T / kpts
-    wrap_coordinates(q_vec)
-    return q_vec
-
-
-def allowed_index_qpp(index_q, is_plus, kpts):
-    n_k_points = np.prod(kpts)
-    index_qp_full = np.arange(n_k_points)
-    q_vec = q_vec_from_q_index(index_q, kpts)
-    qp_vec = q_vec_from_q_index(index_qp_full, kpts)
-    qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-    index_qpp_full = q_index_from_q_vec(qpp_vec, kpts)
-    return index_qpp_full
 
