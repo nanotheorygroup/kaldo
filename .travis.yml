@@ -13,12 +13,12 @@ matrix:
       env: PYTHON_VER=3.7
 
 
+    # Pip can use Travis build-in Python
     - os: linux
-      language: generic  # No need to set Python version since its conda
-      env: PYTHON_VER=3.6
+      python: 3.6
     - os: linux
-      language: generic
-      env: PYTHON_VER=3.7
+      dist: xenial  # Travis Trusty image does not have Python 3.7, Xenial does
+      python: 3.7
 
 
 before_install:
@@ -31,22 +31,19 @@ before_install:
   - source devtools/travis-ci/before_install.sh
   - python -V
 
+
 install:
 
-    # Create test environment for package
-  - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
-    # Activate the test environment
-  - conda activate test
-  - pip install pytest
-    # Build and install package
-  - python setup.py develop
+    # Install the package locally
+  - pip install -U pytest pytest-cov codecov
+  - pip install -e .
 
 
 script:
   - pytest -v --cov=ballistico ballistico/tests/
 
 notifications:
-    email: true
+    email: false
 
 after_success:
   - codecov
