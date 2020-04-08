@@ -4,8 +4,8 @@ Anharmonic Lattice Dynamics
 """
 from ballistico.helpers.storage import is_calculated
 from ballistico.helpers.storage import lazy_property
-from ballistico.helpers.tools import q_vec_from_q_index
 from ballistico.helpers.storage import DEFAULT_STORE_FORMATS
+from ballistico.grid import Grid
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
@@ -84,7 +84,10 @@ class Phonons:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)
         self.kpts = kwargs.pop('kpts', (1, 1, 1))
+        self._reciprocal_grid = Grid(self.kpts, is_centering=False, order='C')
+
         self.kpts = np.array(self.kpts)
+
         self.min_frequency = kwargs.pop('min_frequency', None)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
@@ -341,7 +344,7 @@ class Phonons:
     def _chi_k(self):
         chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
         for index_q in range(self.n_k_points):
-            k_point = q_vec_from_q_index(index_q, self.kpts)
+            k_point = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
             chi[index_q] = self.chi(k_point)
         return chi
 
@@ -353,8 +356,7 @@ class Phonons:
 
     @property
     def _main_q_mesh(self):
-        q_mesh = q_vec_from_q_index(np.arange(self.n_k_points), self.kpts)
-        return q_mesh
+        return self._reciprocal_grid.unitary_grid()
 
 
     @property
@@ -411,3 +413,12 @@ class Phonons:
             ps_and_gamma = aha.project_crystal(self)
         return ps_and_gamma
 
+
+    def _allowed_third_phonons_index(self, index_q, is_plus):
+        q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
+        qp_vec = self._reciprocal_grid.unitary_grid()
+        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
+        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
+        rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
+        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise')
+        return index_qpp_full

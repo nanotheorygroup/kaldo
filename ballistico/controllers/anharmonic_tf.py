@@ -105,7 +105,7 @@ def project_crystal(phonons):
 
 
         for is_plus in (0, 1):
-            index_kpp_full = allowed_index_qpp(index_k, is_plus, phonons.kpts)
+            index_kpp_full = phonons._reciprocal_grid.allowed_index_qpp(index_k, is_plus)
             index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
             out = calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
             if not out:

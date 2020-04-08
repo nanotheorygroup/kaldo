@@ -11,7 +11,6 @@ from scipy.sparse import load_npz, save_npz
 from sparse import COO
 import ballistico.helpers.io as io
 import ballistico.helpers.shengbte_io as shengbte_io
-from ballistico.helpers.tools import convert_to_poscar, wrap_coordinates
 import h5py
 import ase.units as units
 from ballistico.grid import Grid
@@ -41,6 +40,24 @@ THIRD_ORDER_FILE = 'third.npy'
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 SECOND_ORDER_WITH_PROGRESS_FILE = 'second_order_progress.hdf5'
 THIRD_ORDER_WITH_PROGRESS_FILE = 'third_order_progress'
+
+
+def convert_to_poscar(atoms, supercell=None):
+    list_of_types = []
+    for symbol in atoms.get_chemical_symbols():
+        for i in range(np.unique(atoms.get_chemical_symbols()).shape[0]):
+            if np.unique(atoms.get_chemical_symbols())[i] == symbol:
+                list_of_types.append(str(i))
+
+    poscar = {'lattvec': atoms.cell / 10,
+              'positions': (atoms.positions.dot(np.linalg.inv(atoms.cell))).T,
+              'elements': atoms.get_chemical_symbols(),
+              'types': list_of_types}
+    if supercell is not None:
+        poscar['na'] = supercell[0]
+        poscar['nb'] = supercell[1]
+        poscar['nc'] = supercell[2]
+    return poscar
 
 
 def calculate_symmetrize_dynmat(finite_difference):
@@ -126,7 +143,7 @@ class FiniteDifference(object):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
-        self._space_grid = Grid(supercell, is_centering=False, order='F')
+        self._direct_grid = Grid(supercell, is_centering=False, order='F')
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
@@ -609,7 +626,7 @@ class FiniteDifference(object):
 
 
     def calculate_list_of_replicas(self):
-        list_of_index = self._space_grid.grid(is_wrapping=True)
+        list_of_index = self._direct_grid.grid(is_wrapping=True)
         return list_of_index.dot(self.atoms.cell)
 
 
@@ -619,7 +636,7 @@ class FiniteDifference(object):
         supercell = self.supercell
         atoms = self.atoms
         replicated_atoms = atoms.copy() * (supercell[0], supercell[1], supercell[2])
-        replicated_positions = self._space_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
+        replicated_positions = self._direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
         replicated_atoms.set_positions(replicated_positions.reshape(self.n_replicas * self.n_atoms, 3))
         return replicated_atoms
 

@@ -1,7 +1,6 @@
 import numpy as np
 
 
-
 def wrap_coordinates(dxij, cell=None, cell_inv=None):
     # exploit periodicity to calculate the shortest distance, which may not be the one we have
     if cell is not None and cell_inv is None:
@@ -12,6 +11,7 @@ def wrap_coordinates(dxij, cell=None, cell_inv=None):
     if cell is not None:
         dxij = dxij.dot(cell)
     return dxij
+
 
 
 class Grid:
@@ -28,6 +28,11 @@ class Grid:
         if self.is_centering:
             index_grid = index_grid - np.rint(np.array(grid_shape)[np.newaxis, :] / 2)
         return np.rint(index_grid).astype(np.int)
+
+
+    def id_to_unitary_grid_index(self, id):
+        q_vec = self.id_to_grid_index(id) / self.grid_shape
+        return q_vec
 
 
     def generate_index_grid(self):
