@@ -226,6 +226,8 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         broadening_function = gaussian_delta
     elif phonons.broadening_shape == 'triangle':
         broadening_function = triangular_delta
+    elif phonons.broadening_shape == 'lorentz':
+        broadening_function = triangular_delta
     else:
         raise TypeError('Broadening shape not supported')
     physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
