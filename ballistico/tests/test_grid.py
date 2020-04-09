@@ -257,14 +257,8 @@ k_grid = np.array([[-0.4, -0.4, -0.4],
 
 def test_r_mesh():
     grid_shape = (5, 5, 5)
-    generated_grid = Grid(grid_shape=grid_shape, order='C', is_centering=False)
+    generated_grid = Grid(grid_shape=grid_shape, order='C')
     np.testing.assert_equal(replica_grid, generated_grid.grid(is_wrapping=True))
-
-
-def test_q_mesh():
-    grid_shape = (5, 5, 5)
-    generated_grid = Grid(grid_shape=grid_shape, order='C', is_centering=True)
-    np.testing.assert_equal(k_grid, generated_grid.unitary_grid(is_wrapping=False))
 
 
 def test_ase_grid():
@@ -276,7 +270,7 @@ def test_ase_grid():
     ase_calculated_replica = np.round(replicated_atoms.positions.dot(np.linalg.inv(atoms.cell)), 5) \
                                  .reshape(supercell[0], supercell[1], supercell[2], n_atoms, 3)
 
-    space_grid = Grid(supercell, is_centering=False, order='F')
+    space_grid = Grid(supercell, order='F')
     fd_calculated_replica = (space_grid.grid()[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell)) \
         [np.newaxis, :, :]).reshape(supercell[0],supercell[1],supercell[2],n_atoms, 3)
     np.testing.assert_array_almost_equal(ase_calculated_replica, fd_calculated_replica)
