@@ -143,7 +143,7 @@ class FiniteDifference(object):
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
-        self._direct_grid = Grid(supercell, is_centering=False, order='F')
+        self._direct_grid = Grid(supercell, order='F')
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
