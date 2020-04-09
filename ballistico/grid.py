@@ -15,18 +15,15 @@ def wrap_coordinates(dxij, cell=None, cell_inv=None):
 
 
 class Grid:
-    def __init__(self, grid_shape, is_centering, order='C'):
+    def __init__(self, grid_shape, order='C'):
         self.grid_shape = grid_shape
         self.grid_size = grid_shape[0] * grid_shape[1] * grid_shape[2]
-        self.is_centering = is_centering
         self.order = order
 
 
     def id_to_grid_index(self, id):
         grid_shape = self.grid_shape
         index_grid = np.array(np.unravel_index(id, grid_shape, order=self.order)).T
-        if self.is_centering:
-            index_grid = index_grid - np.rint(np.array(grid_shape)[np.newaxis, :] / 2)
         return np.rint(index_grid).astype(np.int)
 
 
