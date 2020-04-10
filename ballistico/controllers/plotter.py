@@ -182,6 +182,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5, with
     if not os.path.exists(folder):
         os.makedirs(folder)
     fig1.savefig (folder + '/' + 'dispersion' + '.pdf')
+    print('dispersion plotted')
+
     if is_showing:
         plt.show()
     if with_velocity:
@@ -196,6 +198,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5, with
             fig2.savefig(folder + '/' + 'velocity.pdf')
             if is_showing:
                 plt.show()
+            print('velocity plotted')
 
         fig2 = plt.figure ()
         plt.ylabel('$|v|$/($100m/s$)', fontsize=25, fontweight='bold')
