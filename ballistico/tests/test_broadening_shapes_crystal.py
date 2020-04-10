@@ -28,7 +28,7 @@ def phonons():
 
 def test_triangle_broadening(phonons):
     phonons.broadening_shape='triangle'
-    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.120867, significant=5)
+    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.10344, significant=5)
 
 def test_gaussian_broadening(phonons):
     phonons.broadening_shape='gauss'
