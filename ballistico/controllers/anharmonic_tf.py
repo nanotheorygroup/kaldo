@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 import ase.units as units
-from ballistico.helpers.tools import timeit, allowed_index_qpp
+from ballistico.helpers.tools import timeit
 import tensorflow as tf
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
@@ -105,7 +105,7 @@ def project_crystal(phonons):
 
 
         for is_plus in (0, 1):
-            index_kpp_full = phonons._reciprocal_grid.allowed_index_qpp(index_k, is_plus)
+            index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
             index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
             out = calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
             if not out:
