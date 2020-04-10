@@ -281,7 +281,6 @@ class FiniteDifference(object):
                 second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
 
             logging.info('Is reduced second: ' + str(is_reduced_second))
-            # second_dl = second_dl.reshape(second_shape)
             fd.second_order = second_dl
             fd.is_reduced_second = is_reduced_second
 
@@ -1000,10 +999,7 @@ class FiniteDifference(object):
 
     def calculate_dynamical_matrix(self):
         atoms = self.atoms
-        second_order = self.second_order.copy()
-        n_atoms = self.n_atoms
-        n_replicas = self.n_replicas
-        dynmat = second_order
+        dynmat = self.second_order.copy()
         mass = np.sqrt(atoms.get_masses())
         dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
         dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]

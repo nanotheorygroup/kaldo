@@ -386,7 +386,7 @@ class Phonons:
     def chi(self, qvec):
         dxij = self.finite_difference.list_of_replicas
         cell_inv = self.finite_difference.cell_inv
-        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.T.dot(qvec)))
+        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
         return chi_k
 
 
