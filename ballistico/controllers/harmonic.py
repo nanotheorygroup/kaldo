@@ -187,28 +187,6 @@ def calculate_velocity(phonons, q_points=None):
     velocity = 1j * contract('kmma->kma', velocity_AF)
     return velocity.real
 
-def second_fold(phonons, qvec):
-    distance_threshold = phonons.finite_difference.distance_threshold
-    n_unit_atoms = phonons.finite_difference.n_atoms
-    atoms = phonons.finite_difference.atoms
-    dynmat = phonons.finite_difference.dynmat
-    replicated_positions = phonons.finite_difference.list_of_replicas[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
-    dxij = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
-    mask = np.linalg.norm(dxij, axis=-1) < distance_threshold
-    indices = np.argwhere(mask)
-    dyn_s = np.zeros((n_unit_atoms, 3, n_unit_atoms, 3), dtype=np.complex)
-
-    for index in indices:
-        for alpha in range(3):
-            for beta in range(3):
-
-                if not(index[1] == 0 and (index[2] == index[0]) and (alpha==beta)):
-                    dyn_s[index[0], alpha, index[2], beta] += dynmat[0, index[0], alpha, 0, index[2], beta] * phonons.chi(qvec)[index[1]]
-                    # print('-')
-    return dyn_s
-
-    # logging.info('Created unfolded third order')
-
 
 def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     is_main_mesh = True if q_points is None else False
@@ -231,30 +209,27 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
         esystem = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
     else:
         esystem = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
+
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
-        is_at_gamma = (qvec == (0, 0, 0)).all()
         dynmat = phonons.finite_difference.dynmat
-        # if is_at_gamma:
-        #     dyn_s = contract('ialjb->iajb', dynmat)
-        # else:
-        # TODO: the following espression could be done on the whole main_q_mesh
-        # dyn_s = contract('ialjb,l->iajb', dynmat, phonons.chi(qvec))
-        dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-
         if phonons.finite_difference.distance_threshold:
-            dyn_s = second_fold(phonons, qvec)
-            # n_replicas = phonons.finite_difference.n_replicas
-            # replicated_positions = phonons.finite_difference.replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
-            # # replicated_positions = (phonons.finite_difference.list_of_replicas[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]).reshape((n_replicas, n_unit_cell, 3))
-            #
-            # for i in range(n_unit_cell):
-            #     for l in range(n_replicas):
-            #         distance = np.linalg.norm(replicated_positions[0, i, :] - replicated_positions[l, :, :], axis=-1)
-            #         mask = (distance < phonons.finite_difference.distance_threshold)
-            #         id_j = np.argwhere(mask).T
-            #         dyn_s[i, :, id_j, :] += dynmat[0, i, :, 0, id_j, :] * phonons.chi(qvec)[l]
-
+            dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
+            n_replicas = phonons.finite_difference.n_replicas
+            replicated_positions = (phonons.finite_difference.list_of_replicas[:, np.newaxis, :] +
+                                    atoms.positions[np.newaxis, :, :]).reshape((n_replicas, n_unit_cell, 3))
+            for i in range(n_unit_cell):
+                for l in range(n_replicas):
+                    distance = np.linalg.norm(replicated_positions[0, i, :] - replicated_positions[l, :, :], axis=-1)
+                    mask = (distance < phonons.finite_difference.distance_threshold)
+                    id_j = np.argwhere(mask).T
+                    dyn_s[i, :, id_j, :] += dynmat[0, i, :, 0, id_j, :] * phonons.chi(qvec)[l]
+        else:
+            is_at_gamma = (qvec == (0, 0, 0)).all()
+            if is_at_gamma:
+                dyn_s = contract('ialjb->iajb', dynmat)
+            else:
+                dyn_s = contract('ialjb,l->iajb', dynmat, phonons.chi(qvec))
         dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes))
         if phonons.is_symmetrizing_frequency:
             dyn_s = 0.5 * (dyn_s + dyn_s.T.conj())
