@@ -29,9 +29,13 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     dynamical_matrix = dynamical_matrix_frame.values
     n_replicas = np.prod(supercell)
     if dynamical_matrix.size == n_replicas * (n_atoms * 3) ** 2:
-        dynamical_matrix = dynamical_matrix.reshape((1, n_atoms, 3, n_replicas, n_atoms, 3))
+        dynamical_matrix = dynamical_matrix.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
+    elif dynamical_matrix.size == (n_replicas * n_atoms * 3) ** 2:
+        dynamical_matrix = dynamical_matrix.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))[0]
+    elif dynamical_matrix.size == (n_atoms * 3) ** 2:
+        dynamical_matrix = dynamical_matrix.reshape((n_atoms, 3, 1, n_atoms, 3))
     else:
-        dynamical_matrix = dynamical_matrix.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))
+        logging.error('Impossible to read dynmat with size ' + str(dynamical_matrix.size))
     return dynamical_matrix * tenjovermoltoev
 
 
