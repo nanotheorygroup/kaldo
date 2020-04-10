@@ -281,7 +281,7 @@ class FiniteDifference(object):
                 second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
 
             logging.info('Is reduced second: ' + str(is_reduced_second))
-            second_dl = second_dl.reshape(second_shape)
+            # second_dl = second_dl.reshape(second_shape)
             fd.second_order = second_dl
             fd.is_reduced_second = is_reduced_second
 
@@ -1003,12 +1003,7 @@ class FiniteDifference(object):
         second_order = self.second_order.copy()
         n_atoms = self.n_atoms
         n_replicas = self.n_replicas
-        is_second_reduced = (second_order.size == n_atoms * 3 * n_replicas * n_atoms * 3)
-        if is_second_reduced:
-            dynmat = second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
-        else:
-            dynmat = second_order.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))[0]
-
+        dynmat = second_order
         mass = np.sqrt(atoms.get_masses())
         dynmat /= mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
         dynmat /= mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
