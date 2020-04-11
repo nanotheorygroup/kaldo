@@ -241,7 +241,7 @@ class Conductivity:
         Returns
         -------
         conductivity_per_mode : np.array
-            (n_phonons, 3, 3)
+            (n_phonons, 3, 3) W/m/K
         """
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell)
@@ -255,10 +255,13 @@ class Conductivity:
     
     def calculate_mfp_inverse(self):
         """
-        This method calculates the inverse of the mean free path for each phonon
+        This method calculates the inverse of the mean free path for each phonon.
+        The matrix returns k vectors for each mode and has units of inverse Angstroms.
 
         Returns
         -------
+        lambda : np array
+            (n_k_points, n_modes)
 
         """
         length = self.length
@@ -298,6 +301,15 @@ class Conductivity:
     
     
     def calculate_mfp_relaxons(self):
+        """
+        This calculates the mean free path of relaxons. In materials where most scattering events conserve momentum
+        :ref:'Relaxon Theory Section' (e.g. in two dimensional materials or three dimensional materials at extremely low
+        temparatures), this quantity can be used to calculate thermal conductivity.
+
+        :return:
+        lamnda : np array
+            (n_k_points, n_modes, 3)
+        """
         phonons = self.phonons
         velocity = self._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3)))
         scattering_matrix = -1 * self._scattering_matrix_without_diagonal
