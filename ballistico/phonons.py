@@ -88,7 +88,7 @@ class Phonons:
 
         self.kpts = np.array(self.kpts)
 
-        self.min_frequency = kwargs.pop('min_frequency', None)
+        self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
         self.is_tf_backend = kwargs.pop('is_tf_backend', True)
