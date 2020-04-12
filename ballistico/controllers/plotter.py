@@ -124,7 +124,7 @@ def plot_dos(phonons, bandwidth=.1, is_showing=True):
     if is_showing:
         plt.show()
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5, with_velocity=True):
     #TODO: remove useless symmetry flag
     atoms = phonons.atoms
     fig1 = plt.figure ()
@@ -150,24 +150,26 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
 
     if phonons.is_able_to_calculate:
         freqs_plot = calculate_frequency(phonons, k_list)
-        vel_plot = calculate_velocity(phonons, k_list)
-        vel_norm = np.linalg.norm(vel_plot, axis=-1)
-        # print(vel_plot)
+        if with_velocity:
+            vel_plot = calculate_velocity(phonons, k_list)
+            vel_norm = np.linalg.norm(vel_plot, axis=-1)
     else:
         freqs_plot = np.zeros((k_list.shape[0], phonons.n_modes))
-        vel_plot = np.zeros((k_list.shape[0], phonons.n_modes, 3))
-        vel_norm = np.zeros((k_list.shape[0], phonons.n_modes))
 
         frequency = phonons.frequency.reshape((phonons.kpts[0], phonons.kpts[1],
                                                  phonons.kpts[2], phonons.n_modes))
-        velocity = phonons.velocity.reshape((phonons.kpts[0], phonons.kpts[1],
-                                               phonons.kpts[2], phonons.n_modes, 3))
+        if with_velocity:
+            vel_plot = np.zeros((k_list.shape[0], phonons.n_modes, 3))
+            vel_norm = np.zeros((k_list.shape[0], phonons.n_modes))
+
+            velocity = phonons.velocity.reshape((phonons.kpts[0], phonons.kpts[1],
+                                                   phonons.kpts[2], phonons.n_modes, 3))
         for mode in range(phonons.n_modes):
             freqs_plot[:, mode] = interpolator(k_list, frequency[..., mode], fourier_order=5, interpolation_order=2)
-
-            for alpha in range(3):
-                vel_plot[:, mode, alpha] = interpolator(k_list, velocity[..., mode, alpha], interpolation_order=0, is_wrapping=False)
-            vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocity[..., mode, :],axis=-1), interpolation_order=0, is_wrapping=False)
+            if with_velocity:
+                for alpha in range(3):
+                    vel_plot[:, mode, alpha] = interpolator(k_list, velocity[..., mode, alpha], interpolation_order=0, is_wrapping=False)
+                vel_norm[:, mode] = interpolator(k_list, np.linalg.norm(velocity[..., mode, :],axis=-1), interpolation_order=0, is_wrapping=False)
 
     plt.ylabel ('frequency/$THz$', fontsize=25, fontweight='bold')
     plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
@@ -180,32 +182,35 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-5):
     if not os.path.exists(folder):
         os.makedirs(folder)
     fig1.savefig (folder + '/' + 'dispersion' + '.pdf')
+    print('dispersion plotted')
+
     if is_showing:
         plt.show()
+    if with_velocity:
+        for alpha in range(3):
+            fig2 = plt.figure ()
+            plt.ylabel('v_$' + str(alpha) + '$/($100m/s$)', fontsize=25, fontweight='bold')
+            plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
+            plt.xticks(Q, point_names)
+            plt.xlim(q[0], q[-1])
+            plt.plot(q, vel_plot[:, :, alpha], '.', linewidth=1, markersize=4)
+            plt.grid()
+            fig2.savefig(folder + '/' + 'velocity.pdf')
+            if is_showing:
+                plt.show()
+            print('velocity plotted')
 
-    for alpha in range(3):
         fig2 = plt.figure ()
-        plt.ylabel('v_$' + str(alpha) + '$/($100m/s$)', fontsize=25, fontweight='bold')
+        plt.ylabel('$|v|$/($100m/s$)', fontsize=25, fontweight='bold')
         plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
+
         plt.xticks(Q, point_names)
         plt.xlim(q[0], q[-1])
-        plt.plot(q, vel_plot[:, :, alpha], '.', linewidth=1, markersize=4)
+        plt.plot(q, vel_norm[:, :], '.', linewidth=1, markersize=4)
         plt.grid()
         fig2.savefig(folder + '/' + 'velocity.pdf')
         if is_showing:
             plt.show()
-
-    fig2 = plt.figure ()
-    plt.ylabel('$|v|$/($100m/s$)', fontsize=25, fontweight='bold')
-    plt.xlabel('$\mathbf{q}$', fontsize=25, fontweight='bold')
-
-    plt.xticks(Q, point_names)
-    plt.xlim(q[0], q[-1])
-    plt.plot(q, vel_norm[:, :], '.', linewidth=1, markersize=4)
-    plt.grid()
-    fig2.savefig(folder + '/' + 'velocity.pdf')
-    if is_showing:
-        plt.show()
 
 def plot_crystal(phonons):
     plot_vs_frequency(phonons, phonons.diffusivity, 'diffusivity mm2overs')

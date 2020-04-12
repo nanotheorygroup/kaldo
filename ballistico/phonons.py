@@ -319,6 +319,11 @@ class Phonons:
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
+        # TODO: Here we unfold third if needed, a better solution would be to change the third order
+        # projection algorithm and avoid this costly unfloding. See the velocity algorithm.
+        if self.finite_difference.distance_threshold:
+            self.finite_difference.third_order = self.finite_difference.unfold_third_order()
+
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
                          format=self.store_format['_ps_gamma_and_gamma_tensor']):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
@@ -386,7 +391,7 @@ class Phonons:
     def chi(self, qvec):
         dxij = self.finite_difference.list_of_replicas
         cell_inv = self.finite_difference.cell_inv
-        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.T.dot(qvec)))
         return chi_k
 
 
