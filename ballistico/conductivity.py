@@ -205,33 +205,34 @@ class Conductivity:
         else:
             return operator[physical_modes]
 
-
-    def calculate_c_v_2d(self):
+    def calculate_c_v_cond(self):
         """
-        Calculates the constant-volume heat capacity for each mode at the temperature of the input phonons object.
+        Calculates the factor for the diffusivity which resembles the heat capacity.
         The array is returned in units of J/K.
 
         Returns
         -------
         c_v : np.array
-            (phonons.n_k_points, phonons.n_modes) float
+            (phonons.n_k_points,phonons.modes, phonons.n_modes) float
         """
         phonons = self.phonons
         frequencies = phonons.frequency
         c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
         temperature = phonons.temperature * KELVINTOTHZ
         physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    
+
         if (phonons.is_classic):
             c_v[:, :, :] = KELVINTOJOULE
         else:
             f_be = phonons.population
-            c_v_omega = KELVINTOJOULE * f_be * (f_be + 1) * frequencies / (temperature ** 2)
-            c_v_omega[np.invert(physical_modes)] = 0
-            freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :]) / 2 * (c_v_omega[:, :, np.newaxis] + c_v_omega[:, np.newaxis, :]) / 2
-            c_v[:, :, :] = freq_sq
+            c_v_omega = (f_be[:, :, np.newaxis]-f_be[:, np.newaxis,: ]) / \
+                        ( frequencies[:, np.newaxis, :]-frequencies[:, :, np.newaxis]  )
+            #remember here f_n-f_m/ w_m-w_n index reverted
+            c_v_omega=KELVINTOJOULE *c_v_omega/temperature
+            #c_v_omega[np.invert(physical_modes)] = 0 che fa questo? Chiedi a Giuseppe
+            freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :])**2
+            c_v = contract('knm,knm->knm', c_v_omega)
         return c_v
-
 
     def calculate_conductivity_qhgk(self):
         """
@@ -246,8 +247,8 @@ class Conductivity:
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell)
         diffusivity = phonons._generalized_diffusivity
-        heat_capacity = phonons.heat_capacity.reshape(phonons.n_k_points, phonons.n_modes)
-        conductivity_per_mode = contract('kn,knab->knab', heat_capacity, diffusivity)
+        heat_capacity =self.calculate_c_v_cond()
+        conductivity_per_mode = contract('knm,knmab->knab', heat_capacity, diffusivity)
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
         conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
         return conductivity_per_mode
