@@ -226,6 +226,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
         dynmat = phonons.finite_difference.dynmat
+        is_at_gamma = (qvec == (0, 0, 0)).all()
         if phonons.finite_difference.distance_threshold:
             distance_threshold = phonons.finite_difference.distance_threshold
             dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
@@ -239,7 +240,6 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
 
                 dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
         else:
-            is_at_gamma = (qvec == (0, 0, 0)).all()
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', dynmat[0])
             else:
