@@ -273,31 +273,30 @@ class FiniteDifference(object):
         fd = cls(**finite_difference)
 
         if dynmat_file:
+            logging.info('Reading dynamical matrix')
             second_dl = io.import_second(atoms, replicas=supercell, filename=dynmat_file)
             is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
-            if is_reduced_second:
-                second_shape = (1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
-            else:
-                second_shape = (n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
-
             logging.info('Is reduced second: ' + str(is_reduced_second))
-            fd.second_order = second_dl
             fd.is_reduced_second = is_reduced_second
+            logging.info('Dynamical matrix stored.')
 
         if third_file:
             try:
-                logging.info('Reading sparse third')
+                logging.info('Reading sparse third order')
                 third_dl = io.import_sparse_third(atoms=atoms,
                                                   supercell=supercell,
                                                   filename=third_file,
                                                   third_energy_threshold=third_energy_threshold,
                                                   distance_threshold=distance_threshold,
                                                   replicated_atoms=fd.replicated_atoms)
+                logging.info('Third order matrix stored.')
+
             except UnicodeDecodeError:
                 if third_energy_threshold != 0:
                     raise ValueError('Third threshold not supported for dense third')
-                logging.info('Trying reading binary third')
+                logging.info('Reading dense third order')
                 third_dl = io.import_dense_third(atoms, supercell=supercell, filename=third_file)
+                logging.info('Third order matrix stored.')
             third_dl = third_dl[:n_unit_atoms]
             third_shape = (
                 n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
