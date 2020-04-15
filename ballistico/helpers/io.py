@@ -20,7 +20,8 @@ def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     dyn_mat = import_dynamical_matrix(n_unit_cell, replicas, filename)
     mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    return dyn_mat * mass
+    dyn_mat = dyn_mat * mass
+    return dyn_mat
 
 
 def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
@@ -54,10 +55,8 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
     replicated_cell = replicated_atoms.cell
     replicated_cell_inv = np.linalg.inv(replicated_cell)
     replicated_atoms_positions = replicated_atoms.positions.reshape(
-        (n_replicas, n_atoms, 3)) - atoms.positions[np.newaxis, :, :]
-    replicated_atoms_positions = wrap_coordinates(replicated_atoms_positions, replicated_cell,
-                                                  replicated_cell_inv)
-    list_of_replicas = replicated_atoms_positions[:, 0, :]
+        (n_replicas, n_atoms, 3))
+
 
 
     with open(filename) as f:
@@ -76,7 +75,9 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
                 else:
 
                     l, jsmall = np.unravel_index(jat, (n_replicas, n_atoms))
-                    dxij = atoms.positions[iat] - (list_of_replicas[l] + atoms.positions[jsmall])
+                    dxij = atoms.positions[iat] - (replicated_atoms_positions[l, jsmall])
+                    dxij = wrap_coordinates(dxij, replicated_cell,
+                                                  replicated_cell_inv)
                     is_interacting = (np.linalg.norm(dxij) <= distance_threshold)
                     if is_interacting:
                         is_storing = True

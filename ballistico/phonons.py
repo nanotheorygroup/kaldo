@@ -396,7 +396,7 @@ class Phonons:
 
 
     def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
-        print('Projection started')
+        logging.info('Projection started')
         if self.is_tf_backend:
             try:
                 import ballistico.controllers.anharmonic_tf as aha
