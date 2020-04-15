@@ -5,48 +5,40 @@ Ballistico: Anharmonic Lattice Dynamics
 [![Travis Build Status](https://travis-ci.com/gbarbalinardo/ballistico.svg?token=EFWyhyp9aQcQnteZBpEr&branch=master)](https://travis-ci.com/gbarbalinardo/ballistico)
 [![codecov](https://codecov.io/gh/gbarbalinardo/ballistico/branch/master/graphs/badge.svg?token=tiC2xj2OQG)](https://codecov.io/gh/gbarbalinardo/ballistico/branch/master)
 
-# Quickstart
 
-### Install
-We recommend creating a new environment with Python 3.7.
-```bash
-conda create -n ballistico python=3.7
-```
-Alternatively you can use Python 3.6. The Tensorflow module doesn't seem to be compatible with Python 3.8, yet.
+### Introduction
 
-Ballistico installation can be done using `pip`
-```bash
-pip install ballistico
-```
-
-
-### Documentation
-
-A draft of the documentation can be found [here](http://169.237.38.203/ballistico/).
-
-
-### Examples
-
-Examples can be found in the `examples` folder. There are also two tutorials available in the documentation that can be run in [Binder](https://mybinder.org/) and [Google Colab](https://colab.research.google.com).
+Ballistico is a user-friendly Python code for atomistic thermal transport calculations. 
 
 
 ### Copyright
 
 Copyright (c) 2020, [Ballistico Developers](https://github.com/gbarbalinardo/ballistico/graphs/contributors)
 
-### References
-
-- Ballistico
-- ASE (link)
-- Lammps (link)
-- Quantum Espresso (link)
-- Seekpath
-- ThirdOrder (link)
-
 
 ### Acknowledgements
 
-We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.
+#### Funding
 
-Project based on the
-[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.1.
+We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech. 
+
+MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](https://molssi.org/software-projects/)
+
+#### Other codes
+
+We are thankful to the whole open-source community, and in particular we want to acknowledge some other great anharmonic lattice dynamics related projects: Hiphive, ShengBTE, Thirdorder, PhonTS, Phonopy, and Phon. 
+If you are running Ballistico or any of these codes, please don't forget to cite us. Project template from the [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms).
+
+
+
+##### References
+
+- Ballistico (ref to papers)
+- ASE (link to their how to cite page)
+- Lammps (link)
+- Quantum Espresso (link)
+- Hiphive (link)
+- Seekpath (link)
+- ShengBTE (link)
+- Phon (link)
+- ThirdOrder (link)
