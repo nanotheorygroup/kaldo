@@ -11,6 +11,7 @@ from scipy.sparse import load_npz, save_npz
 from sparse import COO
 import ballistico.helpers.io as io
 import ballistico.helpers.shengbte_io as shengbte_io
+from ballistico.grid import wrap_coordinates
 import h5py
 import ase.units as units
 from ballistico.grid import Grid
@@ -1024,7 +1025,7 @@ class FiniteDifference(object):
         return third_order.reshape((self.n_atoms * 3, n_replicated_atoms * 3, n_replicated_atoms * 3))
 
 
-    def unfold_third_order(self, reduced_third=None, distance_threshold=None, with_pruned_original=False):
+    def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
             if self.distance_threshold is not None:
@@ -1044,20 +1045,19 @@ class FiniteDifference(object):
         n_replicas = self.n_replicas
         reduced_third = reduced_third.reshape(
             (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-        replicated_positions = self.list_of_replicas[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
-        dxij = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
+        replicated_positions = self.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
+        dxij_reduced = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
+        dxij_reduced = wrap_coordinates(dxij_reduced, self.replicated_atoms.cell, self.replicated_cell_inv)
         dxij_full = replicated_positions[:, :, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, np.newaxis, :, :, :]
-        indices = np.argwhere(np.linalg.norm(dxij, axis=-1) < distance_threshold)
-        full_third = self.third_order.reshape(
-            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+        dxij_full = wrap_coordinates(dxij_full, self.replicated_atoms.cell, self.replicated_cell_inv)
+        indices = np.argwhere(np.linalg.norm(dxij_reduced, axis=-1) < distance_threshold)
+
         coords = []
         values = []
-        if with_pruned_original:
-            values_original = []
         for index in indices:
             for l in range(n_replicas):
                 for j in range(n_unit_atoms):
-                    dx2 = dxij[index[0], l, j]
+                    dx2 = dxij_reduced[index[0], l, j]
                     is_storing = (np.linalg.norm(dx2) < distance_threshold)
                     dx3 = dxij_full[index[1], index[2], l, j]
                     is_storing *= (np.linalg.norm(dx3) < distance_threshold)
@@ -1067,22 +1067,15 @@ class FiniteDifference(object):
                                 for gamma in range(3):
                                     coords.append([index[0], alpha, index[1], index[2], beta, l, j, gamma])
                                     values.append(reduced_third[index[0], alpha, 0, index[2], beta, 0, j, gamma])
-                                    if with_pruned_original:
-                                        values_original.append(
-                                            full_third[index[0], alpha, index[1], index[2], beta, l, j, gamma])
-
+                                    
+                                    
         logging.info('Created unfolded third order')
 
         shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
         expanded_third = COO(np.array(coords).T, np.array(values), shape)
         expanded_third = expanded_third.reshape(
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-        if with_pruned_original:
-            pruned_third = COO(np.array(coords).T, np.array(values_original), shape)
-            pruned_third = pruned_third.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-            return expanded_third, pruned_third
-        else:
-            return expanded_third
+        return expanded_third
 
 
     def export_third_eskm(self, out_filename='THIRD', min_force=1e-6):
