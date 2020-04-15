@@ -20,7 +20,9 @@ def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     dyn_mat = import_dynamical_matrix(n_unit_cell, replicas, filename)
     mass = np.sqrt (atoms.get_masses ())
     mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    return dyn_mat * mass
+    dyn_mat = dyn_mat * mass
+    dyn_mat = dyn_mat[np.newaxis, ...]
+    return dyn_mat
 
 
 def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
