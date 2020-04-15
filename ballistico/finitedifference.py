@@ -725,7 +725,7 @@ class FiniteDifference(object):
 
         n_supercell = np.prod(self.supercell)
         if self.is_reduced_second:
-            second = second.reshape((n_unit_cell_atoms, 3, n_supercell, n_unit_cell_atoms, 3))
+            second = second.reshape((1, n_unit_cell_atoms, 3, n_supercell, n_unit_cell_atoms, 3))
         else:
             second = second.reshape((n_supercell, n_unit_cell_atoms, 3, n_supercell, n_unit_cell_atoms, 3), order="C")
 

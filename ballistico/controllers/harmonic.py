@@ -84,7 +84,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
         if phonons._is_amorphous:
             dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             dxij = wrap_coordinates(dxij, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
+            dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[0, :, :, 0, :, :])
         else:
             if phonons.finite_difference.distance_threshold:
                 dynmat_derivatives = np.zeros((n_unit_cell, 3, n_unit_cell, 3, 3), dtype=np.complex)
@@ -102,7 +102,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
             else:
                 distance = positions[:, np.newaxis, np.newaxis, :] - (
                         positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
-                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat, phonons.chi(qvec))
+                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0], phonons.chi(qvec))
         ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3))
     return ddyn
 
@@ -238,7 +238,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
                 mask = np.linalg.norm(distance, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
 
-                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat[id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
         else:
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', dynmat[0])
