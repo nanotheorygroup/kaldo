@@ -277,6 +277,7 @@ class FiniteDifference(object):
             second_dl = io.import_second(atoms, replicas=supercell, filename=dynmat_file)
             is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
             logging.info('Is reduced second: ' + str(is_reduced_second))
+            fd.second_order = second_dl
             fd.is_reduced_second = is_reduced_second
             logging.info('Dynamical matrix stored.')
 
@@ -426,15 +427,7 @@ class FiniteDifference(object):
         """
         # Once confirming that the second order does not exist, try load in
         if self._dynmat is None:
-            try:
-                folder = self.folder
-                folder += '/'
-                self._dynmat = np.load(folder + DYNMAT_FILE)
-            except FileNotFoundError as e:
-                logging.info('No dynamical matrix file found.')
-                # After trying load in and still not exist,
-                # calculate the second order
-                self.dynmat = self.calculate_dynamical_matrix()
+            self._dynmat = self.calculate_dynamical_matrix()
         return self._dynmat
 
 
@@ -444,11 +437,6 @@ class FiniteDifference(object):
             to preset proper folders.
         """
         # make the  folder and save the second order force constant matrix into it
-        folder = self.folder
-        folder += '/'
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        np.save(folder + DYNMAT_FILE, new_dynmat)
         self._dynmat = new_dynmat
 
 
