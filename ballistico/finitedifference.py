@@ -9,8 +9,8 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
-import ballistico.helpers.io as io
-import ballistico.helpers.shengbte_io as shengbte_io
+import ballistico.io.eskm_io as io
+import ballistico.io.shengbte_io as shengbte_io
 from ballistico.grid import wrap_coordinates
 import h5py
 import ase.units as units
@@ -365,7 +365,7 @@ class FiniteDifference(object):
     @classmethod
     def __from_hiphive(cls, folder, supercell=None):
       try:
-        import ballistico.helpers.hiphive_io as hiphive_io
+        import ballistico.io.hiphive_io as hiphive_io
       except ImportError as err:
         logging.info(err)
         logging.error('In order to use hiphive along with ballistico, hiphive is required. \
