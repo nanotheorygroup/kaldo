@@ -242,9 +242,6 @@ def calculate_diffusivity_dense(phonons):
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
         diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
-    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
-                        physical_modes[:, np.newaxis, :]
 
     sigma = 2 * (diffusivity_bandwidth[:, :, np.newaxis] + diffusivity_bandwidth[:, np.newaxis, :])
     if phonons.diffusivity_shape == 'lorentz':
@@ -265,10 +262,14 @@ def calculate_diffusivity_dense(phonons):
     kernel[np.isnan(kernel)] = 0
 
     sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
+
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                        physical_modes[:, np.newaxis, :]
     sij[np.invert(physical_modes_2d)] = 0
 
     prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
-    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, kernel, sij)
+    diffusivity = contract('knma,knm,knm,knmb->knmab', sij, prefactor, kernel, sij)
     return diffusivity
 
 
@@ -312,10 +313,10 @@ def calculate_diffusivity_sparse(phonons):
     prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
     prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
 
-    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
+    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
     for alpha in range(3):
         for beta in range(3):
-            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
+            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).todense()
     return diffusivity
 
 

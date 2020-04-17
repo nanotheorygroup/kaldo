@@ -217,7 +217,7 @@ class Phonons:
             diffusivity in mm^2/s
         """
         generalized_diffusivity = self._generalized_diffusivity
-        diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', generalized_diffusivity)
+        diffusivity = 1 / 3 * 1 / 100 * contract('knmaa->kn', generalized_diffusivity)
         return diffusivity
 
 
