@@ -23,7 +23,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_modes
     conductivity_per_mode[physical_modes, :, :] = \
         heat_capacity[physical_modes, np.newaxis, np.newaxis] * velocity[physical_modes, :, np.newaxis] * \
         mfp[physical_modes, np.newaxis, :]
-    return conductivity_per_mode
+    return conductivity_per_mode * 1e22
 
 
 def gamma_with_matthiessen(gamma, velocity, length):
@@ -223,7 +223,7 @@ class Conductivity:
         conductivity_per_mode = contract('kn,knmab->knab', heat_capacity, diffusivity)
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
         conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
-        return conductivity_per_mode
+        return conductivity_per_mode * 1e22
     
     
     def calculate_mfp_inverse(self):
