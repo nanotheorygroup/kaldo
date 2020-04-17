@@ -48,14 +48,13 @@ def project_amorphous(phonons):
         # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 \
         # * dirac_delta_tf, (n_phonons, n_phonons))
 
-        pot_times_dirac = tf.reduce_sum(tf.abs(tf.gather_nd(scaled_potential_tf,
-                                                            coords)) ** 2 * dirac_delta_tf).numpy() * units._hbar / 8. \
-                          / phonons.n_k_points * GAMMATOTHZ
+        pot_times_dirac = np.pi * units._hbar / 4. * tf.reduce_sum(tf.abs(tf.gather_nd(scaled_potential_tf,coords)) ** \
+                                                        2 * dirac_delta_tf).numpy() / phonons.n_k_points * GAMMATOTHZ
         dirac_delta = tf.reduce_sum(dirac_delta_tf).numpy()
 
         ps_and_gamma[nu_single, 0] = dirac_delta
         ps_and_gamma[nu_single, 1] = pot_times_dirac
-        ps_and_gamma[nu_single, 1:] /= phonons.frequency.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
         logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / \
@@ -151,8 +150,8 @@ def project_crystal(phonons):
                 ps_and_gamma[nu_single, 2:] += result
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta)
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(pot_times_dirac)
-        ps_and_gamma[nu_single, 1:] /= phonons.frequency.flatten()[nu_single]
-        ps_and_gamma[nu_single, 1:] *= units._hbar / 8. / phonons.n_k_points * GAMMATOTHZ
+        ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] *= np.pi * units._hbar / 4 / phonons.n_k_points * GAMMATOTHZ
     return ps_and_gamma
 
 
