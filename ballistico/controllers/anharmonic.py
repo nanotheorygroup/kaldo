@@ -45,6 +45,7 @@ def project_amorphous(phonons):
         #                                            0, mupp_vec[0])
 
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
+        pot_times_dirac /= (phonons._omegas[0, mup_vec] * phonons._omegas[0, mupp_vec])
 
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
@@ -91,6 +92,7 @@ def project_crystal(phonons):
                 if not out:
                     continue
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
+
                 index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
                 if is_plus:
                     #TODO: This can be faster using the contract opt_einsum
@@ -110,6 +112,7 @@ def project_crystal(phonons):
 
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
+                pot_times_dirac /= (phonons._omegas[index_kp_vec, mup_vec] * phonons._omegas[index_kpp_vec, mupp_vec])
                 pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
                 if is_gamma_tensor_enabled:
@@ -192,7 +195,6 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
         # dirac_delta = .5 * density[index_q, mu] * (density[index_qp, mup_vec] + 1) * (
         #             density[index_qpp, mupp_vec] + 1)
 
-    dirac_delta /= (omegas[index_qp, mup_vec] * omegas[index_qpp, mupp_vec])
     if np.array(sigma_small).size == 1:
         dirac_delta *= broadening_function(
             omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small)
@@ -246,7 +248,6 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                     # dirac_delta = .5 * density[0, mu] * (density[0, mup_vec] + 1) * (
                     #             density[0, mupp_vec] + 1)
 
-                dirac_delta /= (omegas[0, mup_vec] * omegas[0, mupp_vec])
                 dirac_delta *= broadening_function(
                     omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small)
 
