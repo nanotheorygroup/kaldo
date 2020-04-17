@@ -50,6 +50,8 @@ def project_amorphous(phonons):
 
         pot_times_dirac = np.pi * units._hbar / 4. * tf.reduce_sum(tf.abs(tf.gather_nd(scaled_potential_tf,coords)) ** \
                                                         2 * dirac_delta_tf).numpy() / phonons.n_k_points * GAMMATOTHZ
+        pot_times_dirac = pot_times_dirac / tf.gather(phonons._omegas[0], mup_vec) / tf.gather(phonons._omegas[0], mupp_vec)
+
         dirac_delta = tf.reduce_sum(dirac_delta_tf).numpy()
 
         ps_and_gamma[nu_single, 0] = dirac_delta
@@ -133,6 +135,12 @@ def project_crystal(phonons):
             scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
             pot_times_dirac = tf.abs(
                 scaled_potential) ** 2 * dirac_delta
+
+            nup_vec = index_kp_vec * phonons.n_modes + mup_vec
+            nupp_vec = index_kpp_vec * phonons.n_modes + mupp_vec
+            pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64)
+            pot_times_dirac = pot_times_dirac / tf.gather(phonons._omegas.flatten(), nup_vec) / tf.gather(phonons._omegas.flatten(), nupp_vec)
+
             if is_gamma_tensor_enabled:
                 # We need to use bincount together with fancy indexing here. See:
                 # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
@@ -188,7 +196,6 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
 
         else:
             dirac_delta_tf = 0.5 * (1 + tf.gather_nd(phonons.population, coords_1) + tf.gather_nd(phonons.population, coords_2))
-        dirac_delta_tf /= (tf.gather_nd(phonons._omegas, coords_1) * tf.gather_nd(phonons._omegas, coords_2))
         dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * tf.exp(
             - (phonons._omegas[index_k, mu] + second_sign * tf.gather_nd(phonons._omegas, coords_1) - tf.gather_nd(phonons._omegas, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
         index_kp = index_kp_vec
@@ -226,7 +233,6 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                 dirac_delta_tf = tf.gather(density_tf[0], mup_vec) - tf.gather(density_tf[0], mupp_vec)
             else:
                 dirac_delta_tf = 0.5 * (1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec))
-            dirac_delta_tf = dirac_delta_tf / tf.gather(omega_tf[0], mup_vec) / tf.gather(omega_tf[0], mupp_vec)
             omegas_difference_tf = tf.abs(phonons._omegas[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
                                                                                                                              mupp_vec))
 
