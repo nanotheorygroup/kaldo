@@ -42,11 +42,11 @@ def test_diffusivity(phonons):
 
 def test_diffusivity_large_threshold(phonons):
     phonons.diffusivity_threshold = 2
-    np.testing.asse(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma, decimal=3)
+    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma, decimal=3)
 
 
 def test_diffusivity_small_threshold(phonons):
     phonons.diffusivity_threshold = 20
-    np.testing.asse(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_full, decimal=3)
+    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_full, decimal=3)
 
 
