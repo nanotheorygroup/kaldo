@@ -48,14 +48,15 @@ def project_amorphous(phonons):
         # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 \
         # * dirac_delta_tf, (n_phonons, n_phonons))
 
-        pot_times_dirac = np.pi * units._hbar / 4. * tf.reduce_sum(tf.abs(tf.gather_nd(scaled_potential_tf,coords)) ** \
-                                                        2 * dirac_delta_tf).numpy() / phonons.n_k_points * GAMMATOTHZ
+        pot_times_dirac = tf.gather_nd(scaled_potential_tf,coords) **  2
         pot_times_dirac = pot_times_dirac / tf.gather(phonons._omegas[0], mup_vec) / tf.gather(phonons._omegas[0], mupp_vec)
+        pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
+        pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
-        dirac_delta = tf.reduce_sum(dirac_delta_tf).numpy()
+        dirac_delta = tf.reduce_sum(dirac_delta_tf)
 
-        ps_and_gamma[nu_single, 0] = dirac_delta
-        ps_and_gamma[nu_single, 1] = pot_times_dirac
+        ps_and_gamma[nu_single, 0] = dirac_delta.numpy()
+        ps_and_gamma[nu_single, 1] = pot_times_dirac.numpy()
         ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
