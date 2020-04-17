@@ -11,15 +11,10 @@ logging = get_logger()
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
-THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-
-DELTA_DOS = 1
-NUM_DOS = 100
-FOLDER_NAME = 'ald-output'
 
 
-def calculate_occupations(phonons):
+
+def calculate_population(phonons):
     frequency = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
     temp = phonons.temperature * KELVINTOTHZ
     density = np.zeros((phonons.n_k_points, phonons.n_modes))
