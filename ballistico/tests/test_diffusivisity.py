@@ -30,9 +30,9 @@ def phonons():
     return phonons
 
 
-calculated_diffusivities_full = np.array([0.   , 0.   , 0.   , 0.560, 0.556, 0.496, 0.563, 0.587, 0.682, 0.718])
+calculated_diffusivities_full = np.array([0.   , 0.   , 0.   , 0.560 , 0.557, 0.496, 0.564, 0.587, 0.683, 0.719])
 
-calculated_diffusivities_two_sigma = np.array([0.   , 0.   , 0.   , 0.560 , 0.557, 0.496, 0.564, 0.587, 0.683, 0.719])
+calculated_diffusivities_two_sigma = np.array([0.   , 0.   , 0.   , 0.271, 0.313, 0.401, 0.485, 0.524, 0.627, 0.658])
 
 
 def test_diffusivity(phonons):
