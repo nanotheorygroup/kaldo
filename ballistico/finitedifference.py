@@ -954,27 +954,6 @@ class FiniteDifference(object):
         return phi_partial / (4. * dx * dx)
 
 
-    def calculate_single_third_on_phonons(self, k_0, m_0, k_2, m_2, evect, chi):
-        #TODO: use a different dx value for the reciprocal space
-        #TODO: we probably need to rescale by the mass
-        dx = self.third_order_delta
-        atoms = self.atoms
-        replicated_atoms = self.replicated_atoms
-
-        n_in_unit_cell = len(atoms.numbers)
-        replicated_atoms = replicated_atoms
-        n_replicated_atoms = len(replicated_atoms.numbers)
-        n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-        phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
-        for sign_1 in (1, -1):
-            for sign_2 in (1, -1):
-                shift_1 = sign_1 * dx * (evect[k_0, :, m_0] * chi[k_0, 0]).reshape((1, n_in_unit_cell, 3))
-                shift_2 = sign_2 * dx * (np.conj(evect[np.newaxis, k_2, :, m_2]) * np.conj(chi[k_2, :, np.newaxis])).reshape((self.n_replicas, n_in_unit_cell, 3))
-                shift = (shift_1 + shift_2).reshape((n_replicated_atoms, 3))
-                phi_partial += sign_1 * sign_2 * self.calculate_single_third_with_shift(shift)
-        return phi_partial / (4. * dx * dx)
-
-
     def calculate_single_third_with_shift(self, shift):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
