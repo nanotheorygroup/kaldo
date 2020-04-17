@@ -247,8 +247,8 @@ class Conductivity:
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell)
         diffusivity = phonons._generalized_diffusivity
-        heat_capacity =self.calculate_c_v_cond()
-        conductivity_per_mode = contract('knm,knmab->knab', heat_capacity, diffusivity)
+        heat_capacity = phonons.heat_capacity.reshape(phonons.n_k_points, phonons.n_modes)
+        conductivity_per_mode = contract('kn,knmab->knab', heat_capacity, diffusivity)
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
         conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
         return conductivity_per_mode
