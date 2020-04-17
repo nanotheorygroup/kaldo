@@ -268,7 +268,7 @@ def calculate_diffusivity_dense(phonons):
     sij[np.invert(physical_modes_2d)] = 0
 
     prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
-    diffusivity = contract('knma,knm,knm,knmb->knmab', sij, prefactor, kernel, sij)
+    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, kernel, sij)
     return diffusivity
 
 
