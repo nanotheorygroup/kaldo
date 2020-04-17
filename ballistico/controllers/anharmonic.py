@@ -246,6 +246,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                     # dirac_delta = .5 * density[0, mu] * (density[0, mup_vec] + 1) * (
                     #             density[0, mupp_vec] + 1)
 
+                dirac_delta /= (omegas[0, mup_vec] * omegas[0, mupp_vec])
                 dirac_delta *= broadening_function(
                     omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small)
 

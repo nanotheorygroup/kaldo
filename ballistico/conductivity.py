@@ -205,34 +205,6 @@ class Conductivity:
         else:
             return operator[physical_modes]
 
-    def calculate_c_v_cond(self):
-        """
-        Calculates the factor for the diffusivity which resembles the heat capacity.
-        The array is returned in units of J/K.
-
-        Returns
-        -------
-        c_v : np.array
-            (phonons.n_k_points,phonons.modes, phonons.n_modes) float
-        """
-        phonons = self.phonons
-        frequencies = phonons.frequency
-        c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-        temperature = phonons.temperature * KELVINTOTHZ
-        physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-
-        if (phonons.is_classic):
-            c_v[:, :, :] = KELVINTOJOULE
-        else:
-            f_be = phonons.population
-            c_v_omega = (f_be[:, :, np.newaxis]-f_be[:, np.newaxis,: ]) / \
-                        ( frequencies[:, np.newaxis, :]-frequencies[:, :, np.newaxis]  )
-            #remember here f_n-f_m/ w_m-w_n index reverted
-            c_v_omega=KELVINTOJOULE *c_v_omega/temperature
-            #c_v_omega[np.invert(physical_modes)] = 0 che fa questo? Chiedi a Giuseppe
-            freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :])**2
-            c_v = contract('knm,knm->knm', c_v_omega)
-        return c_v
 
     def calculate_conductivity_qhgk(self):
         """
