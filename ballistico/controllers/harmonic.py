@@ -199,7 +199,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
                 mask = np.linalg.norm(distance, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
 
-                dyn_s[id_i, :, id_j, :] += dynmat[id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
         else:
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', dynmat[0])
