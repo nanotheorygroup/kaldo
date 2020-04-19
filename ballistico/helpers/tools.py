@@ -31,10 +31,5 @@ def count_rows(filename):
 
 
 
-def convert_to_spg_structure(atoms):
-    cell = atoms.cell
-    scaled_positions = atoms.get_positions().dot(np.linalg.inv(atoms.cell))
-    spg_struct = (cell, scaled_positions, atoms.get_atomic_numbers())
-    return spg_struct
 
 

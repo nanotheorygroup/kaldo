@@ -30,36 +30,23 @@ def phonons():
     return phonons
 
 
-def test_af_conductivity_without_antiresonant(phonons):
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
-    np.testing.assert_approx_equal(cond, 0.8002305990273381, significant=3)
+calculated_diffusivities_full = np.array([0.   , 0.   , 0.   , 0.560 , 0.557, 0.496, 0.564, 0.587, 0.683, 0.719])
 
+calculated_diffusivities_two_sigma = np.array([0.   , 0.   , 0.   , 0.271, 0.313, 0.401, 0.485, 0.524, 0.627, 0.658])
 
-def test_af_conductivity_with_antiresonant(phonons):
-    phonons.is_diffusivity_including_antiresonant = True
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
-    np.testing.assert_approx_equal(cond, 0.821142483615389, significant=3)
-
-
-def test_af_conductivity_without_antiresonant_gauss(phonons):
-    phonons.diffusivity_shape = 'gauss'
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
-    np.testing.assert_approx_equal(cond, 0.8299142655117929, significant=3)
-
-
-def test_af_conductivity_with_antiresonant_gauss(phonons):
-    phonons.diffusivity_shape = 'gauss'
-    phonons.is_diffusivity_including_antiresonant = True
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
-    np.testing.assert_approx_equal(cond, 0.8328416261335327, significant=3)
-
-
-calculated_diffusivities = np.array([0.        , 0.        , 0.        , 0.56008541, 0.55693832,
-                                     0.496376  , 0.56369572, 0.58721542, 0.68280378, 0.71898442])
 
 def test_diffusivity(phonons):
-    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities, decimal=3)
+    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_full,
+                                         decimal=3)
+
+
+def test_diffusivity_small_threshold(phonons):
+    phonons.diffusivity_threshold = 2
+    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma, decimal=3)
+
+
+def test_diffusivity_large_threshold(phonons):
+    phonons.diffusivity_threshold = 20
+    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_full, decimal=3)
+
+

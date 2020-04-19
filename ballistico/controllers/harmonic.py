@@ -11,15 +11,10 @@ logging = get_logger()
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
-THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-
-DELTA_DOS = 1
-NUM_DOS = 100
-FOLDER_NAME = 'ald-output'
 
 
-def calculate_occupations(phonons):
+
+def calculate_population(phonons):
     frequency = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
     temp = phonons.temperature * KELVINTOTHZ
     density = np.zeros((phonons.n_k_points, phonons.n_modes))
@@ -43,16 +38,11 @@ def calculate_heat_capacity(phonons):
         c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * phonons.frequency[
             physical_modes] ** 2 / \
                               (temperature ** 2)
-    return c_v * 1e22
+    return c_v
 
 
 def calculate_frequency(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
-    if not is_main_mesh:
-        # TODO: we could do the check on the whole grid instead of the shape
-        if q_points.shape == phonons._main_q_mesh.shape:
-            if (q_points == phonons._main_q_mesh).all():
-                is_main_mesh = True
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     eigenvals = calculate_eigensystem(phonons, q_points, only_eigenvals=True)
@@ -62,11 +52,6 @@ def calculate_frequency(phonons, q_points=None):
 
 def calculate_dynmat_derivatives(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
-    if not is_main_mesh:
-        # TODO: we could do the check on the whole grid instead of the shape
-        if q_points.shape == phonons._main_q_mesh.shape:
-            if (q_points == phonons._main_q_mesh).all():
-                is_main_mesh = True
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     atoms = phonons.atoms
@@ -109,13 +94,6 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
 
 def calculate_sij(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
-    if not is_main_mesh:
-        # TODO: we could do the check on the whole grid instead of the shape
-        if q_points.shape == phonons._main_q_mesh.shape:
-            if (q_points == phonons._main_q_mesh).all():
-                is_main_mesh = True
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
     if is_main_mesh:
         dynmat_derivatives = phonons._dynmat_derivatives
         eigenvects = phonons._eigensystem[:, 1:, :]
@@ -165,14 +143,8 @@ def calculate_sij_sparse(phonons):
 
 def calculate_velocity_af(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
-    if not is_main_mesh:
-        # TODO: we could do the check on the whole grid instead of the shape
-        if q_points.shape == phonons._main_q_mesh.shape:
-            if (q_points == phonons._main_q_mesh).all():
-                is_main_mesh = True
     if is_main_mesh:
         q_points = phonons._main_q_mesh
-    if is_main_mesh:
         sij = phonons.flux
         frequency = phonons.frequency
     else:
@@ -187,14 +159,8 @@ def calculate_velocity_af(phonons, q_points=None):
 
 def calculate_velocity(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
-    if not is_main_mesh:
-        # TODO: we could do the check on the whole grid instead of the shape
-        if q_points.shape == phonons._main_q_mesh.shape:
-            if (q_points == phonons._main_q_mesh).all():
-                is_main_mesh = True
     if is_main_mesh:
         q_points = phonons._main_q_mesh
-    if is_main_mesh:
         velocity_AF = phonons._velocity_af
     else:
         velocity_AF = calculate_velocity_af(phonons, q_points)
@@ -204,11 +170,6 @@ def calculate_velocity(phonons, q_points=None):
 
 def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     is_main_mesh = True if q_points is None else False
-    if not is_main_mesh:
-        # TODO: we could do the check on the whole grid instead of the shape
-        if q_points.shape == phonons._main_q_mesh.shape:
-            if (q_points == phonons._main_q_mesh).all():
-                is_main_mesh = True
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     atoms = phonons.atoms
@@ -238,7 +199,7 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
                 mask = np.linalg.norm(distance, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
 
-                dyn_s[id_i, :, id_j, :] += dynmat[id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
         else:
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', dynmat[0])
@@ -281,9 +242,6 @@ def calculate_diffusivity_dense(phonons):
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
         diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
-    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
-                        physical_modes[:, np.newaxis, :]
 
     sigma = 2 * (diffusivity_bandwidth[:, :, np.newaxis] + diffusivity_bandwidth[:, np.newaxis, :])
     if phonons.diffusivity_shape == 'lorentz':
@@ -304,10 +262,14 @@ def calculate_diffusivity_dense(phonons):
     kernel[np.isnan(kernel)] = 0
 
     sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
+
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                        physical_modes[:, np.newaxis, :]
     sij[np.invert(physical_modes_2d)] = 0
 
     prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
-    diffusivity = contract('knma,knm,knm,knmb->knab', sij, prefactor, kernel, sij)
+    diffusivity = contract('knma,knm,knm,knmb->knmab', sij, prefactor, kernel, sij)
     return diffusivity
 
 
@@ -351,10 +313,10 @@ def calculate_diffusivity_sparse(phonons):
     prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
     prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
 
-    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
+    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
     for alpha in range(3):
         for beta in range(3):
-            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
+            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).todense()
     return diffusivity
 
 
