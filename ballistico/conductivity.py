@@ -23,7 +23,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_modes
     conductivity_per_mode[physical_modes, :, :] = \
         heat_capacity[physical_modes, np.newaxis, np.newaxis] * velocity[physical_modes, :, np.newaxis] * \
         mfp[physical_modes, np.newaxis, :]
-    return conductivity_per_mode
+    return conductivity_per_mode * 1e22
 
 
 def gamma_with_matthiessen(gamma, velocity, length):
@@ -206,33 +206,6 @@ class Conductivity:
             return operator[physical_modes]
 
 
-    def calculate_c_v_2d(self):
-        """
-        Calculates the constant-volume heat capacity for each mode at the temperature of the input phonons object.
-        The array is returned in units of J/K.
-
-        Returns
-        -------
-        c_v : np.array
-            (phonons.n_k_points, phonons.n_modes) float
-        """
-        phonons = self.phonons
-        frequencies = phonons.frequency
-        c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-        temperature = phonons.temperature * KELVINTOTHZ
-        physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    
-        if (phonons.is_classic):
-            c_v[:, :, :] = KELVINTOJOULE
-        else:
-            f_be = phonons.population
-            c_v_omega = KELVINTOJOULE * f_be * (f_be + 1) * frequencies / (temperature ** 2)
-            c_v_omega[np.invert(physical_modes)] = 0
-            freq_sq = (frequencies[:, :, np.newaxis] + frequencies[:, np.newaxis, :]) / 2 * (c_v_omega[:, :, np.newaxis] + c_v_omega[:, np.newaxis, :]) / 2
-            c_v[:, :, :] = freq_sq
-        return c_v
-
-
     def calculate_conductivity_qhgk(self):
         """
         Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.
@@ -247,10 +220,10 @@ class Conductivity:
         volume = np.linalg.det(phonons.atoms.cell)
         diffusivity = phonons._generalized_diffusivity
         heat_capacity = phonons.heat_capacity.reshape(phonons.n_k_points, phonons.n_modes)
-        conductivity_per_mode = contract('kn,knab->knab', heat_capacity, diffusivity)
+        conductivity_per_mode = contract('kn,knmab->knab', heat_capacity, diffusivity)
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
         conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
-        return conductivity_per_mode
+        return conductivity_per_mode * 1e22
     
     
     def calculate_mfp_inverse(self):
