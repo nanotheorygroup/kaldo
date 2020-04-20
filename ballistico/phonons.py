@@ -7,22 +7,14 @@ from ballistico.helpers.storage import lazy_property
 from ballistico.helpers.storage import DEFAULT_STORE_FORMATS
 from ballistico.grid import Grid
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
-    calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
+    calculate_heat_capacity, calculate_population, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
 import numpy as np
-import ase.units as units
 from opt_einsum import contract
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
-KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-KELVINTOJOULE = units.kB / units.J
-THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-
-DELTA_DOS = 1
-NUM_DOS = 100
 FOLDER_NAME = 'ald-output'
 
 
@@ -185,8 +177,8 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        occupations =  calculate_occupations(self)
-        return occupations
+        population =  calculate_population(self)
+        return population
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
@@ -225,7 +217,7 @@ class Phonons:
             diffusivity in mm^2/s
         """
         generalized_diffusivity = self._generalized_diffusivity
-        diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', generalized_diffusivity)
+        diffusivity = 1 / 3 * 1 / 100 * contract('knmaa->kn', generalized_diffusivity)
         return diffusivity
 
 
@@ -396,7 +388,7 @@ class Phonons:
 
 
     def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
-        print('Projection started')
+        logging.info('Projection started')
         if self.is_tf_backend:
             try:
                 import ballistico.controllers.anharmonic_tf as aha
