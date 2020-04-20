@@ -11,15 +11,10 @@ logging = get_logger()
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
-THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-
-DELTA_DOS = 1
-NUM_DOS = 100
-FOLDER_NAME = 'ald-output'
 
 
-def calculate_occupations(phonons):
+
+def calculate_population(phonons):
     frequency = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
     temp = phonons.temperature * KELVINTOTHZ
     density = np.zeros((phonons.n_k_points, phonons.n_modes))
@@ -43,7 +38,7 @@ def calculate_heat_capacity(phonons):
         c_v[physical_modes] = KELVINTOJOULE * f_be[physical_modes] * (f_be[physical_modes] + 1) * phonons.frequency[
             physical_modes] ** 2 / \
                               (temperature ** 2)
-    return c_v * 1e22
+    return c_v
 
 
 def calculate_frequency(phonons, q_points=None):
@@ -74,7 +69,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
         if phonons._is_amorphous:
             dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             dxij = wrap_coordinates(dxij, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[:, :, 0, :, :])
+            dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[0, :, :, 0, :, :])
         else:
             if phonons.finite_difference.distance_threshold:
                 dynmat_derivatives = np.zeros((n_unit_cell, 3, n_unit_cell, 3, 3), dtype=np.complex)
@@ -92,7 +87,7 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
             else:
                 distance = positions[:, np.newaxis, np.newaxis, :] - (
                         positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
-                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat, phonons.chi(qvec))
+                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0], phonons.chi(qvec))
         ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3))
     return ddyn
 
@@ -191,23 +186,25 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
         esystem = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
-        is_at_gamma = (qvec == (0, 0, 0)).all()
         dynmat = phonons.finite_difference.dynmat
+        is_at_gamma = (qvec == (0, 0, 0)).all()
         if phonons.finite_difference.distance_threshold:
+            distance_threshold = phonons.finite_difference.distance_threshold
             dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
             n_replicas = phonons.finite_difference.n_replicas
-            replicated_positions = (phonons.finite_difference.list_of_replicas[:, np.newaxis, :] +
-                                    atoms.positions[np.newaxis, :, :]).reshape((n_replicas, n_unit_cell, 3))
             for l in range(n_replicas):
-                distance = np.linalg.norm(replicated_positions[0, :, np.newaxis, :] - replicated_positions[l, np.newaxis, :, :], axis=-1)
-                mask = (distance < phonons.finite_difference.distance_threshold)
+
+                distance = wrap_coordinates(phonons.finite_difference.list_of_replicas[l, np.newaxis, np.newaxis, :] + \
+                                    atoms.positions[np.newaxis, :, :] - atoms.positions[:, np.newaxis, :], phonons.finite_difference.replicated_atoms.cell, phonons.finite_difference.replicated_cell_inv)
+                mask = np.linalg.norm(distance, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
+
                 dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
         else:
             if is_at_gamma:
-                dyn_s = contract('ialjb->iajb', dynmat)
+                dyn_s = contract('ialjb->iajb', dynmat[0])
             else:
-                dyn_s = contract('ialjb,l->iajb', dynmat, phonons.chi(qvec))
+                dyn_s = contract('ialjb,l->iajb', dynmat[0], phonons.chi(qvec))
         dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes))
         if phonons.is_symmetrizing_frequency:
             dyn_s = 0.5 * (dyn_s + dyn_s.T.conj())
@@ -245,9 +242,6 @@ def calculate_diffusivity_dense(phonons):
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
     else:
         diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
-    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
-                        physical_modes[:, np.newaxis, :]
 
     sigma = 2 * (diffusivity_bandwidth[:, :, np.newaxis] + diffusivity_bandwidth[:, np.newaxis, :])
     if phonons.diffusivity_shape == 'lorentz':
@@ -268,6 +262,10 @@ def calculate_diffusivity_dense(phonons):
     kernel[np.isnan(kernel)] = 0
 
     sij = phonons.flux.reshape((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3))
+
+    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_modes_2d = physical_modes[:, :, np.newaxis] & \
+                        physical_modes[:, np.newaxis, :]
     sij[np.invert(physical_modes_2d)] = 0
 
     prefactor = 1 / omega[:, :, np.newaxis] / omega[:, np.newaxis, :] / 4
@@ -315,10 +313,10 @@ def calculate_diffusivity_sparse(phonons):
     prefactor[np.invert(physical_modes_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
     prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
 
-    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, 3, 3))
+    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
     for alpha in range(3):
         for beta in range(3):
-            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).sum(axis=1).todense()
+            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).todense()
     return diffusivity
 
 

@@ -1,5 +1,6 @@
 # Test temporary folders
 ballistico/tests/tmp-folder
+ballistico/controllers/plotter.py
 examples_local
 
 .DS_Store

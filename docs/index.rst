@@ -11,6 +11,7 @@ Ballistico, Anharmonic Lattice Dynamics
    :caption: Introduction
 
    introduction.md
+   install.md
    class_schema.md
 
 
@@ -31,7 +32,8 @@ Ballistico, Anharmonic Lattice Dynamics
 .. toctree::
    :glob:
    :caption: Tutorials
-
+   
+   examples.md
    crystal_presentation.ipynb
    amorphous_presentation.ipynb
 

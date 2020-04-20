@@ -26,14 +26,17 @@ def phonons():
                       storage='memory')
     return phonons
 
+
 def test_gaussian_broadening(phonons):
     phonons.broadening_shape='gauss'
     np.testing.assert_approx_equal(phonons.bandwidth[0][250], 3.200066, significant=4)
+
 
 def test_lorentz_broadening(phonons):
     phonons.broadening_shape='lorentz'
     phonons.is_tf_backend=False
     np.testing.assert_approx_equal(phonons.bandwidth[0][250], 3.358182, significant=4)
+
 
 def test_triangle_broadening(phonons):
     phonons.broadening_shape='triangle'
