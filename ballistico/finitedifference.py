@@ -14,7 +14,7 @@ import ballistico.io.shengbte_io as shengbte_io
 from ballistico.grid import wrap_coordinates
 import h5py
 import ase.units as units
-from ballistico.grid import Grid
+from ballistico.grid import Grid, grid_type_from_replicated_atoms
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -103,7 +103,8 @@ class FiniteDifference(object):
                  third_order_symmerty_inputs=None,
                  is_reduced_second=True,
                  optimization_method=None,
-                 distance_threshold=None):
+                 distance_threshold=None,
+                 grid_type='F'):
 
         """Init with an instance of constructed FiniteDifference object.
 
@@ -138,13 +139,15 @@ class FiniteDifference(object):
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
         distance_threshold: float
             the maximum distance between two interacting atoms
+        grid_type: 'F' or 'C
+            specify if to use 'C" style atoms replica grid of fortran style 'F', default 'F'
         """
 
         # Store the user defined information to the object
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = self.atoms.get_masses().shape[0]
-        self._direct_grid = Grid(supercell, order='F')
+        self._direct_grid = Grid(supercell, order=grid_type)
         self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
@@ -232,7 +235,7 @@ class FiniteDifference(object):
         :return:
         """
         if format == 'numpy':
-            fd = cls.__from_numpy(folder, supercell, distance_threshold=distance_threshold)
+            fd = cls.__from_numpy(folder, supercell)
         elif format == 'eskm':
             fd = cls.__from_eskm(folder, supercell,
                           third_energy_threshold=third_energy_threshold, distance_threshold=distance_threshold)
@@ -250,27 +253,31 @@ class FiniteDifference(object):
         return fd
 
     @classmethod
-    def _import_from_files(cls, atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1),
+    def _import_from_files(cls, replicated_atoms, dynmat_file=None, third_file=None, folder=None, supercell=(1, 1, 1),
                            third_energy_threshold=0., distance_threshold=None):
         n_replicas = np.prod(supercell)
-        n_total_atoms = atoms.positions.shape[0]
+        n_total_atoms = replicated_atoms.positions.shape[0]
         n_unit_atoms = int(n_total_atoms / n_replicas)
         unit_symbols = []
         unit_positions = []
         for i in range(n_unit_atoms):
-            unit_symbols.append(atoms.get_chemical_symbols()[i])
-            unit_positions.append(atoms.positions[i])
-        unit_cell = atoms.cell / supercell
+            unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
+            unit_positions.append(replicated_atoms.positions[i])
+        unit_cell = replicated_atoms.cell / supercell
+
 
         atoms = Atoms(unit_symbols,
-                      positions=unit_positions,
-                      cell=unit_cell,
-                      pbc=[1, 1, 1])
+                                 positions=unit_positions,
+                                 cell=unit_cell,
+                                 pbc=[1, 1, 1])
+
+        grid_type = grid_type_from_replicated_atoms(replicated_atoms, supercell)
 
         # Create a finite difference object
         finite_difference = {'atoms': atoms,
                              'supercell': supercell,
-                             'folder': folder}
+                             'folder': folder,
+                             'grid_type': grid_type}
         fd = cls(**finite_difference)
 
         if dynmat_file:
@@ -290,7 +297,7 @@ class FiniteDifference(object):
                                                   filename=third_file,
                                                   third_energy_threshold=third_energy_threshold,
                                                   distance_threshold=distance_threshold,
-                                                  replicated_atoms=fd.replicated_atoms)
+                                                  replicated_atoms=replicated_atoms)
                 logging.info('Third order matrix stored.')
 
             except UnicodeDecodeError:
@@ -309,14 +316,14 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def __from_numpy(cls, folder, supercell=(1, 1, 1), distance_threshold=None):
+    def __from_numpy(cls, folder, supercell=(1, 1, 1)):
         if folder[-1] != '/':
             folder = folder + '/'
         config_file = folder + REPLICATED_ATOMS_FILE
         n_replicas = np.prod(supercell)
         atoms = ase.io.read(config_file, format='extxyz')
         n_atoms = int(atoms.positions.shape[0] / n_replicas)
-        fd = cls._import_from_files(atoms=atoms,
+        fd = cls._import_from_files(replicated_atoms=atoms,
                                     folder=folder,
                                     supercell=supercell)
         second_order = np.load(folder + SECOND_ORDER_FILE)
@@ -328,8 +335,6 @@ class FiniteDifference(object):
             .reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
         fd.second_order = second_order
         fd.third_order = third_order
-        if distance_threshold is not None:
-            fd.third_order = fd.prune_sparse_third_with_distance_threshold(distance_threshold)
         return fd
 
 
@@ -354,7 +359,9 @@ class FiniteDifference(object):
             config_file = folder + '/' + 'POSCAR'
             logging.info('\nTrying to open POSCAR')
             atoms = ase.io.read(config_file)
+
         # Create a finite difference object
+        # TODO: we need to read the grid type here
         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
         second_order, is_reduced_second, third_order = shengbte_io.import_second_and_third_from_sheng(finite_difference)
         finite_difference.second_order = second_order
@@ -362,25 +369,27 @@ class FiniteDifference(object):
         finite_difference.is_reduced_second = is_reduced_second
         return finite_difference
 
+
     @classmethod
-    def __from_hiphive(cls, folder, supercell=None):
+    def __from_hiphive(cls, folder, filename='atom_prim.xyz', supercell=None):
       try:
         import ballistico.io.hiphive_io as hiphive_io
-      except ImportError as err:
-        logging.info(err)
+      except ImportError:
         logging.error('In order to use hiphive along with ballistico, hiphive is required. \
                 Please consider installing hihphive. More info can be found at: \
                 https://hiphive.materialsmodeling.org/')
-        import sys
-        sys.exit()
-      atom_prime_file = str(folder) + '/atom_prim.xyz'
+
+      atom_prime_file = str(folder) + '/' + filename
+      # TODO: Read the replicated atoms instead and read the grid type here
       atoms = ase.io.read(atom_prime_file)
+
       # Create a finite difference object
       finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
       if 'model2.fcs' in os.listdir(str(folder)):
         second_order = hiphive_io.import_second_from_hiphive(finite_difference)
         finite_difference.second_order = second_order
       if 'model3.fcs' in os.listdir(str(folder)):
+
         # Derive constants used for third-order reshape
         supercell = np.array(supercell)
         n_prim = atoms.copy().get_masses().shape[0]
@@ -747,8 +756,6 @@ class FiniteDifference(object):
             phifull = self.calculate_single_third_with_symmetry()
         else:
             phifull = self.calculate_single_third_without_symmetry(distance_threshold=distance_threshold)
-        if distance_threshold:
-            phifull = self.prune_sparse_third_with_distance_threshold(phifull)
         self.distance_threshold = distance_threshold
         return phifull
 
@@ -974,36 +981,6 @@ class FiniteDifference(object):
         return dynmat
 
 
-    def prune_sparse_third_with_distance_threshold(self, third_order=None, distance_threshold=None):
-        if third_order is None:
-            third_order = self.third_order
-        if distance_threshold is None:
-            distance_threshold = self.distance_threshold
-        n_replicated_atoms = self.n_atoms * self.n_replicas
-        shape = (self.n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
-        third_order = third_order.reshape(shape)
-        coords = third_order.coords
-        atoms = self.atoms
-        c2_m, c2_at = np.unravel_index(coords[2], (self.n_replicas, self.n_atoms))
-        dxij = atoms.positions[coords[0]] - (self.list_of_replicas[c2_m] + atoms.positions[c2_at])
-        mask = (np.linalg.norm(dxij, axis=1) < distance_threshold)
-
-        c4_m, c4_at = np.unravel_index(coords[4], (self.n_replicas, self.n_atoms))
-        dxij = self.list_of_replicas[c2_m] + atoms.positions[c2_at] - (
-                    self.list_of_replicas[c4_m] + atoms.positions[c4_at])
-        mask *= (np.linalg.norm(dxij, axis=1) < distance_threshold)
-
-        dxij = (self.list_of_replicas[c4_m] + atoms.positions[c4_at]) - atoms.positions[coords[0]]
-        mask *= (np.linalg.norm(dxij, axis=1) < distance_threshold)
-
-        coords = np.vstack(
-            [coords[0][mask], coords[1][mask], coords[2][mask], coords[3][mask], coords[4][mask], coords[5][mask]])
-        data = third_order.data[mask]
-        shape = (self.n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
-        third_order = COO(coords, data, shape)
-        return third_order.reshape((self.n_atoms * 3, n_replicated_atoms * 3, n_replicated_atoms * 3))
-
-
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
@@ -1025,10 +1002,7 @@ class FiniteDifference(object):
         reduced_third = reduced_third.reshape(
             (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
         replicated_positions = self.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
-        dxij_reduced = atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :]
-        dxij_reduced = wrap_coordinates(dxij_reduced, self.replicated_atoms.cell, self.replicated_cell_inv)
-        dxij_full = replicated_positions[:, :, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, np.newaxis, :, :, :]
-        dxij_full = wrap_coordinates(dxij_full, self.replicated_atoms.cell, self.replicated_cell_inv)
+        dxij_reduced = wrap_coordinates(atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :], self.replicated_atoms.cell, self.replicated_cell_inv)
         indices = np.argwhere(np.linalg.norm(dxij_reduced, axis=-1) < distance_threshold)
 
         coords = []
@@ -1037,9 +1011,8 @@ class FiniteDifference(object):
             for l in range(n_replicas):
                 for j in range(n_unit_atoms):
                     dx2 = dxij_reduced[index[0], l, j]
+
                     is_storing = (np.linalg.norm(dx2) < distance_threshold)
-                    dx3 = dxij_full[index[1], index[2], l, j]
-                    is_storing *= (np.linalg.norm(dx3) < distance_threshold)
                     if is_storing:
                         for alpha in range(3):
                             for beta in range(3):
