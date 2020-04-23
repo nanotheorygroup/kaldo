@@ -206,7 +206,8 @@ class Conductivity:
         else:
             return operator[physical_modes]
 
-    def calculate_c_v_cond(self):
+
+    def calculate_2d_heat_capacity(self):
         """
         Calculates the factor for the diffusivity which resembles the heat capacity.
         The array is returned in units of J/K.
@@ -222,27 +223,33 @@ class Conductivity:
         c_v = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
         temperature = phonons.temperature* KELVINTOTHZ
         physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-        heat_capacity=phonons.heat_capacity
+        heat_capacity = phonons.heat_capacity
         if (phonons.is_classic):
             c_v[:, :, :] = KELVINTOJOULE
         else:
             f_be = phonons.population
-            c_v_omega = (f_be[:, :, np.newaxis]-f_be[:, np.newaxis,: ])
-            diff_omega =( frequencies[:, np.newaxis, :]-frequencies[:, :, np.newaxis]  )
-            mask_degeneracy=np.where(diff_omega==0,True,False)
-            diff_omega[mask_degeneracy]=1 #random value to do the division
-            divide_omega=-1/diff_omega
+            c_v_omega = (f_be[:, :, np.newaxis] - f_be[:, np.newaxis,: ])
+            diff_omega =(frequencies[:, :, np.newaxis] - frequencies[:, np.newaxis, :])
+            mask_degeneracy = np.where(diff_omega == 0, True, False)
+
+            # value to do the division
+            diff_omega[mask_degeneracy] = 1
+            divide_omega =-1 / diff_omega
             freq_sq = frequencies[:, :, np.newaxis] * frequencies[:, np.newaxis, :]
+
             #remember here f_n-f_m/ w_m-w_n index reversed
-            c_v = contract('knm,knm,knm->knm', freq_sq, c_v_omega,divide_omega)
+            c_v = contract('knm,knm,knm->knm', freq_sq, c_v_omega, divide_omega)
             c_v = KELVINTOJOULE * c_v / temperature
+
             #Degeneracy part: let us substitute the wrong elements
-            heat_capacity_deg_2d=(heat_capacity[:,np.newaxis]+heat_capacity[np.newaxis,:])/2
-            c_v=np.where(mask_degeneracy,heat_capacity_deg_2d,c_v)
+            heat_capacity_deg_2d = (heat_capacity[:, np.newaxis] + heat_capacity[np.newaxis, :]) / 2
+            c_v = np.where(mask_degeneracy, heat_capacity_deg_2d, c_v)
+
             #Physical modes
             mask = physical_modes[:, :, np.newaxis] * physical_modes[:, np.newaxis, :]
             c_v = c_v * mask
         return c_v
+
 
     def calculate_conductivity_qhgk(self):
         """
@@ -257,7 +264,7 @@ class Conductivity:
         phonons = self.phonons
         volume = np.linalg.det(phonons.atoms.cell)
         diffusivity = phonons._generalized_diffusivity
-        heat_capacity =self.calculate_c_v_cond()
+        heat_capacity =self.calculate_2d_heat_capacity()
         conductivity_per_mode = contract('knm,knmab->knab', heat_capacity, diffusivity)
         conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
         conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
