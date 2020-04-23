@@ -47,7 +47,7 @@ def test_af_conductivity_without_antiresonant_gauss(phonons):
     phonons.diffusivity_shape = 'gauss'
     cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
     cond = (cond.diagonal().mean())
-    np.testing.assert_approx_equal(cond, 0.829, significant=3)
+    np.testing.assert_approx_equal(cond, 0.8305, significant=3)
 
 
 def test_af_conductivity_with_antiresonant_gauss(phonons):
@@ -55,4 +55,4 @@ def test_af_conductivity_with_antiresonant_gauss(phonons):
     phonons.is_diffusivity_including_antiresonant = True
     cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
     cond = (cond.diagonal().mean())
-    np.testing.assert_approx_equal(cond, 0.832, significant=3)
+    np.testing.assert_approx_equal(cond, 0.8335, significant=3)
