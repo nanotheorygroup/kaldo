@@ -3,7 +3,7 @@ import numpy as np
 from ballistico.phonons import Phonons
 from ballistico.conductivity import Conductivity
 
-finite_difference = FiniteDifference.from_folder('hiphive_si_bulk', [3, 3, 3],format='hiphive')
+finite_difference = FiniteDifference.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
 k = 5
 phonons_config = {'kpts': [k, k, k],
                   'is_classic': False,
