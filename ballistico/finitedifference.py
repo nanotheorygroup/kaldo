@@ -371,34 +371,34 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def __from_hiphive(cls, folder, filename='atom_prim.xyz', supercell=None):
-      try:
-        import ballistico.io.hiphive_io as hiphive_io
-      except ImportError:
-        logging.error('In order to use hiphive along with ballistico, hiphive is required. \
-                Please consider installing hihphive. More info can be found at: \
-                https://hiphive.materialsmodeling.org/')
+    def __from_hiphive(cls, folder, supercell=None, filename='atom_prim.xyz'):
+        try:
+            import ballistico.io.hiphive_io as hiphive_io
+        except ImportError:
+            logging.error('In order to use hiphive along with ballistico, hiphive is required. \
+                  Please consider installing hihphive. More info can be found at: \
+                  https://hiphive.materialsmodeling.org/')
 
-      atom_prime_file = str(folder) + '/' + filename
-      # TODO: Read the replicated atoms instead and read the grid type here
-      atoms = ase.io.read(atom_prime_file)
+        atom_prime_file = str(folder) + '/' + filename
+        # TODO: Read the replicated atoms instead and read the grid type here
+        atoms = ase.io.read(atom_prime_file)
 
-      # Create a finite difference object
-      finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
-      if 'model2.fcs' in os.listdir(str(folder)):
-        second_order = hiphive_io.import_second_from_hiphive(finite_difference)
-        finite_difference.second_order = second_order
-      if 'model3.fcs' in os.listdir(str(folder)):
+        # Create a finite difference object
+        finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
+        if 'model2.fcs' in os.listdir(str(folder)):
+            second_order = hiphive_io.import_second_from_hiphive(finite_difference)
+            finite_difference.second_order = second_order
+        if 'model3.fcs' in os.listdir(str(folder)):
 
-        # Derive constants used for third-order reshape
-        supercell = np.array(supercell)
-        n_prim = atoms.copy().get_masses().shape[0]
-        n_sc = np.prod(supercell)
-        dim = len(supercell[supercell > 1])
-        third_order = hiphive_io.import_third_from_hiphive(finite_difference)
-        finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim,
-            n_sc*n_prim*dim)
-      return finite_difference
+            # Derive constants used for third-order reshape
+            supercell = np.array(supercell)
+            n_prim = atoms.copy().get_masses().shape[0]
+            n_sc = np.prod(supercell)
+            dim = len(supercell[supercell > 1])
+            third_order = hiphive_io.import_third_from_hiphive(finite_difference)
+            finite_difference.third_order = third_order[0].reshape(n_prim*dim, n_sc*n_prim*dim,
+                n_sc*n_prim*dim)
+        return finite_difference
 		
 
     @property
