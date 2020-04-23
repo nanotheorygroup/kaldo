@@ -387,8 +387,7 @@ class FiniteDifference(object):
         finite_difference = cls(atoms=atoms, supercell=supercell, folder=folder)
         if 'model2.fcs' in os.listdir(str(folder)):
             second_order = hiphive_io.import_second_from_hiphive(finite_difference)
-            finite_difference.second_order = second_order[0]
-            finite_difference.is_reduced_second = True
+            finite_difference.second_order = second_order
         if 'model3.fcs' in os.listdir(str(folder)):
 
             # Derive constants used for third-order reshape
