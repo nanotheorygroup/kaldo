@@ -50,13 +50,6 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
     values = np.zeros((array_size))
     index_in_unit_cell = 0
 
-    # Create list of index
-    replicated_cell = replicated_atoms.cell
-    replicated_cell_inv = np.linalg.inv(replicated_cell)
-    replicated_positions = replicated_atoms.positions.reshape(
-        (n_replicas, n_atoms, 3))
-
-    distance_threshold = None
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
@@ -66,29 +59,11 @@ def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filen
             mask_to_write = np.abs(values_to_write) > third_energy_threshold
 
             if mask_to_write.any() and coords_to_write[0] < n_atoms:
-                iat = coords_to_write[0]
-                jat = coords_to_write[2]
-                is_storing = False
-                if (distance_threshold is None):
-                    is_storing = True
-                else:
-
-                    lj, jsmall = np.unravel_index(jat, (n_replicas, n_atoms))
-                    dxij = atoms.positions[iat] - replicated_positions[lj, jsmall]
-                    dxij = wrap_coordinates(dxij, replicated_cell, replicated_cell_inv)
-                    is_interacting = (np.linalg.norm(dxij) <= distance_threshold)
-                    kat = coords_to_write[4]
-                    lk, ksmall = np.unravel_index(kat, (n_replicas, n_atoms))
-                    dxij = atoms.positions[iat] - (replicated_positions[lk, ksmall])
-                    is_interacting *= (np.linalg.norm(dxij) <= distance_threshold)
-                    if is_interacting:
-                        is_storing = True
-                if is_storing:
-                    for alpha in np.arange(3)[mask_to_write]:
-                        coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
-                        coords[index_in_unit_cell, -1] = alpha
-                        values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
-                        index_in_unit_cell = index_in_unit_cell + 1
+                for alpha in np.arange(3)[mask_to_write]:
+                    coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+                    coords[index_in_unit_cell, -1] = alpha
+                    values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
+                    index_in_unit_cell = index_in_unit_cell + 1
             if i % 1000000 == 0:
                 logging.info('reading third order: ' + str(np.round(i / n_rows, 2) * 100) + '%')
     logging.info('read ' + str(3 * i) + ' interactions')
