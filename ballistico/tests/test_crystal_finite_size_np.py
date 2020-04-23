@@ -48,7 +48,7 @@ def test_rta_finite_size_conductivity(phonons):
 	
 
     cond_m = np.abs(Conductivity(phonons=phonons, method='rta', storage='memory',length=(1e4,0,0), finite_length_method='matthiessen').conductivity.sum(axis=0)[0, 0])
-    np.testing.assert_approx_equal(cond_m, 189.534, significant=3)
+    np.testing.assert_approx_equal(cond_m, 187.157, significant=3)
 	
     cond_ms = np.abs(Conductivity(phonons=phonons, method='rta', storage='memory',length=(1e4,0,0), finite_length_method='ms').conductivity.sum(axis=0)[0, 0])
     np.testing.assert_approx_equal(cond_ms, 163.756, significant=3)
@@ -61,7 +61,7 @@ def test_inverse_finite_size_conductivity(phonons):
 	
 
     cond_m = np.abs(Conductivity(phonons=phonons, method='inverse', storage='memory',length=(1e4,0,0), finite_length_method='matthiessen').conductivity.sum(axis=0)[0, 0])
-    np.testing.assert_approx_equal(cond_m, 213.123, significant=3)
+    np.testing.assert_approx_equal(cond_m, 210.417, significant=3)
 	
     cond_ms = np.abs(Conductivity(phonons=phonons, method='inverse', storage='memory',length=(1e4,0,0), finite_length_method='ms').conductivity.sum(axis=0)[0, 0])
     np.testing.assert_approx_equal(cond_ms, 182.302, significant=3)

@@ -60,33 +60,39 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
     replicated_cell_inv = phonons.finite_difference.replicated_cell_inv
     dynmat = phonons.finite_difference.dynmat
     positions = phonons.finite_difference.atoms.positions
-
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]
+    n_replicas = phonons.finite_difference.n_replicas
+
+    if phonons.finite_difference.distance_threshold:
+        logging.info('Using folded flux operators')
+
     ddyn = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
         if phonons._is_amorphous:
-            dxij = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
-            dxij = wrap_coordinates(dxij, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ija,ibjc->ibjca', dxij, dynmat[0, :, :, 0, :, :])
+            distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
+            distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
+            dynmat_derivatives = contract('ija,ibjc->ibjca', distance, dynmat[0, :, :, 0, :, :])
         else:
+            distance = positions[:, np.newaxis, np.newaxis, :] - (
+                    positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+
+
+            distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
+                phonons.finite_difference.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, :, :, :])
+
             if phonons.finite_difference.distance_threshold:
                 dynmat_derivatives = np.zeros((n_unit_cell, 3, n_unit_cell, 3, 3), dtype=np.complex)
-                n_replicas = phonons.finite_difference.n_replicas
-                replicated_positions = (phonons.finite_difference.list_of_replicas[:, np.newaxis, :] +
-                                        atoms.positions[np.newaxis, :, :]).reshape((n_replicas, n_unit_cell, 3))
                 for l in range(n_replicas):
-
-                    dxij = replicated_positions[0, :, np.newaxis, :] - replicated_positions[l, np.newaxis, :, :]
-                    mask = (np.linalg.norm(dxij, axis=-1) < phonons.finite_difference.distance_threshold)
+                    wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
+                                                        replicated_cell_inv)
+                    mask = (np.linalg.norm(wrapped_distance, axis=-1) < phonons.finite_difference.distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
-                    # 'ilja,ibljc,l->ibjca'
-                    dynmat_derivatives[id_i, :, id_j, :, :] += np.einsum('fa,fbc->bca', dxij[id_i, id_j], \
+                    dynmat_derivatives[id_i, :, id_j, :, :] += np.einsum('fa,fbc->fbca', distance[id_i, l, id_j, :], \
                                                                    dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l])
             else:
-                distance = positions[:, np.newaxis, np.newaxis, :] - (
-                        positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+
                 dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0], phonons.chi(qvec))
         ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3))
     return ddyn
@@ -175,7 +181,13 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]
-    # Here we store the eigenvalues in the last column
+    n_replicas = phonons.finite_difference.n_replicas
+    if phonons.finite_difference.distance_threshold:
+        logging.info('Using folded dynamical matrix.')
+    replicated_positions = (phonons.finite_difference.list_of_replicas[:, np.newaxis, :] +
+                            atoms.positions[np.newaxis, :, :]).reshape((n_replicas, n_unit_cell, 3))
+    # replicated_positions = phonons.finite_difference.replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
+
     if phonons._is_amorphous:
         dtype = np.float
     else:
@@ -191,12 +203,15 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
         if phonons.finite_difference.distance_threshold:
             distance_threshold = phonons.finite_difference.distance_threshold
             dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-            n_replicas = phonons.finite_difference.n_replicas
+            replicated_cell = phonons.finite_difference.replicated_atoms.cell
+            replicated_cell_inv = phonons.finite_difference.replicated_cell_inv
             for l in range(n_replicas):
+                distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
+                    phonons.finite_difference.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, l, :, :])
 
-                distance = wrap_coordinates(phonons.finite_difference.list_of_replicas[l, np.newaxis, np.newaxis, :] + \
-                                    atoms.positions[np.newaxis, :, :] - atoms.positions[:, np.newaxis, :], phonons.finite_difference.replicated_atoms.cell, phonons.finite_difference.replicated_cell_inv)
-                mask = np.linalg.norm(distance, axis=-1) < distance_threshold
+                distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
+
+                mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
 
                 dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
