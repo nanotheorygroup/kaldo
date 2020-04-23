@@ -234,7 +234,7 @@ class Conductivity:
 
             # value to do the division
             diff_omega[mask_degeneracy] = 1
-            divide_omega =-1 / diff_omega
+            divide_omega = -1 / diff_omega
             freq_sq = frequencies[:, :, np.newaxis] * frequencies[:, np.newaxis, :]
 
             #remember here f_n-f_m/ w_m-w_n index reversed
@@ -242,7 +242,7 @@ class Conductivity:
             c_v = KELVINTOJOULE * c_v / temperature
 
             #Degeneracy part: let us substitute the wrong elements
-            heat_capacity_deg_2d = (heat_capacity[:, np.newaxis] + heat_capacity[np.newaxis, :]) / 2
+            heat_capacity_deg_2d = (heat_capacity[:, :, np.newaxis] + heat_capacity[:, np.newaxis, :]) / 2
             c_v = np.where(mask_degeneracy, heat_capacity_deg_2d, c_v)
 
             #Physical modes
