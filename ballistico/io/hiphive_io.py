@@ -11,7 +11,8 @@ def import_second_from_hiphive(finite_difference):
     second_hiphive_file = str(folder) + '/model2.fcs'
     fcs2 = ForceConstants.read(second_hiphive_file)
     second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
-    return second_order
+    return second_order.reshape((finite_difference.n_replicas, finite_difference.n_atoms, 3,
+                                 finite_difference.n_replicas, finite_difference.n_atoms, 3))
 
 
 def import_third_from_hiphive(finite_difference):
