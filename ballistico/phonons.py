@@ -7,22 +7,14 @@ from ballistico.helpers.storage import lazy_property
 from ballistico.helpers.storage import DEFAULT_STORE_FORMATS
 from ballistico.grid import Grid
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
-    calculate_heat_capacity, calculate_occupations, calculate_dynmat_derivatives, calculate_eigensystem, \
+    calculate_heat_capacity, calculate_population, calculate_dynmat_derivatives, calculate_eigensystem, \
     calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
 import numpy as np
-import ase.units as units
 from opt_einsum import contract
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
-KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-KELVINTOJOULE = units.kB / units.J
-THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-
-DELTA_DOS = 1
-NUM_DOS = 100
 FOLDER_NAME = 'ald-output'
 
 
@@ -88,7 +80,7 @@ class Phonons:
 
         self.kpts = np.array(self.kpts)
 
-        self.min_frequency = kwargs.pop('min_frequency', None)
+        self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
         self.is_tf_backend = kwargs.pop('is_tf_backend', True)
@@ -185,8 +177,8 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        occupations =  calculate_occupations(self)
-        return occupations
+        population =  calculate_population(self)
+        return population
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
@@ -225,7 +217,7 @@ class Phonons:
             diffusivity in mm^2/s
         """
         generalized_diffusivity = self._generalized_diffusivity
-        diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', generalized_diffusivity)
+        diffusivity = 1 / 3 * 1 / 100 * contract('knmaa->kn', generalized_diffusivity)
         return diffusivity
 
 
@@ -319,6 +311,7 @@ class Phonons:
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
+
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
                          format=self.store_format['_ps_gamma_and_gamma_tensor']):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
@@ -386,12 +379,12 @@ class Phonons:
     def chi(self, qvec):
         dxij = self.finite_difference.list_of_replicas
         cell_inv = self.finite_difference.cell_inv
-        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.dot(qvec)))
+        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.T.dot(qvec)))
         return chi_k
 
 
     def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
-        print('Projection started')
+        logging.info('Projection started')
         if self.is_tf_backend:
             try:
                 import ballistico.controllers.anharmonic_tf as aha
