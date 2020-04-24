@@ -57,10 +57,13 @@ $$
 $$
 
 The classical heat capacity is defined as
+
 $$
 {c}_\mu = \mathrm{kelvintojoule}
 $$
+
 while the quantum
+
 $$
 {c}_\mu= \frac{\nu_\mu^2}{\tilde T^2}n_\mu (n_\mu + 1)\mathrm{kelvintojoule}
 $$
@@ -70,14 +73,19 @@ $$
 $$
 \tilde{\eta}_{i\mu} = \frac{{\eta}_{i\mu}}{\sqrt{m_\mu}}
 $$
+
 $$
 V^{\pm}_{\mu\mu'\mu''}=\sum_{i}V_{0il'i'l''i''}\tilde\eta_{\mu i}\tilde\eta_{\mu i}\tilde\eta_{\mu i}\chi^\pm(\mathbf k')_{l'}\chi^-(\mathbf k'')_{l''}
 $$
+
 where $\chi^+ = \chi$ and $\chi^- = \chi^*$.
+
 $$
 \delta^\pm_{\mu\mu'\mu''} = \frac{1}{\sqrt{\pi\sigma^2}} e^{-\frac{(\omega_\mu \pm \omega_{\mu'} - \omega_{\mu''})^2}{\sigma^2}}
 $$
+
 Units:
+
 $$
 [\delta] = \frac{1}{[\omega]} = \frac{1}{2 \pi THz}
 $$
@@ -103,7 +111,9 @@ $$
 $$
 \gamma^\pm_{\mu\mu'\mu''} = \frac{\hbar\pi}{4}\frac{1}{N_k}|V^\pm_{\mu\mu'\mu''}|^2 g^\pm_{\mu\mu'\mu''} \mathrm{gammatothz}
 $$
+
 Units
+
 $$
 [\gamma^\pm]=THz
 $$

@@ -12,10 +12,7 @@ logging = get_logger()
 
 
 DELTA_THRESHOLD = 2
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-KELVINTOJOULE = units.kB / units.J
-KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
+GAMMATOTHZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 
 
 @timeit
@@ -48,11 +45,12 @@ def project_amorphous(phonons):
         #                                            0, mupp_vec[0])
 
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
+        pot_times_dirac /= (phonons._omegas[0, mup_vec] * phonons._omegas[0, mupp_vec])
 
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
-        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / 8. / phonons.n_k_points * units._hbar * GAMMATOTHZ
-        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons.frequency.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] * np.pi / 4. / phonons.n_k_points * units._hbar * GAMMATOTHZ
+        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons._omegas.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
         logging.info('calculating third ' + str(nu_single) + ', ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
@@ -60,20 +58,6 @@ def project_amorphous(phonons):
 
     return ps_and_gamma
 
-
-def calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, k0, m0, k1, m1, k2, m2):
-    evect = phonons._rescaled_eigenvectors
-    phonons.finite_difference.third_order_delta = 0.001
-    third_k0m0_k2m2 = phonons.finite_difference.calculate_single_third_on_phonons(k0, m0, k2, m2, evect,
-                                                                               phonons._chi_k)
-    third_k0m0_k2m2 = third_k0m0_k2m2.reshape((phonons.finite_difference.n_replicas, phonons.n_modes))
-    if is_plus:
-        third_k0m0_k1m1_k2m2 = np.einsum('li,l,i->', third_k0m0_k2m2, phonons._chi_k[k1, :],
-                                         evect[k1, :, m1])
-    else:
-        third_k0m0_k1m1_k2m2 = np.einsum('li,l,i->', third_k0m0_k2m2, phonons._chi_k[k1, :].conj(),
-                                         evect[k1, :, m1].conj())
-    return third_k0m0_k1m1_k2m2
 
 @timeit
 def project_crystal(phonons):
@@ -108,6 +92,7 @@ def project_crystal(phonons):
                 if not out:
                     continue
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
+
                 index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
                 if is_plus:
                     #TODO: This can be faster using the contract opt_einsum
@@ -127,7 +112,8 @@ def project_crystal(phonons):
 
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
-                pot_times_dirac = units._hbar / 8. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
+                pot_times_dirac /= (phonons._omegas[index_kp_vec, mup_vec] * phonons._omegas[index_kpp_vec, mupp_vec])
+                pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
                 if is_gamma_tensor_enabled:
                     # We need to use bincount together with fancy indexing here. See:
@@ -144,9 +130,9 @@ def project_crystal(phonons):
                 ps_and_gamma[nu_single, 0] += dirac_delta.sum()
                 ps_and_gamma[nu_single, 1] += pot_times_dirac.sum()
 
-            ps_and_gamma[nu_single, 1:] /= phonons.frequency.flatten()[nu_single]
+            ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
             if is_gamma_tensor_enabled:
-                scattering_tensor[nu_single] /= phonons.frequency.flatten()[nu_single]
+                scattering_tensor[nu_single] /= phonons._omegas.flatten()[nu_single]
     if is_gamma_tensor_enabled:
         return np.hstack([ps_and_gamma, scattering_tensor])
     else:
@@ -209,7 +195,6 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
         # dirac_delta = .5 * density[index_q, mu] * (density[index_qp, mup_vec] + 1) * (
         #             density[index_qpp, mupp_vec] + 1)
 
-    dirac_delta /= (omegas[index_qp, mup_vec] * omegas[index_qpp, mupp_vec])
     if np.array(sigma_small).size == 1:
         dirac_delta *= broadening_function(
             omegas_difference[index_qp, mup_vec, mupp_vec], 2 * np.pi * sigma_small)
@@ -263,7 +248,6 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                     # dirac_delta = .5 * density[0, mu] * (density[0, mup_vec] + 1) * (
                     #             density[0, mupp_vec] + 1)
 
-                dirac_delta /= (omegas[0, mup_vec] * omegas[0, mupp_vec])
                 dirac_delta *= broadening_function(
                     omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small)
 
