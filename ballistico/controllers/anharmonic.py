@@ -74,6 +74,10 @@ def project_crystal(phonons):
     n_atoms = phonons.finite_difference.n_atoms
     third_order = phonons.finite_difference.third_order.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
 
+    chi_1_plus = phonons._chi_k
+    evect_1_plus = rescaled_eigenvectors
+    chi_1_minus = phonons._chi_k.conj()
+    evect_1_minus = rescaled_eigenvectors.conj()
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
             nu_single = np.ravel_multi_index([index_k, mu], (phonons.n_k_points, phonons.n_modes))
@@ -88,20 +92,22 @@ def project_crystal(phonons):
                 dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
 
                 index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
-                if is_plus:
-                    chi_1 = phonons._chi_k
-                    evect_1 = rescaled_eigenvectors
-                else:
-                    chi_1 = phonons._chi_k.conj()
-                    evect_1 = rescaled_eigenvectors.conj()
                 chi_2 = phonons._chi_k[index_kpp_full].conj()
                 evect_2 = rescaled_eigenvectors[index_kpp_full].conj()
-                scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
-                                            potential_times_evect,
-                                            chi_1,
-                                            chi_2,
-                                            evect_1,
-                                            evect_2)
+                if is_plus:
+                    scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
+                                                potential_times_evect,
+                                                chi_1_plus,
+                                                chi_2,
+                                                evect_1_plus,
+                                                evect_2)
+                else:
+                    scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
+                                                potential_times_evect,
+                                                chi_1_minus,
+                                                chi_2,
+                                                evect_1_minus,
+                                                evect_2)
 
                 # pot_small = calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, index_k, mu, index_kp_vec[0], mup_vec[0], index_kpp_vec[0], mupp_vec[0])
 
