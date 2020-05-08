@@ -8,6 +8,9 @@ from ballistico.helpers.tools import timeit
 import numpy as np
 from ballistico.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
 from ballistico.helpers.logger import get_logger
+from opt_einsum import contract
+from ballistico.grid import wrap_coordinates
+
 logging = get_logger()
 
 
@@ -68,6 +71,8 @@ def project_crystal(phonons):
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_replicas = phonons.finite_difference.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors
+    n_atoms = phonons.finite_difference.n_atoms
+    third_order = phonons.finite_difference.third_order.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
 
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
@@ -75,19 +80,8 @@ def project_crystal(phonons):
 
             if nu_single % 200 == 0:
                 logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-            potential_times_evect = np.zeros((n_replicas * phonons.n_modes, n_replicas * phonons.n_modes), dtype=np.complex)
-            for i in range(phonons.n_modes):
-                mask = phonons.finite_difference.third_order.coords[0] == i
-                potential_times_evect[phonons.finite_difference.third_order.coords[1][mask], phonons.finite_difference.third_order.coords[2][mask]] += phonons.finite_difference.third_order.data[mask] * rescaled_eigenvectors[index_k, i, mu]
-
-            potential_times_evect = potential_times_evect.reshape(
-                (n_replicas, phonons.n_modes, n_replicas, phonons.n_modes),
-                order='C').transpose(0, 2, 1, 3).reshape(
-                (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
-
+            potential_times_evect = contract('iljtn,i->ljtn', third_order, rescaled_eigenvectors[index_k, :, mu])
             for is_plus in (1, 0):
-
-
                 out = calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus)
                 if not out:
                     continue
@@ -95,18 +89,19 @@ def project_crystal(phonons):
 
                 index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
                 if is_plus:
-                    #TODO: This can be faster using the contract opt_einsum
-                    chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k, phonons._chi_k[index_kpp_full].conj())
-                    chi_prod = chi_prod.reshape((phonons.n_k_points, n_replicas ** 2))
-                    scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
-                    scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors)
-                    scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
+                    chi_1 = phonons._chi_k
+                    evect_1 = rescaled_eigenvectors
                 else:
-                    chi_prod = np.einsum('kt,kl->ktl', phonons._chi_k.conj(), phonons._chi_k[index_kpp_full].conj())
-                    chi_prod = chi_prod.reshape((phonons.n_k_points, n_replicas ** 2))
-                    scaled_potential = np.tensordot(chi_prod, potential_times_evect, (1, 0))
-                    scaled_potential = np.einsum('kij,kim->kjm', scaled_potential, rescaled_eigenvectors.conj())
-                    scaled_potential = np.einsum('kjm,kjn->kmn', scaled_potential, rescaled_eigenvectors[index_kpp_full].conj())
+                    chi_1 = phonons._chi_k.conj()
+                    evect_1 = rescaled_eigenvectors.conj()
+                chi_2 = phonons._chi_k[index_kpp_full].conj()
+                evect_2 = rescaled_eigenvectors[index_kpp_full].conj()
+                scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
+                                            potential_times_evect,
+                                            chi_1,
+                                            chi_2,
+                                            evect_1,
+                                            evect_2)
 
                 # pot_small = calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, index_k, mu, index_kp_vec[0], mup_vec[0], index_kpp_vec[0], mupp_vec[0])
 
