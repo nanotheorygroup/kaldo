@@ -31,9 +31,7 @@ def phonons():
                           'is_classic': is_classic,
                           'temperature': 300,
                           'is_tf_backend':False,
-                          'storage':'memory',
-                          'third_bandwidth':.1,
-                          'broadening_shape':'gauss'}
+                          'storage':'memory'}
         phonons = Phonons(finite_difference=finite_difference, **phonons_config)
         return phonons
 
@@ -41,5 +39,5 @@ def phonons():
 def test_velocity_with_finite_difference_x(phonons, velocity_stored):
     calculated_vx = phonons.velocity[:,:,0]
     vx = velocity_stored[:,:,0]
-    np.testing.assert_array_almost_equal(calculated_vx,vx, 2)
+    np.testing.assert_array_almost_equal(calculated_vx[1:],vx[1:], 2)
 
