@@ -14,11 +14,11 @@ ballistico.conductivity.Conductivity
    .. autosummary::
    
       ~Conductivity.__init__
-      ~Conductivity.calculate_c_v_2d
-      ~Conductivity.calculate_mfp_inverse
+      ~Conductivity.calculate_2d_heat_capacity
       ~Conductivity.calculate_conductivity_qhgk
-      ~Conductivity.calculate_mfp_sc
+      ~Conductivity.calculate_mfp_inverse
       ~Conductivity.calculate_mfp_relaxons
+      ~Conductivity.calculate_mfp_sc
       ~Conductivity.calculate_sc_mfp
    
    
@@ -30,5 +30,6 @@ ballistico.conductivity.Conductivity
    .. autosummary::
    
       ~Conductivity.conductivity
+      ~Conductivity.mean_free_path
    
    

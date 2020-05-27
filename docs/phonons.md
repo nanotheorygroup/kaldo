@@ -1,5 +1,6 @@
 # Phonons Object
 ## Input
+
 - `is_classic`
 - `temperature`
 - `kpts`

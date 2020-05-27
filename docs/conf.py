@@ -51,6 +51,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
     'recommonmark',
+    'numpydoc',
     'nbsphinx'
 ]
 
