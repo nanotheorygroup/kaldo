@@ -8,11 +8,12 @@ Ballistico, Anharmonic Lattice Dynamics
 
 .. toctree::
    :glob:
-   :caption: Introduction
+   :caption: Get to know cALDo!
 
    introduction.md
    install.md
    class_schema.md
+   tutorials.md
 
 
 .. toctree::

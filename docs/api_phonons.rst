@@ -1,19 +1,28 @@
+.. _phonons_api::
+.. currentmodule:: ballistico.phonons
+
+#######################
 Phonons API Reference
-=====================
+#######################
 
-.. autosummary::
-   :toctree: autosummary
+Building the phonons object is the intermediate step
+between finishing your Finite Difference object, and
+initializing the Conductivity object. After building 
+the Phonon object, here is a list of things you can 
+ask for cALDo to return.
 
-   ballistico.phonons.Phonons
-   ballistico.phonons.Phonons.frequency
-   ballistico.phonons.Phonons.velocity
-   ballistico.phonons.Phonons.heat_capacity
-   ballistico.phonons.Phonons.population
-   ballistico.phonons.Phonons.bandwidth
-   ballistico.phonons.Phonons.phase_space
-   ballistico.phonons.Phonons.diffusivity
-   ballistico.phonons.Phonons.physical_mode
-   ballistico.phonons.Phonons.flux_dense
-   ballistico.phonons.Phonons.flux_sparse
-   ballistico.phonons.Phonons.eigenvalues
-   ballistico.phonons.Phonons.eigenvectors
+Attributes
++++++++++++++++
+
+.. autoclass:: Phonons
+   :members:
+
+To get a better idea of how to interact with the phonons
+object, please refer to the section below which will outline
+the arguments the Phonon object takes.
+
+.. automodule:: ballistico.phonons
+   :members:
+
+
+   
