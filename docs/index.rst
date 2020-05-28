@@ -10,14 +10,12 @@ Ballistico, Anharmonic Lattice Dynamics
    :glob:
    :caption: Get to know cALDo!
 
-   introduction.md
+   About Us<introduction.md>
    install.md
    class_schema.md
-   tutorials.md
-
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Documentation
 
    finitedifference.md
@@ -29,11 +27,11 @@ Ballistico, Anharmonic Lattice Dynamics
    interface.md
    output.md
 
-
 .. toctree::
    :glob:
    :caption: Tutorials
    
+   tutorials.md
    examples.md
    crystal_presentation.ipynb
    amorphous_presentation.ipynb

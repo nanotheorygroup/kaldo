@@ -1,26 +1,4 @@
-# FiniteDifference Object
-## Input
-- `supercell`
-- `calculator`
-- `second_order`
-- `third_order`
-- `third_order_symmerty_inputs`
-- `is_reduced_second`
-- `delta_shift`
-- `calculator`
-- `calculator_inputs`
-- `is_optimizing`
-- `distance_threshold`
-- `folder`
-
-## Output
-- `dynamical_matrix`
-- `second_order`
-- `third_order`
-- `replicated_atoms`
-
-
-# Finite Difference Theory  (draft)
+# Finite Difference Theory 
 
 
 ## Dynamical matrix

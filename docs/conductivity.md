@@ -1,18 +1,4 @@
-# Conductivity Object
-## Input
-- `method`
-- `length`
-- `finite_length_method`
-- `n_iterations`
-- `tolerance`
-- `storage`
-
-## Output
-- `conductivity`
-- `mean_free_path`
-
-
-# Conductivity Theory (draft)
+# Conductivity Theory
 $$
 \lambda_{\mu\alpha} ={\gamma_\mu}{v_{\mu\alpha}}
 $$
