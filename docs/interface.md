@@ -1,5 +1,5 @@
+# Interfacing with Other Codes
 
-# Interfacing with other codes
 ## LAMMPS setup
 
 Compile LAMMPS as a lib

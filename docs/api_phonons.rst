@@ -1,4 +1,5 @@
-.. _phonons_api::
+.. _phonons-api:
+
 .. currentmodule:: ballistico.phonons
 
 #######################
@@ -23,6 +24,8 @@ the arguments the Phonon object takes.
 
 .. automodule:: ballistico.phonons
    :members:
+   
+:ref:`src-phonons`
 
 
    

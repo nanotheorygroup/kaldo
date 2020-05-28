@@ -73,23 +73,6 @@ LAMMPS script.
 	print('AF conductivity')
 	print(phonons.conductivity(method='qhgk').sum(axis=0))
 	
-	
-# Conductivity of Amorphous Silicon
 
-This example is similar to the one above and a similar bash script to the one
-mentioned above can be used to generate the results of this tutorial. Creation
-of amorphous samples is outside of the scope of these tutorials so a sample 
-structure of amorphous silicon has been provided in the auxillary folder labeled
-"structures". In the first part of our the tutorial code `1_create_structure.py`
-the atoms are read from the DL-Poly format and stored as a LAMMPS data file by
-ASE.
-After running the `in.lmp` with your MPI LAMMPS build and proceeding to the second
-script labeled `2_calculate_phonons.py`, the first step is to load in the
-structural information to load a finite difference object.
-
-.. note::
-	LAMMPS is a great program, however it does not store all of its information in
-	an easily ASE accesible way. This means that after loading in a LAMMPS 
-	coordinate file as we do here, it is necessary to assign atomic numbers,
-	similar to how you would do so in LAMMP (e.g. atom type 1 == atomic number 14)
+### More Tutorials Coming Soon
 	
