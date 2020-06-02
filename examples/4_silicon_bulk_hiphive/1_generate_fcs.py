@@ -7,7 +7,7 @@ from ase.calculators.lammpslib import LAMMPSlib
 from ase.io import write, read
 from hiphive import ClusterSpace
 from hiphive.fitting import Optimizer
-from hiphive import StructureContainer,ForceConstantPotential
+from hiphive import StructureContainer, ForceConstantPotential
 from hiphive.structure_generation import generate_rattled_structures
 import numpy as np
 import os
@@ -29,12 +29,12 @@ os.mkdir('structures/')
 # Generate rattled structures
 atoms_prim = bulk('Si', 'diamond', a=a0)
 n_prim = atoms_prim.get_masses().shape[0]
-supercell = np.array([3,3,3])
+supercell = np.array([3, 3, 3])
 initial_structure = atoms_prim.copy() * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
-seed_int_struct = np.random.randint(1,100000,size=1,dtype=np.int64)[0]
+seed_int_struct = np.random.randint(1, 100000, size=1, dtype=np.int64)[0]
 rattled_structures = generate_rattled_structures(
-    initial_structure, number_of_structures, rattle_amplitude,seed=seed_int_struct)
-print('Random Seed: %d'%seed_int_struct)
+    initial_structure, number_of_structures, rattle_amplitude, seed=seed_int_struct)
+print('Random Seed: %d' % seed_int_struct)
 
 for i in range(len(rattled_structures)):
     single_structures_fname = 'structures/rattled_structures_' + str(i) + '.extxyz'
@@ -59,9 +59,8 @@ print('\n')
 """
 Build up StructureContainer.
 """
-
 # Build StructureContainer
-cs = ClusterSpace(rattled_structures[0], [4.0,4.0])
+cs = ClusterSpace(rattled_structures[0], [4.0, 4.0])
 sc = StructureContainer(cs)
 for structure in rattled_structures:
     sc.add_structure(structure)
@@ -69,30 +68,25 @@ print('\n')
 print('Structure container building ups are completed!')
 
 """
-Compute Iforce constants (fcs) for desired orders.
+Compute Interatomic Force Constants (IFC) for desired orders.
 """
 
-# Read in the replicated structures from previous rattle gneration
-atoms_replicated = atoms_prim.copy()*(supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
-seed_int = seed_int_struct.copy()
-
-
 # Fit models for 3rd order
-opt = Optimizer(sc.get_fit_data(),seed=seed_int)
+opt = Optimizer(sc.get_fit_data(), seed=seed_int_struct)
 opt.train()
 print(opt)
 fcp = ForceConstantPotential(cs, opt.parameters)
 
 # Derive and save force constants from force potential
-fcs = fcp.get_force_constants(atoms_replicated)
+fcs = fcp.get_force_constants(initial_structure)
 
 # Set up hiphive fcs folder
 hiphive_filename = 'hiphive_si_bulk/'
 primitive_fname = 'hiphive_si_bulk/atom_prim.xyz'
 if not os.path.isdir(hiphive_filename):
     os.mkdir(hiphive_filename)
-write(primitive_fname, atoms_prim,format= 'xyz')
+write(primitive_fname, atoms_prim, format='xyz')
 fcs.write(hiphive_filename + '/' + 'model2.fcs')
-fcs.write(hiphive_filename + '/' +'model3.fcs')
+fcs.write(hiphive_filename + '/' + 'model3.fcs')
 print('\n')
 print('ICF computations are completed!')
