@@ -8,12 +8,13 @@ from ballistico.helpers.storage import DEFAULT_STORE_FORMATS
 from ballistico.grid import Grid
 from ballistico.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
     calculate_heat_capacity, calculate_population, calculate_dynmat_derivatives, calculate_eigensystem, \
-    calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity
+    calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity, chi
 import numpy as np
 from opt_einsum import contract
 
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
+
 
 FOLDER_NAME = 'ald-output'
 
@@ -62,6 +63,10 @@ class Phonons:
         storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
             defines the storing strategy used to store the observables. The `default` strategy stores formatted output
             and numpy arrays. `memory` storage doesn't generate any output.
+        diagonalization_method: 'numpy' or 'lapack
+            specify if numpy or lapack for diagonalizing
+        grid_type: 'F' or 'C
+            specify if to use 'C" style atoms replica grid of fortran style 'F', default 'C'
 
         Returns
         -------
@@ -76,7 +81,8 @@ class Phonons:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)
         self.kpts = kwargs.pop('kpts', (1, 1, 1))
-        self._reciprocal_grid = Grid(self.kpts, order='C')
+        grid_type = kwargs.pop('grid_type', 'C')
+        self._reciprocal_grid = Grid(self.kpts, order=grid_type)
 
         self.kpts = np.array(self.kpts)
 
@@ -93,6 +99,7 @@ class Phonons:
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
+        self.diagonalization_method = kwargs.pop('diagonalization_method', 'numpy')
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -334,15 +341,6 @@ class Phonons:
 # Helpers properties
 
     @property
-    def _chi_k(self):
-        chi = np.zeros((self.n_k_points, self.finite_difference.n_replicas), dtype=np.complex)
-        for index_q in range(self.n_k_points):
-            k_point = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
-            chi[index_q] = self.chi(k_point)
-        return chi
-
-
-    @property
     def _omegas(self):
         return self.frequency * 2 * np.pi
 
@@ -374,13 +372,6 @@ class Phonons:
     def _is_amorphous(self):
         is_amorphous = (self.kpts == (1, 1, 1)).all()
         return is_amorphous
-
-
-    def chi(self, qvec):
-        dxij = self.finite_difference.list_of_replicas
-        cell_inv = self.finite_difference.cell_inv
-        chi_k = np.exp(1j * 2 * np.pi * dxij.dot(cell_inv.T.dot(qvec)))
-        return chi_k
 
 
     def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):

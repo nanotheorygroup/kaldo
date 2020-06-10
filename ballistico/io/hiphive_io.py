@@ -11,9 +11,10 @@ def import_second_from_hiphive(finite_difference):
     second_hiphive_file = str(folder) + '/model2.fcs'
     fcs2 = ForceConstants.read(second_hiphive_file)
     second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
-    return second_order.reshape((finite_difference.n_replicas, finite_difference.n_atoms, 3,
+    second_order = second_order.reshape((finite_difference.n_replicas, finite_difference.n_atoms, 3,
                                  finite_difference.n_replicas, finite_difference.n_atoms, 3))
-
+    second_order = second_order[0, np.newaxis]
+    return second_order
 
 def import_third_from_hiphive(finite_difference):
     atoms = finite_difference.atoms
@@ -23,7 +24,7 @@ def import_third_from_hiphive(finite_difference):
     supercell = np.array(supercell)
 
     # Derive constants used for third-order reshape
-    n_prim = atoms.copy().get_masses().shape[0]
+    n_prim = atoms.positions.shape[0]
     n_sc = np.prod(supercell)
     dim = len(supercell[supercell > 1])
     fcs3 = ForceConstants.read(third_hiphive_file)

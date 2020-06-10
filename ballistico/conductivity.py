@@ -192,7 +192,7 @@ class Conductivity:
         frequency = self._keep_only_physical(self.phonons.frequency.reshape((self.n_phonons)))
         _ps_gamma_and_gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor
         gamma_tensor = self._keep_only_physical(_ps_gamma_and_gamma_tensor[:, 2:])
-        scattering_matrix_without_diagonal = contract('a,ab,b->ab', 1 / frequency, gamma_tensor, frequency)
+        scattering_matrix_without_diagonal = 1 / frequency.reshape(-1, 1) * gamma_tensor * frequency.reshape(1, -1)
         return scattering_matrix_without_diagonal
 
 

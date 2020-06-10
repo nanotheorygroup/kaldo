@@ -6,6 +6,7 @@ import numpy as np
 import ase.units as units
 from ballistico.helpers.tools import timeit
 import tensorflow as tf
+from opt_einsum import contract
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 
@@ -26,8 +27,8 @@ def project_amorphous(phonons):
     logging.info('Projection started')
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
-    coords = phonons.finite_difference.third_order.coords
-    data = phonons.finite_difference.third_order.data
+    coords = phonons.finite_difference.third_order.force_constant.coords
+    data = phonons.finite_difference.third_order.force_constant.data
     coords = np.vstack([coords[1], coords[2], coords[0]])
     third_tf = tf.SparseTensor(coords.T, data, (
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
@@ -71,14 +72,23 @@ def project_amorphous(phonons):
 @timeit
 def project_crystal(phonons):
     is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
-    n_replicas = phonons.finite_difference.n_replicas
-    coords = phonons.finite_difference.third_order.coords
-    data = phonons.finite_difference.third_order.data
-    coords = tf.stack([coords[1] * phonons.n_modes * n_replicas + coords[2], coords[0]], -1)
-    third_tf = tf.SparseTensor(coords, data, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
-    third_tf = tf.cast(third_tf, dtype=tf.complex64)
+    n_replicas = phonons.finite_difference.third_order.n_replicas
 
-    _chi_k = tf.convert_to_tensor(phonons._chi_k)
+    try:
+        sparse_third = phonons.finite_difference.third_order.force_constant.reshape((phonons.n_modes, -1))
+        # transpose
+        sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
+        third_tf = tf.SparseTensor(sparse_coords,
+                                   sparse_third.data,
+                                   ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+        is_sparse = True
+    except AttributeError:
+        third_tf = tf.convert_to_tensor(phonons.finite_difference.third_order.force_constant)
+        is_sparse = False
+    third_tf = tf.cast(third_tf, dtype=tf.complex64)
+    k_mesh = phonons._reciprocal_grid.unitary_grid()
+    n_k_points = k_mesh.shape[0]
+    _chi_k = tf.convert_to_tensor(phonons.finite_difference.third_order._chi_k(k_mesh))
     _chi_k = tf.cast(_chi_k, dtype=tf.complex64)
     evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
     evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
@@ -90,21 +100,22 @@ def project_crystal(phonons):
     logging.info('Projection started')
     second_minus = tf.math.conj(evect_tf)
     second_minus_chi = tf.math.conj(_chi_k)
-
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
             logging.info('calculating third ' + str(nu_single) +  ', ' + \
                          str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-        index_k, mu = np.unravel_index(nu_single, (phonons.n_k_points, phonons.n_modes))
-
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
+        index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+        if is_sparse:
+            third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
+        else:
+            third_nu_tf = contract('ijk,i->jk', third_tf, evect_tf[index_k, :, mu])
+            third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
 
         third_nu_tf = tf.cast(
             tf.reshape(third_nu_tf, (n_replicas, phonons.n_modes, n_replicas, phonons.n_modes)),
             dtype=tf.complex64)
         third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
         third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
-
 
         for is_plus in (0, 1):
             index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
@@ -128,7 +139,7 @@ def project_crystal(phonons):
 
             # The ps and gamma array stores first ps then gamma then the scattering array
             chi_prod = tf.einsum('kt,kl->ktl', second_chi, third_chi)
-            chi_prod = tf.reshape(chi_prod, (phonons.n_k_points, n_replicas ** 2))
+            chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas ** 2))
             scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
             scaled_potential = tf.einsum('kij,kim->kjm', scaled_potential, second)
             scaled_potential = tf.einsum('kjm,kjn->kmn', scaled_potential, third)
@@ -160,7 +171,7 @@ def project_crystal(phonons):
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta)
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(pot_times_dirac)
         ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
-        ps_and_gamma[nu_single, 1:] *= np.pi * units._hbar / 4 / phonons.n_k_points * GAMMATOTHZ
+        ps_and_gamma[nu_single, 1:] *= np.pi * units._hbar / 4 / n_k_points * GAMMATOTHZ
     return ps_and_gamma
 
 
