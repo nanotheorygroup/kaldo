@@ -14,30 +14,6 @@ def wrap_coordinates(dxij, cell=None, cell_inv=None):
     return dxij
 
 
-
-def grid_type_from_replicated_atoms(replicated_atoms, supercell):
-    replicated_atoms_positions = replicated_atoms.positions
-    supercell = np.array(supercell)
-    unit_cell = replicated_atoms.cell / supercell
-    n_replicas = np.prod(supercell)
-    n_total_atoms = replicated_atoms_positions.shape[0]
-    n_unit_atoms = int(n_total_atoms / n_replicas)
-    atoms_positions = replicated_atoms_positions[:n_unit_atoms, :]
-    detected_grid = np.round(
-        (replicated_atoms_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
-            np.linalg.inv(unit_cell))[:, 0, :], 0).astype(np.int)
-
-    grid_c = Grid(grid_shape=supercell, order='C')
-    grid_fortran = Grid(grid_shape=supercell, order='F')
-    if (grid_c.grid() == detected_grid).all():
-        logging.info("Detected C-style position grid")
-        return 'C'
-    elif (grid_fortran.grid() == detected_grid).all():
-        logging.info("Detected fortran-style position grid")
-        return 'F'
-    else:
-        logging.info("Unable to detect grid type")
-
 class Grid:
     def __init__(self, grid_shape, order='C'):
         self.grid_shape = grid_shape

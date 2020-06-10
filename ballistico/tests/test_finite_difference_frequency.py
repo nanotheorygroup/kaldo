@@ -139,23 +139,19 @@ def phonons():
     print ("Preparing phonons object.")
     # Setup crystal and EMT calculator
     atoms = bulk('Al', 'fcc', a=4.05)
-    N=5
-    supercell = (N, N, N)
     with TemporaryDirectory() as td:
         finite_difference = FiniteDifference(atoms=atoms,
-                                             supercell=supercell,
-                                             calculator=EMT,
+                                             supercell=[5, 5, 5],
                                              is_reduced_second=True,
                                              folder=td)
+
+        finite_difference.calculate_second(calculator=EMT())
         is_classic = False
-        k = 5
-        phonons_config = {'kpts': [k, k, k],
+        phonons_config = {'kpts': [5, 5, 5],
                           'is_classic': is_classic,
                           'temperature': 300,
                           'is_tf_backend':False,
-                          'storage':'memory',
-                          'third_bandwidth':.1,
-                          'broadening_shape':'gauss'}
+                          'storage':'memory'}
         phonons = Phonons(finite_difference=finite_difference, **phonons_config)
         return phonons
 

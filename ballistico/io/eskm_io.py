@@ -7,11 +7,65 @@ from sparse import COO
 import pandas as pd
 import ase.units as units
 from ballistico.helpers.tools import count_rows
-from ballistico.grid import wrap_coordinates
+from ase import Atoms
 import re
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
 tenjovermoltoev = 10 * units.J / units.mol
+
+
+def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, supercell=(1, 1, 1),
+                      third_energy_threshold=0., distance_threshold=None):
+    n_replicas = np.prod(supercell)
+    n_total_atoms = replicated_atoms.positions.shape[0]
+    n_unit_atoms = int(n_total_atoms / n_replicas)
+    unit_symbols = []
+    unit_positions = []
+    for i in range(n_unit_atoms):
+        unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
+        unit_positions.append(replicated_atoms.positions[i])
+    unit_cell = replicated_atoms.cell / supercell
+
+    atoms = Atoms(unit_symbols,
+                  positions=unit_positions,
+                  cell=unit_cell,
+                  pbc=[1, 1, 1])
+
+
+    if dynmat_file:
+        logging.info('Reading dynamical matrix')
+        second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
+        is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
+        logging.info('Is reduced second: ' + str(is_reduced_second))
+        second_order = second_dl
+        is_reduced_second = is_reduced_second
+        logging.info('Dynamical matrix stored.')
+
+    if third_file:
+        try:
+            logging.info('Reading sparse third order')
+            third_dl = import_sparse_third(atoms=atoms,
+                                              supercell=supercell,
+                                              filename=third_file,
+                                              third_energy_threshold=third_energy_threshold,
+                                              distance_threshold=distance_threshold,
+                                              replicated_atoms=replicated_atoms)
+            logging.info('Third order matrix stored.')
+
+        except UnicodeDecodeError:
+            if third_energy_threshold != 0:
+                raise ValueError('Third threshold not supported for dense third')
+            logging.info('Reading dense third order')
+            third_dl = import_dense_third(atoms, supercell=supercell, filename=third_file)
+            logging.info('Third order matrix stored.')
+        third_dl = third_dl[:n_unit_atoms]
+        third_shape = (
+            n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
+        third_dl = third_dl.reshape(third_shape)
+        third_order = third_dl
+
+    return second_order, is_reduced_second, third_order
+
 
 
 def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):

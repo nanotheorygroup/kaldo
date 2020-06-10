@@ -1,6 +1,11 @@
 from opt_einsum import contract
 from ballistico.grid import wrap_coordinates
 from scipy.linalg.lapack import dsyev
+from scipy.linalg.lapack import zheev
+from ase.units import Rydberg, Bohr
+from ase import units
+from ballistico.grid import Grid
+
 import numpy as np
 import ase.units as units
 from sparse import COO
@@ -12,6 +17,10 @@ logging = get_logger()
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
 
+
+def chi(qvec, list_of_replicas, cell_inv):
+    chi_k = np.exp(1j * 2 * np.pi * list_of_replicas.dot(cell_inv.dot(qvec)))
+    return chi_k
 
 
 def calculate_population(phonons):
@@ -51,14 +60,102 @@ def calculate_frequency(phonons, q_points=None):
 
 
 def calculate_dynmat_derivatives(phonons, q_points=None):
+    if phonons.diagonalization_method == 'lapack':
+        ddyn = calculate_dynmat_derivatives_lapack(phonons, q_points)
+    elif (phonons.diagonalization_method == 'numpy'):
+        ddyn = calculate_dynmat_derivatives_numpy(phonons, q_points)
+    else:
+        logging.error('Diagonalization method ' + phonons.diagonalization_method + ' not implemented')
+        raise ValueError
+    return ddyn
+
+
+def calculate_dynmat_derivatives_lapack(phonons, q_points=None):
+    is_main_mesh = True if q_points is None else False
+    if is_main_mesh:
+        q_points = phonons._main_q_mesh
+    finite_difference = phonons.finite_difference
+    supercell = phonons.supercell
+    atoms = finite_difference.atoms
+    cell = atoms.cell
+    n_unit_cell = atoms.positions.shape[0]
+    # mass = atoms.get_masses()
+    # masses_2d = np.zeros((n_unit_cell, n_unit_cell))
+    distance = np.zeros((n_unit_cell, n_unit_cell, 3))
+    positions = atoms.positions
+    replicated_cell = cell * supercell
+    fc_s = finite_difference.second_order.dynmat(atoms.get_masses())
+    # fc_s = fc_s / (Rydberg / (Bohr ** 2))
+    # EVTOTENJOVERMOL = units.mol / (10 * units.J)
+    # massfactor = 2 * units._me * units._Nav * 1000
+    # fc_s = fc_s / EVTOTENJOVERMOL * massfactor
+    fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+    for i in np.arange(n_unit_cell):
+        # masses_2d[i, i] = mass[i]
+        distance[i, i, :] = 0
+        for j in np.arange(i, n_unit_cell):
+            # masses_2d[i, j] = np.sqrt(mass[i] * mass[j])
+            distance[i, j, :3] = positions[i, :3] - positions[j, :3]
+            # masses_2d[j, i] = masses_2d[i, j]
+            distance[j, i, :3] = -distance[i, j, :3]
+    j = 0
+    list_of_replicated_cells = np.zeros((124, 3))
+    norm_of_replicated_cells = np.zeros((124))
+    for id_0 in np.arange(-2, 3):
+        for id_1 in np.arange(-2, 3):
+            for id_2 in np.arange(-2, 3):
+                if (np.all([id_0, id_1, id_2] == [0, 0, 0])):
+                    continue
+                for i in np.arange(3):
+                    list_of_replicated_cells[j, i] = replicated_cell[0, i] * id_0 + replicated_cell[1, i] * id_1 + replicated_cell[2, i] * id_2
+                norm_of_replicated_cells[j] = 0.5 * np.dot(list_of_replicated_cells[j, :3], list_of_replicated_cells[j, :3])
+                j = j + 1
+    nk = q_points.shape[0]
+    ddyn_s = np.zeros((nk, n_unit_cell * 3, n_unit_cell * 3, 3), dtype=np.complex)
+    for iat in np.arange(n_unit_cell):
+        for jat in np.arange(n_unit_cell):
+            for replica_0 in np.arange(-2 * supercell[0], 2 * supercell[0] + 1):
+                for replica_1 in np.arange(-2 * supercell[1], 2 * supercell[1] + 1):
+                    for replica_2 in np.arange(-2 * supercell[2], 2 * supercell[2] + 1):
+                        replica_id = np.array([replica_0, replica_1, replica_2])
+                        replica_position = np.tensordot(replica_id, cell, (-1, 0))
+                        atom_absolute_position = replica_position + distance[iat, jat]
+                        weight = 0.
+                        nreq = 1
+                        j = 0
+                        for ir in np.arange(124):
+                            ck = np.dot(atom_absolute_position, list_of_replicated_cells[ir, :3])\
+                                 - norm_of_replicated_cells[ir]
+                            if (ck > 1e-6):
+                                j = 1
+                                continue
+                            if (abs(ck) <= 1e-6):
+                                nreq = nreq + 1
+                        if (j == 0):
+                            weight = 1.0 / (nreq)
+                        if (weight > 0.0):
+                            t1, t2, t3 = wrap_coords_shen(replica_id, supercell).astype(np.int)
+                            for ik in np.arange(nk):
+                                kt = 2. * np.pi * np.dot(q_points[ik, :], replica_id[:])
+                                for ipol in np.arange(3):
+                                    idim = (iat) * 3 + ipol
+                                    for jpol in np.arange(3):
+                                        jdim = (jat) * 3 + jpol
+                                        ddyn_s[ik, idim, jdim, :3] = ddyn_s[ik, idim, jdim, :3] - replica_position[:3] * fc_s[
+                                            jat, jpol, t1, t2, t3, iat, ipol] * phexp(kt) * weight
+    return ddyn_s
+
+
+def calculate_dynmat_derivatives_numpy(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if is_main_mesh:
         q_points = phonons._main_q_mesh
     atoms = phonons.atoms
-    list_of_replicas = phonons.finite_difference.list_of_replicas
-    replicated_cell = phonons.finite_difference.replicated_atoms.cell
-    replicated_cell_inv = phonons.finite_difference.replicated_cell_inv
-    dynmat = phonons.finite_difference.dynmat
+    list_of_replicas = phonons.finite_difference.second_order.list_of_replicas
+    replicated_cell = phonons.finite_difference.second_order.replicated_atoms.cell
+    replicated_cell_inv = np.linalg.inv(phonons.finite_difference.second_order.replicated_atoms.cell)
+
+    dynmat = phonons.finite_difference.second_order.dynmat(atoms.get_masses())
     positions = phonons.finite_difference.atoms.positions
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]
@@ -80,7 +177,10 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
 
 
             distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
-                phonons.finite_difference.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, :, :, :])
+                phonons.finite_difference.second_order.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, :, :, :])
+
+            list_of_replicas = phonons.finite_difference.second_order.list_of_replicas
+            cell_inv = phonons.finite_difference.cell_inv
 
             if phonons.finite_difference.distance_threshold:
                 dynmat_derivatives = np.zeros((n_unit_cell, 3, n_unit_cell, 3, 3), dtype=np.complex)
@@ -90,10 +190,11 @@ def calculate_dynmat_derivatives(phonons, q_points=None):
                     mask = (np.linalg.norm(wrapped_distance, axis=-1) < phonons.finite_difference.distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
                     dynmat_derivatives[id_i, :, id_j, :, :] += np.einsum('fa,fbc->fbca', distance[id_i, l, id_j, :], \
-                                                                   dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l])
+                                                                   dynmat[0, id_i, :, 0, id_j, :] *
+                                                                         chi(qvec, list_of_replicas, cell_inv)[l])
             else:
 
-                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0], phonons.chi(qvec))
+                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0], chi(qvec, list_of_replicas, cell_inv))
         ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3))
     return ddyn
 
@@ -166,7 +267,6 @@ def calculate_velocity_af(phonons, q_points=None):
 def calculate_velocity(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if is_main_mesh:
-        q_points = phonons._main_q_mesh
         velocity_AF = phonons._velocity_af
     else:
         velocity_AF = calculate_velocity_af(phonons, q_points)
@@ -175,6 +275,152 @@ def calculate_velocity(phonons, q_points=None):
 
 
 def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
+    if phonons.diagonalization_method == 'lapack':
+        eigensystem = calculate_eigensystem_lapack(phonons, q_points, only_eigenvals)
+    elif (phonons.diagonalization_method == 'numpy'):
+        eigensystem = calculate_eigensystem_numpy(phonons, q_points, only_eigenvals)
+    else:
+        logging.error('Diagonalization method ' + phonons.diagonalization_method + ' not implemented')
+        raise ValueError
+    return eigensystem
+
+
+def phexp(input):
+    # input = -1j * input
+    return np.cos(input.real) - 1j * np.sin(input.real)
+
+
+def wrap_coords_shen(mmm, scell):
+    m1, m2, m3 = mmm
+    t1 = np.mod(m1, scell[0])
+    if (t1 < 0):
+        t1 = t1 + scell[0]
+    t2 = np.mod(m2, scell[1])
+    if (t2 < 0):
+        t2 = t2 + scell[1]
+    t3 = np.mod(m3, scell[2])
+    if (t3 < 0):
+        t3 = t3 + scell[3]
+    return np.array([t1, t2, t3])
+
+
+def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
+
+    is_main_mesh = True if q_points is None else False
+
+    if is_main_mesh:
+        q_points = phonons._main_q_mesh
+
+    finite_difference = phonons.finite_difference
+    scell = phonons.supercell
+    atoms = finite_difference.atoms
+    lattvec = atoms.cell
+    n_unit_cell = atoms.positions.shape[0]
+    distance = np.zeros((n_unit_cell, n_unit_cell, 3))
+    positions = atoms.positions
+
+    ev_s = (units._hplanck) * units.J
+    toTHz = 2 * np.pi * units.Rydberg / ev_s * 1e-12
+    massfactor = 2 * units._me * units._Nav * 1000
+
+    fc_s = finite_difference.second_order.dynmat(atoms.get_masses()) / (Rydberg / (Bohr ** 2))
+    EVTOTENJOVERMOL = units.mol / (10 * units.J)
+    fc_s = fc_s / EVTOTENJOVERMOL * massfactor
+    fc_s = fc_s.reshape((n_unit_cell, 3, scell[0], scell[1], scell[2], n_unit_cell, 3))
+
+
+    for i in np.arange(n_unit_cell):
+        # masses_2d[i, i] = mass[i]
+        distance[i, i, :] = 0
+        for j in np.arange(i, n_unit_cell):
+            # masses_2d[i, j] = np.sqrt(mass[i] * mass[j])
+            distance[i, j, :3] = positions[i, :3] - positions[j, :3]
+            # masses_2d[j, i] = masses_2d[i, j]
+            distance[j, i, :3] = -distance[i, j, :3]
+    j = 0
+    rl = np.zeros((124, 3))
+    Rnorm = np.zeros((124))
+    replicated_cell = lattvec * scell
+
+    for ix2 in np.arange(-2, 3):
+        for iy2 in np.arange(-2, 3):
+            for iz2 in np.arange(-2, 3):
+                if (np.all([ix2, iy2, iz2] == [0, 0, 0])):
+                    continue
+                for i in np.arange(3):
+                    rl[j, i] = replicated_cell[0, i] * ix2 + replicated_cell[1, i] * iy2 + replicated_cell[2, i] * iz2
+                Rnorm[j] = 0.5 * np.dot(rl[j, :3], rl[j, :3])
+                j = j + 1
+    nk = q_points.shape[0]
+    dyn_s = np.zeros((nk, n_unit_cell * 3, n_unit_cell * 3), dtype=np.complex)
+
+    for iat in np.arange(n_unit_cell):
+        for jat in np.arange(n_unit_cell):
+
+            for ix1 in np.arange(-2 * scell[0], 2 * scell[0] + 1):
+                for iy1 in np.arange(-2 * scell[1], 2 * scell[1] + 1):
+                    for iz1 in np.arange(-2 * scell[2], 2 * scell[2] + 1):
+
+
+                        replica_id = np.array([ix1, iy1, iz1])
+                        rcell = np.tensordot(lattvec, replica_id, (0, -1))
+                        r = rcell + distance[iat, jat]
+                        weight = 0.
+                        neq = 1
+                        j = 0
+                        for ir in np.arange(124):
+                            ck = np.dot(r, rl[ir, :3])\
+                                 - Rnorm[ir]
+                            if (ck > 1e-6):
+                                j = 1
+                                continue
+                            if (abs(ck) <= 1e-6):
+                                neq = neq + 1
+                        if (j == 0):
+                            weight = 1.0 / (neq)
+
+                        if (weight > 0.0):
+                            t1, t2, t3 = wrap_coords_shen(replica_id, scell).astype(np.int)
+                            for ik in np.arange(nk):
+
+                                qr = 2. * np.pi * np.dot(q_points[ik, :], replica_id[:])
+
+                                for ipol in np.arange(3):
+                                    idim = (iat) * 3 + ipol
+                                    for jpol in np.arange(3):
+                                        jdim = (jat) * 3 + jpol
+
+                                        dyn_s[ik, idim, jdim] = dyn_s[ik, idim, jdim] + fc_s[
+                                             jat, jpol, t1, t2, t3, iat, ipol] * phexp(1 * qr) * weight
+
+    frequency = np.zeros((nk, n_unit_cell * 3))
+    if only_eigenvals:
+        esystem = np.zeros((nk, n_unit_cell * 3), dtype=np.complex)
+    else:
+        esystem = np.zeros((nk, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=np.complex)
+
+    for ik in np.arange(nk):
+        dyn = dyn_s[ik, :, :]
+
+        for ipol in np.arange(3):
+            for jpol in np.arange(3):
+                for iat in np.arange(n_unit_cell):
+                    for jat in np.arange(n_unit_cell):
+                        idim = (iat) * 3 + ipol
+                        jdim = (jat) * 3 + jpol
+                        dyn[idim, jdim] = dyn[idim, jdim]
+
+        omega2,eigenvect,info = zheev(dyn)
+        frequency[ik, :] = np.sign(omega2) * np.sqrt(np.abs(omega2))
+        frequency[ik, :] = frequency[ik, :] * toTHz / np.pi / 2
+        if only_eigenvals:
+            esystem[ik] = (frequency[ik, :] * np.pi * 2) ** 2
+        else:
+            esystem[ik] = np.vstack(((frequency[ik, :] * np.pi * 2) ** 2, eigenvect))
+    return esystem
+
+
+def calculate_eigensystem_numpy(phonons, q_points=None, only_eigenvals=False):
     is_main_mesh = True if q_points is None else False
     if is_main_mesh:
         q_points = phonons._main_q_mesh
@@ -184,10 +430,6 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
     n_replicas = phonons.finite_difference.n_replicas
     if phonons.finite_difference.distance_threshold:
         logging.info('Using folded dynamical matrix.')
-    replicated_positions = (phonons.finite_difference.list_of_replicas[:, np.newaxis, :] +
-                            atoms.positions[np.newaxis, :, :]).reshape((n_replicas, n_unit_cell, 3))
-    # replicated_positions = phonons.finite_difference.replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
-
     if phonons._is_amorphous:
         dtype = np.float
     else:
@@ -198,28 +440,32 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
         esystem = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
     for index_k in range(n_k_points):
         qvec = q_points[index_k]
-        dynmat = phonons.finite_difference.dynmat
+        dynmat = phonons.finite_difference.second_order.dynmat(atoms.get_masses())
         is_at_gamma = (qvec == (0, 0, 0)).all()
+
+        list_of_replicas = phonons.finite_difference.second_order.list_of_replicas
+        cell_inv = phonons.finite_difference.cell_inv
         if phonons.finite_difference.distance_threshold:
             distance_threshold = phonons.finite_difference.distance_threshold
             dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-            replicated_cell = phonons.finite_difference.replicated_atoms.cell
-            replicated_cell_inv = phonons.finite_difference.replicated_cell_inv
+            replicated_cell = phonons.finite_difference.second_order.replicated_atoms.cell
+            replicated_cell_inv = np.linalg.inv(phonons.finite_difference.second_order.replicated_atoms.cell)
+
             for l in range(n_replicas):
                 distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
-                    phonons.finite_difference.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, l, :, :])
+                    phonons.finite_difference.second_order.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, l, :, :])
 
                 distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
 
                 mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
 
-                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * phonons.chi(qvec)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', dynmat[0])
             else:
-                dyn_s = contract('ialjb,l->iajb', dynmat[0], phonons.chi(qvec))
+                dyn_s = contract('ialjb,l->iajb', dynmat[0], chi(qvec, list_of_replicas, cell_inv))
         dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes))
         if phonons.is_symmetrizing_frequency:
             dyn_s = 0.5 * (dyn_s + dyn_s.T.conj())
@@ -234,8 +480,10 @@ def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
                 evals, evects = dsyev(dyn_s)[:2]
             else:
                 evals, evects = np.linalg.eigh(dyn_s)
+                # evals, evects = zheev(dyn_s)[:2]
             esystem[index_k] = np.vstack((evals, evects))
     return esystem
+
 
 
 def calculate_physical_modes(phonons):

@@ -9,7 +9,8 @@ from ase.units import Rydberg, Bohr
 from ase import Atoms
 import os
 import re
-from ballistico.helpers.tools import count_rows
+from ballistico.grid import Grid, wrap_coordinates
+from sparse import COO
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
@@ -35,24 +36,17 @@ def split_index(index, nx, ny, nz):
     return int(ix), int(iy), int(iz), int(iatom)
 
 
-def list_of_index(finite_difference):
-    list_of_index = finite_difference.list_of_replicas.dot(np.linalg.inv(finite_difference.atoms.cell)).round(0).astype(int)
-    return list_of_index
-
-
-def import_second_and_third_from_sheng(finite_difference):
-    atoms = finite_difference.atoms
-    supercell = finite_difference.supercell
-    folder = finite_difference.folder
+def read_second_order_matrix(folder, supercell):
     second_file = folder + '/' + 'FORCE_CONSTANTS_2ND'
     if not os.path.isfile(second_file):
         second_file = folder + '/' + 'FORCE_CONSTANTS'
-    n_replicas = np.prod(supercell)
     with open(second_file, 'r') as file:
         first_row = file.readline()
         first_row_split = re.findall(r'\d+', first_row)
         n_rows = int(list(map(int, first_row_split))[0])
+        n_replicas = np.prod(supercell)
         n_unit_atoms = int(n_rows / n_replicas)
+        n_replicas = np.prod(supercell)
 
         second_order = np.zeros((n_unit_atoms, 3, supercell[0],
                                  supercell[1], supercell[2], n_unit_atoms, 3))
@@ -72,11 +66,51 @@ def import_second_and_third_from_sheng(finite_difference):
                 else:
                     file.readline()
             line = file.readline()
-    is_reduced_second = True
+    return second_order
+
+
+def read_second_order_qe_matrix(filename):
+    file = open('%s' % filename, 'r')
+    ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
+    if (ibrav == 0):
+        file.readline()
+    for i in np.arange(ntype):
+        file.readline()
+    for i in np.arange(n_atoms):
+        file.readline()
+    polar = file.readline()
+    if ("T" in polar):
+        for i in np.arange(3):
+            file.readline()
+        for i in np.arange(n_atoms):
+            file.readline()
+            for j in np.arange(3):
+                file.readline()
+    supercell = [int(x) for x in file.readline().split()]
+    second = np.zeros((3, 3, n_atoms, n_atoms, supercell[0], supercell[1], supercell[2]))
+    for i in np.arange(3 * 3 * n_atoms * n_atoms):
+        alpha, beta, i_at, j_at = [int(x) - 1 for x in file.readline().split()]
+        for j in np.arange(supercell[0] * supercell[1] * supercell[2]):
+            readline = file.readline().split()
+            t1, t2, t3 = [int(x) - 1 for x in readline[:3]]
+            second[alpha, beta, i_at, j_at, t1, t2, t3] = float(readline[3]) * (Rydberg / (
+                                Bohr ** 2))
+    second = second.transpose(2,0,4,5,6,3,1)
+    return second, supercell
+
+
+
+
+def read_third_order_matrix(third_file, atoms, supercell, order='C'):
+    n_unit_atoms = atoms.positions.shape[0]
+    n_replicas = np.prod(supercell)
     third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
     second_cell_list = []
     third_cell_list = []
+
+    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
+    list_of_index = current_grid
+    list_of_replicas = list_of_index.dot(atoms.cell)
     with open(third_file, 'r') as file:
         line = file.readline()
         n_third = int(line)
@@ -88,7 +122,7 @@ def import_second_and_third_from_sheng(finite_difference):
             second_cell_list.append(second_cell_index)
 
             # create mask to find the index
-            second_cell_id = (list_of_index(finite_difference)[:] == second_cell_index).prod(axis=1)
+            second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
             second_cell_id = np.argwhere(second_cell_id).flatten()
 
             third_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
@@ -96,24 +130,74 @@ def import_second_and_third_from_sheng(finite_difference):
             third_cell_list.append(third_cell_index)
 
             # create mask to find the index
-            third_cell_id = (list_of_index(finite_difference)[:] == third_cell_index).prod(axis=1)
+            third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
             third_cell_id = np.argwhere(third_cell_id).flatten()
 
             atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=np.int, sep=' ') - 1
             for _ in range(27):
                 values = np.fromstring(file.readline(), dtype=np.float, sep=' ')
                 alpha, beta, gamma = values[:3].round(0).astype(int) - 1
-                try:
-                    third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = values[
+                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = values[
                         3]
-                except TypeError as err:
-                    print(err)
-                except IndexError as err:
-                    print(err)
-    second_order = second_order.reshape((1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
                                        n_unit_atoms * 3))
-    return second_order, is_reduced_second, third_order
+    return third_order, _, _, _, _
+
+
+def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
+    supercell = third_supercell
+    n_unit_atoms = atoms.positions.shape[0]
+    n_replicas = np.prod(supercell)
+    current_grid = Grid(third_supercell, order=order).grid(is_wrapping=True)
+    list_of_index = current_grid
+    list_of_replicas = list_of_index.dot(atoms.cell)
+    replicated_cell = atoms.cell * supercell
+    # replicated_cell_inv = np.linalg.inv(replicated_cell)
+
+    coords = []
+    data = []
+    second_cell_positions = []
+    third_cell_positions = []
+    atoms_coords = []
+    sparse_data = []
+    with open(third_file, 'r') as file:
+        line = file.readline()
+        n_third = int(line)
+        for i in range(n_third):
+            file.readline()
+            file.readline()
+
+            second_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            second_cell_positions.append(second_cell_position)
+            d_1 = list_of_replicas[:, :] - second_cell_position[np.newaxis, :]
+            # d_1 = wrap_coordinates(d_1,  replicated_cell, replicated_cell_inv)
+
+            mask_second = np.linalg.norm(d_1, axis=1) < 1e-5
+            second_cell_id = np.argwhere(mask_second).flatten()
+
+            third_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            third_cell_positions.append(third_cell_position)
+            d_2 = list_of_replicas[:, :] - third_cell_position[np.newaxis, :]
+            # d_2 = wrap_coordinates(d_2,  replicated_cell, replicated_cell_inv)
+            mask_third = np.linalg.norm(d_2, axis=1) < 1e-5
+            third_cell_id = np.argwhere(mask_third).flatten()
+
+            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=np.int, sep=' ') - 1
+            atoms_coords.append([atom_i, atom_j, atom_k])
+            small_data = []
+            for _ in range(27):
+
+                values = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+                alpha, beta, gamma = values[:3].round(0).astype(int) - 1
+                coords.append([atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma])
+                data.append(values[3])
+                small_data.append(values[3])
+            sparse_data.append(small_data)
+
+    third_order = COO(np.array(coords).T, np.array(data), shape=(n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+    return third_order, np.array(sparse_data), np.array(second_cell_positions), np.array(third_cell_positions), np.array(atoms_coords)
 
 
 def import_control_file(control_file):
@@ -267,10 +351,10 @@ def save_third_order_matrix(phonons):
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
                             block_counter += 1
                             file.write ('\n  ' + str (block_counter))
-                            rep_position = phonons.finite_difference.list_of_replicas[n_1]
+                            rep_position = phonons.finite_difference.second_order.list_of_replicas[n_1]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
-                            rep_position = phonons.finite_difference.list_of_replicas[n_2]
+                            rep_position = phonons.finite_difference.second_order.list_of_replicas[n_2]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
                             file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -376,8 +460,8 @@ def header(phonons):
     mass_factor = 1.8218779 * 6.022e-4
 
     for i in range (ntype):
-        mass = np.unique (phonons.finite_difference.replicated_atoms.get_masses ())[i] / mass_factor
-        label = np.unique (phonons.finite_difference.replicated_atoms.get_chemical_symbols ())[i]
+        mass = np.unique (phonons.finite_difference.atoms.get_masses ())[i] / mass_factor
+        label = np.unique (phonons.finite_difference.atoms.get_chemical_symbols ())[i]
         header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
 
     # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
