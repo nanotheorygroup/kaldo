@@ -110,7 +110,7 @@ def import_second_and_third_from_sheng(finite_difference):
                     print(err)
                 except IndexError as err:
                     print(err)
-    second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+    second_order = second_order.reshape((1, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
                                        n_unit_atoms * 3))
     return second_order, is_reduced_second, third_order
