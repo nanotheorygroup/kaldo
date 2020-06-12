@@ -57,8 +57,8 @@ class FiniteDifference(object):
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None,
-                    third_supercell=None, is_acoustic_sum=False):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0.,
+                    distance_threshold=None, is_acoustic_sum=False):
         """
         Create a finite difference object from a folder
         :param folder:

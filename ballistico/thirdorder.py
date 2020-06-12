@@ -96,8 +96,11 @@ class ThirdOrder(Ifc):
 
             third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
 
-            _third_order, _third_sparse, _second_list, _third_list, _third_coords  = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
-
+            third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
+            third_order = ThirdOrder.from_supercell(atoms,
+                                                    grid_type='F',
+                                                    supercell=supercell,
+                                                    force_constant=third_order)
 
         elif format == 'hiphive':
             filename = 'atom_prim.xyz'

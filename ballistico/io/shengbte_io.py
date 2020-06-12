@@ -142,7 +142,7 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
 
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
                                        n_unit_atoms * 3))
-    return third_order, _, _, _, _
+    return third_order
 
 
 def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
