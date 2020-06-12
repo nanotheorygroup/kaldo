@@ -15,7 +15,8 @@ tenjovermoltoev = 10 * units.J / units.mol
 
 
 def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, supercell=(1, 1, 1),
-                      third_energy_threshold=0., distance_threshold=None):
+                      third_energy_threshold=0.):
+    # TODO: split this method into two pieces
     n_replicas = np.prod(supercell)
     n_total_atoms = replicated_atoms.positions.shape[0]
     n_unit_atoms = int(n_total_atoms / n_replicas)
@@ -31,14 +32,13 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
                   cell=unit_cell,
                   pbc=[1, 1, 1])
 
+    second_order = None
+    third_order = None
 
     if dynmat_file:
         logging.info('Reading dynamical matrix')
         second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
-        is_reduced_second = not (n_replicas ** 2 * (n_unit_atoms * 3) ** 2 == second_dl.size)
-        logging.info('Is reduced second: ' + str(is_reduced_second))
         second_order = second_dl
-        is_reduced_second = is_reduced_second
         logging.info('Dynamical matrix stored.')
 
     if third_file:
@@ -47,9 +47,7 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
             third_dl = import_sparse_third(atoms=atoms,
                                               supercell=supercell,
                                               filename=third_file,
-                                              third_energy_threshold=third_energy_threshold,
-                                              distance_threshold=distance_threshold,
-                                              replicated_atoms=replicated_atoms)
+                                              third_energy_threshold=third_energy_threshold)
             logging.info('Third order matrix stored.')
 
         except UnicodeDecodeError:
@@ -64,7 +62,7 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
         third_dl = third_dl.reshape(third_shape)
         third_order = third_dl
 
-    return second_order, is_reduced_second, third_order
+    return second_order, third_order
 
 
 
@@ -93,7 +91,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
         logging.error('Impossible to read dynmat with size ' + str(dynamical_matrix.size))
     return dynamical_matrix * tenjovermoltoev
 
-def import_sparse_third(atoms, replicated_atoms=None, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0., distance_threshold=None):
+def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0.):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]

@@ -257,11 +257,7 @@ def save_second_order_matrix(phonons):
     second_order = finite_difference.second_order
     n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
     n_replicas = phonons.finite_difference.n_replicas
-
-    if not phonons.finite_difference.is_reduced_second:
-        second_order = second_order.reshape((n_replicas, n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
-    else:
-        second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
+    second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
 
 
     #TODO: this is a bit hacky. ShengBTE wants the whole second order matrix, but actually uses only the reduced one. So we fill the rest with zeros
@@ -272,13 +268,11 @@ def save_second_order_matrix(phonons):
                 for i1 in range(n_atoms_unit_cell):
                     for l1 in range(n_replicas):
                         file.write(str(l0 + i0 * n_replicas + 1) + '  ' + str(l1 + i1 * n_replicas + 1) + '\n')
-                        if phonons.finite_difference.is_reduced_second:
-                            if l0 == 0:
-                                sub_second = second_order[i0, :, l1, i1, :]
-                            else:
-                                sub_second = np.zeros((3, 3))
+                        if l0 == 0:
+                            sub_second = second_order[i0, :, l1, i1, :]
                         else:
-                            sub_second = second_order[l0, i0, :, l1, i1, :]
+                            sub_second = np.zeros((3, 3))
+
                         try:
                             file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
                             file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
@@ -292,11 +286,7 @@ def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
     n_replicas = phonons.finite_difference.n_replicas
     n_atoms = int(phonons.n_modes / 3)
-    if phonons.finite_difference.is_reduced_second:
-        second_order = phonons.second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
-    else:
-        second_order = phonons.second_order.reshape (
-            (n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))[0]
+    second_order = phonons.second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
