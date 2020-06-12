@@ -122,11 +122,13 @@ class SecondOrder(Ifc):
                 second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                 second_order = second_order.transpose(3, 4, 2, 0, 1)
+                grid_type = 'F'
             else:
                 second_order = shengbte_io.read_second_order_matrix(folder, supercell)
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                grid_type = 'C'
             second_order = SecondOrder.from_supercell(atoms,
-                                                                        grid_type='C',
+                                                                        grid_type=grid_type,
                                                                         supercell=supercell,
                                                                         force_constant=second_order[np.newaxis, ...],
                                                                         is_acoustic_sum=True)
