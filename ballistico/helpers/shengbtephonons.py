@@ -241,7 +241,7 @@ class ShengBTEPhonons(Phonons):
         # massfactor = 1.8218779 * 6.022e-4
         massfactor = 2 * units._me * units._Nav * 1000
 
-        fc_s = finite_difference.second_order.force_constant / (Rydberg / (Bohr ** 2))
+        fc_s = finite_difference.second_order.value / (Rydberg / (Bohr ** 2))
         fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         # fc_s = fc_s.transpose(1, 6, 0, 5, 2, 3, 4)
 

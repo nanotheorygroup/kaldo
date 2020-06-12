@@ -35,7 +35,7 @@ def project_amorphous(phonons):
             continue
         dirac_delta, mup_vec, mupp_vec = out
 
-        potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order.force_constant,
+        potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order.value,
                                                  rescaled_eigenvectors[:, nu_single], (0, 0))
 
         scaled_potential = np.einsum('ij,in,jm->nm', potential_times_evect.real,
@@ -74,7 +74,7 @@ def project_crystal(phonons):
     n_replicas = phonons.finite_difference.third_order.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors
     n_atoms = phonons.finite_difference.n_atoms
-    third_order = phonons.finite_difference.third_order.force_constant.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
+    third_order = phonons.finite_difference.third_order.value.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
 
     k_mesh = phonons._reciprocal_grid.unitary_grid()
     chi = phonons.finite_difference.third_order._chi_k(k_mesh)
@@ -151,7 +151,7 @@ def project_crystal_2(phonons):
     n_replicas = phonons.finite_difference.third_order.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors
     n_atoms = phonons.finite_difference.n_atoms
-    third_order = phonons.finite_difference.third_order.force_constant.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
+    third_order = phonons.finite_difference.third_order.value.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
 
     k_mesh = phonons._reciprocal_grid.unitary_grid()
     # l_1 = phonons.finite_difference.third_order.list_of_replicas

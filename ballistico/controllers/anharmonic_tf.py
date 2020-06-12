@@ -27,8 +27,8 @@ def project_amorphous(phonons):
     logging.info('Projection started')
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
-    coords = phonons.finite_difference.third_order.force_constant.coords
-    data = phonons.finite_difference.third_order.force_constant.data
+    coords = phonons.finite_difference.third_order.value.coords
+    data = phonons.finite_difference.third_order.value.data
     coords = np.vstack([coords[1], coords[2], coords[0]])
     third_tf = tf.SparseTensor(coords.T, data, (
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
@@ -75,7 +75,7 @@ def project_crystal(phonons):
     n_replicas = phonons.finite_difference.third_order.n_replicas
 
     try:
-        sparse_third = phonons.finite_difference.third_order.force_constant.reshape((phonons.n_modes, -1))
+        sparse_third = phonons.finite_difference.third_order.value.reshape((phonons.n_modes, -1))
         # transpose
         sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
         third_tf = tf.SparseTensor(sparse_coords,
@@ -83,7 +83,7 @@ def project_crystal(phonons):
                                    ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
         is_sparse = True
     except AttributeError:
-        third_tf = tf.convert_to_tensor(phonons.finite_difference.third_order.force_constant)
+        third_tf = tf.convert_to_tensor(phonons.finite_difference.third_order.value)
         is_sparse = False
     third_tf = tf.cast(third_tf, dtype=tf.complex64)
     k_mesh = phonons._reciprocal_grid.unitary_grid()

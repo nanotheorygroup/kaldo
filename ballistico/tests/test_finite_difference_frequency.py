@@ -142,7 +142,6 @@ def phonons():
     with TemporaryDirectory() as td:
         finite_difference = FiniteDifference(atoms=atoms,
                                              supercell=[5, 5, 5],
-                                             is_reduced_second=True,
                                              folder=td)
 
         finite_difference.calculate_second(calculator=EMT())

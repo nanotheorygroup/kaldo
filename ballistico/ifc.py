@@ -3,17 +3,18 @@ import ase.units as units
 from ballistico.grid import Grid
 from ballistico.controllers.harmonic import chi
 from ballistico.helpers.logger import get_logger
+from ballistico.observable import Observable
 logging = get_logger()
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
 
 
-class Ifc:
+class Ifc(Observable):
     def __init__(self, atoms, replicated_positions, supercell=None, force_constant=None):
         self.atoms = atoms
         self._replicated_atoms = None
         if force_constant is not None:
-            self.force_constant = force_constant
+            self.value = force_constant
         self.replicated_positions = replicated_positions.reshape(
             (-1, atoms.positions.shape[0], atoms.positions.shape[1]))
         self.supercell = supercell
