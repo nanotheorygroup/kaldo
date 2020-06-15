@@ -138,7 +138,7 @@ class SecondOrder(Ifc):
         elif format == 'hiphive':
             filename = 'atom_prim.xyz'
             # TODO: add replicated filename in example
-            replicated_filename = 'replicated_atom_prim.xyz'
+            replicated_filename = 'replicated_atoms.xyz'
             try:
                 import ballistico.io.hiphive_io as hiphive_io
             except ImportError:

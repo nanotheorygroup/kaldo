@@ -15,7 +15,7 @@ def import_second_from_hiphive(folder, n_replicas, n_atoms):
     second_order = second_order[0, np.newaxis]
     return second_order
 
-def import_third_from_hiphive(folder, atoms, supercell):
+def import_third_from_hiphive(atoms, supercell, folder):
     third_hiphive_file  = str(folder) + '/model3.fcs'
     supercell = np.array(supercell)
 
