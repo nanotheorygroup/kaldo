@@ -85,6 +85,10 @@ class ThirdOrder(Ifc):
 
 
         elif format == 'shengbte' or format == 'shengbte-qe':
+            if format=='shengbte-qe':
+                grid_type='C'
+            else:
+                grid_type='F'
 
             config_file = folder + '/' + 'CONTROL'
             try:
@@ -98,7 +102,7 @@ class ThirdOrder(Ifc):
 
             third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
             third_order = ThirdOrder.from_supercell(atoms,
-                                                    grid_type='F',
+                                                    grid_type=grid_type,
                                                     supercell=supercell,
                                                     force_constant=third_order)
 
