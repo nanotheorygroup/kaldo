@@ -3,5 +3,5 @@
 Phonon Source Code
 ########################
 
-.. literalinclude:: ../ballistico.phonons
+.. literalinclude:: ../ballistico/phonons.py
 
