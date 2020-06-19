@@ -32,7 +32,6 @@ Ballistico, Anharmonic Lattice Dynamics
    :caption: Tutorials
    
    tutorials.md
-   examples.md
    crystal_presentation.ipynb
    amorphous_presentation.ipynb
 
