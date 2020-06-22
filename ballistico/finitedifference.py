@@ -70,8 +70,8 @@ class FiniteDifference(object):
         :param is_acoustic_sum:
         :return:
         """
-        second_order = SecondOrder.from_resource(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
-        third_order = ThirdOrder.from_resource(folder=folder, supercell=supercell, format=format, third_energy_threshold=third_energy_threshold,  distance_threshold=distance_threshold)
+        second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
+        third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=format, third_energy_threshold=third_energy_threshold,  distance_threshold=distance_threshold)
         atoms = second_order.atoms
         # Create a finite difference object
         finite_difference = {'atoms': atoms,

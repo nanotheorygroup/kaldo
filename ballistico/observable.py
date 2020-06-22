@@ -9,11 +9,11 @@ class Observable:
 
 
     @classmethod
-    def from_resource(cls, *kargs, **kwargs):
+    def load(cls, *kargs, **kwargs):
         pass
 
 
-    def to_resource(self, folder, property_name=None, format='numpy'):
+    def save(self, folder, property_name=None, format='numpy'):
         loaded_attr = self.value
         if property_name is None:
             property_name = str(self)
