@@ -19,7 +19,7 @@ THIRD_ORDER_FILE = 'third.npy'
 class ThirdOrder(Ifc):
 
     @classmethod
-    def from_resource(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None):
+    def load(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None):
         """
         Create a finite difference object from a folder
         :param folder:
@@ -143,7 +143,7 @@ class ThirdOrder(Ifc):
         return third_order
 
 
-    def to_resource(self, out_format='eskm', out_filename='THIRD', min_force=1e-6):
+    def save(self, out_format='eskm', out_filename='THIRD', min_force=1e-6):
         if out_format == 'eskm':
             logging.info('Exporting third in eskm format')
             n_atoms = self.n_atoms

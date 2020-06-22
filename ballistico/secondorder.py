@@ -49,7 +49,7 @@ class SecondOrder(Ifc):
 
 
     @classmethod
-    def from_resource(cls, folder, supercell=(1, 1, 1), format='eskm', is_acoustic_sum=False):
+    def load(cls, folder, supercell=(1, 1, 1), format='eskm', is_acoustic_sum=False):
         if format == 'numpy':
             if folder[-1] != '/':
                 folder = folder + '/'
