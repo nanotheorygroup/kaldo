@@ -168,7 +168,7 @@ def project_crystal(phonons):
 
                 result = tf.math.bincount(nupp_vec, pot_times_dirac, phonons.n_phonons)
                 ps_and_gamma[nu_single, 2:] += result
-            ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta)
+            ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta) / phonons.n_k_points
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(pot_times_dirac)
         ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
         ps_and_gamma[nu_single, 1:] *= np.pi * units._hbar / 4 / n_k_points * GAMMATOTHZ
