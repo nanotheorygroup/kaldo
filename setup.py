@@ -18,6 +18,8 @@ try:
 except:
     long_description = "\n".join(short_description[2:])
 
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
 setup(
     # Self-descriptive entries which should always be present
@@ -46,21 +48,7 @@ setup(
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    install_requires=[
-        'numpy>=1.13',
-        'scipy>=1',
-        'ase>=3.18.1',
-        'sparse>=0.6',
-        'spglib>=1.11',
-        'seekpath>=1.8',
-        'tensorflow==2.0',
-        'opt_einsum>=2.3',
-        'scikit-learn>=0.20',
-        'h5py>=2.9',
-        'pandas>=0.21',
-        'recommonmark>=0.6',
-        'nbsphinx>=0.5.0'
-    ],              # Required packages, pulls from pip if needed; do not use for Conda deployment
+    install_requires=requirements,              # Required packages, pulls from pip if needed; do not use for Conda deployment
 
     # platforms=['Linux',
     #            'Mac OS-X',

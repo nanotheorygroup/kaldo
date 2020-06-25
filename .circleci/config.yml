@@ -5,16 +5,16 @@ orbs:
 
 jobs:
   build-and-test:
-    executor: python/default
+    docker:
+      - image: "tensorflow/tensorflow:latest"
     steps:
       - checkout
       - python/load-cache
       - python/install-deps
       - python/save-cache
       - run:
-          command: ./manage.py test
+          command: python -m pytest -v --cov=ballistico ballistico/tests/
           name: Test
-
 workflows:
   main:
     jobs:
