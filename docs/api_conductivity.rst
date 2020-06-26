@@ -2,9 +2,9 @@
 
 .. currentmodule:: ballistico.conductivity
 
-#######################
+############################
 Conductivity API Reference
-#######################
+############################
 
 
 Attributes
