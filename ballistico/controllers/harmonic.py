@@ -5,6 +5,7 @@ from scipy.linalg.lapack import zheev
 from ase.units import Rydberg, Bohr
 from ase import units
 from ballistico.grid import Grid
+from ballistico.helpers.tools import timeit
 
 import numpy as np
 import ase.units as units
@@ -303,7 +304,7 @@ def wrap_coords_shen(mmm, scell):
         t3 = t3 + scell[3]
     return np.array([t1, t2, t3])
 
-
+@timeit
 def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
 
     is_main_mesh = True if q_points is None else False
@@ -329,31 +330,32 @@ def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
     fc_s = fc_s.reshape((n_unit_cell, 3, scell[0], scell[1], scell[2], n_unit_cell, 3))
 
 
-    for i in np.arange(n_unit_cell):
-        # masses_2d[i, i] = mass[i]
-        distance[i, i, :] = 0
-        for j in np.arange(i, n_unit_cell):
-            # masses_2d[i, j] = np.sqrt(mass[i] * mass[j])
-            distance[i, j, :3] = positions[i, :3] - positions[j, :3]
-            # masses_2d[j, i] = masses_2d[i, j]
-            distance[j, i, :3] = -distance[i, j, :3]
-    j = 0
-    rl = np.zeros((124, 3))
-    Rnorm = np.zeros((124))
+    # for i in np.arange(n_unit_cell):
+    #     # masses_2d[i, i] = mass[i]
+    #     distance[i, i, :] = 0
+    #     for j in np.arange(i, n_unit_cell):
+    #         # masses_2d[i, j] = np.sqrt(mass[i] * mass[j])
+    #         distance[i, j, :3] = positions[i, :3] - positions[j, :3]
+    #         # masses_2d[j, i] = masses_2d[i, j]
+    #         distance[j, i, :3] = -distance[i, j, :3]
+    distance = (positions[:, np.newaxis, :] - positions[np.newaxis, :, :])
+
     replicated_cell = lattvec * scell
+    ir = 0
+    supercell_replicas = np.zeros((125, 3))
+    Rnorm = np.zeros((125))
 
     for ix2 in np.arange(-2, 3):
         for iy2 in np.arange(-2, 3):
             for iz2 in np.arange(-2, 3):
-                if (np.all([ix2, iy2, iz2] == [0, 0, 0])):
-                    continue
+
                 for i in np.arange(3):
-                    rl[j, i] = replicated_cell[0, i] * ix2 + replicated_cell[1, i] * iy2 + replicated_cell[2, i] * iz2
-                Rnorm[j] = 0.5 * np.dot(rl[j, :3], rl[j, :3])
-                j = j + 1
+                    supercell_replicas[ir, i] = replicated_cell[0, i] * ix2 + replicated_cell[1, i] * iy2 + replicated_cell[2, i] * iz2
+                Rnorm[ir] = 0.5 * np.dot(supercell_replicas[ir, :3], supercell_replicas[ir, :3])
+                ir = ir + 1
     nk = q_points.shape[0]
     dyn_s = np.zeros((nk, n_unit_cell * 3, n_unit_cell * 3), dtype=np.complex)
-
+    threshold = 1e-6
     for iat in np.arange(n_unit_cell):
         for jat in np.arange(n_unit_cell):
 
@@ -365,21 +367,20 @@ def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
                         replica_id = np.array([ix1, iy1, iz1])
                         rcell = np.tensordot(lattvec, replica_id, (0, -1))
                         r = rcell + distance[iat, jat]
-                        weight = 0.
-                        neq = 1
-                        j = 0
-                        for ir in np.arange(124):
-                            ck = np.dot(r, rl[ir, :3])\
-                                 - Rnorm[ir]
-                            if (ck > 1e-6):
-                                j = 1
-                                continue
-                            if (abs(ck) <= 1e-6):
-                                neq = neq + 1
-                        if (j == 0):
+                        first_cell_position = np.argwhere(np.all(supercell_replicas == 0, axis=1))[0, 0]
+
+
+                        projection = (np.tensordot(r, supercell_replicas[:], (0, -1)) - Rnorm[:])
+                        is_negative = bool((projection <= threshold).prod())
+
+                        eq_mask = np.abs(projection) <= threshold
+                        eq_mask[first_cell_position] = True
+                        neq = (eq_mask).sum()
+
+                        if is_negative:
                             weight = 1.0 / (neq)
 
-                        if (weight > 0.0):
+
                             t1, t2, t3 = wrap_coords_shen(replica_id, scell).astype(np.int)
                             for ik in np.arange(nk):
 
