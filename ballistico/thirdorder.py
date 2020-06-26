@@ -19,14 +19,13 @@ THIRD_ORDER_FILE = 'third.npy'
 class ThirdOrder(Ifc):
 
     @classmethod
-    def load(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0., distance_threshold=None):
+    def load(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0.):
         """
         Create a finite difference object from a folder
         :param folder:
         :param supercell:
         :param format:
         :param third_energy_threshold:
-        :param distance_threshold:
         :param is_acoustic_sum:
         :return:
         """
