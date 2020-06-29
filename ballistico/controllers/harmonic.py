@@ -51,6 +51,7 @@ def calculate_heat_capacity(phonons):
     return c_v
 
 
+@timeit
 def calculate_frequency(phonons, q_points=None):
     is_main_mesh = True if q_points is None else False
     if is_main_mesh:
@@ -304,7 +305,7 @@ def wrap_coords_shen(mmm, scell):
         t3 = t3 + scell[3]
     return np.array([t1, t2, t3])
 
-@timeit
+
 def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
 
     is_main_mesh = True if q_points is None else False
@@ -350,30 +351,28 @@ def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
             for iz2 in np.arange(-2, 3):
 
                 for i in np.arange(3):
-                    supercell_replicas[ir, i] = replicated_cell[0, i] * ix2 + replicated_cell[1, i] * iy2 + replicated_cell[2, i] * iz2
+                    supercell_replicas[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2,iy2,iz2]))
                 Rnorm[ir] = 0.5 * np.dot(supercell_replicas[ir, :3], supercell_replicas[ir, :3])
                 ir = ir + 1
     nk = q_points.shape[0]
-    dyn_s = np.zeros((nk, n_unit_cell * 3, n_unit_cell * 3), dtype=np.complex)
+    dyn_s = np.zeros((nk, n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
     threshold = 1e-6
-    for iat in np.arange(n_unit_cell):
-        for jat in np.arange(n_unit_cell):
 
-            for ix1 in np.arange(-2 * scell[0], 2 * scell[0] + 1):
-                for iy1 in np.arange(-2 * scell[1], 2 * scell[1] + 1):
-                    for iz1 in np.arange(-2 * scell[2], 2 * scell[2] + 1):
+    for ix1 in np.arange(-2 * scell[0], 2 * scell[0] + 1):
+        for iy1 in np.arange(-2 * scell[1], 2 * scell[1] + 1):
+            for iz1 in np.arange(-2 * scell[2], 2 * scell[2] + 1):
 
 
-                        replica_id = np.array([ix1, iy1, iz1])
-                        rcell = np.tensordot(lattvec, replica_id, (0, -1))
-                        r = rcell + distance[iat, jat]
-                        first_cell_position = np.argwhere(np.all(supercell_replicas == 0, axis=1))[0, 0]
+                replica_id = np.array([ix1, iy1, iz1])
+                rcell = np.tensordot(lattvec, replica_id, (0, -1))
 
-
-                        projection = (np.tensordot(r, supercell_replicas[:], (0, -1)) - Rnorm[:])
+                for iat in np.arange(n_unit_cell):
+                    for jat in np.arange(n_unit_cell):
+                        dist = rcell + (positions[iat, :] - positions[jat, :])
+                        projection = (np.tensordot(dist, supercell_replicas[:], (0, -1)) - Rnorm[:])
                         is_negative = bool((projection <= threshold).prod())
-
                         eq_mask = np.abs(projection) <= threshold
+                        first_cell_position = np.argwhere(np.all(supercell_replicas == 0, axis=1))[0, 0]
                         eq_mask[first_cell_position] = True
                         neq = (eq_mask).sum()
 
@@ -386,13 +385,9 @@ def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
 
                                 qr = 2. * np.pi * np.dot(q_points[ik, :], replica_id[:])
 
-                                for ipol in np.arange(3):
-                                    idim = (iat) * 3 + ipol
-                                    for jpol in np.arange(3):
-                                        jdim = (jat) * 3 + jpol
 
-                                        dyn_s[ik, idim, jdim] = dyn_s[ik, idim, jdim] + fc_s[
-                                             jat, jpol, t1, t2, t3, iat, ipol] * phexp(1 * qr) * weight
+                                dyn_s[ik, iat, :, jat, :] = dyn_s[ik, iat, :, jat, :] + fc_s[
+                                     jat, :, t1, t2, t3, iat, :] * phexp(1 * qr) * weight
 
     frequency = np.zeros((nk, n_unit_cell * 3))
     if only_eigenvals:
@@ -401,15 +396,7 @@ def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
         esystem = np.zeros((nk, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=np.complex)
 
     for ik in np.arange(nk):
-        dyn = dyn_s[ik, :, :]
-
-        for ipol in np.arange(3):
-            for jpol in np.arange(3):
-                for iat in np.arange(n_unit_cell):
-                    for jat in np.arange(n_unit_cell):
-                        idim = (iat) * 3 + ipol
-                        jdim = (jat) * 3 + jpol
-                        dyn[idim, jdim] = dyn[idim, jdim]
+        dyn = dyn_s[ik, ...].reshape((n_unit_cell * 3, n_unit_cell * 3))
 
         omega2,eigenvect,info = zheev(dyn)
         frequency[ik, :] = np.sign(omega2) * np.sqrt(np.abs(omega2))
