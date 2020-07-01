@@ -26,13 +26,14 @@ Ballistico, Anharmonic Lattice Dynamics
    api_conductivity
    interface.md
    output.md
+   units.md
+   supplements.md
 
 .. toctree::
    :glob:
    :caption: Learning
    
    tutorials
-   examples.md
    crystal_presentation.ipynb
    amorphous_presentation.ipynb
 
