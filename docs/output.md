@@ -1,3 +1,5 @@
+output
+
 # Output Storage
 
 ## Default

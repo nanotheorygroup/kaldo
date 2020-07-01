@@ -1,8 +1,11 @@
-# Tutorials
+==============
+Tutorials
+==============
+
 
 All examples explained here can be found in the `examples` folder. There are
 also two tutorials available in the documentation that can be run in 
-[Binder](https://mybinder.org/) and [Google Colab](https://colab.research.google.com).
+`Binder<https://mybinder.org/>` and `Google Colab<https://colab.research.google.com>`.
 This page is a collection of tutorials that have been explained in further 
 detail. If you are new to ballistico and thermal conductivity study, this area 
 may be a good place to start. Please note that some tutorials also require 
@@ -20,7 +23,8 @@ that you have LAMMPS built with an mpi exectuable.
 
 6. Using ASE-EMT Force Constants 
 
-## Conductivity of Crystal Silicon
+Conductivity of Crystal Silicon
+========================================
 
 To see the results of the example, simply run the bash script `run_all.sh` 
 on a machine with LAMMPS built with the lmp_mpi command, or keep
@@ -31,21 +35,24 @@ Using Ballistico requires an ASE atoms object. Starting in the file labeled
 parameter of 5.43 $A$ and write the object to a file. Information about its
 reciprocal-space cell dimensions are printed out.
 
-.. codeblock::
+.. code-block:: python
+	:linenos:
+
 	atoms = bulk('Si', 'diamond', a=5.43)
 	write(filename='structures/coords.lmp', images=atoms, format='lammps-data')
 
 Run the `in.lmp` file with  `lmp_mpi < in.lmp` to get the derivatives of the force constant
 matrix labeled `third.bin` and `dynmat.dat`. 
 
-Moving on, `2_calculate_phonons.py` constructs a [Finite Difference](finite_difference.md)
+Moving on, `2_calculate_phonons.py` constructs a :ref:`Finite Difference<finitedifference-api>`
 object is created with the atoms from the previous step along the dynamical
 matrix and the third order derivative of the force constant matrix found from the
 LAMMPS script.
 
-.. codeblock::
+.. code-block:: python
+	:linenos:
+
 	supercell = np.array([3, 3, 3])
-	# finite_difference = FiniteDifference.import_from_dlpoly_folder('si-dlpoly', supercell)
 	folder = '.'
 	config_file = str(folder) + '/replicated_coords.lmp'
 	dynmat_file = str(folder) + '/dynmat.dat'
@@ -64,7 +71,6 @@ LAMMPS script.
 	is_classic = False
 	temperature = 300
 
-	# # Create a phonon object
 	phonons = Phonons(finite_difference=finite_difference,
 					  kpts=kpts,
 					  is_classic=is_classic,
@@ -73,6 +79,6 @@ LAMMPS script.
 	print('AF conductivity')
 	print(phonons.conductivity(method='qhgk').sum(axis=0))
 	
-
-### More Tutorials Coming Soon
-	
+-----------------------------------
+More Tutorials Coming Soon
+-----------------------------------	
