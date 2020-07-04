@@ -1,6 +1,6 @@
 .. _finitedifference-api:
 
-.. currentmodule:: ballistico.finitedifference
+.. currentmodule:: kaldo.finitedifference
 
 ################################
 Finite Difference API Reference

@@ -1,5 +1,5 @@
-from ballistico.finitedifference import FiniteDifference
-from ballistico.phonons import Phonons
+from kaldo.finitedifference import FiniteDifference
+from kaldo.phonons import Phonons
 import matplotlib.pyplot as plt
 
 from ase.io import read

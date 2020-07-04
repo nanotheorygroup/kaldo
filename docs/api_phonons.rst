@@ -1,6 +1,6 @@
 .. _phonons-api:
 
-.. currentmodule:: ballistico.phonons
+.. currentmodule:: kaldo.phonons
 
 #######################
 Phonons API Reference

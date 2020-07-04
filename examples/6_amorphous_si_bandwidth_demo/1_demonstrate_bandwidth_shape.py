@@ -1,14 +1,14 @@
 from ase.io import read
 import matplotlib.pyplot as plt
-from ballistico.finitedifference import FiniteDifference
-from ballistico.phonons import Phonons
+from kaldo.finitedifference import FiniteDifference
+from kaldo.phonons import Phonons
 
 
 
 ##########################################
 # 1. Loading Data
 ##########################################
-# Ballistico offers a number of ways of uploading your system data into the program
+# kaldo offers a number of ways of uploading your system data into the program
 # below, a few of the options will be displayed. But first, a quick explanation of what we need to get started.
 #
 # In order to calculate the phonon lifetimes, we need three files
@@ -31,7 +31,7 @@ third_file = str(folder) + '/THIRD'
 atoms = read(config_file, format='dlp4')
 finite_diff = FiniteDifference.from_files(folder=folder,replicated_atoms=atoms,dynmat_file=dynmat_file, third_file=third_file)
 
-# Ballistico also saves your data in more quickly loaded numpy arrays. This can save valuable time when plotting or
+# kaldo also saves your data in more quickly loaded numpy arrays. This can save valuable time when plotting or
 # in instances where you need to handle the same data repeatedly!
 # If you'd like to see it in action, just comment out the previous finite difference object and uncomment line 41!
 
@@ -93,5 +93,5 @@ plt.ylabel(r'$\Gamma$ (THz)', fontsize=18, fontweight='bold')
 lgnd = plt.legend(scatterpoints=1, fontsize=14)
 for handle in lgnd.legendHandles:
     handle.set_sizes([50.0])
-plt.savefig('Ballistico_bandwidth_shapes.png')
+plt.savefig('kaldo_bandwidth_shapes.png')
 plt.show()

@@ -1,7 +1,7 @@
-from ballistico.finitedifference import FiniteDifference
+from kaldo.finitedifference import FiniteDifference
 import numpy as np
-from ballistico.phonons import Phonons
-from ballistico.conductivity import Conductivity
+from kaldo.phonons import Phonons
+from kaldo.conductivity import Conductivity
 
 finite_difference = FiniteDifference.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
 k = 5

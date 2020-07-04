@@ -1,7 +1,7 @@
 from ase.io import read
 import matplotlib.pyplot as plt
-from ballistico.finitedifference import FiniteDifference
-from ballistico.phonons import Phonons
+from kaldo.finitedifference import FiniteDifference
+from kaldo.phonons import Phonons
 
 # First identify file names
 folder = 'structure'
@@ -50,4 +50,4 @@ for i in range(0,len(shapes)):
     for handle in lgnd.legendHandles:
         handle.set_sizes([50.0])
 plt.show()
-#plt.savefig('Ballistico_third_bandwidth.png')
+#plt.savefig('kaldo_third_bandwidth.png')

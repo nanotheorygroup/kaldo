@@ -7,7 +7,7 @@ All examples explained here can be found in the `examples` folder. There are
 also two tutorials available in the documentation that can be run in 
 `Binder<https://mybinder.org/>` and `Google Colab<https://colab.research.google.com>`.
 This page is a collection of tutorials that have been explained in further 
-detail. If you are new to ballistico and thermal conductivity study, this area 
+detail. If you are new to kaldo and thermal conductivity study, this area
 may be a good place to start. Please note that some tutorials also require 
 that you have LAMMPS built with an mpi exectuable.
 
@@ -30,7 +30,7 @@ To see the results of the example, simply run the bash script `run_all.sh`
 on a machine with LAMMPS built with the lmp_mpi command, or keep
 reading for a more detailed explanation.
 
-Using Ballistico requires an ASE atoms object. Starting in the file labeled
+Using kaldo requires an ASE atoms object. Starting in the file labeled
 `1_create_structure.py`, first we create a bulk Si crystal with a lattice 
 parameter of 5.43 $A$ and write the object to a file. Information about its
 reciprocal-space cell dimensions are printed out.

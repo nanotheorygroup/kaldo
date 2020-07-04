@@ -1,6 +1,6 @@
 .. _conductivity-api:
 
-.. currentmodule:: ballistico.conductivity
+.. currentmodule:: kaldo.conductivity
 
 ############################
 Conductivity API Reference
