@@ -2,6 +2,8 @@ interface
 
 # Interfacing with Other Codes
 
+Work in progress.
+ 
 ## LAMMPS setup
 
 Compile LAMMPS as a lib
