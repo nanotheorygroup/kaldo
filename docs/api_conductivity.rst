@@ -1,8 +1,19 @@
+.. _conductivity-api:
+
+.. currentmodule:: ballistico.conductivity
+
+############################
 Conductivity API Reference
-==========================
+############################
 
-.. autosummary::
-   :toctree: autosummary
+The conductivity class is used to calculate the thermal conductivity in one of the four 
+frameworks outline in the theory portion. When building a conductivity class object,
+be sure to include a phonon object and select a framework for calculation.
 
-   ballistico.conductivity.Conductivity
-   ballistico.conductivity.Conductivity.conductivity
+:ref:`[Source]<src-conductivity>`
+
+Attributes
++++++++++++++++
+
+.. autoclass:: Conductivity
+   :members:

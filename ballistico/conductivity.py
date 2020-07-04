@@ -324,8 +324,9 @@ class Conductivity:
         :ref:'Relaxon Theory Section' (e.g. in two dimensional materials or three dimensional materials at extremely low
         temparatures), this quantity can be used to calculate thermal conductivity.
 
-        :return:
-        lamnda : np array
+        Returns
+	-------
+        lambda : np array
             (n_k_points, n_modes, 3)
         """
         phonons = self.phonons

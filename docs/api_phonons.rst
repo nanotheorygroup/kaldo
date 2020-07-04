@@ -1,19 +1,22 @@
+.. _phonons-api:
+
+.. currentmodule:: ballistico.phonons
+
+#######################
 Phonons API Reference
-=====================
+#######################
 
-.. autosummary::
-   :toctree: autosummary
+Building the phonons object is the intermediate step
+between finishing your Finite Difference object, and
+initializing the Conductivity object.
 
-   ballistico.phonons.Phonons
-   ballistico.phonons.Phonons.frequency
-   ballistico.phonons.Phonons.velocity
-   ballistico.phonons.Phonons.heat_capacity
-   ballistico.phonons.Phonons.population
-   ballistico.phonons.Phonons.bandwidth
-   ballistico.phonons.Phonons.phase_space
-   ballistico.phonons.Phonons.diffusivity
-   ballistico.phonons.Phonons.physical_mode
-   ballistico.phonons.Phonons.flux_dense
-   ballistico.phonons.Phonons.flux_sparse
-   ballistico.phonons.Phonons.eigenvalues
-   ballistico.phonons.Phonons.eigenvectors
+:ref:`[Source]<src-phonons>`
+
+Attributes
++++++++++++++++
+
+.. autoclass:: Phonons
+   :members:
+
+
+   

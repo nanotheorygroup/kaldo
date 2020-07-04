@@ -4,10 +4,10 @@ from ase import Atoms
 import os
 import ase.io
 import numpy as np
-from scipy.sparse import load_npz, save_npz
+from scipy.sparse import load_npz
 from sparse import COO
-from ballistico.io.eskm_io import import_from_files
-import ballistico.io.shengbte_io as shengbte_io
+from ballistico.interface.eskm_io import import_from_files
+import ballistico.interface.shengbte_io as shengbte_io
 import ase.units as units
 from ballistico.helpers.logger import get_logger
 logging = get_logger()
@@ -110,7 +110,7 @@ class ThirdOrder(Ifc):
             # TODO: add replicated filename in example
             replicated_filename = 'replicated_atoms.xyz'
             try:
-                import ballistico.io.hiphive_io as hiphive_io
+                import ballistico.interface.hiphive_io as hiphive_io
             except ImportError:
                 logging.error('In order to use hiphive along with ballistico, hiphive is required. \
                       Please consider installing hihphive. More info can be found at: \

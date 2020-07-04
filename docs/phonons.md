@@ -1,35 +1,6 @@
-# Phonons Object
-## Input
-- `is_classic`
-- `temperature`
-- `kpts`
-- `min_frequency`
-- `max_frequency`
-- `broadening_shape`
-- `is_nw`
-- `third_bandwidth`
-- `diffusivity_bandwidth`
-- `diffusivity_threshold`
-- `is_tf_backend`
-- `folder`
-- `storage`
+phonons
 
-## Output
-- `frequency`
-- `velocity`
-- `heat_capacity`
-- `population`
-- `bandwidth`
-- `lifetime`
-- `phase_space`
-- `diffusivity`
-- `flux`
-- `eigenvalues`
-- `eigenvectors`
-
-
-
-# Phonons Theory  (draft)
+# Phonons Theory
 
 ## Density and heat capacity
 $$
