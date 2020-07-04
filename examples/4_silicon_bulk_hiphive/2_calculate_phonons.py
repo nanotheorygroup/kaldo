@@ -1,9 +1,9 @@
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
 
-finite_difference = FiniteDifference.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
+forceconstants = ForceConstants.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
 k = 5
 phonons_config = {'kpts': [k, k, k],
                   'is_classic': False,
@@ -11,7 +11,7 @@ phonons_config = {'kpts': [k, k, k],
                   'folder':'ald',
                   'is_tf_backend':False,
                   'storage':'numpy'}
-phonons = Phonons(finite_difference=finite_difference, **phonons_config)
+phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
 print('\n')
 rta_cond_matrix = Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0)

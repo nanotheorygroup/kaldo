@@ -35,7 +35,7 @@ def project_amorphous(phonons):
             continue
         dirac_delta, mup_vec, mupp_vec = out
 
-        potential_times_evect = sparse.tensordot(phonons.finite_difference.third_order.value,
+        potential_times_evect = sparse.tensordot(phonons.forceconstants.third_order.value,
                                                  rescaled_eigenvectors[:, nu_single], (0, 0))
 
         scaled_potential = np.einsum('ij,in,jm->nm', potential_times_evect.real,
@@ -71,15 +71,15 @@ def project_crystal(phonons):
     if is_gamma_tensor_enabled:
         scattering_tensor = np.zeros((phonons.n_phonons, phonons.n_phonons))
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
-    n_replicas = phonons.finite_difference.third_order.n_replicas
+    n_replicas = phonons.forceconstants.third_order.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors
-    n_atoms = phonons.finite_difference.n_atoms
-    third_order = phonons.finite_difference.third_order.value.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
+    n_atoms = phonons.forceconstants.n_atoms
+    third_order = phonons.forceconstants.third_order.value.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
 
     k_mesh = phonons._reciprocal_grid.unitary_grid()
-    chi = phonons.finite_difference.third_order._chi_k(k_mesh)
+    chi = phonons.forceconstants.third_order._chi_k(k_mesh)
     evect_1_plus = rescaled_eigenvectors
-    chi_conj = phonons.finite_difference.third_order._chi_k(k_mesh).conj()
+    chi_conj = phonons.forceconstants.third_order._chi_k(k_mesh).conj()
     evect_1_minus = rescaled_eigenvectors.conj()
     for index_k in range(phonons.n_k_points):
         for mu in range(phonons.n_modes):
@@ -269,7 +269,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
 
 
 def calculate_broadening(phonons, index_kpp_vec):
-    cellinv = phonons.finite_difference.cell_inv
+    cellinv = phonons.forceconstants.cell_inv
     k_size = phonons.kpts
     velocity = phonons.velocity[:, :, np.newaxis, :] - phonons.velocity[index_kpp_vec, np.newaxis, :, :]
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec

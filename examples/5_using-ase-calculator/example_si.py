@@ -1,6 +1,6 @@
 from ase.phonons import Phonons
 import numpy as np
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
 import kaldo.controllers.plotter as plotter
@@ -45,7 +45,7 @@ lammps_inputs = {'lmpcmds': ["pair_style tersoff",
                 'log_file': 'log_lammps.out'}
 
 # Create a finite difference object
-finite_difference = FiniteDifference(atoms=atoms,
+forceconstants = ForceConstants(atoms=atoms,
                                      supercell=supercell,
                                      calculator=LAMMPSlib,
                                      calculator_inputs=lammps_inputs,
@@ -58,7 +58,7 @@ temperature = 300
 is_classic = False
 
 # # Create a phonon object
-phonons = kaldoPhonons(finite_difference=finite_difference,
+phonons = kaldoPhonons(forceconstants=forceconstants,
                     kpts=kpts,
                     is_classic=is_classic,
                     temperature=temperature,

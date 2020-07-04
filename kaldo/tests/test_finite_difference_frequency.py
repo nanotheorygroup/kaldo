@@ -1,7 +1,7 @@
 import numpy as np
 from ase.build import bulk
 from ase.calculators.emt import EMT
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 import pytest
 from tempfile import TemporaryDirectory
@@ -140,21 +140,21 @@ def phonons():
     # Setup crystal and EMT calculator
     atoms = bulk('Al', 'fcc', a=4.05)
     with TemporaryDirectory() as td:
-        finite_difference = FiniteDifference(atoms=atoms,
+        forceconstants = ForceConstants(atoms=atoms,
                                              supercell=[5, 5, 5],
                                              folder=td)
 
-        finite_difference.calculate_second(calculator=EMT())
+        forceconstants.calculate_second(calculator=EMT())
         is_classic = False
         phonons_config = {'kpts': [5, 5, 5],
                           'is_classic': is_classic,
                           'temperature': 300,
                           'is_tf_backend':False,
                           'storage':'memory'}
-        phonons = Phonons(finite_difference=finite_difference, **phonons_config)
+        phonons = Phonons(forceconstants=forceconstants, **phonons_config)
         return phonons
 
 
-def test_frequency_with_finite_difference(phonons):
+def test_frequency_with_forceconstants(phonons):
     calculated_frequency = phonons.frequency
     np.testing.assert_equal(np.round(calculated_frequency - frequency, 2), 0)

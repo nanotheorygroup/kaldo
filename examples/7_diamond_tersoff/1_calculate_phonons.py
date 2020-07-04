@@ -1,7 +1,7 @@
 from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
 from kaldo.conductivity import Conductivity
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 import numpy as np
 
@@ -20,13 +20,13 @@ lammps_inputs = {'lmpcmds': [
     
 # Create a finite difference object
 
-finite_difference_config  = {'atoms':atoms,
+forceconstants_config  = {'atoms':atoms,
                             'supercell':[3,3,3],
                             'calculator':LAMMPSlib,
                             'calculator_inputs':lammps_inputs,
                             'folder':'fd'}
 
-finite_difference = FiniteDifference(**finite_difference_config)
+forceconstants = ForceConstants(**forceconstants_config)
 
 k = 5
 phonons_config = {'kpts': [k, k, k],
@@ -35,7 +35,7 @@ phonons_config = {'kpts': [k, k, k],
                   'folder':'ald',
                   'is_tf_backend':False,
                   'storage':'numpy'}
-phonons = Phonons(finite_difference=finite_difference, **phonons_config)
+phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
 print('\n')
 rta_cond_matrix = Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0)

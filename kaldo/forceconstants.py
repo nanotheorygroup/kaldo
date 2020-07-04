@@ -6,7 +6,6 @@ import numpy as np
 from sparse import COO
 from kaldo.grid import wrap_coordinates
 from kaldo.controllers.displacement import calculate_second, calculate_third
-import ase.units as units
 from kaldo.secondorder import SecondOrder
 from kaldo.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
@@ -16,7 +15,7 @@ DELTA_SHIFT = 1e-5
 MAIN_FOLDER = 'displacement'
 
 
-class FiniteDifference(object):
+class ForceConstants(object):
     """ Class for constructing the finite difference object to calculate
         the second/third order force constant matrices after providing the
         unit cell geometry and calculator information.
@@ -28,7 +27,7 @@ class FiniteDifference(object):
                  folder=MAIN_FOLDER,
                  distance_threshold=None):
 
-        """Init with an instance of constructed FiniteDifference object.
+        """Init with an instance of constructed ForceConstant object.
 
         Parameters:
 
@@ -74,13 +73,13 @@ class FiniteDifference(object):
         third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=format, third_energy_threshold=third_energy_threshold)
         atoms = second_order.atoms
         # Create a finite difference object
-        finite_difference = {'atoms': atoms,
+        forceconstants = {'atoms': atoms,
                              'supercell': supercell,
                              'folder': folder}
-        finite_difference = cls(**finite_difference)
-        finite_difference.second_order = second_order
-        finite_difference.third_order = third_order
-        return finite_difference
+        forceconstants = cls(**forceconstants)
+        forceconstants.second_order = second_order
+        forceconstants.third_order = third_order
+        return forceconstants
 
 
 

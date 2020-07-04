@@ -1,4 +1,4 @@
-from kaldo.ifc import Ifc
+from kaldo.forceconstant import ForceConstant
 from opt_einsum import contract
 from ase import Atoms
 import os
@@ -24,11 +24,11 @@ def acoustic_sum_rule(dynmat):
     return dynmat
 
 
-class SecondOrder(Ifc):
+class SecondOrder(ForceConstant):
     def __init__(self, atoms, replicated_positions, supercell=None, force_constant=None, is_acoustic_sum=False):
         if is_acoustic_sum:
             force_constant = acoustic_sum_rule(force_constant)
-        Ifc.__init__(self, atoms, replicated_positions, supercell, force_constant)
+        ForceConstant.__init__(self, atoms, replicated_positions, supercell, force_constant)
         self._list_of_replicas = None
 
 

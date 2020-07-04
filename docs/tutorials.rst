@@ -44,7 +44,7 @@ reciprocal-space cell dimensions are printed out.
 Run the `in.lmp` file with  `lmp_mpi < in.lmp` to get the derivatives of the force constant
 matrix labeled `third.bin` and `dynmat.dat`. 
 
-Moving on, `2_calculate_phonons.py` constructs a :ref:`Finite Difference<finitedifference-api>`
+Moving on, `2_calculate_phonons.py` constructs a :ref:`Finite Difference<forceconstant-api>`
 object is created with the atoms from the previous step along the dynamical
 matrix and the third order derivative of the force constant matrix found from the
 LAMMPS script.
@@ -63,7 +63,7 @@ LAMMPS script.
 	atomic_numbers[atomic_numbers == 1] = 14
 	atoms.set_atomic_numbers(atomic_numbers)
 
-	finite_difference = FiniteDifference.from_files(atoms, dynmat_file, third_file, folder, supercell)
+	forceconstants = ForceConstant.from_files(atoms, dynmat_file, third_file, folder, supercell)
 
 
 	k = 5
@@ -71,7 +71,7 @@ LAMMPS script.
 	is_classic = False
 	temperature = 300
 
-	phonons = Phonons(finite_difference=finite_difference,
+	phonons = Phonons(forceconstants=forceconstants,
 					  kpts=kpts,
 					  is_classic=is_classic,
 					  temperature=temperature)

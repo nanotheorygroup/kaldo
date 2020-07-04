@@ -1,4 +1,4 @@
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ Unit and regression test for the kaldo package.
 """
 
 # Import package, test suite, and other packages as needed
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
@@ -18,8 +18,8 @@ import pytest
 @pytest.yield_fixture(scope="function")
 def phonons():
     print ("Preparing phonons object.")
-    finite_difference = FiniteDifference.from_folder(folder='kaldo/tests/si-amorphous', format='eskm')
-    phonons = Phonons(finite_difference=finite_difference,
+    forceconstants = ForceConstants.from_folder(folder='kaldo/tests/si-amorphous', format='eskm')
+    phonons = Phonons(forceconstants=forceconstants,
                       is_classic=False,
                       temperature=300,
                       third_bandwidth=1 / 4.135,

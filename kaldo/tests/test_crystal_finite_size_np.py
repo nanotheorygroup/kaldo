@@ -3,7 +3,7 @@ Unit and regression test for the kaldo package.
 """
 
 # Import package, test suite, and other packages as needed
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
@@ -13,12 +13,12 @@ import os
 @pytest.yield_fixture(scope="session")
 def phonons():
     print ("Preparing phonons object.")
-    finite_difference = FiniteDifference.from_folder(folder='kaldo/tests/si-crystal',
+    forceconstants = ForceConstants.from_folder(folder='kaldo/tests/si-crystal',
                                                      supercell=[3, 3, 3],
                                                      format='eskm')
 
     # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference,
+    phonons = Phonons(forceconstants=forceconstants,
                       kpts=[5, 5, 5],
                       is_classic=False,
                       temperature=300,

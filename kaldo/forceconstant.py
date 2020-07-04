@@ -9,7 +9,7 @@ EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
 
 
-class Ifc(Observable):
+class ForceConstant(Observable):
     def __init__(self, atoms, replicated_positions, supercell=None, force_constant=None):
         self.atoms = atoms
         self._replicated_atoms = None

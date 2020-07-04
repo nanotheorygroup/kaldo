@@ -1,7 +1,7 @@
 from ase.io import read
 import numpy as np
 import matplotlib.pyplot as plt
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
 from sklearn.neighbors.kde import KernelDensity
@@ -19,12 +19,12 @@ from kaldo.controllers.plotter import plot_dispersion
 # atomic_numbers[atomic_numbers == 1] = 14
 # atoms.set_atomic_numbers(atomic_numbers)
 #
-# finite_difference = FiniteDifference.from_files(replicated_atoms=atoms, dynmat_file=dynmat_file, folder=folder)
+# forceconstants = ForceConstants.from_files(replicated_atoms=atoms, dynmat_file=dynmat_file, folder=folder)
 
-finite_difference = FiniteDifference.from_folder('structure_dlpoly', format='eskm')
+forceconstants = ForceConstants.from_folder('structure_dlpoly', format='eskm')
 
 # Conductivity AF
-phonons = Phonons(finite_difference=finite_difference,
+phonons = Phonons(forceconstants=forceconstants,
                   is_classic=False,
                   temperature=300,
                   # 1 THz
@@ -43,7 +43,7 @@ print('AF conductivity: ', cond)
 
 
 # Conductivity QHGK
-phonons = Phonons(finite_difference=finite_difference,
+phonons = Phonons(forceconstants=forceconstants,
                   is_classic=False,
                   temperature=300,
                   # 1 THz
