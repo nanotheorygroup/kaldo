@@ -5,55 +5,32 @@ kaldo: Anharmonic Lattice Dynamics
 [![codecov](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master/graphs/badge.svg?token=tiC2xj2OQG)](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master)
 
 
+## The kALDo package
 
-### Install
-We recommend creating a new environment with Python 3.7.
-```bash
-conda create -n kaldo python=3.7
-```
-Alternatively you can use Python 3.6. The Tensorflow module doesn't seem to be compatible with Python 3.8, yet.
+kALDo. Thermal transport in crystalline and non-crystalline solids.  
 
-kaldo installation can be done using `pip`
-```bash
-pip install kaldo
-```
+<img src="_resources/logo.png" width="650">
 
+kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA.
+Below we illustrate the main features of the code
 
-### Documentation
+<img src="_resources/features.png" width="650">
 
-A draft of the documentation can be found [here](http://169.237.38.203/kaldo/).
+## Code Architecture
 
-### Examples
+<img src="_resources/class_diagram.png" width="650">
 
-Examples are currently written to run on Google Colab, and can be found in the examples folder.
+## Documentation
 
-### Other configurations
-#### LAMMPS setup
+The documentation can be found [here](http://sophe.ucdavis.edu/downloads/)
+. Work in progress.
 
-Compile LAMMPS as a lib
-```bash
-cd path/to/lammps/src
-make yes-manybody
-make yes-molecule
-make mpi mode=shlib
-make install-python
-```
+## Copyright
 
-#### Quantum Espresso setup
+Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio
 
-Set the environment variable:
-```bash
-export ASE_ESPRESSO_COMMAND="mpirun -np 4 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"
-```
+## Acknowledgements
 
-### Copyright
+We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech. 
 
-Copyright (c) 2020, [kaldo Developers](https://github.com/gbarbalinardo/kaldo/graphs/contributors)
-
-
-### Acknowledgements
-
-Project based on the
-[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.1.
-
-
+MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](https://molssi.org/software-projects/)

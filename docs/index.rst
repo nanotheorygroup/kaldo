@@ -3,29 +3,28 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-kaldo, Anharmonic Lattice Dynamics
-=========================================================
+.. image:: _resources/logo.png
+   :width: 600
 
 .. toctree::
    :glob:
    :caption: Get to know kALDo!
 
-   About Us<introduction.ipynb>
+   introduction.ipynb
    install.md
-   class_schema.md
+   theory.ipynb
+   output.md
+   units.md
+   interface.md
 
 .. toctree::
    :maxdepth: 1
    :caption: Documentation
 
-   theory.ipynb
+   class_schema.md
    api_forceconstants
    api_phonons
    api_conductivity
-   interface.md
-   output.md
-   units.md
-   supplements.md
 
 .. toctree::
    :glob:
