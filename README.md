@@ -1,4 +1,4 @@
-kALSo: Anharmonic Lattice Dynamics
+kALDo: Anharmonic Lattice Dynamics
 ==============================
 [//]: # (Badges)
 [![Travis Build Status](https://travis-ci.com/gbarbalinardo/kaldo.svg?token=EFWyhyp9aQcQnteZBpEr&branch=master)](https://travis-ci.com/gbarbalinardo/kaldo)
