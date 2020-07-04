@@ -9,16 +9,16 @@ kaldo: Anharmonic Lattice Dynamics
 
 kALDo. Thermal transport in crystalline and non-crystalline solids.  
 
-<img src="_resources/logo.png" width="650">
+<img src="docs/_resources/logo.png" width="650">
 
 kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA.
 Below we illustrate the main features of the code
 
-<img src="_resources/features.png" width="650">
+<img src="docs/_resources/features.png" width="650">
 
 ## Code Architecture
 
-<img src="_resources/class_diagram.png" width="650">
+<img src="docs/_resources/class_diagram.png" width="650">
 
 ## Documentation
 
