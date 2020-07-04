@@ -15,7 +15,6 @@
    theory.ipynb
    output.md
    units.md
-   interface.md
 
 .. toctree::
    :maxdepth: 1
