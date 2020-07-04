@@ -1,18 +1,4 @@
-# Conductivity Object
-## Input
-- `method`
-- `length`
-- `finite_length_method`
-- `n_iterations`
-- `tolerance`
-- `storage`
-
-## Output
-- `conductivity`
-- `mean_free_path`
-
-
-# Conductivity Theory (draft)
+# Conductivity Theory
 $$
 \lambda_{\mu\alpha} ={\gamma_\mu}{v_{\mu\alpha}}
 $$
@@ -114,7 +100,7 @@ $$
 2 \delta j_\mu^- =+\left.\kappa_\mu \frac{\mathrm{d}(\delta T)}{\mathrm{d} x}\right|_{+L/2}+c_{\mu} v_{\mu}^{+} \delta T\left(+\frac{L}{2}\right)
 $$
 
-![ff5ccc2f0de5d6ab2783d05264047152.png](_resources/ffb896b9bb7245bbab9f5e0c45f985ff.png)
+![ff5ccc2f0de5d6ab2783d05264047152.png](_resources/finitesizesecond.png)
 
 $$
 T(x)=\delta T(x)+T_{+ L/2}

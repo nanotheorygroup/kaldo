@@ -8,32 +8,30 @@ Ballistico, Anharmonic Lattice Dynamics
 
 .. toctree::
    :glob:
-   :caption: Introduction
+   :caption: Get to know kALDo!
 
-   introduction.md
+   About Us<introduction.ipynb>
    install.md
    class_schema.md
 
-
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Documentation
 
-   finitedifference.md
+   theory.ipynb
    api_finite_difference
-   phonons.md
    api_phonons
-   conductivity.md
    api_conductivity
    interface.md
    output.md
-
+   units.md
+   supplements.md
 
 .. toctree::
    :glob:
-   :caption: Tutorials
+   :caption: Learning
    
-   examples.md
+   tutorials
    crystal_presentation.ipynb
    amorphous_presentation.ipynb
 

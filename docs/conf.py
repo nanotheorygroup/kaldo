@@ -23,9 +23,8 @@ import ballistico
 # -- Project information -----------------------------------------------------
 
 project = 'Ballistico'
-copyright = ("2019, Ballistico Developers. Project structure based on the "
-             "Computational Molecular Science Python Cookiecutter version 1.1")
-author = 'Ballistico Developers'
+copyright = ("2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio")
+author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio'
 
 # The short X.Y version
 version = ''
@@ -45,7 +44,6 @@ release = ''
 extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.autodoc',
-    'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
@@ -53,6 +51,18 @@ extensions = [
     'recommonmark',
     'nbsphinx'
 ]
+
+# We do it like this to support multiple sphinx version without having warning.
+# Our buildbot consider warning as error.
+try:
+    from sphinx.ext import imgmath
+    extensions.append('sphinx.ext.imgmath')
+except ImportError:
+    try:
+        from sphinx.ext import pngmath
+        extensions.append('sphinx.ext.pngmath')
+    except ImportError:
+        pass
 
 autosummary_generate = True
 napoleon_google_docstring = False
@@ -91,14 +101,42 @@ pygments_style = 'default'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'press'
+html_theme = 'sphinx_material'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+# html_theme_options = {'description':'kALDo, Anharmonic Lattice Dynamics',
+#                       'github-repo':'https://github.com/nanotheorygroup/kaldo'}
+# Material theme options (see theme.conf for more information)
+html_theme_options = {
 
+    # Set the name of the project to appear in the navigation.
+    'nav_title': 'kALDo',
+
+    # Set you GA account ID to enable tracking
+    # 'google_analytics_account': 'UA-XXXXX',
+
+    # Specify a base_url used to generate sitemap.xml. If not
+    # specified, then no sitemap will be built.
+    'base_url': 'https://github.com/nanotheorygroup/kaldo',
+
+    # Set the color and the accent color
+    'color_primary': 'red',
+    'color_accent': 'orange',
+
+    # Set the repo location to get a badge with stats
+    'repo_url': 'https://github.com/nanotheorygroup/kaldo',
+    'repo_name': 'kALDo',
+
+    # Visible levels of the global TOC; -1 means unlimited
+    'globaltoc_depth': -1,
+    # If False, expand all TOC entries
+    'globaltoc_collapse': False,
+    # If True, show hidden TOC entries
+    'globaltoc_includehidden': False,
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
@@ -175,8 +213,15 @@ nbsphinx_execute = 'never'
 
 latex_engine = 'pdflatex'
 
-mathjax_config = {
-    'extensions': ['tex2jax.js'],
-    'jax': ['input/TeX', 'output/HTML-CSS'],
-}
-
+# mathjax_config = {
+#     'extensions': ['tex2jax.js'],
+#     'jax': ['input/TeX', 'output/HTML-CSS'],
+# }
+default_role = 'math'
+pngmath_divpng_args = ['-gamma 1.5','-D 110']
+#pngmath_divpng_args = ['-gamma', '1.5', '-D', '110', '-bg', 'Transparent']
+imgmath_latex_preamble =  '\\usepackage{amsmath}\n'+\
+                          '\\usepackage{mathtools}\n'+\
+                          '\\usepackage{amsfonts}\n'+\
+                          '\\usepackage{amssymb}\n'+\
+                          '\\usepackage{dsfont}\n'

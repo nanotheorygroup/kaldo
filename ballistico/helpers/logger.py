@@ -7,11 +7,7 @@ logname = 'ballistico_' + str(datetime) + '.log'
 logger = logging.getLogger('ballistico')
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 log_level = logging.INFO
-# logging.basicConfig(filename=logname,
-#                             filemode='a',
-#                             format=format,
-#                             datefmt='%H:%M:%S',
-#                             level=log_level)
+
 logger.setLevel(log_level)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(log_level)
