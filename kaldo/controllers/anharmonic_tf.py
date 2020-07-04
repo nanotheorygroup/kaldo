@@ -20,15 +20,15 @@ GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 
 @timeit
 def project_amorphous(phonons):
-    n_replicas = phonons.finite_difference.n_replicas
+    n_replicas = phonons.forceconstants.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     logging.info('Projection started')
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
-    coords = phonons.finite_difference.third_order.value.coords
-    data = phonons.finite_difference.third_order.value.data
+    coords = phonons.forceconstants.third_order.value.coords
+    data = phonons.forceconstants.third_order.value.data
     coords = np.vstack([coords[1], coords[2], coords[0]])
     third_tf = tf.SparseTensor(coords.T, data, (
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
@@ -72,10 +72,10 @@ def project_amorphous(phonons):
 @timeit
 def project_crystal(phonons):
     is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
-    n_replicas = phonons.finite_difference.third_order.n_replicas
+    n_replicas = phonons.forceconstants.third_order.n_replicas
 
     try:
-        sparse_third = phonons.finite_difference.third_order.value.reshape((phonons.n_modes, -1))
+        sparse_third = phonons.forceconstants.third_order.value.reshape((phonons.n_modes, -1))
         # transpose
         sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
         third_tf = tf.SparseTensor(sparse_coords,
@@ -83,12 +83,12 @@ def project_crystal(phonons):
                                    ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
         is_sparse = True
     except AttributeError:
-        third_tf = tf.convert_to_tensor(phonons.finite_difference.third_order.value)
+        third_tf = tf.convert_to_tensor(phonons.forceconstants.third_order.value)
         is_sparse = False
     third_tf = tf.cast(third_tf, dtype=tf.complex64)
     k_mesh = phonons._reciprocal_grid.unitary_grid()
     n_k_points = k_mesh.shape[0]
-    _chi_k = tf.convert_to_tensor(phonons.finite_difference.third_order._chi_k(k_mesh))
+    _chi_k = tf.convert_to_tensor(phonons.forceconstants.third_order._chi_k(k_mesh))
     _chi_k = tf.cast(_chi_k, dtype=tf.complex64)
     evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
     evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
@@ -271,7 +271,7 @@ def calculate_dirac_delta_amorphous(phonons, mu):
 
 
 def calculate_broadening(phonons, index_kpp_vec):
-    cellinv = phonons.finite_difference.cell_inv
+    cellinv = phonons.forceconstants.cell_inv
     k_size = phonons.kpts
     velocity_tf = tf.convert_to_tensor(phonons.velocity)
     velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:,tf.newaxis, :, :]

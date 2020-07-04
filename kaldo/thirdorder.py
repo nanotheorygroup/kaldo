@@ -1,4 +1,4 @@
-from kaldo.ifc import Ifc
+from kaldo.forceconstant import ForceConstant
 
 from ase import Atoms
 import os
@@ -16,7 +16,7 @@ REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
-class ThirdOrder(Ifc):
+class ThirdOrder(ForceConstant):
 
     @classmethod
     def load(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0.):

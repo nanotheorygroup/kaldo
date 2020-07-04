@@ -1,4 +1,4 @@
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 import matplotlib.pyplot as plt
 
@@ -6,7 +6,7 @@ from ase.io import read
 import numpy as np
 
 supercell = np.array([3, 3, 3])
-# finite_difference = FiniteDifference.import_from_dlpoly_folder('si-dlpoly', supercell)
+# forceconstants = ForceConstants.import_from_dlpoly_folder('si-dlpoly', supercell)
 folder = '.'
 config_file = str(folder) + '/replicated_coords.lmp'
 dynmat_file = str(folder) + '/dynmat.dat'
@@ -17,7 +17,7 @@ atomic_numbers = atoms.get_atomic_numbers()
 atomic_numbers[atomic_numbers == 1] = 14
 atoms.set_atomic_numbers(atomic_numbers)
 
-finite_difference = FiniteDifference.from_files(atoms, dynmat_file, third_file, folder, supercell)
+forceconstants = ForceConstants.from_files(atoms, dynmat_file, third_file, folder, supercell)
 
 
 k = 5
@@ -26,7 +26,7 @@ is_classic = False
 temperature = 300
 
 # # Create a phonon object
-phonons = Phonons(finite_difference=finite_difference,
+phonons = Phonons(forceconstants=forceconstants,
                   kpts=kpts,
                   is_classic=is_classic,
                   temperature=temperature)

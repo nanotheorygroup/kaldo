@@ -253,10 +253,10 @@ def save_second_order_matrix(phonons):
 
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder + '/' + filename
-    finite_difference = phonons.finite_difference
-    second_order = finite_difference.second_order
-    n_atoms_unit_cell = finite_difference.atoms.positions.shape[0]
-    n_replicas = phonons.finite_difference.n_replicas
+    forceconstants = phonons.forceconstants
+    second_order = forceconstants.second_order
+    n_atoms_unit_cell = forceconstants.atoms.positions.shape[0]
+    n_replicas = phonons.forceconstants.n_replicas
     second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
 
 
@@ -284,7 +284,7 @@ def save_second_order_matrix(phonons):
 
 def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
-    n_replicas = phonons.finite_difference.n_replicas
+    n_replicas = phonons.forceconstants.n_replicas
     n_atoms = int(phonons.n_modes / 3)
     second_order = phonons.second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     filename = 'espresso.ifc2'
@@ -304,7 +304,7 @@ def save_second_order_qe_matrix(phonons):
                         l_vec = (phonons.list_of_index()[id_replica] + 1)
                         for delta in range(3):
                             if l_vec[delta] <= 0:
-                                l_vec[delta] = phonons.finite_difference.supercell[delta]
+                                l_vec[delta] = phonons.forceconstants.supercell[delta]
 
 
                         file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
@@ -324,8 +324,8 @@ def save_third_order_matrix(phonons):
     filename = phonons.folder + '/' + filename
     file = open ('%s' % filename, 'w+')
     n_in_unit_cell = len (phonons.atoms.numbers)
-    n_replicas = phonons.finite_difference.n_replicas
-    third_order = phonons.finite_difference.third_order\
+    n_replicas = phonons.forceconstants.n_replicas
+    third_order = phonons.forceconstants.third_order\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
 
@@ -341,10 +341,10 @@ def save_third_order_matrix(phonons):
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
                             block_counter += 1
                             file.write ('\n  ' + str (block_counter))
-                            rep_position = phonons.finite_difference.second_order.list_of_replicas[n_1]
+                            rep_position = phonons.forceconstants.second_order.list_of_replicas[n_1]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
-                            rep_position = phonons.finite_difference.second_order.list_of_replicas[n_2]
+                            rep_position = phonons.forceconstants.second_order.list_of_replicas[n_2]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
                             file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))
@@ -450,8 +450,8 @@ def header(phonons):
     mass_factor = 1.8218779 * 6.022e-4
 
     for i in range (ntype):
-        mass = np.unique (phonons.finite_difference.atoms.get_masses ())[i] / mass_factor
-        label = np.unique (phonons.finite_difference.atoms.get_chemical_symbols ())[i]
+        mass = np.unique (phonons.forceconstants.atoms.get_masses ())[i] / mass_factor
+        label = np.unique (phonons.forceconstants.atoms.get_chemical_symbols ())[i]
         header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
 
     # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
@@ -493,10 +493,10 @@ def type_element_id(atoms, element_name):
             return i
 
 
-def import_from_shengbte(finite_difference, kpts, is_classic, temperature, folder):
+def import_from_shengbte(forceconstants, kpts, is_classic, temperature, folder):
 
     # # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference,
+    phonons = Phonons(forceconstants=forceconstants,
                       kpts=kpts,
                       is_classic=is_classic,
                       temperature=temperature,

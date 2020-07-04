@@ -1,6 +1,6 @@
 from ase.io import read
 import matplotlib.pyplot as plt
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 
 
@@ -20,7 +20,7 @@ from kaldo.phonons import Phonons
 #   The third order and dynamical matrix that will be used here were generated with a customized version of DL_POLY_4
 #   (You can register to get DL_POLY at https://www.scd.stfc.ac.uk/Pages/DL_POLY-Registration.aspx)
 
-# To upload your data originally, try making a FiniteDifference object with .from_files or .from_folder
+# To upload your data originally, try making a ForceConstants object with .from_files or .from_folder
 # First identify file names
 folder = 'structure'
 config_file = str(folder) + '/CONFIG'
@@ -29,13 +29,13 @@ third_file = str(folder) + '/THIRD'
 #
 # # Then read in files and create a finite difference object
 atoms = read(config_file, format='dlp4')
-finite_diff = FiniteDifference.from_files(folder=folder,replicated_atoms=atoms,dynmat_file=dynmat_file, third_file=third_file)
+finite_diff = ForceConstants.from_files(folder=folder,replicated_atoms=atoms,dynmat_file=dynmat_file, third_file=third_file)
 
 # kaldo also saves your data in more quickly loaded numpy arrays. This can save valuable time when plotting or
 # in instances where you need to handle the same data repeatedly!
 # If you'd like to see it in action, just comment out the previous finite difference object and uncomment line 41!
 
-#finite_diff = FiniteDifference.from_folder(folder='structure',format='numpy')
+#finite_diff = ForceConstants.from_folder(folder='structure',format='numpy')
 
 
 ##########################################
@@ -47,7 +47,7 @@ finite_diff = FiniteDifference.from_files(folder=folder,replicated_atoms=atoms,d
 # Here we will demonstrate the effects that the different band broadening shapes have on the numerical data of amorphous
 # silicon at 300K. First we create three Phonon objects with three different shapes. Gauss, Lorentzian, and triangular.
 
-phonons_triangle = Phonons(finite_difference=finite_diff,
+phonons_triangle = Phonons(forceconstants=finite_diff,
                            is_classic=False,
                            temperature=300,
                            third_bandwidth=0.5/4.135,
@@ -55,7 +55,7 @@ phonons_triangle = Phonons(finite_difference=finite_diff,
                            is_tf_backend=False,
                            folder='structure/ald_triangle')
 
-phonons_gaussian = Phonons(finite_difference=finite_diff,
+phonons_gaussian = Phonons(forceconstants=finite_diff,
                            is_classic=False,
                            temperature=300,
                            third_bandwidth=0.5/4.135,
@@ -63,7 +63,7 @@ phonons_gaussian = Phonons(finite_difference=finite_diff,
                            is_tf_backend=False,
                            folder='structure/ald_gauss')
 
-phonons_lorentzian = Phonons(finite_difference=finite_diff,
+phonons_lorentzian = Phonons(forceconstants=finite_diff,
                              is_classic=False,
                              temperature=300,
                              third_bandwidth=0.5/4.135,

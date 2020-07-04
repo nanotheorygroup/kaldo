@@ -7,7 +7,7 @@ from ase.calculators.lammpslib import LAMMPSlib
 from ase.io import write, read
 from hiphive import ClusterSpace
 from hiphive.fitting import Optimizer
-from hiphive import StructureContainer, ForceConstantPotential
+from hiphive import StructureContainer, ForceConstantsPotential
 from hiphive.structure_generation import generate_rattled_structures
 import numpy as np
 import os
@@ -75,7 +75,7 @@ Compute Interatomic Force Constants (IFC) for desired orders.
 opt = Optimizer(sc.get_fit_data(), seed=seed_int_struct)
 opt.train()
 print(opt)
-fcp = ForceConstantPotential(cs, opt.parameters)
+fcp = ForceConstantsPotential(cs, opt.parameters)
 
 # Derive and save force constants from force potential
 fcs = fcp.get_force_constants(initial_structure)

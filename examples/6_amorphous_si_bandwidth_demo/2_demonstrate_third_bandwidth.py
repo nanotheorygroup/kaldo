@@ -1,6 +1,6 @@
 from ase.io import read
 import matplotlib.pyplot as plt
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 
 # First identify file names
@@ -11,11 +11,11 @@ third_file = str(folder) + '/THIRD'
 
 # Then read in files and create a finite difference object
 atoms = read(config_file, format='dlp4')
-finite_diff = FiniteDifference.from_files(folder=folder, replicated_atoms=atoms, dynmat_file=dynmat_file,third_file=third_file)
+finite_diff = ForceConstants.from_files(folder=folder, replicated_atoms=atoms, dynmat_file=dynmat_file,third_file=third_file)
 
 # If all of the relevant numpy files exist (see last example), feel free to uncomment this line and comment
-# out the preceeding FiniteDifference creation
-# finite_diff = FiniteDifference.from_folder(folder='structure',format='numpy')
+# out the preceeding ForceConstants creation
+# finite_diff = ForceConstants.from_folder(folder='structure',format='numpy')
 
 
 # Here we will demonstrate the effect of band widths on the lifetimes. The effect will be shown for each
@@ -31,7 +31,7 @@ plt.suptitle("Amorphous Si (Tersoff '89)", y=0.98, fontsize=18, fontweight='bold
 for i in range(0,len(shapes)):
     ax = axs[i]
     for j in range(0,len(widths)):
-        phonon_object = Phonons(finite_difference=finite_diff,
+        phonon_object = Phonons(forceconstants=finite_diff,
                                 is_classic=False,
                                 temperature=300,
                                 third_bandwidth=widths[j],

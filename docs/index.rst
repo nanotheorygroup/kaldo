@@ -19,7 +19,7 @@ kaldo, Anharmonic Lattice Dynamics
    :caption: Documentation
 
    theory.ipynb
-   api_finite_difference
+   api_forceconstants
    api_phonons
    api_conductivity
    interface.md

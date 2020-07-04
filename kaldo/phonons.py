@@ -26,7 +26,7 @@ class Phonons:
 
         Parameters
         ----------
-        finite_difference : FiniteDifference
+        forceconstants : ForceConstant
             contains all the information about the system and the derivatives of the potential.
         is_classic : bool
             specifies if the system is classic, `True` or quantum, `False`
@@ -73,7 +73,7 @@ class Phonons:
             An instance of the `Phonons` class.
 
         """
-        self.finite_difference = kwargs.pop('finite_difference')
+        self.forceconstants = kwargs.pop('forceconstants')
         if 'is_classic' in kwargs:
             self.is_classic = bool(kwargs['is_classic'])
         if 'temperature' in kwargs:
@@ -98,11 +98,11 @@ class Phonons:
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
-        self.atoms = self.finite_difference.atoms
-        self.supercell = np.array(self.finite_difference.supercell)
+        self.atoms = self.forceconstants.atoms
+        self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
-        self.n_atoms = self.finite_difference.n_atoms
-        self.n_modes = self.finite_difference.n_modes
+        self.n_atoms = self.forceconstants.n_atoms
+        self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
 

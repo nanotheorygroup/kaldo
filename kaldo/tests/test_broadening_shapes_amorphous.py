@@ -3,7 +3,7 @@ Unit and regression test for the kaldo package.
 """
 
 # Imports
-from kaldo.finitedifference import FiniteDifference
+from kaldo.forceconstants import ForceConstants
 from kaldo.conductivity import Conductivity
 from kaldo.phonons import Phonons
 import ase.units as units
@@ -16,10 +16,10 @@ def phonons():
     print ("Preparing phonons object.")
 
     # Create a finite difference object
-    finite_difference = FiniteDifference.from_folder(folder='kaldo/tests/si-amorphous', format='eskm')
+    forceconstants = ForceConstants.from_folder(folder='kaldo/tests/si-amorphous', format='eskm')
 
     # # Create a phonon object
-    phonons = Phonons(finite_difference=finite_difference,
+    phonons = Phonons(forceconstants=forceconstants,
                       is_classic=True,
                       temperature=300,
                       third_bandwidth= 0.05 / 4.135,
