@@ -23,7 +23,7 @@ install:
 build: false
 
 test_script:
-  - pytest -v --cov=ballistico ballistico\\tests
+  - pytest -v --cov=kaldo kaldo\\tests
 
 on_success:
   - codecov

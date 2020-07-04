@@ -1,11 +1,11 @@
 from ase.io import read
 import numpy as np
 import matplotlib.pyplot as plt
-from ballistico.finitedifference import FiniteDifference
-from ballistico.phonons import Phonons
-from ballistico.conductivity import Conductivity
+from kaldo.finitedifference import FiniteDifference
+from kaldo.phonons import Phonons
+from kaldo.conductivity import Conductivity
 from sklearn.neighbors.kde import KernelDensity
-from ballistico.controllers.plotter import plot_dispersion
+from kaldo.controllers.plotter import plot_dispersion
 
 # Uncomment the following to import from lammps
 

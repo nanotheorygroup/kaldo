@@ -17,12 +17,12 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-import ballistico
+import kaldo
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'Ballistico'
+project = 'kaldo'
 copyright = ("2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio")
 author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio'
 
@@ -156,7 +156,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'ballisticodoc'
+htmlhelp_basename = 'kaldodoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -183,8 +183,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'ballistico.tex', 'Ballistico Documentation',
-     'ballistico', 'manual'),
+    (master_doc, 'kaldo.tex', 'kaldo Documentation',
+     'kaldo', 'manual'),
 ]
 
 
@@ -193,7 +193,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'ballistico', 'Ballistico Documentation',
+    (master_doc, 'kaldo', 'kaldo Documentation',
      [author], 1)
 ]
 
@@ -204,8 +204,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'ballistico', 'Ballistico Documentation',
-     author, 'ballistico', 'Anharmonic Lattice Dynamics',
+    (master_doc, 'kaldo', 'kaldo Documentation',
+     author, 'kaldo', 'Anharmonic Lattice Dynamics',
      'Miscellaneous'),
 ]
 

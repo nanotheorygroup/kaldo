@@ -1,8 +1,8 @@
 from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
-from ballistico.conductivity import Conductivity
-from ballistico.finitedifference import FiniteDifference
-from ballistico.phonons import Phonons
+from kaldo.conductivity import Conductivity
+from kaldo.finitedifference import FiniteDifference
+from kaldo.phonons import Phonons
 import numpy as np
 
 # We start from the atoms object

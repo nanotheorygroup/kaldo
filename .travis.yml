@@ -40,7 +40,7 @@ install:
 
 
 script:
-  - pytest -v --cov=ballistico ballistico/tests/
+  - pytest -v --cov=kaldo kaldo/tests/
 
 notifications:
     email: false

@@ -3,4 +3,4 @@
 Finite Difference Source Code
 ##############################
 
-.. literalinclude:: ../ballistico/finitedifference.py
+.. literalinclude:: ../kaldo/finitedifference.py

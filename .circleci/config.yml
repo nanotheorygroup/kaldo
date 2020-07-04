@@ -13,7 +13,7 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
-          command: python -m pytest -v --cov=ballistico ballistico/tests/
+          command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
 workflows:
   main:

@@ -3,7 +3,7 @@ output
 # Output Storage
 
 ## Default
-When using the storage `formatted`, Ballistico stores the following dense tensor as formatted, human readable, files:
+When using the storage `formatted`, kaldo stores the following dense tensor as formatted, human readable, files:
 - `frequency` $(n_{kpoints}, n_{modes})$. mode changes first k changes after
 - `velocity_alpha` $(n_{kpoints}, n_{modes})$
 - `physical_mode_<min_freq>_<max_freq>_<is_nw>` $(n_{kpoints}, n_{modes})$

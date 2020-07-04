@@ -1,5 +1,5 @@
 """
-Ballistico
+kaldo
 Anharmonic Lattice Dynamics
 """
 import sys
@@ -23,8 +23,8 @@ with open('requirements.txt') as f:
 
 setup(
     # Self-descriptive entries which should always be present
-    name='ballistico',
-    author='Ballistico Developers',
+    name='kaldo',
+    author='kaldo Developers',
     author_email='gbarbalinardo@ucdavis.edu',
     description=short_description[0],
     long_description=long_description,

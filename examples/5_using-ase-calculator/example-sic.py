@@ -1,10 +1,10 @@
 from ase.phonons import Phonons
 import numpy as np
-from ballistico.finitedifference import FiniteDifference
+from kaldo.finitedifference import FiniteDifference
 from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
-import ballistico.controllers.plotter as plotter
-from ballistico.phonons import Phonons as BallisticoPhonons
+import kaldo.controllers.plotter as plotter
+from kaldo.phonons import Phonons as kaldoPhonons
 import matplotlib.pyplot as plt
 
 
@@ -55,7 +55,7 @@ kpts = [5, 5, 5]
 temperature = 300
 
 # # Create a phonon object
-phonons = BallisticoPhonons(finite_difference=finite_difference,
+phonons = kaldoPhonons(finite_difference=finite_difference,
                     kpts=kpts,
                     is_classic=is_classic,
                     temperature=temperature,
