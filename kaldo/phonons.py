@@ -64,8 +64,6 @@ class Phonons:
         storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
             defines the storing strategy used to store the observables. The `default` strategy stores formatted output
             and numpy arrays. `memory` storage doesn't generate any output.
-        diagonalization_method: 'numpy' or 'lapack
-            specify if numpy or lapack for diagonalizing
         grid_type: 'F' or 'C
             specify if to use 'C" style atoms replica grid of fortran style 'F', default 'C'
 
@@ -100,7 +98,6 @@ class Phonons:
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
-        self.diagonalization_method = kwargs.pop('diagonalization_method', 'numpy')
         self.atoms = self.finite_difference.atoms
         self.supercell = np.array(self.finite_difference.supercell)
         self.n_k_points = int(np.prod(self.kpts))

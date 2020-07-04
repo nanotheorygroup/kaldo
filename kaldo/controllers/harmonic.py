@@ -60,91 +60,8 @@ def calculate_frequency(phonons, q_points=None):
 
 
 def calculate_dynmat_derivatives(phonons, q_points=None):
-    if phonons.diagonalization_method == 'lapack':
-        ddyn = calculate_dynmat_derivatives_lapack(phonons, q_points)
-    elif (phonons.diagonalization_method == 'numpy'):
-        ddyn = calculate_dynmat_derivatives_numpy(phonons, q_points)
-    else:
-        logging.error('Diagonalization method ' + phonons.diagonalization_method + ' not implemented')
-        raise ValueError
+    ddyn = calculate_dynmat_derivatives_numpy(phonons, q_points)
     return ddyn
-
-
-def calculate_dynmat_derivatives_lapack(phonons, q_points=None):
-    # Debugging method to compare results, do not use
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
-    finite_difference = phonons.finite_difference
-    supercell = phonons.supercell
-    atoms = finite_difference.atoms
-    cell = atoms.cell
-    n_unit_cell = atoms.positions.shape[0]
-    # mass = atoms.get_masses()
-    # masses_2d = np.zeros((n_unit_cell, n_unit_cell))
-    distance = np.zeros((n_unit_cell, n_unit_cell, 3))
-    positions = atoms.positions
-    replicated_cell = cell * supercell
-    fc_s = finite_difference.second_order.dynmat(atoms.get_masses())
-    # fc_s = fc_s / (Rydberg / (Bohr ** 2))
-    # EVTOTENJOVERMOL = units.mol / (10 * units.J)
-    # massfactor = 2 * units._me * units._Nav * 1000
-    # fc_s = fc_s / EVTOTENJOVERMOL * massfactor
-    fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-    for i in np.arange(n_unit_cell):
-        # masses_2d[i, i] = mass[i]
-        distance[i, i, :] = 0
-        for j in np.arange(i, n_unit_cell):
-            # masses_2d[i, j] = np.sqrt(mass[i] * mass[j])
-            distance[i, j, :3] = positions[i, :3] - positions[j, :3]
-            # masses_2d[j, i] = masses_2d[i, j]
-            distance[j, i, :3] = -distance[i, j, :3]
-    j = 0
-    list_of_replicated_cells = np.zeros((124, 3))
-    norm_of_replicated_cells = np.zeros((124))
-    for id_0 in np.arange(-2, 3):
-        for id_1 in np.arange(-2, 3):
-            for id_2 in np.arange(-2, 3):
-                if (np.all([id_0, id_1, id_2] == [0, 0, 0])):
-                    continue
-                for i in np.arange(3):
-                    list_of_replicated_cells[j, i] = replicated_cell[0, i] * id_0 + replicated_cell[1, i] * id_1 + replicated_cell[2, i] * id_2
-                norm_of_replicated_cells[j] = 0.5 * np.dot(list_of_replicated_cells[j, :3], list_of_replicated_cells[j, :3])
-                j = j + 1
-    nk = q_points.shape[0]
-    ddyn_s = np.zeros((nk, n_unit_cell * 3, n_unit_cell * 3, 3), dtype=np.complex)
-    for iat in np.arange(n_unit_cell):
-        for jat in np.arange(n_unit_cell):
-            for replica_0 in np.arange(-2 * supercell[0], 2 * supercell[0] + 1):
-                for replica_1 in np.arange(-2 * supercell[1], 2 * supercell[1] + 1):
-                    for replica_2 in np.arange(-2 * supercell[2], 2 * supercell[2] + 1):
-                        replica_id = np.array([replica_0, replica_1, replica_2])
-                        replica_position = np.tensordot(replica_id, cell, (-1, 0))
-                        atom_absolute_position = replica_position + distance[iat, jat]
-                        weight = 0.
-                        nreq = 1
-                        j = 0
-                        for ir in np.arange(124):
-                            ck = np.dot(atom_absolute_position, list_of_replicated_cells[ir, :3])\
-                                 - norm_of_replicated_cells[ir]
-                            if (ck > 1e-6):
-                                j = 1
-                                continue
-                            if (abs(ck) <= 1e-6):
-                                nreq = nreq + 1
-                        if (j == 0):
-                            weight = 1.0 / (nreq)
-                        if (weight > 0.0):
-                            t1, t2, t3 = wrap_coords_shen(replica_id, supercell).astype(np.int)
-                            for ik in np.arange(nk):
-                                kt = 2. * np.pi * np.dot(q_points[ik, :], replica_id[:])
-                                for ipol in np.arange(3):
-                                    idim = (iat) * 3 + ipol
-                                    for jpol in np.arange(3):
-                                        jdim = (jat) * 3 + jpol
-                                        ddyn_s[ik, idim, jdim, :3] = ddyn_s[ik, idim, jdim, :3] - replica_position[:3] * fc_s[
-                                            jat, jpol, t1, t2, t3, iat, ipol] * phexp(kt) * weight
-    return ddyn_s
 
 
 def calculate_dynmat_derivatives_numpy(phonons, q_points=None):
@@ -276,13 +193,7 @@ def calculate_velocity(phonons, q_points=None):
 
 
 def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
-    if phonons.diagonalization_method == 'lapack':
-        eigensystem = calculate_eigensystem_lapack(phonons, q_points, only_eigenvals)
-    elif (phonons.diagonalization_method == 'numpy'):
-        eigensystem = calculate_eigensystem_numpy(phonons, q_points, only_eigenvals)
-    else:
-        logging.error('Diagonalization method ' + phonons.diagonalization_method + ' not implemented')
-        raise ValueError
+    eigensystem = calculate_eigensystem_numpy(phonons, q_points, only_eigenvals)
     return eigensystem
 
 
