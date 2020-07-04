@@ -1,13 +1,8 @@
-kaldo: Anharmonic Lattice Dynamics
+kALDo: Anharmonic Lattice Dynamics
 ==============================
 [//]: # (Badges)
 [![Travis Build Status](https://travis-ci.com/gbarbalinardo/kaldo.svg?token=EFWyhyp9aQcQnteZBpEr&branch=master)](https://travis-ci.com/gbarbalinardo/kaldo)
 [![codecov](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master/graphs/badge.svg?token=tiC2xj2OQG)](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master)
-
-
-## The kALDo package
-
-kALDo. Thermal transport in crystalline and non-crystalline solids.  
 
 <img src="docs/_resources/logo.png" width="650">
 
