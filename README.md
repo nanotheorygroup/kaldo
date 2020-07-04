@@ -17,7 +17,7 @@ Below we illustrate the main features of the code
 
 ## Documentation
 
-The documentation can be found [here](http://sophe.ucdavis.edu/downloads/)
+The documentation can be found [here](https://nanotheorygroup.github.io/kaldo/)
 . Work in progress.
 
 ## Copyright
