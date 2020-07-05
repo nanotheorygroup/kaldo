@@ -26,7 +26,7 @@ forceconstants.calculate_second(LAMMPSlib(**lammps_inputs))
 forceconstants.calculate_third(LAMMPSlib(**lammps_inputs))
 
 # Config and create a phonon object 
-k = 7
+k = 5
 phonons_config = {'kpts': [k, k, k],
                   'is_classic': False,
                   'temperature': 300,
