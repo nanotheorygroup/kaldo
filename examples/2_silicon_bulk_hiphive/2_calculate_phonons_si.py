@@ -6,7 +6,7 @@ import numpy as np
 # Config force constants object by loading in the ICFs
 # from hiphive calculations
 forceconstants = ForceConstants.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
-k = 7
+k = 5
 
 # Config phonon object
 phonons_config = {'kpts': [k, k, k],
