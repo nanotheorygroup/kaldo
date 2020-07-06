@@ -1,920 +1,920 @@
 {
-  "nbformat": 4,
-  "nbformat_minor": 0,
-  "metadata": {
-    "colab": {
-      "name": "crystal_presentation.ipynb",
-      "provenance": [],
-      "collapsed_sections": [],
-      "toc_visible": true
-    },
-    "kernelspec": {
-      "name": "python3",
-      "display_name": "Python 3"
-    },
-    "accelerator": "GPU"
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "HFoatzweSuTT"
+   },
+   "source": [
+    "\n",
+    "Open the notebook in Colab: https://github.com/gbarbalinardo/kaldo/blob/master/docs/crystal_presentation.ipynb\n",
+    "\n",
+    "<a href=\"https://github.com/gbarbalinardo/kaldo/blob/master/docs/crystal_presentation.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+   ]
   },
-  "cells": [
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "HFoatzweSuTT",
-        "colab_type": "text"
-      },
-      "source": [
-        "\n",
-        "Open the notebook in Colab: https://github.com/gbarbalinardo/kaldo/blob/master/docs/crystal_presentation.ipynb\n",
-        "\n",
-        "<a href=\"https://github.com/gbarbalinardo/kaldo/blob/master/docs/crystal_presentation.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
-      ]
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {},
-      "source": [
-        "# Tutorial: Lammps Interface\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "RDmLrYaYyjjf",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Install Necessary Repos\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": []
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": []
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "YmTI_xUXyxPn",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "!pip install git+https://<USERNAME>:<PASSWORD>@github.com/gbarbalinardo/kaldo.git"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "W3jVRdQg1US_",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Remote Fetch Necessary Files\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "n4PN3gLv08-r",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "import os\n",
-        "if not os.path.exists('forcefields.zip'):\n",
-        "  !wget http://chemac196.ucdavis.edu/data-html/forcefields.zip\n",
-        "  !unzip forcefields.zip\n",
-        "  !rm -r forcefields.zip\n",
-        "\n",
-        "if not os.path.exists('nanowire.xyz'):\n",
-        "  !wget http://chemac196.ucdavis.edu/data-html/nanowire.xyz"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "QNd3HLW992Av",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Remote Fetch Precomplied LAMMPS\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "l3yNjxeR9-m-",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "!wget http://169.237.38.203/downloads/lmp-tesla-t4-intel-xeon.gz\n",
-        "!tar xvzf lmp-tesla-t4-intel-xeon.gz\n",
-        "!rm /content/lmp-tesla-t4-intel-xeon.gz\n",
-        "!ln -s /content/lammps/src/lmp_gpu /usr/local/bin/lmp_gpu\n",
-        "\n",
-        "# Navigate back to lammps source foder when for \n",
-        "# later LAMMPS-Python integration\n",
-        "\n",
-        "%cd /content/lammps/src\n",
-        "\n",
-        "print('\\n')\n",
-        "print('Remote Fetching precomplied LAMMPS is finished!')"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "N45o6ZTG_6w7",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Integrate LAMMPS Into Python "
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "HN8HfxJN_7dU",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "!make install-python\n",
-        "\n",
-        "# Copy executable file to where the python Module locates\n",
-        "\n",
-        "import shutil \n",
-        "src_path = '/usr/lib/python3/dist-packages/liblammps.so'\n",
-        "dist_path = '/usr/local/lib/python3.6/dist-packages/liblammps.so'\n",
-        "shutil.copyfile(src_path,dist_path)\n",
-        "\n",
-        "# Naviagate back to main folder before simulation\n",
-        "\n",
-        "%cd /content\n",
-        "\n",
-        "print('\\n')\n",
-        "print('LAMMPS-Python Integration is completed!')"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "FlzbvmDEACjK",
-        "colab_type": "text"
-      },
-      "source": [
-        "# Tutorial: Thermal Transport Simulation for Silicon-Bulk"
-      ]
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "uzhWN30mYhsT",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Import modules and create finite diffence object"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "pznkqF7TYg7c",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "from ase.build import bulk\n",
-        "from ase.calculators.lammpslib import LAMMPSlib\n",
-        "from kaldo.io_helper import *\n",
-        "import kaldo.plotter as plotter\n",
-        "from kaldo import conductivity\n",
-        "from kaldo import ForceConstant\n",
-        "import matplotlib.pyplot as plt\n",
-        "plt.style.use('seaborn-poster')\n",
-        "\n",
-        "\n",
-        "# We start from the atoms object\n",
-        "\n",
-        "atoms = bulk('Si', 'diamond', a=5.432)\n",
-        "\n",
-        "\n",
-        "supercell = np.array([3, 3, 3])\n",
-        "lammps_inputs = {\n",
-        "      'lmpcmds': [\n",
-        "          'pair_style tersoff',\n",
-        "          'pair_coeff * * forcefields/Si.tersoff Si'],\n",
-        "\n",
-        "      'log_file': 'lammps-si-bulk.txt',\n",
-        "      'keep_alive':True}\n",
-        "\n",
-        "# Create a finite difference object\n",
-        "\n",
-        "forceconstants = ForceConstant(atoms=atoms,\n",
-        "                    supercell=supercell,\n",
-        "                    calculator=LAMMPSlib,\n",
-        "                    calculator_inputs=lammps_inputs,\n",
-        "                    is_reduced_second=False,\n",
-        "                    folder='si-bulk-fd')\n"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "nMaD_Vp3Yq8M",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Create phonons object\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "wmohtOrZYqB9",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "k = 7\n",
-        "kpts = [k, k, k]\n",
-        "temperature = 300\n",
-        "is_classic = False\n",
-        "k_label = str(int(np.prod(kpts)))\n",
-        "\n",
-        "# Create a phonon object\n",
-        "\n",
-        "phonons = Phonons(forceconstants=forceconstants,\n",
-        "                kpts=kpts,\n",
-        "                is_classic=is_classic,\n",
-        "                temperature=temperature,\n",
-        "                folder='si-bulk-ald-' + k_label)"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "NO5weMg1YbjD",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Calculate conductivities for infinite-size sample\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "r4DQJ9R8_LSs",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Calculate conductivity  with direct inversion approach (inverse)\n",
-        "\n",
-        "print('Inverse conductivity matrix: ')\n",
-        "print(phonons.conductivity(method='inverse').sum(axis=0))\n",
-        "print('Inverse conductivity [W/(m•K)]: %.3f '\n",
-        "  %np.mean(np.diag(phonons.conductivity(method='inverse').sum(axis=0))))\n",
-        "print('\\n')\n",
-        "\n",
-        "# Calculate conductivity  with  relaxation time approximation (rta)\n",
-        "\n",
-        "print('Rta conductivity matrix: ')\n",
-        "print(phonons.conductivity(method='rta').sum(axis=0))\n",
-        "print('Rta conductivity [W/(m•K)]: %.3f '\n",
-        "%np.mean(np.diag(phonons.conductivity(method='rta').sum(axis=0))))\n",
-        "print('\\n')\n",
-        "\n",
-        "# Calculate conductivity  with  self-consistent approach (sc)\n",
-        "\n",
-        "max_n_iters=11\n",
-        "sc_cond= phonons.conductivity(method='sc', max_n_iterations=max_n_iters)\n",
-        "\n",
-        "print('Self-consistent conductivity matrix: ')\n",
-        "print(sc_cond[1].sum(axis=0))\n",
-        "print('Self Consistent conductivity [W/(m•K)]: %.3f '%\n",
-        "      np.mean(np.diag(sc_cond[0].sum(axis=0))))\n",
-        "print('\\n')"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "C7Cyk7teqqbO",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Visualize Basic Quantities from the simulation\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "vPF77pJPpeXk",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Plot dispersion relation and group velocity in each direction\n",
-        "\n",
-        "freq_full = phonons.frequencies.flatten()\n",
-        "plotter.plot_dispersion(phonons,n_k_points=int(k_label))\n",
-        "print('\\n')\n",
-        "\n",
-        "# Plot heat compacity vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq_full,1e23*phonons.c_v,s=15)\n",
-        "plt.ylabel (r\"$C_{v}$ [$10^{23}$ J/K]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(0.9*1e23*phonons.c_v[phonons.c_v>0].min(), \n",
-        "         1.05*1e23*phonons.c_v.max())\n",
-        "plt.show()\n",
-        "\n",
-        "# Plot phase space vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq_full,phonons.ps,s=15)\n",
-        "plt.ylabel (\"Phase space\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(phonons.ps.min(), phonons.ps.max())\n",
-        "plt.show()"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "OMgSvwd3q4jN",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Calculate and Visualize Advanced Properties"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "A-WSmG8Qq5CB",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Advanced properties can also be \n",
-        "# calculated by \"lazy-loading\" properties\n",
-        "# calculated during the simulation.\n",
-        "\n",
-        "tau_rta = phonons.gamma[phonons.gamma!=0]**(-1)\n",
-        "freq = freq_full[phonons.gamma!=0]\n",
-        "velocities = phonons.velocities\n",
-        "\n",
-        "velocity_norms_x = np.sqrt((velocities[:, :, 0] ** 2)).flatten(order='C')\n",
-        "velocity_norms_y = np.sqrt((velocities[:, :, 1] ** 2)).flatten(order='C')\n",
-        "velocity_norms_z = np.sqrt((velocities[:, :, 2] ** 2)).flatten(order='C')\n",
-        "velocity_norms = (velocity_norms_x + velocity_norms_y + velocity_norms_z)/3\n",
-        "\n",
-        "mfp_rta = np.multiply(velocity_norms[phonons.gamma != 0], tau_rta)\n",
-        "\n",
-        "# Plot phonon life time under rta approach vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq,tau_rta,s=15)\n",
-        "plt.ylabel (r\"$\\tau_{rta}$ [ps]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(0.95*tau_rta.min(), 1.05*tau_rta.max())\n",
-        "plt.yscale('symlog')\n",
-        "plt.show()\n",
-        "\n",
-        "# Plot mean free path (mfp) under rta approach vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq,0.1*mfp_rta,s=15)\n",
-        "plt.ylabel (r\"$\\lambda_{rta}$ [$\\AA$]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(-0.5, 0.1*1.05*mfp_rta.max())\n",
-        "plt.yscale('symlog')\n",
-        "plt.show()"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "ftUnzRdQr36Y",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Visualize $\\kappa_{cum}$ Vs. $\\nu$ , $\\kappa_{sc}$ Vs. # of iterations  and finite-size simulation\n",
-        "\n",
-        "\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "aGybSqt-rBJf",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Conductivity can also be illustrated in a cumulative manner\n",
-        "\n",
-        "freq_argsort_index = np.argsort(freq_full)\n",
-        "\n",
-        "rta_cond_per_mode = phonons.conductivity(method='rta')\n",
-        "rta_cond_per_mode_flattened_x = rta_cond_per_mode[:, 0, 0].flatten(order='C')\n",
-        "rta_cond_per_mode_flattened_y = rta_cond_per_mode[:, 1, 1].flatten(order='C')\n",
-        "rta_cond_per_mode_flattened_z = rta_cond_per_mode[:, 2, 2].flatten(order='C')\n",
-        "rta_cond_per_mode_flattened = (rta_cond_per_mode_flattened_x\n",
-        "                                         + rta_cond_per_mode_flattened_y +\n",
-        "                                         rta_cond_per_mode_flattened_z)/3\n",
-        "\n",
-        "rta_cond_per_mode_argsort =  rta_cond_per_mode_flattened[freq_argsort_index]\n",
-        "kappa_cum_rta_by_freq = np.cumsum(rta_cond_per_mode_argsort)\n",
-        "\n",
-        "inverse_cond_per_mode = phonons.conductivity(method='inverse')\n",
-        "inverse_cond_per_mode_flattened_x = inverse_cond_per_mode[:, 0, 0].flatten(order='C')\n",
-        "inverse_cond_per_mode_flattened_y = inverse_cond_per_mode[:, 1, 1].flatten(order='C')\n",
-        "inverse_cond_per_mode_flattened_z = inverse_cond_per_mode[:, 2, 2].flatten(order='C')\n",
-        "inverse_cond_per_mode_flattened = (inverse_cond_per_mode_flattened_x\n",
-        "                                         + inverse_cond_per_mode_flattened_y +\n",
-        "                                         inverse_cond_per_mode_flattened_z)/3\n",
-        "\n",
-        "inverse_cond_per_mode_argsort =  inverse_cond_per_mode_flattened[freq_argsort_index]\n",
-        "kappa_cum_inverse_by_freq = np.cumsum(inverse_cond_per_mode_argsort)\n",
-        "\n",
-        "\n",
-        "sc_cond_per_mode = phonons.conductivity(method='sc',max_n_iterations=max_n_iters)[0]\n",
-        "sc_cond_per_mode_flattened_x = sc_cond_per_mode[:, 0, 0].flatten(order='C')\n",
-        "sc_cond_per_mode_flattened_y = sc_cond_per_mode[:, 1, 1].flatten(order='C')\n",
-        "sc_cond_per_mode_flattened_z = sc_cond_per_mode[:, 2, 2].flatten(order='C')\n",
-        "sc_cond_per_mode_flattened = (sc_cond_per_mode_flattened_x\n",
-        "                                         + sc_cond_per_mode_flattened_y +\n",
-        "                                         sc_cond_per_mode_flattened_z)/3\n",
-        "\n",
-        "sc_cond_per_mode_argsort =  sc_cond_per_mode_flattened[freq_argsort_index]\n",
-        "kappa_cum_sc_by_freq = np.cumsum(sc_cond_per_mode_argsort)\n",
-        "\n",
-        "# Plot self-consistent conductivity vs # of iterations\n",
-        "\n",
-        "sc_cond = phonons.conductivity(method='sc', max_n_iterations=10)[1]\n",
-        "sc_conductivity = (sc_cond[:,0,0] + sc_cond[:,1,1] + sc_cond[:,2,2])/3\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.plot(sc_conductivity ,label =\"$\\kappa_{sc} & \")\n",
-        "plt.ylabel (r\"$\\kappa$ [W/(m•K)]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"# of iterations\", fontsize=25, fontweight='bold')\n",
-        "plt.grid()\n",
-        "plt.show()\n",
-        "\n",
-        "# Plot cumulative condutivity (kappa) vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.plot(freq_full[freq_argsort_index], \n",
-        "         kappa_cum_rta_by_freq, 'r-',label='$\\kappa_{rta}$')\n",
-        "\n",
-        "plt.plot(freq_full[freq_argsort_index], kappa_cum_inverse_by_freq, \n",
-        "         'k-',label='$\\kappa_{inverse}$')\n",
-        "\n",
-        "plt.plot(freq_full[freq_argsort_index], \n",
-        "         kappa_cum_sc_by_freq,'bs',markersize=5,label='$\\kappa_{sc}$')\n",
-        "\n",
-        "\n",
-        "plt.xlabel(\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylabel(r'Cumulative $\\kappa$ [W/(m•K)]', fontsize=25, fontweight='bold')\n",
-        "plt.grid()\n",
-        "plt.legend(loc=4, prop={'size': 15})\n",
-        "plt.show()\n",
-        "\n",
-        "# Peform simulation for finite-size sample\n",
-        "\n",
-        "cond_vs_len_rta = []\n",
-        "cond_vs_len_sc = []\n",
-        "\n",
-        "lengths = np.outer(np.array([10, 100, 1000, 10000, 100000]), \n",
-        "              np.array([1, 2, 5])).flatten(order='C')\n",
-        "for length in lengths:\n",
-        "  cond_rta = phonons.conductivity(method='rta', length=length, \n",
-        "                        axis=0).sum(axis=0)\n",
-        "  cond_vs_len_rta.append(cond_rta[0, 0])\n",
-        "  cond_sc = phonons.conductivity(method='sc', max_n_iterations = 10,\n",
-        "                                 length=length, axis=0)[0].sum(axis=0)\n",
-        "  cond_vs_len_sc.append(cond_sc[0, 0])\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.plot(lengths, np.array(cond_vs_len_rta), '-b', label='rta')\n",
-        "plt.plot(lengths, np.array(cond_vs_len_sc), '-', label='sc')\n",
-        "plt.legend(loc='best')\n",
-        "plt.xlabel('$\\ell$ [nm]',  fontsize=25, fontweight='bold')\n",
-        "plt.ylabel(r\"$\\kappa$ [W/(m•K)]\",  fontsize=25, fontweight='bold')\n",
-        "plt.grid()\n",
-        "plt.xscale('log')\n",
-        "plt.show()"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "G4R6NSy9v0R_",
-        "colab_type": "text"
-      },
-      "source": [
-        "# Thermal Transport Simulation for Silicon-Nanowire (si-nw)\n",
-        "\n"
-      ]
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "YMX99X5Csi-C",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Import modules and create finite diffence object"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "FwRWB2yVsZxn",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "import ase\n",
-        "from ase.build import bulk\n",
-        "from ase.calculators.lammpslib import LAMMPSlib\n",
-        "from kaldo.io_helper import *\n",
-        "import kaldo.plotter as plotter\n",
-        "from kaldo import ForceConstant\n",
-        "import matplotlib.pyplot as plt\n",
-        "plt.style.use('seaborn-poster')\n",
-        "\n",
-        "\n",
-        "# We start from the atoms object\n",
-        "\n",
-        "atoms = ase.io.read('nanowire.xyz')\n",
-        "\n",
-        "\n",
-        "# Duplicate supercell only in z direction\n",
-        "\n",
-        "supercell = np.array([1, 1, 3])\n",
-        "lammps_inputs = {\n",
-        "      'lmpcmds': [\n",
-        "          'pair_style tersoff',\n",
-        "          'pair_coeff * * forcefields/Si.tersoff Si'],\n",
-        "\n",
-        "      'log_file': 'lammps-si-nw.txt',\n",
-        "      'keep_alive':True}\n",
-        "\n",
-        "# Create a finite difference object\n",
-        "\n",
-        "forceconstants = ForceConstant(atoms=atoms,supercell=supercell,\n",
-        "                    calculator=LAMMPSlib,\n",
-        "                    calculator_inputs=lammps_inputs,\n",
-        "                    is_reduced_second=False,\n",
-        "                    folder='si-nw-fd')"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "Tn50p3s3sqYX",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Create phonons object\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "k2lRNXTdwclH",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "k = 7\n",
-        "is_classic = False\n",
-        "kpts = [1, 1, k]\n",
-        "temperature = 300\n",
-        "k_label = str(int(np.prod(kpts)))\n",
-        "\n",
-        "# Create a phonon object\n",
-        "\n",
-        "phonons = Phonons(forceconstants=forceconstants,\n",
-        "                kpts=kpts,\n",
-        "                is_classic=is_classic,\n",
-        "                temperature=temperature,\n",
-        "                folder='si-nw-ald-' + k_label)"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "u3mv2ltosxjR",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Calculate conductivities for infinite-size sample\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "uR4Y30KUsoo7",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Calculate conductivity for silicon nanowire for infinity samples\n",
-        "# Define volume ratio \n",
-        "\n",
-        "volume_ratio = 3.41\n",
-        "\n",
-        "# Calculate conductivity  with direct inversion approach (inverse)\n",
-        "\n",
-        "print('Inverse conductivity matrix: ')\n",
-        "print(volume_ratio*phonons.conductivity(method='inverse').sum(axis=0))\n",
-        "inverse_cond = phonons.conductivity(method='inverse').sum(axis=0)[2,2]\n",
-        "print('Inverse conductivity [W/(m•K)]: %.3f'%(volume_ratio*inverse_cond))\n",
-        "print('\\n')\n",
-        "\n",
-        "# Calculate conductivity with relaxation time approximation approach (rta)\n",
-        "\n",
-        "print('Rta conductivity matrix: ')\n",
-        "print(volume_ratio*phonons.conductivity(method='rta').sum(axis=0))\n",
-        "rta_cond = phonons.conductivity(method='rta').sum(axis=0)[2,2]\n",
-        "print('Rta conductivity [W/(m•K)]: %.3f '%(volume_ratio*rta_cond))\n",
-        "print('\\n')\n",
-        "\n",
-        "max_n_iters=57\n",
-        "sc_cond= phonons.conductivity(method='sc', max_n_iterations=max_n_iters)\n",
-        "\n",
-        "# Calculate conductivity with self-consistent approach (sc)\n",
-        "\n",
-        "print('Self-consistent conductivity matrix: ')\n",
-        "print(sc_cond[1].sum(axis=0))\n",
-        "sc_cond_z = sc_cond[0].sum(axis=0)[2,2]\n",
-        "print('Self Consistent conductivity [W/(m•K)]: %.3f '%(volume_ratio*sc_cond_z))"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "kHVAjzUVtrRF",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Visualize Basic Quantities from the simulation\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "3eObOqjhs6TI",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Plot dispersion relation and group velocity in z-direction\n",
-        "\n",
-        "plotter.plot_dispersion(phonons,symmetry='nw', n_k_points=400)\n",
-        "print('\\n')\n",
-        "\n",
-        "# Plot heat compacity vs frequency\n",
-        "\n",
-        "freq_full = phonons.frequencies.flatten()\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq_full,1e23*phonons.c_v,s=15)\n",
-        "plt.ylabel (r\"$C_{v}$ [$10^{23}$ J/K]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(0.9*1e23*phonons.c_v[phonons.c_v>0].min(), \n",
-        "          1.05*1e23*phonons.c_v.max())\n",
-        "plt.show()\n",
-        "\n",
-        "# Plot phase space vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq_full,phonons.ps,s=15)\n",
-        "plt.ylabel (\"Phase space\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(phonons.ps.min(), phonons.ps.max())\n",
-        "plt.show()"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "WPMh5ifjt6zk",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Calculate and Visualize Advanced Properties"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "rpPjpQbstysD",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Advanced properties can also be \n",
-        "# calculated by \"lazy-loading\" properties\n",
-        "# calculated during the simulation.\n",
-        "\n",
-        "tau_rta = phonons.gamma[phonons.gamma!=0]**(-1)\n",
-        "freq = freq_full[phonons.gamma!=0]\n",
-        "velocities = phonons.velocities\n",
-        "velocity_norms = np.sqrt((velocities[:, :, 2] ** 2)).flatten(order='C')\n",
-        "mfp_rta = np.multiply(velocity_norms[phonons.gamma != 0], tau_rta)\n",
-        "\n",
-        "# Plot phonon life time under rta approach vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq,tau_rta,s=15)\n",
-        "plt.ylabel (r\"$\\tau_{rta}$ [ps]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(tau_rta.min(), tau_rta.max())\n",
-        "plt.yscale('symlog')\n",
-        "plt.show()\n",
-        "\n",
-        "# Plot mean free path (mfp) under rta approach vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.scatter(freq,0.1*mfp_rta,s=15)\n",
-        "plt.ylabel (r\"$\\lambda_{rta}$ [$\\AA$]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylim(-0.5, 0.1*1.05*mfp_rta.max())\n",
-        "plt.yscale('symlog')\n",
-        "plt.show()"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {
-        "id": "gE9qdo4CwAEN",
-        "colab_type": "text"
-      },
-      "source": [
-        "## Visualize $\\kappa_{cum}$ Vs. $\\nu$ , $\\kappa_{sc}$ Vs. # of iterations  and finite-size simulation\n",
-        "\n",
-        "\n"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "metadata": {
-        "id": "l5QnDjiYvpeJ",
-        "colab_type": "code",
-        "colab": {}
-      },
-      "source": [
-        "# Plot self-consistent conductivity vs # of iterations\n",
-        "\n",
-        "sc_cond = phonons.conductivity(method='sc', max_n_iterations=57)[1]\n",
-        "sc_conductivity = sc_cond[:,2,2]\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.plot(volume_ratio*sc_conductivity ,label =\"$\\kappa_{sc} & \")\n",
-        "plt.ylabel (r\"$\\kappa$ [W/(m•K)]\", fontsize=25, fontweight='bold')\n",
-        "plt.xlabel (\"# of iterations\", fontsize=25, fontweight='bold')\n",
-        "plt.grid()\n",
-        "plt.show()\n",
-        "\n",
-        "# Conductivity can also be illustrated in a cumulative manner\n",
-        "\n",
-        "freq_argsort_index = np.argsort(freq_full)\n",
-        "\n",
-        "rta_cond_per_mode = phonons.conductivity(method='rta')\n",
-        "rta_cond_per_mode_flattened = rta_cond_per_mode[:, 2, 2].flatten(order='C')\n",
-        "\n",
-        "rta_cond_per_mode_argsort =  rta_cond_per_mode_flattened[freq_argsort_index]\n",
-        "kappa_cum_rta_by_freq = np.cumsum(rta_cond_per_mode_argsort)\n",
-        "\n",
-        "\n",
-        "inverse_cond_per_mode = phonons.conductivity(method='inverse')\n",
-        "inverse_cond_per_mode_flattened = inverse_cond_per_mode[:, 2, 2].flatten(order='C')\n",
-        "\n",
-        "inverse_cond_per_mode_argsort =  inverse_cond_per_mode_flattened[freq_argsort_index]\n",
-        "kappa_cum_inverse_by_freq = np.cumsum(inverse_cond_per_mode_argsort)\n",
-        "\n",
-        "sc_cond_per_mode = phonons.conductivity(method='sc',max_n_iterations=max_n_iters)[0]\n",
-        "sc_cond_per_mode_flattened = sc_cond_per_mode[:, 2, 2].flatten(order='C')\n",
-        "\n",
-        "sc_cond_per_mode_argsort =  sc_cond_per_mode_flattened[freq_argsort_index]\n",
-        "kappa_cum_sc_by_freq = np.cumsum(sc_cond_per_mode_argsort)\n",
-        "\n",
-        "\n",
-        "# Plot cumulative condutivity (kappa) vs frequency\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.plot(freq_full[freq_argsort_index], \n",
-        "        volume_ratio*kappa_cum_rta_by_freq, 'r-',label='$\\kappa_{rta}$')\n",
-        "\n",
-        "\n",
-        "plt.plot(freq_full[freq_argsort_index],  volume_ratio*kappa_cum_inverse_by_freq, \n",
-        "          'k-',label='$\\kappa_{inverse}$')\n",
-        "\n",
-        "plt.plot(freq_full[freq_argsort_index], \n",
-        "          volume_ratio *kappa_cum_sc_by_freq,'bs',\n",
-        "          markersize=5,label='$\\kappa_{sc}$')\n",
-        "\n",
-        "\n",
-        "plt.xlabel(\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
-        "plt.ylabel(r'Cumulative $\\kappa$ [W/(m•K)]', fontsize=25, fontweight='bold')\n",
-        "plt.grid()\n",
-        "plt.legend(loc=4, prop={'size': 15})\n",
-        "plt.show()\n",
-        "\n",
-        "# Peform simulation for finite-size sample\n",
-        "\n",
-        "cond_vs_len_rta = []\n",
-        "cond_vs_len_sc = []\n",
-        "\n",
-        "lengths = np.outer(np.array([10, 100, 1000, 10000, 100000]), \n",
-        "              np.array([1, 2, 5])).flatten(order='C')\n",
-        "for length in lengths:\n",
-        "  cond_rta = phonons.conductivity(method='rta', length=length, \n",
-        "                        axis=2).sum(axis=0)\n",
-        "  cond_vs_len_rta.append(cond_rta[2, 2])\n",
-        "  cond_sc = phonons.conductivity(method='sc', max_n_iterations = max_n_iters, \n",
-        "                        length=length, axis=2)[0].sum(axis=0)\n",
-        "  cond_vs_len_sc.append(cond_sc[2, 2])\n",
-        "\n",
-        "print('\\n')\n",
-        "plt.figure()\n",
-        "plt.plot(lengths, volume_ratio*np.array(cond_vs_len_rta), '-b', label='rta')\n",
-        "plt.plot(lengths, volume_ratio*np.array(cond_vs_len_sc), '-', label='sc')\n",
-        "plt.legend(loc='best')\n",
-        "plt.xlabel('$\\ell$ [nm]',  fontsize=25, fontweight='bold')\n",
-        "plt.ylabel(r\"$\\kappa$ [W/(m•K)]\",  fontsize=25, fontweight='bold')\n",
-        "plt.grid()\n",
-        "plt.xscale('log')\n",
-        "plt.show()"
-      ],
-      "execution_count": 0,
-      "outputs": []
-    }
-  ]
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Tutorial: Lammps Interface\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "RDmLrYaYyjjf"
+   },
+   "source": [
+    "## Install Necessary Repos\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "YmTI_xUXyxPn"
+   },
+   "outputs": [],
+   "source": [
+    "!pip install git+https://<USERNAME>:<PASSWORD>@github.com/gbarbalinardo/kaldo.git"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "W3jVRdQg1US_"
+   },
+   "source": [
+    "## Remote Fetch Necessary Files\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "n4PN3gLv08-r"
+   },
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "if not os.path.exists('forcefields.zip'):\n",
+    "  !wget http://chemac196.ucdavis.edu/data-html/forcefields.zip\n",
+    "  !unzip forcefields.zip\n",
+    "  !rm -r forcefields.zip\n",
+    "\n",
+    "if not os.path.exists('nanowire.xyz'):\n",
+    "  !wget http://chemac196.ucdavis.edu/data-html/nanowire.xyz"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "QNd3HLW992Av"
+   },
+   "source": [
+    "## Remote Fetch Precomplied LAMMPS\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "l3yNjxeR9-m-"
+   },
+   "outputs": [],
+   "source": [
+    "!wget http://169.237.38.203/downloads/lmp-tesla-t4-intel-xeon.gz\n",
+    "!tar xvzf lmp-tesla-t4-intel-xeon.gz\n",
+    "!rm /content/lmp-tesla-t4-intel-xeon.gz\n",
+    "!ln -s /content/lammps/src/lmp_gpu /usr/local/bin/lmp_gpu\n",
+    "\n",
+    "# Navigate back to lammps source foder when for \n",
+    "# later LAMMPS-Python integration\n",
+    "\n",
+    "%cd /content/lammps/src\n",
+    "\n",
+    "print('\\n')\n",
+    "print('Remote Fetching precomplied LAMMPS is finished!')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "N45o6ZTG_6w7"
+   },
+   "source": [
+    "## Integrate LAMMPS Into Python "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "HN8HfxJN_7dU"
+   },
+   "outputs": [],
+   "source": [
+    "!make install-python\n",
+    "\n",
+    "# Copy executable file to where the python Module locates\n",
+    "\n",
+    "import shutil \n",
+    "src_path = '/usr/lib/python3/dist-packages/liblammps.so'\n",
+    "dist_path = '/usr/local/lib/python3.6/dist-packages/liblammps.so'\n",
+    "shutil.copyfile(src_path,dist_path)\n",
+    "\n",
+    "# Naviagate back to main folder before simulation\n",
+    "\n",
+    "%cd /content\n",
+    "\n",
+    "print('\\n')\n",
+    "print('LAMMPS-Python Integration is completed!')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "FlzbvmDEACjK"
+   },
+   "source": [
+    "# Tutorial: Thermal Transport Simulation for Silicon-Bulk"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "uzhWN30mYhsT"
+   },
+   "source": [
+    "## Import modules and create finite diffence object"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "pznkqF7TYg7c"
+   },
+   "outputs": [],
+   "source": [
+    "from ase.build import bulk\n",
+    "from ase.calculators.lammpslib import LAMMPSlib\n",
+    "from kaldo.io_helper import *\n",
+    "import kaldo.plotter as plotter\n",
+    "from kaldo import conductivity\n",
+    "from kaldo import ForceConstant\n",
+    "import matplotlib.pyplot as plt\n",
+    "plt.style.use('seaborn-poster')\n",
+    "\n",
+    "\n",
+    "# We start from the atoms object\n",
+    "\n",
+    "atoms = bulk('Si', 'diamond', a=5.432)\n",
+    "\n",
+    "\n",
+    "supercell = np.array([3, 3, 3])\n",
+    "lammps_inputs = {\n",
+    "      'lmpcmds': [\n",
+    "          'pair_style tersoff',\n",
+    "          'pair_coeff * * forcefields/Si.tersoff Si'],\n",
+    "\n",
+    "      'log_file': 'lammps-si-bulk.txt',\n",
+    "      'keep_alive':True}\n",
+    "\n",
+    "# Create a finite difference object\n",
+    "\n",
+    "forceconstants = ForceConstant(atoms=atoms,\n",
+    "                    supercell=supercell,\n",
+    "                    calculator=LAMMPSlib,\n",
+    "                    calculator_inputs=lammps_inputs,\n",
+    "                    is_reduced_second=False,\n",
+    "                    folder='si-bulk-fd')\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "nMaD_Vp3Yq8M"
+   },
+   "source": [
+    "## Create phonons object\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "wmohtOrZYqB9"
+   },
+   "outputs": [],
+   "source": [
+    "k = 7\n",
+    "kpts = [k, k, k]\n",
+    "temperature = 300\n",
+    "is_classic = False\n",
+    "k_label = str(int(np.prod(kpts)))\n",
+    "\n",
+    "# Create a phonon object\n",
+    "\n",
+    "phonons = Phonons(forceconstants=forceconstants,\n",
+    "                kpts=kpts,\n",
+    "                is_classic=is_classic,\n",
+    "                temperature=temperature,\n",
+    "                folder='si-bulk-ald-' + k_label)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "NO5weMg1YbjD"
+   },
+   "source": [
+    "## Calculate conductivities for infinite-size sample\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "r4DQJ9R8_LSs"
+   },
+   "outputs": [],
+   "source": [
+    "# Calculate conductivity  with direct inversion approach (inverse)\n",
+    "\n",
+    "print('Inverse conductivity matrix: ')\n",
+    "print(phonons.conductivity(method='inverse').sum(axis=0))\n",
+    "print('Inverse conductivity [W/(m•K)]: %.3f '\n",
+    "  %np.mean(np.diag(phonons.conductivity(method='inverse').sum(axis=0))))\n",
+    "print('\\n')\n",
+    "\n",
+    "# Calculate conductivity  with  relaxation time approximation (rta)\n",
+    "\n",
+    "print('Rta conductivity matrix: ')\n",
+    "print(phonons.conductivity(method='rta').sum(axis=0))\n",
+    "print('Rta conductivity [W/(m•K)]: %.3f '\n",
+    "%np.mean(np.diag(phonons.conductivity(method='rta').sum(axis=0))))\n",
+    "print('\\n')\n",
+    "\n",
+    "# Calculate conductivity  with  self-consistent approach (sc)\n",
+    "\n",
+    "max_n_iters=11\n",
+    "sc_cond= phonons.conductivity(method='sc', max_n_iterations=max_n_iters)\n",
+    "\n",
+    "print('Self-consistent conductivity matrix: ')\n",
+    "print(sc_cond[1].sum(axis=0))\n",
+    "print('Self Consistent conductivity [W/(m•K)]: %.3f '%\n",
+    "      np.mean(np.diag(sc_cond[0].sum(axis=0))))\n",
+    "print('\\n')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "C7Cyk7teqqbO"
+   },
+   "source": [
+    "## Visualize Basic Quantities from the simulation\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "vPF77pJPpeXk"
+   },
+   "outputs": [],
+   "source": [
+    "# Plot dispersion relation and group velocity in each direction\n",
+    "\n",
+    "freq_full = phonons.frequencies.flatten()\n",
+    "plotter.plot_dispersion(phonons,n_k_points=int(k_label))\n",
+    "print('\\n')\n",
+    "\n",
+    "# Plot heat compacity vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq_full,1e23*phonons.c_v,s=15)\n",
+    "plt.ylabel (r\"$C_{v}$ [$10^{23}$ J/K]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(0.9*1e23*phonons.c_v[phonons.c_v>0].min(), \n",
+    "         1.05*1e23*phonons.c_v.max())\n",
+    "plt.show()\n",
+    "\n",
+    "# Plot phase space vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq_full,phonons.ps,s=15)\n",
+    "plt.ylabel (\"Phase space\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(phonons.ps.min(), phonons.ps.max())\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "OMgSvwd3q4jN"
+   },
+   "source": [
+    "## Calculate and Visualize Advanced Properties"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "A-WSmG8Qq5CB"
+   },
+   "outputs": [],
+   "source": [
+    "# Advanced properties can also be \n",
+    "# calculated by \"lazy-loading\" properties\n",
+    "# calculated during the simulation.\n",
+    "\n",
+    "tau_rta = phonons.gamma[phonons.gamma!=0]**(-1)\n",
+    "freq = freq_full[phonons.gamma!=0]\n",
+    "velocities = phonons.velocities\n",
+    "\n",
+    "velocity_norms_x = np.sqrt((velocities[:, :, 0] ** 2)).flatten(order='C')\n",
+    "velocity_norms_y = np.sqrt((velocities[:, :, 1] ** 2)).flatten(order='C')\n",
+    "velocity_norms_z = np.sqrt((velocities[:, :, 2] ** 2)).flatten(order='C')\n",
+    "velocity_norms = (velocity_norms_x + velocity_norms_y + velocity_norms_z)/3\n",
+    "\n",
+    "mfp_rta = np.multiply(velocity_norms[phonons.gamma != 0], tau_rta)\n",
+    "\n",
+    "# Plot phonon life time under rta approach vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq,tau_rta,s=15)\n",
+    "plt.ylabel (r\"$\\tau_{rta}$ [ps]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(0.95*tau_rta.min(), 1.05*tau_rta.max())\n",
+    "plt.yscale('symlog')\n",
+    "plt.show()\n",
+    "\n",
+    "# Plot mean free path (mfp) under rta approach vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq,0.1*mfp_rta,s=15)\n",
+    "plt.ylabel (r\"$\\lambda_{rta}$ [$\\AA$]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(-0.5, 0.1*1.05*mfp_rta.max())\n",
+    "plt.yscale('symlog')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "ftUnzRdQr36Y"
+   },
+   "source": [
+    "## Visualize $\\kappa_{cum}$ Vs. $\\nu$ , $\\kappa_{sc}$ Vs. # of iterations  and finite-size simulation\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "aGybSqt-rBJf"
+   },
+   "outputs": [],
+   "source": [
+    "# Conductivity can also be illustrated in a cumulative manner\n",
+    "\n",
+    "freq_argsort_index = np.argsort(freq_full)\n",
+    "\n",
+    "rta_cond_per_mode = phonons.conductivity(method='rta')\n",
+    "rta_cond_per_mode_flattened_x = rta_cond_per_mode[:, 0, 0].flatten(order='C')\n",
+    "rta_cond_per_mode_flattened_y = rta_cond_per_mode[:, 1, 1].flatten(order='C')\n",
+    "rta_cond_per_mode_flattened_z = rta_cond_per_mode[:, 2, 2].flatten(order='C')\n",
+    "rta_cond_per_mode_flattened = (rta_cond_per_mode_flattened_x\n",
+    "                                         + rta_cond_per_mode_flattened_y +\n",
+    "                                         rta_cond_per_mode_flattened_z)/3\n",
+    "\n",
+    "rta_cond_per_mode_argsort =  rta_cond_per_mode_flattened[freq_argsort_index]\n",
+    "kappa_cum_rta_by_freq = np.cumsum(rta_cond_per_mode_argsort)\n",
+    "\n",
+    "inverse_cond_per_mode = phonons.conductivity(method='inverse')\n",
+    "inverse_cond_per_mode_flattened_x = inverse_cond_per_mode[:, 0, 0].flatten(order='C')\n",
+    "inverse_cond_per_mode_flattened_y = inverse_cond_per_mode[:, 1, 1].flatten(order='C')\n",
+    "inverse_cond_per_mode_flattened_z = inverse_cond_per_mode[:, 2, 2].flatten(order='C')\n",
+    "inverse_cond_per_mode_flattened = (inverse_cond_per_mode_flattened_x\n",
+    "                                         + inverse_cond_per_mode_flattened_y +\n",
+    "                                         inverse_cond_per_mode_flattened_z)/3\n",
+    "\n",
+    "inverse_cond_per_mode_argsort =  inverse_cond_per_mode_flattened[freq_argsort_index]\n",
+    "kappa_cum_inverse_by_freq = np.cumsum(inverse_cond_per_mode_argsort)\n",
+    "\n",
+    "\n",
+    "sc_cond_per_mode = phonons.conductivity(method='sc',max_n_iterations=max_n_iters)[0]\n",
+    "sc_cond_per_mode_flattened_x = sc_cond_per_mode[:, 0, 0].flatten(order='C')\n",
+    "sc_cond_per_mode_flattened_y = sc_cond_per_mode[:, 1, 1].flatten(order='C')\n",
+    "sc_cond_per_mode_flattened_z = sc_cond_per_mode[:, 2, 2].flatten(order='C')\n",
+    "sc_cond_per_mode_flattened = (sc_cond_per_mode_flattened_x\n",
+    "                                         + sc_cond_per_mode_flattened_y +\n",
+    "                                         sc_cond_per_mode_flattened_z)/3\n",
+    "\n",
+    "sc_cond_per_mode_argsort =  sc_cond_per_mode_flattened[freq_argsort_index]\n",
+    "kappa_cum_sc_by_freq = np.cumsum(sc_cond_per_mode_argsort)\n",
+    "\n",
+    "# Plot self-consistent conductivity vs # of iterations\n",
+    "\n",
+    "sc_cond = phonons.conductivity(method='sc', max_n_iterations=10)[1]\n",
+    "sc_conductivity = (sc_cond[:,0,0] + sc_cond[:,1,1] + sc_cond[:,2,2])/3\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(sc_conductivity ,label =\"$\\kappa_{sc} & \")\n",
+    "plt.ylabel (r\"$\\kappa$ [W/(m•K)]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"# of iterations\", fontsize=25, fontweight='bold')\n",
+    "plt.grid()\n",
+    "plt.show()\n",
+    "\n",
+    "# Plot cumulative condutivity (kappa) vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(freq_full[freq_argsort_index], \n",
+    "         kappa_cum_rta_by_freq, 'r-',label='$\\kappa_{rta}$')\n",
+    "\n",
+    "plt.plot(freq_full[freq_argsort_index], kappa_cum_inverse_by_freq, \n",
+    "         'k-',label='$\\kappa_{inverse}$')\n",
+    "\n",
+    "plt.plot(freq_full[freq_argsort_index], \n",
+    "         kappa_cum_sc_by_freq,'bs',markersize=5,label='$\\kappa_{sc}$')\n",
+    "\n",
+    "\n",
+    "plt.xlabel(\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylabel(r'Cumulative $\\kappa$ [W/(m•K)]', fontsize=25, fontweight='bold')\n",
+    "plt.grid()\n",
+    "plt.legend(loc=4, prop={'size': 15})\n",
+    "plt.show()\n",
+    "\n",
+    "# Peform simulation for finite-size sample\n",
+    "\n",
+    "cond_vs_len_rta = []\n",
+    "cond_vs_len_sc = []\n",
+    "\n",
+    "lengths = np.outer(np.array([10, 100, 1000, 10000, 100000]), \n",
+    "              np.array([1, 2, 5])).flatten(order='C')\n",
+    "for length in lengths:\n",
+    "  cond_rta = phonons.conductivity(method='rta', length=length, \n",
+    "                        axis=0).sum(axis=0)\n",
+    "  cond_vs_len_rta.append(cond_rta[0, 0])\n",
+    "  cond_sc = phonons.conductivity(method='sc', max_n_iterations = 10,\n",
+    "                                 length=length, axis=0)[0].sum(axis=0)\n",
+    "  cond_vs_len_sc.append(cond_sc[0, 0])\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(lengths, np.array(cond_vs_len_rta), '-b', label='rta')\n",
+    "plt.plot(lengths, np.array(cond_vs_len_sc), '-', label='sc')\n",
+    "plt.legend(loc='best')\n",
+    "plt.xlabel('$\\ell$ [nm]',  fontsize=25, fontweight='bold')\n",
+    "plt.ylabel(r\"$\\kappa$ [W/(m•K)]\",  fontsize=25, fontweight='bold')\n",
+    "plt.grid()\n",
+    "plt.xscale('log')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "G4R6NSy9v0R_"
+   },
+   "source": [
+    "# Thermal Transport Simulation for Silicon-Nanowire (si-nw)\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "YMX99X5Csi-C"
+   },
+   "source": [
+    "## Import modules and create finite diffence object"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "FwRWB2yVsZxn"
+   },
+   "outputs": [],
+   "source": [
+    "import ase\n",
+    "from ase.build import bulk\n",
+    "from ase.calculators.lammpslib import LAMMPSlib\n",
+    "from kaldo.io_helper import *\n",
+    "import kaldo.plotter as plotter\n",
+    "from kaldo import ForceConstant\n",
+    "import matplotlib.pyplot as plt\n",
+    "plt.style.use('seaborn-poster')\n",
+    "\n",
+    "\n",
+    "# We start from the atoms object\n",
+    "\n",
+    "atoms = ase.io.read('nanowire.xyz')\n",
+    "\n",
+    "\n",
+    "# Duplicate supercell only in z direction\n",
+    "\n",
+    "supercell = np.array([1, 1, 3])\n",
+    "lammps_inputs = {\n",
+    "      'lmpcmds': [\n",
+    "          'pair_style tersoff',\n",
+    "          'pair_coeff * * forcefields/Si.tersoff Si'],\n",
+    "\n",
+    "      'log_file': 'lammps-si-nw.txt',\n",
+    "      'keep_alive':True}\n",
+    "\n",
+    "# Create a finite difference object\n",
+    "\n",
+    "forceconstants = ForceConstant(atoms=atoms,supercell=supercell,\n",
+    "                    calculator=LAMMPSlib,\n",
+    "                    calculator_inputs=lammps_inputs,\n",
+    "                    is_reduced_second=False,\n",
+    "                    folder='si-nw-fd')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "Tn50p3s3sqYX"
+   },
+   "source": [
+    "## Create phonons object\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "k2lRNXTdwclH"
+   },
+   "outputs": [],
+   "source": [
+    "k = 7\n",
+    "is_classic = False\n",
+    "kpts = [1, 1, k]\n",
+    "temperature = 300\n",
+    "k_label = str(int(np.prod(kpts)))\n",
+    "\n",
+    "# Create a phonon object\n",
+    "\n",
+    "phonons = Phonons(forceconstants=forceconstants,\n",
+    "                kpts=kpts,\n",
+    "                is_classic=is_classic,\n",
+    "                temperature=temperature,\n",
+    "                folder='si-nw-ald-' + k_label)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "u3mv2ltosxjR"
+   },
+   "source": [
+    "## Calculate conductivities for infinite-size sample\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "uR4Y30KUsoo7"
+   },
+   "outputs": [],
+   "source": [
+    "# Calculate conductivity for silicon nanowire for infinity samples\n",
+    "# Define volume ratio \n",
+    "\n",
+    "volume_ratio = 3.41\n",
+    "\n",
+    "# Calculate conductivity  with direct inversion approach (inverse)\n",
+    "\n",
+    "print('Inverse conductivity matrix: ')\n",
+    "print(volume_ratio*phonons.conductivity(method='inverse').sum(axis=0))\n",
+    "inverse_cond = phonons.conductivity(method='inverse').sum(axis=0)[2,2]\n",
+    "print('Inverse conductivity [W/(m•K)]: %.3f'%(volume_ratio*inverse_cond))\n",
+    "print('\\n')\n",
+    "\n",
+    "# Calculate conductivity with relaxation time approximation approach (rta)\n",
+    "\n",
+    "print('Rta conductivity matrix: ')\n",
+    "print(volume_ratio*phonons.conductivity(method='rta').sum(axis=0))\n",
+    "rta_cond = phonons.conductivity(method='rta').sum(axis=0)[2,2]\n",
+    "print('Rta conductivity [W/(m•K)]: %.3f '%(volume_ratio*rta_cond))\n",
+    "print('\\n')\n",
+    "\n",
+    "max_n_iters=57\n",
+    "sc_cond= phonons.conductivity(method='sc', max_n_iterations=max_n_iters)\n",
+    "\n",
+    "# Calculate conductivity with self-consistent approach (sc)\n",
+    "\n",
+    "print('Self-consistent conductivity matrix: ')\n",
+    "print(sc_cond[1].sum(axis=0))\n",
+    "sc_cond_z = sc_cond[0].sum(axis=0)[2,2]\n",
+    "print('Self Consistent conductivity [W/(m•K)]: %.3f '%(volume_ratio*sc_cond_z))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "kHVAjzUVtrRF"
+   },
+   "source": [
+    "## Visualize Basic Quantities from the simulation\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "3eObOqjhs6TI"
+   },
+   "outputs": [],
+   "source": [
+    "# Plot dispersion relation and group velocity in z-direction\n",
+    "\n",
+    "plotter.plot_dispersion(phonons,symmetry='nw', n_k_points=400)\n",
+    "print('\\n')\n",
+    "\n",
+    "# Plot heat compacity vs frequency\n",
+    "\n",
+    "freq_full = phonons.frequencies.flatten()\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq_full,1e23*phonons.c_v,s=15)\n",
+    "plt.ylabel (r\"$C_{v}$ [$10^{23}$ J/K]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(0.9*1e23*phonons.c_v[phonons.c_v>0].min(), \n",
+    "          1.05*1e23*phonons.c_v.max())\n",
+    "plt.show()\n",
+    "\n",
+    "# Plot phase space vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq_full,phonons.ps,s=15)\n",
+    "plt.ylabel (\"Phase space\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(phonons.ps.min(), phonons.ps.max())\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "WPMh5ifjt6zk"
+   },
+   "source": [
+    "## Calculate and Visualize Advanced Properties"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "rpPjpQbstysD"
+   },
+   "outputs": [],
+   "source": [
+    "# Advanced properties can also be \n",
+    "# calculated by \"lazy-loading\" properties\n",
+    "# calculated during the simulation.\n",
+    "\n",
+    "tau_rta = phonons.gamma[phonons.gamma!=0]**(-1)\n",
+    "freq = freq_full[phonons.gamma!=0]\n",
+    "velocities = phonons.velocities\n",
+    "velocity_norms = np.sqrt((velocities[:, :, 2] ** 2)).flatten(order='C')\n",
+    "mfp_rta = np.multiply(velocity_norms[phonons.gamma != 0], tau_rta)\n",
+    "\n",
+    "# Plot phonon life time under rta approach vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq,tau_rta,s=15)\n",
+    "plt.ylabel (r\"$\\tau_{rta}$ [ps]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(tau_rta.min(), tau_rta.max())\n",
+    "plt.yscale('symlog')\n",
+    "plt.show()\n",
+    "\n",
+    "# Plot mean free path (mfp) under rta approach vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.scatter(freq,0.1*mfp_rta,s=15)\n",
+    "plt.ylabel (r\"$\\lambda_{rta}$ [$\\AA$]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim(-0.5, 0.1*1.05*mfp_rta.max())\n",
+    "plt.yscale('symlog')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "gE9qdo4CwAEN"
+   },
+   "source": [
+    "## Visualize $\\kappa_{cum}$ Vs. $\\nu$ , $\\kappa_{sc}$ Vs. # of iterations  and finite-size simulation\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "l5QnDjiYvpeJ"
+   },
+   "outputs": [],
+   "source": [
+    "# Plot self-consistent conductivity vs # of iterations\n",
+    "\n",
+    "sc_cond = phonons.conductivity(method='sc', max_n_iterations=57)[1]\n",
+    "sc_conductivity = sc_cond[:,2,2]\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(volume_ratio*sc_conductivity ,label =\"$\\kappa_{sc} & \")\n",
+    "plt.ylabel (r\"$\\kappa$ [W/(m•K)]\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel (\"# of iterations\", fontsize=25, fontweight='bold')\n",
+    "plt.grid()\n",
+    "plt.show()\n",
+    "\n",
+    "# Conductivity can also be illustrated in a cumulative manner\n",
+    "\n",
+    "freq_argsort_index = np.argsort(freq_full)\n",
+    "\n",
+    "rta_cond_per_mode = phonons.conductivity(method='rta')\n",
+    "rta_cond_per_mode_flattened = rta_cond_per_mode[:, 2, 2].flatten(order='C')\n",
+    "\n",
+    "rta_cond_per_mode_argsort =  rta_cond_per_mode_flattened[freq_argsort_index]\n",
+    "kappa_cum_rta_by_freq = np.cumsum(rta_cond_per_mode_argsort)\n",
+    "\n",
+    "\n",
+    "inverse_cond_per_mode = phonons.conductivity(method='inverse')\n",
+    "inverse_cond_per_mode_flattened = inverse_cond_per_mode[:, 2, 2].flatten(order='C')\n",
+    "\n",
+    "inverse_cond_per_mode_argsort =  inverse_cond_per_mode_flattened[freq_argsort_index]\n",
+    "kappa_cum_inverse_by_freq = np.cumsum(inverse_cond_per_mode_argsort)\n",
+    "\n",
+    "sc_cond_per_mode = phonons.conductivity(method='sc',max_n_iterations=max_n_iters)[0]\n",
+    "sc_cond_per_mode_flattened = sc_cond_per_mode[:, 2, 2].flatten(order='C')\n",
+    "\n",
+    "sc_cond_per_mode_argsort =  sc_cond_per_mode_flattened[freq_argsort_index]\n",
+    "kappa_cum_sc_by_freq = np.cumsum(sc_cond_per_mode_argsort)\n",
+    "\n",
+    "\n",
+    "# Plot cumulative condutivity (kappa) vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(freq_full[freq_argsort_index], \n",
+    "        volume_ratio*kappa_cum_rta_by_freq, 'r-',label='$\\kappa_{rta}$')\n",
+    "\n",
+    "\n",
+    "plt.plot(freq_full[freq_argsort_index],  volume_ratio*kappa_cum_inverse_by_freq, \n",
+    "          'k-',label='$\\kappa_{inverse}$')\n",
+    "\n",
+    "plt.plot(freq_full[freq_argsort_index], \n",
+    "          volume_ratio *kappa_cum_sc_by_freq,'bs',\n",
+    "          markersize=5,label='$\\kappa_{sc}$')\n",
+    "\n",
+    "\n",
+    "plt.xlabel(\"$\\\\nu$ [Thz]\", fontsize=25, fontweight='bold')\n",
+    "plt.ylabel(r'Cumulative $\\kappa$ [W/(m•K)]', fontsize=25, fontweight='bold')\n",
+    "plt.grid()\n",
+    "plt.legend(loc=4, prop={'size': 15})\n",
+    "plt.show()\n",
+    "\n",
+    "# Peform simulation for finite-size sample\n",
+    "\n",
+    "cond_vs_len_rta = []\n",
+    "cond_vs_len_sc = []\n",
+    "\n",
+    "lengths = np.outer(np.array([10, 100, 1000, 10000, 100000]), \n",
+    "              np.array([1, 2, 5])).flatten(order='C')\n",
+    "for length in lengths:\n",
+    "  cond_rta = phonons.conductivity(method='rta', length=length, \n",
+    "                        axis=2).sum(axis=0)\n",
+    "  cond_vs_len_rta.append(cond_rta[2, 2])\n",
+    "  cond_sc = phonons.conductivity(method='sc', max_n_iterations = max_n_iters, \n",
+    "                        length=length, axis=2)[0].sum(axis=0)\n",
+    "  cond_vs_len_sc.append(cond_sc[2, 2])\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(lengths, volume_ratio*np.array(cond_vs_len_rta), '-b', label='rta')\n",
+    "plt.plot(lengths, volume_ratio*np.array(cond_vs_len_sc), '-', label='sc')\n",
+    "plt.legend(loc='best')\n",
+    "plt.xlabel('$\\ell$ [nm]',  fontsize=25, fontweight='bold')\n",
+    "plt.ylabel(r\"$\\kappa$ [W/(m•K)]\",  fontsize=25, fontweight='bold')\n",
+    "plt.grid()\n",
+    "plt.xscale('log')\n",
+    "plt.show()"
+   ]
+  }
+ ],
+ "metadata": {
+  "accelerator": "GPU",
+  "colab": {
+   "collapsed_sections": [],
+   "name": "crystal_presentation.ipynb",
+   "provenance": [],
+   "toc_visible": true
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "name": "python3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
 }
