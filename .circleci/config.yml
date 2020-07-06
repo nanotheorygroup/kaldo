@@ -13,7 +13,7 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
-          command: make docs/html
+          command: (cd docs && make html && cd ..)
           name: Build docs
       - run:
           command: cp -a docs/_build/html/* docs
