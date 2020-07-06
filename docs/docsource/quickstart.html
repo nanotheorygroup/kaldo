@@ -46,7 +46,7 @@
   
   
   
-    <title>Code Architecture &#8212; kaldo  documentation</title>
+    <title>Install &#8212; kaldo  documentation</title>
     <link rel="stylesheet" href="../_static/material.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -95,7 +95,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Code Architecture </span>
+          <span class="md-header-nav__topic"> Install </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -216,19 +216,25 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-quickstart--page-root" class="md-nav__link">Code Architecture</a>
+        <li class="md-nav__item"><a href="#docsource-quickstart--page-root" class="md-nav__link">Install</a>
+        </li>
+        <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
         </li>
         <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#LAMMPS-setup" class="md-nav__link">LAMMPS setup</a>
+        </li>
+        <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
         </li></ul>
             </nav>
         </li>
-        <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
-        </li>
+        <li class="md-nav__item"><a href="#Output-Storage" class="md-nav__link">Output Storage</a><nav class="md-nav">
+              <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#Default" class="md-nav__link">Default</a>
         </li>
         <li class="md-nav__item"><a href="#Alternative-Storage" class="md-nav__link">Alternative Storage</a>
+        </li></ul>
+            </nav>
         </li>
     
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/quickstart.ipynb.txt">Show Source</a> </li>
@@ -244,7 +250,9 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  <p>We recommend creating a new environment with Python 3.7.</p>
+  
+<h1 id="docsource-quickstart--page-root">Install<a class="headerlink" href="#docsource-quickstart--page-root" title="Permalink to this headline">¶</a></h1>
+<p>We recommend creating a new environment with Python 3.7.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda create -n kaldo <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
 </pre></div>
 </div>
@@ -254,8 +262,9 @@
 </pre></div>
 </div>
 
-<h1 id="docsource-quickstart--page-root">Code Architecture<a class="headerlink" href="#docsource-quickstart--page-root" title="Permalink to this headline">¶</a></h1>
-<p><img alt="27e0f7c98ebb42c4baa9963dbaee3125" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+
+<h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
+<p><img alt="09a99e9dc63b4cbab05d2329e441f40e" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
@@ -272,15 +281,17 @@ make install-python
 </div>
 
 
-
-<h1 id="Quantum-Espresso-setup">Quantum Espresso setup<a class="headerlink" href="#Quantum-Espresso-setup" title="Permalink to this headline">¶</a></h1>
+<h2 id="Quantum-Espresso-setup">Quantum Espresso setup<a class="headerlink" href="#Quantum-Espresso-setup" title="Permalink to this headline">¶</a></h2>
 <p>Set the environment variable:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">ASE_ESPRESSO_COMMAND</span><span class="o">=</span><span class="s2">"mpirun -np 4 /path/to/pw.x -in PREFIX.pwi &gt; PREFIX.pwo"</span>
 </pre></div>
 </div>
 
 
-<h1 id="Default">Default<a class="headerlink" href="#Default" title="Permalink to this headline">¶</a></h1>
+
+<h1 id="Output-Storage">Output Storage<a class="headerlink" href="#Output-Storage" title="Permalink to this headline">¶</a></h1>
+
+<h2 id="Default">Default<a class="headerlink" href="#Default" title="Permalink to this headline">¶</a></h2>
 <p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kaldo stores the following dense tensor as formatted, human readable, files: - <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after - <code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> - <code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
@@ -298,7 +309,7 @@ make install-python
 <p>The following tensors are stored in raw binary format and help saving time when performing different simulations on the same sample. - <code class="docutils literal notranslate"><span class="pre">_eigensystem</span> <span class="pre">(eigenvalues</span> <span class="pre">and</span> <span class="pre">eigenvectors)</span></code> - <code class="docutils literal notranslate"><span class="pre">_dynmat_derivatives</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/_generalized_diffusivity</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma_tensor</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma</span></code>, when only RTA conductivity is required</p>
 
 
-<h1 id="Alternative-Storage">Alternative Storage<a class="headerlink" href="#Alternative-Storage" title="Permalink to this headline">¶</a></h1>
+<h2 id="Alternative-Storage">Alternative Storage<a class="headerlink" href="#Alternative-Storage" title="Permalink to this headline">¶</a></h2>
 <p>Other storage options available are <code class="docutils literal notranslate"><span class="pre">numpy</span></code> and <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> where all the files are saved as one of those formats. Finally the <code class="docutils literal notranslate"><span class="pre">memory</span></code> option doesn’t store any permanent files.</p>
 <table>
 <colgroup>
@@ -328,6 +339,7 @@ make install-python
 </tr>
 </tbody>
 </table>
+
 
 
 

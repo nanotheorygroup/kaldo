@@ -1,5 +1,5 @@
 
-# This file helps to compute a version number in source trees obtained from
+# This file helps to compute a version number in docsource trees obtained from
 # git-archive tarball (such as those provided by githubs download-from-tag
 # feature). Distribution tarballs (built by setup.py sdist) and build
 # directories (produced by setup.py build) will contain a much shorter file
@@ -215,11 +215,11 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
 
 @register_vcs_handler("git", "pieces_from_vcs")
 def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
-    """Get version from 'git describe' in the root of the source tree.
+    """Get version from 'git describe' in the root of the docsource tree.
 
     This only gets called if the git-archive 'subst' keywords were *not*
     expanded, and _version.py hasn't already been rewritten with a short
-    version string, meaning we're inside a checked out source tree.
+    version string, meaning we're inside a checked out docsource tree.
     """
     GITS = ["git"]
     if sys.platform == "win32":
@@ -492,7 +492,7 @@ def get_versions():
 
     try:
         root = os.path.realpath(__file__)
-        # versionfile_source is the relative path from the top of the source
+        # versionfile_source is the relative path from the top of the docsource
         # tree (where the .git directory might live) to this file. Invert
         # this to find the root from __file__.
         for i in cfg.versionfile_source.split('/'):
@@ -500,7 +500,7 @@ def get_versions():
     except NameError:
         return {"version": "0+unknown", "full-revisionid": None,
                 "dirty": None,
-                "error": "unable to find root of source tree",
+                "error": "unable to find root of docsource tree",
                 "date": None}
 
     try:

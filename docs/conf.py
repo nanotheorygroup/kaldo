@@ -72,7 +72,7 @@ napoleon_use_ivar = True
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# The suffix(es) of source filenames.
+# The suffix(es) of docsource filenames.
 # You can specify multiple suffix as a list of string:
 #
 source_suffix = ['.rst', '.md']
@@ -88,10 +88,23 @@ master_doc = 'index'
 # Usually you set "language" from the command line for these cases.
 language = None
 
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
+# List of patterns, relative to docsource directory, that match files and
+# directories to ignore when looking for docsource files.
 # This pattern also affects html_static_path and html_extra_path .
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
+exclude_patterns = ['_build',
+                    'Thumbs.db',
+                    '.DS_Store',
+                    '**.ipynb_checkpoints',
+                    'index.html',
+                    '_sources',
+                    'genindex.html',
+                    '_modules',
+                    'search.html',
+                    '_images',
+                    '_static',
+                    'searchindex.js',
+                    'objects.inv',
+                    'sitemap.xml']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'default'
@@ -180,7 +193,7 @@ latex_elements = {
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
+# (docsource start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'kaldo.tex', 'kaldo Documentation',
@@ -191,7 +204,7 @@ latex_documents = [
 # -- Options for manual page output ------------------------------------------
 
 # One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
+# (docsource start file, name, description, authors, manual section).
 man_pages = [
     (master_doc, 'kaldo', 'kaldo Documentation',
      [author], 1)
@@ -201,7 +214,7 @@ man_pages = [
 # -- Options for Texinfo output ----------------------------------------------
 
 # Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
+# (docsource start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'kaldo', 'kaldo Documentation',

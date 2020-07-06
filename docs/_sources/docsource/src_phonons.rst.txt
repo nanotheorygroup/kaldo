@@ -3,5 +3,5 @@
 Phonon Source Code
 ########################
 
-.. literalinclude:: ../kaldo/phonons.py
+.. literalinclude:: ../../kaldo/phonons.py
 

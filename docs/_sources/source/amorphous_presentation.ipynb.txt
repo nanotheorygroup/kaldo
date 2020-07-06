@@ -1,0 +1,469 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "dHdJjiXZCLJo"
+   },
+   "source": [
+    "\n",
+    "Open the notebook in Colab\n",
+    "\n",
+    "<a href=\"https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/source/amorphous_presentation.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "7FyYE9deWm0n"
+   },
+   "source": [
+    "# Amorphous silicon tutorial\n",
+    "\n",
+    "## Remote fetch source code from Github"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "OlqEn06vWngA"
+   },
+   "outputs": [],
+   "source": [
+    "!git clone https://github.com/nanotheorygroup/kaldo.git"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "cG1Gj9syPoLo"
+   },
+   "source": [
+    "## Install Kaldo from source"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "SWJS6VqVPqNO"
+   },
+   "outputs": [],
+   "source": [
+    "!rm -r /content/sample_data\n",
+    "\n",
+    "# Update utilities for tensorboard\n",
+    "\n",
+    "!pip install --upgrade grpcio\n",
+    "!pip install --upgrade google-auth\n",
+    "\n",
+    "# Install kaldo from source\n",
+    "\n",
+    "%cd /content/kaldo\n",
+    "!pip install .\n",
+    "\n",
+    "# Navigate back to workspace after installation completes\n",
+    "%cd /content/"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "mcJKaE2kRI3A"
+   },
+   "source": [
+    "## Fetch supplyment data remotely"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "rJ5_3iNXRJXb"
+   },
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "\n",
+    "# Fetch forcefield files\n",
+    "\n",
+    "if not os.path.exists('forcefields.zip'):\n",
+    "  !wget http://sophe.ucdavis.edu/structures/forcefields.zip\n",
+    "  !unzip forcefields.zip\n",
+    "  !rm -r forcefields.zip\n",
+    "\n",
+    "# Fetch force constants file for amprohous silicon (512 atoms)\n",
+    "\n",
+    "if not os.path.exists('structure_a_si_512.zip'):\n",
+    "  !wget http://sophe.ucdavis.edu/structures/structure_a_si_512.zip\n",
+    "  !unzip structure_a_si_512.zip\n",
+    "  !rm -r structure_a_si_512.zip"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "BHy3vn8PNpA1"
+   },
+   "source": [
+    "## Remote fetch precomplied LAMMPS"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "dxvE7KKxMmjX"
+   },
+   "outputs": [],
+   "source": [
+    "!wget http://sophe.ucdavis.edu/structures/lmp-tesla-t4-intel-xeon.gz\n",
+    "!tar xvzf lmp-tesla-t4-intel-xeon.gz\n",
+    "!rm /content/lmp-tesla-t4-intel-xeon.gz\n",
+    "!ln -s /content/lammps/src/lmp_gpu /usr/local/bin/lmp_gpu\n",
+    "\n",
+    "# Naviagate to lammps source folder pior to LAMMPS-Python integration\n",
+    "\n",
+    "%cd /content/lammps/src\n",
+    "\n",
+    "print('\\n')\n",
+    "print('Precomplied LAMMPS is fetched from remote!')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "VznaV-bPPl42"
+   },
+   "source": [
+    "## Integrate LAMMPS Into Python"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "hP1JOfPhPmhq"
+   },
+   "outputs": [],
+   "source": [
+    "!make install-python\n",
+    "\n",
+    "# Copy executable file to where the python Module locates\n",
+    "\n",
+    "import shutil \n",
+    "src_path = '/usr/lib/python3/dist-packages/liblammps.so'\n",
+    "dist_path = '/usr/local/lib/python3.6/dist-packages/liblammps.so'\n",
+    "shutil.copyfile(src_path,dist_path)\n",
+    "\n",
+    "# Naviagate back to main folder before simulation\n",
+    "\n",
+    "%cd /content\n",
+    "\n",
+    "print('\\n')\n",
+    "print('LAMMPS-Python Integration is completed!')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "bL972DGDVV2g"
+   },
+   "source": [
+    "## Thermal transport simulation for Amorphous-Silicon (a-Si)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "QYqG22IiVHSp"
+   },
+   "source": [
+    "### Read in force constant objects from folder"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "vcUPh-dvfCsQ"
+   },
+   "outputs": [],
+   "source": [
+    "from kaldo.forceconstants import ForceConstants\n",
+    "\n",
+    "# Read amporphous silicon with eskm format\n",
+    "\n",
+    "forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "0gbcZx8bVeNL"
+   },
+   "source": [
+    "### Create phonons object\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "GfMRcxdUd3XD"
+   },
+   "outputs": [],
+   "source": [
+    "from kaldo.phonons import Phonons\n",
+    "\n",
+    "# Create a phonon object\n",
+    "# is_classic flag can be true or false, as\n",
+    "# well as 0 (quantum) or 1 (classic)\n",
+    "\n",
+    "phonons = Phonons (forceconstants=forceconstants,\n",
+    "                   is_classic=0,\n",
+    "                   temperature=300,\n",
+    "                   folder='si-amorphous',\n",
+    "                   third_bandwidth=0.05/4.135,\n",
+    "                   broadening_shape='triangle',\n",
+    "                   is_tf_backend=True,\n",
+    "                   storage='numpy')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "TJL2P1KhV9ee"
+   },
+   "source": [
+    "### Acess and visualize properties calculated during simulations"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "TwFwssxzf5M8"
+   },
+   "outputs": [],
+   "source": [
+    "import matplotlib.pyplot as plt\n",
+    "plt.style.use('seaborn-poster')\n",
+    "\n",
+    "# Direct access to properties\n",
+    "# calculated during the simulation\n",
+    "\n",
+    "frequency = phonons.frequency.flatten(order='C')\n",
+    "bandwidth = phonons.bandwidth.flatten(order='C')\n",
+    "\n",
+    "# Plot phonon bandwidth vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.plot(frequency[3:],bandwidth[3:],'.',markersize=10,label= 'broadening shape: ' + str(phonons.broadening_shape))\n",
+    "plt.ylabel('$\\Gamma$ (THz)', fontsize=25, fontweight='bold')\n",
+    "plt.xlabel(\"$\\\\nu$ (Thz)\", fontsize=25, fontweight='bold')\n",
+    "plt.ylim([bandwidth.min(), bandwidth.max()])\n",
+    "plt.legend(loc=2,frameon = False)\n",
+    "plt.show()\n",
+    "\n",
+    "phase_space = phonons.phase_space.flatten(order='C')\n",
+    "\n",
+    "# Plot phase space vs frequency\n",
+    "\n",
+    "print('\\n')\n",
+    "plt.figure()\n",
+    "plt.plot(frequency[3:], phase_space[3:], '.', markersize=10)\n",
+    "plt.ylabel (\"Phase space\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel(\"$\\\\nu$ (Thz)\", fontsize=25, fontweight='bold')\n",
+    "plt.show()\n",
+    "\n",
+    "print('\\n')\n",
+    "# Plot diffusivity vs frequency\n",
+    "\n",
+    "diffusiviy = phonons.diffusivity.flatten(order='C')\n",
+    "plt.figure()\n",
+    "plt.plot(frequency[3:], diffusiviy[3:], '.', markersize=10)\n",
+    "plt.ylabel (\"$D(mm^{2}/s)$\", fontsize=25, fontweight='bold')\n",
+    "plt.xlabel(\"$\\\\nu$ (Thz)\", fontsize=25, fontweight='bold')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "kQU4kBeVYM2j"
+   },
+   "source": [
+    "### Calculate and visualize $\\kappa_{per \\ mode}$ and $\\kappa_{cum}$"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "PFxwYfR3YNUS"
+   },
+   "outputs": [],
+   "source": [
+    "def cumulative_cond_cal(freq,full_cond,n_phonons):\n",
+    "\n",
+    "  conductivity = np.einsum('maa->m', 1/3 * full_cond)\n",
+    "  conductivity = conductivity.reshape(n_phonons)\n",
+    "  cumulative_cond = np.zeros_like(conductivity)\n",
+    "  freq_reshaped = freq.reshape(n_phonons)\n",
+    "\n",
+    "  for mu in range(cumulative_cond.size):\n",
+    "      single_cumulative_cond = conductivity[(freq_reshaped < freq_reshaped[mu])].sum()\n",
+    "      cumulative_cond[mu] = single_cumulative_cond\n",
+    "  \n",
+    "  return cumulative_cond"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "1EHtcZKOYRjm"
+   },
+   "outputs": [],
+   "source": [
+    "from kaldo.conductivity import Conductivity\n",
+    "import numpy as np\n",
+    "\n",
+    "# Compute conductivity with per phonon mode basis using qhgk method\n",
+    "\n",
+    "kappa_qhgk_per_mode = np.einsum('maa->m',1/3*Conductivity(phonons=phonons, method='qhgk',n_iterations=20).conductivity)\n",
+    "\n",
+    "# Compute cumulative conductivity by frequency with qhgk method\n",
+    "\n",
+    "kappa_qhgk_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)\n",
+    "\n",
+    "print('\\n')\n",
+    "\n",
+    "# Visualize the per mode conductivity vs frequency\n",
+    "\n",
+    "plt.figure()\n",
+    "plt.plot(frequency,kappa_qhgk_per_mode,'.',label='QHGK',ms=8)\n",
+    "plt.xlabel (\"$\\\\nu$ (Thz)\", fontsize=25, fontweight='bold')\n",
+    "plt.ylabel(r'$\\kappa(W/m/K)$', fontsize=25, fontweight='bold')\n",
+    "plt.legend(loc=1,frameon=False)\n",
+    "plt.show()\n",
+    "\n",
+    "print('\\n')\n",
+    "\n",
+    "# Visualize the cumulative conductivity vs frequency\n",
+    "\n",
+    "plt.figure()\n",
+    "plt.plot(frequency,kappa_qhgk_cum_freq,'.',label='QHGK',ms=8)\n",
+    "plt.xlabel (\"$\\\\nu$ (Thz)\", fontsize=25, fontweight='bold')\n",
+    "plt.ylabel(r'$\\kappa_{cum}(W/m/K)$', fontsize=25, fontweight='bold')\n",
+    "plt.legend(loc=4,frameon=False)\n",
+    "plt.grid()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "colab_type": "text",
+    "id": "M74G4cd3Gene"
+   },
+   "source": [
+    "### Run a-Si simulation with varied temperature and third bandwidth"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "1hpj5Kw_Ge9G"
+   },
+   "outputs": [],
+   "source": [
+    "# Create a finite difference object\n",
+    "forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')\n",
+    "\n",
+    "# Create a phonon object\n",
+    "temperatures = [5, 10, 15, 20, 35, 50, 75, 100, 150, 200, 300, 500, 1000]\n",
+    "for third_bandwidth in [0.5, 1, 2, 4]:\n",
+    "    conds = []\n",
+    "    for temperature in temperatures:\n",
+    "        phonons = Phonons (forceconstants=forceconstants,\n",
+    "                   is_classic=0,\n",
+    "                   temperature=temperature,\n",
+    "                   folder='si-amorphous',\n",
+    "                   third_bandwidth=third_bandwidth/4.135,\n",
+    "                   broadening_shape='triangle')\n",
+    "\n",
+    "\n",
+    "        print('QHGK conductivity')\n",
+    "        cond = (phonons.conductivity(method='qhgk', third_bandwidth=third_bandwidth/4.135).sum(axis=0))\n",
+    "        conds.append(cond.diagonal().mean())\n",
+    "    plt.plot(temperatures, conds, label='$\\delta_{in}$='+str(np.round(third_bandwidth/4.135,2))+' THz')\n",
+    "    \n",
+    "plt.ylabel('$\\kappa$ (W/m/K)', fontsize=25, fontweight='bold')\n",
+    "plt.xlabel(\"$Temperature$ (K)\", fontsize=25, fontweight='bold')\n",
+    "plt.legend(prop={'size': 20},frameon=False)\n",
+    "plt.show()"
+   ]
+  }
+ ],
+ "metadata": {
+  "accelerator": "GPU",
+  "colab": {
+   "collapsed_sections": [],
+   "name": "amorphous_presentation_update_summer_2020.ipynb",
+   "provenance": [],
+   "toc_visible": true
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "name": "python3"
+  },
+  "pycharm": {
+   "stem_cell": {
+    "cell_type": "raw",
+    "source": [],
+    "metadata": {
+     "collapsed": false
+    }
+   }
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}

@@ -3,4 +3,4 @@
 Finite Difference Source Code
 ##############################
 
-.. literalinclude:: ../kaldo/forceconstant.py
+.. literalinclude:: ../../kaldo/forceconstants.py

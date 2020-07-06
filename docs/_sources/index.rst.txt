@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. image:: _resources/logo.png
+.. image:: docsource/_resources/logo.png
    :width: 600
 
 .. toctree::
@@ -21,9 +21,8 @@
    :glob:
    :caption: Learning
    
-   tutorials
-   crystal_presentation.ipynb
-   amorphous_presentation.ipynb
+   docsource/crystal_presentation.ipynb
+   docsource/amorphous_presentation.ipynb
 
 
 

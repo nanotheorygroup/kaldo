@@ -57,7 +57,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Code Architecture" href="quickstart.html" />
+    <link rel="next" title="Install" href="quickstart.html" />
     <link rel="prev" title="Indices and tables" href="../index.html" />
   
    
@@ -216,15 +216,15 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">The kALDo package</a><nav class="md-nav">
-              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">The kALDo package</a>
+        </li>
+        <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
+        </li>
         <li class="md-nav__item"><a href="#Copyright" class="md-nav__link">Copyright</a>
         </li>
         <li class="md-nav__item"><a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
         </li>
         <li class="md-nav__item"><a href="#Other-codes" class="md-nav__link">Other codes</a>
-        </li></ul>
-            </nav>
         </li>
     
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/introduction.ipynb.txt">Show Source</a> </li>
@@ -243,21 +243,26 @@
   
 <h1 id="docsource-introduction--page-root">The kALDo package<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
 <p>kALDo. Thermal transport in crystalline and non-crystalline solids.</p>
-<p><img alt="60fb6987988247949840f616bc46da0a" class="no-scaled-link" src="../_images/logo1.png" style="width: 650px;"/></p>
+<p><img alt="4f08a60ff3f6423b858670cb781d62b3" class="no-scaled-link" src="../_images/logo.png" style="width: 650px;"/></p>
 <p>kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA. Below we illustrate the main features of the code</p>
-<p><img alt="5ffbea75462a4db1b205417ad3ef89ea" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="aefb9e519f7d42f6bf78318349653b17" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
-<h2 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h2>
+
+<h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
+<p><img alt="50401fa88e234b94aa2280eac49641d4" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+
+
+<h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
 <p>Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio</p>
 
 
-<h2 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h2>
+<h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 
 
-<h2 id="Other-codes">Other codes<a class="headerlink" href="#Other-codes" title="Permalink to this headline">¶</a></h2>
-<p>We are thankful to the whole open-source community, and in particular we want to acknowledge some other great anharmonic lattice dynamics related projects: Hiphive, ShengBTE, Thirdorder, PhonTS, Phonopy, and Phon. If you are running kaldo or any of these codes, please don’t forget to cite us.</p>
+<h1 id="Other-codes">Other codes<a class="headerlink" href="#Other-codes" title="Permalink to this headline">¶</a></h1>
+<p>We are thankful to the whole open-source community, and in particular we want to acknowledge some other great anharmonic lattice dynamics related projects: Hiphive, ShengBTE, Thirdorder, PhonTS, Phonopy, and Phon. If you are running kaldo or any of these codes, please don’t forget to cite it.</p>
 <ul class="simple">
 <li><p>ASE: A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dułak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. Jensen, J. Kermode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Schütt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, “The atomic simulation environment—a
 python library for work- ing with atoms,” Journal of Physics: Condensed Matter 29, 273002 (2017).</p></li>
@@ -270,7 +275,6 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
 <li><p>PhonoPy: A. Togo, L. Chaput, and I. Tanaka, “Distributions of phonon lifetimes in brillouin zones,” Physical Review B 91, 094306 (2015).</p></li>
 </ul>
 <p>Project template from the <a class="reference external" href="https://github.com/molssi/cookiecutter-cms">Computational Molecular Science Python Cookiecutter</a>.</p>
-
 
 
 
@@ -297,12 +301,12 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
             </a>
           
           
-            <a href="quickstart.html" title="Code Architecture"
+            <a href="quickstart.html" title="Install"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Code Architecture </span>
+                class="md-footer-nav__direction"> Next </span> Install </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
