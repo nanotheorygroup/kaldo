@@ -13,6 +13,12 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
+          command: cd docs; make html
+          name: Build docs
+      - run:
+          command: cp -a _build/html/* .
+          name: Copy docs
+      - run:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
 workflows:
