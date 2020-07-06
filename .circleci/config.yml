@@ -6,12 +6,18 @@ orbs:
 jobs:
   build-and-test:
     docker:
-      - image: "pandoc/latex:latest"
+      - image: "tensorflow/tensorflow:latest"
     steps:
       - checkout
       - python/load-cache
       - python/install-deps
       - python/save-cache
+      - run:
+          command: pwd && ls -la
+          name: Print location
+      - run:
+          command: python docs/install_pandoc.py
+          name: Install pandoc
       - run:
           command: cd docs/ && make html && cd ..
           name: Build docs
