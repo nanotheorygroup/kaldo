@@ -13,10 +13,10 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
-          command: cd docs; make html
+          command: make docs/html
           name: Build docs
       - run:
-          command: cp -a _build/html/* .
+          command: cp -a docs/_build/html/* docs
           name: Copy docs
       - run:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
