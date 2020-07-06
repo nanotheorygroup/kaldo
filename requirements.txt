@@ -14,5 +14,4 @@ nbsphinx>=0.5.0
 codecov>=2.1.7
 pytest-cov>=2.10.0
 pytest>=5.2.1
-sphinx==1.8.1
 sphinx_material>=0.0.30
