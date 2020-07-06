@@ -15,7 +15,7 @@ jobs:
           command: pip install -r requirements.txt
       - python/save-cache
       - run:
-          command: pwd
+          command: pwd && ls -la && cd kaldo
           name: Print location
       - run:
           command: cd docs/ && make html && cd ..
