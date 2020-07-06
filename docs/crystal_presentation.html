@@ -46,7 +46,7 @@
   
   
   
-    <title>Tutorial: Lammps Interface &#8212; kaldo  documentation</title>
+    <title>Remote fetch source code from Github &#8212; kaldo  documentation</title>
     <link rel="stylesheet" href="_static/material.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -57,8 +57,8 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Tutorial: Thermal Transport Simulation for Silicon Amorphous" href="amorphous_presentation.html" />
-    <link rel="prev" title="Tutorials" href="tutorials.html" />
+    <link rel="next" title="Remote fetch source code from Github" href="amorphous_presentation.html" />
+    <link rel="prev" title="Conductivity API Reference" href="docsource/api_conductivity.html" />
   
    
 
@@ -95,7 +95,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Tutorial: Lammps Interface </span>
+          <span class="md-header-nav__topic"> Remote fetch source code from Github </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -216,47 +216,25 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#crystal-presentation--page-root" class="md-nav__link">Tutorial: Lammps Interface</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#crystal-presentation--page-root" class="md-nav__link">Remote fetch source code from Github</a>
+        </li>
+        <li class="md-nav__item"><a href="#Remote-fetch-supplyment-files" class="md-nav__link">Remote fetch supplyment files</a>
+        </li>
+        <li class="md-nav__item"><a href="#Remote-fetch-precomplied-LAMMPS" class="md-nav__link">Remote fetch precomplied LAMMPS</a>
+        </li>
+        <li class="md-nav__item"><a href="#Thermal-transport-simulation-for-silicon-bulk" class="md-nav__link">Thermal transport simulation for silicon-bulk</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Install-Necessary-Repos" class="md-nav__link">Install Necessary Repos</a>
-        </li>
-        <li class="md-nav__item"><a href="#Remote-Fetch-Necessary-Files" class="md-nav__link">Remote Fetch Necessary Files</a>
-        </li>
-        <li class="md-nav__item"><a href="#Remote-Fetch-Precomplied-LAMMPS" class="md-nav__link">Remote Fetch Precomplied LAMMPS</a>
-        </li>
-        <li class="md-nav__item"><a href="#Integrate-LAMMPS-Into-Python" class="md-nav__link">Integrate LAMMPS Into Python</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Tutorial:-Thermal-Transport-Simulation-for-Silicon-Bulk" class="md-nav__link">Tutorial: Thermal Transport Simulation for Silicon-Bulk</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Import-modules-and-create-finite-diffence-object" class="md-nav__link">Import modules and create finite diffence object</a>
+        <li class="md-nav__item"><a href="#Compute-2^{nd}-and-3^{rd}-order-IFCS." class="md-nav__link">Compute <img alt="2^{nd}" class="math" src="_images/math/9e9c0443bb8d613447030ed93ef81bc841548d02.png"/> and <img alt="3^{rd}" class="math" src="_images/math/1d4ce1ab7cc397d41d73397829697f1d85989b06.png"/> order IFCS.</a>
         </li>
         <li class="md-nav__item"><a href="#Create-phonons-object" class="md-nav__link">Create phonons object</a>
         </li>
         <li class="md-nav__item"><a href="#Calculate-conductivities-for-infinite-size-sample" class="md-nav__link">Calculate conductivities for infinite-size sample</a>
         </li>
-        <li class="md-nav__item"><a href="#Visualize-Basic-Quantities-from-the-simulation" class="md-nav__link">Visualize Basic Quantities from the simulation</a>
+        <li class="md-nav__item"><a href="#Visualize-harmonic-properties-using-built-in-plotter" class="md-nav__link">Visualize harmonic properties using built-in plotter</a>
         </li>
-        <li class="md-nav__item"><a href="#Calculate-and-Visualize-Advanced-Properties" class="md-nav__link">Calculate and Visualize Advanced Properties</a>
+        <li class="md-nav__item"><a href="#Acess-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Acess and visualize properties calculated during simulations</a>
         </li>
-        <li class="md-nav__item"><a href="#Visualize-\kappa_{cum}-Vs.-\nu-,-\kappa_{sc}-Vs.-#-of-iterations-and-finite-size-simulation" class="md-nav__link">Visualize <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/> Vs. <img alt="\nu" class="math" src="_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> , <img alt="\kappa_{sc}" class="math" src="_images/math/0729a6943acb01fb853b59e84a250f473329a476.png"/> Vs. # of iterations and finite-size simulation</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Thermal-Transport-Simulation-for-Silicon-Nanowire-(si-nw)" class="md-nav__link">Thermal Transport Simulation for Silicon-Nanowire (si-nw)</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#id1" class="md-nav__link">Import modules and create finite diffence object</a>
-        </li>
-        <li class="md-nav__item"><a href="#id2" class="md-nav__link">Create phonons object</a>
-        </li>
-        <li class="md-nav__item"><a href="#id3" class="md-nav__link">Calculate conductivities for infinite-size sample</a>
-        </li>
-        <li class="md-nav__item"><a href="#id4" class="md-nav__link">Visualize Basic Quantities from the simulation</a>
-        </li>
-        <li class="md-nav__item"><a href="#id5" class="md-nav__link">Calculate and Visualize Advanced Properties</a>
-        </li>
-        <li class="md-nav__item"><a href="#id6" class="md-nav__link">Visualize <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/> Vs. <img alt="\nu" class="math" src="_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> , <img alt="\kappa_{sc}" class="math" src="_images/math/0729a6943acb01fb853b59e84a250f473329a476.png"/> Vs. # of iterations and finite-size simulation</a>
+        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/></a>
         </li></ul>
             </nav>
         </li>
@@ -507,51 +485,45 @@ div.rendered_html tbody tr:hover {
   background: rgba(66, 165, 245, 0.2);
 }
 </style>
-<p>Open the notebook in Colab: <a class="reference external" href="https://github.com/gbarbalinardo/kaldo/blob/master/docs/crystal_presentation.ipynb">https://github.com/gbarbalinardo/kaldo/blob/master/docs/crystal_presentation.ipynb</a></p>
+<p>Open the notebook in Colab</p>
 <p><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></p>
 
-<h1 id="crystal-presentation--page-root">Tutorial: Lammps Interface<a class="headerlink" href="#crystal-presentation--page-root" title="Permalink to this headline">¶</a></h1>
+<h1 id="crystal-presentation--page-root">Remote fetch source code from Github<a class="headerlink" href="#crystal-presentation--page-root" title="Permalink to this headline">¶</a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>
+<span></span>!git clone https://github.com/nanotheorygroup/kaldo.git
 </pre></div>
 </div>
 </div>
+<p>#Install Kaldo from source code</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>!rm -r /content/sample_data
 
-<h2 id="Install-Necessary-Repos">Install Necessary Repos<a class="headerlink" href="#Install-Necessary-Repos" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!pip install git+https://&lt;USERNAME&gt;:&lt;PASSWORD&gt;@github.com/gbarbalinardo/kaldo.git
+# Update utilities for tensorboard
+
+!pip install --upgrade grpcio
+!pip install --upgrade google-auth
+
+# Install kaldo from source
+
+%cd /content/kaldo
+!pip install .
+
+# Navigate back to workspace after installation completes
+%cd /content/
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="Remote-Fetch-Necessary-Files">Remote Fetch Necessary Files<a class="headerlink" href="#Remote-Fetch-Necessary-Files" title="Permalink to this headline">¶</a></h2>
+<h1 id="Remote-fetch-supplyment-files">Remote fetch supplyment files<a class="headerlink" href="#Remote-fetch-supplyment-files" title="Permalink to this headline">¶</a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -559,24 +531,21 @@ div.rendered_html tbody tr:hover {
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span>import os
 if not os.path.exists('forcefields.zip'):
-  !wget http://chemac196.ucdavis.edu/data-html/forcefields.zip
+  !wget http://sophe.ucdavis.edu/structures/forcefields.zip
   !unzip forcefields.zip
   !rm -r forcefields.zip
-
-if not os.path.exists('nanowire.xyz'):
-  !wget http://chemac196.ucdavis.edu/data-html/nanowire.xyz
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="Remote-Fetch-Precomplied-LAMMPS">Remote Fetch Precomplied LAMMPS<a class="headerlink" href="#Remote-Fetch-Precomplied-LAMMPS" title="Permalink to this headline">¶</a></h2>
+<h1 id="Remote-fetch-precomplied-LAMMPS">Remote fetch precomplied LAMMPS<a class="headerlink" href="#Remote-fetch-precomplied-LAMMPS" title="Permalink to this headline">¶</a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!wget http://169.237.38.203/downloads/lmp-tesla-t4-intel-xeon.gz
+<span></span>!wget http://sophe.ucdavis.edu/structures/lmp-tesla-t4-intel-xeon.gz
 !tar xvzf lmp-tesla-t4-intel-xeon.gz
 !rm /content/lmp-tesla-t4-intel-xeon.gz
 !ln -s /content/lammps/src/lmp_gpu /usr/local/bin/lmp_gpu
@@ -591,9 +560,7 @@ print('Remote Fetching precomplied LAMMPS is finished!')
 </pre></div>
 </div>
 </div>
-
-
-<h2 id="Integrate-LAMMPS-Into-Python">Integrate LAMMPS Into Python<a class="headerlink" href="#Integrate-LAMMPS-Into-Python" title="Permalink to this headline">¶</a></h2>
+<p>#Integrate LAMMPS Into Python</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -619,10 +586,9 @@ print('LAMMPS-Python Integration is completed!')
 </div>
 
 
+<h1 id="Thermal-transport-simulation-for-silicon-bulk">Thermal transport simulation for silicon-bulk<a class="headerlink" href="#Thermal-transport-simulation-for-silicon-bulk" title="Permalink to this headline">¶</a></h1>
 
-<h1 id="Tutorial:-Thermal-Transport-Simulation-for-Silicon-Bulk">Tutorial: Thermal Transport Simulation for Silicon-Bulk<a class="headerlink" href="#Tutorial:-Thermal-Transport-Simulation-for-Silicon-Bulk" title="Permalink to this headline">¶</a></h1>
-
-<h2 id="Import-modules-and-create-finite-diffence-object">Import modules and create finite diffence object<a class="headerlink" href="#Import-modules-and-create-finite-diffence-object" title="Permalink to this headline">¶</a></h2>
+<h2 id="Compute-2^{nd}-and-3^{rd}-order-IFCS.">Compute <img alt="2^{nd}" class="math" src="_images/math/9e9c0443bb8d613447030ed93ef81bc841548d02.png"/> and <img alt="3^{rd}" class="math" src="_images/math/1d4ce1ab7cc397d41d73397829697f1d85989b06.png"/> order IFCS.<a class="headerlink" href="#Compute-2^{nd}-and-3^{rd}-order-IFCS." title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -630,18 +596,14 @@ print('LAMMPS-Python Integration is completed!')
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span>from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
-from kaldo.io_helper import *
-import kaldo.plotter as plotter
-from kaldo import conductivity
-from kaldo import ForceConstant
-import matplotlib.pyplot as plt
-plt.style.use('seaborn-poster')
-
+from kaldo.forceconstants import ForceConstants
+import numpy as np
 
 # We start from the atoms object
 
 atoms = bulk('Si', 'diamond', a=5.432)
 
+# Config super cell and calculator input
 
 supercell = np.array([3, 3, 3])
 lammps_inputs = {
@@ -654,13 +616,13 @@ lammps_inputs = {
 
 # Create a finite difference object
 
-forceconstants = ForceConstant(atoms=atoms,
-                    supercell=supercell,
-                    calculator=LAMMPSlib,
-                    calculator_inputs=lammps_inputs,
-                    is_reduced_second=False,
-                    folder='si-bulk-fd')
+forceconstants_config  = {'atoms':atoms,'supercell': supercell,'folder':'fd'}
+forceconstants = ForceConstants(**forceconstants_config)
 
+# Compute 2nd and 3rd IFCs with the defined calculators
+
+forceconstants.calculate_second(LAMMPSlib(**lammps_inputs))
+forceconstants.calculate_third(LAMMPSlib(**lammps_inputs))
 </pre></div>
 </div>
 </div>
@@ -668,15 +630,21 @@ forceconstants = ForceConstant(atoms=atoms,
 
 <h2 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>k = 7
+<span></span>from kaldo.phonons import Phonons
+
+# Define k-point grids, temperature
+# and the assumption for the
+# phonon poluation (i.e classical vs. quantum)
+
+k = 7
 kpts = [k, k, k]
 temperature = 300
 is_classic = False
-k_label = str(int(np.prod(kpts)))
+k_label = str(k) + '_' + str(k) + '_' + str(k)
 
 # Create a phonon object
 
@@ -684,7 +652,9 @@ phonons = Phonons(forceconstants=forceconstants,
                 kpts=kpts,
                 is_classic=is_classic,
                 temperature=temperature,
-                folder='si-bulk-ald-' + k_label)
+                is_tf_backend=True,
+                folder='si-bulk-ald-' + k_label,
+                storage='numpy')
 </pre></div>
 </div>
 </div>
@@ -696,509 +666,167 @@ phonons = Phonons(forceconstants=forceconstants,
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Calculate conductivity  with direct inversion approach (inverse)
-
-print('Inverse conductivity matrix: ')
-print(phonons.conductivity(method='inverse').sum(axis=0))
-print('Inverse conductivity [W/(m•K)]: %.3f '
-  %np.mean(np.diag(phonons.conductivity(method='inverse').sum(axis=0))))
-print('\n')
-
-# Calculate conductivity  with  relaxation time approximation (rta)
-
-print('Rta conductivity matrix: ')
-print(phonons.conductivity(method='rta').sum(axis=0))
-print('Rta conductivity [W/(m•K)]: %.3f '
-%np.mean(np.diag(phonons.conductivity(method='rta').sum(axis=0))))
-print('\n')
-
-# Calculate conductivity  with  self-consistent approach (sc)
-
-max_n_iters=11
-sc_cond= phonons.conductivity(method='sc', max_n_iterations=max_n_iters)
-
-print('Self-consistent conductivity matrix: ')
-print(sc_cond[1].sum(axis=0))
-print('Self Consistent conductivity [W/(m•K)]: %.3f '%
-      np.mean(np.diag(sc_cond[0].sum(axis=0))))
-print('\n')
-</pre></div>
-</div>
-</div>
-
-
-<h2 id="Visualize-Basic-Quantities-from-the-simulation">Visualize Basic Quantities from the simulation<a class="headerlink" href="#Visualize-Basic-Quantities-from-the-simulation" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Plot dispersion relation and group velocity in each direction
-
-freq_full = phonons.frequencies.flatten()
-plotter.plot_dispersion(phonons,n_k_points=int(k_label))
-print('\n')
-
-# Plot heat compacity vs frequency
-
-print('\n')
-plt.figure()
-plt.scatter(freq_full,1e23*phonons.c_v,s=15)
-plt.ylabel (r"$C_{v}$ [$10^{23}$ J/K]", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(0.9*1e23*phonons.c_v[phonons.c_v&gt;0].min(),
-         1.05*1e23*phonons.c_v.max())
-plt.show()
-
-# Plot phase space vs frequency
-
-print('\n')
-plt.figure()
-plt.scatter(freq_full,phonons.ps,s=15)
-plt.ylabel ("Phase space", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(phonons.ps.min(), phonons.ps.max())
-plt.show()
-</pre></div>
-</div>
-</div>
-
-
-<h2 id="Calculate-and-Visualize-Advanced-Properties">Calculate and Visualize Advanced Properties<a class="headerlink" href="#Calculate-and-Visualize-Advanced-Properties" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Advanced properties can also be
-# calculated by "lazy-loading" properties
-# calculated during the simulation.
-
-tau_rta = phonons.gamma[phonons.gamma!=0]**(-1)
-freq = freq_full[phonons.gamma!=0]
-velocities = phonons.velocities
-
-velocity_norms_x = np.sqrt((velocities[:, :, 0] ** 2)).flatten(order='C')
-velocity_norms_y = np.sqrt((velocities[:, :, 1] ** 2)).flatten(order='C')
-velocity_norms_z = np.sqrt((velocities[:, :, 2] ** 2)).flatten(order='C')
-velocity_norms = (velocity_norms_x + velocity_norms_y + velocity_norms_z)/3
-
-mfp_rta = np.multiply(velocity_norms[phonons.gamma != 0], tau_rta)
-
-# Plot phonon life time under rta approach vs frequency
-
-print('\n')
-plt.figure()
-plt.scatter(freq,tau_rta,s=15)
-plt.ylabel (r"$\tau_{rta}$ [ps]", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(0.95*tau_rta.min(), 1.05*tau_rta.max())
-plt.yscale('symlog')
-plt.show()
-
-# Plot mean free path (mfp) under rta approach vs frequency
-
-print('\n')
-plt.figure()
-plt.scatter(freq,0.1*mfp_rta,s=15)
-plt.ylabel (r"$\lambda_{rta}$ [$\AA$]", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(-0.5, 0.1*1.05*mfp_rta.max())
-plt.yscale('symlog')
-plt.show()
-</pre></div>
-</div>
-</div>
-
-
-<h2 id="Visualize-\kappa_{cum}-Vs.-\nu-,-\kappa_{sc}-Vs.-#-of-iterations-and-finite-size-simulation">Visualize <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/> Vs. <img alt="\nu" class="math" src="_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> , <img alt="\kappa_{sc}" class="math" src="_images/math/0729a6943acb01fb853b59e84a250f473329a476.png"/> Vs. # of iterations and finite-size simulation<a class="headerlink" href="#Visualize-\kappa_{cum}-Vs.-\nu-,-\kappa_{sc}-Vs.-#-of-iterations-and-finite-size-simulation" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Conductivity can also be illustrated in a cumulative manner
-
-freq_argsort_index = np.argsort(freq_full)
-
-rta_cond_per_mode = phonons.conductivity(method='rta')
-rta_cond_per_mode_flattened_x = rta_cond_per_mode[:, 0, 0].flatten(order='C')
-rta_cond_per_mode_flattened_y = rta_cond_per_mode[:, 1, 1].flatten(order='C')
-rta_cond_per_mode_flattened_z = rta_cond_per_mode[:, 2, 2].flatten(order='C')
-rta_cond_per_mode_flattened = (rta_cond_per_mode_flattened_x
-                                         + rta_cond_per_mode_flattened_y +
-                                         rta_cond_per_mode_flattened_z)/3
-
-rta_cond_per_mode_argsort =  rta_cond_per_mode_flattened[freq_argsort_index]
-kappa_cum_rta_by_freq = np.cumsum(rta_cond_per_mode_argsort)
-
-inverse_cond_per_mode = phonons.conductivity(method='inverse')
-inverse_cond_per_mode_flattened_x = inverse_cond_per_mode[:, 0, 0].flatten(order='C')
-inverse_cond_per_mode_flattened_y = inverse_cond_per_mode[:, 1, 1].flatten(order='C')
-inverse_cond_per_mode_flattened_z = inverse_cond_per_mode[:, 2, 2].flatten(order='C')
-inverse_cond_per_mode_flattened = (inverse_cond_per_mode_flattened_x
-                                         + inverse_cond_per_mode_flattened_y +
-                                         inverse_cond_per_mode_flattened_z)/3
-
-inverse_cond_per_mode_argsort =  inverse_cond_per_mode_flattened[freq_argsort_index]
-kappa_cum_inverse_by_freq = np.cumsum(inverse_cond_per_mode_argsort)
-
-
-sc_cond_per_mode = phonons.conductivity(method='sc',max_n_iterations=max_n_iters)[0]
-sc_cond_per_mode_flattened_x = sc_cond_per_mode[:, 0, 0].flatten(order='C')
-sc_cond_per_mode_flattened_y = sc_cond_per_mode[:, 1, 1].flatten(order='C')
-sc_cond_per_mode_flattened_z = sc_cond_per_mode[:, 2, 2].flatten(order='C')
-sc_cond_per_mode_flattened = (sc_cond_per_mode_flattened_x
-                                         + sc_cond_per_mode_flattened_y +
-                                         sc_cond_per_mode_flattened_z)/3
-
-sc_cond_per_mode_argsort =  sc_cond_per_mode_flattened[freq_argsort_index]
-kappa_cum_sc_by_freq = np.cumsum(sc_cond_per_mode_argsort)
-
-# Plot self-consistent conductivity vs # of iterations
-
-sc_cond = phonons.conductivity(method='sc', max_n_iterations=10)[1]
-sc_conductivity = (sc_cond[:,0,0] + sc_cond[:,1,1] + sc_cond[:,2,2])/3
-
-print('\n')
-plt.figure()
-plt.plot(sc_conductivity ,label ="$\kappa_{sc} &amp; ")
-plt.ylabel (r"$\kappa$ [W/(m•K)]", fontsize=25, fontweight='bold')
-plt.xlabel ("# of iterations", fontsize=25, fontweight='bold')
-plt.grid()
-plt.show()
-
-# Plot cumulative condutivity (kappa) vs frequency
-
-print('\n')
-plt.figure()
-plt.plot(freq_full[freq_argsort_index],
-         kappa_cum_rta_by_freq, 'r-',label='$\kappa_{rta}$')
-
-plt.plot(freq_full[freq_argsort_index], kappa_cum_inverse_by_freq,
-         'k-',label='$\kappa_{inverse}$')
-
-plt.plot(freq_full[freq_argsort_index],
-         kappa_cum_sc_by_freq,'bs',markersize=5,label='$\kappa_{sc}$')
-
-
-plt.xlabel("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylabel(r'Cumulative $\kappa$ [W/(m•K)]', fontsize=25, fontweight='bold')
-plt.grid()
-plt.legend(loc=4, prop={'size': 15})
-plt.show()
-
-# Peform simulation for finite-size sample
-
-cond_vs_len_rta = []
-cond_vs_len_sc = []
-
-lengths = np.outer(np.array([10, 100, 1000, 10000, 100000]),
-              np.array([1, 2, 5])).flatten(order='C')
-for length in lengths:
-  cond_rta = phonons.conductivity(method='rta', length=length,
-                        axis=0).sum(axis=0)
-  cond_vs_len_rta.append(cond_rta[0, 0])
-  cond_sc = phonons.conductivity(method='sc', max_n_iterations = 10,
-                                 length=length, axis=0)[0].sum(axis=0)
-  cond_vs_len_sc.append(cond_sc[0, 0])
-
-print('\n')
-plt.figure()
-plt.plot(lengths, np.array(cond_vs_len_rta), '-b', label='rta')
-plt.plot(lengths, np.array(cond_vs_len_sc), '-', label='sc')
-plt.legend(loc='best')
-plt.xlabel('$\ell$ [nm]',  fontsize=25, fontweight='bold')
-plt.ylabel(r"$\kappa$ [W/(m•K)]",  fontsize=25, fontweight='bold')
-plt.grid()
-plt.xscale('log')
-plt.show()
-</pre></div>
-</div>
-</div>
-
-
-
-<h1 id="Thermal-Transport-Simulation-for-Silicon-Nanowire-(si-nw)">Thermal Transport Simulation for Silicon-Nanowire (si-nw)<a class="headerlink" href="#Thermal-Transport-Simulation-for-Silicon-Nanowire-(si-nw)" title="Permalink to this headline">¶</a></h1>
-
-<h2 id="id1">Import modules and create finite diffence object<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>import ase
-from ase.build import bulk
-from ase.calculators.lammpslib import LAMMPSlib
-from kaldo.io_helper import *
-import kaldo.plotter as plotter
-from kaldo import ForceConstant
-import matplotlib.pyplot as plt
-plt.style.use('seaborn-poster')
-
-
-# We start from the atoms object
-
-atoms = ase.io.read('nanowire.xyz')
-
-
-# Duplicate supercell only in z direction
-
-supercell = np.array([1, 1, 3])
-lammps_inputs = {
-      'lmpcmds': [
-          'pair_style tersoff',
-          'pair_coeff * * forcefields/Si.tersoff Si'],
-
-      'log_file': 'lammps-si-nw.txt',
-      'keep_alive':True}
-
-# Create a finite difference object
-
-forceconstants = ForceConstant(atoms=atoms,supercell=supercell,
-                    calculator=LAMMPSlib,
-                    calculator_inputs=lammps_inputs,
-                    is_reduced_second=False,
-                    folder='si-nw-fd')
-</pre></div>
-</div>
-</div>
-
-
-<h2 id="id2">Create phonons object<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>k = 7
-is_classic = False
-kpts = [1, 1, k]
-temperature = 300
-k_label = str(int(np.prod(kpts)))
-
-# Create a phonon object
-
-phonons = Phonons(forceconstants=forceconstants,
-                kpts=kpts,
-                is_classic=is_classic,
-                temperature=temperature,
-                folder='si-nw-ald-' + k_label)
-</pre></div>
-</div>
-</div>
-
-
-<h2 id="id3">Calculate conductivities for infinite-size sample<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Calculate conductivity for silicon nanowire for infinity samples
-# Define volume ratio
-
-volume_ratio = 3.41
+<span></span>from kaldo.conductivity import Conductivity
 
 # Calculate conductivity  with direct inversion approach (inverse)
 
-print('Inverse conductivity matrix: ')
-print(volume_ratio*phonons.conductivity(method='inverse').sum(axis=0))
-inverse_cond = phonons.conductivity(method='inverse').sum(axis=0)[2,2]
-print('Inverse conductivity [W/(m•K)]: %.3f'%(volume_ratio*inverse_cond))
 print('\n')
+inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0))
+print('Inverse conductivity (W/mK): %.3f'%(np.mean(np.diag(inv_cond_matrix))))
+print(inv_cond_matrix)
 
-# Calculate conductivity with relaxation time approximation approach (rta)
+# Calculate conductivity  with  relaxation time approximation (rta)
 
-print('Rta conductivity matrix: ')
-print(volume_ratio*phonons.conductivity(method='rta').sum(axis=0))
-rta_cond = phonons.conductivity(method='rta').sum(axis=0)[2,2]
-print('Rta conductivity [W/(m•K)]: %.3f '%(volume_ratio*rta_cond))
 print('\n')
+rta_cond_matrix = Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0)
+print('Rta conductivity (W/mK): %.3f'%(np.mean(np.diag(rta_cond_matrix))))
+print(rta_cond_matrix)
 
-max_n_iters=57
-sc_cond= phonons.conductivity(method='sc', max_n_iterations=max_n_iters)
+# Calculate conductivity  with  self-consistent approach (sc)
 
-# Calculate conductivity with self-consistent approach (sc)
-
-print('Self-consistent conductivity matrix: ')
-print(sc_cond[1].sum(axis=0))
-sc_cond_z = sc_cond[0].sum(axis=0)[2,2]
-print('Self Consistent conductivity [W/(m•K)]: %.3f '%(volume_ratio*sc_cond_z))
+print('\n')
+sc_cond_matrix = Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity.sum(axis=0)
+print('Self-consistent conductivity (W/mK): %.3f'%(np.mean(np.diag(sc_cond_matrix))))
+print(sc_cond_matrix)
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="id4">Visualize Basic Quantities from the simulation<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<h2 id="Visualize-harmonic-properties-using-built-in-plotter">Visualize harmonic properties using built-in plotter<a class="headerlink" href="#Visualize-harmonic-properties-using-built-in-plotter" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Plot dispersion relation and group velocity in z-direction
+<span></span>import kaldo.controllers.plotter as plotter
+import matplotlib.pyplot as plt
+plt.style.use('seaborn-poster')
 
-plotter.plot_dispersion(phonons,symmetry='nw', n_k_points=400)
+# Plot dispersion relation and group velocity in each direction
+
+plotter.plot_dispersion(phonons,n_k_points=int(k_label))
 print('\n')
+</pre></div>
+</div>
+</div>
 
-# Plot heat compacity vs frequency
 
-freq_full = phonons.frequencies.flatten()
+<h2 id="Acess-and-visualize-properties-calculated-during-simulations">Acess and visualize properties calculated during simulations<a class="headerlink" href="#Acess-and-visualize-properties-calculated-during-simulations" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span># Direct access to properties
+# calculated during the simulation
+
+# Plot heat capacity vs frequency
+
+freq_full = phonons.frequency.flatten(order='C')
+cv_1d = phonons.heat_capacity.flatten(order='C')[3:]
 
 print('\n')
 plt.figure()
-plt.scatter(freq_full,1e23*phonons.c_v,s=15)
-plt.ylabel (r"$C_{v}$ [$10^{23}$ J/K]", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(0.9*1e23*phonons.c_v[phonons.c_v&gt;0].min(),
-          1.05*1e23*phonons.c_v.max())
+plt.scatter(freq_full[3:],1e23*cv_1d,s=15)
+plt.ylabel (r"$C_{v}$ ($10^{23}$ J/K)", fontsize=25, fontweight='bold')
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylim(0.9*1e23*cv_1d[cv_1d&gt;0].min(),
+         1.05*1e23*cv_1d.max())
+plt.show()
+
+# Plot phonon bandwidth vs frequency
+
+band_wdidth_flatten = phonons.bandwidth.flatten(order='C')
+freq = freq_full[band_wdidth_flatten!=0]
+
+print('\n')
+plt.figure()
+plt.scatter(freq,band_wdidth_flatten[band_wdidth_flatten!=0] ,s=15)
+plt.ylabel (r"$\Gamma$ (Thz)", fontsize=25, fontweight='bold')
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylim(0.95*band_wdidth_flatten .min(), 1.05*band_wdidth_flatten .max())
 plt.show()
 
 # Plot phase space vs frequency
 
 print('\n')
 plt.figure()
-plt.scatter(freq_full,phonons.ps,s=15)
+plt.scatter(freq_full[3:],phonons.phase_space.flatten(order='C')[3:],s=15)
 plt.ylabel ("Phase space", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(phonons.ps.min(), phonons.ps.max())
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylim(phonons.phase_space.min(), phonons.phase_space.max())
 plt.show()
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="id5">Calculate and Visualize Advanced Properties<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<h2 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>def cumulative_cond_cal(freq,full_cond,n_phonons):
+
+  conductivity = np.einsum('maa-&gt;m', 1/3 * full_cond)
+  conductivity = conductivity.reshape(n_phonons)
+  cumulative_cond = np.zeros_like(conductivity)
+  freq_reshaped = freq.reshape(n_phonons)
+
+  for mu in range(cumulative_cond.size):
+      single_cumulative_cond = conductivity[(freq_reshaped &lt; freq_reshaped[mu])].sum()
+      cumulative_cond[mu] = single_cumulative_cond
+
+  return cumulative_cond
+</pre></div>
+</div>
+</div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Advanced properties can also be
-# calculated by "lazy-loading" properties
-# calculated during the simulation.
+<span></span># Compute conductivity with per phonon mode basis using different methods
 
-tau_rta = phonons.gamma[phonons.gamma!=0]**(-1)
-freq = freq_full[phonons.gamma!=0]
-velocities = phonons.velocities
-velocity_norms = np.sqrt((velocities[:, :, 2] ** 2)).flatten(order='C')
-mfp_rta = np.multiply(velocity_norms[phonons.gamma != 0], tau_rta)
+kappa_rta_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='rta').conductivity)
+kappa_inv_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='inverse').conductivity)
+kappa_sc_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity)
 
-# Plot phonon life time under rta approach vs frequency
+# Compute cumulative conductivity by frequency using different methods
+
+kappa_rta_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='rta').conductivity,phonons.n_phonons)
+kappa_sc_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity,phonons.n_phonons)
+kappa_inv_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='inverse').conductivity,phonons.n_phonons)
+kappa_qhgk_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)
 
 print('\n')
+
+# Visualize the cumulative conductivity vs frequency
+
 plt.figure()
-plt.scatter(freq,tau_rta,s=15)
-plt.ylabel (r"$\tau_{rta}$ [ps]", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(tau_rta.min(), tau_rta.max())
-plt.yscale('symlog')
+plt.plot(freq_full,kappa_rta_per_mode,'r.',label='RTA')
+plt.plot(freq_full,kappa_sc_per_mode,'mo',label='Self Consistent',ms=8)
+plt.plot(freq_full,kappa_inv_per_mode,'k.',label='Direct Inversion')
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylabel(r'$\kappa(W/m/K)$', fontsize=25, fontweight='bold')
+plt.legend(loc=1,frameon=False)
+#plt.grid()
 plt.show()
 
-# Plot mean free path (mfp) under rta approach vs frequency
-
 print('\n')
+
+# Visualize the cumulative conductivity vs frequency
+
 plt.figure()
-plt.scatter(freq,0.1*mfp_rta,s=15)
-plt.ylabel (r"$\lambda_{rta}$ [$\AA$]", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylim(-0.5, 0.1*1.05*mfp_rta.max())
-plt.yscale('symlog')
-plt.show()
-</pre></div>
-</div>
-</div>
-
-
-<h2 id="id6">Visualize <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/> Vs. <img alt="\nu" class="math" src="_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> , <img alt="\kappa_{sc}" class="math" src="_images/math/0729a6943acb01fb853b59e84a250f473329a476.png"/> Vs. # of iterations and finite-size simulation<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Plot self-consistent conductivity vs # of iterations
-
-sc_cond = phonons.conductivity(method='sc', max_n_iterations=57)[1]
-sc_conductivity = sc_cond[:,2,2]
-
-print('\n')
-plt.figure()
-plt.plot(volume_ratio*sc_conductivity ,label ="$\kappa_{sc} &amp; ")
-plt.ylabel (r"$\kappa$ [W/(m•K)]", fontsize=25, fontweight='bold')
-plt.xlabel ("# of iterations", fontsize=25, fontweight='bold')
+plt.plot(freq_full,kappa_rta_cum_freq,'r.',label='RTA')
+plt.plot(freq_full,kappa_sc_cum_freq,'mo',label='Self Consistent',ms=8)
+plt.plot(freq_full,kappa_inv_cum_freq,'k.',label='Direct Inversion')
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylabel(r'$\kappa_{cum}(W/m/K)$', fontsize=25, fontweight='bold')
+plt.legend(loc=4,frameon=False)
 plt.grid()
-plt.show()
-
-# Conductivity can also be illustrated in a cumulative manner
-
-freq_argsort_index = np.argsort(freq_full)
-
-rta_cond_per_mode = phonons.conductivity(method='rta')
-rta_cond_per_mode_flattened = rta_cond_per_mode[:, 2, 2].flatten(order='C')
-
-rta_cond_per_mode_argsort =  rta_cond_per_mode_flattened[freq_argsort_index]
-kappa_cum_rta_by_freq = np.cumsum(rta_cond_per_mode_argsort)
-
-
-inverse_cond_per_mode = phonons.conductivity(method='inverse')
-inverse_cond_per_mode_flattened = inverse_cond_per_mode[:, 2, 2].flatten(order='C')
-
-inverse_cond_per_mode_argsort =  inverse_cond_per_mode_flattened[freq_argsort_index]
-kappa_cum_inverse_by_freq = np.cumsum(inverse_cond_per_mode_argsort)
-
-sc_cond_per_mode = phonons.conductivity(method='sc',max_n_iterations=max_n_iters)[0]
-sc_cond_per_mode_flattened = sc_cond_per_mode[:, 2, 2].flatten(order='C')
-
-sc_cond_per_mode_argsort =  sc_cond_per_mode_flattened[freq_argsort_index]
-kappa_cum_sc_by_freq = np.cumsum(sc_cond_per_mode_argsort)
-
-
-# Plot cumulative condutivity (kappa) vs frequency
-
-print('\n')
-plt.figure()
-plt.plot(freq_full[freq_argsort_index],
-        volume_ratio*kappa_cum_rta_by_freq, 'r-',label='$\kappa_{rta}$')
-
-
-plt.plot(freq_full[freq_argsort_index],  volume_ratio*kappa_cum_inverse_by_freq,
-          'k-',label='$\kappa_{inverse}$')
-
-plt.plot(freq_full[freq_argsort_index],
-          volume_ratio *kappa_cum_sc_by_freq,'bs',
-          markersize=5,label='$\kappa_{sc}$')
-
-
-plt.xlabel("$\\nu$ [Thz]", fontsize=25, fontweight='bold')
-plt.ylabel(r'Cumulative $\kappa$ [W/(m•K)]', fontsize=25, fontweight='bold')
-plt.grid()
-plt.legend(loc=4, prop={'size': 15})
-plt.show()
-
-# Peform simulation for finite-size sample
-
-cond_vs_len_rta = []
-cond_vs_len_sc = []
-
-lengths = np.outer(np.array([10, 100, 1000, 10000, 100000]),
-              np.array([1, 2, 5])).flatten(order='C')
-for length in lengths:
-  cond_rta = phonons.conductivity(method='rta', length=length,
-                        axis=2).sum(axis=0)
-  cond_vs_len_rta.append(cond_rta[2, 2])
-  cond_sc = phonons.conductivity(method='sc', max_n_iterations = max_n_iters,
-                        length=length, axis=2)[0].sum(axis=0)
-  cond_vs_len_sc.append(cond_sc[2, 2])
-
-print('\n')
-plt.figure()
-plt.plot(lengths, volume_ratio*np.array(cond_vs_len_rta), '-b', label='rta')
-plt.plot(lengths, volume_ratio*np.array(cond_vs_len_sc), '-', label='sc')
-plt.legend(loc='best')
-plt.xlabel('$\ell$ [nm]',  fontsize=25, fontweight='bold')
-plt.ylabel(r"$\kappa$ [W/(m•K)]",  fontsize=25, fontweight='bold')
-plt.grid()
-plt.xscale('log')
 plt.show()
 </pre></div>
 </div>
@@ -1216,7 +844,7 @@ plt.show()
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
           
-            <a href="tutorials.html" title="Tutorials"
+            <a href="docsource/api_conductivity.html" title="Conductivity API Reference"
                class="md-flex md-footer-nav__link md-footer-nav__link--prev"
                rel="prev">
               <div class="md-flex__cell md-flex__cell--shrink">
@@ -1225,17 +853,17 @@ plt.show()
               <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
                 <span class="md-flex__ellipsis">
                   <span
-                      class="md-footer-nav__direction"> Previous </span> Tutorials </span>
+                      class="md-footer-nav__direction"> Previous </span> Conductivity API Reference </span>
               </div>
             </a>
           
           
-            <a href="amorphous_presentation.html" title="Tutorial: Thermal Transport Simulation for Silicon Amorphous"
+            <a href="amorphous_presentation.html" title="Remote fetch source code from Github"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Tutorial: Thermal Transport Simulation for Silicon Amorphous </span>
+                class="md-footer-nav__direction"> Next </span> Remote fetch source code from Github </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>

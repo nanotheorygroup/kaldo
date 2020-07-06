@@ -2,6 +2,12 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "metadata": {
+    "collapsed": false,
+    "pycharm": {
+     "name": "#%% md\n"
+    }
+   },
    "source": [
     "## The kALDo package\n",
     "\n",
@@ -39,13 +45,7 @@
     "\n",
     "\n",
     "Project template from the [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms)."
-   ],
-   "metadata": {
-    "collapsed": false,
-    "pycharm": {
-     "name": "#%% md\n"
-    }
-   }
+   ]
   }
  ],
  "metadata": {
@@ -69,10 +69,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
-    "source": [],
     "metadata": {
      "collapsed": false
-    }
+    },
+    "source": []
    }
   }
  },

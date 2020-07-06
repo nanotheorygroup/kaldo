@@ -2,6 +2,9 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "metadata": {
+    "collapsed": false
+   },
    "source": [
     "\n",
     "\n",
@@ -85,10 +88,7 @@
     "| Conductivity [$\\kappa$]| $\\frac{W}{m\\ K}$         |\n",
     "| Distances              | $A$                      |\n",
     "| Masses                 | $g/N_A$                  |\n"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   }
  ],
  "metadata": {
@@ -112,10 +112,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
-    "source": [],
     "metadata": {
      "collapsed": false
-    }
+    },
+    "source": []
    }
   }
  },

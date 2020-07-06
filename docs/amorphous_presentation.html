@@ -46,7 +46,7 @@
   
   
   
-    <title>Tutorial: Thermal Transport Simulation for Silicon Amorphous &#8212; kaldo  documentation</title>
+    <title>Remote fetch source code from Github &#8212; kaldo  documentation</title>
     <link rel="stylesheet" href="_static/material.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -57,7 +57,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Tutorial: Lammps Interface" href="crystal_presentation.html" />
+    <link rel="prev" title="Remote fetch source code from Github" href="crystal_presentation.html" />
   
    
 
@@ -94,7 +94,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Tutorial: Thermal Transport Simulation for Silicon Amorphous </span>
+          <span class="md-header-nav__topic"> Remote fetch source code from Github </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -215,21 +215,25 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#amorphous-presentation--page-root" class="md-nav__link">Tutorial: Thermal Transport Simulation for Silicon Amorphous</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#amorphous-presentation--page-root" class="md-nav__link">Remote fetch source code from Github</a>
+        </li>
+        <li class="md-nav__item"><a href="#Install-Kaldo-from-source" class="md-nav__link">Install Kaldo from source</a>
+        </li>
+        <li class="md-nav__item"><a href="#Fetch-supplyment-data-remotely" class="md-nav__link">Fetch supplyment data remotely</a>
+        </li>
+        <li class="md-nav__item"><a href="#Remote-fetch-precomplied-LAMMPS" class="md-nav__link">Remote fetch precomplied LAMMPS</a>
+        </li>
+        <li class="md-nav__item"><a href="#Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)" class="md-nav__link">Thermal transport simulation for Amorphous-Silicon (a-Si)</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Remote-Fetch-Necessary-Files" class="md-nav__link">Remote Fetch Necessary Files</a>
+        <li class="md-nav__item"><a href="#Read-in-force-constant-objects-from-folder" class="md-nav__link">Read in force constant objects from folder</a>
         </li>
-        <li class="md-nav__item"><a href="#Import-the-needed-dependencies" class="md-nav__link">Import the needed dependencies</a>
+        <li class="md-nav__item"><a href="#Create-phonons-object" class="md-nav__link">Create phonons object</a>
         </li>
-        <li class="md-nav__item"><a href="#Create-the-ForceConstant-object-importing-it-from-the-Davide/Charlie-format" class="md-nav__link">Create the <code class="docutils literal notranslate"><span class="pre">ForceConstant</span></code> object importing it from the Davide/Charlie format</a>
+        <li class="md-nav__item"><a href="#Acess-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Acess and visualize properties calculated during simulations</a>
         </li>
-        <li class="md-nav__item"><a href="#Create-the-Phonons-object" class="md-nav__link">Create the <code class="docutils literal notranslate"><span class="pre">Phonons</span></code> object</a>
+        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/></a>
         </li>
-        <li class="md-nav__item"><a href="#Plot-the-inverse-of-the-lifetime,-\Gamma" class="md-nav__link">Plot the inverse of the lifetime, <img alt="\Gamma" class="math" src="_images/math/c0c68953b777f9dea0402aed6677ab74bd2429f5.png"/></a>
-        </li>
-        <li class="md-nav__item"><a href="#Plot-phase-space" class="md-nav__link">Plot phase space</a>
-        </li>
-        <li class="md-nav__item"><a href="#Conductivity-Quasi-Harmonic-Green-Kubo" class="md-nav__link">Conductivity Quasi-Harmonic-Green-Kubo</a>
+        <li class="md-nav__item"><a href="#Run-a-Si-simulation-with-varied-temperature-and-third-bandwidth" class="md-nav__link">Run a-Si simulation with varied temperature and third bandwidth</a>
         </li></ul>
             </nav>
         </li>
@@ -480,122 +484,204 @@ div.rendered_html tbody tr:hover {
   background: rgba(66, 165, 245, 0.2);
 }
 </style>
-<p>Open the notebook in Colab <a class="reference external" href="https://github.com/gbarbalinardo/kaldo/blob/master/docs/amorphous_presentation.ipynb">https://github.com/gbarbalinardo/kaldo/blob/master/docs/amorphous_presentation.ipynb</a></p>
+<p>Open the notebook in Colab</p>
 <p><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></p>
 
-<h1 id="amorphous-presentation--page-root">Tutorial: Thermal Transport Simulation for Silicon Amorphous<a class="headerlink" href="#amorphous-presentation--page-root" title="Permalink to this headline">¶</a></h1>
-<p>Run the code cell below to install kaldo. Replace username and password.</p>
+<h1 id="amorphous-presentation--page-root">Remote fetch source code from Github<a class="headerlink" href="#amorphous-presentation--page-root" title="Permalink to this headline">¶</a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!pip install git+https://&lt;USERNAME&gt;:&lt;PASSWORD&gt;@github.com/gbarbalinardo/kaldo.git
+<span></span>!git clone https://github.com/nanotheorygroup/kaldo.git
 </pre></div>
 </div>
 </div>
 
-<h2 id="Remote-Fetch-Necessary-Files">Remote Fetch Necessary Files<a class="headerlink" href="#Remote-Fetch-Necessary-Files" title="Permalink to this headline">¶</a></h2>
-<p>Run the code cell below to fetch kaldo/forceconstant repos,geometry (in xyz) and forefield files.</p>
+
+<h1 id="Install-Kaldo-from-source">Install Kaldo from source<a class="headerlink" href="#Install-Kaldo-from-source" title="Permalink to this headline">¶</a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>!rm -r /content/sample_data
+
+# Update utilities for tensorboard
+
+!pip install --upgrade grpcio
+!pip install --upgrade google-auth
+
+# Install kaldo from source
+
+%cd /content/kaldo
+!pip install .
+
+# Navigate back to workspace after installation completes
+%cd /content/
+</pre></div>
+</div>
+</div>
+
+
+<h1 id="Fetch-supplyment-data-remotely">Fetch supplyment data remotely<a class="headerlink" href="#Fetch-supplyment-data-remotely" title="Permalink to this headline">¶</a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span>import os
-if not os.path.exists('dlpoly-216.zip'):
-  !wget http://chemac196.ucdavis.edu/data-html/dlpoly-216.tar.gz
-  !tar -xzf dlpoly-216.tar.gz
-  !rm dlpoly-216.tar.gz
 
+# Fetch forcefield files
+
+if not os.path.exists('forcefields.zip'):
+  !wget http://sophe.ucdavis.edu/structures/forcefields.zip
+  !unzip forcefields.zip
+  !rm -r forcefields.zip
+
+# Fetch force constants file for amprohous silicon (512 atoms)
+
+if not os.path.exists('structure_a_si_512.zip'):
+  !wget http://sophe.ucdavis.edu/structures/structure_a_si_512.zip
+  !unzip structure_a_si_512.zip
+  !rm -r structure_a_si_512.zip
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="Import-the-needed-dependencies">Import the needed dependencies<a class="headerlink" href="#Import-the-needed-dependencies" title="Permalink to this headline">¶</a></h2>
+<h1 id="Remote-fetch-precomplied-LAMMPS">Remote fetch precomplied LAMMPS<a class="headerlink" href="#Remote-fetch-precomplied-LAMMPS" title="Permalink to this headline">¶</a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from kaldo import ForceConstant
-from kaldo.phonons import Phonons
-import matplotlib.pyplot as plt
-import numpy as np
-import ase.units as units
-plt.style.use('seaborn-poster')
+<span></span>!wget http://sophe.ucdavis.edu/structures/lmp-tesla-t4-intel-xeon.gz
+!tar xvzf lmp-tesla-t4-intel-xeon.gz
+!rm /content/lmp-tesla-t4-intel-xeon.gz
+!ln -s /content/lammps/src/lmp_gpu /usr/local/bin/lmp_gpu
 
-# if you want to run it as script
-# import sys
-# temperature = float(sys.argv[1])
-# is_classic = int(sys.argv[2])
+# Naviagate to lammps source folder pior to LAMMPS-Python integration
+
+%cd /content/lammps/src
+
+print('\n')
+print('Precomplied LAMMPS is fetched from remote!')
 </pre></div>
 </div>
 </div>
-
-
-<h2 id="Create-the-ForceConstant-object-importing-it-from-the-Davide/Charlie-format">Create the <code class="docutils literal notranslate"><span class="pre">ForceConstant</span></code> object importing it from the Davide/Charlie format<a class="headerlink" href="#Create-the-ForceConstant-object-importing-it-from-the-Davide/Charlie-format" title="Permalink to this headline">¶</a></h2>
+<p>#Integrate LAMMPS Into Python</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>forceconstants = ForceConstant.import_from_dlpoly_folder('dlpoly-216')
+<span></span>!make install-python
+
+# Copy executable file to where the python Module locates
+
+import shutil
+src_path = '/usr/lib/python3/dist-packages/liblammps.so'
+dist_path = '/usr/local/lib/python3.6/dist-packages/liblammps.so'
+shutil.copyfile(src_path,dist_path)
+
+# Naviagate back to main folder before simulation
+
+%cd /content
+
+print('\n')
+print('LAMMPS-Python Integration is completed!')
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="Create-the-Phonons-object">Create the <code class="docutils literal notranslate"><span class="pre">Phonons</span></code> object<a class="headerlink" href="#Create-the-Phonons-object" title="Permalink to this headline">¶</a></h2>
+<h1 id="Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)">Thermal transport simulation for Amorphous-Silicon (a-Si)<a class="headerlink" href="#Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)" title="Permalink to this headline">¶</a></h1>
+
+<h2 id="Read-in-force-constant-objects-from-folder">Read in force constant objects from folder<a class="headerlink" href="#Read-in-force-constant-objects-from-folder" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>from kaldo.forceconstants import ForceConstants
 
-<span></span># # Create a phonon object
+# Read amporphous silicon with eskm format
+
+forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')
+</pre></div>
+</div>
+</div>
+
+
+<h2 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>from kaldo.phonons import Phonons
+
+# Create a phonon object
+# is_classic flag can be true or false, as
+# well as 0 (quantum) or 1 (classic)
+
 phonons = Phonons (forceconstants=forceconstants,
-                   is_classic=1,
+                   is_classic=0,
                    temperature=300,
                    folder='si-amorphous',
                    third_bandwidth=0.05/4.135,
-                   broadening_shape='triangle')
+                   broadening_shape='triangle',
+                   is_tf_backend=True,
+                   storage='numpy')
 </pre></div>
 </div>
 </div>
 
 
-<h2 id="Plot-the-inverse-of-the-lifetime,-\Gamma">Plot the inverse of the lifetime, <img alt="\Gamma" class="math" src="_images/math/c0c68953b777f9dea0402aed6677ab74bd2429f5.png"/><a class="headerlink" href="#Plot-the-inverse-of-the-lifetime,-\Gamma" title="Permalink to this headline">¶</a></h2>
+<h2 id="Acess-and-visualize-properties-calculated-during-simulations">Acess and visualize properties calculated during simulations<a class="headerlink" href="#Acess-and-visualize-properties-calculated-during-simulations" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>import matplotlib.pyplot as plt
+plt.style.use('seaborn-poster')
 
-<span></span>frequencies = phonons.frequencies.flatten()
-gamma_classic = phonons.gamma.flatten()
-plt.plot(frequencies[3:], gamma_classic[3:], 'b.', markersize=10)
+# Direct access to properties
+# calculated during the simulation
+
+frequency = phonons.frequency.flatten(order='C')
+bandwidth = phonons.bandwidth.flatten(order='C')
+
+# Plot phonon bandwidth vs frequency
+
+print('\n')
+plt.plot(frequency[3:],bandwidth[3:],'.',markersize=10,label= 'broadening shape: ' + str(phonons.broadening_shape))
 plt.ylabel('$\Gamma$ (THz)', fontsize=25, fontweight='bold')
 plt.xlabel("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylim([gamma_classic.min(), 6])
+plt.ylim([bandwidth.min(), bandwidth.max()])
+plt.legend(loc=2,frameon = False)
 plt.show()
 
-</pre></div>
-</div>
-</div>
+phase_space = phonons.phase_space.flatten(order='C')
 
+# Plot phase space vs frequency
 
-<h2 id="Plot-phase-space">Plot phase space<a class="headerlink" href="#Plot-phase-space" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+print('\n')
+plt.figure()
+plt.plot(frequency[3:], phase_space[3:], '.', markersize=10)
+plt.ylabel ("Phase space", fontsize=25, fontweight='bold')
+plt.xlabel("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.show()
 
-<span></span>ps_classic = phonons.ps.flatten()
-plt.plot(frequencies[3:], ps_classic[3:], 'b.', markersize=10)
-plt.ylabel('$\Gamma$ (THz)', fontsize=25, fontweight='bold')
+print('\n')
+# Plot diffusivity vs frequency
+
+diffusiviy = phonons.diffusivity.flatten(order='C')
+plt.figure()
+plt.plot(frequency[3:], diffusiviy[3:], '.', markersize=10)
+plt.ylabel ("$D(mm^{2}/s)$", fontsize=25, fontweight='bold')
 plt.xlabel("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
 plt.show()
 </pre></div>
@@ -603,27 +689,80 @@ plt.show()
 </div>
 
 
-<h2 id="Conductivity-Quasi-Harmonic-Green-Kubo">Conductivity Quasi-Harmonic-Green-Kubo<a class="headerlink" href="#Conductivity-Quasi-Harmonic-Green-Kubo" title="Permalink to this headline">¶</a></h2>
+<h2 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>def cumulative_cond_cal(freq,full_cond,n_phonons):
 
-<span></span>print('QHGK conductivity')
-cond = phonons.conductivity(method='qhgk').sum(axis=0)
+  conductivity = np.einsum('maa-&gt;m', 1/3 * full_cond)
+  conductivity = conductivity.reshape(n_phonons)
+  cumulative_cond = np.zeros_like(conductivity)
+  freq_reshaped = freq.reshape(n_phonons)
+
+  for mu in range(cumulative_cond.size):
+      single_cumulative_cond = conductivity[(freq_reshaped &lt; freq_reshaped[mu])].sum()
+      cumulative_cond[mu] = single_cumulative_cond
+
+  return cumulative_cond
 </pre></div>
 </div>
 </div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<span></span>from kaldo.conductivity import Conductivity
+import numpy as np
+
+# Compute conductivity with per phonon mode basis using qhgk method
+
+kappa_qhgk_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='qhgk',n_iterations=20).conductivity)
+
+# Compute cumulative conductivity by frequency with qhgk method
+
+kappa_qhgk_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)
+
+print('\n')
+
+# Visualize the per mode conductivity vs frequency
+
+plt.figure()
+plt.plot(frequency,kappa_qhgk_per_mode,'.',label='QHGK',ms=8)
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylabel(r'$\kappa(W/m/K)$', fontsize=25, fontweight='bold')
+plt.legend(loc=1,frameon=False)
+plt.show()
+
+print('\n')
+
+# Visualize the cumulative conductivity vs frequency
+
+plt.figure()
+plt.plot(frequency,kappa_qhgk_cum_freq,'.',label='QHGK',ms=8)
+plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
+plt.ylabel(r'$\kappa_{cum}(W/m/K)$', fontsize=25, fontweight='bold')
+plt.legend(loc=4,frameon=False)
+plt.grid()
+plt.show()
+</pre></div>
+</div>
+</div>
+
+
+<h2 id="Run-a-Si-simulation-with-varied-temperature-and-third-bandwidth">Run a-Si simulation with varied temperature and third bandwidth<a class="headerlink" href="#Run-a-Si-simulation-with-varied-temperature-and-third-bandwidth" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span># Create a finite difference object
-forceconstants = ForceConstant.import_from_dlpoly_folder('dlpoly-216')
-# '
-# # Create a phonon object
+forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')
+
+# Create a phonon object
 temperatures = [5, 10, 15, 20, 35, 50, 75, 100, 150, 200, 300, 500, 1000]
 for third_bandwidth in [0.5, 1, 2, 4]:
     conds = []
@@ -636,25 +775,15 @@ for third_bandwidth in [0.5, 1, 2, 4]:
                    broadening_shape='triangle')
 
 
-        print('AF conductivity')
+        print('QHGK conductivity')
         cond = (phonons.conductivity(method='qhgk', third_bandwidth=third_bandwidth/4.135).sum(axis=0))
         conds.append(cond.diagonal().mean())
     plt.plot(temperatures, conds, label='$\delta_{in}$='+str(np.round(third_bandwidth/4.135,2))+' THz')
 
 plt.ylabel('$\kappa$ (W/m/K)', fontsize=25, fontweight='bold')
 plt.xlabel("$Temperature$ (K)", fontsize=25, fontweight='bold')
-plt.legend(prop={'size': 20})
+plt.legend(prop={'size': 20},frameon=False)
 plt.show()
-
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>
 </pre></div>
 </div>
 </div>
@@ -671,7 +800,7 @@ plt.show()
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
           
-            <a href="crystal_presentation.html" title="Tutorial: Lammps Interface"
+            <a href="crystal_presentation.html" title="Remote fetch source code from Github"
                class="md-flex md-footer-nav__link md-footer-nav__link--prev"
                rel="prev">
               <div class="md-flex__cell md-flex__cell--shrink">
@@ -680,7 +809,7 @@ plt.show()
               <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
                 <span class="md-flex__ellipsis">
                   <span
-                      class="md-footer-nav__direction"> Previous </span> Tutorial: Lammps Interface </span>
+                      class="md-footer-nav__direction"> Previous </span> Remote fetch source code from Github </span>
               </div>
             </a>
           

@@ -2,6 +2,9 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "metadata": {
+    "collapsed": false
+   },
    "source": [
     "### Introduction\n",
     "\n",
@@ -165,10 +168,7 @@
     "[42]: N.Wilkins-Diehrand, T.D.Crawford,“NSF’s Inaugural Software Institutes: The Science Gateways Community Institute and the Molecular Sciences Software Institute.” Computing in Science and Engineering 20 (2018).\n",
     "\n",
     "[43]: W. Li, N. Mingo, L. Lindsay, D. A. Broido, D. A. Stewart, and N. A. Katcho, “Thermal conductivity of diamond nanowires from first princi- ples,” Physical Review B 85, 195436 (2012)."
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   }
  ],
  "metadata": {
@@ -192,10 +192,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
-    "source": [],
     "metadata": {
      "collapsed": false
-    }
+    },
+    "source": []
    }
   }
  },
