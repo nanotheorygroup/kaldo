@@ -4,16 +4,16 @@ kALDo: Anharmonic Lattice Dynamics
 [![Travis Build Status](https://travis-ci.com/gbarbalinardo/kaldo.svg?token=EFWyhyp9aQcQnteZBpEr&branch=master)](https://travis-ci.com/gbarbalinardo/kaldo)
 [![codecov](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master/graphs/badge.svg?token=tiC2xj2OQG)](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master)
 
-<img src="docs/_resources/logo.png" width="650">
+<img src="docs/docsource/_resources/logo.png" width="650">
 
 kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA.
 Below we illustrate the main features of the code
 
-<img src="docs/_resources/features.png" width="650">
+<img src="docs/docsource/_resources/features.png" width="650">
 
 ## Code Architecture
 
-<img src="docs/_resources/class_diagram.png" width="650">
+<img src="docs/docsource/_resources/class_diagram.png" width="650">
 
 ## Documentation
 
