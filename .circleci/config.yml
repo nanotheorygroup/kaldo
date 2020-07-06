@@ -10,10 +10,13 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      - run:
-          name: Install dependencies
-          command: pip install -r requirements.txt
       - python/save-cache
+      - run:
+          command: pip install -r requirements.txt
+          name: Install dependencies
+      - run:
+          command: sudo apt-get update && sudo apt-get install -y pandoc
+          name: Install pandoc
       - run:
           command: pwd && ls -la && cd kaldo
           name: Print location
