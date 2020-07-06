@@ -10,11 +10,9 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      - run:
-          command: pip install -r requirements.txt
-          name: Install dependencies
+      - python/install-deps
       - python/save-cache
-      - - run:
+      - run:
             command: pwd && ls -la
             name: Print location
       - run:
