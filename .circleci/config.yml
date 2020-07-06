@@ -10,16 +10,16 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      - python/save-cache
       - run:
           command: pip install -r requirements.txt
           name: Install dependencies
+      - python/save-cache
+      - - run:
+            command: pwd && ls -la
+            name: Print location
       - run:
-          command: sh kaldo/docs/install_pandoc.sh
+          command: sh docs/install_pandoc.sh
           name: Install pandoc
-      - run:
-          command: cd kaldo
-          name: Print location
       - run:
           command: cd docs/ && make html && cd ..
           name: Build docs
