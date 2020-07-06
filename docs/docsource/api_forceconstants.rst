@@ -1,10 +1,10 @@
 .. _forceconstants-api:
 
-.. currentmodule::kaldo.ForceConstants
+.. currentmodule::kaldo.forceconstants
 
-################################
-Finite Difference API Reference
-################################
+############################
+ForceConstants API Reference
+############################
 
 The ForceConstants class is the basis for all of the kALDo
 calculations. It holds or calculates the interatomic force 
