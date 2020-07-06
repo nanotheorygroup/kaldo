@@ -15,10 +15,10 @@ jobs:
           command: pip install -r requirements.txt
           name: Install dependencies
       - run:
-          command: sudo apt-get update && sudo apt-get install -y pandoc
+          command: sh kaldo/docs/install_pandoc.sh
           name: Install pandoc
       - run:
-          command: pwd && ls -la && cd kaldo
+          command: cd kaldo
           name: Print location
       - run:
           command: cd docs/ && make html && cd ..
