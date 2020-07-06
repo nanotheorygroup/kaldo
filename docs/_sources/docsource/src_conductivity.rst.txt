@@ -3,4 +3,4 @@
 Conductivity Source Code
 ########################
 
-.. literalinclude:: ../kaldo/conductivity.py
+.. literalinclude:: ../../kaldo/conductivity.py

@@ -9,7 +9,7 @@ import numpy as np
 ##########################################
 
 # Ballistico can config the finite difference object
-# straightly from the source folder. Currently support
+# straightly from the docsource folder. Currently support
 # format includes "eskm", "hiphive", "shengbte" and "shengbte-qe" 
 
 forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')

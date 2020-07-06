@@ -1,19 +1,19 @@
-.. _forceconstant-api:
+.. _forceconstants-api:
 
-.. currentmodule::kaldo
+.. currentmodule::kaldo.ForceConstants
 
 ################################
 Finite Difference API Reference
 ################################
 
-The Finite Difference class is the basis for all of the kALDo
+The ForceConstants class is the basis for all of the kALDo
 calculations. It holds or calculates the interatomic force 
 constants for the system.
 
-:ref:`[Source]<src-forceconstant>`
+:ref:`[Source]<src-forceconstants>`
 
 Attributes
 +++++++++++++++
 
-.. autoclass:: ForceConstant
+.. autoclass:: ForceConstants
    :members:

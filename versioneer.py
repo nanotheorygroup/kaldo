@@ -29,7 +29,7 @@ system, and maybe making new tarballs.
 
 * `pip install versioneer` to somewhere to your $PATH
 * add a `[versioneer]` section to your setup.cfg (see below)
-* run `versioneer install` in your source tree, commit the results
+* run `versioneer install` in your docsource tree, commit the results
 
 ## Version Identifiers
 
@@ -41,7 +41,7 @@ Source trees come from a variety of places:
   "tarball from tag" feature
 * a release tarball, produced by "setup.py sdist", distributed through PyPI
 
-Within each source tree, the version identifier (either a string or a number,
+Within each docsource tree, the version identifier (either a string or a number,
 this tool is format-agnostic) can come from a variety of places:
 
 * ask the VCS tool itself, e.g. "git describe" (for checkouts), which knows
@@ -70,7 +70,7 @@ The version identifier is used for multiple purposes:
 
 ## Theory of Operation
 
-Versioneer works by adding a special `_version.py` file into your source
+Versioneer works by adding a special `_version.py` file into your docsource
 tree, where your `__init__.py` can import it. This `_version.py` knows how to
 dynamically ask the VCS tool for version information at import time.
 
@@ -80,7 +80,7 @@ during the `git archive` command. As a result, generated tarballs will
 contain enough information to get the proper version.
 
 To allow `setup.py` to compute a version too, a `versioneer.py` is added to
-the top level of your source tree, next to `setup.py` and the `setup.cfg`
+the top level of your docsource tree, next to `setup.py` and the `setup.cfg`
 that configures it. This overrides several distutils/setuptools commands to
 compute the version when invoked, and changes `setup.py build` and `setup.py
 sdist` to replace `_version.py` with a small static file that contains just
@@ -152,7 +152,7 @@ software (exactly equal to a known tag), the identifier will only contain the
 stripped tag, e.g. "0.11".
 
 Other styles are available. See [details.md](details.md) in the Versioneer
-source tree for descriptions.
+docsource tree for descriptions.
 
 ## Debugging
 
@@ -170,7 +170,7 @@ most significant ones. More can be found on Github
 
 ### Subprojects
 
-Versioneer has limited support for source trees in which `setup.py` is not in
+Versioneer has limited support for docsource trees in which `setup.py` is not in
 the root directory (e.g. `setup.py` and `.git/` are *not* siblings). The are
 two common reasons why `setup.py` might not be in the root:
 
@@ -208,7 +208,7 @@ Versioneer-0.16 and earlier only looked for a `.git` directory next to the
 ### Editable installs with setuptools <= 18.5
 
 `setup.py develop` and `pip install --editable .` allow you to install a
-project into a virtualenv once, then continue editing the source code (and
+project into a virtualenv once, then continue editing the docsource code (and
 test) without re-installing after every change.
 
 "Entry-point scripts" (`setup(entry_points={"console_scripts": ..})`) are a
@@ -248,7 +248,7 @@ To upgrade your project to a new release of Versioneer, do the following:
 * install the new Versioneer (`pip install -U versioneer` or equivalent)
 * edit `setup.cfg`, if necessary, to include any new configuration settings
   indicated by the release notes. See [UPGRADING](./UPGRADING.md) for details.
-* re-run `versioneer install` in your source tree, to replace
+* re-run `versioneer install` in your docsource tree, to replace
   `SRC/_version.py`
 * commit any changed files
 
@@ -419,7 +419,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
 
 
 LONG_VERSION_PY['git'] = '''
-# This file helps to compute a version number in source trees obtained from
+# This file helps to compute a version number in docsource trees obtained from
 # git-archive tarball (such as those provided by githubs download-from-tag
 # feature). Distribution tarballs (built by setup.py sdist) and build
 # directories (produced by setup.py build) will contain a much shorter file
@@ -635,11 +635,11 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
 
 @register_vcs_handler("git", "pieces_from_vcs")
 def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
-    """Get version from 'git describe' in the root of the source tree.
+    """Get version from 'git describe' in the root of the docsource tree.
 
     This only gets called if the git-archive 'subst' keywords were *not*
     expanded, and _version.py hasn't already been rewritten with a short
-    version string, meaning we're inside a checked out source tree.
+    version string, meaning we're inside a checked out docsource tree.
     """
     GITS = ["git"]
     if sys.platform == "win32":
@@ -912,7 +912,7 @@ def get_versions():
 
     try:
         root = os.path.realpath(__file__)
-        # versionfile_source is the relative path from the top of the source
+        # versionfile_source is the relative path from the top of the docsource
         # tree (where the .git directory might live) to this file. Invert
         # this to find the root from __file__.
         for i in cfg.versionfile_source.split('/'):
@@ -920,7 +920,7 @@ def get_versions():
     except NameError:
         return {"version": "0+unknown", "full-revisionid": None,
                 "dirty": None,
-                "error": "unable to find root of source tree",
+                "error": "unable to find root of docsource tree",
                 "date": None}
 
     try:
@@ -1027,11 +1027,11 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
 
 @register_vcs_handler("git", "pieces_from_vcs")
 def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
-    """Get version from 'git describe' in the root of the source tree.
+    """Get version from 'git describe' in the root of the docsource tree.
 
     This only gets called if the git-archive 'subst' keywords were *not*
     expanded, and _version.py hasn't already been rewritten with a short
-    version string, meaning we're inside a checked out source tree.
+    version string, meaning we're inside a checked out docsource tree.
     """
     GITS = ["git"]
     if sys.platform == "win32":
@@ -1183,7 +1183,7 @@ def versions_from_parentdir(parentdir_prefix, root, verbose):
 SHORT_VERSION_PY = """
 # This file was generated by 'versioneer.py' (0.18) from
 # revision-control system data, or from the parent directory name of an
-# unpacked source archive. Distribution tarballs contain a pre-generated copy
+# unpacked docsource archive. Distribution tarballs contain a pre-generated copy
 # of this file.
 
 import json
@@ -1400,7 +1400,7 @@ class VersioneerBadRootError(Exception):
 
 
 def get_versions(verbose=False):
-    """Get the project version from whatever source is available.
+    """Get the project version from whatever docsource is available.
 
     Returns dict with two keys: 'version' and 'full'.
     """
@@ -1423,7 +1423,7 @@ def get_versions(verbose=False):
 
     # extract version from first of: _version.py, VCS command (e.g. 'git
     # describe'), parentdir. This is meant to work for developers using a
-    # source checkout, for users of a tarball created by 'setup.py sdist',
+    # docsource checkout, for users of a tarball created by 'setup.py sdist',
     # and for users of a tarball/zipball created by 'git archive' or github's
     # download-from-tag feature or the equivalent in other VCSes.
 
@@ -1533,7 +1533,7 @@ def get_cmdclass():
     #  setuptools/install -> bdist_egg ->..
     #  setuptools/develop -> ?
     #  pip install:
-    #   copies source tree to a tempdir before running egg_info/etc
+    #   copies docsource tree to a tempdir before running egg_info/etc
     #   if .git isn't copied too, 'git describe' will fail
     #   then does setup.py bdist_wheel, or sometimes setup.py install
     #  setup.py egg_info -> ?
@@ -1739,7 +1739,7 @@ def do_setup():
 
     # Make sure both the top-level "versioneer.py" and versionfile_source
     # (PKG/_version.py, used by runtime code) are in MANIFEST.in, so
-    # they'll be copied into source distributions. Pip won't be able to
+    # they'll be copied into docsource distributions. Pip won't be able to
     # install the package without this.
     manifest_in = os.path.join(root, "MANIFEST.in")
     simple_includes = set()

@@ -10,8 +10,13 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      - python/install-deps
+      - run:
+          name: Install dependencies
+          command: pip install -r requirements.txt
       - python/save-cache
+      - run:
+          command: pwd
+          name: Print location
       - run:
           command: cd docs/ && make html && cd ..
           name: Build docs
