@@ -1,10 +1,4 @@
 from opt_einsum import contract
-from kaldo.grid import wrap_coordinates
-from scipy.linalg.lapack import dsyev
-from scipy.linalg.lapack import zheev
-from ase.units import Rydberg, Bohr
-from kaldo.helpers.tools import timeit
-
 import numpy as np
 import ase.units as units
 from sparse import COO
@@ -16,11 +10,7 @@ logging = get_logger()
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
 
-
-def chi(qvec, list_of_replicas, cell_inv):
-    chi_k = np.exp(1j * 2 * np.pi * list_of_replicas.dot(cell_inv.dot(qvec)))
-    return chi_k
-
+# TODO: move these methods inside second order
 
 def calculate_population(phonons):
     frequency = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
@@ -67,167 +57,6 @@ def calculate_sij_sparse(phonons):
             COO(coords.T, phonons.flux_dense[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
                 shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
     return s_ij
-
-
-@timeit
-def calculate_frequency(phonons, q_points):
-    eigenvals = calculate_eigensystem(phonons, q_points, only_eigenvals=True)
-    frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
-    return frequency.real
-
-
-def calculate_dynmat_derivatives(phonons, q_points):
-    atoms = phonons.atoms
-    list_of_replicas = phonons.forceconstants.second_order.list_of_replicas
-    replicated_cell = phonons.forceconstants.second_order.replicated_atoms.cell
-    replicated_cell_inv = np.linalg.inv(phonons.forceconstants.second_order.replicated_atoms.cell)
-
-    dynmat = phonons.forceconstants.second_order.dynmat(atoms.get_masses())
-    positions = phonons.forceconstants.atoms.positions
-    n_unit_cell = atoms.positions.shape[0]
-    n_k_points = q_points.shape[0]
-    n_replicas = phonons.forceconstants.n_replicas
-
-    if phonons.forceconstants.distance_threshold:
-        logging.info('Using folded flux operators')
-
-    ddyn = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
-    for index_k in range(n_k_points):
-        qvec = q_points[index_k]
-        if phonons._is_amorphous:
-            distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
-            distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ija,ibjc->ibjca', distance, dynmat[0, :, :, 0, :, :])
-        else:
-            distance = positions[:, np.newaxis, np.newaxis, :] - (
-                    positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
-
-
-            distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
-                phonons.forceconstants.second_order.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, :, :, :])
-
-            list_of_replicas = phonons.forceconstants.second_order.list_of_replicas
-            cell_inv = phonons.forceconstants.cell_inv
-
-            if phonons.forceconstants.distance_threshold:
-                dynmat_derivatives = np.zeros((n_unit_cell, 3, n_unit_cell, 3, 3), dtype=np.complex)
-                for l in range(n_replicas):
-                    wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
-                                                        replicated_cell_inv)
-                    mask = (np.linalg.norm(wrapped_distance, axis=-1) < phonons.forceconstants.distance_threshold)
-                    id_i, id_j = np.argwhere(mask).T
-                    dynmat_derivatives[id_i, :, id_j, :, :] += np.einsum('fa,fbc->fbca', distance[id_i, l, id_j, :], \
-                                                                   dynmat[0, id_i, :, 0, id_j, :] *
-                                                                         chi(qvec, list_of_replicas, cell_inv)[l])
-            else:
-
-                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0], chi(qvec, list_of_replicas, cell_inv))
-        ddyn[index_k] = dynmat_derivatives.reshape((phonons.n_modes, phonons.n_modes, 3))
-    return ddyn
-
-
-def calculate_sij(phonons, q_points):
-    dynmat_derivatives = calculate_dynmat_derivatives(phonons, q_points)
-    eigenvects = calculate_eigensystem(phonons, q_points)[:, 1:, :]
-
-    if phonons.is_antisymmetrizing_velocity:
-        # TODO: Clean up the following logic to make it independent of the system
-        if phonons._is_amorphous:
-            error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(0, 1)) / 2
-            dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(0, 1)) / 2
-        else:
-            error = np.linalg.norm(dynmat_derivatives + dynmat_derivatives.swapaxes(1, 2).conj()) / 2
-            dynmat_derivatives = (dynmat_derivatives - dynmat_derivatives.swapaxes(1, 2).conj()) / 2
-
-        logging.info('Velocity anti-symmetrization error: ' + str(error))
-    logging.info('Calculating the flux operators')
-    if phonons._is_amorphous:
-        sij = np.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
-        sij = np.tensordot(eigenvects[0], sij, (0, 1))
-        sij = sij.reshape((1, sij.shape[0], sij.shape[1], sij.shape[2]))
-    else:
-        sij = contract('kim,kija,kjn->kmna', eigenvects.conj(), dynmat_derivatives, eigenvects)
-    return sij
-
-
-def calculate_velocity_af(phonons, q_points):
-    sij = calculate_sij(phonons, q_points)
-    frequency = calculate_frequency(phonons, q_points)
-    sij = sij.reshape((q_points.shape[0], phonons.n_modes, phonons.n_modes, 3))
-    velocity_AF = contract('kmna,kmn->kmna', sij,
-                             1 / (2 * np.pi * np.sqrt(frequency[:, :, np.newaxis]) * np.sqrt(
-                                 frequency[:, np.newaxis, :]))) / 2
-    return velocity_AF
-
-
-def calculate_velocity(phonons, q_points):
-    velocity_AF = calculate_velocity_af(phonons, q_points)
-    velocity = 1j * contract('kmma->kma', velocity_AF)
-    return velocity.real
-
-
-
-def calculate_eigensystem(phonons, q_points, only_eigenvals=False):
-    atoms = phonons.atoms
-    n_unit_cell = atoms.positions.shape[0]
-    n_k_points = q_points.shape[0]
-    n_replicas = phonons.forceconstants.n_replicas
-    if phonons.forceconstants.distance_threshold:
-        logging.info('Using folded dynamical matrix.')
-    if phonons._is_amorphous:
-        dtype = np.float
-    else:
-        dtype = np.complex
-    if only_eigenvals:
-        esystem = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
-    else:
-        esystem = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
-    for index_k in range(n_k_points):
-        qvec = q_points[index_k]
-        dynmat = phonons.forceconstants.second_order.dynmat(atoms.get_masses())
-        is_at_gamma = (qvec == (0, 0, 0)).all()
-
-        list_of_replicas = phonons.forceconstants.second_order.list_of_replicas
-        cell_inv = phonons.forceconstants.cell_inv
-        if phonons.forceconstants.distance_threshold:
-            distance_threshold = phonons.forceconstants.distance_threshold
-            dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-            replicated_cell = phonons.forceconstants.second_order.replicated_atoms.cell
-            replicated_cell_inv = np.linalg.inv(phonons.forceconstants.second_order.replicated_atoms.cell)
-
-            for l in range(n_replicas):
-                distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
-                    phonons.forceconstants.second_order.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, l, :, :])
-
-                distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
-
-                mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
-                id_i, id_j = np.argwhere(mask).T
-
-                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
-        else:
-            if is_at_gamma:
-                dyn_s = contract('ialjb->iajb', dynmat[0])
-            else:
-                dyn_s = contract('ialjb,l->iajb', dynmat[0], chi(qvec, list_of_replicas, cell_inv))
-        dyn_s = dyn_s.reshape((phonons.n_modes, phonons.n_modes))
-        if phonons.is_symmetrizing_frequency:
-            dyn_s = 0.5 * (dyn_s + dyn_s.T.conj())
-            error = np.sum(np.abs(0.5 * (dyn_s - dyn_s.T.conj())))
-            logging.info('Frequency symmetrization error: ' + str(error))
-
-        if only_eigenvals:
-            evals = np.linalg.eigvalsh(dyn_s)
-            esystem[index_k] = evals
-        else:
-            if is_at_gamma:
-                evals, evects = dsyev(dyn_s)[:2]
-            else:
-                evals, evects = np.linalg.eigh(dyn_s)
-                # evals, evects = zheev(dyn_s)[:2]
-            esystem[index_k] = np.vstack((evals, evects))
-    return esystem
-
 
 
 def calculate_physical_modes(phonons):
@@ -333,3 +162,4 @@ def calculate_generalized_diffusivity(phonons):
     else:
         diffusivity = calculate_diffusivity_dense(phonons)
     return diffusivity
+

@@ -1,12 +1,15 @@
 import numpy as np
 import ase.units as units
 from kaldo.grid import Grid
-from kaldo.controllers.harmonic import chi
 from kaldo.helpers.logger import get_logger
 from kaldo.observable import Observable
 logging = get_logger()
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
+
+def chi(qvec, list_of_replicas, cell_inv):
+    chi_k = np.exp(1j * 2 * np.pi * list_of_replicas.dot(cell_inv.dot(qvec)))
+    return chi_k
 
 
 class ForceConstant(Observable):
