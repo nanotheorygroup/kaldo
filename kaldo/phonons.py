@@ -7,9 +7,8 @@ from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS
 from kaldo.grid import Grid
-from kaldo.controllers.harmonic import calculate_physical_modes, calculate_frequency, calculate_velocity, \
-    calculate_heat_capacity, calculate_population, calculate_dynmat_derivatives, calculate_eigensystem, \
-    calculate_velocity_af, calculate_sij, calculate_sij_sparse, calculate_generalized_diffusivity, chi
+from kaldo.controllers.harmonic import calculate_physical_modes, \
+    calculate_heat_capacity, calculate_population, calculate_sij_sparse, calculate_generalized_diffusivity
 import numpy as np
 from opt_einsum import contract
 
@@ -135,7 +134,8 @@ class Phonons:
         frequency : np array
             (n_k_points, n_modes) frequency in THz
         """
-        frequency = calculate_frequency(self)
+        q_points = self._main_q_mesh
+        frequency = self.forceconstants.second_order.calculate_frequency(q_points)
         return frequency.reshape(self.n_k_points, self.n_modes)
 
 
@@ -147,7 +147,12 @@ class Phonons:
         velocity : np array
             (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
         """
-        velocity = calculate_velocity(self)
+
+        q_points = self._main_q_mesh
+        velocity = self.forceconstants.second_order.calculate_velocity(q_points,
+                                                                       is_amorphous=self._is_amorphous,
+                                                                       distance_threshold=
+                                                                       self.forceconstants.distance_threshold)
         return velocity
 
 
@@ -249,7 +254,11 @@ class Phonons:
         -------
         flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
         """
-        sij = calculate_sij(self)
+        q_points = self._main_q_mesh
+        sij = self.forceconstants.second_order.calculate_sij(q_points,
+                                                             is_amorphous=self._is_amorphous,
+                                                             distance_threshold=
+                                                             self.forceconstants.distance_threshold)
         return sij
 
 
@@ -294,7 +303,8 @@ class Phonons:
 
     @lazy_property(label='')
     def _dynmat_derivatives(self):
-        dynmat_derivatives = calculate_dynmat_derivatives(self)
+        q_points = self._main_q_mesh
+        dynmat_derivatives = self.forceconstants.second_order.calculate_dynmat_derivatives(q_points)
         return dynmat_derivatives
 
 
@@ -310,7 +320,12 @@ class Phonons:
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
-        eigensystem = calculate_eigensystem(self)
+        q_points = self._main_q_mesh
+
+        eigensystem = self.forceconstants.second_order.calculate_eigensystem(q_points=q_points,
+                                                                             is_amorphous=self._is_amorphous,
+                                                                             distance_threshold=
+                                                                             self.forceconstants.distance_threshold)
         return eigensystem
 
 
@@ -350,7 +365,11 @@ class Phonons:
 
     @property
     def _velocity_af(self):
-        velocity_AF = calculate_velocity_af(self)
+        q_points = self._main_q_mesh
+        velocity_AF = self.forceconstants.second_order.calculate_velocity_af(q_points,
+                                                                             is_amorphous=self._is_amorphous,
+                                                                             distance_threshold=
+                                                                             self.forceconstants.distance_threshold)
         return velocity_AF
 
 
