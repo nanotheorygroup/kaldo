@@ -47,6 +47,78 @@ class SecondOrder(ForceConstant):
         return dynmat * evtotenjovermol
 
 
+    def get_band_structure(self, path_kc, modes=False):
+        atoms = self.atoms
+        n_atoms = atoms.positions.shape[0]
+        supercell = self.supercell
+        C_N = self.value.reshape((3 * n_atoms, np.prod(self.supercell), 3 * n_atoms)).swapaxes(1, 0)
+
+        # Displace all atoms in the unit cell by default
+        indices = np.arange(len(atoms))
+        N_c = supercell
+
+        D_N = C_N.copy()
+
+        # Add mass prefactor
+        m_a = atoms.get_masses()
+        m_inv_x = np.repeat(m_a[indices] ** -0.5, 3)
+        M_inv = np.outer(m_inv_x, m_inv_x)
+        for D in D_N:
+            D *= M_inv
+        # Lattice vectors relevative to the reference cell
+        R_cN = np.indices(N_c).reshape(3, -1)
+        N_c = np.array(N_c)[:, np.newaxis]
+        R_cN += N_c // 2
+        R_cN %= N_c
+        R_cN -= N_c // 2
+        lattice_vectors = R_cN
+
+        # Lattice vectors -- ordered as illustrated in class docstring
+        R_cN = lattice_vectors
+
+        # Dynamical matrix in real-space
+
+        # Lists for frequencies and modes along path
+        omega_kl = []
+        u_kl = []
+
+        for q_c in path_kc:
+
+            # Evaluate fourier sum
+            phase_N = np.exp(-2.j * np.pi * np.dot(q_c, R_cN))
+            D_q = np.sum(phase_N[:, np.newaxis, np.newaxis] * D_N, axis=0)
+
+            if modes:
+                omega2_l, u_xl = np.linalg.eigh(D_q, UPLO='U')
+                # Sort eigenmodes according to eigenvalues (see below) and
+                # multiply with mass prefactor
+                u_lx = (m_inv_x[:, np.newaxis] *
+                        u_xl[:, omega2_l.argsort()]).T.copy()
+                u_kl.append(u_lx.reshape((-1, len(indices), 3)))
+            else:
+                omega2_l = np.linalg.eigvalsh(D_q, UPLO='U')
+
+            # Sort eigenvalues in increasing order
+            omega2_l.sort()
+            # Use dtype=complex to handle negative eigenvalues
+            omega_l = np.sqrt(omega2_l.astype(complex))
+
+            # Take care of imaginary frequencies
+            if not np.all(omega2_l >= 0.):
+                indices = np.where(omega2_l < 0)[0]
+
+                omega_l[indices] = -1 * np.sqrt(np.abs(omega2_l[indices].real))
+
+            omega_kl.append(omega_l.real)
+
+        # Conversion factor: sqrt(eV / Ang^2 / amu) -> eV
+        s = units._hbar * 1e10 / np.sqrt(units._e * units._amu)
+        omega_kl = s * np.asarray(omega_kl)
+
+        if modes:
+            return omega_kl, np.asarray(u_kl)
+
+        return omega_kl
 
     @classmethod
     def load(cls, folder, supercell=(1, 1, 1), format='eskm', is_acoustic_sum=False):
@@ -164,6 +236,7 @@ class SecondOrder(ForceConstant):
         else:
             raise ValueError
         return second_order
+
 
 
     def __str__(self):
