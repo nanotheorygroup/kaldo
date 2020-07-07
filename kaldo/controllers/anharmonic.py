@@ -9,8 +9,6 @@ import numpy as np
 from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
 from kaldo.helpers.logger import get_logger
 from opt_einsum import contract
-from kaldo.grid import wrap_coordinates
-from kaldo.controllers.harmonic import chi
 
 logging = get_logger()
 
