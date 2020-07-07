@@ -16,7 +16,6 @@ import seekpath
 import numpy as np
 from sklearn.neighbors.kde import KernelDensity
 from scipy import ndimage
-from kaldo.controllers.harmonic import calculate_frequency, calculate_velocity
 from kaldo.helpers.storage import get_folder_from_label
 import os
 
@@ -166,9 +165,9 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
             Q = [0, 0.5]
             point_names = ['$\\Gamma$', 'X']
 
-    freqs_plot = calculate_frequency(phonons, k_list)
+    freqs_plot = phonons.forceconstants.second_order.calculate_frequency(k_list)
     if with_velocity:
-        vel_plot = calculate_velocity(phonons, k_list)
+        vel_plot = phonons.forceconstants.second_order.calculate_velocity(k_list)
         vel_norm = np.linalg.norm(vel_plot, axis=-1)
 
     fig1, ax1 = plt.subplots()

@@ -10,15 +10,13 @@ import ase.units as units
 from kaldo.helpers.tools import timeit
 from kaldo.grid import wrap_coordinates
 from scipy.linalg.lapack import dsyev
-
+from kaldo.forceconstant import chi
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
 
-def chi(qvec, list_of_replicas, cell_inv):
-    chi_k = np.exp(1j * 2 * np.pi * list_of_replicas.dot(cell_inv.dot(qvec)))
-    return chi_k
+
 
 
 def acoustic_sum_rule(dynmat):
@@ -55,79 +53,6 @@ class SecondOrder(ForceConstant):
         evtotenjovermol = units.mol / (10 * units.J)
         return dynmat * evtotenjovermol
 
-
-    def get_band_structure(self, path_kc, modes=False):
-        atoms = self.atoms
-        n_atoms = atoms.positions.shape[0]
-        supercell = self.supercell
-        C_N = self.value.reshape((3 * n_atoms, np.prod(self.supercell), 3 * n_atoms)).swapaxes(1, 0)
-
-        # Displace all atoms in the unit cell by default
-        indices = np.arange(len(atoms))
-        N_c = supercell
-
-        D_N = C_N.copy()
-
-        # Add mass prefactor
-        m_a = atoms.get_masses()
-        m_inv_x = np.repeat(m_a[indices] ** -0.5, 3)
-        M_inv = np.outer(m_inv_x, m_inv_x)
-        for D in D_N:
-            D *= M_inv
-        # Lattice vectors relevative to the reference cell
-        R_cN = np.indices(N_c).reshape(3, -1)
-        N_c = np.array(N_c)[:, np.newaxis]
-        R_cN += N_c // 2
-        R_cN %= N_c
-        R_cN -= N_c // 2
-        lattice_vectors = R_cN
-
-        # Lattice vectors -- ordered as illustrated in class docstring
-        R_cN = lattice_vectors
-
-        # Dynamical matrix in real-space
-
-        # Lists for frequencies and modes along path
-        omega_kl = []
-        u_kl = []
-
-        for q_c in path_kc:
-
-            # Evaluate fourier sum
-            phase_N = np.exp(-2.j * np.pi * np.dot(q_c, R_cN))
-            D_q = np.sum(phase_N[:, np.newaxis, np.newaxis] * D_N, axis=0)
-
-            if modes:
-                omega2_l, u_xl = np.linalg.eigh(D_q, UPLO='U')
-                # Sort eigenmodes according to eigenvalues (see below) and
-                # multiply with mass prefactor
-                u_lx = (m_inv_x[:, np.newaxis] *
-                        u_xl[:, omega2_l.argsort()]).T.copy()
-                u_kl.append(u_lx.reshape((-1, len(indices), 3)))
-            else:
-                omega2_l = np.linalg.eigvalsh(D_q, UPLO='U')
-
-            # Sort eigenvalues in increasing order
-            omega2_l.sort()
-            # Use dtype=complex to handle negative eigenvalues
-            omega_l = np.sqrt(omega2_l.astype(complex))
-
-            # Take care of imaginary frequencies
-            if not np.all(omega2_l >= 0.):
-                indices = np.where(omega2_l < 0)[0]
-
-                omega_l[indices] = -1 * np.sqrt(np.abs(omega2_l[indices].real))
-
-            omega_kl.append(omega_l.real)
-
-        # Conversion factor: sqrt(eV / Ang^2 / amu) -> eV
-        s = units._hbar * 1e10 / np.sqrt(units._e * units._amu)
-        omega_kl = s * np.asarray(omega_kl)
-
-        if modes:
-            return omega_kl, np.asarray(u_kl)
-
-        return omega_kl
 
     @classmethod
     def load(cls, folder, supercell=(1, 1, 1), format='eskm', is_acoustic_sum=False):
@@ -246,9 +171,10 @@ class SecondOrder(ForceConstant):
             raise ValueError
         return second_order
 
+
     @timeit
-    def calculate_frequency(self, q_points):
-        eigenvals = self.calculate_eigensystem(q_points, only_eigenvals=True)
+    def calculate_frequency(self, q_points, is_amorphous=False, distance_threshold=None):
+        eigenvals = self.calculate_eigensystem(q_points, is_amorphous, distance_threshold, only_eigenvals=True)
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequency.real
 
@@ -305,9 +231,9 @@ class SecondOrder(ForceConstant):
         return ddyn
 
 
-    def calculate_sij(self, q_points, is_amorphous):
-        dynmat_derivatives = self.calculate_dynmat_derivatives(q_points)
-        eigenvects = self.calculate_eigensystem(q_points)[:, 1:, :]
+    def calculate_sij(self, q_points, is_amorphous=False, distance_threshold=None):
+        dynmat_derivatives = self.calculate_dynmat_derivatives(q_points, is_amorphous, distance_threshold)
+        eigenvects = self.calculate_eigensystem(q_points, is_amorphous, distance_threshold, only_eigenvals=False)[:, 1:, :]
 
         logging.info('Calculating the flux operators')
         if is_amorphous:
@@ -318,10 +244,11 @@ class SecondOrder(ForceConstant):
             sij = contract('kim,kija,kjn->kmna', eigenvects.conj(), dynmat_derivatives, eigenvects)
         return sij
 
-    def calculate_velocity_af(self, q_points):
+
+    def calculate_velocity_af(self, q_points, is_amorphous=False, distance_threshold=None):
         n_modes = self.n_modes
-        sij = self.calculate_sij(q_points)
-        frequency = self.calculate_frequency(q_points)
+        sij = self.calculate_sij(q_points, is_amorphous, distance_threshold)
+        frequency = self.calculate_frequency(q_points, is_amorphous, distance_threshold)
         sij = sij.reshape((q_points.shape[0], n_modes, n_modes, 3))
         velocity_AF = contract('kmna,kmn->kmna', sij,
                                1 / (2 * np.pi * np.sqrt(frequency[:, :, np.newaxis]) * np.sqrt(
@@ -329,13 +256,13 @@ class SecondOrder(ForceConstant):
         return velocity_AF
 
 
-    def calculate_velocity(self, q_points):
-        velocity_AF = self.calculate_velocity_af(self, q_points)
+    def calculate_velocity(self, q_points, is_amorphous=False, distance_threshold=None):
+        velocity_AF = self.calculate_velocity_af(q_points, is_amorphous, distance_threshold)
         velocity = 1j * contract('kmma->kma', velocity_AF)
         return velocity.real
 
 
-    def calculate_eigensystem(self, q_points, only_eigenvals=False, distance_threshold=None, is_amorphous=False):
+    def calculate_eigensystem(self, q_points, is_amorphous=False, distance_threshold=None, only_eigenvals=False):
         atoms = self.atoms
         n_unit_cell = atoms.positions.shape[0]
         n_k_points = q_points.shape[0]
@@ -393,6 +320,8 @@ class SecondOrder(ForceConstant):
                     # evals, evects = zheev(dyn_s)[:2]
                 esystem[index_k] = np.vstack((evals, evects))
         return esystem
+
+
 
 
     def __str__(self):
