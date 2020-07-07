@@ -49,25 +49,34 @@ def calculate_heat_capacity(phonons):
     return c_v
 
 
+def calculate_sij_sparse(phonons):
+    diffusivity_threshold = phonons.diffusivity_threshold
+    if phonons.diffusivity_bandwidth is not None:
+        diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
+    else:
+        diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
+
+    omega = phonons._omegas.reshape(phonons.n_k_points, phonons.n_modes)
+    omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
+    condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
+    coords = np.array(np.unravel_index(np.flatnonzero(condition), condition.shape)).T
+    s_ij = [COO(coords.T, phonons.flux_dense[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
+                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+            COO(coords.T, phonons.flux_dense[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
+                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
+            COO(coords.T, phonons.flux_dense[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
+                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
+    return s_ij
+
+
 @timeit
-def calculate_frequency(phonons, q_points=None):
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
+def calculate_frequency(phonons, q_points):
     eigenvals = calculate_eigensystem(phonons, q_points, only_eigenvals=True)
     frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
     return frequency.real
 
 
-def calculate_dynmat_derivatives(phonons, q_points=None):
-    ddyn = calculate_dynmat_derivatives_numpy(phonons, q_points)
-    return ddyn
-
-
-def calculate_dynmat_derivatives_numpy(phonons, q_points=None):
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
+def calculate_dynmat_derivatives(phonons, q_points):
     atoms = phonons.atoms
     list_of_replicas = phonons.forceconstants.second_order.list_of_replicas
     replicated_cell = phonons.forceconstants.second_order.replicated_atoms.cell
@@ -117,14 +126,9 @@ def calculate_dynmat_derivatives_numpy(phonons, q_points=None):
     return ddyn
 
 
-def calculate_sij(phonons, q_points=None):
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        dynmat_derivatives = phonons._dynmat_derivatives
-        eigenvects = phonons._eigensystem[:, 1:, :]
-    else:
-        dynmat_derivatives = calculate_dynmat_derivatives(phonons, q_points)
-        eigenvects = calculate_eigensystem(phonons, q_points)[:, 1:, :]
+def calculate_sij(phonons, q_points):
+    dynmat_derivatives = calculate_dynmat_derivatives(phonons, q_points)
+    eigenvects = calculate_eigensystem(phonons, q_points)[:, 1:, :]
 
     if phonons.is_antisymmetrizing_velocity:
         # TODO: Clean up the following logic to make it independent of the system
@@ -146,35 +150,9 @@ def calculate_sij(phonons, q_points=None):
     return sij
 
 
-def calculate_sij_sparse(phonons):
-    diffusivity_threshold = phonons.diffusivity_threshold
-    if phonons.diffusivity_bandwidth is not None:
-        diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
-    else:
-        diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
-
-    omega = phonons._omegas.reshape(phonons.n_k_points, phonons.n_modes)
-    omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
-    condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
-    coords = np.array(np.unravel_index(np.flatnonzero(condition), condition.shape)).T
-    s_ij = [COO(coords.T, phonons.flux_dense[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
-                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-            COO(coords.T, phonons.flux_dense[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
-                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-            COO(coords.T, phonons.flux_dense[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
-                shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
-    return s_ij
-
-
-def calculate_velocity_af(phonons, q_points=None):
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
-        sij = phonons.flux
-        frequency = phonons.frequency
-    else:
-        sij = calculate_sij(phonons, q_points)
-        frequency = calculate_frequency(phonons, q_points)
+def calculate_velocity_af(phonons, q_points):
+    sij = calculate_sij(phonons, q_points)
+    frequency = calculate_frequency(phonons, q_points)
     sij = sij.reshape((q_points.shape[0], phonons.n_modes, phonons.n_modes, 3))
     velocity_AF = contract('kmna,kmn->kmna', sij,
                              1 / (2 * np.pi * np.sqrt(frequency[:, :, np.newaxis]) * np.sqrt(
@@ -182,137 +160,14 @@ def calculate_velocity_af(phonons, q_points=None):
     return velocity_AF
 
 
-def calculate_velocity(phonons, q_points=None):
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        velocity_AF = phonons._velocity_af
-    else:
-        velocity_AF = calculate_velocity_af(phonons, q_points)
+def calculate_velocity(phonons, q_points):
+    velocity_AF = calculate_velocity_af(phonons, q_points)
     velocity = 1j * contract('kmma->kma', velocity_AF)
     return velocity.real
 
 
-def calculate_eigensystem(phonons, q_points=None, only_eigenvals=False):
-    eigensystem = calculate_eigensystem_numpy(phonons, q_points, only_eigenvals)
-    return eigensystem
 
-
-def phexp(input):
-    # input = -1j * input
-    return np.cos(input.real) - 1j * np.sin(input.real)
-
-
-def wrap_coords_shen(mmm, scell):
-    m1, m2, m3 = mmm
-    t1 = np.mod(m1, scell[0])
-    if (t1 < 0):
-        t1 = t1 + scell[0]
-    t2 = np.mod(m2, scell[1])
-    if (t2 < 0):
-        t2 = t2 + scell[1]
-    t3 = np.mod(m3, scell[2])
-    if (t3 < 0):
-        t3 = t3 + scell[3]
-    return np.array([t1, t2, t3])
-
-
-def calculate_eigensystem_lapack(phonons, q_points=None, only_eigenvals=False):
-    # Debugging method to compare results, do not use
-    is_main_mesh = True if q_points is None else False
-
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
-
-    forceconstants = phonons.forceconstants
-    scell = phonons.supercell
-    atoms = forceconstants.atoms
-    lattvec = atoms.cell
-    n_unit_cell = atoms.positions.shape[0]
-    distance = np.zeros((n_unit_cell, n_unit_cell, 3))
-    positions = atoms.positions
-
-    ev_s = (units._hplanck) * units.J
-    toTHz = 2 * np.pi * units.Rydberg / ev_s * 1e-12
-    massfactor = 2 * units._me * units._Nav * 1000
-
-    fc_s = forceconstants.second_order.dynmat(atoms.get_masses()) / (Rydberg / (Bohr ** 2))
-    EVTOTENJOVERMOL = units.mol / (10 * units.J)
-    fc_s = fc_s / EVTOTENJOVERMOL * massfactor
-    fc_s = fc_s.reshape((n_unit_cell, 3, scell[0], scell[1], scell[2], n_unit_cell, 3))
-
-    distance = (positions[:, np.newaxis, :] - positions[np.newaxis, :, :])
-
-    replicated_cell = lattvec * scell
-    ir = 0
-    supercell_replicas = np.zeros((125, 3))
-    Rnorm = np.zeros((125))
-
-    for ix2 in np.arange(-2, 3):
-        for iy2 in np.arange(-2, 3):
-            for iz2 in np.arange(-2, 3):
-
-                for i in np.arange(3):
-                    supercell_replicas[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2,iy2,iz2]))
-                Rnorm[ir] = 0.5 * np.dot(supercell_replicas[ir, :3], supercell_replicas[ir, :3])
-                ir = ir + 1
-    nk = q_points.shape[0]
-    dyn_s = np.zeros((nk, n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-    threshold = 1e-6
-
-    for ix1 in np.arange(-2 * scell[0], 2 * scell[0] + 1):
-        for iy1 in np.arange(-2 * scell[1], 2 * scell[1] + 1):
-            for iz1 in np.arange(-2 * scell[2], 2 * scell[2] + 1):
-
-
-                replica_id = np.array([ix1, iy1, iz1])
-                rcell = np.tensordot(lattvec, replica_id, (0, -1))
-
-                for iat in np.arange(n_unit_cell):
-                    for jat in np.arange(n_unit_cell):
-                        dist = rcell + (positions[iat, :] - positions[jat, :])
-                        projection = (np.tensordot(dist, supercell_replicas[:], (0, -1)) - Rnorm[:])
-                        is_negative = bool((projection <= threshold).prod())
-                        eq_mask = np.abs(projection) <= threshold
-                        first_cell_position = np.argwhere(np.all(supercell_replicas == 0, axis=1))[0, 0]
-                        eq_mask[first_cell_position] = True
-                        neq = (eq_mask).sum()
-
-                        if is_negative:
-                            weight = 1.0 / (neq)
-
-
-                            t1, t2, t3 = wrap_coords_shen(replica_id, scell).astype(np.int)
-                            for ik in np.arange(nk):
-
-                                qr = 2. * np.pi * np.dot(q_points[ik, :], replica_id[:])
-
-
-                                dyn_s[ik, iat, :, jat, :] = dyn_s[ik, iat, :, jat, :] + fc_s[
-                                     jat, :, t1, t2, t3, iat, :] * phexp(1 * qr) * weight
-
-    frequency = np.zeros((nk, n_unit_cell * 3))
-    if only_eigenvals:
-        esystem = np.zeros((nk, n_unit_cell * 3), dtype=np.complex)
-    else:
-        esystem = np.zeros((nk, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=np.complex)
-
-    for ik in np.arange(nk):
-        dyn = dyn_s[ik, ...].reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        omega2,eigenvect,info = zheev(dyn)
-        frequency[ik, :] = np.sign(omega2) * np.sqrt(np.abs(omega2))
-        frequency[ik, :] = frequency[ik, :] * toTHz / np.pi / 2
-        if only_eigenvals:
-            esystem[ik] = (frequency[ik, :] * np.pi * 2) ** 2
-        else:
-            esystem[ik] = np.vstack(((frequency[ik, :] * np.pi * 2) ** 2, eigenvect))
-    return esystem
-
-
-def calculate_eigensystem_numpy(phonons, q_points=None, only_eigenvals=False):
-    is_main_mesh = True if q_points is None else False
-    if is_main_mesh:
-        q_points = phonons._main_q_mesh
+def calculate_eigensystem(phonons, q_points, only_eigenvals=False):
     atoms = phonons.atoms
     n_unit_cell = atoms.positions.shape[0]
     n_k_points = q_points.shape[0]

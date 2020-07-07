@@ -135,7 +135,8 @@ class Phonons:
         frequency : np array
             (n_k_points, n_modes) frequency in THz
         """
-        frequency = calculate_frequency(self)
+        q_points = self._main_q_mesh
+        frequency = calculate_frequency(self, q_points)
         return frequency.reshape(self.n_k_points, self.n_modes)
 
 
@@ -147,7 +148,9 @@ class Phonons:
         velocity : np array
             (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
         """
-        velocity = calculate_velocity(self)
+
+        q_points = self._main_q_mesh
+        velocity = calculate_velocity(self, q_points)
         return velocity
 
 
@@ -249,7 +252,8 @@ class Phonons:
         -------
         flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
         """
-        sij = calculate_sij(self)
+        q_points = self._main_q_mesh
+        sij = calculate_sij(self, q_points)
         return sij
 
 
@@ -294,7 +298,8 @@ class Phonons:
 
     @lazy_property(label='')
     def _dynmat_derivatives(self):
-        dynmat_derivatives = calculate_dynmat_derivatives(self)
+        q_points = self._main_q_mesh
+        dynmat_derivatives = calculate_dynmat_derivatives(self, q_points)
         return dynmat_derivatives
 
 
@@ -310,7 +315,8 @@ class Phonons:
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
-        eigensystem = calculate_eigensystem(self)
+        q_points = self._main_q_mesh
+        eigensystem = calculate_eigensystem(self, q_points)
         return eigensystem
 
 
@@ -350,7 +356,8 @@ class Phonons:
 
     @property
     def _velocity_af(self):
-        velocity_AF = calculate_velocity_af(self)
+        q_points = self._main_q_mesh
+        velocity_AF = calculate_velocity_af(self, q_points)
         return velocity_AF
 
 

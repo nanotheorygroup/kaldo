@@ -85,7 +85,7 @@ class ThirdOrder(ForceConstant):
 
         elif format == 'shengbte' or format == 'shengbte-qe':
             if format=='shengbte-qe':
-                grid_type='C'
+                grid_type='F'
             else:
                 grid_type='F'
 
