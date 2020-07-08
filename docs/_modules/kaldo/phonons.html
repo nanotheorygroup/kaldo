@@ -237,9 +237,8 @@
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">Grid</span>
-<span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> <span class="n">calculate_physical_modes</span><span class="p">,</span> <span class="n">calculate_frequency</span><span class="p">,</span> <span class="n">calculate_velocity</span><span class="p">,</span> \
-    <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span><span class="p">,</span> <span class="n">calculate_dynmat_derivatives</span><span class="p">,</span> <span class="n">calculate_eigensystem</span><span class="p">,</span> \
-    <span class="n">calculate_velocity_af</span><span class="p">,</span> <span class="n">calculate_sij</span><span class="p">,</span> <span class="n">calculate_sij_sparse</span><span class="p">,</span> <span class="n">calculate_generalized_diffusivity</span><span class="p">,</span> <span class="n">chi</span>
+<span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> <span class="n">calculate_physical_modes</span><span class="p">,</span> \
+    <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span><span class="p">,</span> <span class="n">calculate_sij_sparse</span><span class="p">,</span> <span class="n">calculate_generalized_diffusivity</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="k">import</span> <span class="n">contract</span>
 
@@ -365,7 +364,8 @@
 <span class="sd">        frequency : np array</span>
 <span class="sd">            (n_k_points, n_modes) frequency in THz</span>
 <span class="sd">        """</span>
-        <span class="n">frequency</span> <span class="o">=</span> <span class="n">calculate_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_frequency</span><span class="p">(</span><span class="n">q_points</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
 
 
@@ -377,7 +377,12 @@
 <span class="sd">        velocity : np array</span>
 <span class="sd">            (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps</span>
 <span class="sd">        """</span>
-        <span class="n">velocity</span> <span class="o">=</span> <span class="n">calculate_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_velocity</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
+                                                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                                                                       <span class="n">distance_threshold</span><span class="o">=</span>
+                                                                       <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">velocity</span>
 
 
@@ -479,7 +484,11 @@
 <span class="sd">        -------</span>
 <span class="sd">        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</span>
 <span class="sd">        """</span>
-        <span class="n">sij</span> <span class="o">=</span> <span class="n">calculate_sij</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">sij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_sij</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
+                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                                                             <span class="n">distance_threshold</span><span class="o">=</span>
+                                                             <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">sij</span>
 
 
@@ -524,7 +533,8 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_dynmat_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="n">calculate_dynmat_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_dynmat_derivatives</span><span class="p">(</span><span class="n">q_points</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">dynmat_derivatives</span>
 
 
@@ -540,7 +550,12 @@
 
 <span class="sd">            If the system is not amorphous, these values are stored as complex numbers.</span>
 <span class="sd">        """</span>
-        <span class="n">eigensystem</span> <span class="o">=</span> <span class="n">calculate_eigensystem</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+
+        <span class="n">eigensystem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_eigensystem</span><span class="p">(</span><span class="n">q_points</span><span class="o">=</span><span class="n">q_points</span><span class="p">,</span>
+                                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                                                                             <span class="n">distance_threshold</span><span class="o">=</span>
+                                                                             <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">eigensystem</span>
 
 
@@ -580,7 +595,11 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_velocity_af</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">velocity_AF</span> <span class="o">=</span> <span class="n">calculate_velocity_af</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">velocity_AF</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_velocity_af</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
+                                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                                                                             <span class="n">distance_threshold</span><span class="o">=</span>
+                                                                             <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">velocity_AF</span>
 
 

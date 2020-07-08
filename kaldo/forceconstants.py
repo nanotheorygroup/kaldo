@@ -14,8 +14,8 @@ logging = get_logger()
 MAIN_FOLDER = 'displacement'
 
 
-class ForceConstants(object):
-    """ Class for constructing the finite difference object to calculate_second
+class ForceConstants:
+    """ Class for constructing the finite difference object to calculate
         the second/third order force constant matrices after providing the
         unit cell geometry and calculator information.
     """

@@ -241,8 +241,7 @@
   
 <h1 id="docsource-tutorials--page-root">Tutorials<a class="headerlink" href="#docsource-tutorials--page-root" title="Permalink to this headline">¶</a></h1>
 <p>All examples explained here can be found in the <img alt="examples" class="math" src="../_images/math/fd875c34d5654abf47074c2dfe6d460ba8c0f344.png"/> folder. There are
-also two tutorials available in the documentation that can be run in
-<img alt="Binder&lt;https://mybinder.org/&gt;" class="math" src="../_images/math/16f43c9d83df77e3c2fda8d30f9b108d9bdba10d.png"/> and <img alt="Google Colab&lt;https://colab.research.google.com&gt;" class="math" src="../_images/math/1f8cc9842c3ba19c9af007dfc17227868ca4a96f.png"/>.
+also two tutorials available in the documentation that can be run in <img alt="Google Colab&lt;https://colab.research.google.com&gt;" class="math" src="../_images/math/1f8cc9842c3ba19c9af007dfc17227868ca4a96f.png"/>.
 This page is a collection of tutorials that have been explained in further
 detail. If you are new to kaldo and thermal conductivity study, this area
 may be a good place to start. Please note that some tutorials also require
@@ -271,7 +270,7 @@ reciprocal-space cell dimensions are printed out.</p>
 </td></tr></table></div>
 <p>Run the <img alt="in.lmp" class="math" src="../_images/math/30094ae53aa54b471401457b31f5dcdefbb95b97.png"/> file with  <img alt="lmp_mpi &lt; in.lmp" class="math" src="../_images/math/7099df4d5f755c18b54df10d2a5b5c0cd676e0e8.png"/> to get the derivatives of the force constant
 matrix labeled <img alt="third.bin" class="math" src="../_images/math/3f91ca37870f6ee9a9603e5db613e2b7dc23ab3a.png"/> and <img alt="dynmat.dat" class="math" src="../_images/math/e80401f520285789274f85f6a3a701f3ad493790.png"/>.</p>
-<p>Moving on, <img alt="2_calculate_phonons.py" class="math" src="../_images/math/b5b80cdd9c2b2f7c5f54290335bbf66927b5a03e.png"/> constructs a <span class="xref std std-ref">Finite Difference</span>
+<p>Moving on, <img alt="2_calculate_phonons.py" class="math" src="../_images/math/b5b80cdd9c2b2f7c5f54290335bbf66927b5a03e.png"/> constructs a <a class="reference internal" href="api_forceconstants.html#forceconstants-api"><span class="std std-ref">ForceConstants</span></a>
 object is created with the atoms from the previous step along the dynamical
 matrix and the third order derivative of the force constant matrix found from the
 LAMMPS script.</p>
