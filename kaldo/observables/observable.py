@@ -6,8 +6,12 @@ import h5py
 
 
 class Observable:
-    def __init__(self, **kwargs):
-        self.folder = kwargs.pop('folder', 'kALDo/')
+    def __init__(self, *kargs, **kwargs):
+        try:
+            self.folder = kwargs['folder']
+        except KeyError:
+            self.folder = 'kALDo/'
+
 
 
 

@@ -293,7 +293,7 @@
 <span class="sd">        phonons : Phonons</span>
 <span class="sd">            contains all the information about the calculated phononic properties of the system</span>
 <span class="sd">        method : 'rta', 'sc', 'qhgk', 'inverse'</span>
-<span class="sd">            specifies the method used to calculate the conductivity.</span>
+<span class="sd">            specifies the method used to calculate_second the conductivity.</span>
 <span class="sd">        tolerance : int</span>
 <span class="sd">            in the self consistent conductivity calculation, it specifies the difference in W/m/K between n</span>
 <span class="sd">            and n+1 step, to set as exit/convergence condition.</span>
@@ -304,10 +304,10 @@
 <span class="sd">            in the self consistent conductivity calculation, it specifies the difference in W/m/K between n</span>
 <span class="sd">            and n+1 step, to set as exit/convergence condition.</span>
 <span class="sd">        length: (float, float, float)</span>
-<span class="sd">            specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values</span>
+<span class="sd">            specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values</span>
 <span class="sd">            corresponds to the infinity length limit.</span>
 <span class="sd">        finite_length_method : 'matthiessen', 'ms', 'caltech'</span>
-<span class="sd">            specifies how to calculate the finite size conductivity. 'ms' is the Mckelvey-Schockley method.</span>
+<span class="sd">            specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.</span>
 <span class="sd">        storage : 'formatted', 'hdf5', 'numpy', 'memory'</span>
 <span class="sd">            defines the type of storage used for the simulation.</span>
 
@@ -318,7 +318,7 @@
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Here's an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes</span>
+<span class="sd">        Here's an example to calculate_second the inverse conductivity on the phonons object and tracing over the phonons modes</span>
 <span class="sd">        </span>
 <span class="sd">        ```</span>
 <span class="sd">        Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))</span>
@@ -553,7 +553,7 @@
         <span class="sd">"""</span>
 <span class="sd">        This calculates the mean free path of relaxons. In materials where most scattering events conserve momentum</span>
 <span class="sd">        :ref:'Relaxon Theory Section' (e.g. in two dimensional materials or three dimensional materials at extremely low</span>
-<span class="sd">        temparatures), this quantity can be used to calculate thermal conductivity.</span>
+<span class="sd">        temparatures), this quantity can be used to calculate_second thermal conductivity.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">	-------</span>

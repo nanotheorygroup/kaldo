@@ -32,28 +32,30 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant):
-    def __init__(self, **kwargs):
-        ifc = ForceConstant.__init__(self, **kwargs)
-        is_acoustic_sum = kwargs.pop('is_acoustic_sum', False)
-        if is_acoustic_sum:
-            ifc.value = acoustic_sum_rule(ifc.value)
+    def __init__(self, *kargs, **kwargs):
+        ForceConstant.__init__(self, *kargs, **kwargs)
+        try:
+            is_acoustic_sum = kwargs['is_acoustic_sum']
+        except KeyError:
+            is_acoustic_sum = False
 
+        self.value = kwargs['value']
+        if is_acoustic_sum:
+            self.value = acoustic_sum_rule(self.value)
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None
-        return ifc
 
 
     @classmethod
-    def from_supercell(cls, atoms, grid_type, supercell=None, force_constant=None, is_acoustic_sum=False):
-        if force_constant is not None and is_acoustic_sum is not None:
-            force_constant = acoustic_sum_rule(force_constant)
-        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, force_constant)
+    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False):
+        if value is not None and is_acoustic_sum is not None:
+            value = acoustic_sum_rule(value)
+        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value)
         return ifc
 
 
     def dynmat(self, mass):
-        dynmat = self.value
-        dynmat = contract('mialjb,i,j->mialjb', dynmat, 1 / np.sqrt(mass), 1 / np.sqrt(mass))
+        dynmat = contract('mialjb,i,j->mialjb', self.value, 1 / np.sqrt(mass), 1 / np.sqrt(mass))
         evtotenjovermol = units.mol / (10 * units.J)
         return dynmat * evtotenjovermol
 
@@ -83,8 +85,11 @@ class SecondOrder(ForceConstant):
                           pbc=[1, 1, 1])
 
             _second_order = np.load(folder + SECOND_ORDER_FILE)
-            second_order = SecondOrder(atoms, replicated_atoms.positions, supercell, _second_order,
-                                                         is_acoustic_sum=is_acoustic_sum)
+            second_order = SecondOrder(atoms=atoms,
+                                       replicated_positions=replicated_atoms.positions,
+                                       supercell=supercell,
+                                       value=_second_order,
+                                       is_acoustic_sum=is_acoustic_sum)
 
         elif format == 'eskm':
             config_file = str(folder) + "/CONFIG"
@@ -110,8 +115,11 @@ class SecondOrder(ForceConstant):
             _second_order, _ = import_from_files(replicated_atoms=replicated_atoms,
                                                  dynmat_file=dynmat_file,
                                                  supercell=supercell)
-            second_order = SecondOrder(atoms, replicated_atoms.positions, supercell, _second_order,
-                                                         is_acoustic_sum=is_acoustic_sum)
+            second_order = SecondOrder(atoms=atoms,
+                                       replicated_positions=replicated_atoms.positions,
+                                       supercell=supercell,
+                                       value=_second_order,
+                                       is_acoustic_sum=is_acoustic_sum)
         elif format == 'shengbte' or format == 'shengbte-qe':
 
             config_file = folder + '/' + 'CONTROL'
@@ -137,11 +145,11 @@ class SecondOrder(ForceConstant):
                 second_order = shengbte_io.read_second_order_matrix(folder, supercell)
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                 grid_type = 'C'
-            second_order = SecondOrder.from_supercell(atoms,
-                                                                        grid_type=grid_type,
-                                                                        supercell=supercell,
-                                                                        force_constant=second_order[np.newaxis, ...],
-                                                                        is_acoustic_sum=True)
+            second_order = SecondOrder.from_supercell(atoms=atoms,
+                                                      grid_type=grid_type,
+                                                      supercell=supercell,
+                                                      value=second_order[np.newaxis, ...],
+                                                      is_acoustic_sum=True)
 
 
 
@@ -166,9 +174,10 @@ class SecondOrder(ForceConstant):
             if 'model2.fcs' in os.listdir(str(folder)):
                 _second_order = hiphive_io.import_second_from_hiphive(folder, np.prod(supercell),
                                                                       atoms.positions.shape[0])
-                second_order = SecondOrder(atoms, replicated_atoms.positions,
-                                                             supercell,
-                                                             _second_order)
+                second_order = SecondOrder(atoms=atoms,
+                                           replicated_positions=replicated_atoms.positions,
+                                           supercell=supercell,
+                                           value=_second_order)
 
 
         else:

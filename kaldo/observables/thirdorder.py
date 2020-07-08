@@ -53,7 +53,10 @@ class ThirdOrder(ForceConstant):
 
             _third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE)) \
                 .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-            third_order = ThirdOrder(atoms, replicated_atoms.positions, supercell, _third_order)
+            third_order = ThirdOrder(atoms=atoms,
+                                     replicated_positions=replicated_atoms.positions,
+                                     supercell=supercell,
+                                     value=_third_order)
 
         elif format == 'eskm':
             config_file = str(folder) + "/CONFIG"
@@ -76,19 +79,18 @@ class ThirdOrder(ForceConstant):
                           pbc=[1, 1, 1])
 
 
-            _, _third_order = import_from_files(replicated_atoms=replicated_atoms,
+            out = import_from_files(replicated_atoms=replicated_atoms,
                                                 third_file=third_file,
                                                 supercell=supercell,
                                                 third_energy_threshold=third_energy_threshold)
-            third_order = ThirdOrder(atoms, replicated_atoms.positions, supercell, _third_order)
+            third_order = ThirdOrder(atoms=atoms,
+                                     replicated_positions=replicated_atoms.positions,
+                                     supercell=supercell,
+                                     value=out[1])
 
 
         elif format == 'shengbte' or format == 'shengbte-qe':
-            if format=='shengbte-qe':
-                grid_type='F'
-            else:
-                grid_type='F'
-
+            grid_type='F'
             config_file = folder + '/' + 'CONTROL'
             try:
                 atoms, supercell = shengbte_io.import_control_file(config_file)
@@ -100,10 +102,10 @@ class ThirdOrder(ForceConstant):
             third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
 
             third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
-            third_order = ThirdOrder.from_supercell(atoms,
+            third_order = ThirdOrder.from_supercell(atoms=atoms,
                                                     grid_type=grid_type,
                                                     supercell=supercell,
-                                                    force_constant=third_order)
+                                                    value=third_order)
 
         elif format == 'hiphive':
             filename = 'atom_prim.xyz'
@@ -131,10 +133,10 @@ class ThirdOrder(ForceConstant):
                 _third_order = hiphive_io.import_third_from_hiphive(atoms, supercell, folder)
                 _third_order = _third_order[0].reshape(n_prim * dim, n_sc * n_prim * dim,
                                                                        n_sc * n_prim * dim)
-                third_order = cls(atoms,
-                                                           replicated_atoms.positions,
-                                                           supercell,
-                                                           _third_order)
+                third_order = cls(atoms=atoms,
+                                  replicated_positions=replicated_atoms.positions,
+                                  supercell=supercell,
+                                  value=_third_order)
 
 
         else:
