@@ -19,7 +19,7 @@
 
 .. toctree::
    :glob:
-   :caption: Learning
+   :caption: Tutorials
    
    docsource/crystal_presentation.ipynb
    docsource/amorphous_presentation.ipynb

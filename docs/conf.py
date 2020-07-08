@@ -149,6 +149,8 @@ html_theme_options = {
     'globaltoc_collapse': False,
     # If True, show hidden TOC entries
     'globaltoc_includehidden': False,
+    # 'nav_links':[{'href':'./',href
+    #               'title': 'test_link'}]
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
