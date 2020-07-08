@@ -2,7 +2,9 @@ import numpy as np
 import ase.units as units
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
-from kaldo.observable import Observable
+from kaldo.controllers.displacement import calculate_third
+
+from kaldo.observables.observable import Observable
 logging = get_logger()
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
@@ -111,3 +113,16 @@ class ForceConstant(Observable):
             cell_inv = self.cell_inv
             ch[index_q] = chi(k_point, list_of_replicas, cell_inv)
         return ch
+
+
+    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None):
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        atoms.set_calculator(calculator)
+        replicated_atoms.set_calculator(calculator)
+
+        _third_order = calculate_third(atoms,
+                                       replicated_atoms,
+                                       delta_shift,
+                                       distance_threshold=distance_threshold)
+        self.value = _third_order

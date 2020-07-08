@@ -59,19 +59,6 @@ def calculate_sij_sparse(phonons):
     return s_ij
 
 
-def calculate_physical_modes(phonons):
-    physical_modes = np.ones_like(phonons.frequency.reshape(phonons.n_phonons), dtype=bool)
-    if phonons.min_frequency is not None:
-        physical_modes = physical_modes & (phonons.frequency.reshape(phonons.n_phonons) > phonons.min_frequency)
-    if phonons.max_frequency is not None:
-        physical_modes = physical_modes & (phonons.frequency.reshape(phonons.n_phonons) < phonons.max_frequency)
-    if phonons.is_nw:
-        physical_modes[:4] = False
-    else:
-        physical_modes[:3] = False
-    return physical_modes
-
-
 def calculate_diffusivity_dense(phonons):
     omega = phonons._omegas.reshape((phonons.n_k_points, phonons.n_modes))
     if phonons.diffusivity_bandwidth is not None:

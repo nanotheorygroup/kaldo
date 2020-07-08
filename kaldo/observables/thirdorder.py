@@ -1,4 +1,4 @@
-from kaldo.forceconstant import ForceConstant
+from kaldo.observables.forceconstant import ForceConstant
 
 from ase import Atoms
 import os

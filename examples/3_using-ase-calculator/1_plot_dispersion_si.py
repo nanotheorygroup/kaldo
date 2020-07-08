@@ -46,8 +46,8 @@ forceconstants = ForceConstants(atoms=atoms,supercell=supercell,folder='si-fd')
 
 # Compute 2nd and 3rd IFCs with the defined calculators
 
-forceconstants.calculate_second(LAMMPSlib(**lammps_inputs))
-forceconstants.calculate_third(LAMMPSlib(**lammps_inputs))
+forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))
+forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 
 kpts = [5, 5, 5]
 temperature = 300
