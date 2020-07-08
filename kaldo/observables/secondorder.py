@@ -1,4 +1,4 @@
-from kaldo.forceconstant import ForceConstant
+from kaldo.observables.forceconstant import ForceConstant
 from opt_einsum import contract
 from ase import Atoms
 import os
@@ -10,7 +10,8 @@ import ase.units as units
 from kaldo.helpers.tools import timeit
 from kaldo.grid import wrap_coordinates
 from scipy.linalg.lapack import dsyev
-from kaldo.forceconstant import chi
+from kaldo.observables.forceconstant import chi
+from kaldo.controllers.displacement import calculate_second
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
@@ -322,6 +323,12 @@ class SecondOrder(ForceConstant):
         return esystem
 
 
+    def calculate(self, calculator, delta_shift=1e-3):
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        atoms.set_calculator(calculator)
+        replicated_atoms.set_calculator(calculator)
+        self.value = calculate_second(atoms, replicated_atoms, delta_shift)
 
 
     def __str__(self):

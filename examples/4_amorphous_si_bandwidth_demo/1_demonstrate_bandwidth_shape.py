@@ -18,7 +18,7 @@ forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format=
 ##########################################
 # 2. Calculating Bandwidths
 ##########################################
-# With the newly created finite difference object, you can create a Phonon object to calculate
+# With the newly created finite difference object, you can create a Phonon object to calculate_second
 # the dispersion relation, phase space and mode bandwidths for the system.
 
 # Here we will demonstrate the effects that the different band broadening shapes have on the numerical data of amorphous
