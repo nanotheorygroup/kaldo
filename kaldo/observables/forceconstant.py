@@ -15,26 +15,29 @@ def chi(qvec, list_of_replicas, cell_inv):
 
 
 class ForceConstant(Observable):
-    def __init__(self, atoms, replicated_positions, supercell=None, force_constant=None):
-        self.atoms = atoms
+
+    def __init__(self, **kwargs):
+        ifc = Observable.__init__(self, **kwargs)
+        self.atoms = kwargs.pop('atoms')
+        replicated_positions = kwargs.pop('replicated_positions')
+        self.supercell = kwargs.pop('supercell', None)
+        self.value = kwargs.pop('force_constant', None)
+
         self._replicated_atoms = None
-        if force_constant is not None:
-            self.value = force_constant
         self.replicated_positions = replicated_positions.reshape(
-            (-1, atoms.positions.shape[0], atoms.positions.shape[1]))
-        self.supercell = supercell
-        self.n_replicas = np.prod(supercell)
+            (-1, self.atoms.positions.shape[0], self.atoms.positions.shape[1]))
+        self.n_replicas = np.prod(self.supercell)
         self._cell_inv = None
         self._replicated_cell_inv = None
         self._list_of_replicas = None
         n_replicas, n_unit_atoms, _ = self.replicated_positions.shape
-        atoms_positions = atoms.positions
+        atoms_positions = self.atoms.positions
         detected_grid = np.round(
             (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
-                np.linalg.inv(atoms.cell))[:, 0, :], 0).astype(np.int)
+                np.linalg.inv(self.atoms.cell))[:, 0, :], 0).astype(np.int)
 
-        grid_c = Grid(grid_shape=supercell, order='C')
-        grid_fortran = Grid(grid_shape=supercell, order='F')
+        grid_c = Grid(grid_shape=self.supercell, order='C')
+        grid_fortran = Grid(grid_shape=self.supercell, order='F')
         if (grid_c.grid() == detected_grid).all():
             grid_type = 'C'
         elif (grid_fortran.grid() == detected_grid).all():
@@ -46,7 +49,8 @@ class ForceConstant(Observable):
             logging.info("Using C-style position grid")
         else:
             logging.info("Using fortran-style position grid")
-        self._direct_grid = Grid(supercell, grid_type)
+        self._direct_grid = Grid(self.supercell, grid_type)
+        return ifc
 
 
     @classmethod
@@ -54,10 +58,10 @@ class ForceConstant(Observable):
         _direct_grid = Grid(supercell, grid_type)
         replicated_positions = _direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
                                                                                        np.newaxis, :, :]
-        inst = cls(atoms,
-                   replicated_positions,
-                   supercell,
-                   force_constant)
+        inst = cls(atoms=atoms,
+                   replicated_positions=replicated_positions,
+                   supercell=supercell,
+                   force_constant=force_constant)
         inst._direct_grid = _direct_grid
         return inst
 
