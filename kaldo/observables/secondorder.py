@@ -32,12 +32,15 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant):
-    def __init__(self, atoms, replicated_positions, supercell=None, force_constant=None, is_acoustic_sum=False):
+    def __init__(self, **kwargs):
+        ifc = ForceConstant.__init__(self, **kwargs)
+        is_acoustic_sum = kwargs.pop('is_acoustic_sum', False)
         if is_acoustic_sum:
-            force_constant = acoustic_sum_rule(force_constant)
-        ForceConstant.__init__(self, atoms, replicated_positions, supercell, force_constant)
+            ifc.value = acoustic_sum_rule(ifc.value)
+
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None
+        return ifc
 
 
     @classmethod
@@ -324,6 +327,7 @@ class SecondOrder(ForceConstant):
 
 
     def calculate(self, calculator, delta_shift=1e-3):
+
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)

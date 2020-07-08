@@ -6,6 +6,9 @@ import h5py
 
 
 class Observable:
+    def __init__(self, **kwargs):
+        self.folder = kwargs.pop('folder', 'kALDo/')
+
 
 
     @classmethod
