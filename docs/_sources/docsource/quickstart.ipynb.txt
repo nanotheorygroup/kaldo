@@ -16,7 +16,7 @@
     "\n",
     "kaldo installation can be done using `pip`\n",
     "```bash\n",
-    "pip install kaldo\n",
+    "pip install git+https://github.com/nanotheorygroup/kaldo\n",
     "```\n",
     "\n",
     "### Code Architecture\n",
@@ -113,10 +113,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
+    "source": [],
     "metadata": {
      "collapsed": false
-    },
-    "source": []
+    }
    }
   }
  },

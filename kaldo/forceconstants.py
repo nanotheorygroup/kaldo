@@ -15,7 +15,7 @@ DELTA_SHIFT = 1e-5
 MAIN_FOLDER = 'displacement'
 
 
-class ForceConstants(object):
+class ForceConstants:
     """ Class for constructing the finite difference object to calculate
         the second/third order force constant matrices after providing the
         unit cell geometry and calculator information.

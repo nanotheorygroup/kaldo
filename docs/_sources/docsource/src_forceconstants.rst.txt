@@ -1,6 +1,6 @@
-.. _src-forceconstant:
+.. _src-forceconstants:
 
-Finite Difference Source Code
+ForceConstants Source Code
 ##############################
 
 .. literalinclude:: ../../kaldo/forceconstants.py
