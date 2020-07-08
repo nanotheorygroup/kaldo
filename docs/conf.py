@@ -144,13 +144,17 @@ html_theme_options = {
     'repo_name': 'kALDo',
 
     # Visible levels of the global TOC; -1 means unlimited
-    'globaltoc_depth': -1,
+    'globaltoc_depth': 1,
     # If False, expand all TOC entries
-    'globaltoc_collapse': False,
+    'globaltoc_collapse': True,
     # If True, show hidden TOC entries
     'globaltoc_includehidden': False,
     # 'nav_links':[{'href':'./',href
     #               'title': 'test_link'}]
+}
+
+html_sidebars = {
+    "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

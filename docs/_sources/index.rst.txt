@@ -4,7 +4,9 @@
    contain the root `toctree` directive.
 
 .. image:: docsource/_resources/logo.png
-   :width: 600
+   :width: 400
+
+kALDo. Thermal transport in crystalline and non-crystalline solids.
 
 .. toctree::
    :glob:
