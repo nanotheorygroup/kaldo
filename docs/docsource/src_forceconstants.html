@@ -237,12 +237,11 @@
 <span class="kn">from</span> <span class="nn">sparse</span> <span class="k">import</span> <span class="n">COO</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">wrap_coordinates</span>
 <span class="kn">from</span> <span class="nn">kaldo.controllers.displacement</span> <span class="k">import</span> <span class="n">calculate_second</span><span class="p">,</span> <span class="n">calculate_third</span>
-<span class="kn">from</span> <span class="nn">kaldo.secondorder</span> <span class="k">import</span> <span class="n">SecondOrder</span>
-<span class="kn">from</span> <span class="nn">kaldo.thirdorder</span> <span class="k">import</span> <span class="n">ThirdOrder</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.secondorder</span> <span class="k">import</span> <span class="n">SecondOrder</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.thirdorder</span> <span class="k">import</span> <span class="n">ThirdOrder</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="k">import</span> <span class="n">get_logger</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
-<span class="n">DELTA_SHIFT</span> <span class="o">=</span> <span class="mf">1e-5</span>
 <span class="n">MAIN_FOLDER</span> <span class="o">=</span> <span class="s1">'displacement'</span>
 
 
@@ -285,6 +284,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">distance_threshold</span> <span class="o">=</span> <span class="n">distance_threshold</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_list_of_replicas</span> <span class="o">=</span> <span class="kc">None</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
+                                                       <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
+                                                       <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span>
+                                                       <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
+                                                     <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                                                     <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
+
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_folder</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'eskm'</span><span class="p">,</span> <span class="n">third_energy_threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span>
@@ -313,42 +320,14 @@
         <span class="k">return</span> <span class="n">forceconstants</span>
 
 
-
-    <span class="k">def</span> <span class="nf">calculate_second</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calculator</span><span class="p">,</span> <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span> <span class="n">delta_shift</span><span class="o">=</span><span class="n">DELTA_SHIFT</span><span class="p">):</span>
-        <span class="c1"># TODO: move to ifc</span>
-        <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                                       <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
-                                                       <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">,</span>
-                                                       <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">replicated_atoms</span>
-        <span class="n">atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">)</span>
-        <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">)</span>
-
-        <span class="n">_second_order</span> <span class="o">=</span> <span class="n">calculate_second</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                         <span class="n">replicated_atoms</span><span class="p">,</span>
-                                         <span class="n">delta_shift</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">_second_order</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">second</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">second_order</span>
 
 
-    <span class="k">def</span> <span class="nf">calculate_third</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calculator</span><span class="p">,</span> <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span> <span class="n">delta_shift</span><span class="o">=</span><span class="n">DELTA_SHIFT</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">supercell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span>
-        <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                                     <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
-                                                     <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">)</span>
-        <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span><span class="o">.</span><span class="n">replicated_atoms</span>
-        <span class="n">atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">)</span>
-        <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">)</span>
-
-        <span class="n">_third_order</span> <span class="o">=</span> <span class="n">calculate_third</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                       <span class="n">replicated_atoms</span><span class="p">,</span>
-                                       <span class="n">delta_shift</span><span class="p">,</span>
-                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">_third_order</span>
-
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">third</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span>
 
 
     <span class="k">def</span> <span class="nf">unfold_third_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reduced_third</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>

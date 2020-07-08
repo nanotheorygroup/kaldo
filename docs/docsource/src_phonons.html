@@ -236,9 +236,10 @@
 <span class="sd">"""</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">is_calculated</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.physical_modes</span> <span class="k">import</span> <span class="n">PhysicalModes</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">Grid</span>
-<span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> <span class="n">calculate_physical_modes</span><span class="p">,</span> \
+<span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> \
     <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span><span class="p">,</span> <span class="n">calculate_sij_sparse</span><span class="p">,</span> <span class="n">calculate_generalized_diffusivity</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="k">import</span> <span class="n">contract</span>
@@ -278,13 +279,13 @@
 <span class="sd">        diffusivity_threshold (optional) : float</span>
 <span class="sd">            This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</span>
 <span class="sd">        diffusivity_shape (optional) : string</span>
-<span class="sd">            defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
+<span class="sd">            defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
 <span class="sd">            Default is `lorentz`.</span>
 <span class="sd">        is_diffusivity_including_antiresonant (optional) : bool</span>
 <span class="sd">            defines if you want to include or not anti-resonant terms in diffusivity calculations.</span>
 <span class="sd">            Default is `False`.</span>
 <span class="sd">        broadening_shape (optional) : string</span>
-<span class="sd">            defines the algorithm to use to calculate the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
+<span class="sd">            defines the algorithm to use to calculate_second the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
 <span class="sd">            Default is `gauss`.</span>
 <span class="sd">        is_tf_backend (optional) : bool</span>
 <span class="sd">            defines if the third order phonons scattering calculations should be performed on tensorflow (True) or</span>
@@ -352,7 +353,7 @@
 <span class="sd">        physical_mode : np array</span>
 <span class="sd">            (n_k_points, n_modes) bool</span>
 <span class="sd">        """</span>
-        <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">calculate_physical_modes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">PhysicalModes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span><span class="p">)</span><span class="o">.</span><span class="n">calculate</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
 
 

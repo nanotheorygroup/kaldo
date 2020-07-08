@@ -1,8 +1,3 @@
-from kaldo.forceconstants import ForceConstants
-from kaldo.phonons import Phonons
-from kaldo.conductivity import Conductivity
-import matplotlib.pyplot as plt
-import ase.io
 """
 Unit and regression test for the kaldo package.
 """
@@ -11,7 +6,6 @@ Unit and regression test for the kaldo package.
 from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
-from kaldo.conductivity import Conductivity
 import pytest
 
 

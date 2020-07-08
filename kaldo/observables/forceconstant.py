@@ -16,12 +16,15 @@ def chi(qvec, list_of_replicas, cell_inv):
 
 class ForceConstant(Observable):
 
-    def __init__(self, **kwargs):
-        ifc = Observable.__init__(self, **kwargs)
-        self.atoms = kwargs.pop('atoms')
-        replicated_positions = kwargs.pop('replicated_positions')
-        self.supercell = kwargs.pop('supercell', None)
-        self.value = kwargs.pop('force_constant', None)
+    def __init__(self, *kargs, **kwargs):
+        Observable.__init__(self, *kargs, **kwargs)
+        self.atoms = kwargs['atoms']
+        replicated_positions = kwargs['replicated_positions']
+        self.supercell = kwargs['supercell']
+        try:
+            self.value = kwargs['value']
+        except KeyError:
+            self.value = None
 
         self._replicated_atoms = None
         self.replicated_positions = replicated_positions.reshape(
@@ -50,18 +53,17 @@ class ForceConstant(Observable):
         else:
             logging.info("Using fortran-style position grid")
         self._direct_grid = Grid(self.supercell, grid_type)
-        return ifc
 
 
     @classmethod
-    def from_supercell(cls, atoms, supercell, grid_type, force_constant=None):
+    def from_supercell(cls, atoms, supercell, grid_type, value=None):
         _direct_grid = Grid(supercell, grid_type)
         replicated_positions = _direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
                                                                                        np.newaxis, :, :]
         inst = cls(atoms=atoms,
                    replicated_positions=replicated_positions,
                    supercell=supercell,
-                   force_constant=force_constant)
+                   value=value)
         inst._direct_grid = _direct_grid
         return inst
 

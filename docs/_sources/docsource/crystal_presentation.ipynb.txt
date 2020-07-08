@@ -2,16 +2,14 @@
  "cells": [
   {
    "cell_type": "markdown",
-   "metadata": {
-    "colab_type": "text",
-    "id": "HFoatzweSuTT"
-   },
    "source": [
+    "This notebook can be run on Google Colab.\n",
     "\n",
-    "Open the notebook in Colab\n",
-    "\n",
-    "<a href=\"https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/source/crystal_presentation.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
-   ]
+    "[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb)\n"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
   },
   {
    "cell_type": "markdown",
@@ -512,10 +510,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
+    "source": [],
     "metadata": {
      "collapsed": false
-    },
-    "source": []
+    }
    }
   }
  },
