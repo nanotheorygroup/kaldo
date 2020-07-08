@@ -2,14 +2,14 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "metadata": {
+    "collapsed": false
+   },
    "source": [
     "This notebook can be run on Google Colab.\n",
     "\n",
     "[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb)\n"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   },
   {
    "cell_type": "markdown",
@@ -510,10 +510,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
-    "source": [],
     "metadata": {
      "collapsed": false
-    }
+    },
+    "source": []
    }
   }
  },

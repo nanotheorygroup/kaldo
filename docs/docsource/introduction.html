@@ -44,9 +44,18 @@
   <meta name="theme-color" content="#3f51b5">
   <script src="../_static/javascripts/modernizr.js"></script>
   
+  <script>
+      window.ga = window.ga || function () {
+          (ga.q = ga.q || []).push(arguments)
+      };
+      ga.l = +new Date;
+      ga('create', 'UA-172053863-1', 'auto');
+      ga('send', 'pageview');
+  </script>
+  <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>The kALDo package &#8212; kaldo  documentation</title>
+    <title>Main Features &#8212; kaldo  documentation</title>
     <link rel="stylesheet" href="../_static/material.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -95,7 +104,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> The kALDo package </span>
+          <span class="md-header-nav__topic"> Main Features </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -205,6 +214,172 @@
   
   
 
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Main Features </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Main Features</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">Contents</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Main Features</a>
+        </li>
+        <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
+        </li>
+        <li class="md-nav__item"><a href="#Copyright" class="md-nav__link">Copyright</a>
+        </li>
+        <li class="md-nav__item"><a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
+        </li>
+        <li class="md-nav__item"><a href="#Other-codes" class="md-nav__link">Other codes</a>
+        </li>
+        <li class="md-nav__item"><a href="#Project-template" class="md-nav__link">Project template</a>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/introduction.ipynb.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Copyright" class="md-nav__link">Copyright</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Other-codes" class="md-nav__link">Other codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Project-template" class="md-nav__link">Project template</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html" class="md-nav__link">Install</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html#Output-Storage" class="md-nav__link">Output Storage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="theory.html" class="md-nav__link">Introduction</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="theory.html#Theory" class="md-nav__link">Theory</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="api_phonons.html" class="md-nav__link">Phonons API Reference</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="api_conductivity.html" class="md-nav__link">Conductivity API Reference</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
+      
+    
+    </li>
+  </ul>
+  
+
 </nav>
               </div>
             </div>
@@ -216,7 +391,7 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">The kALDo package</a>
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Main Features</a>
         </li>
         <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
         </li>
@@ -243,15 +418,13 @@
           <article class="md-content__inner md-typeset" role="main">
             
   
-<h1 id="docsource-introduction--page-root">The kALDo package<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
-<p>kALDo. Thermal transport in crystalline and non-crystalline solids.</p>
-<p><img alt="8ab7a64dc806412e87693cbb1083a02d" class="no-scaled-link" src="../_images/logo.png" style="width: 650px;"/></p>
-<p>kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA. Below we illustrate the main features of the code</p>
-<p><img alt="2f12174d19da4f6c8eef28f1892004be" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<h1 id="docsource-introduction--page-root">Main Features<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
+<p>Below we illustrate the main features of the code</p>
+<p><img alt="f9994a18ea534af39d45067dac09bd57" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="fcc3bce5ccba44f19bbbad5a1df9de29" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="a5f0aaf0400c42f0bdcebb562d167ef5" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
