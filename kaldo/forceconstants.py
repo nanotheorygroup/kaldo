@@ -53,13 +53,16 @@ class ForceConstants:
         self.distance_threshold = distance_threshold
         self._list_of_replicas = None
 
+        # TODO: we should probably remove the following initialization
         self.second_order = SecondOrder.from_supercell(atoms,
                                                        supercell=self.supercell,
                                                        grid_type='C',
-                                                       is_acoustic_sum=False)
+                                                       is_acoustic_sum=False,
+                                                       folder=folder)
         self.third_order = ThirdOrder.from_supercell(atoms,
                                                      supercell=supercell,
-                                                     grid_type='C')
+                                                     grid_type='C',
+                                                     folder=folder)
 
 
     @classmethod

@@ -4,14 +4,14 @@ ase>=3.18.1
 sparse>=0.6
 spglib>=1.11
 seekpath>=1.8
-tensorflow==2.0.1
+tensorflow>=2.0
 opt_einsum>=2.3
 scikit-learn>=0.20
 h5py>=2.9
 pandas>=0.21
 recommonmark>=0.6
-nbsphinx>=0.5.0
 codecov>=2.1.7
 pytest-cov>=2.10.0
 pytest>=5.2.1
 sphinx_material>=0.0.30
+nbsphinx>=0.5.0
