@@ -109,7 +109,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                 logging.info('Calculate third derivatives ' + str
                     (int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
 
-    logging.info('total forces to calculate_second : ' + str(n_forces_to_calculate))
+    logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
     coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])

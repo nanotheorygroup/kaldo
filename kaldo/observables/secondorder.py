@@ -35,22 +35,22 @@ class SecondOrder(ForceConstant):
     def __init__(self, *kargs, **kwargs):
         ForceConstant.__init__(self, *kargs, **kwargs)
         try:
-            is_acoustic_sum = kwargs['is_acoustic_sum']
+            self.is_acoustic_sum = kwargs['is_acoustic_sum']
         except KeyError:
-            is_acoustic_sum = False
+            self.is_acoustic_sum = False
 
         self.value = kwargs['value']
-        if is_acoustic_sum:
+        if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None
 
 
     @classmethod
-    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False):
+    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo'):
         if value is not None and is_acoustic_sum is not None:
             value = acoustic_sum_rule(value)
-        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value)
+        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
         return ifc
 
 
@@ -89,7 +89,8 @@ class SecondOrder(ForceConstant):
                                        replicated_positions=replicated_atoms.positions,
                                        supercell=supercell,
                                        value=_second_order,
-                                       is_acoustic_sum=is_acoustic_sum)
+                                       is_acoustic_sum=is_acoustic_sum,
+                                       folder=folder)
 
         elif format == 'eskm':
             config_file = str(folder) + "/CONFIG"
@@ -119,7 +120,8 @@ class SecondOrder(ForceConstant):
                                        replicated_positions=replicated_atoms.positions,
                                        supercell=supercell,
                                        value=_second_order,
-                                       is_acoustic_sum=is_acoustic_sum)
+                                       is_acoustic_sum=is_acoustic_sum,
+                                       folder=folder)
         elif format == 'shengbte' or format == 'shengbte-qe':
 
             config_file = folder + '/' + 'CONTROL'
@@ -149,7 +151,8 @@ class SecondOrder(ForceConstant):
                                                       grid_type=grid_type,
                                                       supercell=supercell,
                                                       value=second_order[np.newaxis, ...],
-                                                      is_acoustic_sum=True)
+                                                      is_acoustic_sum=True,
+                                                      folder=folder)
 
 
 
@@ -177,7 +180,8 @@ class SecondOrder(ForceConstant):
                 second_order = SecondOrder(atoms=atoms,
                                            replicated_positions=replicated_atoms.positions,
                                            supercell=supercell,
-                                           value=_second_order)
+                                           value=_second_order,
+                                           folder=folder)
 
 
         else:
@@ -305,8 +309,7 @@ class SecondOrder(ForceConstant):
 
                 for l in range(n_replicas):
                     distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
-                        self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell,
-                                                                                               3)[np.newaxis, l, :, :])
+                        self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell,3)[np.newaxis, l, :, :])
 
                     distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
 
@@ -335,13 +338,27 @@ class SecondOrder(ForceConstant):
         return esystem
 
 
-    def calculate(self, calculator, delta_shift=1e-3):
-
+    def calculate(self, calculator, delta_shift=1e-3, is_storing=True):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
         replicated_atoms.set_calculator(calculator)
-        self.value = calculate_second(atoms, replicated_atoms, delta_shift)
+
+        if is_storing:
+            try:
+                self.value = SecondOrder.load(folder=self.folder, supercell=self.supercell, format='numpy',
+                                                is_acoustic_sum=self.is_acoustic_sum).value
+
+            except FileNotFoundError:
+                self.value = calculate_second(atoms, replicated_atoms, delta_shift)
+                self.save(self.folder, 'second')
+                ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
+            else:
+                logging.info('Reading stored second')
+        else:
+            self.value = calculate_second(atoms, replicated_atoms, delta_shift)
+            self.save(self.folder, 'second')
+            ase.io.write('/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
 
 
     def __str__(self):

@@ -2,7 +2,6 @@ import numpy as np
 import ase.units as units
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
-from kaldo.controllers.displacement import calculate_third
 
 from kaldo.observables.observable import Observable
 logging = get_logger()
@@ -56,14 +55,15 @@ class ForceConstant(Observable):
 
 
     @classmethod
-    def from_supercell(cls, atoms, supercell, grid_type, value=None):
+    def from_supercell(cls, atoms, supercell, grid_type, value=None, folder='kALDo'):
         _direct_grid = Grid(supercell, grid_type)
         replicated_positions = _direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
                                                                                        np.newaxis, :, :]
         inst = cls(atoms=atoms,
                    replicated_positions=replicated_positions,
                    supercell=supercell,
-                   value=value)
+                   value=value,
+                   folder=folder)
         inst._direct_grid = _direct_grid
         return inst
 
@@ -120,15 +120,3 @@ class ForceConstant(Observable):
             ch[index_q] = chi(k_point, list_of_replicas, cell_inv)
         return ch
 
-
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None):
-        atoms = self.atoms
-        replicated_atoms = self.replicated_atoms
-        atoms.set_calculator(calculator)
-        replicated_atoms.set_calculator(calculator)
-
-        _third_order = calculate_third(atoms,
-                                       replicated_atoms,
-                                       delta_shift,
-                                       distance_threshold=distance_threshold)
-        self.value = _third_order
