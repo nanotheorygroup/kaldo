@@ -12,6 +12,11 @@
     "```bash\n",
     "conda create -n kaldo python=3.7\n",
     "```\n",
+    "and enable the environment\n",
+    "```bash\n",
+    "conda activate kaldo\n",
+    "```\n",
+    "\n",
     "Alternatively you can use Python 3.6. The Tensorflow module doesn't seem to be compatible with Python 3.8, yet.\n",
     "\n",
     "kaldo installation can be done using `pip`\n",
@@ -113,10 +118,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
+    "source": [],
     "metadata": {
      "collapsed": false
-    },
-    "source": []
+    }
    }
   }
  },
