@@ -66,8 +66,8 @@ class ForceConstants:
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0.,
-                    distance_threshold=None, is_acoustic_sum=False):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., is_acoustic_sum=False,
+                    only_second=False):
         """
         Create a finite difference object from a folder
         :param folder:
@@ -80,7 +80,6 @@ class ForceConstants:
         :return:
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
-        third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=format, third_energy_threshold=third_energy_threshold)
         atoms = second_order.atoms
         # Create a finite difference object
         forceconstants = {'atoms': atoms,
@@ -88,7 +87,15 @@ class ForceConstants:
                              'folder': folder}
         forceconstants = cls(**forceconstants)
         forceconstants.second_order = second_order
-        forceconstants.third_order = third_order
+        if not only_second:
+            if format == 'numpy':
+                third_format = 'sparse'
+            else:
+                third_format = format
+            third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=third_format,
+                                          third_energy_threshold=third_energy_threshold)
+
+            forceconstants.third_order = third_order
         return forceconstants
 
 
