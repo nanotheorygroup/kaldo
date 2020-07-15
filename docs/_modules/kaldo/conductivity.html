@@ -292,48 +292,6 @@
     </li>
     <li class="md-nav__item">
     
-    
-      <a href="../../docsource/theory.html" class="md-nav__link">Introduction</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/theory.html#Theory" class="md-nav__link">Theory</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/api_phonons.html" class="md-nav__link">Phonons API Reference</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/api_conductivity.html" class="md-nav__link">Conductivity API Reference</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
       <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
     
     </li>
@@ -477,7 +435,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'phonons'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'method'</span><span class="p">,</span> <span class="s1">'rta'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'numpy'</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'formatted'</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">else</span><span class="p">:</span>

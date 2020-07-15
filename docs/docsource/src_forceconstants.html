@@ -222,7 +222,7 @@
     <li class="md-nav__item">
     
     
-      <a href="introduction.html" class="md-nav__link">The kALDo package</a>
+      <a href="introduction.html" class="md-nav__link">Main Features</a>
       
     
     </li>
@@ -286,48 +286,6 @@
     
     
       <a href="quickstart.html#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html" class="md-nav__link">Introduction</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Theory" class="md-nav__link">Theory</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_phonons.html" class="md-nav__link">Phonons API Reference</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_conductivity.html" class="md-nav__link">Conductivity API Reference</a>
       
     
     </li>
@@ -434,13 +392,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">distance_threshold</span> <span class="o">=</span> <span class="n">distance_threshold</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_list_of_replicas</span> <span class="o">=</span> <span class="kc">None</span>
 
+        <span class="c1"># TODO: we should probably remove the following initialization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
                                                        <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
                                                        <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span>
-                                                       <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                                                       <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                                       <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
                                                      <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
-                                                     <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
+                                                     <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span>
+                                                     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
 
 
     <span class="nd">@classmethod</span>
