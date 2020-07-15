@@ -22,7 +22,7 @@ import kaldo
 
 # -- Project information -----------------------------------------------------
 
-project = 'kaldo'
+project = 'kALDo'
 copyright = ("2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio")
 author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio'
 
