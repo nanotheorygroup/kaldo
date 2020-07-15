@@ -18,11 +18,13 @@ kALDo. Thermal transport in crystalline and non-crystalline solids.
 .. toctree::
    :glob:
    :caption: Theory
+
    docsource/theory.ipynb
 
 .. toctree::
    :glob:
    :caption: API
+
    docsource/api_forceconstants
    docsource/api_phonons
    docsource/api_conductivity
