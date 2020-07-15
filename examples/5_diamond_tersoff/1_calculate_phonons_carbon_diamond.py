@@ -14,10 +14,10 @@ forceconstants = ForceConstants(**forceconstants_config)
 
 # Define calculator input information
 lammps_inputs = {'lmpcmds': [
-                                  'pair_style tersoff',
-                                 'pair_coeff * * forcefields/C.tersoff C'],
-                             'keep_alive':True,
-                     'log_file': 'lammps-c-diamond.log'}
+                    'pair_style tersoff',
+                    'pair_coeff * * forcefields/C.tersoff C'],
+                 'keep_alive':True,
+                 'log_file': 'lammps-c-diamond.log'}
     
 
 

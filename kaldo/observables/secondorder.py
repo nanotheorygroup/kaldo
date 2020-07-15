@@ -92,11 +92,14 @@ class SecondOrder(ForceConstant):
                                        is_acoustic_sum=is_acoustic_sum,
                                        folder=folder)
 
-        elif format == 'eskm':
-            config_file = str(folder) + "/CONFIG"
+        elif format == 'eskm' or format == 'lammps':
             dynmat_file = str(folder) + "/Dyn.form"
-
-            replicated_atoms = ase.io.read(config_file, format='dlp4')
+            if format == 'eskm':
+                config_file = str(folder) + "/CONFIG"
+                replicated_atoms = ase.io.read(config_file, format='dlp4')
+            elif format == 'lammps':
+                config_file = str(folder) + "/replicated_atoms.xyz"
+                replicated_atoms = ase.io.read(config_file, format='extxyz')
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
             n_unit_atoms = int(n_total_atoms / n_replicas)

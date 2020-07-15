@@ -97,7 +97,7 @@ class Conductivity:
 
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
-        self.storage = kwargs.pop('storage', 'numpy')
+        self.storage = kwargs.pop('storage', 'formatted')
         if self.method == 'rta':
             self.n_iterations = 0
         else:

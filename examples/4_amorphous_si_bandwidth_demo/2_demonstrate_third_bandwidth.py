@@ -50,6 +50,6 @@ for i in index:
     plt.ylabel(r'$\Gamma$ (THz)', fontsize=18, fontweight='bold')
     lgnd = plt.legend(scatterpoints=1, fontsize=14)
     for handle in lgnd.legendHandles:
-      handle.set_sizes([50.0])
+        handle.set_sizes([50.0])
 #plt.savefig('Ballistico_third_bandwidth.png')
 plt.show()
