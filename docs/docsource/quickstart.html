@@ -454,14 +454,14 @@
 </pre></div>
 </div>
 <p>Alternatively you can use Python 3.6. The Tensorflow module doesn’t seem to be compatible with Python 3.8, yet.</p>
-<p>kaldo installation can be done using <code class="docutils literal notranslate"><span class="pre">pip</span></code></p>
+<p>kALDo installation can be done using <code class="docutils literal notranslate"><span class="pre">pip</span></code></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="2470562b01144ba78c47a8e720331089" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="46ced8993ed04e87afb3d42dcedbd6ad" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
@@ -489,7 +489,7 @@ make install-python
 <h1 id="Output-Storage">Output Storage<a class="headerlink" href="#Output-Storage" title="Permalink to this headline">¶</a></h1>
 
 <h2 id="Default">Default<a class="headerlink" href="#Default" title="Permalink to this headline">¶</a></h2>
-<p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kaldo stores the following dense tensor as formatted, human readable, files: - <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after - <code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> - <code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p>
+<p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files: - <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after - <code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> - <code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>

@@ -29,7 +29,7 @@ To see the results of the example, simply run the bash script `run_all.sh`
 on a machine with LAMMPS built with the lmp_mpi command, or keep
 reading for a more detailed explanation.
 
-Using kaldo requires an ASE atoms object. Starting in the file labeled
+Using kALDo requires an ASE atoms object. Starting in the file labeled
 `1_create_structure.py`, first we create a bulk Si crystal with a lattice
 parameter of 5.43 $A$ and write the object to a file. Information about its
 reciprocal-space cell dimensions are printed out.

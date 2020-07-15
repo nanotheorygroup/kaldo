@@ -19,7 +19,7 @@
     "\n",
     "Alternatively you can use Python 3.6. The Tensorflow module doesn't seem to be compatible with Python 3.8, yet.\n",
     "\n",
-    "kaldo installation can be done using `pip`\n",
+    "kALDo installation can be done using `pip`\n",
     "```bash\n",
     "pip install git+https://github.com/nanotheorygroup/kaldo\n",
     "```\n",
@@ -53,7 +53,7 @@
     "### Output Storage\n",
     "\n",
     "#### Default\n",
-    "When using the storage `formatted`, kaldo stores the following dense tensor as formatted, human readable, files:\n",
+    "When using the storage `formatted`, kALDo stores the following dense tensor as formatted, human readable, files:\n",
     "- `frequency` $(n_{kpoints}, n_{modes})$. mode changes first k changes after\n",
     "- `velocity_alpha` $(n_{kpoints}, n_{modes})$\n",
     "- `physical_mode_<min_freq>_<max_freq>_<is_nw>` $(n_{kpoints}, n_{modes})$\n",
@@ -118,10 +118,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
-    "source": [],
     "metadata": {
      "collapsed": false
-    }
+    },
+    "source": []
    }
   }
  },
