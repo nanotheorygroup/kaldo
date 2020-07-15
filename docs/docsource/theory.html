@@ -621,8 +621,8 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
                     <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)))</span>
 
 <span class="c1"># input is the ASE input for QE</span>
-<span class="n">finite_difference</span><span class="o">.</span><span class="n">calculate_second</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
-<span class="n">finite_difference</span><span class="o">.</span><span class="n">calculate_third</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
+<span class="n">fc</span><span class="o">.</span><span class="n">second<span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
+<span class="n">fc</span><span class="o">.</span><span class="n">third<span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
 
 <span class="c1"># Phonons object creation</span>
 <span class="n">phonons</span> <span class="o">=</span> <span class="n">Phonons</span><span class="p">(</span><span class="n">force_constants</span><span class="o">=</span><span class="n">fc</span><span class="p">,</span>
