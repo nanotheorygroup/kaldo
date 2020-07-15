@@ -94,7 +94,7 @@ class Phonons:
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
-        self.storage = kwargs.pop('storage', 'numpy')
+        self.storage = kwargs.pop('storage', 'formatted')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)

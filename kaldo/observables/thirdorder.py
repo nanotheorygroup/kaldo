@@ -61,11 +61,15 @@ class ThirdOrder(ForceConstant):
                                      value=_third_order,
                                      folder=folder)
 
-        elif format == 'eskm':
-            config_file = str(folder) + "/CONFIG"
-            third_file = str(folder) + "/THIRD"
+        elif format == 'eskm' or format == 'lammps':
+            if format == 'eskm':
+                config_file = str(folder) + "/CONFIG"
+                replicated_atoms = ase.io.read(config_file, format='dlp4')
+            elif format == 'lammps':
+                config_file = str(folder) + "/replicated_atoms.xyz"
+                replicated_atoms = ase.io.read(config_file, format='extxyz')
 
-            replicated_atoms = ase.io.read(config_file, format='dlp4')
+            third_file = str(folder) + "/THIRD"
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
             n_unit_atoms = int(n_total_atoms / n_replicas)
