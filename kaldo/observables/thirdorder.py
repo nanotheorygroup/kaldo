@@ -13,7 +13,8 @@ from kaldo.controllers.displacement import calculate_third
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-REPLICATED_ATOMS_FILE = 'replicated_atoms_third.xyz'
+REPLICATED_ATOMS_THIRD_FILE = 'replicated_atoms_third.xyz'
+REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
@@ -35,8 +36,12 @@ class ThirdOrder(ForceConstant):
 
             if folder[-1] != '/':
                 folder = folder + '/'
-            config_file = folder + REPLICATED_ATOMS_FILE
-            replicated_atoms = ase.io.read(config_file, format='extxyz')
+            try:
+                config_file = folder + REPLICATED_ATOMS_THIRD_FILE
+                replicated_atoms = ase.io.read(config_file, format='extxyz')
+            except FileNotFoundError:
+                config_file = folder + REPLICATED_ATOMS_FILE
+                replicated_atoms = ase.io.read(config_file, format='extxyz')
 
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
@@ -183,7 +188,7 @@ class ThirdOrder(ForceConstant):
                                         out_file.write('\n')
             logging.info('Done exporting third.')
         elif format=='sparse':
-            config_file = folder + REPLICATED_ATOMS_FILE
+            config_file = folder + REPLICATED_ATOMS_THIRD_FILE
             ase.io.write(config_file, self.replicated_atoms, format='extxyz')
 
             save_npz(folder + '/' + THIRD_ORDER_FILE_SPARSE, self.value.reshape((n_atoms * 3 * self.n_replicas *
@@ -209,7 +214,7 @@ class ThirdOrder(ForceConstant):
                                        delta_shift,
                                        distance_threshold=distance_threshold)
                 self.save(self.folder, 'third')
-                ase.io.write(self.folder + '/' + REPLICATED_ATOMS_FILE, self.replicated_atoms, 'extxyz')
+                ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored third')
         else:
@@ -218,7 +223,7 @@ class ThirdOrder(ForceConstant):
                                        delta_shift,
                                        distance_threshold=distance_threshold)
             self.save(self.folder, 'third')
-            ase.io.write(self.folder + '/' + REPLICATED_ATOMS_FILE, self.replicated_atoms, 'extxyz')
+            ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
 
 

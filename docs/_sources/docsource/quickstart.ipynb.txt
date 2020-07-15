@@ -24,10 +24,6 @@
     "pip install git+https://github.com/nanotheorygroup/kaldo\n",
     "```\n",
     "\n",
-    "### Code Architecture\n",
-    "\n",
-    "<img src=\"_resources/class_diagram.png\" width=\"650\">\n",
-    "\n",
     "### Interfacing with Other Codes\n",
     "\n",
     "Work in progress.\n",
@@ -39,6 +35,7 @@
     "cd path/to/lammps/src\n",
     "make yes-manybody\n",
     "make yes-molecule\n",
+    "...\n",
     "make mpi mode=shlib\n",
     "make install-python\n",
     "```\n",
@@ -118,10 +115,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
+    "source": [],
     "metadata": {
      "collapsed": false
-    },
-    "source": []
+    }
    }
   }
  },

@@ -48,9 +48,9 @@ class ForceConstant(Observable):
             logging.error("Unable to detect grid type")
 
         if grid_type == 'C':
-            logging.info("Using C-style position grid")
+            logging.debug("Using C-style position grid")
         else:
-            logging.info("Using fortran-style position grid")
+            logging.debug("Using fortran-style position grid")
         self._direct_grid = Grid(self.supercell, grid_type)
 
 
