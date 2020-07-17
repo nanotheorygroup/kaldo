@@ -13,7 +13,6 @@ kALDo. Thermal transport in crystalline and non-crystalline solids.
    :caption: Documentation
 
    docsource/introduction.ipynb
-   docsource/quickstart.ipynb
 
 .. toctree::
    :glob:
