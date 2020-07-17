@@ -61,7 +61,7 @@ class SecondOrder(ForceConstant):
 
 
     @classmethod
-    def load(cls, folder, supercell=(1, 1, 1), format='eskm', is_acoustic_sum=False):
+    def load(cls, folder, supercell=(1, 1, 1), format='numpy', is_acoustic_sum=False):
         if format == 'numpy':
             if folder[-1] != '/':
                 folder = folder + '/'
@@ -84,7 +84,7 @@ class SecondOrder(ForceConstant):
                           cell=unit_cell,
                           pbc=[1, 1, 1])
 
-            _second_order = np.load(folder + SECOND_ORDER_FILE)
+            _second_order = np.load(folder + SECOND_ORDER_FILE, allow_pickle=True)
             second_order = SecondOrder(atoms=atoms,
                                        replicated_positions=replicated_atoms.positions,
                                        supercell=supercell,
@@ -252,16 +252,27 @@ class SecondOrder(ForceConstant):
 
 
     def calculate_sij(self, q_points, is_amorphous=False, distance_threshold=None):
-        dynmat_derivatives = self.calculate_dynmat_derivatives(q_points, is_amorphous, distance_threshold)
-        eigenvects = self.calculate_eigensystem(q_points, is_amorphous, distance_threshold, only_eigenvals=False)[:, 1:, :]
-
-        logging.info('Calculating the flux operators')
         if is_amorphous:
-            sij = np.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
-            sij = np.tensordot(eigenvects[0], sij, (0, 1))
-            sij = sij.reshape((1, sij.shape[0], sij.shape[1], sij.shape[2]))
+            sij = np.zeros((len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3))
         else:
-            sij = contract('kim,kija,kjn->kmna', eigenvects.conj(), dynmat_derivatives, eigenvects)
+            sij = np.zeros((len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3),
+                           dtype=np.complex)
+        for ik in range(q_points.shape[0]):
+            q_point = np.array([q_points[ik]])
+            if self.atoms.positions.shape[0] > 100:
+                # We want to print only for big systems
+                logging.info('Calculating the flux operators, q = ' + str(q_point))
+            dynmat_derivatives = self.calculate_dynmat_derivatives(q_point, is_amorphous, distance_threshold)
+
+            eigenvects = self.calculate_eigensystem(q_point, is_amorphous, distance_threshold, only_eigenvals=False)[:, 1:, :]
+            sij_single = np.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
+            if is_amorphous:
+                sij_single = np.tensordot(eigenvects[0], sij_single, (0, 1))
+            else:
+                sij_single = np.tensordot(eigenvects[0].conj(), sij_single, (0, 1))
+
+            sij[ik] = sij_single
+
         return sij
 
 
@@ -354,13 +365,13 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 self.value = calculate_second(atoms, replicated_atoms, delta_shift)
-                self.save(self.folder, 'second')
+                self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored second')
         else:
             self.value = calculate_second(atoms, replicated_atoms, delta_shift)
-            self.save(self.folder, 'second')
+            self.save('second')
             ase.io.write('/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
 
 

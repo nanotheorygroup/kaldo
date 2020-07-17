@@ -159,7 +159,8 @@ class ThirdOrder(ForceConstant):
         return third_order
 
 
-    def save(self, folder, filename='THIRD', format='sparse', min_force=1e-6):
+    def save(self, filename='THIRD', format='sparse', min_force=1e-6):
+        folder = self.folder
         filename = folder + '/' + filename
         n_atoms = self.atoms.positions.shape[0]
         if format == 'eskm':
@@ -195,7 +196,7 @@ class ThirdOrder(ForceConstant):
                                                                            n_atoms * 3, self.n_replicas *
                                                                            n_atoms * 3)).to_scipy_sparse())
         else:
-            super(ThirdOrder, self).save(folder, filename, format)
+            super(ThirdOrder, self).save(filename, format)
 
 
 
@@ -213,7 +214,7 @@ class ThirdOrder(ForceConstant):
                                        replicated_atoms,
                                        delta_shift,
                                        distance_threshold=distance_threshold)
-                self.save(self.folder, 'third')
+                self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored third')
@@ -222,7 +223,7 @@ class ThirdOrder(ForceConstant):
                                        replicated_atoms,
                                        delta_shift,
                                        distance_threshold=distance_threshold)
-            self.save(self.folder, 'third')
+            self.save('third')
             ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
 
