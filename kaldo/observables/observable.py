@@ -20,7 +20,8 @@ class Observable:
         pass
 
 
-    def save(self, folder, property_name=None, format='numpy'):
+    def save(self, property_name=None, format='numpy'):
+        folder = self.folder
         loaded_attr = self.value
         if property_name is None:
             property_name = str(self)

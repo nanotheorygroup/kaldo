@@ -40,6 +40,7 @@ def calculate_heat_capacity(phonons):
 
 
 def calculate_sij_sparse(phonons):
+    logging.info('Start calculation diffusivity sparse')
     diffusivity_threshold = phonons.diffusivity_threshold
     if phonons.diffusivity_bandwidth is not None:
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
@@ -60,6 +61,7 @@ def calculate_sij_sparse(phonons):
 
 
 def calculate_diffusivity_dense(phonons):
+    logging.info('Start calculation diffusivity dense')
     omega = phonons._omegas.reshape((phonons.n_k_points, phonons.n_modes))
     if phonons.diffusivity_bandwidth is not None:
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
