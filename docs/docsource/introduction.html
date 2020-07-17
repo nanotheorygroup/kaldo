@@ -55,7 +55,7 @@
   <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>Main Features &#8212; kALDo  documentation</title>
+    <title>Quick Install &#8212; kALDo  documentation</title>
     <link rel="stylesheet" href="../_static/material.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -66,7 +66,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Install" href="quickstart.html" />
+    <link rel="next" title="Introduction" href="theory.html" />
     <link rel="prev" title="Indices and tables" href="../index.html" />
   
    
@@ -104,7 +104,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Main Features </span>
+          <span class="md-header-nav__topic"> Quick Install </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -225,15 +225,33 @@
     
     
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> Main Features </label>
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Quick Install </label>
     
-      <a href="#" class="md-nav__link md-nav__link--active">Main Features</a>
+      <a href="#" class="md-nav__link md-nav__link--active">Quick Install</a>
       
         
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Main Features</a>
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a>
+        </li>
+        <li class="md-nav__item"><a href="#Main-Features" class="md-nav__link">Main Features</a>
+        </li>
+        <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#LAMMPS-setup" class="md-nav__link">LAMMPS setup</a>
+        </li>
+        <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#Output-Storage" class="md-nav__link">Output Storage</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Default-Storage" class="md-nav__link">Default Storage</a>
+        </li>
+        <li class="md-nav__item"><a href="#Alternative-Storage" class="md-nav__link">Alternative Storage</a>
+        </li></ul>
+            </nav>
         </li>
         <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
         </li>
@@ -250,6 +268,27 @@
 
   </ul>
 </nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Main-Features" class="md-nav__link">Main Features</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
@@ -285,34 +324,6 @@
     
     
       <a href="#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html" class="md-nav__link">Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
@@ -401,7 +412,25 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Main Features</a>
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a>
+        </li>
+        <li class="md-nav__item"><a href="#Main-Features" class="md-nav__link">Main Features</a>
+        </li>
+        <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#LAMMPS-setup" class="md-nav__link">LAMMPS setup</a>
+        </li>
+        <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#Output-Storage" class="md-nav__link">Output Storage</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Default-Storage" class="md-nav__link">Default Storage</a>
+        </li>
+        <li class="md-nav__item"><a href="#Alternative-Storage" class="md-nav__link">Alternative Storage</a>
+        </li></ul>
+            </nav>
         </li>
         <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
         </li>
@@ -428,13 +457,106 @@
           <article class="md-content__inner md-typeset" role="main">
             
   
-<h1 id="docsource-introduction--page-root">Main Features<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
+<h1 id="docsource-introduction--page-root">Quick Install<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
+<p>We recommend creating a new environment with Python 3.7.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda create -n kaldo <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
+</pre></div>
+</div>
+<p>and enable the environment</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda activate kaldo
+</pre></div>
+</div>
+<p>Alternatively you can use Python 3.6. The Tensorflow module doesn’t seem to be compatible with Python 3.8, yet.</p>
+<p>kALDo installation can be done using <code class="docutils literal notranslate"><span class="pre">pip</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install git+https://github.com/nanotheorygroup/kaldo
+</pre></div>
+</div>
+<p>if you are not using <code class="docutils literal notranslate"><span class="pre">conda</span></code> we recommend to install <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code> to create an environment for kALDo</p>
+
+
+<h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="8e6da433d4b34b0296f6e6d5bcd34757" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="bd9ef0025051439c8c6e590b264683a8" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+
+
+<h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
+
+<h2 id="LAMMPS-setup">LAMMPS setup<a class="headerlink" href="#LAMMPS-setup" title="Permalink to this headline">¶</a></h2>
+<p>In order to use LAMMPS with ASE, it needs to be compiled a lib</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> path/to/lammps/src
+make yes-manybody
+make yes-molecule
+...
+make mpi <span class="nv">mode</span><span class="o">=</span>shlib
+make install-python
+</pre></div>
+</div>
+
+
+<h2 id="Quantum-Espresso-setup">Quantum Espresso setup<a class="headerlink" href="#Quantum-Espresso-setup" title="Permalink to this headline">¶</a></h2>
+<p>In order to use QE with ASE, Set the environment variable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">ASE_ESPRESSO_COMMAND</span><span class="o">=</span><span class="s2">"mpirun -np 4 /path/to/pw.x -in PREFIX.pwi &gt; PREFIX.pwo"</span>
+</pre></div>
+</div>
+<p>See the <a class="reference external" href="https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html">ASE documentation</a> for more info.</p>
+
+
+
+<h1 id="Output-Storage">Output Storage<a class="headerlink" href="#Output-Storage" title="Permalink to this headline">¶</a></h1>
+
+<h2 id="Default-Storage">Default Storage<a class="headerlink" href="#Default-Storage" title="Permalink to this headline">¶</a></h2>
+<p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files: - <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after - <code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> - <code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> where the <code class="docutils literal notranslate"><span class="pre">&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;</span></code> folder is created only if those values are defined</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;flux_dense</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>, when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is not specified.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>. Sparse only when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is specified.</p></li>
+</ul>
+<p>The folder structure depends on the input parameters to the Phonon Object and in parenthesis is the shape of the tensor. All of the above observables are stored in a dense format, except for <code class="docutils literal notranslate"><span class="pre">flux_alpha</span></code> which is stored as formatted file in a <code class="docutils literal notranslate"><span class="pre">index</span> <span class="pre">value</span></code> format.</p>
+<p>The following tensors are stored in raw binary format and help saving time when performing different simulations on the same sample. - <code class="docutils literal notranslate"><span class="pre">_eigensystem</span> <span class="pre">(eigenvalues</span> <span class="pre">and</span> <span class="pre">eigenvectors)</span></code> - <code class="docutils literal notranslate"><span class="pre">_dynmat_derivatives</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/_generalized_diffusivity</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma_tensor</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma</span></code>, when only RTA conductivity is required</p>
+
+
+<h2 id="Alternative-Storage">Alternative Storage<a class="headerlink" href="#Alternative-Storage" title="Permalink to this headline">¶</a></h2>
+<p>Other storage options available are <code class="docutils literal notranslate"><span class="pre">numpy</span></code> and <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> where all the files are saved as one of those formats. Finally the <code class="docutils literal notranslate"><span class="pre">memory</span></code> option doesn’t store any permanent files.</p>
+<table>
+<colgroup>
+<col style="width: 45%"/>
+<col style="width: 55%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Measurement</p></th>
+<th class="head"><p>Units</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Potential Derivatives</p></td>
+<td><p><img alt="eV/(A^2)" class="math" src="../_images/math/2cf0039f91ed360cffccde7898c23add1a3e7a08.png"/> or <img alt="eV/(A^3)" class="math" src="../_images/math/632884ea881305ca73c39e8149b8c4f54e53de78.png"/></p></td>
+</tr>
+<tr class="row-odd"><td><p>Dynamical Matrix</p></td>
+<td><p><img alt="THz" class="math" src="../_images/math/47569dc3dd27a62e0f220eb670cd81145d3bff43.png"/></p></td>
+</tr>
+<tr class="row-even"><td><p>Conductivity [<img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>]</p></td>
+<td><p><img alt="\frac{W}{m\ K}" class="math" src="../_images/math/32abdb97536404e33a889e321cbf942abf6bdc23.png"/></p></td>
+</tr>
+<tr class="row-odd"><td><p>Distances</p></td>
+<td><p><img alt="A" class="math" src="../_images/math/06aa34aab0dfa56eff4b2d179b459554df6f0726.png"/></p></td>
+</tr>
+<tr class="row-even"><td><p>Masses</p></td>
+<td><p><img alt="g/N_A" class="math" src="../_images/math/909c442e716b6ffb0f496988e623ed801700cf77.png"/></p></td>
+</tr>
+</tbody>
+</table>
+
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="a0c12dc55c19492bb6b1ce2e4e9d1516" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="4cff9a2ed3784bcc8c6918bbb44e7bb8" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
@@ -486,12 +608,12 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
             </a>
           
           
-            <a href="quickstart.html" title="Install"
+            <a href="theory.html" title="Introduction"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Install </span>
+                class="md-footer-nav__direction"> Next </span> Introduction </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
