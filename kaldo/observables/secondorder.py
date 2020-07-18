@@ -352,7 +352,7 @@ class SecondOrder(ForceConstant):
         return esystem
 
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True):
+    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
@@ -364,13 +364,13 @@ class SecondOrder(ForceConstant):
                                                 is_acoustic_sum=self.is_acoustic_sum).value
 
             except FileNotFoundError:
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift)
+                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
                 self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored second')
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift)
+            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
             self.save('second')
             ase.io.write('/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
 
