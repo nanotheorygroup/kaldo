@@ -200,7 +200,7 @@ class ThirdOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True):
+    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
@@ -211,18 +211,20 @@ class ThirdOrder(ForceConstant):
 
             except FileNotFoundError:
                 self.value = calculate_third(atoms,
-                                       replicated_atoms,
-                                       delta_shift,
-                                       distance_threshold=distance_threshold)
+                                             replicated_atoms,
+                                             delta_shift,
+                                             distance_threshold=distance_threshold,
+                                             is_verbose=is_verbose)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored third')
         else:
             self.value = calculate_third(atoms,
-                                       replicated_atoms,
-                                       delta_shift,
-                                       distance_threshold=distance_threshold)
+                                         replicated_atoms,
+                                         delta_shift,
+                                         distance_threshold=distance_threshold,
+                                         is_verbose=is_verbose)
             self.save('third')
             ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 

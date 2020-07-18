@@ -45,7 +45,7 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
     return second_per_atom
 
 
-def calculate_second(atoms, replicated_atoms, second_order_delta):
+def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False):
     # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
@@ -60,13 +60,15 @@ def calculate_second(atoms, replicated_atoms, second_order_delta):
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
     second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
     for i in range(n_atoms):
+        if is_verbose:
+            logging.info('calculating forces on atom ' + str(i))
         second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
     return second
 
 
-def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None):
+def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation for third order derivatives
@@ -93,6 +95,8 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                     is_computing = False
                     n_forces_skipped += 9
             if is_computing:
+                if is_verbose:
+                    logging.info('calculating forces on atoms: ' + str(iat) + ',' + str(Jat))
                 for icoord in range(3):
                     for jcoord in range(3):
                         value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
