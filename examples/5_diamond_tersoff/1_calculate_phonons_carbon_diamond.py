@@ -14,16 +14,16 @@ forceconstants = ForceConstants(**forceconstants_config)
 
 # Define calculator input information
 lammps_inputs = {'lmpcmds': [
-                                  'pair_style tersoff',
-                                 'pair_coeff * * forcefields/C.tersoff C'],
-                             'keep_alive':True,
-                     'log_file': 'lammps-c-diamond.log'}
+                    'pair_style tersoff',
+                    'pair_coeff * * forcefields/C.tersoff C'],
+                 'keep_alive':True,
+                 'log_file': 'lammps-c-diamond.log'}
     
 
 
 # Compute 2nd and 3rd IFCs with the defined calculators
-forceconstants.calculate_second(LAMMPSlib(**lammps_inputs))
-forceconstants.calculate_third(LAMMPSlib(**lammps_inputs))
+forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))
+forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 
 # Config and create a phonon object 
 k = 5

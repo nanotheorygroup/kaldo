@@ -3,14 +3,12 @@
   {
    "cell_type": "markdown",
    "metadata": {
-    "colab_type": "text",
-    "id": "HFoatzweSuTT"
+    "collapsed": false
    },
    "source": [
+    "This notebook can be run on Google Colab.\n",
     "\n",
-    "Open the notebook in Colab\n",
-    "\n",
-    "<a href=\"https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/source/crystal_presentation.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+    "[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb)\n"
    ]
   },
   {
@@ -35,43 +33,7 @@
    },
    "outputs": [],
    "source": [
-    "!git clone https://github.com/nanotheorygroup/kaldo.git"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {
-    "colab_type": "text",
-    "id": "RDmLrYaYyjjf"
-   },
-   "source": [
-    "## Install Kaldo from source code"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {
-    "colab": {},
-    "colab_type": "code",
-    "id": "YmTI_xUXyxPn"
-   },
-   "outputs": [],
-   "source": [
-    "!rm -r /content/sample_data\n",
-    "\n",
-    "# Update utilities for tensorboard\n",
-    "\n",
-    "!pip install --upgrade grpcio\n",
-    "!pip install --upgrade google-auth\n",
-    "\n",
-    "# Install kaldo from source\n",
-    "\n",
-    "%cd /content/kaldo\n",
-    "!pip install .\n",
-    "\n",
-    "# Navigate back to workspace after installation completes\n",
-    "%cd /content/"
+    "!pip install git+https://github.com/nanotheorygroup/kaldo"
    ]
   },
   {
@@ -229,8 +191,8 @@
     "\n",
     "# Compute 2nd and 3rd IFCs with the defined calculators\n",
     "\n",
-    "forceconstants.calculate_second(LAMMPSlib(**lammps_inputs))\n",
-    "forceconstants.calculate_third(LAMMPSlib(**lammps_inputs))"
+    "forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))\n",
+    "forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))"
    ]
   },
   {
@@ -512,10 +474,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
+    "source": [],
     "metadata": {
      "collapsed": false
-    },
-    "source": []
+    }
    }
   }
  },

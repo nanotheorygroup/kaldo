@@ -1,0 +1,17 @@
+units        metal
+processors   * * *
+boundary     p p p
+atom_style   atomic
+atom_modify  map yes
+
+read_data    coords.lmp
+
+pair_style   tersoff
+pair_coeff   * * ../data/SiCGe.tersoff Si(D)
+mass         1 28.09
+
+
+
+
+dynamical_matrix all eskm 1e-05 file Dyn.form binary no fold no
+third_order all eskm 1e-05 file THIRD binary no fold no
