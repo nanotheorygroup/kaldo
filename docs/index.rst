@@ -4,22 +4,33 @@
    contain the root `toctree` directive.
 
 .. image:: docsource/_resources/logo.png
-   :width: 600
+   :width: 400
+
+kALDo. Thermal transport in crystalline and non-crystalline solids.
 
 .. toctree::
    :glob:
    :caption: Documentation
 
    docsource/introduction.ipynb
-   docsource/quickstart.ipynb
+
+.. toctree::
+   :glob:
+   :caption: Theory
+
    docsource/theory.ipynb
+
+.. toctree::
+   :glob:
+   :caption: API
+
    docsource/api_forceconstants
    docsource/api_phonons
    docsource/api_conductivity
 
 .. toctree::
    :glob:
-   :caption: Learning
+   :caption: Tutorials
    
    docsource/crystal_presentation.ipynb
    docsource/amorphous_presentation.ipynb

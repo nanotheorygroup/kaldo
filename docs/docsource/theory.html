@@ -44,9 +44,18 @@
   <meta name="theme-color" content="#3f51b5">
   <script src="../_static/javascripts/modernizr.js"></script>
   
+  <script>
+      window.ga = window.ga || function () {
+          (ga.q = ga.q || []).push(arguments)
+      };
+      ga.l = +new Date;
+      ga('create', 'UA-172053863-1', 'auto');
+      ga('send', 'pageview');
+  </script>
+  <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>Introduction &#8212; kaldo  documentation</title>
+    <title>Introduction &#8212; kALDo  documentation</title>
     <link rel="stylesheet" href="../_static/material.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -82,7 +91,7 @@
   <nav class="md-header-nav md-grid">
     <div class="md-flex navheader">
       <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="../index.html" title="kaldo  documentation"
+        <a href="../index.html" title="kALDo  documentation"
            class="md-header-nav__button md-logo">
           
             &nbsp;
@@ -168,7 +177,7 @@
   <nav class="md-tabs" data-md-component="tabs">
     <div class="md-tabs__inner md-grid">
       <ul class="md-tabs__list">
-          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">kaldo  documentation</a></li>
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">kALDo  documentation</a></li>
       </ul>
     </div>
   </nav>
@@ -180,13 +189,13 @@
               <div class="md-sidebar__inner">
                 <nav class="md-nav md-nav--primary" data-md-level="0">
   <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href="../index.html" title="kaldo documentation" class="md-nav__button md-logo">
+    <a href="../index.html" title="kALDo documentation" class="md-nav__button md-logo">
       
         <img src="../_static/" alt=" logo" width="48" height="48">
       
     </a>
     <a href="../index.html"
-       title="kaldo documentation">kALDo</a>
+       title="kALDo documentation">kALDo</a>
   </label>
     <div class="md-nav__source">
       <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
@@ -203,6 +212,190 @@
 </a>
     </div>
   
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html" class="md-nav__link">Main Features</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Copyright" class="md-nav__link">Copyright</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Acknowledgements" class="md-nav__link">Acknowledgements</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Other-codes" class="md-nav__link">Other codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html" class="md-nav__link">Install</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="quickstart.html#Output-Storage" class="md-nav__link">Output Storage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Theory</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Introduction </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Introduction</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">Contents</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Introduction</a>
+        </li>
+        <li class="md-nav__item"><a href="#Theory" class="md-nav__link">Theory</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Boltzman-Transport-Equation" class="md-nav__link">Boltzman Transport Equation</a>
+        </li>
+        <li class="md-nav__item"><a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">Quasi-Harmonic Green Kubo</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Ab-initio-silicon-diamond" class="md-nav__link"><em>Ab initio</em> silicon diamond</a>
+        </li>
+        <li class="md-nav__item"><a href="#Amorphous-silicon" class="md-nav__link">Amorphous silicon</a>
+        </li>
+        <li class="md-nav__item"><a href="#References" class="md-nav__link">References</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/theory.ipynb.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Theory" class="md-nav__link">Theory</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">API</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="api_phonons.html" class="md-nav__link">Phonons API Reference</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="api_conductivity.html" class="md-nav__link">Conductivity API Reference</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
+      
+    
+    </li>
+  </ul>
   
 
 </nav>
@@ -427,7 +620,7 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 
 <h1 id="Benchmarks-applications">Benchmarks applications<a class="headerlink" href="#Benchmarks-applications" title="Permalink to this headline">¶</a></h1>
 <p>The workflow for ALD calculations is illustrated below</p>
-<p><img alt="47f9aa5308a448b1b7a067fc16b31e8b" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
+<p><img alt="25811c73e3fa4449908262ab985085b5" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
 <p>Here, we present two example simulations of both a periodic and an amorphous structure.</p>
 
 <h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Permalink to this headline">¶</a></h2>
@@ -438,8 +631,8 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
                     <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)))</span>
 
 <span class="c1"># input is the ASE input for QE</span>
-<span class="n">finite_difference</span><span class="o">.</span><span class="n">calculate_second</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
-<span class="n">finite_difference</span><span class="o">.</span><span class="n">calculate_third</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
+<span class="n">fc</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
+<span class="n">fc</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">calculator</span><span class="o">=</span><span class="n">Espresso</span><span class="p">(</span><span class="o">**</span><span class="nb">input</span><span class="p">))</span>
 
 <span class="c1"># Phonons object creation</span>
 <span class="n">phonons</span> <span class="o">=</span> <span class="n">Phonons</span><span class="p">(</span><span class="n">force_constants</span><span class="o">=</span><span class="n">fc</span><span class="p">,</span>
@@ -456,7 +649,7 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 </div>
 <p>We performed the simulation using the local density approximation for the exchange and correlation functional and a Bachelet-Hamann-Schluter norm-conserving pseudoptential. Kohn-Sham orbitals are represented on a plane-waves basis set with a cutoff of 20 Ry and (8, 8, 8) k-points mesh. The minimized lattice parameter is 5.398A. The third-order IFC is calculated using finite difference displacement on (5, 5, 5) replicas of the irreducible fcc-unit cell, including up to the 5th nearest neighbor.
 We obtained the following thermal properties</p>
-<p><img alt="eba9e2f225de4b81b19d1aaa6df2aaa1" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
+<p><img alt="a125fdd00e0d4edd8e03064ad624dbae" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
 <p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <img alt="g" class="math" src="../_images/math/86b44067536d63fd1271ac76c4a35eb79a6aa5dd.png"/>, c) lifetime per mode <img alt="\tau" class="math" src="../_images/math/303b8f73dd9a98bea8df8d22419bc3436abe91a9.png"/>, d) mean free path <img alt="\lambda" class="math" src="../_images/math/b67363a3f3c2ddf224f82975c53b7004abc08d20.png"/>, and e) cumulative conductivity <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/>.</p>
 
 
@@ -478,7 +671,7 @@ We obtained the following thermal properties</p>
 </pre></div>
 </div>
 <p>In a simliar treatment to the silicon crystal, a full battery of modal analysis can be calculated with both quantum and classical statistics on the amorphous systems re- turning the phonon DoS as well as the associated lifetimes, generalized diffusivities, normalized phase space and cumulative conductivity</p>
-<p><img alt="ee2e2255fff145219883aa3d259e7fec" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
+<p><img alt="85e2c898e85248a0ba153339736f5c81" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
 <p>Classical and quantum properties for 4096 atom amorphous silicon system are shown above. a) density of states, b) lifetimes, c) diffusivities, and e) cumulative thermal conductivity. In spite of the increased quantum lifetimes, a decrease of 0.17W/m/K is seen in the quantum conductivity. The difference in conductivity is primarily a result of the overestimation of classical high frequency heat capacities.</p>
 
 

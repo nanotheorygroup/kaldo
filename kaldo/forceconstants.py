@@ -5,17 +5,15 @@ Anharmonic Lattice Dynamics
 import numpy as np
 from sparse import COO
 from kaldo.grid import wrap_coordinates
-from kaldo.controllers.displacement import calculate_second, calculate_third
-from kaldo.secondorder import SecondOrder
-from kaldo.thirdorder import ThirdOrder
+from kaldo.observables.secondorder import SecondOrder
+from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-DELTA_SHIFT = 1e-5
 MAIN_FOLDER = 'displacement'
 
 
-class ForceConstants(object):
+class ForceConstants:
     """ Class for constructing the finite difference object to calculate
         the second/third order force constant matrices after providing the
         unit cell geometry and calculator information.
@@ -54,10 +52,21 @@ class ForceConstants(object):
         self.distance_threshold = distance_threshold
         self._list_of_replicas = None
 
+        # TODO: we should probably remove the following initialization
+        self.second_order = SecondOrder.from_supercell(atoms,
+                                                       supercell=self.supercell,
+                                                       grid_type='C',
+                                                       is_acoustic_sum=False,
+                                                       folder=folder)
+        self.third_order = ThirdOrder.from_supercell(atoms,
+                                                     supercell=supercell,
+                                                     grid_type='C',
+                                                     folder=folder)
+
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='eskm', third_energy_threshold=0.,
-                    distance_threshold=None, is_acoustic_sum=False):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., is_acoustic_sum=False,
+                    only_second=False):
         """
         Create a finite difference object from a folder
         :param folder:
@@ -70,7 +79,6 @@ class ForceConstants(object):
         :return:
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
-        third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=format, third_energy_threshold=third_energy_threshold)
         atoms = second_order.atoms
         # Create a finite difference object
         forceconstants = {'atoms': atoms,
@@ -78,46 +86,26 @@ class ForceConstants(object):
                              'folder': folder}
         forceconstants = cls(**forceconstants)
         forceconstants.second_order = second_order
-        forceconstants.third_order = third_order
+        if not only_second:
+            if format == 'numpy':
+                third_format = 'sparse'
+            else:
+                third_format = format
+            third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=third_format,
+                                          third_energy_threshold=third_energy_threshold)
+
+            forceconstants.third_order = third_order
         return forceconstants
 
 
-
-    def calculate_second(self, calculator, grid_type='C', delta_shift=DELTA_SHIFT):
-        # TODO: move to ifc
-        atoms = self.atoms
-        self.second_order = SecondOrder.from_supercell(atoms,
-                                                       supercell=self.supercell,
-                                                       grid_type=grid_type,
-                                                       is_acoustic_sum=False)
-        replicated_atoms = self.second_order.replicated_atoms
-        atoms.set_calculator(calculator)
-        replicated_atoms.set_calculator(calculator)
-
-        _second_order = calculate_second(atoms,
-                                         replicated_atoms,
-                                         delta_shift)
-
-        self.second_order.value = _second_order
+    @property
+    def second(self):
+        return self.second_order
 
 
-    def calculate_third(self, calculator, grid_type='C', delta_shift=DELTA_SHIFT, supercell=None):
-        if supercell is None:
-            supercell = self.supercell
-        atoms = self.atoms
-        self.third_order = ThirdOrder.from_supercell(atoms,
-                                                     supercell=supercell,
-                                                     grid_type=grid_type)
-        replicated_atoms = self.third_order.replicated_atoms
-        atoms.set_calculator(calculator)
-        replicated_atoms.set_calculator(calculator)
-
-        _third_order = calculate_third(atoms,
-                                       replicated_atoms,
-                                       delta_shift,
-                                       distance_threshold=self.distance_threshold)
-        self.third_order.value = _third_order
-
+    @property
+    def third(self):
+        return self.third_order
 
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):

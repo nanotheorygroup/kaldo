@@ -39,7 +39,6 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
         logging.info('Reading dynamical matrix')
         second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
         second_order = second_dl
-        logging.info('Dynamical matrix stored.')
 
     if third_file:
         try:
@@ -48,7 +47,6 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
                                               supercell=supercell,
                                               filename=third_file,
                                               third_energy_threshold=third_energy_threshold)
-            logging.info('Third order matrix stored.')
 
         except UnicodeDecodeError:
             if third_energy_threshold != 0:

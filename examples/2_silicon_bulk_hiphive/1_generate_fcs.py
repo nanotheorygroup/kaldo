@@ -17,14 +17,13 @@ a0 = 5.432
 dim = 3
 rattle_amplitude = 0.01
 number_of_structures = 100
-potential_file = '/forcefields/Si.tersoff'
 cmds = ['pair_style tersoff',
-        'pair_coeff * * forcefields/Si.tersoff Si']
+        'pair_coeff * * forcefields/Si.tersoff Si(D)']
 calc = LAMMPSlib(lmpcmds=cmds, log_file='lammps_si_bulk_hiphive.log',
                  keep_alive=True)
 
 if not os.path.exists('structures'):
-  os.mkdir('structures/')
+    os.mkdir('structures/')
 
 # Generate rattled structures
 atoms_prim = bulk('Si', 'diamond', a=a0)

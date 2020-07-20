@@ -144,7 +144,7 @@ def phonons():
                                              supercell=[5, 5, 5],
                                              folder=td)
 
-        forceconstants.calculate_second(calculator=EMT())
+        forceconstants.second.calculate(calculator=EMT())
         is_classic = False
         phonons_config = {'kpts': [5, 5, 5],
                           'is_classic': is_classic,

@@ -22,7 +22,7 @@ import kaldo
 
 # -- Project information -----------------------------------------------------
 
-project = 'kaldo'
+project = 'kALDo'
 copyright = ("2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio")
 author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio'
 
@@ -129,7 +129,7 @@ html_theme_options = {
     'nav_title': 'kALDo',
 
     # Set you GA account ID to enable tracking
-    # 'google_analytics_account': 'UA-XXXXX',
+    'google_analytics_account': 'UA-172053863-1',
 
     # Specify a base_url used to generate sitemap.xml. If not
     # specified, then no sitemap will be built.
@@ -144,11 +144,17 @@ html_theme_options = {
     'repo_name': 'kALDo',
 
     # Visible levels of the global TOC; -1 means unlimited
-    'globaltoc_depth': -1,
+    'globaltoc_depth': 1,
     # If False, expand all TOC entries
-    'globaltoc_collapse': False,
+    'globaltoc_collapse': True,
     # If True, show hidden TOC entries
     'globaltoc_includehidden': False,
+    # 'nav_links':[{'href':'./',href
+    #               'title': 'test_link'}]
+}
+
+html_sidebars = {
+    "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

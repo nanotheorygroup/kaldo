@@ -1,4 +1,5 @@
-from kaldo.forceconstant import ForceConstant
+from kaldo.observables.forceconstant import ForceConstant
+from kaldo.observables.forceconstant import chi
 from opt_einsum import contract
 from ase import Atoms
 import os
@@ -10,8 +11,8 @@ import ase.units as units
 from kaldo.helpers.tools import timeit
 from kaldo.grid import wrap_coordinates
 from scipy.linalg.lapack import dsyev
-from kaldo.forceconstant import chi
 from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
@@ -172,7 +173,6 @@ class SecondOrder(ForceConstant):
         return second_order
 
 
-    @timeit
     def calculate_frequency(self, q_points, is_amorphous=False, distance_threshold=None):
         eigenvals = self.calculate_eigensystem(q_points, is_amorphous, distance_threshold, only_eigenvals=True)
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)

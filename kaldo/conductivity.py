@@ -62,7 +62,7 @@ class Conductivity:
         phonons : Phonons
             contains all the information about the calculated phononic properties of the system
         method : 'rta', 'sc', 'qhgk', 'inverse'
-            specifies the method used to calculate the conductivity.
+            specifies the method used to calculate_second the conductivity.
         tolerance : int
             in the self consistent conductivity calculation, it specifies the difference in W/m/K between n
             and n+1 step, to set as exit/convergence condition.
@@ -73,10 +73,10 @@ class Conductivity:
             in the self consistent conductivity calculation, it specifies the difference in W/m/K between n
             and n+1 step, to set as exit/convergence condition.
         length: (float, float, float)
-            specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values
+            specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values
             corresponds to the infinity length limit.
         finite_length_method : 'matthiessen', 'ms', 'caltech'
-            specifies how to calculate the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
+            specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
         storage : 'formatted', 'hdf5', 'numpy', 'memory'
             defines the type of storage used for the simulation.
 
@@ -87,7 +87,7 @@ class Conductivity:
 
         Examples
         --------
-        Here's an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes
+        Here's an example to calculate_second the inverse conductivity on the phonons object and tracing over the phonons modes
         
         ```
         Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
@@ -97,7 +97,7 @@ class Conductivity:
 
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
-        self.storage = kwargs.pop('storage', 'numpy')
+        self.storage = kwargs.pop('storage', 'formatted')
         if self.method == 'rta':
             self.n_iterations = 0
         else:
@@ -322,7 +322,7 @@ class Conductivity:
         """
         This calculates the mean free path of relaxons. In materials where most scattering events conserve momentum
         :ref:'Relaxon Theory Section' (e.g. in two dimensional materials or three dimensional materials at extremely low
-        temparatures), this quantity can be used to calculate thermal conductivity.
+        temparatures), this quantity can be used to calculate_second thermal conductivity.
 
         Returns
 	-------

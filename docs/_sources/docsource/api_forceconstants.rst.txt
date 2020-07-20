@@ -1,6 +1,6 @@
 .. _forceconstants-api:
 
-.. currentmodule::kaldo.forceconstants
+.. currentmodule:: kaldo.forceconstants
 
 ############################
 ForceConstants API Reference

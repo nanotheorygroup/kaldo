@@ -5,9 +5,10 @@ Anharmonic Lattice Dynamics
 """
 from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
+from kaldo.observables.physical_modes import PhysicalModes
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS
 from kaldo.grid import Grid
-from kaldo.controllers.harmonic import calculate_physical_modes, \
+from kaldo.controllers.harmonic import \
     calculate_heat_capacity, calculate_population, calculate_sij_sparse, calculate_generalized_diffusivity
 import numpy as np
 from opt_einsum import contract
@@ -47,13 +48,13 @@ class Phonons:
         diffusivity_threshold (optional) : float
             This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
         diffusivity_shape (optional) : string
-            defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
+            defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
             Default is `lorentz`.
         is_diffusivity_including_antiresonant (optional) : bool
             defines if you want to include or not anti-resonant terms in diffusivity calculations.
             Default is `False`.
         broadening_shape (optional) : string
-            defines the algorithm to use to calculate the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.
+            defines the algorithm to use to calculate_second the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.
             Default is `gauss`.
         is_tf_backend (optional) : bool
             defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
@@ -93,7 +94,7 @@ class Phonons:
         self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
-        self.storage = kwargs.pop('storage', 'numpy')
+        self.storage = kwargs.pop('storage', 'formatted')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
@@ -121,7 +122,7 @@ class Phonons:
         physical_mode : np array
             (n_k_points, n_modes) bool
         """
-        physical_mode = calculate_physical_modes(self)
+        physical_mode = PhysicalModes(self.frequency, self.min_frequency, self.max_frequency).calculate()
         return physical_mode.reshape(self.n_k_points, self.n_modes)
 
 

@@ -10,7 +10,6 @@ logging = get_logger()
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
 
-# TODO: move these methods inside second order
 
 def calculate_population(phonons):
     frequency = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
@@ -40,6 +39,7 @@ def calculate_heat_capacity(phonons):
 
 
 def calculate_sij_sparse(phonons):
+    logging.info('Start calculation diffusivity sparse')
     diffusivity_threshold = phonons.diffusivity_threshold
     if phonons.diffusivity_bandwidth is not None:
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
@@ -59,20 +59,9 @@ def calculate_sij_sparse(phonons):
     return s_ij
 
 
-def calculate_physical_modes(phonons):
-    physical_modes = np.ones_like(phonons.frequency.reshape(phonons.n_phonons), dtype=bool)
-    if phonons.min_frequency is not None:
-        physical_modes = physical_modes & (phonons.frequency.reshape(phonons.n_phonons) > phonons.min_frequency)
-    if phonons.max_frequency is not None:
-        physical_modes = physical_modes & (phonons.frequency.reshape(phonons.n_phonons) < phonons.max_frequency)
-    if phonons.is_nw:
-        physical_modes[:4] = False
-    else:
-        physical_modes[:3] = False
-    return physical_modes
-
 
 def calculate_diffusivity_dense(phonons):
+    logging.info('Start calculation diffusivity dense')
     omega = phonons._omegas.reshape((phonons.n_k_points, phonons.n_modes))
     if phonons.diffusivity_bandwidth is not None:
         diffusivity_bandwidth = phonons.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
