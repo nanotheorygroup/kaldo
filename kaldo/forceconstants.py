@@ -22,6 +22,7 @@ class ForceConstants:
     def __init__(self,
                  atoms,
                  supercell=(1, 1, 1),
+                 third_supercell=None,
                  folder=MAIN_FOLDER,
                  distance_threshold=None):
 
@@ -34,6 +35,8 @@ class ForceConstants:
         supercell: tuple
             Size of supercell given by the number of repetitions (l, m, n) of
             the small unit cell in each direction
+        third_supercell: tuple
+            Same as supercell, but for the third order ifc. If not provided, it's copied from supercell
         folder: str
             Name str for the displacement folder
         distance_threshold: float
@@ -58,15 +61,17 @@ class ForceConstants:
                                                        grid_type='C',
                                                        is_acoustic_sum=False,
                                                        folder=folder)
+        if third_supercell is None:
+            third_supercell = supercell
         self.third_order = ThirdOrder.from_supercell(atoms,
-                                                     supercell=supercell,
+                                                     supercell=third_supercell,
                                                      grid_type='C',
                                                      folder=folder)
 
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., is_acoustic_sum=False,
-                    only_second=False):
+    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
+                    is_acoustic_sum=False, only_second=False):
         """
         Create a finite difference object from a folder
         :param folder:
@@ -91,7 +96,9 @@ class ForceConstants:
                 third_format = 'sparse'
             else:
                 third_format = format
-            third_order = ThirdOrder.load(folder=folder, supercell=supercell, format=third_format,
+            if third_supercell is None:
+                third_supercell = supercell
+            third_order = ThirdOrder.load(folder=folder, supercell=third_supercell, format=third_format,
                                           third_energy_threshold=third_energy_threshold)
 
             forceconstants.third_order = third_order

@@ -6,6 +6,7 @@ Unit and regression test for the kaldo package.
 from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
+from kaldo.conductivity import Conductivity
 import pytest
 
 
@@ -20,7 +21,6 @@ def phonons():
                       broadening_shape='triangle',
                       is_tf_backend=True,
                       storage='memory')
-    phonons.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
     return phonons
 
 
@@ -30,17 +30,33 @@ calculated_diffusivities_two_sigma = np.array([0.   , 0.   , 0.   , 0.271, 0.313
 
 
 def test_diffusivity(phonons):
-    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_full,
+    cond = Conductivity(phonons=phonons,
+                        method='qhgk',
+                        storage='memory',
+                        diffusivity_bandwidth=phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)))
+
+    cond.conductivity
+    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_full,
                                          decimal=3)
 
 
 def test_diffusivity_small_threshold(phonons):
-    phonons.diffusivity_threshold = 2
-    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma, decimal=3)
+    cond = Conductivity(phonons=phonons,
+                 method='qhgk', storage='memory')
+    cond.diffusivity_threshold = 2
+
+    cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+    cond.conductivity
+    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma, decimal=3)
 
 
 def test_diffusivity_large_threshold(phonons):
-    phonons.diffusivity_threshold = 20
-    np.testing.assert_array_almost_equal(phonons.diffusivity.flatten().real[:10], calculated_diffusivities_full, decimal=3)
+
+    cond = Conductivity(phonons=phonons,
+                 method='qhgk', storage='memory')
+    cond.diffusivity_threshold = 20
+    cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+    cond.conductivity
+    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_full, decimal=3)
 
 

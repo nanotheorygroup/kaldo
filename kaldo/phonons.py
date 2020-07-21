@@ -5,11 +5,11 @@ Anharmonic Lattice Dynamics
 """
 from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
-from kaldo.observables.physical_modes import PhysicalModes
+from kaldo.observables.physical_mode import PhysicalMode
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS
 from kaldo.grid import Grid
 from kaldo.controllers.harmonic import \
-    calculate_heat_capacity, calculate_population, calculate_sij_sparse, calculate_generalized_diffusivity
+    calculate_heat_capacity, calculate_population
 import numpy as np
 from opt_einsum import contract
 
@@ -42,20 +42,9 @@ class Phonons:
             defines the width of the energy conservation smearing in the phonons scattering calculation.
             If `None` the width is calculated dynamically. Otherwise the input value corresponds to the
             width. Units: THz.
-        diffusivity_bandwidth (optional) : float
-            Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
-            thermal conductivity in amorphous systems. Units: rad/ps
-        diffusivity_threshold (optional) : float
-            This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
-        diffusivity_shape (optional) : string
-            defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
-            Default is `lorentz`.
-        is_diffusivity_including_antiresonant (optional) : bool
-            defines if you want to include or not anti-resonant terms in diffusivity calculations.
-            Default is `False`.
         broadening_shape (optional) : string
-            defines the algorithm to use to calculate_second the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.
-            Default is `gauss`.
+            defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions
+            . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.
         is_tf_backend (optional) : bool
             defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
             numpy (False). Default is True.
@@ -91,12 +80,8 @@ class Phonons:
         self.is_tf_backend = kwargs.pop('is_tf_backend', True)
         self.is_nw = kwargs.pop('is_nw', False)
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
-        self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
-        self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
-        self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
         self.storage = kwargs.pop('storage', 'formatted')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
-        self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
@@ -122,7 +107,7 @@ class Phonons:
         physical_mode : np array
             (n_k_points, n_modes) bool
         """
-        physical_mode = PhysicalModes(self.frequency, self.min_frequency, self.max_frequency).calculate()
+        physical_mode = PhysicalMode(self.frequency, self.min_frequency, self.max_frequency).calculate()
         return physical_mode.reshape(self.n_k_points, self.n_modes)
 
 
@@ -218,63 +203,6 @@ class Phonons:
         return ps
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
-    def diffusivity(self):
-        """Calculate the diffusivity, for each k point in k_points and each mode.
-
-        Returns
-        -------
-        diffusivity : np.array(n_k_points, n_modes)
-            diffusivity in mm^2/s
-        """
-        generalized_diffusivity = self._generalized_diffusivity
-        diffusivity = 1 / 3 * 1 / 100 * contract('knmaa->kn', generalized_diffusivity)
-        return diffusivity
-
-
-    @property
-    def flux(self):
-        """Calculate the flux, for each couple of k point in k_points/modes.
-
-        Returns
-        -------
-        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
-        """
-        if self.diffusivity_threshold is not None:
-            sij = self.flux_sparse
-        else:
-            sij = self.flux_dense
-        return sij
-
-
-    @lazy_property(label='<diffusivity_bandwidth>')
-    def flux_dense(self):
-        """Calculate the flux, for each couple of k point in k_points/modes.
-
-        Returns
-        -------
-        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
-        """
-        q_points = self._main_q_mesh
-        sij = self.forceconstants.second_order.calculate_sij(q_points,
-                                                             is_amorphous=self._is_amorphous,
-                                                             distance_threshold=
-                                                             self.forceconstants.distance_threshold)
-        return sij
-
-
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>')
-    def flux_sparse(self):
-        """Calculate the flux, for each couple of k point in k_points/modes.
-
-        Returns
-        -------
-        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
-        """
-        sij = calculate_sij_sparse(self)
-        return sij
-
-
     @lazy_property(label='')
     def eigenvalues(self):
         """Calculates the eigenvalues of the dynamical matrix in Thz^2.
@@ -330,7 +258,7 @@ class Phonons:
         return eigensystem
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
 
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
@@ -341,21 +269,15 @@ class Phonons:
         return ps_and_gamma
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self.calculate_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
-
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>')
-    def _generalized_diffusivity(self):
-        generalized_diffusivity = calculate_generalized_diffusivity(self)
-        return generalized_diffusivity
-
 # Helpers properties
 
     @property
-    def _omegas(self):
+    def omega(self):
         return self.frequency * 2 * np.pi
 
 
@@ -392,6 +314,16 @@ class Phonons:
         return is_amorphous
 
 
+    def _allowed_third_phonons_index(self, index_q, is_plus):
+        q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
+        qp_vec = self._reciprocal_grid.unitary_grid()
+        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
+        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
+        rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
+        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise')
+        return index_qpp_full
+
+
     def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         logging.info('Projection started')
         if self.is_tf_backend:
@@ -416,11 +348,4 @@ class Phonons:
         return ps_and_gamma
 
 
-    def _allowed_third_phonons_index(self, index_q, is_plus):
-        q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
-        qp_vec = self._reciprocal_grid.unitary_grid()
-        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
-        rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
-        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise')
-        return index_qpp_full
+
