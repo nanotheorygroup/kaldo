@@ -47,12 +47,12 @@ def project_amorphous(phonons):
         #                                            0, mupp_vec[0])
 
         pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-        pot_times_dirac /= (phonons._omegas[0, mup_vec] * phonons._omegas[0, mupp_vec])
+        pot_times_dirac /= (phonons.omega[0, mup_vec] * phonons.omega[0, mupp_vec])
 
         ps_and_gamma[nu_single, 0] = dirac_delta.sum()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
         ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] * np.pi / 4. * units._hbar * GAMMATOTHZ
-        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons._omegas.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons.omega.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
         logging.info('calculating third ' + str(nu_single) + ', ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
@@ -113,7 +113,7 @@ def project_crystal(phonons):
 
                 pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
 
-                pot_times_dirac /= (phonons._omegas[index_kp_vec, mup_vec] * phonons._omegas[index_kpp_vec, mupp_vec])
+                pot_times_dirac /= (phonons.omega[index_kp_vec, mup_vec] * phonons.omega[index_kpp_vec, mupp_vec])
                 pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
                 if is_gamma_tensor_enabled:
@@ -130,9 +130,9 @@ def project_crystal(phonons):
                     scattering_tensor[nu_single] += np.bincount(nupp_vec, pot_times_dirac, phonons.n_phonons)
                 ps_and_gamma[nu_single, 0] += dirac_delta.sum() / phonons.n_k_points
                 ps_and_gamma[nu_single, 1] += pot_times_dirac.sum()
-            ps_and_gamma[nu_single, 1:] /= phonons._omegas.flatten()[nu_single]
+            ps_and_gamma[nu_single, 1:] /= phonons.omega.flatten()[nu_single]
             if is_gamma_tensor_enabled:
-                scattering_tensor[nu_single] /= phonons._omegas.flatten()[nu_single]
+                scattering_tensor[nu_single] /= phonons.omega.flatten()[nu_single]
     if is_gamma_tensor_enabled:
         return np.hstack([ps_and_gamma, scattering_tensor])
     else:
@@ -140,8 +140,8 @@ def project_crystal(phonons):
 
 
 def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
-    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    if not physical_modes[index_q, mu]:
+    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    if not physical_mode[index_q, mu]:
         return None
 
     density = phonons.population
@@ -167,14 +167,14 @@ def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
             sigma_small = phonons.third_bandwidth.reshape((phonons.n_k_points, phonons.n_modes))[index_q, mu]
 
     second_sign = (int(is_plus) * 2 - 1)
-    omegas = phonons._omegas
+    omegas = phonons.omega
     omegas_difference = np.abs(
         omegas[index_q, mu] + second_sign * omegas[:, :, np.newaxis] -
         omegas[index_qpp_full, np.newaxis, :])
-    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     condition = (omegas_difference < DELTA_THRESHOLD * sigma_small) & \
-                (physical_modes[:, :, np.newaxis]) & \
-                (physical_modes[index_qpp_full, np.newaxis, :])
+                (physical_mode[:, :, np.newaxis]) & \
+                (physical_mode[index_qpp_full, np.newaxis, :])
 
     interactions = np.array(np.where(condition)).T
 
@@ -216,21 +216,21 @@ def calculate_dirac_delta_amorphous(phonons, mu):
         broadening_function = triangular_delta
     else:
         raise TypeError('Broadening shape not supported')
-    physical_modes = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     for is_plus in [1, 0]:
         sigma_small = phonons.third_bandwidth
 
-        if physical_modes[0, mu]:
+        if physical_mode[0, mu]:
 
             second_sign = (int(is_plus) * 2 - 1)
-            omegas = phonons._omegas
+            omegas = phonons.omega
             omegas_difference = np.abs(
                 omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
                 omegas[0, np.newaxis, :])
 
             condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                            (physical_modes[0, :, np.newaxis]) & \
-                            (physical_modes[0, np.newaxis, :])
+                            (physical_mode[0, :, np.newaxis]) & \
+                            (physical_mode[0, np.newaxis, :])
             interactions = np.array(np.where(condition)).T
 
             if interactions.size != 0:

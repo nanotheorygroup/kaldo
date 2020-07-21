@@ -26,33 +26,36 @@ def phonons():
                       broadening_shape='triangle',
                       is_tf_backend=True,
                       storage='memory')
-    phonons.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
     return phonons
 
 
 def test_af_conductivity_without_antiresonant(phonons):
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory')
+    cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+    cond = (cond.conductivity.sum(axis=0).diagonal().mean())
     np.testing.assert_approx_equal(cond, 0.804, significant=3)
 
 
 def test_af_conductivity_with_antiresonant(phonons):
-    phonons.is_diffusivity_including_antiresonant = True
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory')
+    cond.is_diffusivity_including_antiresonant = True
+    cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+    cond = (cond.conductivity.sum(axis=0).diagonal().mean())
     np.testing.assert_approx_equal(cond, 0.825, significant=3)
 
 
 def test_af_conductivity_without_antiresonant_gauss(phonons):
-    phonons.diffusivity_shape = 'gauss'
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory')
+    cond.diffusivity_shape = 'gauss'
+    cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+    cond = (cond.conductivity.sum(axis=0).diagonal().mean())
     np.testing.assert_approx_equal(cond, 0.8305, significant=3)
 
 
 def test_af_conductivity_with_antiresonant_gauss(phonons):
-    phonons.diffusivity_shape = 'gauss'
-    phonons.is_diffusivity_including_antiresonant = True
-    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
-    cond = (cond.diagonal().mean())
+    cond = Conductivity(phonons=phonons, method='qhgk', storage='memory')
+    cond.diffusivity_shape = 'gauss'
+    cond.is_diffusivity_including_antiresonant = True
+    cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+    cond = (cond.conductivity.sum(axis=0).diagonal().mean())
     np.testing.assert_approx_equal(cond, 0.8335, significant=3)
