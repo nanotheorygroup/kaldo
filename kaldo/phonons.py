@@ -121,7 +121,10 @@ class Phonons:
             (n_k_points, n_modes) frequency in THz
         """
         q_points = self._main_q_mesh
-        frequency = self.forceconstants.second_order.calculate_frequency(q_points)
+        frequency = self.forceconstants.second_order.calculate_frequency(q_points,
+                                                                         is_amorphous=self._is_amorphous,
+                                                                       distance_threshold=
+                                                                       self.forceconstants.distance_threshold)
         return frequency.reshape(self.n_k_points, self.n_modes)
 
 
@@ -233,7 +236,10 @@ class Phonons:
     @lazy_property(label='')
     def _dynmat_derivatives(self):
         q_points = self._main_q_mesh
-        dynmat_derivatives = self.forceconstants.second_order.calculate_dynmat_derivatives(q_points)
+        dynmat_derivatives = self.forceconstants.second_order.calculate_dynmat_derivatives(q_points,
+                                                                       is_amorphous=self._is_amorphous,
+                                                                       distance_threshold=
+                                                                       self.forceconstants.distance_threshold)
         return dynmat_derivatives
 
 
