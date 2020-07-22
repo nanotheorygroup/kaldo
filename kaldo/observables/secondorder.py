@@ -252,7 +252,6 @@ class SecondOrder(ForceConstant):
 
 
     def calculate_sij(self, q_points, is_amorphous=False, distance_threshold=None):
-        logging.info('Calculating the flux')
         if is_amorphous:
             sij = np.zeros((len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3))
         else:

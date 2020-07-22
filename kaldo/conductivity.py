@@ -31,9 +31,8 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
     return conductivity_per_mode * 1e22
 
 
-def calculate_diffusivity_dense(phonons, omega, flux, diffusivity_bandwidth, physical_mode, alpha, beta, curve, is_diffusivity_including_antiresonant=False):
+def calculate_diffusivity_dense(omega, flux, diffusivity_bandwidth, physical_mode, alpha, beta, curve, is_diffusivity_including_antiresonant=False):
     # TODO: cache this
-    # TODO: do not pass the whole phonons object
     sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
 
     delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
@@ -444,12 +443,16 @@ class Conductivity:
             for k_index in range(len(q_points)):
                 heat_capacity = self.calculate_2d_heat_capacity(k_index)
 
+                sij = self.phonons.forceconstants.second_order.calculate_sij(np.array([q_points[k_index]]),
+                                                                             is_amorphous=self.phonons._is_amorphous,
+                                                                             distance_threshold=
+                                                                             self.phonons.forceconstants.distance_threshold)
                 for alpha in range(3):
                     for beta in range(3):
                         if phonons.n_modes > 100:
                             logging.info('calculating conductivity for ' + str(q_points[k_index]))
 
-                        diffusivity = calculate_diffusivity_dense(phonons, phonons.omega[k_index], self.flux[k_index],
+                        diffusivity = calculate_diffusivity_dense(phonons.omega[k_index], self.flux[k_index],
                                                             diffusivity_bandwidth[k_index],
                                                             physical_mode[k_index], alpha, beta, curve, is_diffusivity_including_antiresonant)
                         conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity *
