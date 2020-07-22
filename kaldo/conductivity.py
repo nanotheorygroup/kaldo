@@ -452,7 +452,7 @@ class Conductivity:
                         if phonons.n_modes > 100:
                             logging.info('calculating conductivity for ' + str(q_points[k_index]))
 
-                        diffusivity = calculate_diffusivity_dense(phonons.omega[k_index], self.flux[k_index],
+                        diffusivity = calculate_diffusivity_dense(phonons.omega[k_index], sij,
                                                             diffusivity_bandwidth[k_index],
                                                             physical_mode[k_index], alpha, beta, curve, is_diffusivity_including_antiresonant)
                         conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity *
