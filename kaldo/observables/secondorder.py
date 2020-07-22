@@ -252,6 +252,7 @@ class SecondOrder(ForceConstant):
 
 
     def calculate_sij(self, q_points, is_amorphous=False, distance_threshold=None):
+        logging.info('Calculating the flux')
         if is_amorphous:
             sij = np.zeros((len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3))
         else:
@@ -261,7 +262,7 @@ class SecondOrder(ForceConstant):
             q_point = np.array([q_points[ik]])
             if self.atoms.positions.shape[0] > 100:
                 # We want to print only for big systems
-                logging.info('Calculating the flux operators, q = ' + str(q_point))
+                logging.info('Flux operators for q = ' + str(q_point))
             dynmat_derivatives = self.calculate_dynmat_derivatives(q_point, is_amorphous, distance_threshold)
 
             eigenvects = self.calculate_eigensystem(q_point, is_amorphous, distance_threshold, only_eigenvals=False)[:, 1:, :]
