@@ -22,7 +22,7 @@ def get_logger():
     return logger
 
 
-def log_size(shape, type=np.float, memory_threshold_in_mb=30):
+def log_size(shape, type=np.float, memory_threshold_in_mb=10, name=None):
     shape = np.array(shape)
     out = 'Memory. Available / total: '
     out +=  str(psutil.virtual_memory().available/1e6) + ' MB / '
@@ -39,6 +39,9 @@ def log_size(shape, type=np.float, memory_threshold_in_mb=30):
         log = get_logger().info
     else:
         log = get_logger().debug
-    log(out)
+    if name is not None:
+        log(name + ': ' + out)
+    else:
+        log(out)
     log(out_2)
     log(out_3)

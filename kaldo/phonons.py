@@ -271,13 +271,13 @@ class Phonons:
                          format=self.store_format['_ps_gamma_and_gamma_tensor']):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self.calculate_phase_space_and_gamma(is_gamma_tensor_enabled=False)
+            ps_and_gamma = self.select_backend_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.calculate_phase_space_and_gamma(is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self.select_backend_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 # Helpers properties
@@ -330,7 +330,7 @@ class Phonons:
         return index_qpp_full
 
 
-    def calculate_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
+    def select_backend_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         logging.info('Projection started')
         if self.is_tf_backend:
             try:

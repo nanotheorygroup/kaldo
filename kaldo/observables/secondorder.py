@@ -221,7 +221,7 @@ class SecondOrder(ForceConstant):
             type = np.float
         else:
             type = np.complex
-        log_size(shape, type)
+        log_size(shape, type, name='dynamical_matrix_derivative')
         ddyn = np.zeros(shape).astype(type)
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
@@ -242,7 +242,7 @@ class SecondOrder(ForceConstant):
                 if distance_threshold is not None:
                     shape = (n_unit_cell, 3, n_unit_cell, 3, 3)
                     type = np.complex
-                    log_size(shape, type)
+                    log_size(shape, type, name='dynmat_derivatives')
                     dynmat_derivatives = np.zeros(shape, dtype=type)
                     for l in range(n_replicas):
                         wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
@@ -266,7 +266,7 @@ class SecondOrder(ForceConstant):
             type = np.float
         else:
             type = np.complex
-        log_size(shape, type)
+        log_size(shape, type, name='sij')
         sij = np.zeros(shape, dtype=type)
         for ik in range(q_points.shape[0]):
             q_point = np.array([q_points[ik]])
@@ -319,7 +319,7 @@ class SecondOrder(ForceConstant):
             esystem = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
         else:
             shape = (n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)
-            log_size(shape, dtype)
+            log_size(shape, dtype, name='eigensystem')
             esystem = np.zeros(shape, dtype=dtype)
         cell_inv = np.linalg.inv(self.atoms.cell)
         replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
@@ -333,7 +333,7 @@ class SecondOrder(ForceConstant):
             if distance_threshold is not None:
                 shape = (n_unit_cell, 3, n_unit_cell, 3)
                 type = np.complex
-                log_size(shape, type)
+                log_size(shape, type, name='dynamical_matrix')
                 dyn_s = np.zeros(shape, dtype=type)
                 replicated_cell = self.replicated_atoms.cell
 

@@ -68,7 +68,7 @@ def project_crystal(phonons):
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
         shape = (phonons.n_phonons, phonons.n_phonons)
-        log_size(shape)
+        log_size(shape, name='scattering_tensor')
         scattering_tensor = np.zeros(shape)
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_replicas = phonons.forceconstants.third_order.n_replicas
