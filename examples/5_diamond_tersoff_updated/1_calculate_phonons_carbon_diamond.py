@@ -90,14 +90,14 @@ plt.savefig(folder + '/cv_vs_freq.png', dpi=300)
 
 # After computing 2nd and 3rd (phonon) properties, the thermal
 # conductivities (t.c.) can be computed by solving Boltzmann Transport
-# Equation with various of methods. To compute t.c., one need to set
+# Equation with various of methods. To compute t.c., one needs to set
 # up a Conductivity object, which takes the phonon object computed
 # from the above section and the method string
 # (e.g. 'rta' for RTA,'sc' for self-consistent and 'inverse'
 # for direct inversion of the scattering matrix)
 # to solve for BTE. Lastly, various of format to store conductivity 
 # and mean free path are also available in the Conductivity 
-# object (i.e. "formatted" for ASCII format data, "numpy" for python 
+# object (e.g. "formatted" for ASCII format data, "numpy" for python 
 # numpy array format and "memory" for quick calculations, no data stored).
 
 print('\n')
