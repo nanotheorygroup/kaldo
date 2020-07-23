@@ -62,7 +62,7 @@ def calculate_diffusivity_sparse(phonons, s_ij, diffusivity_bandwidth, diffusivi
 
     physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     physical_mode_2d = physical_mode[:, :, np.newaxis] & \
-                        physical_mode[:, np.newaxis, :]
+                       physical_mode[:, np.newaxis, :]
     omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
     condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
 
@@ -75,7 +75,7 @@ def calculate_diffusivity_sparse(phonons, s_ij, diffusivity_bandwidth, diffusivi
     prefactor[np.invert(physical_mode_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
     prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     shape = np.array([phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3])
-    log_size(shape)
+    log_size(shape, name='diffusivity')
     diffusivity = np.zeros(shape)
     for alpha in range(3):
         for beta in range(3):
@@ -101,9 +101,9 @@ def mfp_matthiessen(gamma, velocity, length, physical_mode):
 def mfp_caltech(lambd, velocity, length, physical_mode):
     reduced_physical_mode = physical_mode.copy() & (velocity[:] != 0)
     lambd[reduced_physical_mode] = lambd[reduced_physical_mode] * \
-                                           (1 - np.abs(lambd[reduced_physical_mode]) / (length / 2) *
-                                            (1 - np.exp(- length / 2 / np.abs(
-                                                lambd[reduced_physical_mode]))))
+                                   (1 - np.abs(lambd[reduced_physical_mode]) / (length / 2) *
+                                    (1 - np.exp(- length / 2 / np.abs(
+                                        lambd[reduced_physical_mode]))))
     return lambd
 
 
@@ -282,9 +282,9 @@ class Conductivity:
         """
         q_points = self.phonons._main_q_mesh
         sij = self.phonons.forceconstants.second_order.calculate_sij(q_points,
-                                                             is_amorphous=self.phonons._is_amorphous,
-                                                             distance_threshold=
-                                                             self.phonons.forceconstants.distance_threshold)
+                                                                     is_amorphous=self.phonons._is_amorphous,
+                                                                     distance_threshold=
+                                                                     self.phonons.forceconstants.distance_threshold)
         return sij
 
 
@@ -369,14 +369,15 @@ class Conductivity:
             (phonons.n_k_points,phonons.modes, phonons.n_modes) float
         """
         phonons = self.phonons
-        frequencies = phonons.frequency
-        c_v = np.zeros((phonons.n_modes, phonons.n_modes))
-        temperature = phonons.temperature* KELVINTOTHZ
-        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
         if (phonons.is_classic):
+            c_v = np.zeros((phonons.n_modes, phonons.n_modes))
             c_v[:, :] = KELVINTOJOULE
         else:
-            f_be = phonons.population
+            frequencies = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
+            temperature = phonons.temperature * KELVINTOTHZ
+            heat_capacity = phonons.heat_capacity.reshape((phonons.n_k_points, phonons.n_modes))
+            physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+            f_be = phonons.population.reshape((phonons.n_k_points, phonons.n_modes))
             c_v_omega = (f_be[k_index, :, np.newaxis] - f_be[k_index, np.newaxis, :])
             diff_omega = (frequencies[k_index, :, np.newaxis] - frequencies[k_index, np.newaxis, :])
             mask_degeneracy = np.where(diff_omega == 0, True, False)
@@ -391,8 +392,8 @@ class Conductivity:
             c_v = KELVINTOJOULE * c_v / temperature
 
             #Degeneracy part: let us substitute the wrong elements
-            heat_capacity_deg_2d = (phonons.heat_capacity[k_index, :, np.newaxis]
-                                    + phonons.heat_capacity[k_index, np.newaxis, :]) / 2
+            heat_capacity_deg_2d = (heat_capacity[k_index, :, np.newaxis]
+                                    + heat_capacity[k_index, np.newaxis, :]) / 2
             c_v = np.where(mask_degeneracy, heat_capacity_deg_2d, c_v)
 
             #Physical modes
@@ -412,6 +413,7 @@ class Conductivity:
             (n_phonons, 3, 3) W/m/K
         """
         phonons = self.phonons
+        omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
         volume = np.linalg.det(phonons.atoms.cell)
         q_points = phonons._main_q_mesh
         physical_mode = phonons.physical_mode
@@ -452,9 +454,9 @@ class Conductivity:
                     logging.info('calculating conductivity for ' + str(q_points[k_index]))
                 for alpha in range(3):
                     for beta in range(3):
-                        diffusivity = calculate_diffusivity_dense(phonons.omega[k_index], sij,
-                                                            diffusivity_bandwidth[k_index],
-                                                            physical_mode[k_index], alpha, beta, curve, is_diffusivity_including_antiresonant)
+                        diffusivity = calculate_diffusivity_dense(omega[k_index], sij,
+                                                                  diffusivity_bandwidth[k_index],
+                                                                  physical_mode[k_index], alpha, beta, curve, is_diffusivity_including_antiresonant)
                         conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity *
                                                                                 diffusivity, axis=-1) \
                                                                          / (volume * phonons.n_k_points)
@@ -463,7 +465,7 @@ class Conductivity:
             logging.info('Start calculation diffusivity sparse')
 
             diffusivity = calculate_diffusivity_sparse(phonons, self.flux, diffusivity_bandwidth, self.diffusivity_threshold, curve,
-                                             is_diffusivity_including_antiresonant)
+                                                       is_diffusivity_including_antiresonant)
             heat_capacity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
             for index_k in range(phonons.n_k_points):
                 heat_capacity[index_k] = self.calculate_2d_heat_capacity(index_k)
@@ -476,8 +478,8 @@ class Conductivity:
         self._diffusivity = 1 / 3 * 1 / 100 *  contract('knaa->kn', diffusivity_with_axis)
 
         return conductivity_per_mode * 1e22
-    
-    
+
+
     def calculate_mfp_inverse(self):
         """
         This method calculates the inverse of the mean free path for each phonon.
@@ -502,7 +504,7 @@ class Conductivity:
                 if length is not None:
                     if length[alpha]:
                         gamma = gamma_with_matthiessen(gamma, velocity[:, alpha],
-                                                                            length[alpha])
+                                                       length[alpha])
 
             scattering_matrix += np.diag(gamma[physical_mode])
             scattering_inverse = np.linalg.inv(scattering_matrix)
@@ -514,17 +516,17 @@ class Conductivity:
             if finite_size_method == 'matthiessen':
                 if (self.length[alpha] is not None) and (self.length[alpha] != 0):
                     lambd[physical_mode, alpha] = 1 / (
-                                np.sign(velocity[physical_mode, alpha]) / lambd[physical_mode, alpha] + 1 /
-                                np.array(self.length)[np.newaxis, alpha]) * np.sign(velocity[physical_mode, alpha])
+                            np.sign(velocity[physical_mode, alpha]) / lambd[physical_mode, alpha] + 1 /
+                            np.array(self.length)[np.newaxis, alpha]) * np.sign(velocity[physical_mode, alpha])
                 else:
                     lambd[physical_mode, alpha] = 1 / (
-                                np.sign(velocity[physical_mode, alpha]) / lambd[physical_mode, alpha]) * np.sign(
+                            np.sign(velocity[physical_mode, alpha]) / lambd[physical_mode, alpha]) * np.sign(
                         velocity[physical_mode, alpha])
 
                 lambd[velocity[:, alpha] == 0, alpha] = 0
         return lambd
-    
-    
+
+
     def calculate_mfp_evect(self):
         """
         This calculates the mean free path of evect. In materials where most scattering events conserve momentum
@@ -551,17 +553,17 @@ class Conductivity:
         new_physical_states = np.argwhere(evals >= 0)[0, 0]
         reduced_evects = evects[new_physical_states:, new_physical_states:]
         reduced_evals = evals[new_physical_states:]
-        log_size(_scattering_matrix.shape)
+        log_size(_scattering_matrix.shape, name='reduced_scattering')
         reduced_scattering_inverse = np.zeros_like(_scattering_matrix)
         reduced_scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot(np.linalg.inv(reduced_evects))
         scattering_inverse = reduced_scattering_inverse
         # e, v = np.linalg.eig(a)
         # a = v.dot(np.diag(e)).dot(np.linalg.inv(v))
-    
+
         lambd = scattering_inverse.dot(velocity[:, :])
         return lambd
-    
-    
+
+
     def calculate_mfp_sc(self):
         phonons = self.phonons
         finite_size_method = self.finite_length_method
@@ -586,8 +588,8 @@ class Conductivity:
 
                 lambd_n[velocity[:, alpha]==0, alpha] = 0
         return lambd_n
-    
-    
+
+
     def calculate_sc_mfp(self, matthiessen_length=None):
         tolerance = self.tolerance
         n_iterations = self.n_iterations
