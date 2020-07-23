@@ -9,7 +9,7 @@ from opt_einsum import contract
 from sparse import COO
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
-from kaldo.helpers.logger import get_logger
+from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 MAX_ITERATIONS_SC = 50
@@ -74,8 +74,9 @@ def calculate_diffusivity_sparse(phonons, s_ij, diffusivity_bandwidth, diffusivi
     prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
     prefactor[np.invert(physical_mode_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
     prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-
-    diffusivity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3))
+    shape = np.array([phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3])
+    log_size(shape)
+    diffusivity = np.zeros(shape)
     for alpha in range(3):
         for beta in range(3):
             diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).todense()
@@ -447,11 +448,10 @@ class Conductivity:
                                                                              is_amorphous=self.phonons._is_amorphous,
                                                                              distance_threshold=
                                                                              self.phonons.forceconstants.distance_threshold)
+                if phonons.n_modes > 100:
+                    logging.info('calculating conductivity for ' + str(q_points[k_index]))
                 for alpha in range(3):
                     for beta in range(3):
-                        if phonons.n_modes > 100:
-                            logging.info('calculating conductivity for ' + str(q_points[k_index]))
-
                         diffusivity = calculate_diffusivity_dense(phonons.omega[k_index], sij,
                                                             diffusivity_bandwidth[k_index],
                                                             physical_mode[k_index], alpha, beta, curve, is_diffusivity_including_antiresonant)
@@ -551,6 +551,7 @@ class Conductivity:
         new_physical_states = np.argwhere(evals >= 0)[0, 0]
         reduced_evects = evects[new_physical_states:, new_physical_states:]
         reduced_evals = evals[new_physical_states:]
+        log_size(_scattering_matrix.shape)
         reduced_scattering_inverse = np.zeros_like(_scattering_matrix)
         reduced_scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot(np.linalg.inv(reduced_evects))
         scattering_inverse = reduced_scattering_inverse

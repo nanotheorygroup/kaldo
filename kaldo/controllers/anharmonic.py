@@ -7,7 +7,7 @@ import ase.units as units
 from kaldo.helpers.tools import timeit
 import numpy as np
 from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
-from kaldo.helpers.logger import get_logger
+from kaldo.helpers.logger import get_logger, log_size
 from opt_einsum import contract
 
 logging = get_logger()
@@ -67,7 +67,9 @@ def project_crystal(phonons):
     is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
-        scattering_tensor = np.zeros((phonons.n_phonons, phonons.n_phonons))
+        shape = (phonons.n_phonons, phonons.n_phonons)
+        log_size(shape)
+        scattering_tensor = np.zeros(shape)
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_replicas = phonons.forceconstants.third_order.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors
