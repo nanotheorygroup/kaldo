@@ -12,7 +12,7 @@ from kaldo.grid import wrap_coordinates
 from scipy.linalg.lapack import dsyev
 from kaldo.observables.forceconstant import chi
 from kaldo.controllers.displacement import calculate_second
-from kaldo.helpers.logger import get_logger
+from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
@@ -216,7 +216,10 @@ class SecondOrder(ForceConstant):
             logging.info('Using folded flux operators')
         cell_inv = np.linalg.inv(self.atoms.cell)
 
-        ddyn = np.zeros((n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)).astype(np.complex)
+        shape = (n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)
+        type = np.complex
+        log_size(shape, type)
+        ddyn = np.zeros(shape).astype(type)
         for index_k in range(n_k_points):
             qvec = q_points[index_k]
             if is_amorphous:
@@ -234,7 +237,10 @@ class SecondOrder(ForceConstant):
                 list_of_replicas = self.list_of_replicas
 
                 if distance_threshold is not None:
-                    dynmat_derivatives = np.zeros((n_unit_cell, 3, n_unit_cell, 3, 3), dtype=np.complex)
+                    shape = (n_unit_cell, 3, n_unit_cell, 3, 3)
+                    type = np.complex
+                    log_size(shape, type)
+                    dynmat_derivatives = np.zeros(shape, dtype=type)
                     for l in range(n_replicas):
                         wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
                                                             replicated_cell_inv)
@@ -252,11 +258,13 @@ class SecondOrder(ForceConstant):
 
 
     def calculate_sij(self, q_points, is_amorphous=False, distance_threshold=None):
+        shape = (len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3)
         if is_amorphous:
-            sij = np.zeros((len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3))
+            type = np.float
         else:
-            sij = np.zeros((len(q_points), 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3),
-                           dtype=np.complex)
+            type = np.complex
+        log_size(shape, type)
+        sij = np.zeros(shape, dtype=type)
         for ik in range(q_points.shape[0]):
             q_point = np.array([q_points[ik]])
             if self.atoms.positions.shape[0] > 100:
@@ -307,7 +315,9 @@ class SecondOrder(ForceConstant):
         if only_eigenvals:
             esystem = np.zeros((n_k_points, n_unit_cell * 3), dtype=dtype)
         else:
-            esystem = np.zeros((n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3), dtype=dtype)
+            shape = (n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)
+            log_size(shape, dtype)
+            esystem = np.zeros(shape, dtype=dtype)
         cell_inv = np.linalg.inv(self.atoms.cell)
         replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
 
@@ -318,7 +328,10 @@ class SecondOrder(ForceConstant):
 
             list_of_replicas = self.list_of_replicas
             if distance_threshold is not None:
-                dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
+                shape = (n_unit_cell, 3, n_unit_cell, 3)
+                type = np.complex
+                log_size(shape, type)
+                dyn_s = np.zeros(shape, dtype=type)
                 replicated_cell = self.replicated_atoms.cell
 
                 for l in range(n_replicas):

@@ -7,7 +7,7 @@ import ase.units as units
 from kaldo.helpers.tools import timeit
 import tensorflow as tf
 from opt_einsum import contract
-from kaldo.helpers.logger import get_logger
+from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 
@@ -94,7 +94,9 @@ def project_crystal(phonons):
     evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
-        ps_and_gamma = np.zeros((phonons.n_phonons, 2 + phonons.n_phonons))
+        shape = (phonons.n_phonons, 2 + phonons.n_phonons)
+        log_size(shape)
+        ps_and_gamma = np.zeros(shape)
     else:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     logging.info('Projection started')
