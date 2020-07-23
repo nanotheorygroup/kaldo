@@ -29,7 +29,7 @@ forceconstants_config = {'atoms': atoms, 'supercell': supercell, 'folder': 'fc'}
 forceconstants = ForceConstants(**forceconstants_config)
 
 # Define calculator input information for the ase LAMMPSlib calculator
-# Terosff potential for carbon (C.tersoff) is used for this example
+# Terosff potential for carbon (C.tersoff) is used for this example.
 lammps_inputs = {'lmpcmds': [
     'pair_style tersoff',
     'pair_coeff * * forcefields/C.tersoff C'],
@@ -44,13 +44,16 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 # After computing IFCS using the forceconstants object, we then set
 # up the phonon object and use it to compute 2nd and 3rd (phonon)
 # properties. Here, the forcecostants object computed from the above
-# section will be used as an input parameter for the phonon object.
-# Other input parameters include the k-point grid dimension, a Boolean
-# flag to specify whether to use a classic or quantum distribution
-# for the phonon population, the temperature of the simulation
+# section will be used as an input parameter.Other input parameters 
+# include the k-point grid dimension, a Boolean flag to specify 
+# whether to use a classic or quantum distribution for the phonon population,
+# the temperature of the simulation
 # in Kelvin, name of the folder (optional) and a Boolean flag to
 # specify whether to accelerate the calculation
-# for 3rd order quantities with TensorFlow (GPU) backend.
+# for 3rd order properties with TensorFlow (GPU) backend.
+# Lastly, various of format to properties computed using phonon object
+# are available (e.g. "formatted" for ASCII format data, "numpy" for python 
+# numpy array format and "memory" for quick calculations, no data stored).
 k = 5
 phonons_config = {'kpts': [k, k, k],
                   'is_classic': False,
@@ -63,7 +66,7 @@ phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
 ################# 2nd and 3rd order quantities calculations ####################
 
-# With phonon object being set up, the 2nd and 3rd order quantities can
+# With phonon object being set up, the 2nd and 3rd order properties can
 # be computed and accessed from the phonon object. For example, the phonon
 # dispersion, group velocity and phase space can be computed
 # and visualized with the build-in plotter
@@ -73,7 +76,7 @@ plotter.plot_dos(phonons)
 plotter.plot_vs_frequency(phonons, observable=phonons.phase_space,
                           observable_name=r'Phase Space')
 
-# Other quantities, such as heat capacity, can also be computed
+# Other properties, such as heat capacity, can also be computed
 # from the phonon object. Meanwhile, the visualization of
 # phonon properties can also be customized by using matplotlib. The
 # following shows an example of plotting
@@ -90,15 +93,13 @@ plt.savefig(folder + '/cv_vs_freq.png', dpi=300)
 
 # After computing 2nd and 3rd (phonon) properties, the thermal
 # conductivities (t.c.) can be computed by solving Boltzmann Transport
-# Equation with various of methods. To compute t.c., one needs to set
+# Equation (BTE) with various of methods. To compute t.c., one needs to set
 # up a Conductivity object, which takes the phonon object computed
-# from the above section and the method string
+# from the above section and a method string
 # (e.g. 'rta' for RTA,'sc' for self-consistent and 'inverse'
 # for direct inversion of the scattering matrix)
-# to solve for BTE. Lastly, various of format to store conductivity 
-# and mean free path are also available in the Conductivity 
-# object (e.g. "formatted" for ASCII format data, "numpy" for python 
-# numpy array format and "memory" for quick calculations, no data stored).
+# to solve for BTE. Meanwhile, various of format to store conductivity 
+# and mean free path are also available in the Conductivity object.
 
 print('\n')
 inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
