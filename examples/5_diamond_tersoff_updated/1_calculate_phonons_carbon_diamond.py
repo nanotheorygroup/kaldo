@@ -95,14 +95,10 @@ plt.savefig(folder + '/cv_vs_freq.png', dpi=300)
 # from the above section and the method string
 # (e.g. 'rta' for RTA,'sc' for self-consistent and 'inverse'
 # for direct inversion of the scattering matrix)
-# to solve for BTE. In this example, since carbon diamond is
-# a three-dimension isotropic system, the t.c. is extracted from
-# average of the diagonal elements of the t.c. matrix
-# (i.e. kappa = (kappa_xx + kappa_yy + kappa_zz)/3).
-# Lastly, various of format to store conductivity and mean free path
-# are also available in the Conductivity object (i.e. "formatted" for
-# ASCII format data, "numpy" for python numpy array format
-# and "memory" for quick calculations, no data stored).
+# to solve for BTE. Lastly, various of format to store conductivity 
+# and mean free path are also available in the Conductivity 
+# object (i.e. "formatted" for ASCII format data, "numpy" for python 
+# numpy array format and "memory" for quick calculations, no data stored).
 
 print('\n')
 inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
