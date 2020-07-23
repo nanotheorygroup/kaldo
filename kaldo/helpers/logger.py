@@ -24,17 +24,21 @@ def get_logger():
 
 def log_size(shape, type=np.float, memory_threshold_in_mb=30):
     shape = np.array(shape)
-    out = 'Available memory: \n'
-    out +=  str(psutil.virtual_memory().available/1e6) + ' MB\n'
+    out = 'Memory. Available / total: '
+    out +=  str(psutil.virtual_memory().available/1e6) + ' MB / '
+    out +=  str(psutil.virtual_memory().total/1e6) + ' MB'
     if type == np.float:
         size = 64
     elif type == np.complex:
         size = 128
-    out += 'Shape of tensor: ' + str(shape)
-    out += 'Type: ' + str(type) + '\n'
+    out_2 = 'Shape of tensor: ' + str(shape)
+    out_2 += ', Type: ' + str(type)
     memory_used_in_mb = np.prod(shape) * size / 8 * 1e-6
-    out += 'Size of tensor: ' + str(memory_used_in_mb) + ' MB\n'
+    out_3 = 'Size of tensor: ' + str(memory_used_in_mb) + ' MB'
     if memory_used_in_mb > memory_threshold_in_mb:
-        get_logger().info(out)
+        log = get_logger().info
     else:
-        get_logger().debug(out)
+        log = get_logger().debug
+    log(out)
+    log(out_2)
+    log(out_3)
