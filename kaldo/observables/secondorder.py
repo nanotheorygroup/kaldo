@@ -217,7 +217,10 @@ class SecondOrder(ForceConstant):
         cell_inv = np.linalg.inv(self.atoms.cell)
 
         shape = (n_k_points, n_unit_cell * 3, n_unit_cell * 3, 3)
-        type = np.complex
+        if is_amorphous:
+            type = np.float
+        else:
+            type = np.complex
         log_size(shape, type)
         ddyn = np.zeros(shape).astype(type)
         for index_k in range(n_k_points):
