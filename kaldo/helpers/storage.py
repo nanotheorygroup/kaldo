@@ -200,6 +200,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
 def lazy_property(label=''):
     def _lazy_property(fn):
         attr = LAZY_PREFIX + fn.__name__
+        logging.info('Using ' + fn.__name__)
         @property
         def __lazy_property(self):
             if not hasattr(self, attr):

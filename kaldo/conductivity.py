@@ -301,21 +301,6 @@ class Conductivity:
 
 
     @property
-    def flux(self):
-        """Calculate the flux, for each couple of k point in k_points/modes.
-
-        Returns
-        -------
-        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
-        """
-        if self.diffusivity_threshold is not None:
-            sij = self.flux_sparse
-        else:
-            sij = self.flux_dense
-        return sij
-
-
-    @property
     def _scattering_matrix_without_diagonal(self):
         frequency = self._keep_only_physical(self.phonons.frequency.reshape((self.n_phonons)))
         _ps_gamma_and_gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor
@@ -463,8 +448,8 @@ class Conductivity:
                         diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
         else:
             logging.info('Start calculation diffusivity sparse')
-
-            diffusivity = calculate_diffusivity_sparse(phonons, self.flux, diffusivity_bandwidth, self.diffusivity_threshold, curve,
+            sij = self.flux_sparse
+            diffusivity = calculate_diffusivity_sparse(phonons, sij, diffusivity_bandwidth, self.diffusivity_threshold, curve,
                                                        is_diffusivity_including_antiresonant)
             heat_capacity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
             for index_k in range(phonons.n_k_points):
