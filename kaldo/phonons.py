@@ -128,7 +128,7 @@ class Phonons:
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
                                    distance_threshold=self.forceconstants.distance_threshold)
-            frequency[ik] = phonon.calculate_frequency()
+            frequency[ik] = phonon.frequency
 
         return frequency
 
@@ -151,7 +151,7 @@ class Phonons:
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
                                    distance_threshold=self.forceconstants.distance_threshold)
-            velocity[ik] = phonon.velocity()
+            velocity[ik] = phonon.velocity
         return velocity
 
 
@@ -166,7 +166,7 @@ class Phonons:
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
                                    distance_threshold=self.forceconstants.distance_threshold)
-            dynmat_derivatives[ik] = phonon.calculate_dynmat_derivatives()
+            dynmat_derivatives[ik] = phonon._dynmat_derivatives
         return dynmat_derivatives
 
 
@@ -192,7 +192,7 @@ class Phonons:
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
                                    distance_threshold=self.forceconstants.distance_threshold)
-            eigensystem[ik] = phonon.calculate_eigensystem(only_eigenvals=False)
+            eigensystem[ik] = phonon._eigensystem
 
         return eigensystem
 
@@ -208,7 +208,7 @@ class Phonons:
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
                                    distance_threshold=self.forceconstants.distance_threshold)
-            velocity_AF[ik] = phonon.calculate_velocity_af()
+            velocity_AF[ik] = phonon._velocity_af
 
         return velocity_AF
 

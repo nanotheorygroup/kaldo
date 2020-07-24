@@ -179,10 +179,10 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
                                phonons.forceconstants.second_order.list_of_replicas, phonons.forceconstants.second_order,
                                is_amorphous=phonons._is_amorphous,
                                distance_threshold=phonons.forceconstants.distance_threshold)
-        freqs_plot.append(phonon.calculate_frequency().flatten())
+        freqs_plot.append(phonon.frequency.flatten())
 
         if with_velocity:
-            val_value = phonon.calculate_velocity()[0]
+            val_value = phonon.velocity[0]
             vel_plot.append(val_value)
             vel_norm.append(np.linalg.norm(val_value, axis=-1))
     freqs_plot = np.array(freqs_plot)
