@@ -113,29 +113,34 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     fig = plt.figure()
     plt.scatter(frequency[3:], observable[3:], s=5)
     observable[np.isnan(observable)] = 0
-    plt.ylabel(observable_name, fontsize=16, fontweight='bold')
-    plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    plt.ylabel(observable_name, fontsize=16)
+    plt.xlabel("$\\nu$ (THz)", fontsize=16)
     plt.ylim(observable.min(), observable.max())
+    plt.tick_params(axis='both', which='major', labelsize=16)
+    plt.tick_params(axis='both', which='minor', labelsize=16)
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
-    fig.savefig(folder + '/' + observable_name + '.pdf')
+    fig.savefig(folder + '/' + observable_name + '.png')
     if is_showing:
         plt.show()
 
 
-def plot_dos(phonons, bandwidth=.01, n_points=200, is_showing=True):
+def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
     fig = plt.figure()
     kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequency.flatten(order='C').reshape(-1, 1))
     x = np.linspace(phonons.frequency.min(), phonons.frequency.max(), n_points)
     y = np.exp(kde.score_samples(x.reshape((-1, 1))))
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
-    plt.xlabel("$\\nu$ (Thz)", fontsize=16, fontweight='bold')
+    plt.xlabel("$\\nu$ (THz)", fontsize=16)
+    plt.ylabel('DOS',fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=16)
+    plt.tick_params(axis='both', which='minor', labelsize=16)
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
-    fig.savefig(folder + '/' + 'dos.pdf')
+    fig.savefig(folder + '/' + 'dos.png')
     if is_showing:
         plt.show()
 
@@ -172,9 +177,9 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
 
     fig1, ax1 = plt.subplots()
 
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    plt.ylabel('frequency/$THz$', fontsize=16)
-    plt.xlabel('$q/(2\pi/a)$', fontsize=16)
+    plt.tick_params(axis='both', which='minor', labelsize=16)
+    plt.ylabel("$\\nu$ (Thz)", fontsize=16)
+    plt.xlabel('$q$', fontsize=16)
     plt.tick_params(axis='both', which='major', labelsize=16)
 
     plt.xticks(Q, point_names)
@@ -190,7 +195,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         os.makedirs(folder)
 
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
-    fig1.savefig(folder + '/' + 'dispersion' + '.pdf')
+    fig1.savefig(folder + '/' + 'dispersion' + '.png')
     np.savetxt(folder + '/' + 'q', q)
     np.savetxt(folder + '/' + 'dispersion', freqs_plot)
 
@@ -201,10 +206,10 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
             np.savetxt(folder + '/' + 'velocity_' + str(alpha), vel_plot[:, :, alpha])
 
         fig2, ax2 = plt.subplots()
-        plt.ylabel('$|v|/A/ps$)', fontsize=16)
+        plt.ylabel('$|v|(\AA/ps)$', fontsize=16)
         plt.xlabel('$q$', fontsize=16)
         plt.tick_params(axis='both', which='major', labelsize=16)
-
+        plt.tick_params(axis='both', which='minor', labelsize=20)
         plt.xticks(Q, point_names)
         plt.xlim(q[0], q[-1])
         if color is not None:
@@ -215,7 +220,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         plt.grid()
         plt.tick_params(axis='both', which='major', labelsize=16)
 
-        fig2.savefig(folder + '/' + 'velocity.pdf')
+        fig2.savefig(folder + '/' + 'velocity.png')
         np.savetxt(folder + '/' + 'velocity_norm',  vel_norm)
 
         if is_showing:
