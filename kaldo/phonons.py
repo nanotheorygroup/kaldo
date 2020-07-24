@@ -8,10 +8,10 @@ from kaldo.helpers.storage import lazy_property
 from kaldo.observables.physical_mode import PhysicalMode
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS
 from kaldo.grid import Grid
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.controllers.harmonic import \
     calculate_heat_capacity, calculate_population
 import numpy as np
-from opt_einsum import contract
 
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
@@ -121,11 +121,16 @@ class Phonons:
             (n_k_points, n_modes) frequency in THz
         """
         q_points = self._main_q_mesh
-        frequency = self.forceconstants.second_order.calculate_frequency(q_points,
-                                                                         is_amorphous=self._is_amorphous,
-                                                                       distance_threshold=
-                                                                       self.forceconstants.distance_threshold)
-        return frequency.reshape(self.n_k_points, self.n_modes)
+        frequency = np.zeros((self.n_k_points, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
+                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
+                                   is_amorphous=self._is_amorphous,
+                                   distance_threshold=self.forceconstants.distance_threshold)
+            frequency[ik] = phonon.calculate_frequency()
+
+        return frequency
 
 
     @lazy_property(label='')
@@ -138,11 +143,74 @@ class Phonons:
         """
 
         q_points = self._main_q_mesh
-        velocity = self.forceconstants.second_order.calculate_velocity(q_points,
-                                                                       is_amorphous=self._is_amorphous,
-                                                                       distance_threshold=
-                                                                       self.forceconstants.distance_threshold)
+
+        velocity = np.zeros((self.n_k_points, self.n_modes, 3))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
+                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
+                                   is_amorphous=self._is_amorphous,
+                                   distance_threshold=self.forceconstants.distance_threshold)
+            velocity[ik] = phonon.velocity()
         return velocity
+
+
+    @lazy_property(label='')
+    def _dynmat_derivatives(self):
+        q_points = self._main_q_mesh
+
+        dynmat_derivatives = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
+                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
+                                   is_amorphous=self._is_amorphous,
+                                   distance_threshold=self.forceconstants.distance_threshold)
+            dynmat_derivatives[ik] = phonon.calculate_dynmat_derivatives()
+        return dynmat_derivatives
+
+
+    @lazy_property(label='')
+    def _eigensystem(self):
+        """Calculate the eigensystems, for each k point in k_points.
+
+        Returns
+        -------
+        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)
+            eigensystem is calculated for each k point, the three dimensional array
+            records the eigenvalues in the last column of the last dimension.
+
+            If the system is not amorphous, these values are stored as complex numbers.
+        """
+        q_points = self._main_q_mesh
+
+        eigensystem = np.zeros((self.n_k_points, self.n_modes + 1, self.n_modes), dtype=np.complex)
+
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
+                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
+                                   is_amorphous=self._is_amorphous,
+                                   distance_threshold=self.forceconstants.distance_threshold)
+            eigensystem[ik] = phonon.calculate_eigensystem(only_eigenvals=False)
+
+        return eigensystem
+
+
+    @property
+    def _velocity_af(self):
+        q_points = self._main_q_mesh
+
+        velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, self.n_modes), dtype=np.complex)
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
+                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
+                                   is_amorphous=self._is_amorphous,
+                                   distance_threshold=self.forceconstants.distance_threshold)
+            velocity_AF[ik] = phonon.calculate_velocity_af()
+
+        return velocity_AF
 
 
     @lazy_property(label='<temperature>/<statistics>')
@@ -232,38 +300,6 @@ class Phonons:
         return eigenvectors
 
 
-
-    @lazy_property(label='')
-    def _dynmat_derivatives(self):
-        q_points = self._main_q_mesh
-        dynmat_derivatives = self.forceconstants.second_order.calculate_dynmat_derivatives(q_points,
-                                                                       is_amorphous=self._is_amorphous,
-                                                                       distance_threshold=
-                                                                       self.forceconstants.distance_threshold)
-        return dynmat_derivatives
-
-
-    @lazy_property(label='')
-    def _eigensystem(self):
-        """Calculate the eigensystems, for each k point in k_points.
-
-        Returns
-        -------
-        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)
-            eigensystem is calculated for each k point, the three dimensional array
-            records the eigenvalues in the last column of the last dimension.
-
-            If the system is not amorphous, these values are stored as complex numbers.
-        """
-        q_points = self._main_q_mesh
-
-        eigensystem = self.forceconstants.second_order.calculate_eigensystem(q_points=q_points,
-                                                                             is_amorphous=self._is_amorphous,
-                                                                             distance_threshold=
-                                                                             self.forceconstants.distance_threshold)
-        return eigensystem
-
-
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
 
@@ -290,17 +326,6 @@ class Phonons:
     @property
     def _main_q_mesh(self):
         return self._reciprocal_grid.unitary_grid()
-
-
-    @property
-    def _velocity_af(self):
-        q_points = self._main_q_mesh
-        velocity_AF = self.forceconstants.second_order.calculate_velocity_af(q_points,
-                                                                             is_amorphous=self._is_amorphous,
-                                                                             distance_threshold=
-                                                                             self.forceconstants.distance_threshold)
-        return velocity_AF
-
 
     @property
     def _rescaled_eigenvectors(self):

@@ -13,8 +13,6 @@ class Observable:
             self.folder = 'kALDo/'
 
 
-
-
     @classmethod
     def load(cls, *kargs, **kwargs):
         pass

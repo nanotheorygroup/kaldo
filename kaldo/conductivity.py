@@ -9,6 +9,7 @@ from opt_einsum import contract
 from sparse import COO
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
@@ -281,10 +282,23 @@ class Conductivity:
         flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
         """
         q_points = self.phonons._main_q_mesh
-        sij = self.phonons.forceconstants.second_order.calculate_sij(q_points,
-                                                                     is_amorphous=self.phonons._is_amorphous,
-                                                                     distance_threshold=
-                                                                     self.phonons.forceconstants.distance_threshold)
+        if self.phonons._is_amorphous:
+            type = np.float
+        else:
+            type = np.complex
+        sij = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=type)
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point,
+                                   self.phonons.atoms,
+                                   self.phonons.supercell,
+                                   self.phonons.forceconstants.second_order.replicated_atoms,
+                                   self.phonons.forceconstants.second_order.list_of_replicas,
+                                   self.phonons.forceconstants.second_order,
+                                   is_amorphous=self.phonons._is_amorphous,
+                                   distance_threshold=self.phonons.forceconstants.distance_threshold)
+            sij[ik] = phonon.calculate_sij()
+
         return sij
 
 
@@ -431,10 +445,16 @@ class Conductivity:
             for k_index in range(len(q_points)):
                 heat_capacity = self.calculate_2d_heat_capacity(k_index)
 
-                sij = self.phonons.forceconstants.second_order.calculate_sij(np.array([q_points[k_index]]),
-                                                                             is_amorphous=self.phonons._is_amorphous,
-                                                                             distance_threshold=
-                                                                             self.phonons.forceconstants.distance_threshold)
+                phonon = HarmonicWithQ(np.array([q_points[k_index]]),
+                                       self.phonons.atoms,
+                                       self.phonons.supercell,
+                                       self.phonons.forceconstants.second_order.replicated_atoms,
+                                       self.phonons.forceconstants.second_order.list_of_replicas,
+                                       self.phonons.forceconstants.second_order,
+                                       is_amorphous=self.phonons._is_amorphous,
+                                       distance_threshold=self.phonons.forceconstants.distance_threshold)
+                sij = phonon.calculate_sij()
+
                 if phonons.n_modes > 100:
                     logging.info('calculating conductivity for ' + str(q_points[k_index]))
                 for alpha in range(3):
