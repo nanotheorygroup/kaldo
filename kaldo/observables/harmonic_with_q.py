@@ -41,7 +41,32 @@ class HarmonicWithQ(Observable):
         return frequency
 
 
+    @property
+    def velocity(self):
+        velocity = self.calculate_velocity()
+        return velocity
+
+
+    @property
+    def _dynmat_derivatives(self):
+        _dynmat_derivatives = self.calculate_dynmat_derivatives()
+        return _dynmat_derivatives
+
+
+    @property
+    def _eigensystem(self):
+        _eigensystem = self.calculate_eigensystem()
+        return _eigensystem
+
+
+    @property
+    def _velocity_af(self):
+        _velocity_af = self.calculate_velocity_af()
+        return _velocity_af
+
+
     def calculate_frequency(self):
+        #TODO: replace calculate_eigensystem() with eigensystem
         eigenvals = self.calculate_eigensystem(only_eigenvals=True)
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequency.real
@@ -120,9 +145,9 @@ class HarmonicWithQ(Observable):
         if self.atoms.positions.shape[0] > 100:
             # We want to print only for big systems
             logging.info('Flux operators for q = ' + str(q_point))
-        dynmat_derivatives = self.calculate_dynmat_derivatives()
+        dynmat_derivatives = self._dynmat_derivatives
 
-        eigenvects = self.calculate_eigensystem(only_eigenvals=False)[:, 1:, :]
+        eigenvects = self._eigensystem[:, 1:, :]
         sij_single = np.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
         if is_amorphous:
             sij_single = np.tensordot(eigenvects[0], sij_single, (0, 1))
@@ -145,7 +170,7 @@ class HarmonicWithQ(Observable):
 
 
     def calculate_velocity(self):
-        velocity_AF = self.calculate_velocity_af()
+        velocity_AF = self._velocity_af
         velocity = 1j * contract('kmma->kma', velocity_AF)
         return velocity.real
 
