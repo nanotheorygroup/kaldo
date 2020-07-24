@@ -86,7 +86,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     elif dynamical_matrix.size == (n_atoms * 3) ** 2:
         dynamical_matrix = dynamical_matrix.reshape((n_atoms, 3, 1, n_atoms, 3))
     else:
-        logging.error('Impossible to read dynmat with size ' + str(dynamical_matrix.size))
+        logging.error('Impossible to read calculate_dynmat with size ' + str(dynamical_matrix.size))
     return dynamical_matrix * tenjovermoltoev
 
 def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0.):

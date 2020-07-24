@@ -17,6 +17,7 @@ import numpy as np
 from sklearn.neighbors.kde import KernelDensity
 from scipy import ndimage
 from kaldo.helpers.storage import get_folder_from_label
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import os
 
 BUFFER_PLOT = .2
@@ -148,6 +149,7 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
 def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b'):
     # TODO: remove useless symmetry flag
     atoms = phonons.atoms
+
     if is_nw is None and phonons.is_nw:
         is_nw = phonons.is_nw
     if is_nw:
@@ -169,11 +171,24 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
             k_list[:, 2] = q
             Q = [0, 0.5]
             point_names = ['$\\Gamma$', 'X']
+    freqs_plot = []
+    vel_plot = []
+    vel_norm = []
+    for q_point in k_list:
+        phonon = HarmonicWithQ(q_point, phonons.atoms, phonons.supercell, phonons.forceconstants.second_order.replicated_atoms,
+                               phonons.forceconstants.second_order.list_of_replicas, phonons.forceconstants.second_order,
+                               is_amorphous=phonons._is_amorphous,
+                               distance_threshold=phonons.forceconstants.distance_threshold)
+        freqs_plot.append(phonon.calculate_frequency().flatten())
 
-    freqs_plot = phonons.forceconstants.second_order.calculate_frequency(k_list)
+        if with_velocity:
+            val_value = phonon.calculate_velocity()[0]
+            vel_plot.append(val_value)
+            vel_norm.append(np.linalg.norm(val_value, axis=-1))
+    freqs_plot = np.array(freqs_plot)
     if with_velocity:
-        vel_plot = phonons.forceconstants.second_order.calculate_velocity(k_list)
-        vel_norm = np.linalg.norm(vel_plot, axis=-1)
+        vel_plot = np.array(vel_plot)
+        vel_norm = np.array(vel_norm)
 
     fig1, ax1 = plt.subplots()
 

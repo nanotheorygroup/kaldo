@@ -9,7 +9,7 @@ EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
 
 def chi(qvec, list_of_replicas, cell_inv):
-    chi_k = np.exp(1j * 2 * np.pi * list_of_replicas.dot(cell_inv.dot(qvec)))
+    chi_k = np.exp(1j * 2 * np.pi * list_of_replicas.dot(cell_inv.dot(qvec.T)))
     return chi_k
 
 
