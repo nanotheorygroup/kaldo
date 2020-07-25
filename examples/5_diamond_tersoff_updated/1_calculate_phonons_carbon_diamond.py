@@ -1,5 +1,4 @@
 # Example 5: carbon diamond, Tersoff potential 
-# Computes: ????? for carbon diamond (2 atoms per cell)
 # Uses: ASE, LAMMPS
 # External files: forcefields/C.tersoff
 
@@ -41,8 +40,6 @@ lammps_inputs = {'lmpcmds': [
 # Compute 2nd and 3rd IFCs with the defined calculators
 forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))
 forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
-
-#### ZEKUN, fix it from here ####
 
 ######################## Set up phonon objects #################################
 
