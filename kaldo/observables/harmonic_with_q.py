@@ -15,18 +15,18 @@ logging = get_logger()
 
 class HarmonicWithQ(Observable):
 
-    def __init__(self, q_point, atoms, supercell, replicated_atoms, list_of_replicas, second, is_amorphous=False,
+    def __init__(self, q_point, second,
                  distance_threshold=None, storage='numpy', *kargs, **kwargs):
 
         super().__init__(*kargs, **kwargs)
         self.q_point = q_point
-        self.atoms = atoms
+        self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
-        self.supercell = supercell
-        self.replicated_atoms = replicated_atoms
-        self.list_of_replicas = list_of_replicas
+        self.supercell = second.supercell
+        self.is_amorphous = (self.supercell == (1, 1, 1))
+        self.replicated_atoms = second.replicated_atoms
+        self.list_of_replicas = second.list_of_replicas
         self.second = second.value
-        self.is_amorphous = is_amorphous
         self.distance_threshold = distance_threshold
         self.storage = storage
 
