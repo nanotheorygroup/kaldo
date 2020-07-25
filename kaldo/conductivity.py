@@ -184,10 +184,6 @@ class Conductivity:
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
 
-        self.store_format = {}
-        for observable in DEFAULT_STORE_FORMATS:
-            self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
-                if self.storage == 'formatted' else self.storage
 
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
@@ -445,7 +441,7 @@ class Conductivity:
             for k_index in range(len(q_points)):
                 heat_capacity = self.calculate_2d_heat_capacity(k_index)
 
-                phonon = HarmonicWithQ(np.array([q_points[k_index]]),
+                phonon = HarmonicWithQ(q_points[k_index],
                                        self.phonons.atoms,
                                        self.phonons.supercell,
                                        self.phonons.forceconstants.second_order.replicated_atoms,

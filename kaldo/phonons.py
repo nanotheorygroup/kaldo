@@ -6,7 +6,7 @@ Anharmonic Lattice Dynamics
 from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
 from kaldo.observables.physical_mode import PhysicalMode
-from kaldo.helpers.storage import DEFAULT_STORE_FORMATS
+from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.controllers.harmonic import \
@@ -16,8 +16,6 @@ import numpy as np
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-
-FOLDER_NAME = 'ald-output'
 
 
 class Phonons:
@@ -91,10 +89,6 @@ class Phonons:
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
 
-        self.store_format = {}
-        for observable in DEFAULT_STORE_FORMATS:
-            self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
-                if self.storage == 'formatted' else self.storage
 
 
     @lazy_property(label='')
@@ -127,7 +121,10 @@ class Phonons:
             phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
-                                   distance_threshold=self.forceconstants.distance_threshold)
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage)
+
             frequency[ik] = phonon.frequency
 
         return frequency
@@ -150,7 +147,9 @@ class Phonons:
             phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
-                                   distance_threshold=self.forceconstants.distance_threshold)
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage)
             velocity[ik] = phonon.velocity
         return velocity
 
@@ -165,7 +164,9 @@ class Phonons:
             phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
-                                   distance_threshold=self.forceconstants.distance_threshold)
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage)
             dynmat_derivatives[ik] = phonon._dynmat_derivatives
         return dynmat_derivatives
 
@@ -191,7 +192,10 @@ class Phonons:
             phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
-                                   distance_threshold=self.forceconstants.distance_threshold)
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage)
+
             eigensystem[ik] = phonon._eigensystem
 
         return eigensystem
@@ -207,7 +211,10 @@ class Phonons:
             phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
                                    self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
                                    is_amorphous=self._is_amorphous,
-                                   distance_threshold=self.forceconstants.distance_threshold)
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage)
+
             velocity_AF[ik] = phonon._velocity_af
 
         return velocity_AF
@@ -302,9 +309,10 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
-
+        store_format = DEFAULT_STORE_FORMATS['_ps_gamma_and_gamma_tensor'] \
+            if self.storage == 'formatted' else self.storage
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
-                         format=self.store_format['_ps_gamma_and_gamma_tensor']):
+                         format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
             ps_and_gamma = self.select_backend_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)

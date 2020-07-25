@@ -29,37 +29,33 @@ class HarmonicWithQ(Observable):
         self.is_amorphous = is_amorphous
         self.distance_threshold = distance_threshold
         self.storage = storage
-        self.store_format = {}
-        for observable in DEFAULT_STORE_FORMATS:
-            self.store_format[observable] = DEFAULT_STORE_FORMATS[observable] \
-                if self.storage == 'formatted' else self.storage
 
 
-    @property
+    @lazy_property(label='<q_point>')
     def frequency(self):
         frequency = self.calculate_frequency()
         return frequency
 
 
-    @property
+    @lazy_property(label='<q_point>')
     def velocity(self):
         velocity = self.calculate_velocity()
         return velocity
 
 
-    @property
+    @lazy_property(label='<q_point>')
     def _dynmat_derivatives(self):
         _dynmat_derivatives = self.calculate_dynmat_derivatives()
         return _dynmat_derivatives
 
 
-    @property
+    @lazy_property(label='<q_point>')
     def _eigensystem(self):
         _eigensystem = self.calculate_eigensystem()
         return _eigensystem
 
 
-    @property
+    @lazy_property(label='<q_point>')
     def _velocity_af(self):
         _velocity_af = self.calculate_velocity_af()
         return _velocity_af

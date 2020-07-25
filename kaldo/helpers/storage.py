@@ -152,9 +152,13 @@ def get_folder_from_label(instance, label='', base_folder=None):
             base_folder = instance.folder
         else:
             base_folder = FOLDER_NAME
-    if np.prod(instance.kpts) > 1:
-        kpts = instance.kpts
-        base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+    try:
+        if np.prod(instance.kpts) > 1:
+            kpts = instance.kpts
+            base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+    except AttributeError:
+        q_point = instance.q_point
+        base_folder += '/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
     if label != '':
         if '<diffusivity_bandwidth>' in label:
             if instance.diffusivity_bandwidth is not None:
@@ -205,7 +209,7 @@ def lazy_property(label=''):
         def __lazy_property(self):
             if not hasattr(self, attr):
                 try:
-                    format = self.store_format[fn.__name__]
+                    format = DEFAULT_STORE_FORMATS[fn.__name__]
                 except KeyError:
                     format = 'memory'
                 if (format != 'memory'):

@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from kaldo.helpers.storage import FOLDER_NAME
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 import h5py
@@ -10,7 +11,7 @@ class Observable:
         try:
             self.folder = kwargs['folder']
         except KeyError:
-            self.folder = 'kALDo/'
+            self.folder = FOLDER_NAME
 
 
     @classmethod
