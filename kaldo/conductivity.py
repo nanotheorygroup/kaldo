@@ -286,12 +286,7 @@ class Conductivity:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point,
-                                   self.phonons.atoms,
-                                   self.phonons.supercell,
-                                   self.phonons.forceconstants.second_order.replicated_atoms,
-                                   self.phonons.forceconstants.second_order.list_of_replicas,
                                    self.phonons.forceconstants.second_order,
-                                   is_amorphous=self.phonons._is_amorphous,
                                    distance_threshold=self.phonons.forceconstants.distance_threshold)
             sij[ik] = phonon.calculate_sij()
 
@@ -442,12 +437,7 @@ class Conductivity:
                 heat_capacity = self.calculate_2d_heat_capacity(k_index)
 
                 phonon = HarmonicWithQ(q_points[k_index],
-                                       self.phonons.atoms,
-                                       self.phonons.supercell,
-                                       self.phonons.forceconstants.second_order.replicated_atoms,
-                                       self.phonons.forceconstants.second_order.list_of_replicas,
                                        self.phonons.forceconstants.second_order,
-                                       is_amorphous=self.phonons._is_amorphous,
                                        distance_threshold=self.phonons.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage)

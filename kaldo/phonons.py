@@ -118,9 +118,7 @@ class Phonons:
         frequency = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
-                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
-                                   is_amorphous=self._is_amorphous,
+            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -144,9 +142,7 @@ class Phonons:
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
-                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
-                                   is_amorphous=self._is_amorphous,
+            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -161,9 +157,7 @@ class Phonons:
         dynmat_derivatives = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
-                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
-                                   is_amorphous=self._is_amorphous,
+            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -189,9 +183,7 @@ class Phonons:
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
-                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
-                                   is_amorphous=self._is_amorphous,
+            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -208,9 +200,7 @@ class Phonons:
         velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, self.n_modes), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.atoms, self.supercell, self.forceconstants.second_order.replicated_atoms,
-                                   self.forceconstants.second_order.list_of_replicas, self.forceconstants.second_order,
-                                   is_amorphous=self._is_amorphous,
+            phonon = HarmonicWithQ(q_point,self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
