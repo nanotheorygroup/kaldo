@@ -1,8 +1,10 @@
-# Exaple 5_diamond_tersoff illustrates the kALDo's functionality of
-# performing thermal transport simulation for carbon diamond,
-# by using ase LAMMPSlib as the force constant calculator.
+# Example 5: carbon diamond, Tersoff potential 
+# Computes: ????? for carbon diamond (2 atoms per cell)
+# Uses: ASE, LAMMPS
+# External files: forcefields/C.tersoff
 
 # Import necessary packages
+
 from ase.build import bulk
 from ase.calculators.lammpslib import LAMMPSlib
 from kaldo.conductivity import Conductivity
@@ -15,16 +17,16 @@ import numpy as np
 
 plt.style.use('seaborn-poster')
 
-################# Set up force constant calculations ###########################
+### Set up the coordinates of the system and the force constant calculations ####
 
-# We start from creating the atoms object, here the carbon diamond
-# unit cell structure is created with "bulk" routine from ase and
-# and the lattice constant of the unit cell is 3.566 Angstrom. Other
-# input parameters for forconstants object include super cell structure
-# and name of the folder (optional) which will
-# contain the calculated 2nd and 3rd IFCs.
+# Define the system according to ASE style. 'a': lattice parameter
 atoms = bulk('C', 'diamond', a=3.566)
-supercell = np.array([3, 3, 3])
+
+# Replicate the unit cell 'nrep'=3 times
+nrep = 3
+supercell = np.array([nrep, nrep, nrep])
+
+# Configure force constant calculator
 forceconstants_config = {'atoms': atoms, 'supercell': supercell, 'folder': 'fc'}
 forceconstants = ForceConstants(**forceconstants_config)
 
@@ -39,6 +41,9 @@ lammps_inputs = {'lmpcmds': [
 # Compute 2nd and 3rd IFCs with the defined calculators
 forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))
 forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
+
+#### ZEKUN, fix it from here ####
+
 ######################## Set up phonon objects #################################
 
 # After computing IFCS using the forceconstants object, we then set
@@ -54,7 +59,8 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 # Lastly, various of format to properties computed using phonon object
 # are available (e.g. "formatted" for ASCII format data, "numpy" for python 
 # numpy array format and "memory" for quick calculations, no data stored).
-k = 5
+
+k = 5  # What is this? What are the variables in the next call?
 phonons_config = {'kpts': [k, k, k],
                   'is_classic': False,
                   'temperature': 300,
