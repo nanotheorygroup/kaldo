@@ -209,7 +209,10 @@ def lazy_property(label=''):
         def __lazy_property(self):
             if not hasattr(self, attr):
                 try:
-                    format = DEFAULT_STORE_FORMATS[fn.__name__]
+                    if self.storage == 'formatted':
+                        format = DEFAULT_STORE_FORMATS[fn.__name__]
+                    else:
+                        format = self.storage
                 except KeyError:
                     format = 'memory'
                 if (format != 'memory'):

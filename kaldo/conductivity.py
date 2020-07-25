@@ -448,7 +448,9 @@ class Conductivity:
                                        self.phonons.forceconstants.second_order.list_of_replicas,
                                        self.phonons.forceconstants.second_order,
                                        is_amorphous=self.phonons._is_amorphous,
-                                       distance_threshold=self.phonons.forceconstants.distance_threshold)
+                                       distance_threshold=self.phonons.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage)
                 sij = phonon.calculate_sij()
 
                 if phonons.n_modes > 100:
