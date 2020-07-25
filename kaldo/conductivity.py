@@ -7,6 +7,7 @@ import ase.units as units
 import numpy as np
 from opt_einsum import contract
 from sparse import COO
+import tensorflow as tf
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -465,10 +466,11 @@ class Conductivity:
             conductivity_per_mode = contract('knm,knmab->knab', heat_capacity, diffusivity)
             conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
             conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
-            diffusivity_with_axis = contract('knmab->knab', diffusivity)
+            diffusivity_with_axis = contract('knmab->knab', diffusivity, backend='tensorflow')
 
-
-        self._diffusivity = 1 / 3 * 1 / 100 *  contract('knaa->kn', diffusivity_with_axis)
+        diffusivity = tf.linalg.diag_part(diffusivity_with_axis, k=2)
+        self._diffusivity = 1 / 3 * 1 / 100 * tf.reduce_sum(diffusivity, axis=2)
+        # self._diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis, backend='tensorflow')
 
         return conductivity_per_mode * 1e22
 

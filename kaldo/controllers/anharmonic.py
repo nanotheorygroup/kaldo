@@ -36,10 +36,10 @@ def project_amorphous(phonons):
         potential_times_evect = sparse.tensordot(phonons.forceconstants.third_order.value,
                                                  rescaled_eigenvectors[:, nu_single], (0, 0))
 
-        scaled_potential = np.einsum('ij,in,jm->nm', potential_times_evect.real,
+        scaled_potential = contract('ij,in,jm->nm', potential_times_evect.real,
                                     rescaled_eigenvectors.real,
                                     rescaled_eigenvectors.real,
-                                    optimize='optimal')
+                                    optimize='optimal', backend='tensorflow')
         scaled_potential = scaled_potential[np.newaxis, ...]
         scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
 
@@ -87,7 +87,7 @@ def project_crystal(phonons):
 
             if nu_single % 200 == 0:
                 logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-            potential_times_evect = contract('iljtn,i->ljtn', third_order, rescaled_eigenvectors[index_k, :, mu])
+            potential_times_evect = contract('iljtn,i->ljtn', third_order, rescaled_eigenvectors[index_k, :, mu], backend='tensorflow')
             for is_plus in (1, 0):
                 out = calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus)
                 if not out:
@@ -102,14 +102,14 @@ def project_crystal(phonons):
                                                 chi,
                                                 chi_2,
                                                 evect_1_plus,
-                                                evect_2)
+                                                evect_2, backend='tensorflow')
                 else:
                     scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
                                                 potential_times_evect,
                                                 chi_conj,
                                                 chi_2,
                                                 evect_1_minus,
-                                                evect_2)
+                                                evect_2, backend='tensorflow')
 
                 # pot_small = calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, index_k, mu, index_kp_vec[0], mup_vec[0], index_kpp_vec[0], mupp_vec[0])
 
