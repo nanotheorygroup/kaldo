@@ -149,7 +149,6 @@ def phonons():
         phonons_config = {'kpts': [5, 5, 5],
                           'is_classic': is_classic,
                           'temperature': 300,
-                          'is_tf_backend':False,
                           'storage':'memory'}
         phonons = Phonons(forceconstants=forceconstants, **phonons_config)
         return phonons

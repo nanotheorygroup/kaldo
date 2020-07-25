@@ -22,7 +22,6 @@ def phonons():
                       kpts=[5, 5, 5],
                       is_classic=False,
                       temperature=300,
-                      is_tf_backend=False,
                       storage='memory')
 
     return phonons

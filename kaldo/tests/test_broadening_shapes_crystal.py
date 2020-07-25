@@ -28,15 +28,12 @@ def phonons():
 
 def test_triangle_broadening(phonons):
     phonons.broadening_shape='triangle'
-    phonons.is_tf_backend=False
     np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.10344, significant=5)
 
 def test_gaussian_broadening(phonons):
     phonons.broadening_shape='gauss'
-    phonons.is_tf_backend=False
     np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.120867, significant=5)
 
 def test_lorentz_broadening(phonons):
     phonons.broadening_shape='lorentz'
-    phonons.is_tf_backend=False
     np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.097929, significant=5)

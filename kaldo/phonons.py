@@ -9,9 +9,9 @@ from kaldo.observables.physical_mode import PhysicalMode
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+import kaldo.controllers.anharmonic as aha
 import numpy as np
 import ase.units as units
-
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
@@ -46,9 +46,6 @@ class Phonons:
         broadening_shape (optional) : string
             defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions
             . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.
-        is_tf_backend (optional) : bool
-            defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
-            numpy (False). Default is True.
         folder (optional) : string
             specifies where to store the data files. Default is `output`.
         storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
@@ -78,7 +75,6 @@ class Phonons:
         self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
-        self.is_tf_backend = kwargs.pop('is_tf_backend', True)
         self.is_nw = kwargs.pop('is_nw', False)
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.storage = kwargs.pop('storage', 'formatted')
@@ -358,18 +354,6 @@ class Phonons:
 
     def select_backend_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         logging.info('Projection started')
-        if self.is_tf_backend:
-            try:
-                import kaldo.controllers.anharmonic_tf as aha
-            except ImportError as err:
-                logging.info(err)
-                logging.warning('In order to run accelerated algoritgms, tensorflow>=2.0 is required. \
-                Please consider installing tensorflow>=2.0. More info here: \
-                https://www.tensorflow.org/install/pip')
-                logging.info('Using numpy engine instead.')
-                import kaldo.controllers.anharmonic as aha
-        else:
-            import kaldo.controllers.anharmonic as aha
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
