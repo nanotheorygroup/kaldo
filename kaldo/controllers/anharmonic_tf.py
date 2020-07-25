@@ -110,7 +110,7 @@ def project_crystal(phonons):
         if is_sparse:
             third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
         else:
-            third_nu_tf = contract('ijk,i->jk', third_tf, evect_tf[index_k, :, mu])
+            third_nu_tf = contract('ijk,i->jk', third_tf, evect_tf[index_k, :, mu], backend='tensorflow')
             third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
 
         third_nu_tf = tf.cast(

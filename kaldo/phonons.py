@@ -9,12 +9,15 @@ from kaldo.observables.physical_mode import PhysicalMode
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.controllers.harmonic import \
-    calculate_heat_capacity, calculate_population
 import numpy as np
+import ase.units as units
 
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
+
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+KELVINTOJOULE = units.kB / units.J
+
 
 
 
@@ -226,7 +229,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = calculate_heat_capacity(self).reshape(self.n_k_points, self.n_modes)
+        c_v = self.calculate_heat_capacity().reshape(self.n_k_points, self.n_modes)
         return c_v
 
 
@@ -241,7 +244,7 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        population =  calculate_population(self)
+        population =  self.calculate_population()
         return population
 
 
@@ -377,4 +380,28 @@ class Phonons:
         return ps_and_gamma
 
 
+    def calculate_population(self):
+        frequency = self.frequency.reshape((self.n_k_points, self.n_modes))
+        temp = self.temperature * KELVINTOTHZ
+        density = np.zeros((self.n_k_points, self.n_modes))
+        physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
+        if self.is_classic is False:
+            density[physical_mode] = 1. / (np.exp(frequency[physical_mode] / temp) - 1.)
+        else:
+            density[physical_mode] = temp / frequency[physical_mode]
+        return density
 
+
+    def calculate_heat_capacity(self):
+        frequency = self.frequency
+        c_v = np.zeros_like(frequency)
+        physical_mode = self.physical_mode
+        temperature = self.temperature * KELVINTOTHZ
+        if (self.is_classic):
+            c_v[physical_mode] = KELVINTOJOULE
+        else:
+            f_be = self.population
+            c_v[physical_mode] = KELVINTOJOULE * f_be[physical_mode] * (f_be[physical_mode] + 1) * self.frequency[
+                physical_mode] ** 2 / \
+                                 (temperature ** 2)
+        return c_v
