@@ -178,7 +178,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         phonon = HarmonicWithQ(q_point, phonons.atoms, phonons.supercell, phonons.forceconstants.second_order.replicated_atoms,
                                phonons.forceconstants.second_order.list_of_replicas, phonons.forceconstants.second_order,
                                is_amorphous=phonons._is_amorphous,
-                               distance_threshold=phonons.forceconstants.distance_threshold)
+                               distance_threshold=phonons.forceconstants.distance_threshold,
+                               storage='memory')
         freqs_plot.append(phonon.frequency.flatten())
 
         if with_velocity:

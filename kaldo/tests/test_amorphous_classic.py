@@ -24,7 +24,6 @@ def phonons():
                       temperature=300,
                       third_bandwidth= 0.05 / 4.135,
                       broadening_shape='triangle',
-                      folder='temp',
                       storage='memory')
     return phonons
 
