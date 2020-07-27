@@ -211,8 +211,24 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
 
         else:
             dirac_delta_tf = 0.5 * (1 + tf.gather_nd(phonons.population, coords_1) + tf.gather_nd(phonons.population, coords_2))
-        dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * tf.exp(
-            - (phonons.omega[index_k, mu] + second_sign * tf.gather_nd(phonons.omega, coords_1) - tf.gather_nd(phonons.omega, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
+        # dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * tf.exp(
+        #     - (phonons.omega[index_k, mu] + second_sign * tf.gather_nd(phonons.omega, coords_1) - tf.gather_nd(
+        #         phonons.omega, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
+        omegas_difference_tf = (phonons.omega[index_k, mu] + second_sign * tf.gather_nd(phonons.omega, coords_1) - tf.gather_nd(
+                phonons.omega, coords_2))
+
+
+        if phonons.broadening_shape == 'gauss':
+            broadening_function = gaussian_delta
+        elif phonons.broadening_shape == 'triangle':
+            broadening_function = triangular_delta
+        elif phonons.broadening_shape == 'lorentz':
+            broadening_function = lorentz_delta
+        else:
+            raise ('Broadening function not implemented')
+
+        dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+
         index_kp = index_kp_vec
         mup = mup_vec
         index_kpp = index_kpp_vec
@@ -252,14 +268,15 @@ def calculate_dirac_delta_amorphous(phonons, mu):
                                                                                                                              mupp_vec))
 
             if phonons.broadening_shape == 'gauss':
-                dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * np.exp(
-                    - omegas_difference_tf ** 2 / ((2 * np.pi * sigma_tf) ** 2))
-                # dirac_delta_tf = dirac_delta_tf * gaussian_delta(omegas_difference_tf, sigma_tf)
-
+                broadening_function = gaussian_delta
             elif phonons.broadening_shape == 'triangle':
-                dirac_delta_tf = dirac_delta_tf * 1. / (2 * np.pi * sigma_tf) * (1 - omegas_difference_tf / (2 * np.pi * sigma_tf))
+                broadening_function = triangular_delta
+            elif phonons.broadening_shape == 'lorentz':
+                broadening_function = lorentz_delta
             else:
-                raise TypeError('Broadening function not implemented.')
+                raise('Broadening function not implemented')
+
+            dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf,  2 * np.pi * sigma_tf)
 
             try:
                 mup = tf.concat([mup, mup_vec], 0)
