@@ -60,6 +60,6 @@ def test_diffusivity_large_threshold(phonons):
     cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
     cond.conductivity
     diff = tf.math.real(tf.reshape(cond.diffusivity, [-1]))
-    np.testing.assert_array_almost_equal(diff.real[:10], calculated_diffusivities_full, decimal=3)
+    np.testing.assert_array_almost_equal(diff[:10], calculated_diffusivities_full, decimal=3)
 
 

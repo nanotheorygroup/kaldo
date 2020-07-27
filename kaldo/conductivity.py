@@ -71,7 +71,7 @@ def calculate_diffusivity_sparse(phonons, s_ij, diffusivity_bandwidth, diffusivi
     coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
     sigma = 2 * (diffusivity_bandwidth[coords[:, 0], coords[:, 1]] + diffusivity_bandwidth[coords[:, 0], coords[:, 2]])
     delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-    data = np.pi * curve(delta_energy, sigma, diffusivity_threshold)
+    data = np.pi * curve(delta_energy, sigma)
     lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
     prefactor[np.invert(physical_mode_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
@@ -456,6 +456,7 @@ class Conductivity:
                                                                          / (volume * phonons.n_k_points)
                         diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
         else:
+            #TODO: migrate this part to tf, currently only numpy
             logging.info('Start calculation diffusivity sparse')
             sij = self.flux_sparse
             diffusivity = calculate_diffusivity_sparse(phonons, sij, diffusivity_bandwidth, self.diffusivity_threshold, curve,
@@ -466,7 +467,7 @@ class Conductivity:
             conductivity_per_mode = contract('knm,knmab->knab', heat_capacity, diffusivity)
             conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
             conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
-            diffusivity_with_axis = contract('knmab->knab', diffusivity, backend='tensorflow')
+            diffusivity_with_axis = contract('knmab->knab', diffusivity)
 
         diffusivity = tf.linalg.diag_part(diffusivity_with_axis, k=2)
         self._diffusivity = 1 / 3 * 1 / 100 * tf.reduce_sum(diffusivity, axis=2)
