@@ -1,0 +1,33 @@
+Example 5_diamond_tersoff illustrates how to perform thermal transport simulation for a carbon 
+diamond (2 atoms per cell) system using ASE and LAMMPS as a force calculator.
+
+External files required: 
+		       1) forcefields/C.tersoff
+
+
+The calculation proceeds as follows:
+
+		        1_C_Tersoff_fc_and_harmonic_properties.py:	
+		        1-1). Set up force constant object and compute 2nd, 3rd interatomic force constants for C-diamond.
+
+		        1-2). Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K and compute
+			      harmonic properties (dispersion relation, group velocity and density of states).
+
+
+		        2_C_Tersoff_anharmonic_properties_and_conductivity.py:
+		        2-1). Set up force constant object and compute 2nd, 3rd interatomic force constants for C-diamond.
+
+		        2-2). Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K and compute
+			      anharmonic properties (heat capacity and phase space).
+
+			2-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Relaxation
+			           Time Approximation (RTA), Self-consistent (Sc) and Direct Inversion of scattering matrix (Inverse) methods.
+
+			2-4).   Compute and compare phonon life times with RTA and direct inversion methods.
+
+
+To run this example, navigate to this directory and execute:
+			
+		python 1_C_Tersoff_fc_and_harmonic_properties.py
+		python 2_C_Tersoff_anharmonic_properties_and_conductivity.py
+  
