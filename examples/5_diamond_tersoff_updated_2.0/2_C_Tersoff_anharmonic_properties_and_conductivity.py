@@ -46,22 +46,22 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 
 # Configure phonon object
 # 'k_points': number of k-points
-# 'is_classic': specify if the system is classic, True for classic and False for quantum
+# 'is_classic': specify if the system is classic, True for classical and False for quantum
 # 'temperature: temperature (Kelvin) at which simulation is performed
 # 'folder': name of folder containing phonon property and thermal conductivity calculations
 # 'is_tf_backend': specify if 3rd order phonons scattering calculations should be performed on tensorflow (True) or numpy (False)
 # 'storage': Format to storage phonon properties ('formatted' for ASCII format data, 'numpy' 
-#            for python numpy array data and 'memory' for quick calculations, no data stored")
+#            for python numpy array and 'memory' for quick calculations, no data stored)
 
 # Define the k-point mesh using 'kpts' parameter
-k_points = 5 #'k_points'=5 k-points in each direction
+k_points = 5 #'k_points'=5 k points in each direction
 phonons_config = {'kpts': [k_points, k_points, k_points],
                   'is_classic': False, 
                   'temperature': 300, #'temperature'=300K
                   'folder': 'ald_c_diamond',
                   'is_tf_backend': False,
 		   'storage': 'formatted'}
-# Set up phonon object by passing configuration details and the forceconstants object computed above
+# Set up phonon object by passing in configuration details and the forceconstants object computed above
 phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 	
 # Define the base folder to contain plots
@@ -74,9 +74,11 @@ if not os.path.exists(folder):
 is_show_fig = False
 
 # Visualize anharmonic phonon properties by using matplotlib. 
-# The following shows an example of plotting
-# heat capacity and phase space vs frequency
-# 'order': Index order to reshape array, ='C' for C-like index order; 'F' for Fortran-like index order
+# The following show examples of plotting
+# heat capacity vs frequency and 
+# phase space vs frequency
+# 'order': Index order to reshape array, 
+# 'order'='C' for C-like index order; 'F' for Fortran-like index order
 frequency = phonons.frequency.flatten(order='C')
 heat_capacity = phonons.heat_capacity.flatten(order='C')
 plt.figure()
@@ -105,12 +107,11 @@ else:
 # Compute thermal conductivity (t.c.) by solving Boltzmann Transport
 # Equation (BTE) with various of methods.
 
-# 'phonons': phonon object obtained from the above
+# 'phonons': phonon object obtained from the above calculations
 # 'method': specify methods to solve for BTE  
-# (e.g. 'rta' for RTA,'sc' for self-consistent and 'inverse'
-# for direct inversion of the scattering matrix)
+# ('rta' for RTA,'sc' for self-consistent and 'inverse' for direct inversion of the scattering matrix)
 # 'storage': Format to storage conductivity and mean free path data ('formatted' for ASCII format data, 'numpy' 
-#            for python numpy array data and 'memory' for quick calculations, no data stored")
+#            for python numpy array and 'memory' for quick calculations, no data stored)
 
 print('\n')
 inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
@@ -129,9 +130,9 @@ print(rta_cond_matrix)
 
 ### Compare phonon life times at different level of theory ########
 
-# The following lines show a comparison of phonon life times
-# computed at Relaxation Time Approximation (RTA) and at direct inversion
-# of scattering matrix (inverse).
+# The following shows a comparison of phonon life times
+# computed using Relaxation Time Approximation (RTA) and at direct inversion
+# of scattering matrix (inverse) methods.
 
 # 'physical_mode': specify whether a phonon mode is physcial (True) and non-physcial (False)
 # 'n_phonons': number of phonons in the simulation
