@@ -427,7 +427,6 @@ class Conductivity:
 
         if self.diffusivity_bandwidth is not None:
             logging.info('Using diffusivity bandwidth from input')
-            logging.info(str(self.diffusivity_bandwidth))
             diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
         else:
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
