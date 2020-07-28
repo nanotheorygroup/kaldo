@@ -1,5 +1,5 @@
 # Example 5.1: carbon diamond, Tersoff potential 
-# Computes: 2nd, 3rd order force constants and (phonon) harmonic properties for carbon diamond (2 atoms per cell)
+# Computes: 2nd, 3rd order force constants and harmonic properties for carbon diamond (2 atoms per cell)
 # Uses: ASE, LAMMPS
 # External files: forcefields/C.tersoff
 
@@ -44,7 +44,7 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 
 # Configure phonon object
 # 'k_points': number of k-points
-# 'is_classic': specify if the system is classic, True for classic and False for quantum
+# 'is_classic': specify if the system is classic, True for classical and False for quantum
 # 'temperature: temperature (Kelvin) at which simulation is performed
 # 'folder': name of folder containing phonon property and thermal conductivity calculations
 # 'is_tf_backend': specify if 3rd order phonons scattering calculations should be performed on tensorflow (True) or numpy (False)
@@ -53,7 +53,7 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
 
 
 # Define the k-point mesh using 'kpts' parameter
-k_points = 5 #'k_points'=5 k-points in each direction
+k_points = 5 #'k_points'=5 k points in each direction
 phonons_config = {'kpts': [k_points, k_points, k_points],
                   'is_classic': False, 
                   'temperature': 300, #'temperature'=300K
@@ -61,12 +61,13 @@ phonons_config = {'kpts': [k_points, k_points, k_points],
                   'is_tf_backend': False,
 		   'storage': 'formatted'}
 
-# Set up phonon object by passing configuration details and the forceconstants object computed above
+# Set up phonon object by passing in configuration details and the forceconstants object computed above
 phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
 # Visualize phonon dispersion, group velocity and density of states with 
-# the build-in plotter by passing in the phonon object set up above
-# 'with_velocity': specify whether to plot both velocity and dispersion relation
-# 'is_showing':speify if figure pops up during simulation
+# the build-in plotter.
+
+# 'with_velocity': specify whether to plot both group velocity and dispersion relation
+# 'is_showing':specify if figure window pops up during simulation
 plotter.plot_dispersion(phonons,with_velocity =True,is_showing=False)
 plotter.plot_dos(phonons,is_showing=False)
