@@ -28,5 +28,5 @@ The calculation proceeds as follows:
 
 To run this example, navigate to this directory and execute:
 			
-		       python 1_C_Tersoff_fc_and_harmonic_properties.py
-		       python 2_C_Tersoff_anharmonic_properties_and_conductivity.py
+		        python 1_C_Tersoff_fc_and_harmonic_properties.py
+		        python 2_C_Tersoff_anharmonic_properties_and_conductivity.py
