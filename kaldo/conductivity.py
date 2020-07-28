@@ -470,8 +470,7 @@ class Conductivity:
             diffusivity_with_axis = contract('knmab->knab', diffusivity)
 
         diffusivity = tf.linalg.diag_part(diffusivity_with_axis, k=2)
-        self._diffusivity = 1 / 3 * 1 / 100 * tf.reduce_sum(diffusivity, axis=2)
-        # self._diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis, backend='tensorflow')
+        self._diffusivity = 1 / 3 * 1 / 100 * contract('kna->kn', diffusivity, backend='tensorflow')
 
         return conductivity_per_mode * 1e22
 

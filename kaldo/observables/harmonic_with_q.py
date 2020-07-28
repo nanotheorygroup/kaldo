@@ -170,13 +170,12 @@ class HarmonicWithQ(Observable):
         return velocity_AF
 
 
+
     def calculate_velocity(self):
         velocity_AF = self._velocity_af
-        # velocity = 1j * tf.reduce_sum(velocity_AF, axis=1)
-        # velocity = 1j * tf.linalg.diag_part(velocity_AF, k=0)
-        velocity_np = 1j * contract('kmma->kma', velocity_AF.numpy()[np.newaxis, ...])
-        velocity =tf.convert_to_tensor(velocity_np)
-        return tf.math.real(velocity)
+        velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
+        velocity = contract('kmma->kma', velocity_AF.numpy()[np.newaxis, ...])
+        return velocity.imag
 
 
     def calculate_eigensystem(self, only_eigenvals=False):
