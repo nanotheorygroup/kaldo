@@ -36,7 +36,15 @@ def project_amorphous(phonons):
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
     for nu_single in range(phonons.n_phonons):
-        out = calculate_dirac_delta_amorphous(phonons, nu_single)
+        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+        sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+
+        out = calculate_dirac_delta_amorphous(phonons.omega,
+                                              phonons.population,
+                                              physical_mode,
+                                              sigma_tf,
+                                              phonons.broadening_shape,
+                                              nu_single)
         if not out:
             continue
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
@@ -123,7 +131,22 @@ def project_crystal(phonons):
         for is_plus in (0, 1):
             index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
             index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
-            out = calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
+            physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+
+            if phonons.third_bandwidth:
+                sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+            else:
+                sigma_tf = calculate_broadening(phonons, index_kpp_full)
+
+            out = calculate_dirac_delta_crystal(phonons.omega,
+                                                phonons.population,
+                                                physical_mode,
+                                                sigma_tf,
+                                                phonons.broadening_shape,
+                                                index_kpp_full,
+                                                index_k,
+                                                mu,
+                                                is_plus)
             if not out:
                 continue
 
@@ -178,19 +201,21 @@ def project_crystal(phonons):
     return ps_and_gamma
 
 
-def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus):
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, broadening_shape, index_kpp_full, index_k, mu, is_plus):
     if not physical_mode[index_k, mu]:
         return None
-    if phonons.third_bandwidth:
-        sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+    if broadening_shape == 'gauss':
+        broadening_function = gaussian_delta
+    elif broadening_shape == 'triangle':
+        broadening_function = triangular_delta
+    elif broadening_shape == 'lorentz':
+        broadening_function = lorentz_delta
     else:
-        sigma_tf = calculate_broadening(phonons, index_kpp_full)
+        raise ('Broadening function not implemented')
     second_sign = (int(is_plus) * 2 - 1)
-    omegas_difference = tf.abs(phonons.omega[index_k, mu] + second_sign * phonons.omega[:, :, tf.newaxis] -
-                               tf.gather(phonons.omega, index_kpp_full)[:, tf.newaxis, :])
+    omegas_difference = tf.abs(omega[index_k, mu] + second_sign * omega[:, :, tf.newaxis] -
+                               tf.gather(omega, index_kpp_full)[:, tf.newaxis, :])
 
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
 
     condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
                 (physical_mode[:, :, np.newaxis]) & \
@@ -207,25 +232,12 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
             coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
             sigma_tf = tf.gather_nd(sigma_tf, coords_3)
         if is_plus:
-            dirac_delta_tf = tf.gather_nd(phonons.population, coords_1) - tf.gather_nd(phonons.population, coords_2)
+            dirac_delta_tf = tf.gather_nd(population, coords_1) - tf.gather_nd(population, coords_2)
 
         else:
-            dirac_delta_tf = 0.5 * (1 + tf.gather_nd(phonons.population, coords_1) + tf.gather_nd(phonons.population, coords_2))
-        # dirac_delta_tf = dirac_delta_tf * 1 / tf.sqrt(np.pi * (2 * np.pi * sigma_tf) ** 2) * tf.exp(
-        #     - (phonons.omega[index_k, mu] + second_sign * tf.gather_nd(phonons.omega, coords_1) - tf.gather_nd(
-        #         phonons.omega, coords_2)) ** 2 / ((2 * np.pi * sigma_tf) ** 2))
-        omegas_difference_tf = (phonons.omega[index_k, mu] + second_sign * tf.gather_nd(phonons.omega, coords_1) - tf.gather_nd(
-                phonons.omega, coords_2))
-
-
-        if phonons.broadening_shape == 'gauss':
-            broadening_function = gaussian_delta
-        elif phonons.broadening_shape == 'triangle':
-            broadening_function = triangular_delta
-        elif phonons.broadening_shape == 'lorentz':
-            broadening_function = lorentz_delta
-        else:
-            raise ('Broadening function not implemented')
+            dirac_delta_tf = 0.5 * (1 + tf.gather_nd(population, coords_1) + tf.gather_nd(population, coords_2))
+        omegas_difference_tf = (omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(
+                omega, coords_2))
 
         dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
@@ -236,22 +248,17 @@ def calculate_dirac_delta_crystal(phonons, index_kpp_full, index_k, mu, is_plus)
         return tf.cast(dirac_delta_tf, dtype=tf.float32), index_kp, mup, index_kpp, mupp
 
 
-def calculate_dirac_delta_amorphous(phonons, mu):
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu):
     if not physical_mode[0, mu]:
         return None
-    if phonons.broadening_shape == 'triangle':
+    if broadening_shape == 'triangle':
         delta_threshold = 1
     else:
         delta_threshold = DELTA_THRESHOLD
-    density_tf = phonons.population.reshape((phonons.n_k_points, phonons.n_modes))
-    omega_tf = phonons.omega
-    sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
     for is_plus in (1, 0):
         second_sign = (int(is_plus) * 2 - 1)
-        omegas_difference = np.abs(phonons.omega[0, mu] + second_sign * phonons.omega[0, :, np.newaxis] -
-                                   phonons.omega[0, np.newaxis, :])
-        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+        omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] -
+                                   omega[0, np.newaxis, :])
         condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
                 (physical_mode[0, :, np.newaxis]) & \
                 (physical_mode[0, np.newaxis, :])
@@ -261,17 +268,16 @@ def calculate_dirac_delta_amorphous(phonons, mu):
             mup_vec = interactions[:, 0]
             mupp_vec = interactions[:, 1]
             if is_plus:
-                dirac_delta_tf = tf.gather(density_tf[0], mup_vec) - tf.gather(density_tf[0], mupp_vec)
+                dirac_delta_tf = tf.gather(population[0], mup_vec) - tf.gather(population[0], mupp_vec)
             else:
-                dirac_delta_tf = 0.5 * (1 + tf.gather(density_tf[0], mup_vec) + tf.gather(density_tf[0], mupp_vec))
-            omegas_difference_tf = tf.abs(phonons.omega[0, mu] + second_sign * tf.gather(omega_tf[0], mup_vec) - tf.gather(omega_tf[0],
-                                                                                                                             mupp_vec))
+                dirac_delta_tf = 0.5 * (1 + tf.gather(population[0], mup_vec) + tf.gather(population[0], mupp_vec))
+            omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
 
-            if phonons.broadening_shape == 'gauss':
+            if broadening_shape == 'gauss':
                 broadening_function = gaussian_delta
-            elif phonons.broadening_shape == 'triangle':
+            elif broadening_shape == 'triangle':
                 broadening_function = triangular_delta
-            elif phonons.broadening_shape == 'lorentz':
+            elif broadening_shape == 'lorentz':
                 broadening_function = lorentz_delta
             else:
                 raise('Broadening function not implemented')
