@@ -288,7 +288,8 @@ class Conductivity:
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point,
                                    self.phonons.forceconstants.second_order,
-                                   distance_threshold=self.phonons.forceconstants.distance_threshold)
+                                   distance_threshold=self.phonons.forceconstants.distance_threshold,
+                                   storage=self.phonons.storage)
             sij[ik] = phonon.calculate_sij()
 
         return sij
