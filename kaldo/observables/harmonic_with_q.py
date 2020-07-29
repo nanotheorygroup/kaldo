@@ -22,7 +22,7 @@ class HarmonicWithQ(Observable):
         self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
         self.supercell = second.supercell
-        self.is_amorphous = (self.supercell == (1, 1, 1)).all()
+        self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         self.replicated_atoms = second.replicated_atoms
         self.list_of_replicas = second.list_of_replicas
         self.second = second.value
