@@ -224,7 +224,21 @@
     <li class="md-nav__item">
     
     
-      <a href="introduction.html" class="md-nav__link">Main Features</a>
+      <a href="introduction.html" class="md-nav__link">Quick Install</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
@@ -232,6 +246,13 @@
     
     
       <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Main-Features" class="md-nav__link">Main Features</a>
       
     
     </li>
@@ -260,27 +281,6 @@
     
     
       <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html" class="md-nav__link">Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
@@ -418,13 +418,13 @@ constants for the system.</p>
 <h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="kaldo.forceconstants.ForceConstants">
-<em class="property">class </em><code class="sig-prename descclassname">kaldo.forceconstants.</code><code class="sig-name descname">ForceConstants</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">atoms</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">folder</span><span class="o">=</span><span class="default_value">'displacement'</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">kaldo.forceconstants.</code><code class="sig-name descname">ForceConstants</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">atoms</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">third_supercell</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">folder</span><span class="o">=</span><span class="default_value">'displacement'</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class for constructing the finite difference object to calculate
 the second/third order force constant matrices after providing the
 unit cell geometry and calculator information.</p>
 <dl class="py method">
 <dt id="kaldo.forceconstants.ForceConstants.from_folder">
-<em class="property">classmethod </em><code class="sig-name descname">from_folder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">folder</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'numpy'</span></em>, <em class="sig-param"><span class="n">third_energy_threshold</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">is_acoustic_sum</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">only_second</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">from_folder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">folder</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'numpy'</span></em>, <em class="sig-param"><span class="n">third_energy_threshold</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">third_supercell</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">is_acoustic_sum</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">only_second</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a finite difference object from a folder
 :param folder:
 :param supercell:
