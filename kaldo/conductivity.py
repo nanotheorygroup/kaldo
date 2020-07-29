@@ -469,8 +469,7 @@ class Conductivity:
             conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
             diffusivity_with_axis = contract('knmab->knab', diffusivity)
 
-        diffusivity = tf.linalg.diag_part(diffusivity_with_axis, k=2)
-        self._diffusivity = 1 / 3 * 1 / 100 * contract('kna->kn', diffusivity, backend='tensorflow')
+        self._diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis)
 
         return conductivity_per_mode * 1e22
 
