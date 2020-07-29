@@ -71,7 +71,7 @@ class ForceConstants:
 
     @classmethod
     def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
-                    is_acoustic_sum=False, only_second=False):
+                    is_acoustic_sum=False, only_second=False, distance_threshold=None):
         """
         Create a finite difference object from a folder
         :param folder:
@@ -102,6 +102,7 @@ class ForceConstants:
                                           third_energy_threshold=third_energy_threshold)
 
             forceconstants.third_order = third_order
+        forceconstants.distance_threshold = distance_threshold
         return forceconstants
 
 
