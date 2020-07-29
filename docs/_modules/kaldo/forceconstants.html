@@ -405,6 +405,7 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">atoms</span><span class="p">,</span>
                  <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                 <span class="n">third_supercell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">folder</span><span class="o">=</span><span class="n">MAIN_FOLDER</span><span class="p">,</span>
                  <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 
@@ -417,6 +418,8 @@
 <span class="sd">        supercell: tuple</span>
 <span class="sd">            Size of supercell given by the number of repetitions (l, m, n) of</span>
 <span class="sd">            the small unit cell in each direction</span>
+<span class="sd">        third_supercell: tuple</span>
+<span class="sd">            Same as supercell, but for the third order ifc. If not provided, it's copied from supercell</span>
 <span class="sd">        folder: str</span>
 <span class="sd">            Name str for the displacement folder</span>
 <span class="sd">        distance_threshold: float</span>
@@ -441,15 +444,17 @@
                                                        <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span>
                                                        <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                                                        <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">third_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">supercell</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                                     <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                                                     <span class="n">supercell</span><span class="o">=</span><span class="n">third_supercell</span><span class="p">,</span>
                                                      <span class="n">grid_type</span><span class="o">=</span><span class="s1">'C'</span><span class="p">,</span>
                                                      <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="ForceConstants.from_folder"><a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants.from_folder">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_folder</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">,</span> <span class="n">third_energy_threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                    <span class="n">only_second</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">from_folder</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">,</span> <span class="n">third_energy_threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">third_supercell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">only_second</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">"""</span>
 <span class="sd">        Create a finite difference object from a folder</span>
 <span class="sd">        :param folder:</span>
@@ -474,7 +479,9 @@
                 <span class="n">third_format</span> <span class="o">=</span> <span class="s1">'sparse'</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">third_format</span> <span class="o">=</span> <span class="nb">format</span>
-            <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">third_format</span><span class="p">,</span>
+            <span class="k">if</span> <span class="n">third_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">supercell</span>
+            <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">third_supercell</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">third_format</span><span class="p">,</span>
                                           <span class="n">third_energy_threshold</span><span class="o">=</span><span class="n">third_energy_threshold</span><span class="p">)</span>
 
             <span class="n">forceconstants</span><span class="o">.</span><span class="n">third_order</span> <span class="o">=</span> <span class="n">third_order</span>

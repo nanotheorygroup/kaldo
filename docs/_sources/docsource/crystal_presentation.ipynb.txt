@@ -319,7 +319,7 @@
     "id": "OMgSvwd3q4jN"
    },
    "source": [
-    "### Acess and visualize properties calculated during simulations"
+    "### Access and visualize properties calculated during simulations"
    ]
   },
   {
@@ -474,10 +474,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
-    "source": [],
     "metadata": {
      "collapsed": false
-    }
+    },
+    "source": []
    }
   }
  },
