@@ -224,7 +224,21 @@
     <li class="md-nav__item">
     
     
-      <a href="introduction.html" class="md-nav__link">Main Features</a>
+      <a href="introduction.html" class="md-nav__link">Quick Install</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
@@ -232,6 +246,13 @@
     
     
       <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="introduction.html#Main-Features" class="md-nav__link">Main Features</a>
       
     
     </li>
@@ -260,34 +281,6 @@
     
     
       <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html" class="md-nav__link">Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="quickstart.html#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
@@ -440,19 +433,6 @@ initializing the Conductivity object.</p>
 </dl>
 </dd></dl>
 <dl class="py method">
-<dt id="kaldo.phonons.Phonons.diffusivity">
-<em class="property">property </em><code class="sig-name descname">diffusivity</code><a class="headerlink" href="#kaldo.phonons.Phonons.diffusivity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the diffusivity, for each k point in k_points and each mode.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>diffusivity</strong> – diffusivity in mm^2/s</p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
 <dt id="kaldo.phonons.Phonons.eigenvalues">
 <em class="property">property </em><code class="sig-name descname">eigenvalues</code><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvalues" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
@@ -475,45 +455,6 @@ initializing the Conductivity object.</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>np array</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.flux">
-<em class="property">property </em><code class="sig-name descname">flux</code><a class="headerlink" href="#kaldo.phonons.Phonons.flux" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the flux, for each couple of k point in k_points/modes.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>flux</strong></p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.flux_dense">
-<em class="property">property </em><code class="sig-name descname">flux_dense</code><a class="headerlink" href="#kaldo.phonons.Phonons.flux_dense" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the flux, for each couple of k point in k_points/modes.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>flux</strong></p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.flux_sparse">
-<em class="property">property </em><code class="sig-name descname">flux_sparse</code><a class="headerlink" href="#kaldo.phonons.Phonons.flux_sparse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the flux, for each couple of k point in k_points/modes.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>flux</strong></p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</p>
 </dd>
 </dl>
 </dd></dl>

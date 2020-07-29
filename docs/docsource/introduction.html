@@ -233,7 +233,13 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a>
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Using-pip-and-virtualenv" class="md-nav__link">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>
+        </li>
+        <li class="md-nav__item"><a href="#Development-mode" class="md-nav__link">Development mode</a>
+        </li></ul>
+            </nav>
         </li>
         <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
               <ul class="md-nav__list">
@@ -412,7 +418,13 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a>
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Using-pip-and-virtualenv" class="md-nav__link">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>
+        </li>
+        <li class="md-nav__item"><a href="#Development-mode" class="md-nav__link">Development mode</a>
+        </li></ul>
+            </nav>
         </li>
         <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
               <ul class="md-nav__list">
@@ -471,7 +483,32 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
-<p>if you are not using <code class="docutils literal notranslate"><span class="pre">conda</span></code> we recommend to install <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code> to create an environment for kALDo</p>
+
+<h2 id="Using-pip-and-virtualenv">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code><a class="headerlink" href="#Using-pip-and-virtualenv" title="Permalink to this headline">¶</a></h2>
+<p>You can also install kALDO without using <code class="docutils literal notranslate"><span class="pre">conda</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip3 install virtualenv
+virtualenv --system-site-packages -p python3 ~/kaldo
+<span class="nb">source</span> ~/kaldo/bin/activate
+pip3 install git+https://github.com/nanotheorygroup/kaldo
+</pre></div>
+</div>
+
+
+<h2 id="Development-mode">Development mode<a class="headerlink" href="#Development-mode" title="Permalink to this headline">¶</a></h2>
+<p>The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip uninstall kaldo
+make ~/develoment
+<span class="nb">cd</span> ~/development
+git clone git+https://github.com/nanotheorygroup/kaldo
+<span class="nb">export</span> <span class="nv">PYTHONPATH</span><span class="o">=</span>~/development/kaldo:<span class="nv">$PYTHONPATH</span>
+</pre></div>
+</div>
+<p>If you followed the steps in the quickstart and then uninstall kaldo, you will have all the dependencies correctly installed. The next lines are pulling the repo from Github and adding it to the <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code>.</p>
+<p>If you want to make the last change in the <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code> permanent, you can also run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s2">"export PYTHONPATH=~/development/kaldo:</span><span class="nv">$PYTHONPATH</span><span class="s2">"</span> &gt;&gt; ~/.bashrc
+</pre></div>
+</div>
+
 
 
 <h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
@@ -483,7 +520,18 @@ make yes-manybody
 make yes-molecule
 ...
 make mpi <span class="nv">mode</span><span class="o">=</span>shlib
-make install-python
+</pre></div>
+</div>
+<p>Next, activate your environment</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">activate</span> <span class="n">kaldo</span>
+</pre></div>
+</div>
+<p>or if you used <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="o">~/</span><span class="n">kaldo</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+</pre></div>
+</div>
+<p>and finally install <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code> using</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">install</span><span class="o">-</span><span class="n">python</span>
 </pre></div>
 </div>
 
@@ -551,12 +599,12 @@ make install-python
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="88a7f8bdb5094810b171209581002369" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="6cd5b9b3c2184881ad3da1130860da81" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="4ede4fd315c44b6bbd3e3b8901ee69ff" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="b16cb2d7dd314ef4a0d5bda45f3a66dc" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
