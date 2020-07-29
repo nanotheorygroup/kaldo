@@ -393,12 +393,15 @@
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">,</span> <span class="n">FOLDER_NAME</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">Grid</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="k">import</span> <span class="n">HarmonicWithQ</span>
-<span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> \
-    <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span>
+<span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
+<span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="k">import</span> <span class="n">get_logger</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
+
+<span class="n">KELVINTOTHZ</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-12</span>
+<span class="n">KELVINTOJOULE</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span>
+
 
 
 
@@ -427,9 +430,6 @@
 <span class="sd">        broadening_shape (optional) : string</span>
 <span class="sd">            defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions</span>
 <span class="sd">            . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.</span>
-<span class="sd">        is_tf_backend (optional) : bool</span>
-<span class="sd">            defines if the third order phonons scattering calculations should be performed on tensorflow (True) or</span>
-<span class="sd">            numpy (False). Default is True.</span>
 <span class="sd">        folder (optional) : string</span>
 <span class="sd">            specifies where to store the data files. Default is `output`.</span>
 <span class="sd">        storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'</span>
@@ -459,7 +459,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'min_frequency'</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'max_frequency'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'broadening_shape'</span><span class="p">,</span> <span class="s1">'gauss'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_tf_backend</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_tf_backend'</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_nw'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'third_bandwidth'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'formatted'</span><span class="p">)</span>
@@ -610,7 +609,7 @@
 <span class="sd">        c_v : np.array(n_k_points, n_modes)</span>
 <span class="sd">            heat capacity in W/m/K for each k point and each mode</span>
 <span class="sd">        """</span>
-        <span class="n">c_v</span> <span class="o">=</span> <span class="n">calculate_heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+        <span class="n">c_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_heat_capacity</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">c_v</span>
 
 
@@ -625,7 +624,7 @@
 <span class="sd">        population : np.array(n_k_points, n_modes)</span>
 <span class="sd">            population for each k point and each mode</span>
 <span class="sd">        """</span>
-        <span class="n">population</span> <span class="o">=</span>  <span class="n">calculate_population</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">population</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">calculate_population</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">population</span>
 
 
@@ -689,13 +688,13 @@
                          <span class="nb">format</span><span class="o">=</span><span class="n">store_format</span><span class="p">):</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ps_gamma_and_gamma_tensor</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_and_gamma</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_ps_gamma_and_gamma_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_gamma_and_gamma_tensor</span>
 
 <span class="c1"># Helpers properties</span>
@@ -737,20 +736,8 @@
         <span class="k">return</span> <span class="n">index_qpp_full</span>
 
 
-    <span class="k">def</span> <span class="nf">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Projection started'</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf_backend</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic_tf</span> <span class="k">as</span> <span class="nn">aha</span>
-            <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'In order to run accelerated algoritgms, tensorflow&gt;=2.0 is required. </span><span class="se">\</span>
-<span class="s1">                Please consider installing tensorflow&gt;=2.0. More info here: </span><span class="se">\</span>
-<span class="s1">                https://www.tensorflow.org/install/pip'</span><span class="p">)</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using numpy engine instead.'</span><span class="p">)</span>
-                <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_gamma_tensor_enabled</span> <span class="o">=</span> <span class="n">is_gamma_tensor_enabled</span>
@@ -761,7 +748,31 @@
         <span class="k">return</span> <span class="n">ps_and_gamma</span>
 
 
+    <span class="k">def</span> <span class="nf">calculate_population</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">KELVINTOTHZ</span>
+        <span class="n">density</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">density</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">/</span> <span class="n">temp</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">density</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span> <span class="o">/</span> <span class="n">frequency</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">density</span>
 
+
+    <span class="k">def</span> <span class="nf">calculate_heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span>
+        <span class="n">c_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+        <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span>
+        <span class="n">temperature</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">KELVINTOTHZ</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">):</span>
+            <span class="n">c_v</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">KELVINTOJOULE</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">f_be</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">population</span>
+            <span class="n">c_v</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">KELVINTOJOULE</span> <span class="o">*</span> <span class="n">f_be</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">f_be</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">[</span>
+                <span class="n">physical_mode</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> \
+                                 <span class="p">(</span><span class="n">temperature</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c_v</span>
 </pre></div>
 </div>
 
