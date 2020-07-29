@@ -390,18 +390,16 @@
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">is_calculated</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.physical_mode</span> <span class="k">import</span> <span class="n">PhysicalMode</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">,</span> <span class="n">FOLDER_NAME</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">Grid</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="k">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> \
     <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="k">import</span> <span class="n">contract</span>
 
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="k">import</span> <span class="n">get_logger</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
-
-<span class="n">FOLDER_NAME</span> <span class="o">=</span> <span class="s1">'ald-output'</span>
 
 
 <span class="k">class</span> <span class="nc">Phonons</span><span class="p">:</span>
@@ -475,10 +473,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_able_to_calculate</span> <span class="o">=</span> <span class="kc">True</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">store_format</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">observable</span> <span class="ow">in</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_format</span><span class="p">[</span><span class="n">observable</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">[</span><span class="n">observable</span><span class="p">]</span> \
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">==</span> <span class="s1">'formatted'</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
@@ -505,11 +499,17 @@
 <span class="sd">            (n_k_points, n_modes) frequency in THz</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_frequency</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
-                                                                         <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                       <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                       <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+        <span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+
+            <span class="n">frequency</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">frequency</span>
+
+        <span class="k">return</span> <span class="n">frequency</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
@@ -522,11 +522,76 @@
 <span class="sd">        """</span>
 
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_velocity</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
-                                                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                       <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                       <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
+
+        <span class="n">velocity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+            <span class="n">velocity</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">velocity</span>
         <span class="k">return</span> <span class="n">velocity</span>
+
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_dynmat_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+
+        <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+            <span class="n">dynmat_derivatives</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_dynmat_derivatives</span>
+        <span class="k">return</span> <span class="n">dynmat_derivatives</span>
+
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_eigensystem</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""Calculate the eigensystems, for each k point in k_points.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)</span>
+<span class="sd">            eigensystem is calculated for each k point, the three dimensional array</span>
+<span class="sd">            records the eigenvalues in the last column of the last dimension.</span>
+
+<span class="sd">            If the system is not amorphous, these values are stored as complex numbers.</span>
+<span class="sd">        """</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+
+        <span class="n">eigensystem</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+
+            <span class="n">eigensystem</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_eigensystem</span>
+
+        <span class="k">return</span> <span class="n">eigensystem</span>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_velocity_af</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+
+        <span class="n">velocity_AF</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+
+            <span class="n">velocity_AF</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_velocity_af</span>
+
+        <span class="k">return</span> <span class="n">velocity_AF</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
@@ -616,43 +681,12 @@
         <span class="k">return</span> <span class="n">eigenvectors</span>
 
 
-
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">_dynmat_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_dynmat_derivatives</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
-                                                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                       <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                       <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">dynmat_derivatives</span>
-
-
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">_eigensystem</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the eigensystems, for each k point in k_points.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)</span>
-<span class="sd">            eigensystem is calculated for each k point, the three dimensional array</span>
-<span class="sd">            records the eigenvalues in the last column of the last dimension.</span>
-
-<span class="sd">            If the system is not amorphous, these values are stored as complex numbers.</span>
-<span class="sd">        """</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-
-        <span class="n">eigensystem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_eigensystem</span><span class="p">(</span><span class="n">q_points</span><span class="o">=</span><span class="n">q_points</span><span class="p">,</span>
-                                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                             <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                             <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">eigensystem</span>
-
-
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_ps_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-
+        <span class="n">store_format</span> <span class="o">=</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">[</span><span class="s1">'_ps_gamma_and_gamma_tensor'</span><span class="p">]</span> \
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">==</span> <span class="s1">'formatted'</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
         <span class="k">if</span> <span class="n">is_calculated</span><span class="p">(</span><span class="s1">'_ps_gamma_and_gamma_tensor'</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">,</span> \
-                         <span class="nb">format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">store_format</span><span class="p">[</span><span class="s1">'_ps_gamma_and_gamma_tensor'</span><span class="p">]):</span>
+                         <span class="nb">format</span><span class="o">=</span><span class="n">store_format</span><span class="p">):</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ps_gamma_and_gamma_tensor</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -674,17 +708,6 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_main_q_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">()</span>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">_velocity_af</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">velocity_AF</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_velocity_af</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
-                                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                             <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                             <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">velocity_AF</span>
-
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_rescaled_eigenvectors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

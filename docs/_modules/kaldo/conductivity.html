@@ -392,6 +392,7 @@
 <span class="kn">from</span> <span class="nn">sparse</span> <span class="k">import</span> <span class="n">COO</span>
 <span class="kn">from</span> <span class="nn">kaldo.controllers.dirac_kernel</span> <span class="k">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">DEFAULT_STORE_FORMATS</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="k">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="k">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
@@ -566,10 +567,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">is_diffusivity_including_antiresonant</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_diffusivity_including_antiresonant'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'diffusivity_shape'</span><span class="p">,</span> <span class="s1">'lorentz'</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">store_format</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">observable</span> <span class="ow">in</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_format</span><span class="p">[</span><span class="n">observable</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">[</span><span class="n">observable</span><span class="p">]</span> \
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">==</span> <span class="s1">'formatted'</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
@@ -664,10 +661,18 @@
 <span class="sd">        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">sij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_sij</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
-                                                                     <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                     <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                     <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">:</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">complex</span>
+        <span class="n">sij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">type</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
+            <span class="n">sij</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">calculate_sij</span><span class="p">()</span>
+
         <span class="k">return</span> <span class="n">sij</span>
 
 
@@ -814,10 +819,13 @@
             <span class="k">for</span> <span class="n">k_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
                 <span class="n">heat_capacity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_2d_heat_capacity</span><span class="p">(</span><span class="n">k_index</span><span class="p">)</span>
 
-                <span class="n">sij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_sij</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">q_points</span><span class="p">[</span><span class="n">k_index</span><span class="p">]]),</span>
-                                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                                             <span class="n">distance_threshold</span><span class="o">=</span>
-                                                                             <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
+                <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_points</span><span class="p">[</span><span class="n">k_index</span><span class="p">],</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+                <span class="n">sij</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">calculate_sij</span><span class="p">()</span>
+
                 <span class="k">if</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
                     <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'calculating conductivity for '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">q_points</span><span class="p">[</span><span class="n">k_index</span><span class="p">]))</span>
                 <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
