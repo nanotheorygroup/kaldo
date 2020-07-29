@@ -388,11 +388,11 @@
 <span class="sd">"""</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">is_calculated</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span>
-<span class="kn">from</span> <span class="nn">kaldo.observables.physical_modes</span> <span class="k">import</span> <span class="n">PhysicalModes</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.physical_mode</span> <span class="k">import</span> <span class="n">PhysicalMode</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">Grid</span>
 <span class="kn">from</span> <span class="nn">kaldo.controllers.harmonic</span> <span class="k">import</span> \
-    <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span><span class="p">,</span> <span class="n">calculate_sij_sparse</span><span class="p">,</span> <span class="n">calculate_generalized_diffusivity</span>
+    <span class="n">calculate_heat_capacity</span><span class="p">,</span> <span class="n">calculate_population</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="k">import</span> <span class="n">contract</span>
 
@@ -425,20 +425,9 @@
 <span class="sd">            defines the width of the energy conservation smearing in the phonons scattering calculation.</span>
 <span class="sd">            If `None` the width is calculated dynamically. Otherwise the input value corresponds to the</span>
 <span class="sd">            width. Units: THz.</span>
-<span class="sd">        diffusivity_bandwidth (optional) : float</span>
-<span class="sd">            Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the</span>
-<span class="sd">            thermal conductivity in amorphous systems. Units: rad/ps</span>
-<span class="sd">        diffusivity_threshold (optional) : float</span>
-<span class="sd">            This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</span>
-<span class="sd">        diffusivity_shape (optional) : string</span>
-<span class="sd">            defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
-<span class="sd">            Default is `lorentz`.</span>
-<span class="sd">        is_diffusivity_including_antiresonant (optional) : bool</span>
-<span class="sd">            defines if you want to include or not anti-resonant terms in diffusivity calculations.</span>
-<span class="sd">            Default is `False`.</span>
 <span class="sd">        broadening_shape (optional) : string</span>
-<span class="sd">            defines the algorithm to use to calculate_second the broadening. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
-<span class="sd">            Default is `gauss`.</span>
+<span class="sd">            defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions</span>
+<span class="sd">            . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.</span>
 <span class="sd">        is_tf_backend (optional) : bool</span>
 <span class="sd">            defines if the third order phonons scattering calculations should be performed on tensorflow (True) or</span>
 <span class="sd">            numpy (False). Default is True.</span>
@@ -474,12 +463,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">is_tf_backend</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_tf_backend'</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_nw'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'third_bandwidth'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'diffusivity_bandwidth'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'diffusivity_threshold'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'diffusivity_shape'</span><span class="p">,</span> <span class="s1">'lorentz'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'formatted'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_symmetrizing_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_symmetrizing_frequency'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_diffusivity_including_antiresonant</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_diffusivity_including_antiresonant'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_antisymmetrizing_velocity</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_antisymmetrizing_velocity'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">atoms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
@@ -505,7 +490,7 @@
 <span class="sd">        physical_mode : np array</span>
 <span class="sd">            (n_k_points, n_modes) bool</span>
 <span class="sd">        """</span>
-        <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">PhysicalModes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span><span class="p">)</span><span class="o">.</span><span class="n">calculate</span><span class="p">()</span>
+        <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">PhysicalMode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span><span class="p">)</span><span class="o">.</span><span class="n">calculate</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
 
 
@@ -519,7 +504,10 @@
 <span class="sd">            (n_k_points, n_modes) frequency in THz</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_frequency</span><span class="p">(</span><span class="n">q_points</span><span class="p">)</span>
+        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_frequency</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
+                                                                         <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                                                                       <span class="n">distance_threshold</span><span class="o">=</span>
+                                                                       <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
 
 
@@ -601,63 +589,6 @@
         <span class="k">return</span> <span class="n">ps</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the diffusivity, for each k point in k_points and each mode.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        diffusivity : np.array(n_k_points, n_modes)</span>
-<span class="sd">            diffusivity in mm^2/s</span>
-<span class="sd">        """</span>
-        <span class="n">generalized_diffusivity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generalized_diffusivity</span>
-        <span class="n">diffusivity</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">contract</span><span class="p">(</span><span class="s1">'knmaa-&gt;kn'</span><span class="p">,</span> <span class="n">generalized_diffusivity</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">diffusivity</span>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">flux</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the flux, for each couple of k point in k_points/modes.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</span>
-<span class="sd">        """</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">sij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flux_sparse</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">sij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flux_dense</span>
-        <span class="k">return</span> <span class="n">sij</span>
-
-
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;'</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">flux_dense</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the flux, for each couple of k point in k_points/modes.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</span>
-<span class="sd">        """</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">sij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_sij</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
-                                                             <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
-                                                             <span class="n">distance_threshold</span><span class="o">=</span>
-                                                             <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sij</span>
-
-
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;'</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">flux_sparse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the flux, for each couple of k point in k_points/modes.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)</span>
-<span class="sd">        """</span>
-        <span class="n">sij</span> <span class="o">=</span> <span class="n">calculate_sij_sparse</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">sij</span>
-
-
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">eigenvalues</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">"""Calculates the eigenvalues of the dynamical matrix in Thz^2.</span>
@@ -688,7 +619,10 @@
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_dynmat_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-        <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_dynmat_derivatives</span><span class="p">(</span><span class="n">q_points</span><span class="p">)</span>
+        <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="o">.</span><span class="n">calculate_dynmat_derivatives</span><span class="p">(</span><span class="n">q_points</span><span class="p">,</span>
+                                                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                                                                       <span class="n">distance_threshold</span><span class="o">=</span>
+                                                                       <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">dynmat_derivatives</span>
 
 
@@ -713,32 +647,26 @@
         <span class="k">return</span> <span class="n">eigensystem</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_ps_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 
         <span class="k">if</span> <span class="n">is_calculated</span><span class="p">(</span><span class="s1">'_ps_gamma_and_gamma_tensor'</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">,</span> \
                          <span class="nb">format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">store_format</span><span class="p">[</span><span class="s1">'_ps_gamma_and_gamma_tensor'</span><span class="p">]):</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ps_gamma_and_gamma_tensor</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_and_gamma</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_ps_gamma_and_gamma_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_gamma_and_gamma_tensor</span>
-
-
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">_generalized_diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">generalized_diffusivity</span> <span class="o">=</span> <span class="n">calculate_generalized_diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">generalized_diffusivity</span>
 
 <span class="c1"># Helpers properties</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">_omegas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">omega</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
 
 
@@ -775,7 +703,17 @@
         <span class="k">return</span> <span class="n">is_amorphous</span>
 
 
-    <span class="k">def</span> <span class="nf">calculate_phase_space_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_allowed_third_phonons_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_q</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">):</span>
+        <span class="n">q_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">id_to_unitary_grid_index</span><span class="p">(</span><span class="n">index_q</span><span class="p">)</span>
+        <span class="n">qp_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">()</span>
+        <span class="n">qpp_vec</span> <span class="o">=</span> <span class="n">q_vec</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">is_plus</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">qp_vec</span><span class="p">[:,</span> <span class="p">:]</span>
+        <span class="n">rescaled_qpp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">((</span><span class="n">qpp_vec</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+        <span class="n">rescaled_qpp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">rescaled_qpp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">)</span>
+        <span class="n">index_qpp_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="n">rescaled_qpp</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'raise'</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">index_qpp_full</span>
+
+
+    <span class="k">def</span> <span class="nf">select_backend_for_phase_space_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Projection started'</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tf_backend</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
@@ -796,17 +734,10 @@
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">project_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">project_crystal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">ps_and_gamma</span>
+        <span class="k">return</span> <span class="n">ps_and_gamma</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_allowed_third_phonons_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_q</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">):</span>
-        <span class="n">q_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">id_to_unitary_grid_index</span><span class="p">(</span><span class="n">index_q</span><span class="p">)</span>
-        <span class="n">qp_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">()</span>
-        <span class="n">qpp_vec</span> <span class="o">=</span> <span class="n">q_vec</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">is_plus</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">qp_vec</span><span class="p">[:,</span> <span class="p">:]</span>
-        <span class="n">rescaled_qpp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">((</span><span class="n">qpp_vec</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
-        <span class="n">rescaled_qpp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">rescaled_qpp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">)</span>
-        <span class="n">index_qpp_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="n">rescaled_qpp</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'raise'</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">index_qpp_full</span></div>
+
 </pre></div>
 
           </article>
