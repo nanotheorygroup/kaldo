@@ -125,6 +125,8 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     fig.savefig(folder + '/' + observable_name + '.png')
     if is_showing:
         plt.show()
+    else:
+        plt.close()
 
 
 def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
@@ -144,6 +146,8 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
     fig.savefig(folder + '/' + 'dos.png')
     if is_showing:
         plt.show()
+    else:
+        plt.close()
 
 
 def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b'):
@@ -215,6 +219,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
 
     if is_showing:
         plt.show()
+    else:
+        plt.close()
     if with_velocity:
         for alpha in range(3):
             np.savetxt(folder + '/' + 'velocity_' + str(alpha), vel_plot[:, :, alpha])
@@ -239,6 +245,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
 
         if is_showing:
             plt.show()
+        else:
+            plt.close()
 
 
 def plot_crystal(phonons):
