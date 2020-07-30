@@ -49,7 +49,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
     'recommonmark',
-    'nbsphinx'
+    'nbsphinx',
+    'numpydoc'
 ]
 
 # We do it like this to support multiple sphinx version without having warning.
@@ -66,7 +67,7 @@ except ImportError:
 
 autosummary_generate = True
 napoleon_google_docstring = False
-napoleon_use_param = False
+napoleon_use_param = True
 napoleon_use_ivar = True
 
 # Add any paths that contain templates here, relative to this directory.
