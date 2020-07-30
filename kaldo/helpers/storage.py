@@ -158,7 +158,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
             base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     except AttributeError:
         q_point = instance.q_point
-        base_folder += '/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+        base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
     if label != '':
         if '<diffusivity_bandwidth>' in label:
             if instance.diffusivity_bandwidth is not None:
@@ -227,6 +227,7 @@ def lazy_property(label=''):
                     else:
                         logging.info('Loading ' + folder + '/' + str(property))
                 else:
+
                     loaded_attr = fn(self)
                 setattr(self, attr, loaded_attr)
             return getattr(self, attr)

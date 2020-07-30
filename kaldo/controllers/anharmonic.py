@@ -2,266 +2,296 @@
 kaldo
 Anharmonic Lattice Dynamics
 """
-import sparse
+import numpy as np
 import ase.units as units
 from kaldo.helpers.tools import timeit
-import numpy as np
-from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
-from kaldo.helpers.logger import get_logger, log_size
+import tensorflow as tf
 from opt_einsum import contract
+from kaldo.helpers.logger import get_logger, log_size
+from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
 
 logging = get_logger()
 
-
 DELTA_THRESHOLD = 2
-GAMMATOTHZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
+KELVINTOJOULE = units.kB / units.J
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 
 
 @timeit
 def project_amorphous(phonons):
-    n_modes = phonons.n_modes
-    rescaled_eigenvectors = phonons._rescaled_eigenvectors.reshape((n_modes, n_modes),
-                                                                   order='C')
-
+    n_replicas = phonons.forceconstants.n_replicas
+    rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
-    for nu_single in range(phonons.n_phonons):
+    logging.info('Projection started')
+    evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
-        # ps_and_gamma_sparse = np.zeros(2)
-        out = calculate_dirac_delta_amorphous(phonons, nu_single)
+    coords = phonons.forceconstants.third_order.value.coords
+    data = phonons.forceconstants.third_order.value.data
+    coords = np.vstack([coords[1], coords[2], coords[0]])
+    third_tf = tf.SparseTensor(coords.T, data, (
+        phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
+
+    third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+    for nu_single in range(phonons.n_phonons):
+        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+        sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+
+        out = calculate_dirac_delta_amorphous(phonons.omega,
+                                              phonons.population,
+                                              physical_mode,
+                                              sigma_tf,
+                                              phonons.broadening_shape,
+                                              nu_single)
         if not out:
             continue
-        dirac_delta, mup_vec, mupp_vec = out
+        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
+                                                    tf.reshape(evect_tf[:, nu_single], ((phonons.n_modes, 1))))
+        third_nu_tf = tf.reshape(third_nu_tf,
+                                 (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas))
 
-        potential_times_evect = sparse.tensordot(phonons.forceconstants.third_order.value,
-                                                 rescaled_eigenvectors[:, nu_single], (0, 0))
+        dirac_delta_tf, mup_vec, mupp_vec = out
+        scaled_potential_tf = tf.einsum('ij,in,jm->nm', third_nu_tf, evect_tf, evect_tf)
+        coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+        # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 \
+        # * dirac_delta_tf, (n_phonons, n_phonons))
 
-        scaled_potential = np.einsum('ij,in,jm->nm', potential_times_evect.real,
-                                    rescaled_eigenvectors.real,
-                                    rescaled_eigenvectors.real,
-                                    optimize='optimal')
-        scaled_potential = scaled_potential[np.newaxis, ...]
-        scaled_potential = scaled_potential[0, mup_vec, mupp_vec]
+        pot_times_dirac = tf.gather_nd(scaled_potential_tf,coords) **  2
+        pot_times_dirac = pot_times_dirac / tf.gather(phonons.omega[0], mup_vec) / tf.gather(phonons.omega[0], mupp_vec)
+        pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
+        pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
-        # pot_small = phonons.calculate_third_k0m0_k1m1_k2m2(False, 0, nu_single, 0, mup_vec[0],
-        #                                            0, mupp_vec[0])
+        dirac_delta = tf.reduce_sum(dirac_delta_tf)
 
-        pot_times_dirac = np.abs(scaled_potential) ** 2 * dirac_delta
-        pot_times_dirac /= (phonons.omega[0, mup_vec] * phonons.omega[0, mupp_vec])
-
-        ps_and_gamma[nu_single, 0] = dirac_delta.sum()
-        ps_and_gamma[nu_single, 1] = pot_times_dirac.sum()
-        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] * np.pi / 4. * units._hbar * GAMMATOTHZ
-        ps_and_gamma[nu_single, 1:] = ps_and_gamma[nu_single, 1:] / phonons.omega.flatten()[nu_single]
+        ps_and_gamma[nu_single, 0] = dirac_delta.numpy()
+        ps_and_gamma[nu_single, 1] = pot_times_dirac.numpy()
+        ps_and_gamma[nu_single, 1:] /= phonons.omega.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
-        logging.info('calculating third ' + str(nu_single) + ', ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-        logging.info(str(phonons.frequency[0, nu_single]) + ': ' + str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
+        logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / \
+                                                                                 phonons.n_phonons, 2) * 100) + '%')
+        logging.info(str(phonons.frequency.reshape(phonons.n_phonons)[nu_single]) + ': ' + \
+                     str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
 
     return ps_and_gamma
-
 
 
 @timeit
 def project_crystal(phonons):
     is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
+    n_replicas = phonons.forceconstants.third_order.n_replicas
+
+    try:
+        sparse_third = phonons.forceconstants.third_order.value.reshape((phonons.n_modes, -1))
+        # transpose
+        sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
+        third_tf = tf.SparseTensor(sparse_coords,
+                                   sparse_third.data,
+                                   ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+        is_sparse = True
+    except AttributeError:
+        third_tf = tf.convert_to_tensor(phonons.forceconstants.third_order.value)
+        is_sparse = False
+    third_tf = tf.cast(third_tf, dtype=tf.complex64)
+    k_mesh = phonons._reciprocal_grid.unitary_grid()
+    n_k_points = k_mesh.shape[0]
+    _chi_k = tf.convert_to_tensor(phonons.forceconstants.third_order._chi_k(k_mesh))
+    _chi_k = tf.cast(_chi_k, dtype=tf.complex64)
+    evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
+    evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
-        shape = (phonons.n_phonons, phonons.n_phonons)
+        shape = (phonons.n_phonons, 2 + phonons.n_phonons)
         log_size(shape, name='scattering_tensor')
-        scattering_tensor = np.zeros(shape)
-    ps_and_gamma = np.zeros((phonons.n_phonons, 2))
-    n_replicas = phonons.forceconstants.third_order.n_replicas
-    rescaled_eigenvectors = phonons._rescaled_eigenvectors
-    n_atoms = phonons.forceconstants.n_atoms
-    third_order = phonons.forceconstants.third_order.value.reshape((n_atoms * 3, n_replicas, n_atoms * 3, n_replicas, n_atoms * 3))
-
-    k_mesh = phonons._reciprocal_grid.unitary_grid()
-    chi = phonons.forceconstants.third_order._chi_k(k_mesh)
-    evect_1_plus = rescaled_eigenvectors
-    chi_conj = phonons.forceconstants.third_order._chi_k(k_mesh).conj()
-    evect_1_minus = rescaled_eigenvectors.conj()
-    for index_k in range(phonons.n_k_points):
-        for mu in range(phonons.n_modes):
-            nu_single = np.ravel_multi_index([index_k, mu], (phonons.n_k_points, phonons.n_modes))
-
-            if nu_single % 200 == 0:
-                logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-            potential_times_evect = contract('iljtn,i->ljtn', third_order, rescaled_eigenvectors[index_k, :, mu])
-            for is_plus in (1, 0):
-                out = calculate_dirac_delta_crystal(phonons, index_k, mu, is_plus)
-                if not out:
-                    continue
-                dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
-                index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
-                chi_2 = chi_conj[index_kpp_full]
-                evect_2 = rescaled_eigenvectors[index_kpp_full].conj()
-                if is_plus:
-                    scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
-                                                potential_times_evect,
-                                                chi,
-                                                chi_2,
-                                                evect_1_plus,
-                                                evect_2)
-                else:
-                    scaled_potential = contract('tilj,kt,kl,kim,kjn->kmn',
-                                                potential_times_evect,
-                                                chi_conj,
-                                                chi_2,
-                                                evect_1_minus,
-                                                evect_2)
-
-                # pot_small = calculate_third_k0m0_k1m1_k2m2(phonons, is_plus, index_k, mu, index_kp_vec[0], mup_vec[0], index_kpp_vec[0], mupp_vec[0])
-
-                pot_times_dirac = np.abs(scaled_potential[index_kp_vec, mup_vec, mupp_vec]) ** 2 * dirac_delta
-
-                pot_times_dirac /= (phonons.omega[index_kp_vec, mup_vec] * phonons.omega[index_kpp_vec, mupp_vec])
-                pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
-
-                if is_gamma_tensor_enabled:
-                    # We need to use bincount together with fancy indexing here. See:
-                    # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
-                    nup_vec = np.ravel_multi_index(np.array([index_kp_vec, mup_vec], dtype=int),
-                                                   np.array([phonons.n_k_points, phonons.n_modes]))
-                    nupp_vec = np.ravel_multi_index(np.array([index_kpp_vec, mupp_vec], dtype=int),
-                                                    np.array([phonons.n_k_points, phonons.n_modes]))
-
-                    # The ps and gamma array stores first ps then gamma then the scattering array
-                    sign = -1 if is_plus else 1
-                    scattering_tensor[nu_single] += sign * np.bincount(nup_vec, pot_times_dirac, phonons.n_phonons)
-                    scattering_tensor[nu_single] += np.bincount(nupp_vec, pot_times_dirac, phonons.n_phonons)
-                ps_and_gamma[nu_single, 0] += dirac_delta.sum() / phonons.n_k_points
-                ps_and_gamma[nu_single, 1] += pot_times_dirac.sum()
-            ps_and_gamma[nu_single, 1:] /= phonons.omega.flatten()[nu_single]
-            if is_gamma_tensor_enabled:
-                scattering_tensor[nu_single] /= phonons.omega.flatten()[nu_single]
-    if is_gamma_tensor_enabled:
-        return np.hstack([ps_and_gamma, scattering_tensor])
+        ps_and_gamma = np.zeros(shape)
     else:
-        return ps_and_gamma
-
-
-def calculate_dirac_delta_crystal(phonons, index_q, mu, is_plus):
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    if not physical_mode[index_q, mu]:
-        return None
-
-    density = phonons.population
-    if phonons.broadening_shape == 'gauss':
-        broadening_function = gaussian_delta
-    elif phonons.broadening_shape == 'triangle':
-        broadening_function = triangular_delta
-    elif phonons.broadening_shape == 'lorentz':
-        broadening_function = lorentz_delta
-
-    else:
-        raise TypeError('Broadening shape not supported')
-
-    index_qpp_full = phonons._allowed_third_phonons_index(index_q, is_plus)
-    if phonons.third_bandwidth is None:
-        sigma_small = calculate_broadening(phonons, index_qpp_full)
-    else:
-        try:
-            phonons.third_bandwidth.size
-        except AttributeError:
-            sigma_small = phonons.third_bandwidth
+        ps_and_gamma = np.zeros((phonons.n_phonons, 2))
+    logging.info('Projection started')
+    second_minus = tf.math.conj(evect_tf)
+    second_minus_chi = tf.math.conj(_chi_k)
+    for nu_single in range(phonons.n_phonons):
+        if nu_single % 200 == 0:
+            logging.info('calculating third ' + str(nu_single) +  ', ' + \
+                         str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
+        index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+        if is_sparse:
+            third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
         else:
-            sigma_small = phonons.third_bandwidth.reshape((phonons.n_k_points, phonons.n_modes))[index_q, mu]
+            third_nu_tf = contract('ijk,i->jk', third_tf, evect_tf[index_k, :, mu], backend='tensorflow')
+            third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
 
-    second_sign = (int(is_plus) * 2 - 1)
-    omegas = phonons.omega
-    omegas_difference = np.abs(
-        omegas[index_q, mu] + second_sign * omegas[:, :, np.newaxis] -
-        omegas[index_qpp_full, np.newaxis, :])
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    condition = (omegas_difference < DELTA_THRESHOLD * sigma_small) & \
-                (physical_mode[:, :, np.newaxis]) & \
-                (physical_mode[index_qpp_full, np.newaxis, :])
+        third_nu_tf = tf.cast(
+            tf.reshape(third_nu_tf, (n_replicas, phonons.n_modes, n_replicas, phonons.n_modes)),
+            dtype=tf.complex64)
+        third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
+        third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
 
-    interactions = np.array(np.where(condition)).T
+        for is_plus in (0, 1):
+            index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
+            index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
+            physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
 
-    if interactions.size == 0:
-        return None
-    # Create sparse index
-    index_qp = interactions[:, 0]
-    index_qpp = index_qpp_full[index_qp]
-    mup_vec = interactions[:, 1]
-    mupp_vec = interactions[:, 2]
-    if is_plus:
-        dirac_delta = density[index_qp, mup_vec] - density[index_qpp, mupp_vec]
-        # dirac_delta = density[index_q, mu] * density[index_qp, mup_vec] * (
-        #             density[index_qpp, mupp_vec] + 1)
+            if phonons.third_bandwidth:
+                sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+            else:
+                sigma_tf = calculate_broadening(phonons, index_kpp_full)
 
-    else:
-        dirac_delta = .5 * (
-                1 + density[index_qp, mup_vec] + density[index_qpp, mupp_vec])
-        # dirac_delta = .5 * density[index_q, mu] * (density[index_qp, mup_vec] + 1) * (
-        #             density[index_qpp, mupp_vec] + 1)
+            out = calculate_dirac_delta_crystal(phonons.omega,
+                                                phonons.population,
+                                                physical_mode,
+                                                sigma_tf,
+                                                phonons.broadening_shape,
+                                                index_kpp_full,
+                                                index_k,
+                                                mu,
+                                                is_plus)
+            if not out:
+                continue
 
-    if np.array(sigma_small).size == 1:
-        dirac_delta *= broadening_function(
-            omegas_difference[index_qp, mup_vec, mupp_vec], sigma_small)
-    else:
-        dirac_delta *= broadening_function(
-            omegas_difference[index_qp, mup_vec, mupp_vec], sigma_small[
-                index_qp, mup_vec, mupp_vec])
+            if is_plus:
 
-    return dirac_delta, index_qp, mup_vec, index_qpp, mupp_vec
+                second = evect_tf
+                second_chi = _chi_k
+            else:
 
-def calculate_dirac_delta_amorphous(phonons, mu):
-    density = phonons.population
-    if phonons.broadening_shape == 'gauss':
-        broadening_function = gaussian_delta
-    elif phonons.broadening_shape == 'triangle':
-        broadening_function = triangular_delta
-    elif phonons.broadening_shape == 'lorentz':
-        broadening_function = triangular_delta
-    else:
-        raise TypeError('Broadening shape not supported')
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    for is_plus in [1, 0]:
-        sigma_small = phonons.third_bandwidth
+                second = second_minus
+                second_chi = second_minus_chi
 
-        if physical_mode[0, mu]:
+            third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))
+            third_chi = tf.math.conj(tf.gather(_chi_k, index_kpp_full))
+            dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = out
 
-            second_sign = (int(is_plus) * 2 - 1)
-            omegas = phonons.omega
-            omegas_difference = np.abs(
-                omegas[0, mu] + second_sign * omegas[0, :, np.newaxis] -
-                omegas[0, np.newaxis, :])
+            # The ps and gamma array stores first ps then gamma then the scattering array
+            chi_prod = tf.einsum('kt,kl->ktl', second_chi, third_chi)
+            chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas ** 2))
+            scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
+            scaled_potential = tf.einsum('kij,kim->kjm', scaled_potential, second)
+            scaled_potential = tf.einsum('kjm,kjn->kmn', scaled_potential, third)
 
-            condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_small) & \
-                            (physical_mode[0, :, np.newaxis]) & \
-                            (physical_mode[0, np.newaxis, :])
-            interactions = np.array(np.where(condition)).T
+            scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
+            pot_times_dirac = tf.abs(
+                scaled_potential) ** 2 * dirac_delta
 
-            if interactions.size != 0:
-                # Create sparse index
+            nup_vec = index_kp_vec * phonons.n_modes + mup_vec
+            nupp_vec = index_kpp_vec * phonons.n_modes + mupp_vec
+            pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64)
+            pot_times_dirac = pot_times_dirac / tf.gather(phonons.omega.flatten(), nup_vec) / tf.gather(phonons.omega.flatten(), nupp_vec)
 
-                mup_vec = interactions[:, 0]
-                mupp_vec = interactions[:, 1]
+            if is_gamma_tensor_enabled:
+                # We need to use bincount together with fancy indexing here. See:
+                # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
+
+                nup_vec = index_kp_vec * phonons.n_modes + mup_vec
+                nupp_vec = index_kpp_vec * phonons.n_modes + mupp_vec
+
+                result = tf.math.bincount(nup_vec, pot_times_dirac, phonons.n_phonons)
                 if is_plus:
-                    dirac_delta = density[0, mup_vec] - density[0, mupp_vec]
-                    # dirac_delta = density[0, mu] * density[0, mup_vec] * (
-                    #             density[0, mupp_vec] + 1)
-
+                    ps_and_gamma[nu_single, 2:] -= result
                 else:
-                    dirac_delta = .5 * (
-                            1 + density[0, mup_vec] + density[0, mupp_vec])
-                    # dirac_delta = .5 * density[0, mu] * (density[0, mup_vec] + 1) * (
-                    #             density[0, mupp_vec] + 1)
+                    ps_and_gamma[nu_single, 2:] += result
 
-                dirac_delta *= broadening_function(
-                    omegas_difference[mup_vec, mupp_vec], 2 * np.pi * sigma_small)
+                result = tf.math.bincount(nupp_vec, pot_times_dirac, phonons.n_phonons)
+                ps_and_gamma[nu_single, 2:] += result
+            ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta) / phonons.n_k_points
+            ps_and_gamma[nu_single, 1] += tf.reduce_sum(pot_times_dirac)
+        ps_and_gamma[nu_single, 1:] /= phonons.omega.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] *= np.pi * units._hbar / 4 / n_k_points * GAMMATOTHZ
+    return ps_and_gamma
 
-                try:
-                    mup = np.concatenate([mup, mup_vec])
-                    mupp = np.concatenate([mupp, mupp_vec])
-                    current_delta = np.concatenate([current_delta, dirac_delta])
-                except NameError:
-                    mup = mup_vec
-                    mupp = mupp_vec
-                    current_delta = dirac_delta
+
+def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, broadening_shape, index_kpp_full, index_k, mu, is_plus):
+    if not physical_mode[index_k, mu]:
+        return None
+    if broadening_shape == 'gauss':
+        broadening_function = gaussian_delta
+    elif broadening_shape == 'triangle':
+        broadening_function = triangular_delta
+    elif broadening_shape == 'lorentz':
+        broadening_function = lorentz_delta
+    else:
+        raise ('Broadening function not implemented')
+    second_sign = (int(is_plus) * 2 - 1)
+    omegas_difference = tf.abs(omega[index_k, mu] + second_sign * omega[:, :, tf.newaxis] -
+                               tf.gather(omega, index_kpp_full)[:, tf.newaxis, :])
+
+
+    condition = (omegas_difference < DELTA_THRESHOLD * 2 * np.pi * sigma_tf) & \
+                (physical_mode[:, :, np.newaxis]) & \
+                (physical_mode[index_kpp_full, np.newaxis, :])
+    interactions = tf.where(condition)
+    if interactions.shape[0] > 0:
+        index_kp_vec = tf.cast(interactions[:, 0], dtype=tf.int32)
+        index_kpp_vec = tf.gather(index_kpp_full, index_kp_vec)
+        mup_vec = tf.cast(interactions[:, 1], dtype=tf.int32)
+        mupp_vec = tf.cast(interactions[:, 2], dtype=tf.int32)
+        coords_1 = tf.stack((index_kp_vec, mup_vec), axis=-1)
+        coords_2 = tf.stack((index_kpp_vec, mupp_vec), axis=-1)
+        if sigma_tf.shape != []:
+            coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
+            sigma_tf = tf.gather_nd(sigma_tf, coords_3)
+        if is_plus:
+            dirac_delta_tf = tf.gather_nd(population, coords_1) - tf.gather_nd(population, coords_2)
+
+        else:
+            dirac_delta_tf = 0.5 * (1 + tf.gather_nd(population, coords_1) + tf.gather_nd(population, coords_2))
+        omegas_difference_tf = (omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(
+                omega, coords_2))
+
+        dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+
+        index_kp = index_kp_vec
+        mup = mup_vec
+        index_kpp = index_kpp_vec
+        mupp = mupp_vec
+        return tf.cast(dirac_delta_tf, dtype=tf.float32), index_kp, mup, index_kpp, mupp
+
+
+def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu):
+    if not physical_mode[0, mu]:
+        return None
+    if broadening_shape == 'triangle':
+        delta_threshold = 1
+    else:
+        delta_threshold = DELTA_THRESHOLD
+    for is_plus in (1, 0):
+        second_sign = (int(is_plus) * 2 - 1)
+        omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] -
+                                   omega[0, np.newaxis, :])
+        condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
+                (physical_mode[0, :, np.newaxis]) & \
+                (physical_mode[0, np.newaxis, :])
+        interactions = tf.where(condition)
+        if interactions.shape[0] > 0:
+            # Create sparse index
+            mup_vec = interactions[:, 0]
+            mupp_vec = interactions[:, 1]
+            if is_plus:
+                dirac_delta_tf = tf.gather(population[0], mup_vec) - tf.gather(population[0], mupp_vec)
+            else:
+                dirac_delta_tf = 0.5 * (1 + tf.gather(population[0], mup_vec) + tf.gather(population[0], mupp_vec))
+            omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
+
+            if broadening_shape == 'gauss':
+                broadening_function = gaussian_delta
+            elif broadening_shape == 'triangle':
+                broadening_function = triangular_delta
+            elif broadening_shape == 'lorentz':
+                broadening_function = lorentz_delta
+            else:
+                raise('Broadening function not implemented')
+
+            dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf,  2 * np.pi * sigma_tf)
+
+            try:
+                mup = tf.concat([mup, mup_vec], 0)
+                mupp = tf.concat([mupp, mupp_vec], 0)
+                current_delta = tf.concat([current_delta, dirac_delta_tf], 0)
+            except NameError:
+                mup = mup_vec
+                mupp = mupp_vec
+                current_delta = dirac_delta_tf
     try:
         return current_delta, mup, mupp
     except:
@@ -271,13 +301,10 @@ def calculate_dirac_delta_amorphous(phonons, mu):
 def calculate_broadening(phonons, index_kpp_vec):
     cellinv = phonons.forceconstants.cell_inv
     k_size = phonons.kpts
-    velocity = phonons.velocity[:, :, np.newaxis, :] - phonons.velocity[index_kpp_vec, np.newaxis, :, :]
+    velocity_tf = tf.convert_to_tensor(phonons.velocity)
+    velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:,tf.newaxis, :, :]
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
-    # base_sigma = ((np.tensordot(velocity, cellinv / k_size, [-1, 0])) ** 2).sum(axis=-1)
-
-    base_sigma = ((np.tensordot(velocity, cellinv.T * 2 * np.pi / k_size,
-                                [-1, 1])) ** 2).sum(axis=-1)
-    base_sigma = np.sqrt(base_sigma / 6.)
+    delta_k = cellinv / k_size
+    base_sigma = tf.reduce_sum((tf.tensordot(velocity_difference, delta_k, [-1, 1])) ** 2, axis=-1)
+    base_sigma = tf.sqrt(base_sigma / 6.)
     return base_sigma
-
-

@@ -7,6 +7,7 @@ import ase.units as units
 import numpy as np
 from opt_einsum import contract
 from sparse import COO
+import tensorflow as tf
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -70,7 +71,7 @@ def calculate_diffusivity_sparse(phonons, s_ij, diffusivity_bandwidth, diffusivi
     coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
     sigma = 2 * (diffusivity_bandwidth[coords[:, 0], coords[:, 1]] + diffusivity_bandwidth[coords[:, 0], coords[:, 2]])
     delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-    data = np.pi * curve(delta_energy, sigma, diffusivity_threshold)
+    data = np.pi * curve(delta_energy, sigma)
     lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
     prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
     prefactor[np.invert(physical_mode_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
@@ -287,7 +288,8 @@ class Conductivity:
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point,
                                    self.phonons.forceconstants.second_order,
-                                   distance_threshold=self.phonons.forceconstants.distance_threshold)
+                                   distance_threshold=self.phonons.forceconstants.distance_threshold,
+                                   storage=self.phonons.storage)
             sij[ik] = phonon.calculate_sij()
 
         return sij
@@ -425,7 +427,6 @@ class Conductivity:
 
         if self.diffusivity_bandwidth is not None:
             logging.info('Using diffusivity bandwidth from input')
-            logging.info(str(self.diffusivity_bandwidth))
             diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
         else:
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
@@ -455,6 +456,7 @@ class Conductivity:
                                                                          / (volume * phonons.n_k_points)
                         diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
         else:
+            #TODO: migrate this part to tf, currently only numpy
             logging.info('Start calculation diffusivity sparse')
             sij = self.flux_sparse
             diffusivity = calculate_diffusivity_sparse(phonons, sij, diffusivity_bandwidth, self.diffusivity_threshold, curve,
@@ -467,8 +469,7 @@ class Conductivity:
             conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
             diffusivity_with_axis = contract('knmab->knab', diffusivity)
 
-
-        self._diffusivity = 1 / 3 * 1 / 100 *  contract('knaa->kn', diffusivity_with_axis)
+        self._diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis)
 
         return conductivity_per_mode * 1e22
 

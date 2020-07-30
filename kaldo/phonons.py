@@ -9,12 +9,15 @@ from kaldo.observables.physical_mode import PhysicalMode
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.controllers.harmonic import \
-    calculate_heat_capacity, calculate_population
+import kaldo.controllers.anharmonic as aha
 import numpy as np
-
+import ase.units as units
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
+
+KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
+KELVINTOJOULE = units.kB / units.J
+
 
 
 
@@ -43,9 +46,6 @@ class Phonons:
         broadening_shape (optional) : string
             defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions
             . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.
-        is_tf_backend (optional) : bool
-            defines if the third order phonons scattering calculations should be performed on tensorflow (True) or
-            numpy (False). Default is True.
         folder (optional) : string
             specifies where to store the data files. Default is `output`.
         storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
@@ -75,7 +75,6 @@ class Phonons:
         self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
-        self.is_tf_backend = kwargs.pop('is_tf_backend', True)
         self.is_nw = kwargs.pop('is_nw', False)
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.storage = kwargs.pop('storage', 'formatted')
@@ -226,7 +225,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = calculate_heat_capacity(self).reshape(self.n_k_points, self.n_modes)
+        c_v = self.calculate_heat_capacity().reshape(self.n_k_points, self.n_modes)
         return c_v
 
 
@@ -241,7 +240,7 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        population =  calculate_population(self)
+        population =  self.calculate_population()
         return population
 
 
@@ -305,13 +304,13 @@ class Phonons:
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self.select_backend_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
+            ps_and_gamma = self.select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.select_backend_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self.select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 # Helpers properties
@@ -353,20 +352,8 @@ class Phonons:
         return index_qpp_full
 
 
-    def select_backend_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
+    def select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         logging.info('Projection started')
-        if self.is_tf_backend:
-            try:
-                import kaldo.controllers.anharmonic_tf as aha
-            except ImportError as err:
-                logging.info(err)
-                logging.warning('In order to run accelerated algoritgms, tensorflow>=2.0 is required. \
-                Please consider installing tensorflow>=2.0. More info here: \
-                https://www.tensorflow.org/install/pip')
-                logging.info('Using numpy engine instead.')
-                import kaldo.controllers.anharmonic as aha
-        else:
-            import kaldo.controllers.anharmonic as aha
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
@@ -377,4 +364,28 @@ class Phonons:
         return ps_and_gamma
 
 
+    def calculate_population(self):
+        frequency = self.frequency.reshape((self.n_k_points, self.n_modes))
+        temp = self.temperature * KELVINTOTHZ
+        density = np.zeros((self.n_k_points, self.n_modes))
+        physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
+        if self.is_classic is False:
+            density[physical_mode] = 1. / (np.exp(frequency[physical_mode] / temp) - 1.)
+        else:
+            density[physical_mode] = temp / frequency[physical_mode]
+        return density
 
+
+    def calculate_heat_capacity(self):
+        frequency = self.frequency
+        c_v = np.zeros_like(frequency)
+        physical_mode = self.physical_mode
+        temperature = self.temperature * KELVINTOTHZ
+        if (self.is_classic):
+            c_v[physical_mode] = KELVINTOJOULE
+        else:
+            f_be = self.population
+            c_v[physical_mode] = KELVINTOJOULE * f_be[physical_mode] * (f_be[physical_mode] + 1) * self.frequency[
+                physical_mode] ** 2 / \
+                                 (temperature ** 2)
+        return c_v
