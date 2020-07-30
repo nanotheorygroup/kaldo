@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -548,18 +547,18 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 <h1 id="Output-Storage">Output Storage<a class="headerlink" href="#Output-Storage" title="Permalink to this headline">¶</a></h1>
 
 <h2 id="Default-Storage">Default Storage<a class="headerlink" href="#Default-Storage" title="Permalink to this headline">¶</a></h2>
-<p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files: - <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after - <code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> - <code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p>
+<p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files: - <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <span class="math">(n_{kpoints}, n_{modes})</span>. mode changes first k changes after - <code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <span class="math">(n_{kpoints}, n_{modes})</span> - <code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> where the <code class="docutils literal notranslate"><span class="pre">&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;</span></code> folder is created only if those values are defined</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;flux_dense</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>, when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is not specified.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>. Sparse only when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is specified.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;</span></code> <span class="math">(n_{kpoints}, n_{modes})</span> where the <code class="docutils literal notranslate"><span class="pre">&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;</span></code> folder is created only if those values are defined</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;flux_dense</span></code> <span class="math">(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})</span>, when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is not specified.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse</span></code> <span class="math">(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})</span>. Sparse only when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is specified.</p></li>
 </ul>
 <p>The folder structure depends on the input parameters to the Phonon Object and in parenthesis is the shape of the tensor. All of the above observables are stored in a dense format, except for <code class="docutils literal notranslate"><span class="pre">flux_alpha</span></code> which is stored as formatted file in a <code class="docutils literal notranslate"><span class="pre">index</span> <span class="pre">value</span></code> format.</p>
 <p>The following tensors are stored in raw binary format and help saving time when performing different simulations on the same sample. - <code class="docutils literal notranslate"><span class="pre">_eigensystem</span> <span class="pre">(eigenvalues</span> <span class="pre">and</span> <span class="pre">eigenvectors)</span></code> - <code class="docutils literal notranslate"><span class="pre">_dynmat_derivatives</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/_generalized_diffusivity</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma_tensor</span></code> - <code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma</span></code>, when only RTA conductivity is required</p>
@@ -579,19 +578,19 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Potential Derivatives</p></td>
-<td><p><img alt="eV/(A^2)" class="math" src="../_images/math/2cf0039f91ed360cffccde7898c23add1a3e7a08.png"/> or <img alt="eV/(A^3)" class="math" src="../_images/math/632884ea881305ca73c39e8149b8c4f54e53de78.png"/></p></td>
+<td><p><span class="math">eV/(A^2)</span> or <span class="math">eV/(A^3)</span></p></td>
 </tr>
 <tr class="row-odd"><td><p>Dynamical Matrix</p></td>
-<td><p><img alt="THz" class="math" src="../_images/math/47569dc3dd27a62e0f220eb670cd81145d3bff43.png"/></p></td>
+<td><p><span class="math">THz</span></p></td>
 </tr>
-<tr class="row-even"><td><p>Conductivity [<img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>]</p></td>
-<td><p><img alt="\frac{W}{m\ K}" class="math" src="../_images/math/32abdb97536404e33a889e321cbf942abf6bdc23.png"/></p></td>
+<tr class="row-even"><td><p>Conductivity [<span class="math">\kappa</span>]</p></td>
+<td><p><span class="math">\frac{W}{m\ K}</span></p></td>
 </tr>
 <tr class="row-odd"><td><p>Distances</p></td>
-<td><p><img alt="A" class="math" src="../_images/math/06aa34aab0dfa56eff4b2d179b459554df6f0726.png"/></p></td>
+<td><p><span class="math">A</span></p></td>
 </tr>
 <tr class="row-even"><td><p>Masses</p></td>
-<td><p><img alt="g/N_A" class="math" src="../_images/math/909c442e716b6ffb0f496988e623ed801700cf77.png"/></p></td>
+<td><p><span class="math">g/N_A</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -599,12 +598,10 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="1f3560e4b9e84b008dc08a8b7fcf21c0" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="7d59e683729e4240bdb6a307e15b9550" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
@@ -612,7 +609,6 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="99e86578cb2f4261a1d0ce5901e5ec44" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 
@@ -680,7 +676,7 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
