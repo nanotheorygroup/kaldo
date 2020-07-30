@@ -1,7 +1,0 @@
-.. _src-phonons:
-
-Phonon Source Code
-########################
-
-.. literalinclude:: ../../kaldo/phonons.py
-
