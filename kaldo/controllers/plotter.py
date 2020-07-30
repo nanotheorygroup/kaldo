@@ -129,8 +129,11 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
-    fig = plt.figure()
+def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True, input_fig=None):
+    if input_fig is None:
+        fig = plt.figure()
+    else:
+        fig = input_fig
     kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequency.flatten(order='C').reshape(-1, 1))
     x = np.linspace(phonons.frequency.min(), phonons.frequency.max(), n_points)
     y = np.exp(kde.score_samples(x.reshape((-1, 1))))
@@ -146,8 +149,10 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
     fig.savefig(folder + '/' + 'dos.png')
     if is_showing:
         plt.show()
-    else:
+    elif input_fig is None:
         plt.close()
+    else:
+        return fig
 
 
 def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b'):
