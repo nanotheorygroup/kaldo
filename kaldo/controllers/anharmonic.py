@@ -25,7 +25,6 @@ def project_amorphous(phonons):
     rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
-    logging.info('Projection started')
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
     coords = phonons.forceconstants.third_order.value.coords
@@ -35,6 +34,7 @@ def project_amorphous(phonons):
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+    logging.info('Projection started')
     for nu_single in range(phonons.n_phonons):
         physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
         sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
@@ -108,9 +108,9 @@ def project_crystal(phonons):
         ps_and_gamma = np.zeros(shape)
     else:
         ps_and_gamma = np.zeros((phonons.n_phonons, 2))
-    logging.info('Projection started')
     second_minus = tf.math.conj(evect_tf)
     second_minus_chi = tf.math.conj(_chi_k)
+    logging.info('Projection started')
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
             logging.info('calculating third ' + str(nu_single) +  ', ' + \

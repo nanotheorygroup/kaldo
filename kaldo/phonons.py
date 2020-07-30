@@ -373,7 +373,6 @@ class Phonons:
 
 
     def select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
-        logging.info('Projection started')
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
