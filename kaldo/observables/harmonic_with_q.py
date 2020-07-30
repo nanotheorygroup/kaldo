@@ -8,8 +8,7 @@ import numpy as np
 from opt_einsum import contract
 import ase.units as units
 from kaldo.helpers.storage import lazy_property
-from kaldo.helpers.storage import DEFAULT_STORE_FORMATS
-
+import tensorflow as tf
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
@@ -23,7 +22,7 @@ class HarmonicWithQ(Observable):
         self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
         self.supercell = second.supercell
-        self.is_amorphous = (self.supercell == (1, 1, 1))
+        self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         self.replicated_atoms = second.replicated_atoms
         self.list_of_replicas = second.list_of_replicas
         self.second = second.value
@@ -96,7 +95,10 @@ class HarmonicWithQ(Observable):
         if is_amorphous:
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ija,ibjc->ibjca', distance, dynmat[0, :, :, 0, :, :])
+            dynmat_derivatives = contract('ija,ibjc->ibjca',
+                                          tf.convert_to_tensor(distance),
+                                          dynmat[0, :, :, 0, :, :],
+                                          backend='tensorflow')
         else:
             distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
@@ -117,14 +119,17 @@ class HarmonicWithQ(Observable):
                                                         replicated_cell_inv)
                     mask = (np.linalg.norm(wrapped_distance, axis=-1) < distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
-                    dynmat_derivatives[id_i, :, id_j, :, :] += np.einsum('fa,fbc->fbca', distance[id_i, l, id_j, :], \
+                    dynmat_derivatives[id_i, :, id_j, :, :] += contract('fa,fbc->fbca', distance[id_i, l, id_j, :], \
                                                                          dynmat[0, id_i, :, 0, id_j, :] *
-                                                                         chi(q_point, list_of_replicas, cell_inv)[l])
+                                                                         chi(q_point, list_of_replicas, cell_inv)[l], backend='tensorflow')
             else:
 
-                dynmat_derivatives = contract('ilja,ibljc,l->ibjca', distance, dynmat[0],
-                                              chi(q_point, list_of_replicas, cell_inv).flatten())
-        ddyn[0] = dynmat_derivatives.reshape((n_modes, n_modes, 3))
+                dynmat_derivatives = contract('ilja,ibljc,l->ibjca',
+                                              tf.convert_to_tensor(distance.astype(np.complex)),
+                                              tf.cast(dynmat[0], tf.complex128),
+                                              tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten().astype(np.complex)),
+                                              backend='tensorflow')
+        ddyn[0] = tf.reshape(dynmat_derivatives, (n_modes, n_modes, 3))
         return ddyn
 
 
@@ -144,11 +149,11 @@ class HarmonicWithQ(Observable):
         dynmat_derivatives = self._dynmat_derivatives
 
         eigenvects = self._eigensystem[:, 1:, :]
-        sij_single = np.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
+        sij_single = tf.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
         if is_amorphous:
-            sij_single = np.tensordot(eigenvects[0], sij_single, (0, 1))
+            sij_single = tf.tensordot(eigenvects[0], sij_single, (0, 1))
         else:
-            sij_single = np.tensordot(eigenvects[0].conj(), sij_single, (0, 1))
+            sij_single = tf.tensordot(eigenvects[0].conj(), sij_single, (0, 1))
 
         sij[0] = sij_single
         return sij
@@ -157,18 +162,20 @@ class HarmonicWithQ(Observable):
     def calculate_velocity_af(self):
         n_modes = self.n_modes
         sij = self.calculate_sij()
-        frequency = self.frequency
-        sij = sij.reshape((1, n_modes, n_modes, 3))
-        velocity_AF = contract('kmna,kmn->kmna', sij,
-                               1 / (2 * np.pi * np.sqrt(frequency[:, :, np.newaxis]) * np.sqrt(
-                                   frequency[:, np.newaxis, :]))) / 2
+        frequency = self.frequency[0]
+        sij = tf.reshape(sij, (n_modes, n_modes, 3))
+        inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
+        velocity_AF = 1 / (2 * np.pi) * contract('mna,m,n->mna', sij,
+                               inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
         return velocity_AF
+
 
 
     def calculate_velocity(self):
         velocity_AF = self._velocity_af
-        velocity = 1j * contract('kmma->kma', velocity_AF)
-        return velocity.real
+        velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
+        velocity = contract('kmma->kma', velocity_AF.numpy()[np.newaxis, ...])
+        return velocity.imag
 
 
     def calculate_eigensystem(self, only_eigenvals=False):
@@ -217,10 +224,13 @@ class HarmonicWithQ(Observable):
                 dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
-                dyn_s = contract('ialjb->iajb', dynmat[0])
+                dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
             else:
-                dyn_s = contract('ialjb,l->iajb', dynmat[0], chi(qvec, list_of_replicas, cell_inv).flatten())
-        dyn_s = dyn_s.reshape((self.n_modes, self.n_modes))
+                dyn_s = contract('ialjb,l->iajb',
+                                 tf.cast(dynmat[0], tf.complex128),
+                                 tf.convert_to_tensor(chi(qvec, list_of_replicas, cell_inv).flatten()),
+                                 backend='tensorflow')
+        dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
 
 
         if only_eigenvals:
@@ -238,6 +248,6 @@ class HarmonicWithQ(Observable):
 
     def calculate_dynmat(self):
         mass = self.atoms.get_masses()
-        dynmat = contract('mialjb,i,j->mialjb', self.second, 1 / np.sqrt(mass), 1 / np.sqrt(mass))
+        dynmat = contract('mialjb,i,j->mialjb', tf.convert_to_tensor(self.second), tf.convert_to_tensor(1 / np.sqrt(mass)), tf.convert_to_tensor(1 / np.sqrt(mass)), backend='tensorflow')
         evtotenjovermol = units.mol / (10 * units.J)
         return dynmat * evtotenjovermol

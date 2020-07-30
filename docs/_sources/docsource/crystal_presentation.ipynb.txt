@@ -8,7 +8,11 @@
    "source": [
     "This notebook can be run on Google Colab.\n",
     "\n",
-    "[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb)\n"
+    "[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb)\n",
+    "\n",
+    "\n",
+    "\n",
+    "In Colab, you can enable the GPU acceleration from `Edit` > `Notebook Settings` > `Accelerator` > `GPU`."
    ]
   },
   {
@@ -233,7 +237,6 @@
     "                kpts=kpts,\n",
     "                is_classic=is_classic,\n",
     "                temperature=temperature,\n",
-    "                is_tf_backend=True,\n",
     "                folder='si-bulk-ald-' + k_label,\n",
     "                storage='numpy')"
    ]
@@ -474,10 +477,10 @@
   "pycharm": {
    "stem_cell": {
     "cell_type": "raw",
+    "source": [],
     "metadata": {
      "collapsed": false
-    },
-    "source": []
+    }
    }
   }
  },

@@ -7,6 +7,7 @@ from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
+import tensorflow as tf
 import pytest
 
 
@@ -19,7 +20,6 @@ def phonons():
                       temperature=300,
                       third_bandwidth=1 / 4.135,
                       broadening_shape='triangle',
-                      is_tf_backend=True,
                       storage='memory')
     return phonons
 
@@ -47,7 +47,8 @@ def test_diffusivity_small_threshold(phonons):
 
     cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
     cond.conductivity
-    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma, decimal=3)
+    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_two_sigma,
+                                         decimal=3)
 
 
 def test_diffusivity_large_threshold(phonons):
@@ -57,6 +58,7 @@ def test_diffusivity_large_threshold(phonons):
     cond.diffusivity_threshold = 20
     cond.diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
     cond.conductivity
-    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_full, decimal=3)
+    np.testing.assert_array_almost_equal(cond.diffusivity.flatten().real[:10], calculated_diffusivities_full,
+                                         decimal=3)
 
 
