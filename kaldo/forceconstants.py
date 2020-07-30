@@ -74,14 +74,33 @@ class ForceConstants:
                     is_acoustic_sum=False, only_second=False, distance_threshold=None):
         """
         Create a finite difference object from a folder
-        :param folder:
-        :param supercell:
-        :param format:
-        :param third_energy_threshold:
-        :param distance_threshold:
-        :param third_supercell:
-        :param is_acoustic_sum:
-        :return:
+
+	Parameters
+	----------
+        folder : str
+		Chosen folder to load in system information.
+        supercell : (int, int, int), optional
+		Number of unit cells in each cartesian direction replicated to form the input structure.
+		Default is (1, 1, 1)
+        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
+		Format of force constant information being loaded into ForceConstants object.
+		Default is 'numpy'
+        third_energy_threshold : float, optional
+		When importing sparse third order force constant matrices, energies below 
+		the threshold value in magnitude are ignored. Units: ev/A^3
+        distance_threshold : float, optional
+		When calculating force constants, contributions from atoms further than the 
+		distance threshold will be ignored.
+        third_supercell : (int, int, int), optional
+		Takes in the unit cell for the third order force constant matrix.
+		Default is self.supercell
+        is_acoustic_sum : Bool, optional
+		If true, the accoustic sum rule is applied to the dynamical matrix.
+		Default is False
+	Returns
+	-------
+	ForceConstants object
+
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
@@ -122,7 +141,7 @@ class ForceConstants:
             if self.distance_threshold is not None:
                 distance_threshold = self.distance_threshold
             else:
-                raise ValueError('Please specify a distance threshold in Armstrong')
+                raise ValueError('Please specify a distance threshold in Angstrom')
 
         logging.info('Distance threshold: ' + str(distance_threshold) + ' A')
         if (self.atoms.cell[0, 0] / 2 < distance_threshold) | \
@@ -156,8 +175,7 @@ class ForceConstants:
                                 for gamma in range(3):
                                     coords.append([index[0], alpha, index[1], index[2], beta, l, j, gamma])
                                     values.append(reduced_third[index[0], alpha, 0, index[2], beta, 0, j, gamma])
-                                    
-                                    
+
         logging.info('Created unfolded third order')
 
         shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
