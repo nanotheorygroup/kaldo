@@ -16,7 +16,7 @@
   <meta name="lang:search.result.other" content="# matching documents">
   <meta name="lang:search.tokenizer" content="[\s\-]+">
 
-  
+
     <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
     <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
 
@@ -32,17 +32,17 @@
         font-family: "Roboto Mono", "Courier New", Courier, monospace
       }
     </style>
-  
+
 
   <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
   <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
   <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
-  
+
   <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
-  
+
   <meta name="theme-color" content="#3f51b5">
   <script src="../_static/javascripts/modernizr.js"></script>
-  
+
   <script>
       window.ga = window.ga || function () {
           (ga.q = ga.q || []).push(arguments)
@@ -52,8 +52,8 @@
       ga('send', 'pageview');
   </script>
   <script async src='https://www.google-analytics.com/analytics.js'></script>
-  
-  
+
+
     <title>Phonons API Reference &#8212; kALDo  documentation</title>
     <link rel="stylesheet" href="../_static/material.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -67,21 +67,21 @@
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Conductivity API Reference" href="api_conductivity.html" />
     <link rel="prev" title="ForceConstants API Reference" href="api_forceconstants.html" />
-  
-   
+
+
 
   </head>
   <body dir=ltr
         data-md-color-primary=red data-md-color-accent=orange>
-  
+
   <svg class="md-svg">
     <defs data-children-count="0">
-      
+
       <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
-      
+
     </defs>
   </svg>
-  
+
   <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
   <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
   <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
@@ -92,9 +92,9 @@
       <div class="md-flex__cell md-flex__cell--shrink">
         <a href="../index.html" title="kALDo  documentation"
            class="md-header-nav__button md-logo">
-          
+
             &nbsp;
-          
+
         </a>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -108,7 +108,7 @@
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
         <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
-        
+
 <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
@@ -135,7 +135,7 @@
 </div>
 
       </div>
-      
+
         <div class="md-flex__cell md-flex__cell--shrink">
           <div class="md-header-nav__source">
             <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
@@ -145,16 +145,16 @@
         <use xlink:href="#__github" width="24" height="24"></use>
       </svg>
     </div>
-  
+
   <div class="md-source__repository">
     kALDo
   </div>
 </a>
           </div>
         </div>
-      
-      
-  
+
+
+
   <script src="../_static/javascripts/version_dropdown.js"></script>
   <script>
     var json_loc = "../"versions.json"",
@@ -162,17 +162,17 @@
         text = "Versions";
     $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
   </script>
-  
+
 
     </div>
   </nav>
 </header>
 
-  
+
   <div class="md-container">
-    
-    
-    
+
+
+
   <nav class="md-tabs" data-md-component="tabs">
     <div class="md-tabs__inner md-grid">
       <ul class="md-tabs__list">
@@ -182,16 +182,16 @@
   </nav>
     <main class="md-main">
       <div class="md-main__inner md-grid" data-md-component="container">
-        
+
           <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
             <div class="md-sidebar__scrollwrap">
               <div class="md-sidebar__inner">
                 <nav class="md-nav md-nav--primary" data-md-level="0">
   <label class="md-nav__title md-nav__title--site" for="__drawer">
     <a href="../index.html" title="kALDo documentation" class="md-nav__button md-logo">
-      
+
         <img src="../_static/" alt=" logo" width="48" height="48">
-      
+
     </a>
     <a href="../index.html"
        title="kALDo documentation">kALDo</a>
@@ -204,132 +204,132 @@
         <use xlink:href="#__github" width="24" height="24"></use>
       </svg>
     </div>
-  
+
   <div class="md-source__repository">
     kALDo
   </div>
 </a>
     </div>
-  
-  
 
-  
+
+
+
   <ul class="md-nav__list">
     <li class="md-nav__item">
-    
+
       <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
-    
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html" class="md-nav__link">Quick Install</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Main-Features" class="md-nav__link">Main Features</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Copyright" class="md-nav__link">Copyright</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Other-codes" class="md-nav__link">Other codes</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
+
       <span class="md-nav__link caption"><span class="caption-text">Theory</span></span>
-    
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="theory.html" class="md-nav__link">Introduction</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="theory.html#Theory" class="md-nav__link">Theory</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
+
       <span class="md-nav__link caption"><span class="caption-text">API</span></span>
-    
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
     <label class="md-nav__link md-nav__link--active" for="__toc"> Phonons API Reference </label>
-    
+
       <a href="#" class="md-nav__link md-nav__link--active">Phonons API Reference</a>
-      
-        
+
+
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
@@ -339,42 +339,42 @@
         </li></ul>
             </nav>
         </li>
-    
+
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/api_phonons.rst.txt">Show Source</a> </li>
 
   </ul>
 </nav>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="api_conductivity.html" class="md-nav__link">Conductivity API Reference</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
+
       <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
-    
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
-      
-    
+
+
     </li>
     <li class="md-nav__item">
-    
-    
+
+
       <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
-      
-    
+
+
     </li>
   </ul>
-  
+
 
 </nav>
               </div>
@@ -383,7 +383,7 @@
           <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
             <div class="md-sidebar__scrollwrap">
               <div class="md-sidebar__inner">
-                
+
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
@@ -393,7 +393,7 @@
         </li></ul>
             </nav>
         </li>
-    
+
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/api_phonons.rst.txt">Show Source</a> </li>
 
 <li id="searchbox" class="md-nav__item"></li>
@@ -403,11 +403,11 @@
               </div>
             </div>
           </div>
-        
+
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
-            
-  
+
+
 <span id="phonons-api"></span><h1 id="docsource-api-phonons--page-root">Phonons API Reference<a class="headerlink" href="#docsource-api-phonons--page-root" title="Permalink to this headline">¶</a></h1>
 <p>Building the phonons object is the intermediate step
 between finishing your Finite Difference object, and
@@ -417,9 +417,48 @@ initializing the Conductivity object.</p>
 <dl class="py class">
 <dt id="kaldo.phonons.Phonons">
 <em class="property">class </em><code class="sig-prename descclassname">kaldo.phonons.</code><code class="sig-name descname">Phonons</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.phonons.Phonons" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Attributes</dt>
-<dd class="field-odd"><dl class="simple">
+<dd><p>The Phonons object exposes all the phononic properties of a system.
+It’s can be fed into a Conductivity object and must be built with a
+ForceConstant object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>forceconstants</strong> (<a class="reference internal" href="api_forceconstants.html#kaldo.forceconstants.ForceConstants" title="kaldo.forceconstants.ForceConstants"><em>ForceConstants</em></a>) – contains all the information about the system and the derivatives
+of the potential.</p></li>
+<li><p><strong>is_classic</strong> (<em>bool</em>) – specifies if the system is classic, <span class="math">True</span> or quantum, <span class="math">False</span>
+Default is <span class="math">False</span></p></li>
+<li><p><strong>kpts</strong> – defines the number of k points to use to create the k mesh
+Default is (1, 1, 1)</p></li>
+<li><p><strong>temperature</strong> (<em>float</em>) – defines the temperature of the simulation. Units: K.</p></li>
+<li><p><strong>min_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency below <span class="math">min_frequency</span> THz,
+Default is <span class="math">None</span></p></li>
+<li><p><strong>max_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency above <span class="math">max_frequency</span> THz
+Default is <span class="math">None</span></p></li>
+<li><p><strong>third_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – Defines the width of the energy conservation smearing in the phonons
+scattering calculation. If <span class="math">None</span> the width is calculated
+dynamically. Otherwise the input value corresponds to the width.
+Units: THz.</p></li>
+<li><p><strong>broadening_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – Defines the algorithm to use for the broadening of the conservation
+of the energy for third irder interactions. Available broadenings
+are <span class="math">gauss</span>, <span class="math">lorentz</span> and <span class="math">triangle</span>.
+Default is <span class="math">gauss</span>.</p></li>
+<li><p><strong>folder</strong> (<em>string</em><em>, </em><em>optional</em>) – Specifies where to store the data files. Default is <span class="math">output</span>.</p></li>
+<li><p><strong>storage</strong> (<span class="math">default</span>, <span class="math">formatted</span>, <span class="math">numpy</span>, <span class="math">memory</span>, <span class="math">hdf5</span>, optional) – Defines the storing strategy used to store the observables. The
+<span class="math">default</span> strategy stores formatted output and numpy arrays.
+<span class="math">memory</span> storage doesn’t generate any output.</p></li>
+<li><p><strong>grid_type</strong> (<em>'F'</em><em> or </em><em>'C</em><em>, </em><em>optional</em>) – Specify if to use ‘C” style atoms replica grid of fortran
+style ‘F’,
+Default ‘C’</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Phonons Object</p>
+</dd>
+<dt class="field-even">Attributes</dt>
+<dd class="field-even"><dl class="simple">
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvalues</span></code></a></dt><dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
@@ -430,7 +469,8 @@ initializing the Conductivity object.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
 </dd>
-<dt><strong>omega</strong></dt><dd></dd>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
+</dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_space</span></code></a></dt><dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.physical_mode" title="kaldo.phonons.Phonons.physical_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">physical_mode</span></code></a></dt><dd><p>Calculate physical modes.</p>
@@ -442,24 +482,6 @@ initializing the Conductivity object.</p>
 </dl>
 </dd>
 </dl>
-<p class="rubric">Methods</p>
-<table>
-<colgroup>
-<col style="width: 82%"/>
-<col style="width: 18%"/>
-</colgroup>
-<tbody>
-<tr class="row-odd"><td><p><strong>calculate_heat_capacity</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>calculate_population</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><strong>select_algorithm_for_phase_space_and_gamma</strong></p></td>
-<td></td>
-</tr>
-</tbody>
-</table>
 <dl class="py method">
 <dt id="kaldo.phonons.Phonons.bandwidth">
 <em class="property">property </em><code class="sig-name descname">bandwidth</code><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
@@ -527,6 +549,19 @@ Bose-Einstein weighted by each phonons energy.
 </dl>
 </dd></dl>
 <dl class="py method">
+<dt id="kaldo.phonons.Phonons.omega">
+<em class="property">property </em><code class="sig-name descname">omega</code><a class="headerlink" href="#kaldo.phonons.Phonons.omega" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>frequency</strong> – (n_k_points, n_modes) frequency in rad</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np array</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
 <dt id="kaldo.phonons.Phonons.phase_space">
 <em class="property">property </em><code class="sig-name descname">phase_space</code><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
@@ -565,9 +600,15 @@ If quantum it returns the Bose-Einstein distribution</p>
 <dl class="py method">
 <dt id="kaldo.phonons.Phonons.velocity">
 <em class="property">property </em><code class="sig-name descname">velocity</code><a class="headerlink" href="#kaldo.phonons.Phonons.velocity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the velocity using Hellmann-Feynman theorem.
-:returns: <strong>velocity</strong> – (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
-:rtype: np array</p>
+<dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>velocity</strong> – (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np array</p>
+</dd>
+</dl>
 </dd></dl>
 </dd></dl>
 
@@ -582,7 +623,7 @@ If quantum it returns the Bose-Einstein distribution</p>
   <footer class="md-footer">
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
-          
+
             <a href="api_forceconstants.html" title="ForceConstants API Reference"
                class="md-flex md-footer-nav__link md-footer-nav__link--prev"
                rel="prev">
@@ -595,8 +636,8 @@ If quantum it returns the Bose-Einstein distribution</p>
                       class="md-footer-nav__direction"> Previous </span> ForceConstants API Reference </span>
               </div>
             </a>
-          
-          
+
+
             <a href="api_conductivity.html" title="Conductivity API Reference"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
@@ -607,9 +648,9 @@ If quantum it returns the Bose-Einstein distribution</p>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
             </div>
-          
+
         </a>
-        
+
       </nav>
     </div>
     <div class="md-footer-meta md-typeset">
@@ -617,7 +658,7 @@ If quantum it returns the Bose-Einstein distribution</p>
         <div class="md-footer-copyright">
           <div class="md-footer-copyright__highlight">
               &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
-              
+
           </div>
             Created using
             <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
