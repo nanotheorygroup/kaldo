@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -422,8 +421,24 @@ constants for the system.</p>
 the second/third order force constant matrices after providing the
 unit cell geometry and calculator information.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Attributes</dt>
-<dd class="field-odd"><dl class="simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>atoms</strong> (<em>Tabulated xyz files</em><em> or </em><em>ASE Atoms object</em>) – The atoms to work on.</p></li>
+<li><p><strong>supercell</strong> – Size of supercell given by the number of repetitions (l, m, n) of
+the small unit cell in each direction.
+Defaults to (1, 1, 1)</p></li>
+<li><p><strong>third_supercell</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Same as supercell, but for the third order force constant matrix.
+If not provided, it’s copied from supercell.
+Defaults to <span class="math">self.supercell</span></p></li>
+<li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder.
+Defaults to ‘displacement’</p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the interatomic
+force is ignored.
+Defaults to <span class="math">None</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Attributes</dt>
+<dd class="field-even"><dl class="simple">
 <dt><strong>second</strong></dt><dd></dd>
 <dt><strong>third</strong></dt><dd></dd>
 </dl>
@@ -439,16 +454,8 @@ unit cell geometry and calculator information.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, …])</p></td>
 <td><p>Create a finite difference object from a folder</p></td>
 </tr>
-</tbody>
-</table>
-<table>
-<colgroup>
-<col style="width: 69%"/>
-<col style="width: 31%"/>
-</colgroup>
-<tbody>
-<tr class="row-odd"><td><p><strong>unfold_third_order</strong></p></td>
-<td></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="kaldo.forceconstants.ForceConstants.unfold_third_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code></a>([reduced_third, …])</p></td>
+<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.</p></td>
 </tr>
 </tbody>
 </table>
@@ -465,9 +472,13 @@ Default is (1, 1, 1)</p></li>
 <li><p><strong>format</strong> (<em>'numpy'</em><em>, </em><em>'eskm'</em><em>, </em><em>'lammps'</em><em>, </em><em>'shengbte'</em><em>, </em><em>'shengbte-qe'</em><em>, </em><em>'hiphive'</em>) – Format of force constant information being loaded into ForceConstants object.
 Default is ‘numpy’</p></li>
 <li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When importing sparse third order force constant matrices, energies below
-the threshold value in magnitude are ignored. Units: ev/A^3</p></li>
-<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than the
-distance threshold will be ignored.</p></li>
+the threshold value in magnitude are ignored. Units: ev/A^3
+Default is <span class="math">None</span></p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <dl class="simple">
+<dt>When calculating force constants, contributions from atoms further than the</dt><dd><p>distance threshold will be ignored.</p>
+</dd>
+</dl>
+</p></li>
 <li><p><strong>third_supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Takes in the unit cell for the third order force constant matrix.
 Default is self.supercell</p></li>
 <li><p><strong>is_acoustic_sum</strong> (<em>Bool</em><em>, </em><em>optional</em>) – If true, the accoustic sum rule is applied to the dynamical matrix.
@@ -479,6 +490,23 @@ Default is False</p></li>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>ForceConstants object</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt id="kaldo.forceconstants.ForceConstants.unfold_third_order">
+<code class="sig-name descname">unfold_third_order</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">reduced_third</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.unfold_third_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method extrapolates a third order force constant matrix from a unit
+cell into a matrix for a larger supercell.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
+Default is <span class="math">self.third_order</span></p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than
+the distance threshold will be ignored.
+Default is self.distance_threshold</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -533,7 +561,7 @@ Default is False</p></li>
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

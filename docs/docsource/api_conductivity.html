@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -418,7 +417,44 @@ be sure to include a phonon object and select a framework for calculation.</p>
 <dl class="py class">
 <dt id="kaldo.conductivity.Conductivity">
 <em class="property">class </em><code class="sig-prename descclassname">kaldo.conductivity.</code><code class="sig-name descname">Conductivity</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
+<dd><p>The conductivity object is responsible for mean free path and
+conductivity calculations. It takes a phonons object as a required argument.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>phonons</strong> (<a class="reference internal" href="api_phonons.html#kaldo.phonons.Phonons" title="kaldo.phonons.Phonons"><em>Phonons</em></a>) – Contains all the information about the calculated phononic properties of the system</p></li>
+<li><p><strong>method</strong> (<em>'rta'</em><em>, </em><em>'sc'</em><em>, </em><em>'qhgk'</em><em>, </em><em>'inverse'</em>) – Specifies the method used to calculate_second the conductivity.</p></li>
+<li><p><strong>diffusivity_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
+thermal conductivity in amorphous systems. Units: rad/ps</p></li>
+<li><p><strong>diffusivity_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</p></li>
+<li><p><strong>diffusivity_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – (QHGK) Defines the algorithm to use to calculate_second the diffusivity. Available broadenings are <span class="math">gauss</span>, <span class="math">lorentz</span> and <span class="math">triangle</span>.
+Default is <span class="math">lorentz</span>.</p></li>
+<li><p><strong>is_diffusivity_including_antiresonant</strong> (<em>bool</em><em>, </em><em>optional</em>) – (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
+Default is <span class="math">False</span>.</p></li>
+<li><p><strong>tolerance</strong> (<em>int</em>) – (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
+and n+1 step, to set as exit/convergence condition.</p></li>
+<li><p><strong>n_iterations</strong> (<em>int</em>) – (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
+calculation</p></li>
+<li><p><strong>length</strong> – (Finite Size) Specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values
+corresponds to the infinity length limit.</p></li>
+<li><p><strong>finite_length_method</strong> (<em>'matthiessen'</em><em>, </em><em>'ms'</em><em>, </em><em>'caltech'</em>) – (Finite Size) Specifies how to calculate_second the finite size conductivity. ‘ms’ is the Mckelvey-Schockley method.</p></li>
+<li><p><strong>storage</strong> (<em>'formatted'</em><em>, </em><em>'hdf5'</em><em>, </em><em>'numpy'</em><em>, </em><em>'memory'</em><em>, </em><em>optional</em>) – Defines the type of storage used for the simulation.
+Default is <span class="math">formatted</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>An instance of the <span class="math">Conductivity</span> class.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity">Conductivity</a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Here’s an example to calculate_second the inverse conductivity on the phonons object and tracing over the phonons modes</p>
+<p><code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">Conductivity(phonons=phonons,</span> <span class="pre">method='inverse',</span> <span class="pre">storage='memory').conductivity.sum(axis=0))</span>
+<span class="pre">`</span></code></p>
+<dl class="field-list simple">
 <dt class="field-odd">Attributes</dt>
 <dd class="field-odd"><dl class="simple">
 <dt><a class="reference internal" href="#kaldo.conductivity.Conductivity.conductivity" title="kaldo.conductivity.Conductivity.conductivity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">conductivity</span></code></a></dt><dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
@@ -461,12 +497,6 @@ be sure to include a phonon object and select a framework for calculation.</p>
 <col style="width: 29%"/>
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><strong>calculate_mfp_sc</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>calculate_sc_mfp</strong></p></td>
-<td></td>
-</tr>
 <tr class="row-odd"><td><p><strong>calculate_sij_sparse</strong></p></td>
 <td></td>
 </tr>
@@ -478,9 +508,15 @@ be sure to include a phonon object and select a framework for calculation.</p>
 <dd><p>Calculates the factor for the diffusivity which resembles the heat capacity.
 The array is returned in units of J/K.
 classical case: k_b
-quantum case: c_nm=hbar w_n w_m/T  * (n_n-n_m)/(w_m-w_n)
-:returns: <strong>c_v</strong> – (phonons.n_k_points,phonons.modes, phonons.n_modes) float
-:rtype: np.array</p>
+quantum case: c_nm=hbar w_n w_m/T  * (n_n-n_m)/(w_m-w_n)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>c_v</strong> – (phonons.n_k_points,phonons.modes, phonons.n_modes) float</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np.array</p>
+</dd>
+</dl>
 </dd></dl>
 <dl class="py method">
 <dt id="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">
@@ -501,13 +537,13 @@ The tensor is returned individual modes along the first axis and has units of W/
 <code class="sig-name descname">calculate_mfp_evect</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_evect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_evect" title="Permalink to this definition">¶</a></dt>
 <dd><p>This calculates the mean free path of evect. In materials where most scattering events conserve momentum
 :ref:’Relaxon Theory Section’ (e.g. in two dimensional materials or three dimensional materials at extremely low
-temparatures), this quantity can be used to calculate_second thermal conductivity.</p>
+temparatures), this quantity can be used to calculate thermal conductivity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>lambda</strong> – (n_k_points, n_modes, 3)</p>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>lambda</strong><span class="classifier">np array</span></dt><dd><p>(n_k_points, n_modes, 3)</p>
 </dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>np array</p>
+</dl>
 </dd>
 </dl>
 </dd></dl>
@@ -528,9 +564,15 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 <dl class="py method">
 <dt id="kaldo.conductivity.Conductivity.conductivity">
 <em class="property">property </em><code class="sig-name descname">conductivity</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the thermal conductivity per mode in W/m/K
-:returns: <strong>conductivity</strong> – (n_k_points, n_modes, 3, 3) float
-:rtype: np array</p>
+<dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>conductivity</strong> – (n_k_points, n_modes, 3, 3) float</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np array</p>
+</dd>
+</dl>
 </dd></dl>
 <dl class="py method">
 <dt id="kaldo.conductivity.Conductivity.diffusivity">
@@ -574,9 +616,15 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 <dl class="py method">
 <dt id="kaldo.conductivity.Conductivity.mean_free_path">
 <em class="property">property </em><code class="sig-name descname">mean_free_path</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the mean_free_path per mode in A
-:returns: <strong>mfp</strong> – (n_k_points, n_modes) float
-:rtype: np array</p>
+<dd><p>Calculate the mean_free_path per mode in A</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>mfp</strong> – (n_k_points, n_modes) float</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np array</p>
+</dd>
+</dl>
 </dd></dl>
 </dd></dl>
 
@@ -629,7 +677,7 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

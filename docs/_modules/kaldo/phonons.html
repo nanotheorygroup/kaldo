@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -386,16 +385,16 @@
 <span class="sd">Anharmonic Lattice Dynamics</span>
 
 <span class="sd">"""</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">is_calculated</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span>
-<span class="kn">from</span> <span class="nn">kaldo.observables.physical_mode</span> <span class="k">import</span> <span class="n">PhysicalMode</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">,</span> <span class="n">FOLDER_NAME</span>
-<span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="k">import</span> <span class="n">Grid</span>
-<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="k">import</span> <span class="n">HarmonicWithQ</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">is_calculated</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">lazy_property</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.physical_mode</span> <span class="kn">import</span> <span class="n">PhysicalMode</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">,</span> <span class="n">FOLDER_NAME</span>
+<span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">Grid</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="k">import</span> <span class="n">get_logger</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
 <span class="n">KELVINTOTHZ</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-12</span>
@@ -405,44 +404,55 @@
 
 
 <div class="viewcode-block" id="Phonons"><a class="viewcode-back" href="../../docsource/api_phonons.html#kaldo.phonons.Phonons">[docs]</a><span class="k">class</span> <span class="nc">Phonons</span><span class="p">:</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">"""The phonons object exposes all the phononic properties of a system,</span>
+    <span class="sd">"""The Phonons object exposes all the phononic properties of a system.</span>
+<span class="sd">    It's can be fed into a Conductivity object and must be built with a</span>
+<span class="sd">    ForceConstant object.</span>
 
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        forceconstants : ForceConstant</span>
-<span class="sd">            contains all the information about the system and the derivatives of the potential.</span>
-<span class="sd">        is_classic : bool</span>
-<span class="sd">            specifies if the system is classic, `True` or quantum, `False`</span>
-<span class="sd">        kpts (optional) : (3) tuple</span>
-<span class="sd">            defines the number of k points to use to create the k mesh. Default is [1, 1, 1].</span>
-<span class="sd">        temperature : float</span>
-<span class="sd">            defines the temperature of the simulation. Units: K.</span>
-<span class="sd">        min_frequency (optional) : float</span>
-<span class="sd">            ignores all phonons with frequency below `min_frequency` THz, Default is None..</span>
-<span class="sd">        max_frequency (optional) : float</span>
-<span class="sd">            ignores all phonons with frequency above `max_frequency` THz, Default is None.</span>
-<span class="sd">        third_bandwidth (optional) : float</span>
-<span class="sd">            defines the width of the energy conservation smearing in the phonons scattering calculation.</span>
-<span class="sd">            If `None` the width is calculated dynamically. Otherwise the input value corresponds to the</span>
-<span class="sd">            width. Units: THz.</span>
-<span class="sd">        broadening_shape (optional) : string</span>
-<span class="sd">            defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions</span>
-<span class="sd">            . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.</span>
-<span class="sd">        folder (optional) : string</span>
-<span class="sd">            specifies where to store the data files. Default is `output`.</span>
-<span class="sd">        storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'</span>
-<span class="sd">            defines the storing strategy used to store the observables. The `default` strategy stores formatted output</span>
-<span class="sd">            and numpy arrays. `memory` storage doesn't generate any output.</span>
-<span class="sd">        grid_type: 'F' or 'C</span>
-<span class="sd">            specify if to use 'C" style atoms replica grid of fortran style 'F', default 'C'</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    forceconstants : ForceConstants</span>
+<span class="sd">        contains all the information about the system and the derivatives</span>
+<span class="sd">        of the potential.</span>
+<span class="sd">    is_classic : bool</span>
+<span class="sd">        specifies if the system is classic, `True` or quantum, `False`</span>
+<span class="sd">        Default is `False`</span>
+<span class="sd">    kpts : (3) tuple, optional</span>
+<span class="sd">        defines the number of k points to use to create the k mesh</span>
+<span class="sd">        Default is (1, 1, 1)</span>
+<span class="sd">    temperature : float</span>
+<span class="sd">        defines the temperature of the simulation. Units: K.</span>
+<span class="sd">    min_frequency : float, optional</span>
+<span class="sd">        ignores all phonons with frequency below `min_frequency` THz,</span>
+<span class="sd">        Default is `None`</span>
+<span class="sd">    max_frequency : float, optional</span>
+<span class="sd">        ignores all phonons with frequency above `max_frequency` THz</span>
+<span class="sd">        Default is `None`</span>
+<span class="sd">    third_bandwidth : float, optional</span>
+<span class="sd">        Defines the width of the energy conservation smearing in the phonons</span>
+<span class="sd">        scattering calculation. If `None` the width is calculated</span>
+<span class="sd">        dynamically. Otherwise the input value corresponds to the width.</span>
+<span class="sd">        Units: THz.</span>
+<span class="sd">    broadening_shape : string, optional</span>
+<span class="sd">        Defines the algorithm to use for the broadening of the conservation</span>
+<span class="sd">        of the energy for third irder interactions. Available broadenings</span>
+<span class="sd">        are `gauss`, `lorentz` and `triangle`.</span>
+<span class="sd">        Default is `gauss`.</span>
+<span class="sd">    folder : string, optional</span>
+<span class="sd">        Specifies where to store the data files. Default is `output`.</span>
+<span class="sd">    storage : `default`, `formatted`, `numpy`, `memory`, `hdf5`, optional</span>
+<span class="sd">        Defines the storing strategy used to store the observables. The</span>
+<span class="sd">        `default` strategy stores formatted output and numpy arrays.</span>
+<span class="sd">        `memory` storage doesn't generate any output.</span>
+<span class="sd">    grid_type : 'F' or 'C, optional</span>
+<span class="sd">        Specify if to use 'C" style atoms replica grid of fortran</span>
+<span class="sd">        style 'F',</span>
+<span class="sd">        Default 'C'</span>
 
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        Phonons</span>
-<span class="sd">            An instance of the `Phonons` class.</span>
-
-<span class="sd">        """</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Phonons Object</span>
+<span class="sd">    """</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'forceconstants'</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">'is_classic'</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">'is_classic'</span><span class="p">])</span>
@@ -475,8 +485,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">physical_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the</span>
+        <span class="sd">"""Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the</span>
 <span class="sd">        modes outside the frequency range min_frequency and max_frequency.</span>
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -489,8 +498,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Calculate phonons frequency</span>
+        <span class="sd">"""Calculate phonons frequency</span>
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        frequency : np array</span>
@@ -513,6 +521,7 @@
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">"""Calculates the velocity using Hellmann-Feynman theorem.</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        velocity : np array</span>
@@ -608,7 +617,7 @@
 <span class="sd">        c_v : np.array(n_k_points, n_modes)</span>
 <span class="sd">            heat capacity in W/m/K for each k point and each mode</span>
 <span class="sd">        """</span>
-        <span class="n">c_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_heat_capacity</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+        <span class="n">c_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_heat_capacity</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">c_v</span>
 
 
@@ -623,7 +632,7 @@
 <span class="sd">        population : np.array(n_k_points, n_modes)</span>
 <span class="sd">            population for each k point and each mode</span>
 <span class="sd">        """</span>
-        <span class="n">population</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">calculate_population</span><span class="p">()</span>
+        <span class="n">population</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_population</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">population</span>
 
 
@@ -687,19 +696,26 @@
                          <span class="nb">format</span><span class="o">=</span><span class="n">store_format</span><span class="p">):</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ps_gamma_and_gamma_tensor</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_and_gamma</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_ps_gamma_and_gamma_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_gamma_and_gamma_tensor</span>
 
 <span class="c1"># Helpers properties</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">omega</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""Calculates the angular frequencies from the diagonalized dynamical matrix.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        frequency : np array</span>
+<span class="sd">            (n_k_points, n_modes) frequency in rad</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
 
 
@@ -735,7 +751,7 @@
         <span class="k">return</span> <span class="n">index_qpp_full</span>
 
 
-    <span class="k">def</span> <span class="nf">select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Projection started'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
@@ -747,7 +763,7 @@
         <span class="k">return</span> <span class="n">ps_and_gamma</span>
 
 
-    <span class="k">def</span> <span class="nf">calculate_population</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_calculate_population</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">KELVINTOTHZ</span>
         <span class="n">density</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
@@ -759,7 +775,7 @@
         <span class="k">return</span> <span class="n">density</span>
 
 
-    <span class="k">def</span> <span class="nf">calculate_heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_calculate_heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span>
         <span class="n">c_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span>
@@ -796,7 +812,7 @@
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

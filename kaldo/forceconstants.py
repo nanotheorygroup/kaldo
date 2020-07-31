@@ -19,11 +19,12 @@ class ForceConstants:
     the second/third order force constant matrices after providing the
     unit cell geometry and calculator information.
 
-    Parameters:
+    Parameters
+    ----------
 
     atoms: Tabulated xyz files or ASE Atoms object
         The atoms to work on.
-    supercell: tuple, optional
+    supercell: (3) tuple, optional
         Size of supercell given by the number of repetitions (l, m, n) of
         the small unit cell in each direction.
         Defaults to (1, 1, 1)
@@ -92,7 +93,7 @@ class ForceConstants:
         third_energy_threshold : float, optional
     		When importing sparse third order force constant matrices, energies below
     		the threshold value in magnitude are ignored. Units: ev/A^3
-            Default is `None`
+            	Default is `None`
         distance_threshold : float, optional
     		When calculating force constants, contributions from atoms further than the
 		    distance threshold will be ignored.
@@ -142,21 +143,21 @@ class ForceConstants:
 
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
-    """
-    This method extrapolates a third order force constant matrix from a unit
-    cell into a matrix for a larger supercell.
+        """
+        This method extrapolates a third order force constant matrix from a unit
+        cell into a matrix for a larger supercell.
 
-    Parameters
-    ----------
+        Parameters
+        ----------
 
-    reduced_third : array, optional
-        The third order force constant matrix.
-        Default is `self.third_order`
-    distance_threshold : float, optional
-        When calculating force constants, contributions from atoms further than the
-        distance threshold will be ignored.
-        Default is self.distance_threshold
-    """
+        reduced_third : array, optional
+            The third order force constant matrix.
+            Default is `self.third_order`
+        distance_threshold : float, optional
+            When calculating force constants, contributions from atoms further than
+            the distance threshold will be ignored.
+            Default is self.distance_threshold
+        """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
             if self.distance_threshold is not None:

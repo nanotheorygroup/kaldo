@@ -115,33 +115,34 @@ class Conductivity:
     Parameters
     ----------
     phonons : Phonons
-        contains all the information about the calculated phononic properties of the system
+        Contains all the information about the calculated phononic properties of the system
     method : 'rta', 'sc', 'qhgk', 'inverse'
-        specifies the method used to calculate_second the conductivity.
-    diffusivity_bandwidth (QHGK, optional) : float
-        Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
+        Specifies the method used to calculate_second the conductivity.
+    diffusivity_bandwidth : float, optional
+        (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
         thermal conductivity in amorphous systems. Units: rad/ps
-    diffusivity_threshold (QHGK, optional) : float
-        This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
-    diffusivity_shape (QHGK, optional) : string
-        defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
+    diffusivity_threshold : float, optional
+        (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
+    diffusivity_shape : string, optional
+        (QHGK) Defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
         Default is `lorentz`.
-    is_diffusivity_including_antiresonant (QHGK, optional) : bool
-        defines if you want to include or not anti-resonant terms in diffusivity calculations.
+    is_diffusivity_including_antiresonant : bool, optional
+        (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
         Default is `False`.
-    tolerance (self-consistent): int
-        in the self consistent conductivity calculation, it specifies the difference in W/m/K between n
+    tolerance : int
+        (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
         and n+1 step, to set as exit/convergence condition.
-    n_iterations (self-consistent): int
-        specifies the max number of iterations to set as exit condition in the self consistent conductivity
+    n_iterations : int
+        (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
         calculation
-    length: (float, float, float)
-        specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values
+    length: (3) tuple
+        (Finite Size) Specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values
         corresponds to the infinity length limit.
     finite_length_method : 'matthiessen', 'ms', 'caltech'
-        specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
-    storage : 'formatted', 'hdf5', 'numpy', 'memory'
-        defines the type of storage used for the simulation.
+        (Finite Size) Specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
+    storage : 'formatted', 'hdf5', 'numpy', 'memory', optional
+        Defines the type of storage used for the simulation.
+        Default is `formatted`
 
     Returns
     -------

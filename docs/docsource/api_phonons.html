@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -418,9 +417,48 @@ initializing the Conductivity object.</p>
 <dl class="py class">
 <dt id="kaldo.phonons.Phonons">
 <em class="property">class </em><code class="sig-prename descclassname">kaldo.phonons.</code><code class="sig-name descname">Phonons</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.phonons.Phonons" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Attributes</dt>
-<dd class="field-odd"><dl class="simple">
+<dd><p>The Phonons object exposes all the phononic properties of a system.
+It’s can be fed into a Conductivity object and must be built with a
+ForceConstant object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>forceconstants</strong> (<a class="reference internal" href="api_forceconstants.html#kaldo.forceconstants.ForceConstants" title="kaldo.forceconstants.ForceConstants"><em>ForceConstants</em></a>) – contains all the information about the system and the derivatives
+of the potential.</p></li>
+<li><p><strong>is_classic</strong> (<em>bool</em>) – specifies if the system is classic, <span class="math">True</span> or quantum, <span class="math">False</span>
+Default is <span class="math">False</span></p></li>
+<li><p><strong>kpts</strong> – defines the number of k points to use to create the k mesh
+Default is (1, 1, 1)</p></li>
+<li><p><strong>temperature</strong> (<em>float</em>) – defines the temperature of the simulation. Units: K.</p></li>
+<li><p><strong>min_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency below <span class="math">min_frequency</span> THz,
+Default is <span class="math">None</span></p></li>
+<li><p><strong>max_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency above <span class="math">max_frequency</span> THz
+Default is <span class="math">None</span></p></li>
+<li><p><strong>third_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – Defines the width of the energy conservation smearing in the phonons
+scattering calculation. If <span class="math">None</span> the width is calculated
+dynamically. Otherwise the input value corresponds to the width.
+Units: THz.</p></li>
+<li><p><strong>broadening_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – Defines the algorithm to use for the broadening of the conservation
+of the energy for third irder interactions. Available broadenings
+are <span class="math">gauss</span>, <span class="math">lorentz</span> and <span class="math">triangle</span>.
+Default is <span class="math">gauss</span>.</p></li>
+<li><p><strong>folder</strong> (<em>string</em><em>, </em><em>optional</em>) – Specifies where to store the data files. Default is <span class="math">output</span>.</p></li>
+<li><p><strong>storage</strong> (<span class="math">default</span>, <span class="math">formatted</span>, <span class="math">numpy</span>, <span class="math">memory</span>, <span class="math">hdf5</span>, optional) – Defines the storing strategy used to store the observables. The
+<span class="math">default</span> strategy stores formatted output and numpy arrays.
+<span class="math">memory</span> storage doesn’t generate any output.</p></li>
+<li><p><strong>grid_type</strong> (<em>'F'</em><em> or </em><em>'C</em><em>, </em><em>optional</em>) – Specify if to use ‘C” style atoms replica grid of fortran
+style ‘F’,
+Default ‘C’</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Phonons Object</p>
+</dd>
+<dt class="field-even">Attributes</dt>
+<dd class="field-even"><dl class="simple">
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvalues</span></code></a></dt><dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
@@ -431,7 +469,8 @@ initializing the Conductivity object.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
 </dd>
-<dt><strong>omega</strong></dt><dd></dd>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
+</dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_space</span></code></a></dt><dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.physical_mode" title="kaldo.phonons.Phonons.physical_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">physical_mode</span></code></a></dt><dd><p>Calculate physical modes.</p>
@@ -443,24 +482,6 @@ initializing the Conductivity object.</p>
 </dl>
 </dd>
 </dl>
-<p class="rubric">Methods</p>
-<table>
-<colgroup>
-<col style="width: 82%"/>
-<col style="width: 18%"/>
-</colgroup>
-<tbody>
-<tr class="row-odd"><td><p><strong>calculate_heat_capacity</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>calculate_population</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><strong>select_algorithm_for_phase_space_and_gamma</strong></p></td>
-<td></td>
-</tr>
-</tbody>
-</table>
 <dl class="py method">
 <dt id="kaldo.phonons.Phonons.bandwidth">
 <em class="property">property </em><code class="sig-name descname">bandwidth</code><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
@@ -517,13 +538,26 @@ Bose-Einstein weighted by each phonons energy.
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">c_</span>\<span class="n">mu</span> <span class="o">=</span> <span class="n">k_B</span> \<span class="n">frac</span><span class="p">{</span>\<span class="n">nu_</span>\<span class="n">mu</span><span class="o">^</span><span class="mi">2</span><span class="p">}{</span> \<span class="n">tilde</span> <span class="n">T</span><span class="o">^</span><span class="mi">2</span><span class="p">}</span> <span class="n">n_</span>\<span class="n">mu</span> <span class="p">(</span><span class="n">n_</span>\<span class="n">mu</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>where the frequency <img alt="\nu" class="math" src="../_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> and the temperature <img alt="\tilde T" class="math" src="../_images/math/a1973297dcd8ed1a36edc696aef0e150cf6bf502.png"/> are in THz.</p>
+<p>where the frequency <span class="math">\nu</span> and the temperature <span class="math">\tilde T</span> are in THz.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p><strong>c_v</strong> – heat capacity in W/m/K for each k point and each mode</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt id="kaldo.phonons.Phonons.omega">
+<em class="property">property </em><code class="sig-name descname">omega</code><a class="headerlink" href="#kaldo.phonons.Phonons.omega" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>frequency</strong> – (n_k_points, n_modes) frequency in rad</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np array</p>
 </dd>
 </dl>
 </dd></dl>
@@ -566,9 +600,15 @@ If quantum it returns the Bose-Einstein distribution</p>
 <dl class="py method">
 <dt id="kaldo.phonons.Phonons.velocity">
 <em class="property">property </em><code class="sig-name descname">velocity</code><a class="headerlink" href="#kaldo.phonons.Phonons.velocity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the velocity using Hellmann-Feynman theorem.
-:returns: <strong>velocity</strong> – (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
-:rtype: np array</p>
+<dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>velocity</strong> – (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np array</p>
+</dd>
+</dl>
 </dd></dl>
 </dd></dl>
 
@@ -621,7 +661,7 @@ If quantum it returns the Bose-Einstein distribution</p>
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

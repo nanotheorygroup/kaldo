@@ -22,44 +22,54 @@ KELVINTOJOULE = units.kB / units.J
 
 
 class Phonons:
-        """The Phonons object exposes all the phononic properties of a system.
-        It's can be fed into a Conductivity object and must be built with a
-        ForceConstant object.
+    """The Phonons object exposes all the phononic properties of a system.
+    It's can be fed into a Conductivity object and must be built with a
+    ForceConstant object.
 
-        Parameters
-        ----------
-        forceconstants : ForceConstant
-            contains all the information about the system and the derivatives of the potential.
-        is_classic : bool
-            specifies if the system is classic, `True` or quantum, `False`
-        kpts (optional) : (3) tuple
-            defines the number of k points to use to create the k mesh. Default is [1, 1, 1].
-        temperature : float
-            defines the temperature of the simulation. Units: K.
-        min_frequency (optional) : float
-            ignores all phonons with frequency below `min_frequency` THz, Default is None..
-        max_frequency (optional) : float
-            ignores all phonons with frequency above `max_frequency` THz, Default is None.
-        third_bandwidth (optional) : float
-            defines the width of the energy conservation smearing in the phonons scattering calculation.
-            If `None` the width is calculated dynamically. Otherwise the input value corresponds to the
-            width. Units: THz.
-        broadening_shape (optional) : string
-            defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions
-            . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.
-        folder (optional) : string
-            Specifies where to store the data files. Default is `output`.
-        storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
-            defines the storing strategy used to store the observables. The `default` strategy stores formatted output
-            and numpy arrays. `memory` storage doesn't generate any output.
-        grid_type: 'F' or 'C
-            specify if to use 'C" style atoms replica grid of fortran style 'F', default 'C'
+    Parameters
+    ----------
+    forceconstants : ForceConstants
+        contains all the information about the system and the derivatives
+        of the potential.
+    is_classic : bool
+        specifies if the system is classic, `True` or quantum, `False`
+        Default is `False`
+    kpts : (3) tuple, optional
+        defines the number of k points to use to create the k mesh
+        Default is (1, 1, 1)
+    temperature : float
+        defines the temperature of the simulation. Units: K.
+    min_frequency : float, optional
+        ignores all phonons with frequency below `min_frequency` THz,
+        Default is `None`
+    max_frequency : float, optional
+        ignores all phonons with frequency above `max_frequency` THz
+        Default is `None`
+    third_bandwidth : float, optional
+        Defines the width of the energy conservation smearing in the phonons
+        scattering calculation. If `None` the width is calculated
+        dynamically. Otherwise the input value corresponds to the width.
+        Units: THz.
+    broadening_shape : string, optional
+        Defines the algorithm to use for the broadening of the conservation
+        of the energy for third irder interactions. Available broadenings
+        are `gauss`, `lorentz` and `triangle`.
+        Default is `gauss`.
+    folder : string, optional
+        Specifies where to store the data files. Default is `output`.
+    storage : `default`, `formatted`, `numpy`, `memory`, `hdf5`, optional
+        Defines the storing strategy used to store the observables. The
+        `default` strategy stores formatted output and numpy arrays.
+        `memory` storage doesn't generate any output.
+    grid_type : 'F' or 'C, optional
+        Specify if to use 'C" style atoms replica grid of fortran
+        style 'F',
+        Default 'C'
 
-        Returns
-        -------
-        Phonons
-            An instance of the `Phonons` class.
-        """
+    Returns
+    -------
+    Phonons Object
+    """
     def __init__(self, **kwargs):
         self.forceconstants = kwargs.pop('forceconstants')
         if 'is_classic' in kwargs:
