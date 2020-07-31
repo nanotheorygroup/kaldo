@@ -355,9 +355,9 @@
                     return t.fetch = function() {
                         var n = this;
                         return new Promise(function(t) {
-                            var e = l.a.getJSON(n.salt_ + ".cache-docsource");
+                            var e = l.a.getJSON(n.salt_ + ".cache-source");
                             void 0 !== e ? t(e) : n.fetch_().then(function(e) {
-                                l.a.set(n.salt_ + ".cache-docsource", e, {
+                                l.a.set(n.salt_ + ".cache-source", e, {
                                     expires: 1 / 96
                                 }), t(e)
                             })
@@ -1406,7 +1406,7 @@
                             e.checked && (e.checked = !1, e.dispatchEvent(new CustomEvent("change")))
                         })),
                         function() {
-                            var e = document.querySelector("[data-md-docsource]");
+                            var e = document.querySelector("[data-md-source]");
                             if (!e) return r.a.resolve([]);
                             if (!(e instanceof HTMLAnchorElement)) throw new ReferenceError;
                             switch (e.dataset.mdSource) {
@@ -1416,7 +1416,7 @@
                                     return r.a.resolve([])
                             }
                         }().then(function(t) {
-                            var e = document.querySelectorAll("[data-md-docsource]");
+                            var e = document.querySelectorAll("[data-md-source]");
                             Array.prototype.forEach.call(e, function(e) {
                                 new i.a.Source.Repository(e).initialize(t)
                             })

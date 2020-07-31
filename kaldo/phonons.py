@@ -17,7 +17,7 @@ logging = get_logger()
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
-
+MIN_N_MODES_TO_STORE = 1000
 
 
 
@@ -124,12 +124,16 @@ class Phonons:
         """
         q_points = self._main_q_mesh
         frequency = np.zeros((self.n_k_points, self.n_modes))
+        if self.n_modes > MIN_N_MODES_TO_STORE:
+            storage = self.storage
+        else:
+            storage = 'memory'
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=storage)
 
             frequency[ik] = phonon.frequency
 
@@ -148,13 +152,17 @@ class Phonons:
 
         q_points = self._main_q_mesh
 
+        if self.n_modes > MIN_N_MODES_TO_STORE:
+            storage = self.storage
+        else:
+            storage = 'memory'
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=storage)
             velocity[ik] = phonon.velocity
         return velocity
 
@@ -163,13 +171,17 @@ class Phonons:
     def _dynmat_derivatives(self):
         q_points = self._main_q_mesh
 
+        if self.n_modes > MIN_N_MODES_TO_STORE:
+            storage = self.storage
+        else:
+            storage = 'memory'
         dynmat_derivatives = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=storage)
             dynmat_derivatives[ik] = phonon._dynmat_derivatives
         return dynmat_derivatives
 
@@ -190,12 +202,16 @@ class Phonons:
 
         eigensystem = np.zeros((self.n_k_points, self.n_modes + 1, self.n_modes), dtype=np.complex)
 
+        if self.n_modes > MIN_N_MODES_TO_STORE:
+            storage = self.storage
+        else:
+            storage = 'memory'
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=storage)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -206,13 +222,17 @@ class Phonons:
     def _velocity_af(self):
         q_points = self._main_q_mesh
 
+        if self.n_modes > MIN_N_MODES_TO_STORE:
+            storage = self.storage
+        else:
+            storage = 'memory'
         velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, self.n_modes), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point,self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=storage)
 
             velocity_AF[ik] = phonon._velocity_af
 
@@ -370,7 +390,6 @@ class Phonons:
 
 
     def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
-        logging.info('Projection started')
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled

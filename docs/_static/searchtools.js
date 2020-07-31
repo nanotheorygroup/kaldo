@@ -291,7 +291,7 @@ var Search = {
                     });
                   }});
         } else {
-          // no docsource available, just display title
+          // no source available, just display title
           Search.output.append(listItem);
           listItem.slideDown(5, function() {
             displayNextItem();

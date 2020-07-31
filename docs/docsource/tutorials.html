@@ -1,9 +1,10 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -392,8 +393,8 @@
             
   
 <h1 id="docsource-tutorials--page-root">Tutorials<a class="headerlink" href="#docsource-tutorials--page-root" title="Permalink to this headline">¶</a></h1>
-<p>All examples explained here can be found in the <span class="math">examples</span> folder. There are
-also two tutorials available in the documentation that can be run in <span class="math">Google Colab&lt;https://colab.research.google.com&gt;</span>.
+<p>All examples explained here can be found in the <img alt="examples" class="math" src="../_images/math/fd875c34d5654abf47074c2dfe6d460ba8c0f344.png"/> folder. There are
+also two tutorials available in the documentation that can be run in <img alt="Google Colab&lt;https://colab.research.google.com&gt;" class="math" src="../_images/math/1f8cc9842c3ba19c9af007dfc17227868ca4a96f.png"/>.
 This page is a collection of tutorials that have been explained in further
 detail. If you are new to kaldo and thermal conductivity study, this area
 may be a good place to start. Please note that some tutorials also require
@@ -408,21 +409,21 @@ that you have LAMMPS built with an mpi exectuable.</p>
 </ol>
 
 <h2 id="conductivity-of-crystal-silicon">Conductivity of Crystal Silicon<a class="headerlink" href="#conductivity-of-crystal-silicon" title="Permalink to this headline">¶</a></h2>
-<p>To see the results of the example, simply run the bash script <span class="math">run_all.sh</span>
+<p>To see the results of the example, simply run the bash script <img alt="run_all.sh" class="math" src="../_images/math/650927b7464c95d9f9f691c25accc7b30ca4b917.png"/>
 on a machine with LAMMPS built with the lmp_mpi command, or keep
 reading for a more detailed explanation.</p>
 <p>Using kALDo requires an ASE atoms object. Starting in the file labeled
-<span class="math">1_create_structure.py</span>, first we create a bulk Si crystal with a lattice
+<img alt="1_create_structure.py" class="math" src="../_images/math/b937199d84b349d86ea6f271f7114d7b6743ea33.png"/>, first we create a bulk Si crystal with a lattice
 parameter of 5.43 $A$ and write the object to a file. Information about its
 reciprocal-space cell dimensions are printed out.</p>
 <div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="n">atoms</span> <span class="o">=</span> <span class="n">bulk</span><span class="p">(</span><span class="s1">'Si'</span><span class="p">,</span> <span class="s1">'diamond'</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mf">5.43</span><span class="p">)</span>
-<span class="n">write</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s1">'structures/coords.lmp'</span><span class="p">,</span> <span class="n">images</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'lammps-data'</span><span class="p">)</span>
+<span class="n">write</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s1">'structures/coords.lmp'</span><span class="p">,</span> <span class="n">images</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s1">'lammps-data'</span><span class="p">)</span>
 </pre></div>
 </td></tr></table></div>
-<p>Run the <span class="math">in.lmp</span> file with  <span class="math">lmp_mpi &lt; in.lmp</span> to get the derivatives of the force constant
-matrix labeled <span class="math">third.bin</span> and <span class="math">dynmat.dat</span>.</p>
-<p>Moving on, <span class="math">2_calculate_phonons.py</span> constructs a <a class="reference internal" href="api_forceconstants.html#forceconstants-api"><span class="std std-ref">ForceConstants</span></a>
+<p>Run the <img alt="in.lmp" class="math" src="../_images/math/30094ae53aa54b471401457b31f5dcdefbb95b97.png"/> file with  <img alt="lmp_mpi &lt; in.lmp" class="math" src="../_images/math/7099df4d5f755c18b54df10d2a5b5c0cd676e0e8.png"/> to get the derivatives of the force constant
+matrix labeled <img alt="third.bin" class="math" src="../_images/math/3f91ca37870f6ee9a9603e5db613e2b7dc23ab3a.png"/> and <img alt="dynmat.dat" class="math" src="../_images/math/e80401f520285789274f85f6a3a701f3ad493790.png"/>.</p>
+<p>Moving on, <img alt="2_calculate_phonons.py" class="math" src="../_images/math/b5b80cdd9c2b2f7c5f54290335bbf66927b5a03e.png"/> constructs a <a class="reference internal" href="api_forceconstants.html#forceconstants-api"><span class="std std-ref">ForceConstants</span></a>
 object is created with the atoms from the previous step along the dynamical
 matrix and the third order derivative of the force constant matrix found from the
 LAMMPS script.</p>
@@ -456,7 +457,7 @@ LAMMPS script.</p>
 <span class="n">config_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'/replicated_coords.lmp'</span>
 <span class="n">dynmat_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'/dynmat.dat'</span>
 <span class="n">third_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'/third.bin'</span>
-<span class="n">atoms</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'lammps-data'</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">'atomic'</span><span class="p">)</span>
+<span class="n">atoms</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s1">'lammps-data'</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">'atomic'</span><span class="p">)</span>
 
 <span class="n">atomic_numbers</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">get_atomic_numbers</span><span class="p">()</span>
 <span class="n">atomic_numbers</span><span class="p">[</span><span class="n">atomic_numbers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">14</span>
@@ -467,7 +468,7 @@ LAMMPS script.</p>
 
 <span class="n">k</span> <span class="o">=</span> <span class="mi">5</span>
 <span class="n">kpts</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
-<span class="n">is_classic</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">is_classic</span> <span class="o">=</span> <span class="bp">False</span>
 <span class="n">temperature</span> <span class="o">=</span> <span class="mi">300</span>
 
 <span class="n">phonons</span> <span class="o">=</span> <span class="n">Phonons</span><span class="p">(</span><span class="n">forceconstants</span><span class="o">=</span><span class="n">forceconstants</span><span class="p">,</span>
@@ -475,8 +476,8 @@ LAMMPS script.</p>
                                   <span class="n">is_classic</span><span class="o">=</span><span class="n">is_classic</span><span class="p">,</span>
                                   <span class="n">temperature</span><span class="o">=</span><span class="n">temperature</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'AF conductivity'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">conductivity</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'qhgk'</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">'AF conductivity'</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">conductivity</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'qhgk'</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
 </pre></div>
 </td></tr></table></div>
 
@@ -508,7 +509,7 @@ LAMMPS script.</p>
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
