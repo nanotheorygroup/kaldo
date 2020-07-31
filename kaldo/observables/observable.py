@@ -35,7 +35,7 @@ class Observable:
                 if not name in storage:
                     storage.create_dataset(name, data=loaded_attr, chunks=True, compression='gzip',
                                            compression_opts=9)
-            logging.info(name + 'stored')
+            logging.info(name + ' stored')
         elif format == 'formatted':
             # loaded_attr = np.nan_to_num(loaded_attr)
             if not os.path.exists(folder):

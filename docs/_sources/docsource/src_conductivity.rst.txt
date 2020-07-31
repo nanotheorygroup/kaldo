@@ -1,6 +1,0 @@
-.. _src-conductivity:
-
-Conductivity Source Code
-########################
-
-.. literalinclude:: ../../kaldo/conductivity.py

@@ -1,9 +1,10 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -378,7 +379,7 @@
         </li>
         <li class="md-nav__item"><a href="#Access-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Access and visualize properties calculated during simulations</a>
         </li>
-        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <span class="math">\kappa_{per \ mode}</span> and <span class="math">\kappa_{cum}</span></a>
+        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/></a>
         </li>
         <li class="md-nav__item"><a href="#Run-a-Si-simulation-with-varied-temperature-and-third-bandwidth" class="md-nav__link">Run a-Si simulation with varied temperature and third bandwidth</a>
         </li></ul>
@@ -428,7 +429,7 @@
         </li>
         <li class="md-nav__item"><a href="#Access-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Access and visualize properties calculated during simulations</a>
         </li>
-        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <span class="math">\kappa_{per \ mode}</span> and <span class="math">\kappa_{cum}</span></a>
+        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/></a>
         </li>
         <li class="md-nav__item"><a href="#Run-a-Si-simulation-with-varied-temperature-and-third-bandwidth" class="md-nav__link">Run a-Si simulation with varied temperature and third bandwidth</a>
         </li></ul>
@@ -516,20 +517,33 @@ div.nboutput.container div.prompt pre {
 /* all prompts */
 div.nbinput.container div.prompt,
 div.nboutput.container div.prompt {
-    min-width: 5.5ex;
-    padding-top: 0.3rem;
-    padding-right: 0.3rem;
-    text-align: right;
-    flex: 0;
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
 }
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
 @media (max-width: 540px) {
     div.nbinput.container div.prompt,
     div.nboutput.container div.prompt {
+        width: unset;
         text-align: left;
         padding: 0.4em;
     }
     div.nboutput.container div.prompt.empty {
         padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
     }
 }
 
@@ -622,7 +636,7 @@ div.nboutput.container div.output_area div[class*=highlight].math,
 div.nboutput.container div.output_area.rendered_html,
 div.nboutput.container div.output_area > div.output_javascript,
 div.nboutput.container div.output_area:not(.rendered_html) > img{
-    padding: 0.3rem;
+    padding: 5px;
 }
 
 /* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
@@ -879,7 +893,7 @@ plt.show()
 </div>
 
 
-<h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <span class="math">\kappa_{per \ mode}</span> and <span class="math">\kappa_{cum}</span><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h3>
+<h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -1017,7 +1031,7 @@ plt.show()
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
