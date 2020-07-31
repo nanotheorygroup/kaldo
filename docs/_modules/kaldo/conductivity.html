@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -385,16 +384,15 @@
 <span class="sd">kaldo</span>
 <span class="sd">Anharmonic Lattice Dynamics</span>
 <span class="sd">"""</span>
-<span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="k">import</span> <span class="n">contract</span>
+<span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="kn">import</span> <span class="n">contract</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="k">import</span> <span class="n">contract</span>
-<span class="kn">from</span> <span class="nn">sparse</span> <span class="k">import</span> <span class="n">COO</span>
 <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
-<span class="kn">from</span> <span class="nn">kaldo.controllers.dirac_kernel</span> <span class="k">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="k">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">DEFAULT_STORE_FORMATS</span>
-<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="k">import</span> <span class="n">HarmonicWithQ</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="k">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
+<span class="kn">from</span> <span class="nn">sparse</span> <span class="kn">import</span> <span class="n">COO</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">kaldo.controllers.dirac_kernel</span> <span class="kn">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">DEFAULT_STORE_FORMATS</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
 <span class="n">MAX_ITERATIONS_SC</span> <span class="o">=</span> <span class="mi">50</span>
@@ -493,57 +491,56 @@
 
 
 <div class="viewcode-block" id="Conductivity"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity">[docs]</a><span class="k">class</span> <span class="nc">Conductivity</span><span class="p">:</span>
+    <span class="sd">""" The conductivity object is responsible for mean free path and</span>
+<span class="sd">    conductivity calculations. It takes a phonons object as a required argument.</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    phonons : Phonons</span>
+<span class="sd">        Contains all the information about the calculated phononic properties of the system</span>
+<span class="sd">    method : 'rta', 'sc', 'qhgk', 'inverse'</span>
+<span class="sd">        Specifies the method used to calculate_second the conductivity.</span>
+<span class="sd">    diffusivity_bandwidth : float, optional</span>
+<span class="sd">        (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the</span>
+<span class="sd">        thermal conductivity in amorphous systems. Units: rad/ps</span>
+<span class="sd">    diffusivity_threshold : float, optional</span>
+<span class="sd">        (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</span>
+<span class="sd">    diffusivity_shape : string, optional</span>
+<span class="sd">        (QHGK) Defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
+<span class="sd">        Default is `lorentz`.</span>
+<span class="sd">    is_diffusivity_including_antiresonant : bool, optional</span>
+<span class="sd">        (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.</span>
+<span class="sd">        Default is `False`.</span>
+<span class="sd">    tolerance : int</span>
+<span class="sd">        (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n</span>
+<span class="sd">        and n+1 step, to set as exit/convergence condition.</span>
+<span class="sd">    n_iterations : int</span>
+<span class="sd">        (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity</span>
+<span class="sd">        calculation</span>
+<span class="sd">    length: (3) tuple</span>
+<span class="sd">        (Finite Size) Specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values</span>
+<span class="sd">        corresponds to the infinity length limit.</span>
+<span class="sd">    finite_length_method : 'matthiessen', 'ms', 'caltech'</span>
+<span class="sd">        (Finite Size) Specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.</span>
+<span class="sd">    storage : 'formatted', 'hdf5', 'numpy', 'memory', optional</span>
+<span class="sd">        Defines the type of storage used for the simulation.</span>
+<span class="sd">        Default is `formatted`</span>
 
-        <span class="sd">"""The conductivity object is responsible for mean free path and conductivity calculations.</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Conductivity</span>
+<span class="sd">        An instance of the `Conductivity` class.</span>
 
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        phonons : Phonons</span>
-<span class="sd">            contains all the information about the calculated phononic properties of the system</span>
-<span class="sd">        method : 'rta', 'sc', 'qhgk', 'inverse'</span>
-<span class="sd">            specifies the method used to calculate_second the conductivity.</span>
-<span class="sd">        diffusivity_bandwidth (QHGK, optional) : float</span>
-<span class="sd">            Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the</span>
-<span class="sd">            thermal conductivity in amorphous systems. Units: rad/ps</span>
-<span class="sd">        diffusivity_threshold (QHGK, optional) : float</span>
-<span class="sd">            This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</span>
-<span class="sd">        diffusivity_shape (QHGK, optional) : string</span>
-<span class="sd">            defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
-<span class="sd">            Default is `lorentz`.</span>
-<span class="sd">        is_diffusivity_including_antiresonant (QHGK, optional) : bool</span>
-<span class="sd">            defines if you want to include or not anti-resonant terms in diffusivity calculations.</span>
-<span class="sd">            Default is `False`.</span>
-<span class="sd">        tolerance (self-consistent): int</span>
-<span class="sd">            in the self consistent conductivity calculation, it specifies the difference in W/m/K between n</span>
-<span class="sd">            and n+1 step, to set as exit/convergence condition.</span>
-<span class="sd">        n_iterations (self-consistent): int</span>
-<span class="sd">            specifies the max number of iterations to set as exit condition in the self consistent conductivity</span>
-<span class="sd">            calculation</span>
-<span class="sd">        length: (float, float, float)</span>
-<span class="sd">            specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values</span>
-<span class="sd">            corresponds to the infinity length limit.</span>
-<span class="sd">        finite_length_method : 'matthiessen', 'ms', 'caltech'</span>
-<span class="sd">            specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.</span>
-<span class="sd">        storage : 'formatted', 'hdf5', 'numpy', 'memory'</span>
-<span class="sd">            defines the type of storage used for the simulation.</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Here's an example to calculate_second the inverse conductivity on the phonons object and tracing over the phonons modes</span>
 
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        Conductivity</span>
-<span class="sd">            An instance of the `Conductivity` class.</span>
+<span class="sd">    ```</span>
+<span class="sd">    Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))</span>
+<span class="sd">    ```</span>
+<span class="sd">    """</span>
 
-<span class="sd">        Examples</span>
-<span class="sd">        --------</span>
-<span class="sd">        Here's an example to calculate_second the inverse conductivity on the phonons object and tracing over the phonons modes</span>
-<span class="sd">        </span>
-<span class="sd">        ```</span>
-<span class="sd">        Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))</span>
-<span class="sd">        ```</span>
-<span class="sd">        """</span>
-
-
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'phonons'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'method'</span><span class="p">,</span> <span class="s1">'rta'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'formatted'</span><span class="p">)</span>
@@ -572,8 +569,8 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">conductivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Calculate the thermal conductivity per mode in W/m/K</span>
+        <span class="sd">"""Calculate the thermal conductivity per mode in W/m/K</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        conductivity : np array</span>
@@ -606,8 +603,8 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">mean_free_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Calculate the mean_free_path per mode in A</span>
+        <span class="sd">"""Calculate the mean_free_path per mode in A</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        mfp : np array</span>
@@ -618,9 +615,9 @@
         <span class="k">if</span> <span class="p">(</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'qhgk'</span><span class="p">):</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Mean free path not available for '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">method</span><span class="p">))</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span><span class="p">:</span>
-            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mfp_sc</span><span class="p">()</span>
+            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'sc'</span><span class="p">:</span>
-            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mfp_sc</span><span class="p">()</span>
+            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
         <span class="k">elif</span> <span class="p">(</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'inverse'</span><span class="p">):</span>
             <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mfp_inverse</span><span class="p">()</span>
         <span class="k">elif</span> <span class="p">(</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'evect'</span><span class="p">):</span>
@@ -733,11 +730,11 @@
 
 
 <div class="viewcode-block" id="Conductivity.calculate_2d_heat_capacity"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_2d_heat_capacity">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_2d_heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k_index</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Calculates the factor for the diffusivity which resembles the heat capacity.</span>
+        <span class="sd">"""Calculates the factor for the diffusivity which resembles the heat capacity.</span>
 <span class="sd">        The array is returned in units of J/K.</span>
 <span class="sd">        classical case: k_b</span>
 <span class="sd">        quantum case: c_nm=hbar w_n w_m/T  * (n_n-n_m)/(w_m-w_n)</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        c_v : np.array</span>
@@ -778,8 +775,7 @@
 
 
 <div class="viewcode-block" id="Conductivity.calculate_conductivity_qhgk"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_conductivity_qhgk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.</span>
+        <span class="sd">"""Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.</span>
 <span class="sd">        The tensor is returned individual modes along the first axis and has units of W/m/K.</span>
 
 <span class="sd">        Returns</span>
@@ -858,8 +854,7 @@
 
 
 <div class="viewcode-block" id="Conductivity.calculate_mfp_inverse"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_mfp_inverse">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_mfp_inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        This method calculates the inverse of the mean free path for each phonon.</span>
+        <span class="sd">"""This method calculates the inverse of the mean free path for each phonon.</span>
 <span class="sd">        The matrix returns k vectors for each mode and has units of inverse Angstroms.</span>
 
 <span class="sd">        Returns</span>
@@ -905,13 +900,12 @@
 
 
 <div class="viewcode-block" id="Conductivity.calculate_mfp_evect"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_mfp_evect">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_mfp_evect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        This calculates the mean free path of evect. In materials where most scattering events conserve momentum</span>
+        <span class="sd">"""This calculates the mean free path of evect. In materials where most scattering events conserve momentum</span>
 <span class="sd">        :ref:'Relaxon Theory Section' (e.g. in two dimensional materials or three dimensional materials at extremely low</span>
-<span class="sd">        temparatures), this quantity can be used to calculate_second thermal conductivity.</span>
+<span class="sd">        temparatures), this quantity can be used to calculate thermal conductivity.</span>
 
 <span class="sd">        Returns</span>
-<span class="sd">	-------</span>
+<span class="sd">	    -------</span>
 <span class="sd">        lambda : np array</span>
 <span class="sd">            (n_k_points, n_modes, 3)</span>
 <span class="sd">        """</span>
@@ -941,7 +935,7 @@
         <span class="k">return</span> <span class="n">lambd</span></div>
 
 
-    <span class="k">def</span> <span class="nf">calculate_mfp_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_calculate_mfp_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span>
         <span class="n">finite_size_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
@@ -949,9 +943,9 @@
         <span class="n">velocity</span> <span class="o">=</span> <span class="n">velocity</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">finite_size_method</span> <span class="o">==</span> <span class="s1">'ms'</span><span class="p">:</span>
-            <span class="n">lambd_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_sc_mfp</span><span class="p">(</span><span class="n">matthiessen_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
+            <span class="n">lambd_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sc_mfp</span><span class="p">(</span><span class="n">matthiessen_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">lambd_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_sc_mfp</span><span class="p">()</span>
+            <span class="n">lambd_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sc_mfp</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">finite_size_method</span> <span class="o">==</span> <span class="s1">'caltech'</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
                 <span class="n">lambd_n</span><span class="p">[:,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">=</span> <span class="n">mfp_caltech</span><span class="p">(</span><span class="n">lambd_n</span><span class="p">[:,</span> <span class="n">alpha</span><span class="p">],</span> <span class="n">velocity</span><span class="p">[:,</span> <span class="n">alpha</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">],</span> <span class="n">physical_mode</span><span class="p">)</span>
@@ -967,7 +961,7 @@
         <span class="k">return</span> <span class="n">lambd_n</span>
 
 
-    <span class="k">def</span> <span class="nf">calculate_sc_mfp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matthiessen_length</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_calculate_sc_mfp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matthiessen_length</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">tolerance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span>
         <span class="n">n_iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span>
         <span class="n">phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span>
@@ -999,8 +993,6 @@
                 <span class="n">lambd_n</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">lambd_0</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">delta_lambd</span><span class="p">[:,</span> <span class="p">:]</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Number of self-consistent iterations: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">n_iteration</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">lambd_n</span></div>
-    
-    
 </pre></div>
 
           </article>
@@ -1025,7 +1017,7 @@
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.0.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
