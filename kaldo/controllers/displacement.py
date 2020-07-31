@@ -71,7 +71,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False):
     """
     Compute third order force constant matrices by using the central
-    difference formula for the approximation for third order derivatives
+    difference formula for the approximation
     """
     n_atoms = len(atoms.numbers)
     replicated_atoms = replicated_atoms

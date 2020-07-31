@@ -22,8 +22,9 @@ KELVINTOJOULE = units.kB / units.J
 
 
 class Phonons:
-    def __init__(self, **kwargs):
-        """The phonons object exposes all the phononic properties of a system,
+        """The Phonons object exposes all the phononic properties of a system.
+        It's can be fed into a Conductivity object and must be built with a
+        ForceConstant object.
 
         Parameters
         ----------
@@ -47,7 +48,7 @@ class Phonons:
             defines the algorithm to use for the broadening of the conservation of the energy for third irder interactions
             . Available broadenings are `gauss`, `lorentz` and `triangle`. Default is `gauss`.
         folder (optional) : string
-            specifies where to store the data files. Default is `output`.
+            Specifies where to store the data files. Default is `output`.
         storage (optional) : 'formatted', 'numpy', 'memory', 'hdf5'
             defines the storing strategy used to store the observables. The `default` strategy stores formatted output
             and numpy arrays. `memory` storage doesn't generate any output.
@@ -58,8 +59,8 @@ class Phonons:
         -------
         Phonons
             An instance of the `Phonons` class.
-
         """
+    def __init__(self, **kwargs):
         self.forceconstants = kwargs.pop('forceconstants')
         if 'is_classic' in kwargs:
             self.is_classic = bool(kwargs['is_classic'])
@@ -92,8 +93,7 @@ class Phonons:
 
     @lazy_property(label='')
     def physical_mode(self):
-        """
-        Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
+        """Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
         modes outside the frequency range min_frequency and max_frequency.
         Returns
         -------
@@ -106,8 +106,7 @@ class Phonons:
 
     @lazy_property(label='')
     def frequency(self):
-        """
-        Calculate phonons frequency
+        """Calculate phonons frequency
         Returns
         -------
         frequency : np array
@@ -130,6 +129,7 @@ class Phonons:
     @lazy_property(label='')
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
+
         Returns
         -------
         velocity : np array
@@ -225,7 +225,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = self.calculate_heat_capacity().reshape(self.n_k_points, self.n_modes)
+        c_v = self._calculate_heat_capacity().reshape(self.n_k_points, self.n_modes)
         return c_v
 
 
@@ -240,7 +240,7 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        population =  self.calculate_population()
+        population =  self._calculate_population()
         return population
 
 
@@ -304,19 +304,26 @@ class Phonons:
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self.select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
+            ps_and_gamma = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self.select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
 # Helpers properties
 
     @property
     def omega(self):
+        """Calculates the angular frequencies from the diagonalized dynamical matrix.
+
+        Returns
+        -------
+        frequency : np array
+            (n_k_points, n_modes) frequency in rad
+        """
         return self.frequency * 2 * np.pi
 
 
@@ -352,7 +359,7 @@ class Phonons:
         return index_qpp_full
 
 
-    def select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
+    def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         logging.info('Projection started')
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
@@ -364,7 +371,7 @@ class Phonons:
         return ps_and_gamma
 
 
-    def calculate_population(self):
+    def _calculate_population(self):
         frequency = self.frequency.reshape((self.n_k_points, self.n_modes))
         temp = self.temperature * KELVINTOTHZ
         density = np.zeros((self.n_k_points, self.n_modes))
@@ -376,7 +383,7 @@ class Phonons:
         return density
 
 
-    def calculate_heat_capacity(self):
+    def _calculate_heat_capacity(self):
         frequency = self.frequency
         c_v = np.zeros_like(frequency)
         physical_mode = self.physical_mode

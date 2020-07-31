@@ -23,6 +23,7 @@ kALDo. Thermal transport in crystalline and non-crystalline solids.
 .. toctree::
    :glob:
    :caption: API
+   :maxdepth: 1
 
    docsource/api_forceconstants
    docsource/api_phonons
@@ -31,7 +32,7 @@ kALDo. Thermal transport in crystalline and non-crystalline solids.
 .. toctree::
    :glob:
    :caption: Tutorials
-   
+
    docsource/crystal_presentation.ipynb
    docsource/amorphous_presentation.ipynb
 

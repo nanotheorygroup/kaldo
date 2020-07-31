@@ -14,9 +14,30 @@ MAIN_FOLDER = 'displacement'
 
 
 class ForceConstants:
-    """ Class for constructing the finite difference object to calculate
-        the second/third order force constant matrices after providing the
-        unit cell geometry and calculator information.
+    """
+    Class for constructing the finite difference object to calculate
+    the second/third order force constant matrices after providing the
+    unit cell geometry and calculator information.
+
+    Parameters:
+
+    atoms: Tabulated xyz files or ASE Atoms object
+        The atoms to work on.
+    supercell: tuple, optional
+        Size of supercell given by the number of repetitions (l, m, n) of
+        the small unit cell in each direction.
+        Defaults to (1, 1, 1)
+    third_supercell: tuple, optional
+        Same as supercell, but for the third order force constant matrix.
+        If not provided, it's copied from supercell.
+        Defaults to `self.supercell`
+    folder: str, optional
+        Name to be used for the displacement information folder.
+        Defaults to 'displacement'
+    distance_threshold: float, optional
+        If the distance between two atoms exceeds threshold, the interatomic
+        force is ignored.
+        Defaults to `None`
     """
 
     def __init__(self,
@@ -25,23 +46,6 @@ class ForceConstants:
                  third_supercell=None,
                  folder=MAIN_FOLDER,
                  distance_threshold=None):
-
-        """Init with an instance of constructed ForceConstant object.
-
-        Parameters:
-
-        atoms: Tabulated xyz files or Atoms object
-            The atoms to work on.
-        supercell: tuple
-            Size of supercell given by the number of repetitions (l, m, n) of
-            the small unit cell in each direction
-        third_supercell: tuple
-            Same as supercell, but for the third order ifc. If not provided, it's copied from supercell
-        folder: str
-            Name str for the displacement folder
-        distance_threshold: float
-            the maximum distance between two interacting atoms
-        """
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -75,31 +79,33 @@ class ForceConstants:
         """
         Create a finite difference object from a folder
 
-	Parameters
-	----------
+    	Parameters
+    	----------
         folder : str
-		Chosen folder to load in system information.
+    		Chosen folder to load in system information.
         supercell : (int, int, int), optional
-		Number of unit cells in each cartesian direction replicated to form the input structure.
-		Default is (1, 1, 1)
+    		Number of unit cells in each cartesian direction replicated to form the input structure.
+    		Default is (1, 1, 1)
         format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
-		Format of force constant information being loaded into ForceConstants object.
-		Default is 'numpy'
+    		Format of force constant information being loaded into ForceConstants object.
+    		Default is 'numpy'
         third_energy_threshold : float, optional
-		When importing sparse third order force constant matrices, energies below 
-		the threshold value in magnitude are ignored. Units: ev/A^3
+    		When importing sparse third order force constant matrices, energies below
+    		the threshold value in magnitude are ignored. Units: ev/A^3
+            Default is `None`
         distance_threshold : float, optional
-		When calculating force constants, contributions from atoms further than the 
-		distance threshold will be ignored.
+    		When calculating force constants, contributions from atoms further than the
+		    distance threshold will be ignored.
         third_supercell : (int, int, int), optional
-		Takes in the unit cell for the third order force constant matrix.
-		Default is self.supercell
+    		Takes in the unit cell for the third order force constant matrix.
+    		Default is self.supercell
         is_acoustic_sum : Bool, optional
-		If true, the accoustic sum rule is applied to the dynamical matrix.
-		Default is False
-	Returns
-	-------
-	ForceConstants object
+    		If true, the accoustic sum rule is applied to the dynamical matrix.
+    		Default is False
+
+        Returns
+    	-------
+    	ForceConstants object
 
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
@@ -136,6 +142,21 @@ class ForceConstants:
 
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
+    """
+    This method extrapolates a third order force constant matrix from a unit
+    cell into a matrix for a larger supercell.
+
+    Parameters
+    ----------
+
+    reduced_third : array, optional
+        The third order force constant matrix.
+        Default is `self.third_order`
+    distance_threshold : float, optional
+        When calculating force constants, contributions from atoms further than the
+        distance threshold will be ignored.
+        Default is self.distance_threshold
+    """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
             if self.distance_threshold is not None:
@@ -183,4 +204,3 @@ class ForceConstants:
         expanded_third = expanded_third.reshape(
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
-
