@@ -81,8 +81,6 @@ class HarmonicWithQ(Observable):
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
 
-        if distance_threshold is not None:
-            logging.info('Using folded flux operators')
         cell_inv = np.linalg.inv(self.atoms.cell)
 
         shape = (1, n_unit_cell * 3, n_unit_cell * 3, 3)
@@ -120,8 +118,8 @@ class HarmonicWithQ(Observable):
                     mask = (np.linalg.norm(wrapped_distance, axis=-1) < distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
                     dynmat_derivatives[id_i, :, id_j, :, :] += contract('fa,fbc->fbca', distance[id_i, l, id_j, :], \
-                                                                         dynmat[0, id_i, :, 0, id_j, :] *
-                                                                         chi(q_point, list_of_replicas, cell_inv)[l], backend='tensorflow')
+                                                                         dynmat.numpy()[0, id_i, :, 0, id_j, :] *
+                                                                         chi(q_point, list_of_replicas, cell_inv)[l])
             else:
 
                 dynmat_derivatives = contract('ilja,ibljc,l->ibjca',
@@ -185,8 +183,6 @@ class HarmonicWithQ(Observable):
         atoms = self.atoms
         n_unit_cell = atoms.positions.shape[0]
         n_replicas = np.prod(self.supercell)
-        if distance_threshold is not None:
-            logging.info('Using folded dynamical matrix.')
         if is_amorphous:
             dtype = np.float
         else:
@@ -220,8 +216,7 @@ class HarmonicWithQ(Observable):
 
                 mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
-
-                dyn_s[id_i, :, id_j, :] += dynmat[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')

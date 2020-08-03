@@ -73,6 +73,9 @@ class ForceConstants:
                                                      grid_type='C',
                                                      folder=folder)
 
+        if distance_threshold is not None:
+            logging.info('Using folded IFC matrices.')
+
 
     @classmethod
     def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,

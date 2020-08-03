@@ -42,15 +42,15 @@ class ForceConstant(Observable):
         grid_fortran = Grid(grid_shape=self.supercell, order='F')
         if (grid_c.grid() == detected_grid).all():
             grid_type = 'C'
+            logging.debug("Using C-style position grid")
         elif (grid_fortran.grid() == detected_grid).all():
             grid_type = 'F'
-        else:
-            logging.error("Unable to detect grid type")
-
-        if grid_type == 'C':
-            logging.debug("Using C-style position grid")
-        else:
             logging.debug("Using fortran-style position grid")
+        else:
+            err_msg = "Unable to detect grid type"
+            logging.error(err_msg)
+            raise TypeError(err_msg)
+
         self._direct_grid = Grid(self.supercell, grid_type)
 
 
