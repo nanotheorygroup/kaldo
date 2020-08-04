@@ -17,7 +17,7 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "pandoc/core:latest"
+      - image: "pandoc/latex:latest"
     steps:
       - checkout
       - python/install-deps
