@@ -12,22 +12,55 @@ jobs:
       - python/load-cache
       - python/install-deps
       - python/save-cache
-#      - run:
-#          command: pwd && ls -la
-#          name: Print location
-#      - run:
-#          command: python docs/install_pandoc.py
-#          name: Install pandoc
-#      - run:
-#          command: cd docs/ && make html && cd ..
-#          name: Build docs
-#      - run:
-#          command: cp -a docs/_build/html/* docs/
-#          name: Copy docs
       - run:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
+  docs-build:
+    docker:
+      - image: python:3.7
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: pip install -r requirements.txt
+      - run:
+          name: Install docs dependencies
+          command: pip install -r doc_requirements.txt
+      - run:
+          name: Build docs
+          command: cd docs/ && make html
+      - persist_to_workspace:
+          root: docs/_build
+          paths: html
+  docs-deploy:
+    docker:
+      - image: node:8.10.0
+    steps:
+      - checkout
+      - attach_workspace:
+          at: docs/_build
+      - run:
+          name: Install and configure dependencies
+          command: |
+            npm install -g --silent gh-pages@2.0.1
+            git config user.email "ci-build@klukas.net"
+            git config user.name "ci-build"
+      - add_ssh_keys:
+          fingerprints:
+            - "2e:d6:fb:40:f4:c4:c0:e3:79:f5:53:ad:e0:b4:a5:2a"
+      - run:
+          name: Deploy docs to gh-pages branch
+          command: gh-pages --dotfiles --message "[skip ci] Updates" --dist docs/_build/html
 workflows:
   main:
     jobs:
       - build-and-test
+      - docs-build
+      - docs-deploy:
+          requires:
+            - test
+            - docs-build
+          filters:
+            branches:
+              only: master
+
