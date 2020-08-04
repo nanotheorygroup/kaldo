@@ -17,9 +17,13 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "dalibo/pandocker:latest-alpine"
+      - image: "pandoc/latex"
     steps:
       - checkout
+      - run:
+          name: Install pip
+          command: apt-get update \
+            && apt-get install python-pip
       - python/install-deps
       - run:
           name: Install docs dependencies
