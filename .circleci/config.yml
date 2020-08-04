@@ -17,7 +17,7 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: python:3.7
+      - image: "pandoc/latex:latest"
     steps:
       - checkout
       - run:
