@@ -11,6 +11,8 @@ import os
 import re
 from kaldo.grid import Grid, wrap_coordinates
 from sparse import COO
+from kaldo.helpers.logger import get_logger, log_size
+logging = get_logger()
 
 BUFFER_PLOT = .2
 SHENG_FOLDER_NAME = 'sheng_bte'
@@ -245,7 +247,7 @@ def import_control_file(control_file):
                   cell=cell,
                   pbc=[1, 1, 1])
 
-    print('Atoms object created.')
+    logging.info('Atoms object created.')
     return atoms, supercell
 
 
@@ -273,13 +275,12 @@ def save_second_order_matrix(phonons):
                         else:
                             sub_second = np.zeros((3, 3))
 
-                        try:
-                            file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
-                            file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
-                            file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
-                        except TypeError as err:
-                            print(err)
-    print('second order sheng saved')
+                        file.write('%.6f %.6f %.6f\n' % (sub_second[0][0], sub_second[0][1], sub_second[0][2]))
+                        file.write('%.6f %.6f %.6f\n' % (sub_second[1][0], sub_second[1][1], sub_second[1][2]))
+                        file.write('%.6f %.6f %.6f\n' % (sub_second[2][0], sub_second[2][1], sub_second[2][2]))
+
+
+    logging.info('second order sheng saved')
 
 
 def save_second_order_qe_matrix(phonons):
@@ -316,7 +317,7 @@ def save_second_order_qe_matrix(phonons):
                         file.write ('\t %.11E' % matrix_element)
                         file.write ('\n')
     file.close ()
-    print('second order qe sheng saved')
+    logging.info('second order qe sheng saved')
 
 
 def save_third_order_matrix(phonons):
@@ -362,7 +363,7 @@ def save_third_order_matrix(phonons):
         data = original.read ()
     with open (filename, 'w+') as modified:
         modified.write ('  ' + str (block_counter) + '\n' + data)
-    print('third order sheng saved')
+    logging.info('third order sheng saved')
 
 
 def create_control_file_string(phonons, is_espresso=False):

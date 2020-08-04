@@ -49,6 +49,12 @@ class HarmonicWithQ(Observable):
 
 
     @lazy_property(label='<q_point>')
+    def _dynmat(self):
+        _dynmat = self.calculate_dynmat()
+        return _dynmat
+
+
+    @lazy_property(label='<q_point>')
     def _eigensystem(self):
         _eigensystem = self.calculate_eigensystem()
         return _eigensystem
@@ -75,7 +81,7 @@ class HarmonicWithQ(Observable):
         list_of_replicas = self.list_of_replicas
         replicated_cell = self.replicated_atoms.cell
         replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
-        dynmat = self.calculate_dynmat()
+        dynmat = self._dynmat
         positions = self.atoms.positions
         n_unit_cell = atoms.positions.shape[0]
         n_modes = n_unit_cell * 3
@@ -101,13 +107,14 @@ class HarmonicWithQ(Observable):
             distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
 
-            distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
-                self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[
-                np.newaxis, :, :, :])
-
             list_of_replicas = self.list_of_replicas
 
             if distance_threshold is not None:
+
+                distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
+                    self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[
+                    np.newaxis, :, :, :])
+
                 shape = (n_unit_cell, 3, n_unit_cell, 3, 3)
                 type = np.complex
                 log_size(shape, type, name='dynmat_derivatives')
@@ -197,7 +204,7 @@ class HarmonicWithQ(Observable):
         replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
 
         qvec = q_point
-        dynmat = self.calculate_dynmat()
+        dynmat = self._dynmat
         is_at_gamma = (qvec == (0, 0, 0)).all()
 
         list_of_replicas = self.list_of_replicas

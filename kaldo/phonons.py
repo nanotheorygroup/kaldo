@@ -226,7 +226,7 @@ class Phonons:
             storage = self.storage
         else:
             storage = 'memory'
-        velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, self.n_modes), dtype=np.complex)
+        velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point,self.forceconstants.second_order,
