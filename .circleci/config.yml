@@ -17,9 +17,12 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "atzoum/pandoc"
+      - image: "pandoc/latex:latest"
     steps:
       - checkout
+      - run:
+          name: Add apk needed
+          command: apk add py3-setuptools
       - run:
           name: Install project dependencies
           command: pip install -r requirements.txt
