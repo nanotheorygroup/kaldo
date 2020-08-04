@@ -17,15 +17,15 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "skyzyx/alpine-pandoc:1.2.0"
+      - image: "atzoum/pandoc"
     steps:
       - checkout
       - run:
           name: Install project dependencies
-          command: pip3 install -r requirements.txt
+          command: pip install -r requirements.txt
       - run:
           name: Install docs dependencies
-          command: pip3 install -r docs/doc_requirements.txt
+          command: pip install -r docs/doc_requirements.txt
       - run:
           name: Build docs
           command: cd docs/ && make html
