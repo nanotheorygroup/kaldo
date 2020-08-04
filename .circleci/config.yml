@@ -58,7 +58,7 @@ workflows:
       - docs-build
       - docs-deploy:
           requires:
-            - test
+            - build-and-test
             - docs-build
           filters:
             branches:
