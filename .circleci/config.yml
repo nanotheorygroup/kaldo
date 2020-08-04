@@ -17,12 +17,10 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "pandoc/latex:latest"
+      - image: "pandoc/core:latest"
     steps:
       - checkout
-      - run:
-          name: Install dependencies
-          command: pip install -r requirements.txt
+      - python/install-deps
       - run:
           name: Install docs dependencies
           command: pip install -r docs/doc_requirements.txt
