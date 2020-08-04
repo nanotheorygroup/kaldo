@@ -27,6 +27,9 @@ jobs:
           name: Add pandoc
           command: conda install -c conda-forge pandoc
       - run:
+          name: Add make
+          command: conda install make
+      - run:
           name: Add psutil
           command: conda install psutil>=5.7.2
       - run:
