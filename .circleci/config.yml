@@ -17,7 +17,7 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "skyzyx/alpine-pandoc:1.2.0"
+      - image: "dalibo/pandocker:latest-alpine"
     steps:
       - checkout
       - python/install-deps
