@@ -25,7 +25,7 @@ jobs:
           command: pip install -r requirements.txt
       - run:
           name: Install docs dependencies
-          command: pip install -r doc_requirements.txt
+          command: pip install -r docs/doc_requirements.txt
       - run:
           name: Build docs
           command: cd docs/ && make html
