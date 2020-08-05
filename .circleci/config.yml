@@ -38,6 +38,9 @@ jobs:
       - run:
           name: Build docs
           command: cd docs/ && make html
+      - run:
+          name: Create .jekyll
+          command: cd _build/ & touch .jekyll
       - persist_to_workspace:
           root: docs/_build
           paths: html
