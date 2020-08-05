@@ -40,7 +40,7 @@ jobs:
           command: cd docs/ && make html
       - run:
           name: Create .jekyll
-          command: cd docs/_build/ && touch .jekyll
+          command: cd docs/_build/ && touch .nojekyll
       - persist_to_workspace:
           root: docs/_build
           paths: html
