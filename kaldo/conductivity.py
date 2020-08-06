@@ -411,9 +411,7 @@ class Conductivity:
             sij = self.flux_sparse
             diffusivity = calculate_diffusivity_sparse(phonons, sij, diffusivity_bandwidth, self.diffusivity_threshold, curve,
                                                        is_diffusivity_including_antiresonant)
-            heat_capacity_2d = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-            for index_k in range(phonons.n_k_points):
-                heat_capacity_2d[index_k] = phonons.heat_capacity_2d[index_k]
+            heat_capacity_2d = phonons.heat_capacity_2d
             conductivity_per_mode = contract('knm,knmab->knab', heat_capacity_2d, diffusivity)
             conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
             conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)

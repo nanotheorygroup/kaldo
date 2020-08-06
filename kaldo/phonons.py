@@ -265,6 +265,31 @@ class Phonons:
 
 
     @lazy_property(label='<temperature>/<statistics>')
+    def heat_capacity_2d(self):
+        """Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
+        If classical, it returns the Boltzmann constant in W/m/K.
+
+        Returns
+        -------
+        heat_capacity_2d : np.array(n_k_points, n_modes, n_modes)
+            heat capacity in W/m/K for each k point and each modes couple.
+        """
+        q_points = self._main_q_mesh
+        heat_capacity_2d = np.zeros((self.n_k_points, self.n_modes, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQTemp(q_point=q_point,
+                                       second=self.forceconstants.second_order,
+                                       distance_threshold=self.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage,
+                                       temperature=self.temperature,
+                                       is_classic=self.is_classic)
+            heat_capacity_2d[ik] = phonon.heat_capacity_2d
+        return heat_capacity_2d
+
+
+    @lazy_property(label='<temperature>/<statistics>')
     def population(self):
         """Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
