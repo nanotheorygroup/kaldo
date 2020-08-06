@@ -22,7 +22,7 @@ def get_logger():
     return logger
 
 
-def log_size(shape, type=np.float, memory_threshold_in_mb=10, name=None):
+def log_size(shape, type=np.float, name=None, memory_threshold_in_mb=10):
     shape = np.array(shape)
     label_size =  str(int(psutil.virtual_memory().available/1e6)) + ' / '
     label_size +=  str(int(psutil.virtual_memory().total/1e6)) + ' MB'

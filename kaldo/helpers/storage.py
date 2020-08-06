@@ -10,6 +10,7 @@ import h5py
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
 
+# TODO: move this into single observables
 DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          'frequency': 'formatted',
                          'velocity': 'formatted',
@@ -28,11 +29,13 @@ DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          '_ps_gamma_and_gamma_tensor': 'numpy',
                          '_generalized_diffusivity': 'numpy'}
 
+
 def parse_pair(txt):
     return complex(txt.strip("()"))
 
 
 def load(property, folder, instance, format='formatted'):
+    # TODO: move this into single observables
     name = folder + '/' + property
     if format == 'numpy':
         loaded = np.load(name + '.npy', allow_pickle=True)
@@ -40,7 +43,7 @@ def load(property, folder, instance, format='formatted'):
     elif format == 'hdf5':
         with h5py.File(name.split('/')[0] + '.hdf5', 'r') as storage:
             loaded = storage[name]
-            return loaded.value
+            return loaded[()]
     elif format == 'formatted':
         if property == 'physical_mode':
             loaded = np.loadtxt(name + '.dat', skiprows=1)
@@ -94,6 +97,7 @@ def load(property, folder, instance, format='formatted'):
 
 
 def save(property, folder, loaded_attr, format='formatted'):
+    # TODO: move this into single observables
     name = folder + '/' + property
     if format == 'numpy':
         if not os.path.exists(folder):
@@ -147,6 +151,7 @@ def save(property, folder, loaded_attr, format='formatted'):
 
 
 def get_folder_from_label(instance, label='', base_folder=None):
+    # TODO: move this into single observables
     if base_folder is None:
         if instance.folder:
             base_folder = instance.folder
@@ -194,43 +199,40 @@ def get_folder_from_label(instance, label='', base_folder=None):
                     if '<finite_length_method>' in label:
                         if instance.finite_length_method is not None:
                             base_folder += '/fs' + str(instance.finite_length_method)
-
-
-
-    # logging.info('Folder: ' + str(base_folder))
     return base_folder
 
 
 def lazy_property(label=''):
     def _lazy_property(fn):
-        attr = LAZY_PREFIX + fn.__name__
         logging.info('Using ' + fn.__name__)
         @property
         def __lazy_property(self):
-            if not hasattr(self, attr):
-                try:
-                    if self.storage == 'formatted':
-                        format = DEFAULT_STORE_FORMATS[fn.__name__]
-                    else:
-                        format = self.storage
-                except KeyError:
-                    format = 'memory'
-                if (format != 'memory'):
-                    folder = get_folder_from_label(self, label)
-                    property = fn.__name__
-                    try:
-                        loaded_attr = load(property, folder, self, format=format)
-                    except (FileNotFoundError, OSError, KeyError):
-                        logging.info(folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(fn.__name__))
-                        loaded_attr = fn(self)
-                        save(property, folder, loaded_attr, format=format)
-                    else:
-                        logging.info('Loading ' + folder + '/' + str(property))
+            try:
+                if self.storage == 'formatted':
+                    format = DEFAULT_STORE_FORMATS[fn.__name__]
                 else:
-
+                    format = self.storage
+            except KeyError:
+                format = 'memory'
+            if (format != 'memory'):
+                folder = get_folder_from_label(self, label)
+                property = fn.__name__
+                try:
+                    loaded_attr = load(property, folder, self, format=format)
+                except (FileNotFoundError, OSError, KeyError):
+                    logging.info(folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(fn.__name__))
                     loaded_attr = fn(self)
-                setattr(self, attr, loaded_attr)
-            return getattr(self, attr)
+                    save(property, folder, loaded_attr, format=format)
+                else:
+                    logging.info('Loading ' + folder + '/' + str(property))
+            else:
+                attr = LAZY_PREFIX + fn.__name__
+                if not hasattr(self, attr):
+                    loaded_attr = fn(self)
+                    setattr(self, attr, loaded_attr)
+                else:
+                    loaded_attr = getattr(self, attr)
+            return loaded_attr
         __lazy_property.__doc__ = fn.__doc__
         return __lazy_property
     return _lazy_property

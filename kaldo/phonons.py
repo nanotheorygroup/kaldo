@@ -9,15 +9,16 @@ from kaldo.observables.physical_mode import PhysicalMode
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 import kaldo.controllers.anharmonic as aha
 import numpy as np
 import ase.units as units
+from memory_profiler import profile
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
 KELVINTOJOULE = units.kB / units.J
-MIN_N_MODES_TO_STORE = 1000
 
 
 
@@ -110,8 +111,23 @@ class Phonons:
         physical_mode : np array
             (n_k_points, n_modes) bool
         """
-        physical_mode = PhysicalMode(self.frequency, self.min_frequency, self.max_frequency).calculate()
-        return physical_mode.reshape(self.n_k_points, self.n_modes)
+        q_points = self._main_q_mesh
+        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=np.bool)
+
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second_order,
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage)
+
+            physical_mode[ik] = phonon.physical_mode
+        if self.min_frequency is not None:
+            physical_mode[self.frequency < self.min_frequency] = False
+        if self.max_frequency is not None:
+            physical_mode[self.frequency > self.max_frequency] = False
+        return physical_mode
 
 
     @lazy_property(label='')
@@ -124,16 +140,13 @@ class Phonons:
         """
         q_points = self._main_q_mesh
         frequency = np.zeros((self.n_k_points, self.n_modes))
-        if self.n_modes > MIN_N_MODES_TO_STORE:
-            storage = self.storage
-        else:
-            storage = 'memory'
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=storage)
+                                   storage=self.storage)
 
             frequency[ik] = phonon.frequency
 
@@ -151,18 +164,14 @@ class Phonons:
         """
 
         q_points = self._main_q_mesh
-
-        if self.n_modes > MIN_N_MODES_TO_STORE:
-            storage = self.storage
-        else:
-            storage = 'memory'
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=storage)
+                                   storage=self.storage)
             velocity[ik] = phonon.velocity
         return velocity
 
@@ -170,18 +179,14 @@ class Phonons:
     @lazy_property(label='')
     def _dynmat_derivatives(self):
         q_points = self._main_q_mesh
-
-        if self.n_modes > MIN_N_MODES_TO_STORE:
-            storage = self.storage
-        else:
-            storage = 'memory'
         dynmat_derivatives = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=storage)
+                                   storage=self.storage)
             dynmat_derivatives[ik] = phonon._dynmat_derivatives
         return dynmat_derivatives
 
@@ -201,17 +206,13 @@ class Phonons:
         q_points = self._main_q_mesh
 
         eigensystem = np.zeros((self.n_k_points, self.n_modes + 1, self.n_modes), dtype=np.complex)
-
-        if self.n_modes > MIN_N_MODES_TO_STORE:
-            storage = self.storage
-        else:
-            storage = 'memory'
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point, self.forceconstants.second_order,
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=storage)
+                                   storage=self.storage)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -221,21 +222,15 @@ class Phonons:
     @property
     def _velocity_af(self):
         q_points = self._main_q_mesh
-
-        if self.n_modes > MIN_N_MODES_TO_STORE:
-            storage = self.storage
-        else:
-            storage = 'memory'
         velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point,self.forceconstants.second_order,
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second_order,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=storage)
-
+                                   storage=self.storage)
             velocity_AF[ik] = phonon._velocity_af
-
         return velocity_AF
 
 
@@ -255,7 +250,18 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        c_v = self._calculate_heat_capacity().reshape(self.n_k_points, self.n_modes)
+        q_points = self._main_q_mesh
+        c_v = np.zeros((self.n_k_points, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQTemp(q_point=q_point,
+                                       second=self.forceconstants.second_order,
+                                       distance_threshold=self.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage,
+                                       temperature=self.temperature,
+                                       is_classic=self.is_classic)
+            c_v[ik] = phonon.heat_capacity
         return c_v
 
 
@@ -270,7 +276,18 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        population =  self._calculate_population()
+        q_points = self._main_q_mesh
+        population = np.zeros((self.n_k_points, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQTemp(q_point=q_point,
+                                       second=self.forceconstants.second_order,
+                                       distance_threshold=self.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage,
+                                       temperature=self.temperature,
+                                       is_classic=self.is_classic)
+            population[ik] = phonon.population
         return population
 
 
@@ -399,29 +416,3 @@ class Phonons:
             ps_and_gamma = aha.project_crystal(self)
         return ps_and_gamma
 
-
-    def _calculate_population(self):
-        frequency = self.frequency.reshape((self.n_k_points, self.n_modes))
-        temp = self.temperature * KELVINTOTHZ
-        density = np.zeros((self.n_k_points, self.n_modes))
-        physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
-        if self.is_classic is False:
-            density[physical_mode] = 1. / (np.exp(frequency[physical_mode] / temp) - 1.)
-        else:
-            density[physical_mode] = temp / frequency[physical_mode]
-        return density
-
-
-    def _calculate_heat_capacity(self):
-        frequency = self.frequency
-        c_v = np.zeros_like(frequency)
-        physical_mode = self.physical_mode
-        temperature = self.temperature * KELVINTOTHZ
-        if (self.is_classic):
-            c_v[physical_mode] = KELVINTOJOULE
-        else:
-            f_be = self.population
-            c_v[physical_mode] = KELVINTOJOULE * f_be[physical_mode] * (f_be[physical_mode] + 1) * self.frequency[
-                physical_mode] ** 2 / \
-                                 (temperature ** 2)
-        return c_v

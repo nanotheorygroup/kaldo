@@ -10,6 +10,7 @@ import numpy as np
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
@@ -35,7 +36,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
 def calculate_diffusivity_dense(omega, flux, diffusivity_bandwidth, physical_mode, alpha, beta, curve, is_diffusivity_including_antiresonant=False):
     # TODO: cache this
     sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
-
+    physical_mode = physical_mode.astype(np.bool)
     delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
     kernel = curve(delta_energy, sigma)
     if is_diffusivity_including_antiresonant:
@@ -284,11 +285,11 @@ class Conductivity:
         sij = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=type)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point,
-                                   self.phonons.forceconstants.second_order,
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.phonons.forceconstants.second_order,
                                    distance_threshold=self.phonons.forceconstants.distance_threshold,
                                    storage=self.phonons.storage)
-            sij[ik] = phonon.calculate_sij()
+            sij[ik] = phonon._sij
 
         return sij
 
@@ -307,22 +308,15 @@ class Conductivity:
 
     @property
     def _scattering_matrix_without_diagonal(self):
-        frequency = self._keep_only_physical(self.phonons.frequency.reshape((self.n_phonons)))
-        _ps_gamma_and_gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor
-        gamma_tensor = self._keep_only_physical(_ps_gamma_and_gamma_tensor[:, 2:])
-        scattering_matrix_without_diagonal = 1 / frequency.reshape(-1, 1) * gamma_tensor * frequency.reshape(1, -1)
-        return scattering_matrix_without_diagonal
-
-
-    def _keep_only_physical(self, operator):
-        physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
-        if operator.shape == (self.n_phonons, self.n_phonons):
-            index = np.outer(physical_mode, physical_mode)
-            return operator[index].reshape((physical_mode.sum(), physical_mode.sum()))
-        elif operator.shape == (self.n_phonons, 3):
-            return operator[physical_mode, :]
-        else:
-            return operator[physical_mode]
+        physical_mode = self.phonons.physical_mode.reshape((self.n_phonons))
+        frequency = self.phonons.frequency.reshape((self.n_phonons))[physical_mode]
+        gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor[:, 2:]
+        index = np.outer(physical_mode, physical_mode)
+        n_physical = physical_mode.sum()
+        log_size((n_physical, n_physical), np.float, name='_scattering_matrix_without_diagonal')
+        gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
+        gamma_tensor = 1 / frequency.reshape(-1, 1) * gamma_tensor * frequency.reshape(1, -1)
+        return gamma_tensor
 
 
     def calculate_sij_sparse(self):
@@ -345,51 +339,6 @@ class Conductivity:
                 COO(coords.T, self.flux_dense[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
                     shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
         return s_ij
-
-
-    def calculate_2d_heat_capacity(self, k_index):
-        """Calculates the factor for the diffusivity which resembles the heat capacity.
-        The array is returned in units of J/K.
-        classical case: k_b
-        quantum case: c_nm=hbar w_n w_m/T  * (n_n-n_m)/(w_m-w_n)
-
-        Returns
-        -------
-        c_v : np.array
-            (phonons.n_k_points,phonons.modes, phonons.n_modes) float
-        """
-        phonons = self.phonons
-        if (phonons.is_classic):
-            c_v = np.zeros((phonons.n_modes, phonons.n_modes))
-            c_v[:, :] = KELVINTOJOULE
-        else:
-            frequencies = phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes))
-            temperature = phonons.temperature * KELVINTOTHZ
-            heat_capacity = phonons.heat_capacity.reshape((phonons.n_k_points, phonons.n_modes))
-            physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-            f_be = phonons.population.reshape((phonons.n_k_points, phonons.n_modes))
-            c_v_omega = (f_be[k_index, :, np.newaxis] - f_be[k_index, np.newaxis, :])
-            diff_omega = (frequencies[k_index, :, np.newaxis] - frequencies[k_index, np.newaxis, :])
-            mask_degeneracy = np.where(diff_omega == 0, True, False)
-
-            # value to do the division
-            diff_omega[mask_degeneracy] = 1
-            divide_omega = -1 / diff_omega
-            freq_sq = frequencies[k_index, :, np.newaxis] * frequencies[k_index, np.newaxis, :]
-
-            # remember here f_n-f_m/ w_m-w_n index reversed
-            c_v = freq_sq * c_v_omega * divide_omega
-            c_v = KELVINTOJOULE * c_v / temperature
-
-            #Degeneracy part: let us substitute the wrong elements
-            heat_capacity_deg_2d = (heat_capacity[k_index, :, np.newaxis]
-                                    + heat_capacity[k_index, np.newaxis, :]) / 2
-            c_v = np.where(mask_degeneracy, heat_capacity_deg_2d, c_v)
-
-            #Physical modes
-            mask = physical_mode[k_index, :, np.newaxis] * physical_mode[k_index, np.newaxis, :]
-            c_v = c_v * mask
-        return c_v
 
 
     def calculate_conductivity_qhgk(self):
@@ -432,23 +381,27 @@ class Conductivity:
             logging.info('Start calculation diffusivity dense')
 
             for k_index in range(len(q_points)):
-                heat_capacity = self.calculate_2d_heat_capacity(k_index)
 
-                phonon = HarmonicWithQ(q_points[k_index],
-                                       self.phonons.forceconstants.second_order,
-                                       distance_threshold=self.phonons.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage)
-                sij = phonon.calculate_sij()
+                phonon = HarmonicWithQTemp(q_point=q_points[k_index],
+                                           second=self.phonons.forceconstants.second_order,
+                                           distance_threshold=self.phonons.forceconstants.distance_threshold,
+                                           folder=self.folder,
+                                           storage=self.storage,
+                                           temperature=self.temperature,
+                                           is_classic=self.is_classic)
+                heat_capacity_2d = phonon.heat_capacity_2d
+
+                sij = phonon._sij
 
                 if phonons.n_modes > 100:
-                    logging.info('calculating conductivity for ' + str(q_points[k_index]))
+                    logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
                 for alpha in range(3):
                     for beta in range(3):
                         diffusivity = calculate_diffusivity_dense(omega[k_index], sij,
                                                                   diffusivity_bandwidth[k_index],
-                                                                  physical_mode[k_index], alpha, beta, curve, is_diffusivity_including_antiresonant)
-                        conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity *
+                                                                  physical_mode[k_index], alpha, beta, curve,
+                                                                  is_diffusivity_including_antiresonant)
+                        conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity_2d *
                                                                                 diffusivity, axis=-1) \
                                                                          / (volume * phonons.n_k_points)
                         diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
@@ -458,10 +411,10 @@ class Conductivity:
             sij = self.flux_sparse
             diffusivity = calculate_diffusivity_sparse(phonons, sij, diffusivity_bandwidth, self.diffusivity_threshold, curve,
                                                        is_diffusivity_including_antiresonant)
-            heat_capacity = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
+            heat_capacity_2d = np.zeros((phonons.n_k_points, phonons.n_modes, phonons.n_modes))
             for index_k in range(phonons.n_k_points):
-                heat_capacity[index_k] = self.calculate_2d_heat_capacity(index_k)
-            conductivity_per_mode = contract('knm,knmab->knab', heat_capacity, diffusivity)
+                heat_capacity_2d[index_k] = phonons.heat_capacity_2d[index_k]
+            conductivity_per_mode = contract('knm,knmab->knab', heat_capacity_2d, diffusivity)
             conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
             conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
             diffusivity_with_axis = contract('knmab->knab', diffusivity)
@@ -528,9 +481,12 @@ class Conductivity:
             (n_k_points, n_modes, 3)
         """
         phonons = self.phonons
-        velocity = self._keep_only_physical(phonons.velocity.real.reshape((phonons.n_phonons, 3)))
+        physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
+        velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))[physical_mode, :]
         scattering_matrix = -1 * self._scattering_matrix_without_diagonal
-        gamma = self._keep_only_physical(self.phonons.bandwidth.reshape((self.n_phonons)))
+        physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
+        gamma = self.phonons.bandwidth.reshape((self.n_phonons))[physical_mode]
+
         _scattering_matrix = scattering_matrix + np.diag(gamma)
         evals, evects = np.linalg.eig(_scattering_matrix)
 
