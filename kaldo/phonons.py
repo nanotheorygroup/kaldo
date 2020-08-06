@@ -13,7 +13,6 @@ from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 import kaldo.controllers.anharmonic as aha
 import numpy as np
 import ase.units as units
-from memory_profiler import profile
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
