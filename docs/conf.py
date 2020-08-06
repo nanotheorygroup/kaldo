@@ -50,8 +50,11 @@ extensions = [
     'sphinx.ext.extlinks',
     'recommonmark',
     'nbsphinx',
-    'numpydoc'
-]
+    'numpydoc',
+    'sphinx.ext.todo',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.ifconfig']
+
 
 # We do it like this to support multiple sphinx version without having warning.
 # Our buildbot consider warning as error.
