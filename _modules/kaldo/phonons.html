@@ -392,6 +392,7 @@
 <span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">DEFAULT_STORE_FORMATS</span><span class="p">,</span> <span class="n">FOLDER_NAME</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">Grid</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="kn">import</span> <span class="n">HarmonicWithQTemp</span>
 <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
@@ -400,7 +401,6 @@
 
 <span class="n">KELVINTOTHZ</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-12</span>
 <span class="n">KELVINTOJOULE</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span>
-<span class="n">MIN_N_MODES_TO_STORE</span> <span class="o">=</span> <span class="mi">1000</span>
 
 
 
@@ -493,8 +493,23 @@
 <span class="sd">        physical_mode : np array</span>
 <span class="sd">            (n_k_points, n_modes) bool</span>
 <span class="sd">        """</span>
-        <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">PhysicalMode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span><span class="p">)</span><span class="o">.</span><span class="n">calculate</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
+
+            <span class="n">physical_mode</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">physical_mode</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">physical_mode</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">physical_mode</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">physical_mode</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
@@ -507,16 +522,13 @@
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="n">MIN_N_MODES_TO_STORE</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="s1">'memory'</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
                                    <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="n">storage</span><span class="p">)</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
 
             <span class="n">frequency</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">frequency</span>
 
@@ -534,18 +546,14 @@
 <span class="sd">        """</span>
 
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="n">MIN_N_MODES_TO_STORE</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="s1">'memory'</span>
         <span class="n">velocity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
                                    <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="n">storage</span><span class="p">)</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
             <span class="n">velocity</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">velocity</span>
         <span class="k">return</span> <span class="n">velocity</span>
 
@@ -553,18 +561,14 @@
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_dynmat_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="n">MIN_N_MODES_TO_STORE</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="s1">'memory'</span>
         <span class="n">dynmat_derivatives</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
                                    <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="n">storage</span><span class="p">)</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
             <span class="n">dynmat_derivatives</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_dynmat_derivatives</span>
         <span class="k">return</span> <span class="n">dynmat_derivatives</span>
 
@@ -584,17 +588,13 @@
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
 
         <span class="n">eigensystem</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="n">MIN_N_MODES_TO_STORE</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="s1">'memory'</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
                                    <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="n">storage</span><span class="p">)</span>
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
 
             <span class="n">eigensystem</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_eigensystem</span>
 
@@ -604,21 +604,15 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_velocity_af</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="n">MIN_N_MODES_TO_STORE</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">storage</span> <span class="o">=</span> <span class="s1">'memory'</span>
         <span class="n">velocity_AF</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
                                    <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="n">storage</span><span class="p">)</span>
-
+                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">)</span>
             <span class="n">velocity_AF</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_velocity_af</span>
-
         <span class="k">return</span> <span class="n">velocity_AF</span>
 
 
@@ -638,8 +632,44 @@
 <span class="sd">        c_v : np.array(n_k_points, n_modes)</span>
 <span class="sd">            heat capacity in W/m/K for each k point and each mode</span>
 <span class="sd">        """</span>
-        <span class="n">c_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_heat_capacity</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">c_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                       <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                                       <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                                       <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">)</span>
+            <span class="n">c_v</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity</span>
         <span class="k">return</span> <span class="n">c_v</span>
+
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">heat_capacity_2d</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</span>
+<span class="sd">        If classical, it returns the Boltzmann constant in W/m/K.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        heat_capacity_2d : np.array(n_k_points, n_modes, n_modes)</span>
+<span class="sd">            heat capacity in W/m/K for each k point and each modes couple.</span>
+<span class="sd">        """</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">heat_capacity_2d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                       <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                                       <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                                       <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">)</span>
+            <span class="n">heat_capacity_2d</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
+        <span class="k">return</span> <span class="n">heat_capacity_2d</span>
 
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
@@ -653,7 +683,18 @@
 <span class="sd">        population : np.array(n_k_points, n_modes)</span>
 <span class="sd">            population for each k point and each mode</span>
 <span class="sd">        """</span>
-        <span class="n">population</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_population</span><span class="p">()</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_q_mesh</span>
+        <span class="n">population</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
+            <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                                       <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second_order</span><span class="p">,</span>
+                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                                       <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                                       <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">)</span>
+            <span class="n">population</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">population</span>
         <span class="k">return</span> <span class="n">population</span>
 
 
@@ -780,34 +821,8 @@
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">project_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">project_crystal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">ps_and_gamma</span>
+        <span class="k">return</span> <span class="n">ps_and_gamma</span></div>
 
-
-    <span class="k">def</span> <span class="nf">_calculate_population</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
-        <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">KELVINTOTHZ</span>
-        <span class="n">density</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
-        <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-            <span class="n">density</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">/</span> <span class="n">temp</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">density</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span> <span class="o">/</span> <span class="n">frequency</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">density</span>
-
-
-    <span class="k">def</span> <span class="nf">_calculate_heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span>
-        <span class="n">c_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
-        <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span>
-        <span class="n">temperature</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">KELVINTOTHZ</span>
-        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">):</span>
-            <span class="n">c_v</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">KELVINTOJOULE</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">f_be</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">population</span>
-            <span class="n">c_v</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">KELVINTOJOULE</span> <span class="o">*</span> <span class="n">f_be</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">f_be</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">[</span>
-                <span class="n">physical_mode</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> \
-                                 <span class="p">(</span><span class="n">temperature</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">c_v</span></div>
 </pre></div>
 
           </article>

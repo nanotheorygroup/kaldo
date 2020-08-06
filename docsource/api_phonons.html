@@ -470,6 +470,8 @@ Default ‘C’</p></li>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
 </dd>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="kaldo.phonons.Phonons.heat_capacity_2d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity_2d</span></code></a></dt><dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</p>
+</dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_space</span></code></a></dt><dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
@@ -546,6 +548,20 @@ Bose-Einstein weighted by each phonons energy.
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt id="kaldo.phonons.Phonons.heat_capacity_2d">
+<em class="property">property </em><code class="sig-name descname">heat_capacity_2d</code><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
+If classical, it returns the Boltzmann constant in W/m/K.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>heat_capacity_2d</strong> – heat capacity in W/m/K for each k point and each modes couple.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>np.array(n_k_points, n_modes, n_modes)</p>
 </dd>
 </dl>
 </dd></dl>

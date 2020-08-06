@@ -478,16 +478,13 @@ Default is <span class="math">formatted</span></p></li>
 <col style="width: 90%"/>
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_2d_heat_capacity" title="kaldo.conductivity.Conductivity.calculate_2d_heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_2d_heat_capacity</span></code></a>(k_index)</p></td>
-<td><p>Calculates the factor for the diffusivity which resembles the heat capacity.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
 <td><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_evect" title="kaldo.conductivity.Conductivity.calculate_mfp_evect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_evect</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_evect" title="kaldo.conductivity.Conductivity.calculate_mfp_evect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_evect</span></code></a>()</p></td>
 <td><p>This calculates the mean free path of evect.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
 <td><p>This method calculates the inverse of the mean free path for each phonon.</p></td>
 </tr>
 </tbody>
@@ -503,22 +500,6 @@ Default is <span class="math">formatted</span></p></li>
 </tr>
 </tbody>
 </table>
-<dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.calculate_2d_heat_capacity">
-<code class="sig-name descname">calculate_2d_heat_capacity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">k_index</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_2d_heat_capacity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_2d_heat_capacity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the factor for the diffusivity which resembles the heat capacity.
-The array is returned in units of J/K.
-classical case: k_b
-quantum case: c_nm=hbar w_n w_m/T  * (n_n-n_m)/(w_m-w_n)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>c_v</strong> – (phonons.n_k_points,phonons.modes, phonons.n_modes) float</p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
 <dl class="py method">
 <dt id="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">
 <code class="sig-name descname">calculate_conductivity_qhgk</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_qhgk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="Permalink to this definition">¶</a></dt>
