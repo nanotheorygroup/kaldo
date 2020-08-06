@@ -35,6 +35,7 @@ def project_amorphous(phonons):
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
     logging.info('Projection started')
+    frequency = phonons.frequency
     for nu_single in range(phonons.n_phonons):
         physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
         sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
@@ -72,7 +73,7 @@ def project_amorphous(phonons):
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
         logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / \
                                                                                  phonons.n_phonons, 2) * 100) + '%')
-        logging.info(str(phonons.frequency.reshape(phonons.n_phonons)[nu_single]) + ': ' + \
+        logging.info(str(frequency.reshape(phonons.n_phonons)[nu_single]) + ': ' + \
                      str(ps_and_gamma[nu_single, 1] * THZTOMEV / (2 * np.pi)))
 
     return ps_and_gamma
@@ -111,6 +112,12 @@ def project_crystal(phonons):
     second_minus = tf.math.conj(evect_tf)
     second_minus_chi = tf.math.conj(_chi_k)
     logging.info('Projection started')
+    population = phonons.population
+    broadening_shape = phonons.broadening_shape
+    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+    omega = phonons.omega
+    if not phonons.third_bandwidth:
+        velocity_tf = tf.convert_to_tensor(phonons.velocity)
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
             logging.info('calculating third ' + str(nu_single) +  ', ' + \
@@ -127,22 +134,22 @@ def project_crystal(phonons):
             dtype=tf.complex64)
         third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
         third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
-
         for is_plus in (0, 1):
             index_kpp_full = phonons._allowed_third_phonons_index(index_k, is_plus)
             index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
-            physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
 
             if phonons.third_bandwidth:
                 sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
             else:
-                sigma_tf = calculate_broadening(phonons, index_kpp_full)
+                cellinv = phonons.forceconstants.cell_inv
+                k_size = phonons.kpts
+                sigma_tf = calculate_broadening(velocity_tf, cellinv, k_size, index_kpp_full)
 
-            out = calculate_dirac_delta_crystal(phonons.omega,
-                                                phonons.population,
+            out = calculate_dirac_delta_crystal(omega,
+                                                population,
                                                 physical_mode,
                                                 sigma_tf,
-                                                phonons.broadening_shape,
+                                                broadening_shape,
                                                 index_kpp_full,
                                                 index_k,
                                                 mu,
@@ -177,7 +184,7 @@ def project_crystal(phonons):
             nup_vec = index_kp_vec * phonons.n_modes + mup_vec
             nupp_vec = index_kpp_vec * phonons.n_modes + mupp_vec
             pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64)
-            pot_times_dirac = pot_times_dirac / tf.gather(phonons.omega.flatten(), nup_vec) / tf.gather(phonons.omega.flatten(), nupp_vec)
+            pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
 
             if is_gamma_tensor_enabled:
                 # We need to use bincount together with fancy indexing here. See:
@@ -196,7 +203,7 @@ def project_crystal(phonons):
                 ps_and_gamma[nu_single, 2:] += result
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta) / phonons.n_k_points
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(pot_times_dirac)
-        ps_and_gamma[nu_single, 1:] /= phonons.omega.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] /= omega.flatten()[nu_single]
         ps_and_gamma[nu_single, 1:] *= np.pi * units._hbar / 4 / n_k_points * GAMMATOTHZ
     return ps_and_gamma
 
@@ -298,10 +305,7 @@ def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, 
         return None
 
 
-def calculate_broadening(phonons, index_kpp_vec):
-    cellinv = phonons.forceconstants.cell_inv
-    k_size = phonons.kpts
-    velocity_tf = tf.convert_to_tensor(phonons.velocity)
+def calculate_broadening(velocity_tf, cellinv, k_size, index_kpp_vec):
     velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:,tf.newaxis, :, :]
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
     delta_k = cellinv / k_size

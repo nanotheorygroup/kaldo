@@ -12,10 +12,14 @@ import tensorflow as tf
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
+MIN_N_MODES_TO_STORE = 1000
+EVTOTENJOVERMOL = units.mol / (10 * units.J)
+
+
 class HarmonicWithQ(Observable):
 
     def __init__(self, q_point, second,
-                 distance_threshold=None, storage='numpy', *kargs, **kwargs):
+                 distance_threshold=None, storage='numpy', is_nw=False, *kargs, **kwargs):
 
         super().__init__(*kargs, **kwargs)
         self.q_point = q_point
@@ -27,7 +31,17 @@ class HarmonicWithQ(Observable):
         self.list_of_replicas = second.list_of_replicas
         self.second = second.value
         self.distance_threshold = distance_threshold
-        self.storage = storage
+        self.physical_mode= np.ones((1, self.n_modes), dtype=bool)
+        self.is_nw = is_nw
+        if (q_point == [0, 0, 0]).all():
+            if self.is_nw:
+                self.physical_mode[0, :4] = False
+            else:
+                self.physical_mode[0, :3] = False
+        if self.n_modes > MIN_N_MODES_TO_STORE:
+            self.storage = storage
+        else:
+            self.storage = 'memory'
 
 
     @lazy_property(label='<q_point>')
@@ -64,6 +78,12 @@ class HarmonicWithQ(Observable):
     def _velocity_af(self):
         _velocity_af = self.calculate_velocity_af()
         return _velocity_af
+
+
+    @lazy_property(label='<q_point>')
+    def _sij(self):
+        _sij = self.calculate_sij()
+        return _sij
 
 
     def calculate_frequency(self):
@@ -166,14 +186,13 @@ class HarmonicWithQ(Observable):
 
     def calculate_velocity_af(self):
         n_modes = self.n_modes
-        sij = self.calculate_sij()
+        sij = self._sij
         frequency = self.frequency[0]
         sij = tf.reshape(sij, (n_modes, n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
         velocity_AF = 1 / (2 * np.pi) * contract('mna,m,n->mna', sij,
                                inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
         return velocity_AF
-
 
 
     def calculate_velocity(self):
@@ -226,14 +245,13 @@ class HarmonicWithQ(Observable):
                 dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
-                dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
+                dyn_s = contract('ialjb->iajb', tf.convert_to_tensor(dynmat[0]), backend='tensorflow')
             else:
                 dyn_s = contract('ialjb,l->iajb',
                                  tf.cast(dynmat[0], tf.complex128),
                                  tf.convert_to_tensor(chi(qvec, list_of_replicas, cell_inv).flatten()),
                                  backend='tensorflow')
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
-
 
         if only_eigenvals:
             evals = np.linalg.eigvalsh(dyn_s)
@@ -253,3 +271,4 @@ class HarmonicWithQ(Observable):
         dynmat = contract('mialjb,i,j->mialjb', tf.convert_to_tensor(self.second), tf.convert_to_tensor(1 / np.sqrt(mass)), tf.convert_to_tensor(1 / np.sqrt(mass)), backend='tensorflow')
         evtotenjovermol = units.mol / (10 * units.J)
         return dynmat * evtotenjovermol
+
