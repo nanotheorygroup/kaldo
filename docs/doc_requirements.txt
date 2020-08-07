@@ -1,5 +1,5 @@
 Sphinx==3.1.1
-sphinx-material==0.0.30+1.gfadb297
+sphinx_material==0.0.30
 sphinx-sitemap==0.3.1
 sphinxcontrib-jsmath==1.0.1
 recommonmark==0.6.0
