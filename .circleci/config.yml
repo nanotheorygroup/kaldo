@@ -15,7 +15,7 @@ jobs:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
       - codecov/upload:
-          file: coverage/coverage-final.json
+          file: .coverage
   docs-build:
     docker:
       - image: "jgoldfar/miniconda3-latex:full"
@@ -43,7 +43,7 @@ jobs:
           name: Build docs
           command: cd docs/ && make html
       - run:
-          name: Create .jekyll
+          name: Create .nojekyll
           command: cd docs/_build/html && touch .nojekyll
       - persist_to_workspace:
           root: docs/_build
@@ -75,6 +75,7 @@ workflows:
       - docs-deploy:
           requires:
             - docs-build
+            - build-and-test
           filters:
             branches:
               only: master
