@@ -15,6 +15,8 @@
 # Incase the project was not installed
 import os
 import sys
+from sphinx.ext import imgmath
+
 sys.path.insert(0, os.path.abspath('..'))
 
 # import kaldo
@@ -50,14 +52,13 @@ extensions = [
     'sphinx.ext.extlinks',
     'recommonmark',
     'nbsphinx',
-    'numpydoc']
+    'numpydoc',
+    'sphinx.ext.imgmath']
 
 
 # We do it like this to support multiple sphinx version without having warning.
 # Our buildbot consider warning as error.
 
-from sphinx.ext import imgmath
-extensions.append('sphinx.ext.imgmath')
 
 autosummary_generate = True
 napoleon_google_docstring = False
