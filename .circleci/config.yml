@@ -14,8 +14,7 @@ jobs:
       - run:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
-      - codecov/upload:
-          file: {{ coverage_report_filepath }}
+      - codecov/upload
   docs-build:
     docker:
       - image: "jgoldfar/miniconda3-latex:full"
