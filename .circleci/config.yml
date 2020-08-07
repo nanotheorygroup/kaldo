@@ -17,7 +17,7 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "jgoldfar/miniconda3-latex:full-latest"
+      - image: "jgoldfar/miniconda3-latex:full"
     steps:
       - checkout
       - run:
