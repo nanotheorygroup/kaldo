@@ -14,7 +14,8 @@ jobs:
       - run:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
-      - codecov/upload
+      - codecov/upload:
+          flags: backend
   docs-build:
     docker:
       - image: "jgoldfar/miniconda3-latex:full"
