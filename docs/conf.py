@@ -51,9 +51,7 @@ extensions = [
     'recommonmark',
     'nbsphinx',
     'numpydoc',
-    'sphinx.ext.todo',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.ifconfig']
+    'sphinx.ext.imgmath']
 
 
 # We do it like this to support multiple sphinx version without having warning.
