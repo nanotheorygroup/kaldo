@@ -30,6 +30,9 @@ jobs:
           name: Add make
           command: conda install make
       - run:
+          name: Add texlive
+          command: conda install -c conda-forge texlive-core
+      - run:
           name: Add psutil
           command: conda install psutil>=5.7.2
       - run:
