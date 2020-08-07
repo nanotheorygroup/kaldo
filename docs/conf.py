@@ -50,21 +50,14 @@ extensions = [
     'sphinx.ext.extlinks',
     'recommonmark',
     'nbsphinx',
-    'numpydoc',
-    'sphinx.ext.pngmath']
+    'numpydoc']
 
 
 # We do it like this to support multiple sphinx version without having warning.
 # Our buildbot consider warning as error.
-try:
-    from sphinx.ext import imgmath
-    extensions.append('sphinx.ext.imgmath')
-except ImportError:
-    try:
-        from sphinx.ext import pngmath
-        extensions.append('sphinx.ext.pngmath')
-    except ImportError:
-        pass
+
+from sphinx.ext import imgmath
+extensions.append('sphinx.ext.imgmath')
 
 autosummary_generate = True
 napoleon_google_docstring = False
