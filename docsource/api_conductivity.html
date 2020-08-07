@@ -428,10 +428,85 @@ conductivity calculations. It takes a phonons object as a required argument.</p>
 <li><p><strong>diffusivity_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
 thermal conductivity in amorphous systems. Units: rad/ps</p></li>
 <li><p><strong>diffusivity_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</p></li>
-<li><p><strong>diffusivity_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – (QHGK) Defines the algorithm to use to calculate_second the diffusivity. Available broadenings are <span class="math">gauss</span>, <span class="math">lorentz</span> and <span class="math">triangle</span>.
-Default is <span class="math">lorentz</span>.</p></li>
+<li><p><strong>diffusivity_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – (QHGK) Defines the algorithm to use to calculate_second the diffusivity. Available broadenings are <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">gauss</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+, <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">lorentz</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+ and <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">triangle</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+.
+Default is <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">lorentz</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+.</p></li>
 <li><p><strong>is_diffusivity_including_antiresonant</strong> (<em>bool</em><em>, </em><em>optional</em>) – (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
-Default is <span class="math">False</span>.</p></li>
+Default is <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">False</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+.</p></li>
 <li><p><strong>tolerance</strong> (<em>int</em>) – (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
 and n+1 step, to set as exit/convergence condition.</p></li>
 <li><p><strong>n_iterations</strong> (<em>int</em>) – (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
@@ -440,11 +515,41 @@ calculation</p></li>
 corresponds to the infinity length limit.</p></li>
 <li><p><strong>finite_length_method</strong> (<em>'matthiessen'</em><em>, </em><em>'ms'</em><em>, </em><em>'caltech'</em>) – (Finite Size) Specifies how to calculate_second the finite size conductivity. ‘ms’ is the Mckelvey-Schockley method.</p></li>
 <li><p><strong>storage</strong> (<em>'formatted'</em><em>, </em><em>'hdf5'</em><em>, </em><em>'numpy'</em><em>, </em><em>'memory'</em><em>, </em><em>optional</em>) – Defines the type of storage used for the simulation.
-Default is <span class="math">formatted</span></p></li>
+Default is <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">formatted</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>An instance of the <span class="math">Conductivity</span> class.</p>
+<dd class="field-even"><p>An instance of the <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">Conductivity</span>)</p>
+<p>latex exited with error
+[stderr]
+
+kpathsea: Running mktexfmt latex.fmt
+Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
+BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
+
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
+ restricted \write18 enabled.
+I can't find the format file `latex.fmt'!
+</p>
+</div>
+ class.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity">Conductivity</a></p>
