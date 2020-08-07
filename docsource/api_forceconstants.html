@@ -430,42 +430,12 @@ the small unit cell in each direction.
 Defaults to (1, 1, 1)</p></li>
 <li><p><strong>third_supercell</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Same as supercell, but for the third order force constant matrix.
 If not provided, it’s copied from supercell.
-Defaults to <div class="system-message">
-<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">self.supercell</span>)</p>
-<p>latex exited with error
-[stderr]
-
-kpathsea: Running mktexfmt latex.fmt
-Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
-BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
-
-[stdout]
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
- restricted \write18 enabled.
-I can't find the format file `latex.fmt'!
-</p>
-</div>
-</p></li>
+Defaults to <img alt="self.supercell" class="math" src="../_images/math/11c0006d15164d9da615ed3ccfd97139860f7f16.png"/></p></li>
 <li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder.
 Defaults to ‘displacement’</p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the interatomic
 force is ignored.
-Defaults to <div class="system-message">
-<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
-<p>latex exited with error
-[stderr]
-
-kpathsea: Running mktexfmt latex.fmt
-Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
-BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
-
-[stdout]
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
- restricted \write18 enabled.
-I can't find the format file `latex.fmt'!
-</p>
-</div>
-</p></li>
+Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
 </ul>
 </dd>
 <dt class="field-even">Attributes</dt>
@@ -504,22 +474,7 @@ Default is (1, 1, 1)</p></li>
 Default is ‘numpy’</p></li>
 <li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When importing sparse third order force constant matrices, energies below
 the threshold value in magnitude are ignored. Units: ev/A^3
-Default is <div class="system-message">
-<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
-<p>latex exited with error
-[stderr]
-
-kpathsea: Running mktexfmt latex.fmt
-Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
-BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
-
-[stdout]
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
- restricted \write18 enabled.
-I can't find the format file `latex.fmt'!
-</p>
-</div>
-</p></li>
+Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <dl class="simple">
 <dt>When calculating force constants, contributions from atoms further than the</dt><dd><p>distance threshold will be ignored.</p>
 </dd>
@@ -548,22 +503,7 @@ cell into a matrix for a larger supercell.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
-Default is <div class="system-message">
-<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">self.third_order</span>)</p>
-<p>latex exited with error
-[stderr]
-
-kpathsea: Running mktexfmt latex.fmt
-Can't locate mktexlsr.pl in @INC (@INC contains: /opt/conda/share/tlpkg /opt/conda/share/texmf-dist/scripts/texlive /opt/conda/lib/site_perl/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/site_perl/5.26.2 /opt/conda/lib/5.26.2/x86_64-linux-thread-multi /opt/conda/lib/5.26.2 .) at /opt/conda/bin/mktexfmt line 23.
-BEGIN failed--compilation aborted at /opt/conda/bin/mktexfmt line 25.
-
-[stdout]
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=latex)
- restricted \write18 enabled.
-I can't find the format file `latex.fmt'!
-</p>
-</div>
-</p></li>
+Default is <img alt="self.third_order" class="math" src="../_images/math/e49030436abf95ad3d5c6c3b1a31ba26a7eab064.png"/></p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than
 the distance threshold will be ignored.
 Default is self.distance_threshold</p></li>
