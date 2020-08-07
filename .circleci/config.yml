@@ -17,7 +17,7 @@ jobs:
           name: Test
   docs-build:
     docker:
-      - image: "continuumio/miniconda3:4.6.14"
+      - image: "jgoldfar/miniconda3-latex:latest"
     steps:
       - checkout
       - run:
@@ -32,9 +32,6 @@ jobs:
       - run:
           name: Add tensorflow
           command: conda install tensorflow
-      - run:
-          name: Add texlive
-          command: conda install -c conda-forge texlive-core
       - run:
           name: Add psutil
           command: conda install psutil>=5.7.2
