@@ -1,8 +1,7 @@
 version: 2.1
-
 orbs:
   python: circleci/python@0.2.1
-
+  codecov: codecov/codecov@1.0.2
 jobs:
   build-and-test:
     docker:
@@ -15,6 +14,8 @@ jobs:
       - run:
           command: python -m pytest -v --cov=kaldo kaldo/tests/
           name: Test
+      - codecov/upload:
+          file: {{ coverage_report_filepath }}
   docs-build:
     docker:
       - image: "jgoldfar/miniconda3-latex:full"
