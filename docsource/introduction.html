@@ -269,6 +269,14 @@
         </li>
         <li class="md-nav__item"><a href="#Project-template" class="md-nav__link">Project template</a>
         </li>
+        <li class="md-nav__item"><a href="#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Checklist-for-updates" class="md-nav__link">Checklist for updates</a>
+        </li>
+        <li class="md-nav__item"><a href="#Versioneer-Auto-version" class="md-nav__link">Versioneer Auto-version</a>
+        </li></ul>
+            </nav>
+        </li>
     
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/introduction.ipynb.txt">Show Source</a> </li>
 
@@ -330,6 +338,13 @@
     
     
       <a href="#Project-template" class="md-nav__link">Project template</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a>
       
     
     </li>
@@ -453,6 +468,14 @@
         <li class="md-nav__item"><a href="#Other-codes" class="md-nav__link">Other codes</a>
         </li>
         <li class="md-nav__item"><a href="#Project-template" class="md-nav__link">Project template</a>
+        </li>
+        <li class="md-nav__item"><a href="#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Checklist-for-updates" class="md-nav__link">Checklist for updates</a>
+        </li>
+        <li class="md-nav__item"><a href="#Versioneer-Auto-version" class="md-nav__link">Versioneer Auto-version</a>
+        </li></ul>
+            </nav>
         </li>
     
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/introduction.ipynb.txt">Show Source</a> </li>
@@ -599,12 +622,12 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="675375b4ea474307bbe3bb8c001fa7d8" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="9ec0c6b276114cda8e815fe79367aa65" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="15f55e3afadc4513b06ea1c94c5485f4" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="f47c004ee1fd4d388a7ebac9d437ec3f" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
@@ -612,7 +635,7 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="abfdf425868f4523bdab825ae03cff1c" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="48abc1541bde4ff5a46ab75aa80cd864" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 
@@ -631,6 +654,44 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
 
 <h1 id="Project-template">Project template<a class="headerlink" href="#Project-template" title="Permalink to this headline">¶</a></h1>
 <p>Project template from the <a class="reference external" href="https://github.com/molssi/cookiecutter-cms">Computational Molecular Science Python Cookiecutter</a>.</p>
+
+
+<h1 id="How-to-contribute-changes">How to contribute changes<a class="headerlink" href="#How-to-contribute-changes" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p>Clone the repository if you have write access to the main repo, fork the repository if you are a collaborator.</p></li>
+<li><p>Make a new branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">-b</span> <span class="pre">{your</span> <span class="pre">branch</span> <span class="pre">name}</span></code></p></li>
+<li><p>Make changes and test your code</p></li>
+<li><p>Ensure that the test environment dependencies (<code class="docutils literal notranslate"><span class="pre">conda-envs</span></code>) line up with the build and deploy dependencies (<code class="docutils literal notranslate"><span class="pre">conda-recipe/meta.yaml</span></code>)</p></li>
+<li><p>Push the branch to the repo (either the main or your fork) with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span> <span class="pre">-u</span> <span class="pre">origin</span> <span class="pre">{your</span> <span class="pre">branch</span> <span class="pre">name}</span></code></p>
+<ul>
+<li><p>Note that <code class="docutils literal notranslate"><span class="pre">origin</span></code> is the default name assigned to the remote, yours may be different</p></li>
+</ul>
+</li>
+<li><p>Make a PR on GitHub with your changes</p></li>
+<li><p>We’ll review the changes and get your code into the repo after lively discussion!</p></li>
+</ul>
+
+<h2 id="Checklist-for-updates">Checklist for updates<a class="headerlink" href="#Checklist-for-updates" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>☐ Make sure there is an/are issue(s) opened for your specific update</p></li>
+<li><p>☐ Create the PR, referencing the issue</p></li>
+<li><p>☐ Debug the PR as needed until tests pass</p></li>
+<li><p>☐ Tag the final, debugged version</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">tag</span> <span class="pre">-a</span> <span class="pre">X.Y.Z</span> <span class="pre">[latest</span> <span class="pre">pushed</span> <span class="pre">commit]</span> <span class="pre">&amp;&amp;</span> <span class="pre">git</span> <span class="pre">push</span> <span class="pre">--follow-tags</span></code></p></li>
+</ul>
+</li>
+<li><p>☐ Get the PR merged in</p></li>
+</ul>
+
+
+<h2 id="Versioneer-Auto-version">Versioneer Auto-version<a class="headerlink" href="#Versioneer-Auto-version" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="https://github.com/warner/python-versioneer">Versioneer</a> will automatically infer what version is installed by looking at the <code class="docutils literal notranslate"><span class="pre">git</span></code> tags and how many commits ahead this version is. The format follows <a class="reference external" href="https://www.python.org/dev/peps/pep-0440/">PEP 440</a> and has the regular expression of:</p>
+<div class="highlight-regexp notranslate"><div class="highlight"><pre><span></span>\d+.\d+.\d+(?\+\d+-[a-z0-9]+)
+</pre></div>
+</div>
+<p>If the version of this commit is the same as a <code class="docutils literal notranslate"><span class="pre">git</span></code> tag, the installed version is the same as the tag, e.g. <code class="docutils literal notranslate"><span class="pre">kaldo-0.1.2</span></code>, otherwise it will be appended with <code class="docutils literal notranslate"><span class="pre">+X</span></code> where <code class="docutils literal notranslate"><span class="pre">X</span></code> is the number of commits ahead from the last tag, and then <code class="docutils literal notranslate"><span class="pre">-YYYYYY</span></code> where the <code class="docutils literal notranslate"><span class="pre">Y</span></code>’s are replaced with the <code class="docutils literal notranslate"><span class="pre">git</span></code> commit hash.</p>
+
 
 
 
