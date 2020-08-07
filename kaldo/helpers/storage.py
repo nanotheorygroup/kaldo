@@ -18,11 +18,10 @@ DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          'population': 'formatted',
                          'bandwidth': 'formatted',
                          'phase_space': 'formatted',
-                         'diffusivity': 'formatted',
-                         'flux_dense': 'formatted',
-                         'flux_sparse': 'formatted',
                          'conductivity': 'formatted',
                          'mean_free_path': 'formatted',
+                         'diffusivity': 'numpy',
+                         'flux': 'numpy',
                          '_dynmat_derivatives': 'numpy',
                          '_eigensystem': 'numpy',
                          '_ps_and_gamma': 'numpy',
@@ -64,20 +63,11 @@ def load(property, folder, instance, format='formatted'):
                 for beta in range(3):
                     loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
             loaded = np.array(loaded).reshape((3, 3, instance.n_phonons)).transpose(2, 0, 1)
-        elif 'flux' in property:
-            if 'dense' in property:
-                loaded = []
-                for alpha in range(3):
-                    loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
-                loaded = np.array(loaded).transpose(1, 0)
-            elif 'sparse' in property:
-                loaded = []
-                for alpha in range(3):
-                    data = pd.read_csv(name + '_' + str(alpha) + '.dat', delim_whitespace=True, converters={4: parse_pair})
-                # TODO: we should specify the shape of the sparse tensor here
-                loaded.append(COO(data.values[:, 0:3].T.astype(np.int), data.values[:, 3].astype(np.complex)))
-            else:
-                logging.error('Flux not loaded')
+        elif '_sij' in property:
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
+            loaded = np.array(loaded).transpose(1, 0)
         else:
             if property == 'diffusivity':
                 dt = np.complex
@@ -125,18 +115,9 @@ def save(property, folder, loaded_attr, format='formatted'):
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,
                            header=str(loaded_attr[..., 0].shape))
-
-        elif 'flux' in property:
+        elif '_sij' in property:
             for alpha in range(3):
-                if 'dense' in property:
-                    np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
-                elif 'sparse' in property:
-                    value = pd.DataFrame(data=loaded_attr[alpha].data, columns=['value'])
-                    coords = pd.DataFrame(data=loaded_attr[alpha].coords.T,columns=['k', 'm', 'n'])
-                    data = pd.concat([coords, value], axis=1)
-                    data.to_csv(path_or_buf=name + '_' + str(alpha) + '.dat', sep=' ')
-                else:
-                    logging.error('Error while saving the flux')
+                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
         elif 'conductivity' in property:
             for alpha in range(3):
                 for beta in range(3):
