@@ -33,12 +33,17 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
     return conductivity_per_mode * 1e22
 
 
-def calculate_diffusivity_dense(omega, flux, diffusivity_bandwidth, physical_mode, alpha, beta, curve, is_diffusivity_including_antiresonant=False):
+def calculate_diffusivity(omega, flux, diffusivity_bandwidth, physical_mode, alpha, beta, curve,
+                          is_diffusivity_including_antiresonant=False,
+                          diffusivity_threshold=None):
     # TODO: cache this
     sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
     physical_mode = physical_mode.astype(np.bool)
     delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
     kernel = curve(delta_energy, sigma)
+    if diffusivity_threshold is not None:
+        condition = (np.abs(delta_energy) < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
+        kernel[np.invert(condition)] = 0
     if is_diffusivity_including_antiresonant:
         sum_energy = omega[:, np.newaxis] + omega[np.newaxis, :]
         kernel += curve(sum_energy, sigma)
@@ -51,37 +56,6 @@ def calculate_diffusivity_dense(omega, flux, diffusivity_bandwidth, physical_mod
     kernel[mu_unphysical, :] = 0
     kernel[:, mu_unphysical] = 0
     diffusivity = flux[..., alpha] * kernel * flux[..., beta]
-    return diffusivity
-
-
-def calculate_diffusivity_sparse(phonons, s_ij, diffusivity_bandwidth, diffusivity_threshold, curve, is_diffusivity_including_antiresonant=False):
-    # TODO: cache this
-    if is_diffusivity_including_antiresonant:
-        logging.error('is_diffusivity_including_antiresonant not yet implemented for with thresholds and sparse.')
-
-
-    omega = phonons.omega.reshape(phonons.n_k_points, phonons.n_modes)
-
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    physical_mode_2d = physical_mode[:, :, np.newaxis] & \
-                       physical_mode[:, np.newaxis, :]
-    omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
-    condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
-
-    coords = np.array(np.unravel_index (np.flatnonzero (condition), condition.shape)).T
-    sigma = 2 * (diffusivity_bandwidth[coords[:, 0], coords[:, 1]] + diffusivity_bandwidth[coords[:, 0], coords[:, 2]])
-    delta_energy = omega[coords[:, 0], coords[:, 1]] - omega[coords[:, 0], coords[:, 2]]
-    data = np.pi * curve(delta_energy, sigma)
-    lorentz = COO(coords.T, data, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-    prefactor = 1 / (4 * omega[coords[:, 0], coords[:, 1]] * omega[coords[:, 0], coords[:, 2]])
-    prefactor[np.invert(physical_mode_2d[coords[:, 0], coords[:, 1], coords[:, 2]])] = 0
-    prefactor = COO(coords.T, prefactor, shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))
-    shape = np.array([phonons.n_k_points, phonons.n_modes, phonons.n_modes, 3, 3])
-    log_size(shape, name='diffusivity')
-    diffusivity = np.zeros(shape)
-    for alpha in range(3):
-        for beta in range(3):
-            diffusivity[..., alpha, beta] = (s_ij[alpha] * prefactor * lorentz * s_ij[beta]).todense()
     return diffusivity
 
 
@@ -268,44 +242,6 @@ class Conductivity:
             logging.info('You need to calculate the conductivity QHGK first.')
 
 
-
-    @lazy_property(label='<diffusivity_bandwidth>')
-    def flux_dense(self):
-        """Calculate the flux, for each couple of k point in k_points/modes.
-
-        Returns
-        -------
-        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
-        """
-        q_points = self.phonons._main_q_mesh
-        if self.phonons._is_amorphous:
-            type = np.float
-        else:
-            type = np.complex
-        sij = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=type)
-        for ik in range(len(q_points)):
-            q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.phonons.forceconstants.second_order,
-                                   distance_threshold=self.phonons.forceconstants.distance_threshold,
-                                   storage=self.phonons.storage)
-            sij[ik] = phonon._sij
-
-        return sij
-
-
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>')
-    def flux_sparse(self):
-        """Calculate the flux, for each couple of k point in k_points/modes.
-
-        Returns
-        -------
-        flux : np.array(n_k_points, n_modes, n_k_points, n_modes, 3)
-        """
-        sij = self.calculate_sij_sparse()
-        return sij
-
-
     @property
     def _scattering_matrix_without_diagonal(self):
         physical_mode = self.phonons.physical_mode.reshape((self.n_phonons))
@@ -317,28 +253,6 @@ class Conductivity:
         gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
         gamma_tensor = 1 / frequency.reshape(-1, 1) * gamma_tensor * frequency.reshape(1, -1)
         return gamma_tensor
-
-
-    def calculate_sij_sparse(self):
-        phonons = self.phonons
-        # TODO: do not pass the whole phonons object
-        # TODO move this into second like the dense version
-        diffusivity_threshold = self.diffusivity_threshold
-        if self.diffusivity_bandwidth is not None:
-            diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
-        else:
-            diffusivity_bandwidth = phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
-        omega = phonons.omega.reshape(phonons.n_k_points, phonons.n_modes)
-        omegas_difference = np.abs(omega[:, :, np.newaxis] - omega[:, np.newaxis, :])
-        condition = (omegas_difference < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
-        coords = np.array(np.unravel_index(np.flatnonzero(condition), condition.shape)).T
-        s_ij = [COO(coords.T, self.flux_dense[..., 0][coords[:, 0], coords[:, 1], coords[:, 2]],
-                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                COO(coords.T, self.flux_dense[..., 1][coords[:, 0], coords[:, 1], coords[:, 2]],
-                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes)),
-                COO(coords.T, self.flux_dense[..., 2][coords[:, 0], coords[:, 1], coords[:, 2]],
-                    shape=(phonons.n_k_points, phonons.n_modes, phonons.n_modes))]
-        return s_ij
 
 
     def calculate_conductivity_qhgk(self):
@@ -377,48 +291,37 @@ class Conductivity:
         else:
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
 
-        if self.diffusivity_threshold is None:
-            logging.info('Start calculation diffusivity dense')
+        # if self.diffusivity_threshold is None:
+        logging.info('Start calculation diffusivity dense')
 
-            for k_index in range(len(q_points)):
+        for k_index in range(len(q_points)):
 
-                phonon = HarmonicWithQTemp(q_point=q_points[k_index],
-                                           second=self.phonons.forceconstants.second_order,
-                                           distance_threshold=self.phonons.forceconstants.distance_threshold,
-                                           folder=self.folder,
-                                           storage=self.storage,
-                                           temperature=self.temperature,
-                                           is_classic=self.is_classic)
-                heat_capacity_2d = phonon.heat_capacity_2d
+            phonon = HarmonicWithQTemp(q_point=q_points[k_index],
+                                       second=self.phonons.forceconstants.second_order,
+                                       distance_threshold=self.phonons.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage,
+                                       temperature=self.temperature,
+                                       is_classic=self.is_classic)
+            heat_capacity_2d = phonon.heat_capacity_2d
 
-                sij = phonon._sij
+            sij = phonon._sij
 
-                if phonons.n_modes > 100:
-                    logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
-                for alpha in range(3):
-                    for beta in range(3):
-                        diffusivity = calculate_diffusivity_dense(omega[k_index], sij,
-                                                                  diffusivity_bandwidth[k_index],
-                                                                  physical_mode[k_index], alpha, beta, curve,
-                                                                  is_diffusivity_including_antiresonant)
-                        conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity_2d *
-                                                                                diffusivity, axis=-1) \
-                                                                         / (volume * phonons.n_k_points)
-                        diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
-        else:
-            #TODO: migrate this part to tf, currently only numpy
-            logging.info('Start calculation diffusivity sparse')
-            sij = self.flux_sparse
-            diffusivity = calculate_diffusivity_sparse(phonons, sij, diffusivity_bandwidth, self.diffusivity_threshold, curve,
-                                                       is_diffusivity_including_antiresonant)
-            heat_capacity_2d = phonons.heat_capacity_2d
-            conductivity_per_mode = contract('knm,knmab->knab', heat_capacity_2d, diffusivity)
-            conductivity_per_mode = conductivity_per_mode.reshape((phonons.n_phonons, 3, 3))
-            conductivity_per_mode = conductivity_per_mode / (volume * phonons.n_k_points)
-            diffusivity_with_axis = contract('knmab->knab', diffusivity)
-
+            if phonons.n_modes > 100:
+                logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
+            for alpha in range(3):
+                for beta in range(3):
+                    diffusivity = calculate_diffusivity(omega[k_index], sij,
+                                                        diffusivity_bandwidth[k_index],
+                                                        physical_mode[k_index], alpha, beta,
+                                                        curve,
+                                                        is_diffusivity_including_antiresonant,
+                                                        self.diffusivity_threshold)
+                    conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity_2d *
+                                                                            diffusivity, axis=-1) \
+                                                                     / (volume * phonons.n_k_points)
+                    diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
         self._diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis)
-
         return conductivity_per_mode * 1e22
 
 
