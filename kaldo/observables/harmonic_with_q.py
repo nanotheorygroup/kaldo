@@ -1,7 +1,5 @@
 
-from kaldo.helpers.tools import timeit
 from kaldo.grid import wrap_coordinates
-from scipy.linalg.lapack import dsyev
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
@@ -20,7 +18,6 @@ class HarmonicWithQ(Observable):
 
     def __init__(self, q_point, second,
                  distance_threshold=None, storage='numpy', is_nw=False, *kargs, **kwargs):
-
         super().__init__(*kargs, **kwargs)
         self.q_point = q_point
         self.atoms = second.atoms
@@ -29,7 +26,7 @@ class HarmonicWithQ(Observable):
         self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         self.replicated_atoms = second.replicated_atoms
         self.list_of_replicas = second.list_of_replicas
-        self.second = second.value
+        self.second = second
         self.distance_threshold = distance_threshold
         self.physical_mode= np.ones((1, self.n_modes), dtype=bool)
         self.is_nw = is_nw
@@ -46,7 +43,7 @@ class HarmonicWithQ(Observable):
 
     @lazy_property(label='<q_point>')
     def frequency(self):
-        frequency = self.calculate_frequency()
+        frequency = self.calculate_frequency()[np.newaxis, :]
         return frequency
 
 
@@ -66,11 +63,17 @@ class HarmonicWithQ(Observable):
     def _dynmat(self):
         _dynmat = self.calculate_dynmat()
         return _dynmat
+    
+
+    @lazy_property(label='<q_point>')
+    def _dynmat_fourier(self):
+        dynmat_fourier = self.calculate_dynmat_fourier()
+        return dynmat_fourier
 
 
     @lazy_property(label='<q_point>')
     def _eigensystem(self):
-        _eigensystem = self.calculate_eigensystem()
+        _eigensystem = self.calculate_eigensystem(only_eigenvals=False)
         return _eigensystem
 
 
@@ -100,15 +103,13 @@ class HarmonicWithQ(Observable):
         atoms = self.atoms
         list_of_replicas = self.list_of_replicas
         replicated_cell = self.replicated_atoms.cell
-        replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
+        replicated_cell_inv = self.second._replicated_cell_inv
+        cell_inv = self.second.cell_inv
         dynmat = self._dynmat
         positions = self.atoms.positions
         n_unit_cell = atoms.positions.shape[0]
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
-
-        cell_inv = np.linalg.inv(self.atoms.cell)
-
         shape = (1, n_unit_cell * 3, n_unit_cell * 3, 3)
         if is_amorphous:
             type = np.float
@@ -173,13 +174,14 @@ class HarmonicWithQ(Observable):
             logging.info('Flux operators for q = ' + str(q_point))
         dynmat_derivatives = self._dynmat_derivatives
 
-        eigenvects = self._eigensystem[:, 1:, :]
-        sij_single = tf.tensordot(eigenvects[0], dynmat_derivatives[0], (0, 1))
+        eigenvects = self._eigensystem[1:, :]
         if is_amorphous:
-            sij_single = tf.tensordot(eigenvects[0], sij_single, (0, 1))
+            sij_single = tf.tensordot(eigenvects, dynmat_derivatives[0], (0, 1))
+            sij_single = tf.tensordot(eigenvects, sij_single, (0, 1))
         else:
-            sij_single = tf.tensordot(eigenvects[0].conj(), sij_single, (0, 1))
-
+            eigenvects = tf.cast(eigenvects, tf.complex128)
+            sij_single = tf.tensordot(eigenvects, dynmat_derivatives[0], (0, 1))
+            sij_single = tf.tensordot(tf.math.conj(eigenvects), sij_single, (0, 1))
         sij[0] = sij_single
         return sij
 
@@ -202,29 +204,17 @@ class HarmonicWithQ(Observable):
         return velocity.imag
 
 
-    def calculate_eigensystem(self, only_eigenvals=False):
+    def calculate_dynmat_fourier(self):
         q_point = self.q_point
-        is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
         atoms = self.atoms
         n_unit_cell = atoms.positions.shape[0]
         n_replicas = np.prod(self.supercell)
-        if is_amorphous:
-            dtype = np.float
-        else:
-            dtype = np.complex
-        if only_eigenvals:
-            esystem = np.zeros((1, n_unit_cell * 3), dtype=dtype)
-        else:
-            shape = (1, n_unit_cell * 3 + 1, n_unit_cell * 3)
-            log_size(shape, dtype, name='eigensystem')
-            esystem = np.zeros(shape, dtype=dtype)
-        cell_inv = np.linalg.inv(self.atoms.cell)
-        replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
-
-        qvec = q_point
         dynmat = self._dynmat
-        is_at_gamma = (qvec == (0, 0, 0)).all()
+        cell_inv = self.second.cell_inv
+        replicated_cell_inv = self.second._replicated_cell_inv
+
+        is_at_gamma = (q_point == (0, 0, 0)).all()
 
         list_of_replicas = self.list_of_replicas
         if distance_threshold is not None:
@@ -242,33 +232,34 @@ class HarmonicWithQ(Observable):
 
                 mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
-                dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * chi(qvec, list_of_replicas, cell_inv)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * chi(q_point, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
                 dyn_s = contract('ialjb->iajb', tf.convert_to_tensor(dynmat[0]), backend='tensorflow')
             else:
                 dyn_s = contract('ialjb,l->iajb',
                                  tf.cast(dynmat[0], tf.complex128),
-                                 tf.convert_to_tensor(chi(qvec, list_of_replicas, cell_inv).flatten()),
+                                 tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten()),
                                  backend='tensorflow')
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
 
+        return dyn_s
+
+
+    def calculate_eigensystem(self, only_eigenvals):
+        dyn_s = self._dynmat_fourier
         if only_eigenvals:
-            evals = np.linalg.eigvalsh(dyn_s)
-            esystem[0] = evals
+            esystem = tf.linalg.eigvalsh(dyn_s)
         else:
-            if is_at_gamma:
-                evals, evects = dsyev(dyn_s)[:2]
-            else:
-                evals, evects = np.linalg.eigh(dyn_s)
-                # evals, evects = zheev(dyn_s)[:2]
-            esystem[0] = np.vstack((evals, evects))
+            esystem = tf.linalg.eigh(dyn_s)
+            esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
 
 
     def calculate_dynmat(self):
         mass = self.atoms.get_masses()
-        dynmat = contract('mialjb,i,j->mialjb', tf.convert_to_tensor(self.second), tf.convert_to_tensor(1 / np.sqrt(mass)), tf.convert_to_tensor(1 / np.sqrt(mass)), backend='tensorflow')
+        dynmat = self.second.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         evtotenjovermol = units.mol / (10 * units.J)
-        return dynmat * evtotenjovermol
+        return tf.convert_to_tensor(dynmat * evtotenjovermol)
 
