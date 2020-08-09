@@ -116,7 +116,7 @@ class HarmonicWithQ(Observable):
         else:
             type = np.complex
         log_size(shape, type, name='dynamical_matrix_derivative')
-        ddyn = np.zeros(shape).astype(type)
+        dynmat_derivatives = np.zeros(shape).astype(type)
         if is_amorphous:
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
@@ -155,34 +155,31 @@ class HarmonicWithQ(Observable):
                                               tf.cast(dynmat[0], tf.complex128),
                                               tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten().astype(np.complex)),
                                               backend='tensorflow')
-        ddyn[0] = tf.reshape(dynmat_derivatives, (n_modes, n_modes, 3))
-        return ddyn
+        dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes, 3))
+        return dynmat_derivatives
 
 
     def calculate_sij(self):
         q_point = self.q_point
         is_amorphous = self.is_amorphous
-        shape = (1, 3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3)
+        shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3)
         if is_amorphous:
             type = np.float
         else:
             type = np.complex
-        log_size(shape, type, name='sij')
-        sij = np.zeros(shape, dtype=type)
         if self.atoms.positions.shape[0] > 100:
             # We want to print only for big systems
             logging.info('Flux operators for q = ' + str(q_point))
         dynmat_derivatives = self._dynmat_derivatives
-
+        log_size(shape, type, name='sij')
         eigenvects = self._eigensystem[1:, :]
         if is_amorphous:
-            sij_single = tf.tensordot(eigenvects, dynmat_derivatives[0], (0, 1))
-            sij_single = tf.tensordot(eigenvects, sij_single, (0, 1))
+            sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
+            sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:
             eigenvects = tf.cast(eigenvects, tf.complex128)
-            sij_single = tf.tensordot(eigenvects, dynmat_derivatives[0], (0, 1))
-            sij_single = tf.tensordot(tf.math.conj(eigenvects), sij_single, (0, 1))
-        sij[0] = sij_single
+            sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
+            sij = tf.tensordot(tf.math.conj(eigenvects), sij, (0, 1))
         return sij
 
 
@@ -213,14 +210,13 @@ class HarmonicWithQ(Observable):
         dynmat = self._dynmat
         cell_inv = self.second.cell_inv
         replicated_cell_inv = self.second._replicated_cell_inv
-
         is_at_gamma = (q_point == (0, 0, 0)).all()
-
+        is_amorphous = (n_replicas == 1)
         list_of_replicas = self.list_of_replicas
         if distance_threshold is not None:
             shape = (n_unit_cell, 3, n_unit_cell, 3)
             type = np.complex
-            log_size(shape, type, name='dynamical_matrix')
+            log_size(shape, type, name='dynmat_fourier')
             dyn_s = np.zeros(shape, dtype=type)
             replicated_cell = self.replicated_atoms.cell
 
@@ -235,14 +231,17 @@ class HarmonicWithQ(Observable):
                 dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * chi(q_point, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
-                dyn_s = contract('ialjb->iajb', tf.convert_to_tensor(dynmat[0]), backend='tensorflow')
+                if is_amorphous:
+                    dyn_s = dynmat[0]
+                else:
+                    dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
             else:
+                log_size((self.n_modes, self.n_modes), np.complex, name='dynmat_fourier')
                 dyn_s = contract('ialjb,l->iajb',
                                  tf.cast(dynmat[0], tf.complex128),
                                  tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten()),
                                  backend='tensorflow')
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
-
         return dyn_s
 
 

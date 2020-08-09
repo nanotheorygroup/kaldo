@@ -21,6 +21,9 @@ GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 
 @timeit
 def project_amorphous(phonons):
+    frequency = phonons.frequency
+    omega = 2 * np.pi * frequency
+    population = phonons.population
     n_replicas = phonons.forceconstants.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
@@ -34,14 +37,13 @@ def project_amorphous(phonons):
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     logging.info('Projection started')
-    frequency = phonons.frequency
     for nu_single in range(phonons.n_phonons):
-        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
         sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
 
-        out = calculate_dirac_delta_amorphous(phonons.omega,
-                                              phonons.population,
+        out = calculate_dirac_delta_amorphous(omega,
+                                              population,
                                               physical_mode,
                                               sigma_tf,
                                               phonons.broadening_shape,
@@ -60,7 +62,7 @@ def project_amorphous(phonons):
         # * dirac_delta_tf, (n_phonons, n_phonons))
 
         pot_times_dirac = tf.gather_nd(scaled_potential_tf,coords) **  2
-        pot_times_dirac = pot_times_dirac / tf.gather(phonons.omega[0], mup_vec) / tf.gather(phonons.omega[0], mupp_vec)
+        pot_times_dirac = pot_times_dirac / tf.gather(omega[0], mup_vec) / tf.gather(omega[0], mupp_vec)
         pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
         pot_times_dirac = np.pi * units._hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMATOTHZ
 
@@ -68,7 +70,7 @@ def project_amorphous(phonons):
 
         ps_and_gamma[nu_single, 0] = dirac_delta.numpy()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.numpy()
-        ps_and_gamma[nu_single, 1:] /= phonons.omega.flatten()[nu_single]
+        ps_and_gamma[nu_single, 1:] /= omega.flatten()[nu_single]
 
         THZTOMEV = units.J * units._hbar * 2 * np.pi * 1e15
         logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / \

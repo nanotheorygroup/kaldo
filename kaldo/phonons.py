@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 """
 from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
-from kaldo.observables.physical_mode import PhysicalMode
+from kaldo.helpers.logger import log_size
 from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -203,8 +203,9 @@ class Phonons:
             If the system is not amorphous, these values are stored as complex numbers.
         """
         q_points = self._main_q_mesh
-
-        eigensystem = np.zeros((self.n_k_points, self.n_modes + 1, self.n_modes), dtype=np.complex)
+        shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
+        log_size(shape, name='eigensystem', type=np.complex)
+        eigensystem = np.zeros(shape, dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -275,7 +276,9 @@ class Phonons:
             heat capacity in W/m/K for each k point and each modes couple.
         """
         q_points = self._main_q_mesh
-        heat_capacity_2d = np.zeros((self.n_k_points, self.n_modes, self.n_modes))
+        shape = (self.n_k_points, self.n_modes, self.n_modes)
+        log_size(shape, name='heat_capacity_2d', type=np.float)
+        heat_capacity_2d = np.zeros(shape)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,

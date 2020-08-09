@@ -4,12 +4,9 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import ase.units as units
-import tensorflow as tf
-from sparse import COO
 import numpy as np
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
-from kaldo.helpers.storage import lazy_property, DEFAULT_STORE_FORMATS
-from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.helpers.storage import lazy_property
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
@@ -33,7 +30,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
     return conductivity_per_mode * 1e22
 
 
-def calculate_diffusivity(omega, flux, diffusivity_bandwidth, physical_mode, alpha, beta, curve,
+def calculate_diffusivity(omega, sij, diffusivity_bandwidth, physical_mode, alpha, beta, curve,
                           is_diffusivity_including_antiresonant=False,
                           diffusivity_threshold=None):
     # TODO: cache this
@@ -50,12 +47,11 @@ def calculate_diffusivity(omega, flux, diffusivity_bandwidth, physical_mode, alp
     kernel = kernel * np.pi
     kernel[np.isnan(kernel)] = 0
     mu_unphysical = np.argwhere(np.invert(physical_mode)).T
-    # flux[mu_unphysical, mu_unphysical] = 0
     kernel[:, :] = kernel / omega[:, np.newaxis]
     kernel[:, :] = kernel[:, :] / omega[np.newaxis, :] / 4
     kernel[mu_unphysical, :] = 0
     kernel[:, mu_unphysical] = 0
-    diffusivity = flux[..., alpha] * kernel * flux[..., beta]
+    diffusivity = sij[..., alpha] * kernel * sij[..., beta]
     return diffusivity
 
 
@@ -292,7 +288,7 @@ class Conductivity:
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
 
         # if self.diffusivity_threshold is None:
-        logging.info('Start calculation diffusivity dense')
+        logging.info('Start calculation diffusivity')
 
         for k_index in range(len(q_points)):
 
@@ -304,9 +300,7 @@ class Conductivity:
                                        temperature=self.temperature,
                                        is_classic=self.is_classic)
             heat_capacity_2d = phonon.heat_capacity_2d
-
             sij = phonon._sij
-
             if phonons.n_modes > 100:
                 logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
             for alpha in range(3):
