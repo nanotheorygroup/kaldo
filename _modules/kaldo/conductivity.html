@@ -394,12 +394,9 @@
 <span class="sd">"""</span>
 <span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="kn">import</span> <span class="n">contract</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
-<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
-<span class="kn">from</span> <span class="nn">sparse</span> <span class="kn">import</span> <span class="n">COO</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">kaldo.controllers.dirac_kernel</span> <span class="kn">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">DEFAULT_STORE_FORMATS</span>
-<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
+<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">lazy_property</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="kn">import</span> <span class="n">HarmonicWithQTemp</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
@@ -423,7 +420,7 @@
     <span class="k">return</span> <span class="n">conductivity_per_mode</span> <span class="o">*</span> <span class="mf">1e22</span>
 
 
-<span class="k">def</span> <span class="nf">calculate_diffusivity</span><span class="p">(</span><span class="n">omega</span><span class="p">,</span> <span class="n">flux</span><span class="p">,</span> <span class="n">diffusivity_bandwidth</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span>
+<span class="k">def</span> <span class="nf">calculate_diffusivity</span><span class="p">(</span><span class="n">omega</span><span class="p">,</span> <span class="n">sij</span><span class="p">,</span> <span class="n">diffusivity_bandwidth</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span>
                           <span class="n">is_diffusivity_including_antiresonant</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                           <span class="n">diffusivity_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="c1"># TODO: cache this</span>
@@ -440,12 +437,11 @@
     <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
     <span class="n">kernel</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">kernel</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">mu_unphysical</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">physical_mode</span><span class="p">))</span><span class="o">.</span><span class="n">T</span>
-    <span class="c1"># flux[mu_unphysical, mu_unphysical] = 0</span>
     <span class="n">kernel</span><span class="p">[:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">kernel</span> <span class="o">/</span> <span class="n">omega</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
     <span class="n">kernel</span><span class="p">[:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">[:,</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">omega</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="mi">4</span>
     <span class="n">kernel</span><span class="p">[</span><span class="n">mu_unphysical</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">kernel</span><span class="p">[:,</span> <span class="n">mu_unphysical</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">diffusivity</span> <span class="o">=</span> <span class="n">flux</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">*</span> <span class="n">kernel</span> <span class="o">*</span> <span class="n">flux</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">beta</span><span class="p">]</span>
+    <span class="n">diffusivity</span> <span class="o">=</span> <span class="n">sij</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">*</span> <span class="n">kernel</span> <span class="o">*</span> <span class="n">sij</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">beta</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">diffusivity</span>
 
 
@@ -682,7 +678,7 @@
             <span class="n">diffusivity_bandwidth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.</span>
 
         <span class="c1"># if self.diffusivity_threshold is None:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Start calculation diffusivity dense'</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Start calculation diffusivity'</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">k_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
 
@@ -694,9 +690,7 @@
                                        <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
                                        <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">)</span>
             <span class="n">heat_capacity_2d</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
-
             <span class="n">sij</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_sij</span>
-
             <span class="k">if</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
                 <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'calculating conductivity for q = '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">q_points</span><span class="p">[</span><span class="n">k_index</span><span class="p">]))</span>
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
