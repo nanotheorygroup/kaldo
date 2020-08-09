@@ -36,4 +36,4 @@ def test_gaussian_broadening(phonons):
 
 def test_lorentz_broadening(phonons):
     phonons.broadening_shape='lorentz'
-    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.09792, significant=4)
+    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.09793, significant=4)
