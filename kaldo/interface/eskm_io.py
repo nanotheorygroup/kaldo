@@ -69,8 +69,8 @@ def import_second(atoms, replicas=(1, 1, 1), filename='Dyn.form'):
     n_unit_cell = atoms.positions.shape[0]
     dyn_mat = import_dynamical_matrix(n_unit_cell, replicas, filename)
     mass = np.sqrt (atoms.get_masses ())
-    mass = mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis] * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
-    dyn_mat = dyn_mat * mass
+    dyn_mat = dyn_mat * mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+    dyn_mat = dyn_mat * mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     return dyn_mat
 
 
@@ -88,6 +88,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
     else:
         logging.error('Impossible to read calculate_dynmat with size ' + str(dynamical_matrix.size))
     return dynamical_matrix * tenjovermoltoev
+
 
 def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_energy_threshold=0.):
     supercell = np.array(supercell)
