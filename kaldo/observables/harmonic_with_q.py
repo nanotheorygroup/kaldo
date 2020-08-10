@@ -54,8 +54,18 @@ class HarmonicWithQ(Observable):
 
 
     @lazy_property(label='<q_point>')
-    def _dynmat_derivatives(self):
-        _dynmat_derivatives = self.calculate_dynmat_derivatives()
+    def _dynmat_derivatives_x(self):
+        _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=0)
+        return _dynmat_derivatives
+
+    @lazy_property(label='<q_point>')
+    def _dynmat_derivatives_y(self):
+        _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=1)
+        return _dynmat_derivatives
+
+    @lazy_property(label='<q_point>')
+    def _dynmat_derivatives_z(self):
+        _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=2)
         return _dynmat_derivatives
 
 
@@ -102,7 +112,7 @@ class HarmonicWithQ(Observable):
         return frequency.real
 
 
-    def calculate_dynmat_derivatives(self):
+    def calculate_dynmat_derivatives(self, direction):
         q_point = self.q_point
         is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
@@ -116,17 +126,18 @@ class HarmonicWithQ(Observable):
         n_unit_cell = atoms.positions.shape[0]
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
-        shape = (1, n_unit_cell * 3, n_unit_cell * 3, 3)
+        shape = (1, n_unit_cell * 3, n_unit_cell * 3)
         if is_amorphous:
             type = np.float
         else:
             type = np.complex
-        log_size(shape, type, name='dynamical_matrix_derivative')
+        dir = ['_x', '_y', '_z']
+        log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
         if is_amorphous:
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ija,ibjc->ibjca',
-                                          tf.convert_to_tensor(distance),
+            dynmat_derivatives = contract('ij,ibjc->ibjc',
+                                          tf.convert_to_tensor(distance[..., direction]),
                                           dynmat[0, :, :, 0, :, :],
                                           backend='tensorflow')
         else:
@@ -141,26 +152,25 @@ class HarmonicWithQ(Observable):
                     self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[
                     np.newaxis, :, :, :])
 
-                shape = (n_unit_cell, 3, n_unit_cell, 3, 3)
+                shape = (n_unit_cell, 3, n_unit_cell, 3)
                 type = np.complex
-                log_size(shape, type, name='dynmat_derivatives')
                 dynmat_derivatives = np.zeros(shape, dtype=type)
                 for l in range(n_replicas):
                     wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
                                                         replicated_cell_inv)
                     mask = (np.linalg.norm(wrapped_distance, axis=-1) < distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
-                    dynmat_derivatives[id_i, :, id_j, :, :] += contract('fa,fbc->fbca', distance[id_i, l, id_j, :], \
+                    dynmat_derivatives[id_i, :, id_j, :, :] += contract('f,fbc->fbc', distance[id_i, l, id_j, direction], \
                                                                          dynmat.numpy()[0, id_i, :, 0, id_j, :] *
                                                                          chi(q_point, list_of_replicas, cell_inv)[l])
             else:
 
-                dynmat_derivatives = contract('ilja,ibljc,l->ibjca',
-                                              tf.convert_to_tensor(distance.astype(np.complex)),
+                dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
+                                              tf.convert_to_tensor(distance.astype(np.complex)[..., direction]),
                                               tf.cast(dynmat[0], tf.complex128),
                                               tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten().astype(np.complex)),
                                               backend='tensorflow')
-        dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes, 3))
+        dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
         return dynmat_derivatives
 
 
@@ -172,18 +182,24 @@ class HarmonicWithQ(Observable):
             type = np.float
         else:
             type = np.complex
+        eigenvects = self._eigensystem[1:, :]
+        if direction == 0:
+            dynmat_derivatives = self._dynmat_derivatives_x
+        if direction == 1:
+            dynmat_derivatives = self._dynmat_derivatives_y
+        if direction == 2:
+            dynmat_derivatives = self._dynmat_derivatives_z
         if self.atoms.positions.shape[0] > 100:
             # We want to print only for big systems
             logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
-        dynmat_derivatives = self._dynmat_derivatives
-        log_size(shape, type, name='sij_' + str(direction))
-        eigenvects = self._eigensystem[1:, :]
+            dir = ['_x', '_y', '_z']
+            log_size(shape, type, name='sij' + dir[direction])
         if is_amorphous:
-            sij = tf.tensordot(eigenvects, dynmat_derivatives[..., direction], (0, 1))
+            sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:
             eigenvects = tf.cast(eigenvects, tf.complex128)
-            sij = tf.tensordot(eigenvects, dynmat_derivatives[..., direction], (0, 1))
+            sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(tf.math.conj(eigenvects), sij, (0, 1))
         return sij
 
@@ -219,10 +235,10 @@ class HarmonicWithQ(Observable):
         is_at_gamma = (q_point == (0, 0, 0)).all()
         is_amorphous = (n_replicas == 1)
         list_of_replicas = self.list_of_replicas
+        log_size((self.n_modes, self.n_modes), np.complex, name='dynmat_fourier')
         if distance_threshold is not None:
             shape = (n_unit_cell, 3, n_unit_cell, 3)
             type = np.complex
-            log_size(shape, type, name='dynmat_fourier')
             dyn_s = np.zeros(shape, dtype=type)
             replicated_cell = self.replicated_atoms.cell
 
@@ -242,7 +258,6 @@ class HarmonicWithQ(Observable):
                 else:
                     dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
             else:
-                log_size((self.n_modes, self.n_modes), np.complex, name='dynmat_fourier')
                 dyn_s = contract('ialjb,l->iajb',
                                  tf.cast(dynmat[0], tf.complex128),
                                  tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten()),
@@ -256,6 +271,7 @@ class HarmonicWithQ(Observable):
         if only_eigenvals:
             esystem = tf.linalg.eigvalsh(dyn_s)
         else:
+            log_size(self._dynmat_fourier.shape, type=np.complex, name='eigensystem')
             esystem = tf.linalg.eigh(dyn_s)
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
@@ -263,6 +279,8 @@ class HarmonicWithQ(Observable):
 
     def calculate_dynmat(self):
         mass = self.atoms.get_masses()
+        shape = self.second.value.shape
+        log_size(shape, np.float, name='dynmat')
         dynmat = self.second.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         evtotenjovermol = units.mol / (10 * units.J)

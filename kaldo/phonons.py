@@ -176,21 +176,6 @@ class Phonons:
 
 
     @lazy_property(label='')
-    def _dynmat_derivatives(self):
-        q_points = self._main_q_mesh
-        dynmat_derivatives = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
-        for ik in range(len(q_points)):
-            q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage)
-            dynmat_derivatives[ik] = phonon._dynmat_derivatives
-        return dynmat_derivatives
-
-
-    @lazy_property(label='')
     def _eigensystem(self):
         """Calculate the eigensystems, for each k point in k_points.
 
