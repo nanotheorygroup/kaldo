@@ -78,14 +78,20 @@ class HarmonicWithQ(Observable):
 
 
     @lazy_property(label='<q_point>')
-    def _velocity_af(self):
-        _velocity_af = self.calculate_velocity_af()
-        return _velocity_af
+    def _sij_x(self):
+        _sij = self.calculate_sij(direction=0)
+        return _sij
 
 
     @lazy_property(label='<q_point>')
-    def _sij(self):
-        _sij = self.calculate_sij()
+    def _sij_y(self):
+        _sij = self.calculate_sij(direction=1)
+        return _sij
+
+
+    @lazy_property(label='<q_point>')
+    def _sij_z(self):
+        _sij = self.calculate_sij(direction=2)
         return _sij
 
 
@@ -116,7 +122,6 @@ class HarmonicWithQ(Observable):
         else:
             type = np.complex
         log_size(shape, type, name='dynamical_matrix_derivative')
-        dynmat_derivatives = np.zeros(shape).astype(type)
         if is_amorphous:
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
@@ -159,46 +164,47 @@ class HarmonicWithQ(Observable):
         return dynmat_derivatives
 
 
-    def calculate_sij(self):
+    def calculate_sij(self, direction):
         q_point = self.q_point
         is_amorphous = self.is_amorphous
-        shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0], 3)
+        shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
         if is_amorphous:
             type = np.float
         else:
             type = np.complex
         if self.atoms.positions.shape[0] > 100:
             # We want to print only for big systems
-            logging.info('Flux operators for q = ' + str(q_point))
+            logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
         dynmat_derivatives = self._dynmat_derivatives
-        log_size(shape, type, name='sij')
+        log_size(shape, type, name='sij_' + str(direction))
         eigenvects = self._eigensystem[1:, :]
         if is_amorphous:
-            sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
+            sij = tf.tensordot(eigenvects, dynmat_derivatives[..., direction], (0, 1))
             sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:
             eigenvects = tf.cast(eigenvects, tf.complex128)
-            sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
+            sij = tf.tensordot(eigenvects, dynmat_derivatives[..., direction], (0, 1))
             sij = tf.tensordot(tf.math.conj(eigenvects), sij, (0, 1))
         return sij
 
 
-    def calculate_velocity_af(self):
-        n_modes = self.n_modes
-        sij = self._sij
-        frequency = self.frequency[0]
-        sij = tf.reshape(sij, (n_modes, n_modes, 3))
-        inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
-        velocity_AF = 1 / (2 * np.pi) * contract('mna,m,n->mna', sij,
-                               inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
-        return velocity_AF
-
-
     def calculate_velocity(self):
-        velocity_AF = self._velocity_af
-        velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
-        velocity = contract('kmma->kma', velocity_AF.numpy()[np.newaxis, ...])
-        return velocity.imag
+        frequency = self.frequency[0]
+        velocity = np.zeros((self.n_modes, 3))
+        inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
+        for alpha in range(3):
+            if alpha == 0:
+                sij = self._sij_x
+            if alpha == 1:
+                sij = self._sij_y
+            if alpha == 2:
+                sij = self._sij_z
+            velocity_AF = 1 / (2 * np.pi) * contract('mn,m,n->mn', sij,
+                                   inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
+            velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
+            velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
+        return velocity[np.newaxis, ...]
+
 
 
     def calculate_dynmat_fourier(self):

@@ -219,21 +219,6 @@ class Phonons:
         return eigensystem
 
 
-    @property
-    def _velocity_af(self):
-        q_points = self._main_q_mesh
-        velocity_AF = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3), dtype=np.complex)
-        for ik in range(len(q_points)):
-            q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage)
-            velocity_AF[ik] = phonon._velocity_af
-        return velocity_AF
-
-
     @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.

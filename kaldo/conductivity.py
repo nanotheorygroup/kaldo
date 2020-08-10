@@ -30,7 +30,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
     return conductivity_per_mode * 1e22
 
 
-def calculate_diffusivity(omega, sij, diffusivity_bandwidth, physical_mode, alpha, beta, curve,
+def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, physical_mode, alpha, beta, curve,
                           is_diffusivity_including_antiresonant=False,
                           diffusivity_threshold=None):
     # TODO: cache this
@@ -51,7 +51,7 @@ def calculate_diffusivity(omega, sij, diffusivity_bandwidth, physical_mode, alph
     kernel[:, :] = kernel[:, :] / omega[np.newaxis, :] / 4
     kernel[mu_unphysical, :] = 0
     kernel[:, mu_unphysical] = 0
-    diffusivity = sij[..., alpha] * kernel * sij[..., beta]
+    diffusivity = sij_left * kernel * sij_right
     return diffusivity
 
 
@@ -300,20 +300,31 @@ class Conductivity:
                                        temperature=self.temperature,
                                        is_classic=self.is_classic)
             heat_capacity_2d = phonon.heat_capacity_2d
-            sij = phonon._sij
             if phonons.n_modes > 100:
                 logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
             for alpha in range(3):
+                if alpha == 0:
+                    sij_left = phonon._sij_x
+                if alpha == 1:
+                    sij_left = phonon._sij_y
+                if alpha == 2:
+                    sij_left = phonon._sij_z
                 for beta in range(3):
-                    diffusivity = calculate_diffusivity(omega[k_index], sij,
+                    if beta == 0:
+                        sij_right = phonon._sij_x
+                    if beta == 1:
+                        sij_right = phonon._sij_y
+                    if beta == 2:
+                        sij_right = phonon._sij_z
+                    diffusivity = calculate_diffusivity(omega[k_index], sij_left, sij_right,
                                                         diffusivity_bandwidth[k_index],
                                                         physical_mode[k_index], alpha, beta,
                                                         curve,
                                                         is_diffusivity_including_antiresonant,
                                                         self.diffusivity_threshold)
-                    conductivity_per_mode[k_index, :, alpha, beta] = np.sum(heat_capacity_2d *
+                    conductivity_per_mode[k_index, :, alpha, beta] = (np.sum(heat_capacity_2d *
                                                                             diffusivity, axis=-1) \
-                                                                     / (volume * phonons.n_k_points)
+                                                                     / (volume * phonons.n_k_points)).real
                     diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
         self._diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis)
         return conductivity_per_mode * 1e22
