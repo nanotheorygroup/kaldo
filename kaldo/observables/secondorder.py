@@ -201,7 +201,8 @@ class SecondOrder(ForceConstant):
             self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
             self.save('second')
             ase.io.write('/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
-
+        if self.is_acoustic_sum:
+            self.value = acoustic_sum_rule(self.value)
 
     def __str__(self):
         return 'second'
