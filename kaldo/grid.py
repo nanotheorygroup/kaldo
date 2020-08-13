@@ -38,11 +38,11 @@ class Grid:
         return grid
 
 
-    def unitary_grid(self, is_wrapping=False):
+    def unitary_grid(self, is_wrapping):
         return self.grid(is_wrapping) / self.grid_shape
 
 
-    def grid(self, is_wrapping=False):
+    def grid(self, is_wrapping):
         try:
             index_grid = self._grid
         except AttributeError:

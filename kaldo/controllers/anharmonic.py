@@ -98,7 +98,7 @@ def project_crystal(phonons):
         third_tf = tf.convert_to_tensor(phonons.forceconstants.third_order.value)
         is_sparse = False
     third_tf = tf.cast(third_tf, dtype=tf.complex64)
-    k_mesh = phonons._reciprocal_grid.unitary_grid()
+    k_mesh = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
     n_k_points = k_mesh.shape[0]
     _chi_k = tf.convert_to_tensor(phonons.forceconstants.third_order._chi_k(k_mesh))
     _chi_k = tf.cast(_chi_k, dtype=tf.complex64)

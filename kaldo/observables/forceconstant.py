@@ -40,10 +40,10 @@ class ForceConstant(Observable):
 
         grid_c = Grid(grid_shape=self.supercell, order='C')
         grid_fortran = Grid(grid_shape=self.supercell, order='F')
-        if (grid_c.grid() == detected_grid).all():
+        if (grid_c.grid(is_wrapping=False) == detected_grid).all():
             grid_type = 'C'
             logging.debug("Using C-style position grid")
-        elif (grid_fortran.grid() == detected_grid).all():
+        elif (grid_fortran.grid(is_wrapping=False) == detected_grid).all():
             grid_type = 'F'
             logging.debug("Using fortran-style position grid")
         else:
@@ -57,7 +57,7 @@ class ForceConstant(Observable):
     @classmethod
     def from_supercell(cls, atoms, supercell, grid_type, value=None, folder='kALDo'):
         _direct_grid = Grid(supercell, grid_type)
-        replicated_positions = _direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
+        replicated_positions = _direct_grid.grid(is_wrapping=False).dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
                                                                                        np.newaxis, :, :]
         inst = cls(atoms=atoms,
                    replicated_positions=replicated_positions,
@@ -87,7 +87,7 @@ class ForceConstant(Observable):
             supercell = self.supercell
             atoms = self.atoms
             replicated_atoms = atoms.copy() * supercell
-            replicated_positions = self._direct_grid.grid().dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
+            replicated_positions = self._direct_grid.grid(is_wrapping=False).dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
                                                                                                 np.newaxis, :, :]
             replicated_atoms.set_positions(replicated_positions.reshape(-1, 3))
             self._replicated_atoms = replicated_atoms
