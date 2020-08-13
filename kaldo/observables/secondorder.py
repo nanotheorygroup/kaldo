@@ -192,6 +192,7 @@ class SecondOrder(ForceConstant):
                                                 is_acoustic_sum=self.is_acoustic_sum).value
 
             except FileNotFoundError:
+                logging.info('Second order not found. Calculating.')
                 self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
                 self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')

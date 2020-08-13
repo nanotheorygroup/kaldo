@@ -263,7 +263,7 @@ class Conductivity:
         phonons = self.phonons
         omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
         volume = np.linalg.det(phonons.atoms.cell)
-        q_points = phonons._reciprocal_grid.unitary_grid()
+        q_points = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
         physical_mode = phonons.physical_mode
         conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3))
         diffusivity_with_axis = np.zeros_like(conductivity_per_mode)

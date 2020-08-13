@@ -110,7 +110,7 @@ class Phonons:
         physical_mode : np array
             (n_k_points, n_modes) bool
         """
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=np.bool)
 
         for ik in range(len(q_points)):
@@ -137,7 +137,7 @@ class Phonons:
         frequency : np array
             (n_k_points, n_modes) frequency in THz
         """
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -162,7 +162,7 @@ class Phonons:
             (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
         """
 
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -187,7 +187,7 @@ class Phonons:
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
         log_size(shape, name='eigensystem', type=np.complex)
         eigensystem = np.zeros(shape, dtype=np.complex)
@@ -220,7 +220,7 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         c_v = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -245,7 +245,7 @@ class Phonons:
         heat_capacity_2d : np.array(n_k_points, n_modes, n_modes)
             heat capacity in W/m/K for each k point and each modes couple.
         """
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes, self.n_modes)
         log_size(shape, name='heat_capacity_2d', type=np.float)
         heat_capacity_2d = np.zeros(shape)
@@ -273,7 +273,7 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        q_points = self._reciprocal_grid.unitary_grid()
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         population = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -391,7 +391,7 @@ class Phonons:
 
     def _allowed_third_phonons_index(self, index_q, is_plus):
         q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
-        qp_vec = self._reciprocal_grid.unitary_grid()
+        qp_vec = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
         rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
         rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
