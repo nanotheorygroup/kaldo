@@ -116,7 +116,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -142,7 +142,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -167,7 +167,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -194,7 +194,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage)
@@ -225,7 +225,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second_order,
+                                       second=self.forceconstants.second,
                                        distance_threshold=self.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
@@ -252,7 +252,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second_order,
+                                       second=self.forceconstants.second,
                                        distance_threshold=self.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
@@ -278,7 +278,7 @@ class Phonons:
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second_order,
+                                       second=self.forceconstants.second,
                                        distance_threshold=self.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
