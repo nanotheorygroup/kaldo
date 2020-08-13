@@ -184,7 +184,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     vel_plot = []
     vel_norm = []
     for q_point in k_list:
-        phonon = HarmonicWithQ(q_point, phonons.forceconstants.second_order,
+        phonon = HarmonicWithQ(q_point, phonons.forceconstants.second,
                                distance_threshold=phonons.forceconstants.distance_threshold,
                                storage='memory')
         freqs_plot.append(phonon.frequency.flatten())

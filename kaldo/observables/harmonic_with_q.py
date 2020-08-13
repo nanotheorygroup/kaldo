@@ -24,8 +24,6 @@ class HarmonicWithQ(Observable):
         self.n_modes = self.atoms.positions.shape[0] * 3
         self.supercell = second.supercell
         self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
-        self.replicated_atoms = second.replicated_atoms
-        self.list_of_replicas = second.list_of_replicas
         self.second = second
         self.distance_threshold = distance_threshold
         self.physical_mode= np.ones((1, self.n_modes), dtype=bool)
@@ -117,8 +115,8 @@ class HarmonicWithQ(Observable):
         is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
         atoms = self.atoms
-        list_of_replicas = self.list_of_replicas
-        replicated_cell = self.replicated_atoms.cell
+        list_of_replicas = self.second.list_of_replicas
+        replicated_cell = self.second.replicated_atoms.cell
         replicated_cell_inv = self.second._replicated_cell_inv
         cell_inv = self.second.cell_inv
         dynmat = self._dynmat
@@ -144,12 +142,10 @@ class HarmonicWithQ(Observable):
             distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
 
-            list_of_replicas = self.list_of_replicas
-
             if distance_threshold is not None:
 
                 distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
-                    self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[
+                    self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[
                     np.newaxis, :, :, :])
 
                 shape = (n_unit_cell, 3, n_unit_cell, 3)
@@ -234,17 +230,17 @@ class HarmonicWithQ(Observable):
         replicated_cell_inv = self.second._replicated_cell_inv
         is_at_gamma = (q_point == (0, 0, 0)).all()
         is_amorphous = (n_replicas == 1)
-        list_of_replicas = self.list_of_replicas
+        list_of_replicas = self.second.list_of_replicas
         log_size((self.n_modes, self.n_modes), np.complex, name='dynmat_fourier')
         if distance_threshold is not None:
             shape = (n_unit_cell, 3, n_unit_cell, 3)
             type = np.complex
             dyn_s = np.zeros(shape, dtype=type)
-            replicated_cell = self.replicated_atoms.cell
+            replicated_cell = self.second.replicated_atoms.cell
 
             for l in range(n_replicas):
                 distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
-                    self.replicated_atoms.positions.reshape(n_replicas, n_unit_cell ,3)[np.newaxis, l, :, :])
+                    self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell ,3)[np.newaxis, l, :, :])
 
                 distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
 
