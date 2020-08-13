@@ -256,7 +256,7 @@ def save_second_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_2ND'
     filename = phonons.folder + '/' + filename
     forceconstants = phonons.forceconstants
-    second_order = forceconstants.second_order
+    second_order = forceconstants.second
     n_atoms_unit_cell = forceconstants.atoms.positions.shape[0]
     n_replicas = phonons.forceconstants.n_replicas
     second_order = second_order.reshape((n_atoms_unit_cell, 3, n_replicas, n_atoms_unit_cell, 3))
@@ -287,7 +287,7 @@ def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
     n_replicas = phonons.forceconstants.n_replicas
     n_atoms = int(phonons.n_modes / 3)
-    second_order = phonons.second_order.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
+    second_order = phonons.second.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
@@ -326,7 +326,7 @@ def save_third_order_matrix(phonons):
     file = open ('%s' % filename, 'w+')
     n_in_unit_cell = len (phonons.atoms.numbers)
     n_replicas = phonons.forceconstants.n_replicas
-    third_order = phonons.forceconstants.third_order\
+    third_order = phonons.forceconstants.third\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
 
@@ -342,10 +342,10 @@ def save_third_order_matrix(phonons):
                         if (np.abs (three_particles_interaction) > 1e-9).any ():
                             block_counter += 1
                             file.write ('\n  ' + str (block_counter))
-                            rep_position = phonons.forceconstants.second_order.list_of_replicas[n_1]
+                            rep_position = phonons.forceconstants.second.list_of_replicas[n_1]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
-                            rep_position = phonons.forceconstants.second_order.list_of_replicas[n_2]
+                            rep_position = phonons.forceconstants.second.list_of_replicas[n_2]
                             file.write ('\n  ' + str (rep_position[0]) + ' ' + str (rep_position[1]) + ' ' + str (
                                 rep_position[2]))
                             file.write ('\n  ' + str (i_0 + 1) + ' ' + str (i_1 + 1) + ' ' + str (i_2 + 1))

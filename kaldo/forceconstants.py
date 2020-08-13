@@ -61,17 +61,17 @@ class ForceConstants:
         self._list_of_replicas = None
 
         # TODO: we should probably remove the following initialization
-        self.second_order = SecondOrder.from_supercell(atoms,
-                                                       supercell=self.supercell,
-                                                       grid_type='C',
-                                                       is_acoustic_sum=False,
-                                                       folder=folder)
+        self.second = SecondOrder.from_supercell(atoms,
+                                                 supercell=self.supercell,
+                                                 grid_type='C',
+                                                 is_acoustic_sum=False,
+                                                 folder=folder)
         if third_supercell is None:
             third_supercell = supercell
-        self.third_order = ThirdOrder.from_supercell(atoms,
-                                                     supercell=third_supercell,
-                                                     grid_type='C',
-                                                     folder=folder)
+        self.third = ThirdOrder.from_supercell(atoms,
+                                               supercell=third_supercell,
+                                               grid_type='C',
+                                               folder=folder)
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
@@ -119,7 +119,7 @@ class ForceConstants:
                              'supercell': supercell,
                              'folder': folder}
         forceconstants = cls(**forceconstants)
-        forceconstants.second_order = second_order
+        forceconstants.second = second_order
         if not only_second:
             if format == 'numpy':
                 third_format = 'sparse'
@@ -130,19 +130,9 @@ class ForceConstants:
             third_order = ThirdOrder.load(folder=folder, supercell=third_supercell, format=third_format,
                                           third_energy_threshold=third_energy_threshold)
 
-            forceconstants.third_order = third_order
+            forceconstants.third = third_order
         forceconstants.distance_threshold = distance_threshold
         return forceconstants
-
-
-    @property
-    def second(self):
-        return self.second_order
-
-
-    @property
-    def third(self):
-        return self.third_order
 
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
@@ -155,7 +145,7 @@ class ForceConstants:
 
         reduced_third : array, optional
             The third order force constant matrix.
-            Default is `self.third_order`
+            Default is `self.third`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than
             the distance threshold will be ignored.
@@ -174,16 +164,17 @@ class ForceConstants:
                 (self.atoms.cell[2, 2] / 2 < distance_threshold):
             logging.warning('The cell size should be at least twice the distance threshold')
         if reduced_third is None:
-            reduced_third = self.third_order.value
+            reduced_third = self.third.value
         n_unit_atoms = self.n_atoms
         atoms = self.atoms
         n_replicas = self.n_replicas
-        replicated_cell_inv = np.linalg.inv(self.replicated_atoms.cell)
+        replicated_cell_inv = np.linalg.inv(self.third.replicated_atoms.cell)
 
         reduced_third = reduced_third.reshape(
             (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-        replicated_positions = self.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
-        dxij_reduced = wrap_coordinates(atoms.positions[:, np.newaxis, np.newaxis, :] - replicated_positions[np.newaxis, :, :, :], self.replicated_atoms.cell, replicated_cell_inv)
+        replicated_positions = self.third.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
+        dxij_reduced = wrap_coordinates(atoms.positions[:, np.newaxis, np.newaxis, :]
+                                        - replicated_positions[np.newaxis, :, :, :], self.third.replicated_atoms.cell, replicated_cell_inv)
         indices = np.argwhere(np.linalg.norm(dxij_reduced, axis=-1) < distance_threshold)
 
         coords = []

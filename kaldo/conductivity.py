@@ -293,7 +293,7 @@ class Conductivity:
         for k_index in range(len(q_points)):
 
             phonon = HarmonicWithQTemp(q_point=q_points[k_index],
-                                       second=self.phonons.forceconstants.second_order,
+                                       second=self.phonons.forceconstants.second,
                                        distance_threshold=self.phonons.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
