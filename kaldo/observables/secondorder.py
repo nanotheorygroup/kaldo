@@ -1,17 +1,18 @@
 from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
 import os
+import tensorflow as tf
 import ase.io
 import numpy as np
 from kaldo.interface.eskm_io import import_from_files
 import kaldo.interface.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
-from kaldo.helpers.logger import get_logger
+from kaldo.helpers.storage import lazy_property
+import ase.units as units
+from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
-
-
 
 
 def acoustic_sum_rule(dynmat):
@@ -38,6 +39,7 @@ class SecondOrder(ForceConstant):
             self.value = acoustic_sum_rule(self.value)
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None
+        self.storage = 'numpy'
 
 
     @classmethod
@@ -180,6 +182,33 @@ class SecondOrder(ForceConstant):
         return second_order
 
 
+    @property
+    def supercell_replicas(self):
+        try:
+            return self._supercell_replicas
+        except AttributeError:
+            self._supercell_replicas = self.calculate_super_replicas()
+            return self._supercell_replicas
+
+
+    @property
+    def supercell_positions(self):
+        try:
+            return self._supercell_positions
+        except AttributeError:
+            self._supercell_positions = self.calculate_supercell_positions()
+            return self._supercell_positions
+
+
+    @property
+    def dynmat(self):
+        try:
+            return self._dynmat
+        except AttributeError:
+            self._dynmat = self.calculate_dynmat()
+            return self._dynmat
+
+
     def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
@@ -205,5 +234,58 @@ class SecondOrder(ForceConstant):
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
-    def __str__(self):
-        return 'second'
+
+    def calculate_dynmat(self):
+        mass = self.atoms.get_masses()
+        shape = self.value.shape
+        log_size(shape, np.float, name='dynmat')
+        dynmat = self.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
+        dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+        evtotenjovermol = units.mol / (10 * units.J)
+        return tf.convert_to_tensor(dynmat * evtotenjovermol)
+
+
+    def calculate_super_replicas(self):
+        scell = self.supercell
+        n_replicas = np.prod(scell)
+        atoms = self.atoms
+        cell = atoms.cell
+        n_unit_cell = atoms.positions.shape[0]
+        replicated_positions = self.replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
+
+        list_of_index = np.round((replicated_positions - self.atoms.positions).dot(
+            np.linalg.inv(atoms.cell))).astype(np.int)
+        list_of_index = list_of_index[:, 0, :]
+
+        tt = []
+        rreplica = []
+        for ix2 in [-1, 0, 1]:
+            for iy2 in [-1, 0, 1]:
+                for iz2 in [-1, 0, 1]:
+                    for f in range(list_of_index.shape[0]):
+
+                        scell_id = np.array([ix2 * scell[0], iy2 * scell[1], iz2 * scell[2]])
+                        replica_id = list_of_index[f]
+                        t = replica_id + scell_id
+                        replica_position = np.tensordot(t, cell, (-1, 0))
+                        tt.append(t)
+                        rreplica.append(replica_position)
+
+        tt = np.array(tt)
+        return tt
+
+
+    def calculate_supercell_positions(self):
+        supercell = self.supercell
+        atoms = self.atoms
+        cell = atoms.cell
+        replicated_cell = cell * supercell
+        sc_r_pos = np.zeros((3 ** 3, 3))
+        ir = 0
+        for ix2 in [-1, 0, 1]:
+            for iy2 in [-1, 0, 1]:
+                for iz2 in [-1, 0, 1]:
+                    for i in np.arange(3):
+                        sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2,iy2,iz2]))
+                    ir = ir + 1
+        return sc_r_pos

@@ -80,9 +80,9 @@ class Phonons:
         self.kpts = kwargs.pop('kpts', (1, 1, 1))
         self._grid_type = kwargs.pop('grid_type', 'C')
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
-
+        self.is_unfolding = kwargs.pop('is_unfolding', False)
+        logging.info('Using unfolding.')
         self.kpts = np.array(self.kpts)
-
         self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
@@ -119,7 +119,8 @@ class Phonons:
                                    second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_unfolding=self.is_unfolding)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -145,7 +146,8 @@ class Phonons:
                                    second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_unfolding=self.is_unfolding)
 
             frequency[ik] = phonon.frequency
 
@@ -170,7 +172,8 @@ class Phonons:
                                    second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_unfolding=self.is_unfolding)
             velocity[ik] = phonon.velocity
         return velocity
 
@@ -197,7 +200,8 @@ class Phonons:
                                    second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_unfolding=self.is_unfolding)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -230,7 +234,8 @@ class Phonons:
                                        folder=self.folder,
                                        storage=self.storage,
                                        temperature=self.temperature,
-                                       is_classic=self.is_classic)
+                                       is_classic=self.is_classic,
+                                       is_unfolding=self.is_unfolding)
             c_v[ik] = phonon.heat_capacity
         return c_v
 
@@ -257,7 +262,8 @@ class Phonons:
                                        folder=self.folder,
                                        storage=self.storage,
                                        temperature=self.temperature,
-                                       is_classic=self.is_classic)
+                                       is_classic=self.is_classic,
+                                       is_unfolding=self.is_unfolding)
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
 
@@ -283,7 +289,8 @@ class Phonons:
                                        folder=self.folder,
                                        storage=self.storage,
                                        temperature=self.temperature,
-                                       is_classic=self.is_classic)
+                                       is_classic=self.is_classic,
+                                       is_unfolding=self.is_unfolding)
             population[ik] = phonon.population
         return population
 
