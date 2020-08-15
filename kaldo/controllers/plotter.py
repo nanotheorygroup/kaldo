@@ -155,7 +155,7 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True, input_fig=Non
         return fig
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b'):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False):
     # TODO: remove useless symmetry flag
     atoms = phonons.atoms
 
@@ -186,7 +186,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     for q_point in k_list:
         phonon = HarmonicWithQ(q_point, phonons.forceconstants.second,
                                distance_threshold=phonons.forceconstants.distance_threshold,
-                               storage='memory')
+                               storage='memory',
+                               is_unfolding=is_unfolding)
         freqs_plot.append(phonon.frequency.flatten())
 
         if with_velocity:
