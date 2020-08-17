@@ -80,10 +80,11 @@ class HarmonicWithQTemp(HarmonicWithQ):
         frequency = self.frequency
         temp = self.temperature * KELVINTOTHZ
         density = np.zeros_like(frequency)
+        physical_mode = self.physical_mode.reshape(frequency.shape)
         if self.is_classic is False:
-            density[self.physical_mode] = 1. / (np.exp(frequency[self.physical_mode] / temp) - 1.)
+            density[physical_mode] = 1. / (np.exp(frequency[physical_mode] / temp) - 1.)
         else:
-            density[self.physical_mode] = temp / frequency[self.physical_mode]
+            density[physical_mode] = temp / frequency[physical_mode]
         return density
 
 
