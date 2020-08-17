@@ -49,10 +49,11 @@ class HarmonicWithQTemp(HarmonicWithQ):
             c_v = np.zeros((self.n_modes, self.n_modes))
             c_v[:, :] = KELVINTOJOULE
         else:
-            frequencies = self.frequency[0]
+            frequencies = self.frequency.flatten()
             temperature = self.temperature * KELVINTOTHZ
-            heat_capacity = self.heat_capacity[0]
-            f_be = self.population[0]
+            heat_capacity = self.heat_capacity.flatten()
+            physical_mode = self.physical_mode.flatten()
+            f_be = self.population.flatten()
             c_v_omega = (f_be[:, np.newaxis] - f_be[np.newaxis, :])
             diff_omega = (frequencies[:, np.newaxis] - frequencies[np.newaxis, :])
             mask_degeneracy = np.where(diff_omega == 0, True, False)
@@ -71,8 +72,7 @@ class HarmonicWithQTemp(HarmonicWithQ):
                                     + heat_capacity[np.newaxis, :]) / 2
             c_v = np.where(mask_degeneracy, heat_capacity_deg_2d, c_v)
             #Physical modes
-            mask = self.physical_mode[:, np.newaxis] * self.physical_mode[np.newaxis, :]
-            c_v = c_v * mask
+            c_v = c_v * physical_mode[:, np.newaxis] * physical_mode[np.newaxis, :]
         return c_v
 
 
