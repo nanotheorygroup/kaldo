@@ -198,7 +198,7 @@ class HarmonicWithQ(Observable):
             dynmat_derivatives = self._dynmat_derivatives_y
         if direction == 2:
             dynmat_derivatives = self._dynmat_derivatives_z
-        if self.atoms.positions.shape[0] > 100:
+        if self.atoms.positions.shape[0] > 500:
             # We want to print only for big systems
             logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
             dir = ['_x', '_y', '_z']
