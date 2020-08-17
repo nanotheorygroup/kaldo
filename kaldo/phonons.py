@@ -81,7 +81,8 @@ class Phonons:
         self._grid_type = kwargs.pop('grid_type', 'C')
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
         self.is_unfolding = kwargs.pop('is_unfolding', False)
-        logging.info('Using unfolding.')
+        if self.is_unfolding:
+            logging.info('Using unfolding.')
         self.kpts = np.array(self.kpts)
         self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
