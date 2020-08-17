@@ -91,8 +91,8 @@ class HarmonicWithQTemp(HarmonicWithQ):
     def _calculate_heat_capacity(self):
         frequency = self.frequency
         c_v = np.zeros_like(frequency)
-        physical_mode = self.physical_mode
         temperature = self.temperature * KELVINTOTHZ
+        physical_mode = self.physical_mode.reshape(frequency.shape)
         if (self.is_classic):
             c_v[physical_mode] = KELVINTOJOULE
         else:
