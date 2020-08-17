@@ -202,7 +202,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     fig1, ax1 = plt.subplots()
 
     plt.tick_params(axis='both', which='minor', labelsize=16)
-    plt.ylabel("$\\nu$ (Thz)", fontsize=16)
+    plt.ylabel("$\\nu$ (THz)", fontsize=16)
     plt.xlabel('$q$', fontsize=16)
     plt.tick_params(axis='both', which='major', labelsize=16)
 
