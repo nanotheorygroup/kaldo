@@ -1,4 +1,3 @@
-
 from kaldo.grid import wrap_coordinates
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
@@ -9,6 +8,7 @@ from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
+
 logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
@@ -40,18 +40,15 @@ class HarmonicWithQ(Observable):
         else:
             self.storage = 'memory'
 
-
     @lazy_property(label='<q_point>')
     def frequency(self):
         frequency = self.calculate_frequency()[np.newaxis, :]
         return frequency
 
-
     @lazy_property(label='<q_point>')
     def velocity(self):
         velocity = self.calculate_velocity()
         return velocity
-
 
     @lazy_property(label='<q_point>')
     def _dynmat_derivatives_x(self):
@@ -61,7 +58,6 @@ class HarmonicWithQ(Observable):
             _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=0)
         return _dynmat_derivatives
 
-
     @lazy_property(label='<q_point>')
     def _dynmat_derivatives_y(self):
         if self.is_unfolding:
@@ -70,7 +66,6 @@ class HarmonicWithQ(Observable):
             _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=1)
         return _dynmat_derivatives
 
-
     @lazy_property(label='<q_point>')
     def _dynmat_derivatives_z(self):
         if self.is_unfolding:
@@ -78,13 +73,11 @@ class HarmonicWithQ(Observable):
         else:
             _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=2)
         return _dynmat_derivatives
-    
 
     @lazy_property(label='<q_point>')
     def _dynmat_fourier(self):
         dynmat_fourier = self.calculate_dynmat_fourier()
         return dynmat_fourier
-
 
     @lazy_property(label='<q_point>')
     def _eigensystem(self):
@@ -94,18 +87,15 @@ class HarmonicWithQ(Observable):
             _eigensystem = self.calculate_eigensystem(only_eigenvals=False)
         return _eigensystem
 
-
     @lazy_property(label='<q_point>')
     def _sij_x(self):
         _sij = self.calculate_sij(direction=0)
         return _sij
 
-
     @lazy_property(label='<q_point>')
     def _sij_y(self):
         _sij = self.calculate_sij(direction=1)
         return _sij
-
 
     @lazy_property(label='<q_point>')
     def _sij_z(self):
@@ -121,7 +111,6 @@ class HarmonicWithQ(Observable):
             eigenvals = self.calculate_eigensystem(only_eigenvals=True)
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequency.real
-
 
     def calculate_dynmat_derivatives(self, direction):
         q_point = self.q_point
@@ -182,12 +171,11 @@ class HarmonicWithQ(Observable):
         dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
         return dynmat_derivatives
 
-
     def calculate_sij(self, direction):
         q_point = self.q_point
         is_amorphous = self.is_amorphous
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
-        if is_amorphous:
+        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             type = np.float
         else:
             type = np.complex
@@ -203,15 +191,15 @@ class HarmonicWithQ(Observable):
             logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
             dir = ['_x', '_y', '_z']
             log_size(shape, type, name='sij' + dir[direction])
-        if is_amorphous:
+        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:
             eigenvects = tf.cast(eigenvects, tf.complex128)
+            dynmat_derivatives = tf.cast(dynmat_derivatives, tf.complex128)
             sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(tf.math.conj(eigenvects), sij, (0, 1))
         return sij
-
 
     def calculate_velocity(self):
         frequency = self.frequency[0]
@@ -229,7 +217,6 @@ class HarmonicWithQ(Observable):
             velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
             velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
         return velocity[np.newaxis, ...]
-
 
     def calculate_dynmat_fourier(self):
         q_point = self.q_point
@@ -273,7 +260,6 @@ class HarmonicWithQ(Observable):
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
         return dyn_s
 
-
     def calculate_eigensystem(self, only_eigenvals):
         dyn_s = self._dynmat_fourier
         if only_eigenvals:
@@ -283,7 +269,6 @@ class HarmonicWithQ(Observable):
             esystem = tf.linalg.eigh(dyn_s)
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
-
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         q_point = self.q_point
@@ -322,7 +307,6 @@ class HarmonicWithQ(Observable):
         else:
             esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
         return esystem
-
 
     def calculate_dynmat_derivatives_unfolded(self, direction=None):
         q_point = self.q_point
