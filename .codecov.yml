@@ -12,5 +12,3 @@ comment:
   behavior: default
   flags: null
   paths: null
-fixes:
-   - "/home/circleci/::"
