@@ -242,7 +242,7 @@ class Conductivity:
 
 
     @property
-    def _scattering_matrix_without_diagonal(self):
+    def _scattering_matrix_without_diagonal(self, is_logging_symmetry=False):
         physical_mode = self.phonons.physical_mode.reshape((self.n_phonons))
         frequency = self.phonons.frequency.reshape((self.n_phonons))[physical_mode]
         gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor[:, 2:]
@@ -250,7 +250,12 @@ class Conductivity:
         n_physical = physical_mode.sum()
         log_size((n_physical, n_physical), np.float, name='_scattering_matrix_without_diagonal')
         gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
-        gamma_tensor = 1 / frequency.reshape(-1, 1) * gamma_tensor * frequency.reshape(1, -1)
+        if is_logging_symmetry:
+            n = self.phonons.population.reshape((self.n_phonons))[physical_mode]
+            gamma_tensor_new = np.einsum('a,ab,b->ab', ((n * (n + 1))) ** (1/2), gamma_tensor,
+                                         1 / ((n * (n + 1)) ** (1/2)))
+            logging.info('Asymmetry of gamma_tensor: ' + str(np.abs(gamma_tensor_new - gamma_tensor_new.T).sum()))
+        gamma_tensor = 1 / (frequency.reshape(-1, 1)) * gamma_tensor * (frequency.reshape(1, -1))
         return gamma_tensor
 
 

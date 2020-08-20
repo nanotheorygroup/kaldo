@@ -210,7 +210,8 @@ def project_crystal(phonons):
     return ps_and_gamma
 
 
-def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, broadening_shape, index_kpp_full, index_k, mu, is_plus):
+def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, broadening_shape,
+                                  index_kpp_full, index_k, mu, is_plus, is_balanced=False):
     if not physical_mode[index_k, mu]:
         return None
     if broadening_shape == 'gauss':
@@ -242,9 +243,18 @@ def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, br
             sigma_tf = tf.gather_nd(sigma_tf, coords_3)
         if is_plus:
             dirac_delta_tf = tf.gather_nd(population, coords_1) - tf.gather_nd(population, coords_2)
-
+            if is_balanced:
+                # Detail balance
+                # (n0) * (n1) * (n2 + 2) - (n0 + 1) * (n1 + 1) * (n2) = 0
+                dirac_delta_tf = 0.5 * (tf.gather_nd(population, coords_1) + 1) * (tf.gather_nd(population, coords_2)) / (population[index_k, mu])
+                dirac_delta_tf += 0.5 * (tf.gather_nd(population, coords_1)) * (tf.gather_nd(population, coords_2) + 1) / (1 + population[index_k, mu])
         else:
             dirac_delta_tf = 0.5 * (1 + tf.gather_nd(population, coords_1) + tf.gather_nd(population, coords_2))
+            if is_balanced:
+                # Detail balance
+                # (n0) * (n1 + 1) * (n2 + 2) - (n0 + 1) * (n1) * (n2) = 0
+                dirac_delta_tf = 0.25 * (tf.gather_nd(population, coords_1)) * (tf.gather_nd(population, coords_2)) / (population[index_k, mu])
+                dirac_delta_tf += 0.25 * (tf.gather_nd(population, coords_1) + 1) * (tf.gather_nd(population, coords_2) + 1) / (1 + population[index_k, mu])
         omegas_difference_tf = (omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(
                 omega, coords_2))
 
