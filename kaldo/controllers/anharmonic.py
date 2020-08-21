@@ -21,6 +21,7 @@ GAMMATOTHZ = 1e11 * units.mol * EVTOTENJOVERMOL ** 2
 
 @timeit
 def project_amorphous(phonons):
+    is_balanced = phonons.is_balanced
     frequency = phonons.frequency
     omega = 2 * np.pi * frequency
     population = phonons.population
@@ -47,7 +48,8 @@ def project_amorphous(phonons):
                                               physical_mode,
                                               sigma_tf,
                                               phonons.broadening_shape,
-                                              nu_single)
+                                              nu_single,
+                                              is_balanced)
         if not out:
             continue
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
@@ -83,6 +85,7 @@ def project_amorphous(phonons):
 
 @timeit
 def project_crystal(phonons):
+    is_balanced = phonons.is_balanced
     is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
     n_replicas = phonons.forceconstants.third.n_replicas
 
@@ -155,7 +158,8 @@ def project_crystal(phonons):
                                                 index_kpp_full,
                                                 index_k,
                                                 mu,
-                                                is_plus)
+                                                is_plus,
+                                                is_balanced)
             if not out:
                 continue
 
@@ -211,7 +215,7 @@ def project_crystal(phonons):
 
 
 def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, broadening_shape,
-                                  index_kpp_full, index_k, mu, is_plus, is_balanced=False):
+                                  index_kpp_full, index_k, mu, is_plus, is_balanced):
     if not physical_mode[index_k, mu]:
         return None
     if broadening_shape == 'gauss':
@@ -267,7 +271,7 @@ def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, br
         return tf.cast(dirac_delta_tf, dtype=tf.float32), index_kp, mup, index_kpp, mupp
 
 
-def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu):
+def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu, is_balanced):
     if not physical_mode[0, mu]:
         return None
     if broadening_shape == 'triangle':
@@ -288,8 +292,23 @@ def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, 
             mupp_vec = interactions[:, 1]
             if is_plus:
                 dirac_delta_tf = tf.gather(population[0], mup_vec) - tf.gather(population[0], mupp_vec)
+                if is_balanced:
+                    # Detailed balance
+                    # n0 * n1 * (n2 + 2) = (n0 + 1) * (n1 + 1) * n2
+                    dirac_delta_tf = 0.5 * (tf.gather(population[0], mup_vec) + 1) * (
+                        tf.gather(population[0], mupp_vec)) / (population[0, mu])
+                    dirac_delta_tf += 0.5 * (tf.gather(population[0], mup_vec)) * (
+                                tf.gather(population[0], mupp_vec) + 1) / (1 + population[0, mu])
             else:
                 dirac_delta_tf = 0.5 * (1 + tf.gather(population[0], mup_vec) + tf.gather(population[0], mupp_vec))
+                if is_balanced:
+                    # Detailed balance
+                    # n0 * (n1 + 1) * (n2 + 2) = (n0 + 1) * n1 * n2
+                    dirac_delta_tf = 0.25 * (tf.gather(population[0], mup_vec)) * (
+                        tf.gather(population[0], mupp_vec)) / (population[0, mu])
+                    dirac_delta_tf += 0.25 * (tf.gather(population[0], mup_vec) + 1) * (
+                            tf.gather(population[0], mupp_vec) + 1) / (1 + population[0, mu])
+
             omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
 
             if broadening_shape == 'gauss':

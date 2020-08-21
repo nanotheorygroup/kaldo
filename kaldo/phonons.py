@@ -65,6 +65,8 @@ class Phonons:
         Specify if to use 'C" style atoms replica grid of fortran
         style 'F',
         Default 'C'
+    is_balanced : Enforce detailed balance when calculating anharmonic properties,
+        Default: False
 
     Returns
     -------
@@ -92,6 +94,7 @@ class Phonons:
         self.storage = kwargs.pop('storage', 'formatted')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
+        self.is_balanced = kwargs.pop('is_balanced', False)
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
