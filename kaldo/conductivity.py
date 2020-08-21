@@ -169,7 +169,7 @@ class Conductivity:
             (n_k_points, n_modes, 3, 3) float
         """
         method = self.method
-        other_avail_methods = ['rta', 'sc', 'inverse', 'relaxon']
+        other_avail_methods = ['rta', 'sc', 'inverse', 'evect']
         if (method == 'qhgk'):
             cond = self.calculate_conductivity_qhgk().reshape((self.n_phonons, 3, 3))
         elif method in other_avail_methods:
@@ -419,8 +419,8 @@ class Conductivity:
         scattering_inverse = reduced_scattering_inverse
         # e, v = np.linalg.eig(a)
         # a = v.dot(np.diag(e)).dot(np.linalg.inv(v))
-
-        lambd = scattering_inverse.dot(velocity[:, :])
+        lambd = np.zeros((phonons.n_phonons, 3))
+        lambd[physical_mode] = scattering_inverse.dot(velocity[:, :])
         return lambd
 
 
@@ -459,15 +459,17 @@ class Conductivity:
         velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3))
         velocity = velocity.reshape((phonons.n_phonons, 3))
         physical_mode = phonons.physical_mode.reshape(phonons.n_phonons)
-        gamma = phonons.bandwidth.reshape(phonons.n_phonons)
-        lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
         if n_iterations == 0:
+            gamma = phonons.bandwidth.reshape(phonons.n_phonons)
+            lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
             return lambd_0
         else:
+            scattering_matrix = self._scattering_matrix_without_diagonal
+            gamma = phonons.bandwidth.reshape(phonons.n_phonons)
+            lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
             lambd_n = np.zeros_like(lambd_0)
             avg_conductivity = None
             n_iteration = 0
-            scattering_matrix = self._scattering_matrix_without_diagonal
             for n_iteration in range (n_iterations):
                 conductivity_per_mode = calculate_conductivity_per_mode(phonons.heat_capacity.reshape((phonons.n_phonons)),
                                                                         velocity, lambd_n, physical_mode, phonons.n_phonons)
