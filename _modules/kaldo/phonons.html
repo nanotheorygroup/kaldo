@@ -455,6 +455,8 @@
 <span class="sd">        Specify if to use 'C" style atoms replica grid of fortran</span>
 <span class="sd">        style 'F',</span>
 <span class="sd">        Default 'C'</span>
+<span class="sd">    is_balanced : Enforce detailed balance when calculating anharmonic properties,</span>
+<span class="sd">        Default: False</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -482,6 +484,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'formatted'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_symmetrizing_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_symmetrizing_frequency'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_antisymmetrizing_velocity</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_antisymmetrizing_velocity'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_balanced</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_balanced'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">atoms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">))</span>
