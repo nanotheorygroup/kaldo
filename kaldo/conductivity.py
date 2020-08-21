@@ -241,20 +241,22 @@ class Conductivity:
             logging.info('You need to calculate the conductivity QHGK first.')
 
 
-    @property
-    def _scattering_matrix_without_diagonal(self, is_logging_symmetry=False):
+    def calculate_scattering_matrix(self, with_diagonal=False, is_logging_symmetry=False):
         physical_mode = self.phonons.physical_mode.reshape((self.n_phonons))
         frequency = self.phonons.frequency.reshape((self.n_phonons))[physical_mode]
         gamma_tensor = self.phonons._ps_gamma_and_gamma_tensor[:, 2:]
         index = np.outer(physical_mode, physical_mode)
         n_physical = physical_mode.sum()
-        log_size((n_physical, n_physical), np.float, name='_scattering_matrix_without_diagonal')
+        log_size((n_physical, n_physical), np.float, name='_scattering_matrix')
         gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
         if is_logging_symmetry:
             n = self.phonons.population.reshape((self.n_phonons))[physical_mode]
             gamma_tensor_new = np.einsum('a,ab,b->ab', ((n * (n + 1))) ** (1/2), gamma_tensor,
                                          1 / ((n * (n + 1)) ** (1/2)))
             logging.info('Asymmetry of gamma_tensor: ' + str(np.abs(gamma_tensor_new - gamma_tensor_new.T).sum()))
+        if with_diagonal:
+            gamma = self.phonons.bandwidth.reshape((self.n_phonons))[physical_mode]
+            gamma_tensor = gamma_tensor - np.diag(gamma)
         gamma_tensor = 1 / (frequency.reshape(-1, 1)) * gamma_tensor * (frequency.reshape(1, -1))
         return gamma_tensor
 
@@ -356,7 +358,7 @@ class Conductivity:
         velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
         lambd = np.zeros_like(velocity)
         for alpha in range (3):
-            scattering_matrix = - 1 * self._scattering_matrix_without_diagonal
+            scattering_matrix = -1 * self.calculate_scattering_matrix(with_diagonal=False)
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
             if finite_size_method == 'ms':
                 if length is not None:
@@ -398,11 +400,9 @@ class Conductivity:
         phonons = self.phonons
         physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
         velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))[physical_mode, :]
-        scattering_matrix = -1 * self._scattering_matrix_without_diagonal
+        _scattering_matrix = -1 * self.calculate_scattering_matrix(with_diagonal=True)
         physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
-        gamma = self.phonons.bandwidth.reshape((self.n_phonons))[physical_mode]
 
-        _scattering_matrix = scattering_matrix + np.diag(gamma)
         evals, evects = np.linalg.eig(_scattering_matrix)
 
         neg_diag = (_scattering_matrix.diagonal() < 0).sum()
@@ -464,7 +464,7 @@ class Conductivity:
             lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
             return lambd_0
         else:
-            scattering_matrix = self._scattering_matrix_without_diagonal
+            scattering_matrix = self.calculate_scattering_matrix(with_diagonal=False)
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
             lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
             lambd_n = np.zeros_like(lambd_0)
