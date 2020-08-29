@@ -6,19 +6,13 @@ kALDo: Anharmonic Lattice Dynamics
 
 <img src="docs/docsource/_resources/logo.png" width="650">
 
+Please visit kALDo website [here](https://nanotheorygroup.github.io/kaldo/)
+Google Colab tutorials can be found [here](https://nanotheorygroup.github.io/kaldo/docsource/crystal_presentation.html) and [here](https://nanotheorygroup.github.io/kaldo/docsource/amorphous_presentation.html).
+
 kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA.
-Below we illustrate the main features of the code
 
+Below we illustrate the main features of the code.
 <img src="docs/docsource/_resources/features.png" width="650">
-
-## Code Architecture
-
-<img src="docs/docsource/_resources/class_diagram.png" width="650">
-
-## Documentation
-
-The documentation can be found [here](https://nanotheorygroup.github.io/kaldo/)
-. Work in progress.
 
 ## Copyright
 
