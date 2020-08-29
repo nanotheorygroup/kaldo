@@ -1,10 +1,8 @@
-kALDo: Anharmonic Lattice Dynamics
-==============================
+<img src="docs/docsource/_resources/logo.png" width="450">
+
 [//]: # (Badges)
 [![CircleCI](https://circleci.com/gh/nanotheorygroup/kaldo.svg?style=svg)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
 [![codecov](https://codecov.io/gh/nanotheorygroup/kaldo/branch/master/graph/badge.svg)](https://codecov.io/gh/nanotheorygroup/kaldo)
-
-<img src="docs/docsource/_resources/logo.png" width="450">
 
 Please visit kALDo website [here](https://nanotheorygroup.github.io/kaldo/).
 
