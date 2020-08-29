@@ -125,7 +125,7 @@ def project_crystal(phonons):
         velocity_tf = tf.convert_to_tensor(phonons.velocity)
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
-            logging.info('calculating third ' + str(nu_single) +  ', ' + \
+            logging.info('Calculating third order projection ' + str(nu_single) +  ', ' + \
                          str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         if is_sparse:
