@@ -169,28 +169,30 @@ class Conductivity:
             (n_k_points, n_modes, 3, 3) float
         """
         method = self.method
-        other_avail_methods = ['rta', 'sc', 'inverse', 'evect']
+        other_avail_methods = ['rta', 'sc', 'inverse']
         if (method == 'qhgk'):
             cond = self.calculate_conductivity_qhgk().reshape((self.n_phonons, 3, 3))
+        elif (method == 'evect'):
+            cond = self.calculate_conductivity_evect().reshape((self.n_phonons, 3, 3))
         elif method in other_avail_methods:
             lambd = self.mean_free_path
-            # conductivity_per_mode = calculate_conductivity_per_mode(self.phonons.heat_capacity.reshape((self.n_phonons)),
-            #                                                         self.phonons.velocity, lambd, self.phonons.physical_mode,
-            #                                                         self.n_phonons)
-            #
-            # volume = np.linalg.det(self.phonons.atoms.cell)
-            # cond = conductivity_per_mode / (volume * self.n_k_points)
-        # else:
-        #     logging.error('Conductivity method not implemented')
+            conductivity_per_mode = calculate_conductivity_per_mode(self.phonons.heat_capacity.reshape((self.n_phonons)),
+                                                                    self.phonons.velocity, lambd, self.phonons.physical_mode,
+                                                                    self.n_phonons)
+
+            volume = np.linalg.det(self.phonons.atoms.cell)
+            cond = conductivity_per_mode / (volume * self.n_k_points)
+        else:
+            logging.error('Conductivity method not implemented')
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
         #      format=phonons.store_format['conductivity'])
-        # sum = (cond.imag).sum()
-        # if sum > 1e-3:
-        #     logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
-        # logging.info('Conductivity calculated')
-        # return cond.real
+        sum = (cond.imag).sum()
+        if sum > 1e-3:
+            logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
+        logging.info('Conductivity calculated')
+        return cond.real
 
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
@@ -207,23 +209,21 @@ class Conductivity:
         if (method == 'qhgk'):
             logging.error('Mean free path not available for ' + str(method))
         elif method == 'rta':
-            mfp = self._calculate_mfp_sc()
+            cond = self._calculate_mfp_sc()
         elif method == 'sc':
-            mfp = self._calculate_mfp_sc()
+            cond = self._calculate_mfp_sc()
         elif (method == 'inverse'):
-            mfp = self.calculate_mfp_inverse()
-        elif (method == 'evect'):
-            mfp = self.calculate_mfp_evect()
+            cond = self.calculate_mfp_inverse()
         else:
             logging.error('Conductivity method not implemented')
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
         #      format=phonons.store_format['conductivity'])
-        # sum = (mfp.imag).sum()
-        # if sum > 1e-3:
-        #     logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
-        # return mfp.real
+        sum = (cond.imag).sum()
+        if sum > 1e-3:
+            logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
+        return cond.real
 
 
     @property
@@ -394,13 +394,11 @@ class Conductivity:
 
 
     def calculate_conductivity_evect(self):
-        """This calculates the mean free path of evect. In materials where most scattering events conserve momentum
-        :ref:'Relaxon Theory Section' (e.g. in two dimensional materials or three dimensional materials at extremely low
-        temparatures), this quantity can be used to calculate thermal conductivity.
+        """This calculates the conductivity free path using the full solution of the space-dependent Boltzmann Transport Equation.
 
         Returns
 	    -------
-        lambda : np array
+        conductivity_per_mode : np array
             (n_k_points, n_modes, 3)
         """
         phonons = self.phonons
@@ -432,8 +430,6 @@ class Conductivity:
         new_index = np.outer(new_physical_states, new_physical_states)
         count_new = new_physical_states.sum()
         gamma_new = gamma_tensor[new_index].reshape((count_new, count_new))
-        np.savetxt('gamma_new.csv', gamma_new, fmt='%.18e', delimiter=', ', newline='},\n{', header='{',
-            footer='}')
         sqrt_heat_new = sqr_heat_capacity[new_physical_states]
         c_new = phonons.heat_capacity.flatten()[physical_mode][new_physical_states]
         gamma_inv = scattering_inverse[new_index].reshape((count_new, count_new))
@@ -464,14 +460,6 @@ class Conductivity:
         psi_inv = np.linalg.inv(psi)
         volume = np.linalg.det(self.phonons.atoms.cell)
 
-        # conductivity_per_mode = np.einsum('nl,l,lk,k,k->n',
-        #                                    psi,
-        #                                    lambd,
-        #                                    psi_inv,
-        #                                    c_new,
-        #                                    v_new,
-        #                                    )
-
         only_lambd_plus = lambd.copy()
         only_lambd_plus[lambd<0] = 0
 
@@ -490,59 +478,6 @@ class Conductivity:
 
             cond = conductivity_per_mode / (volume * self.n_k_points) * 1e22
             print(cond.sum(axis=0))
-
-
-        lambd = np.zeros((phonons.n_phonons, 3))
-        scattering_inverse_rescaled = np.einsum('a,ab,b->ab', 1 / sqr_heat_capacity, scattering_inverse, sqr_heat_capacity)
-        lambd[physical_mode] = scattering_inverse_rescaled.dot(velocity[:, :])
-        return lambd
-
-        # finite size
-        # v = phonons.velocity.real.reshape((phonons.n_phonons, 3))[physical_mode, 0]
-        # p_states = (v > 0)
-        # n_states = (v < 0)
-        # v_p = v[p_states]
-        # v_n = v[n_states]
-        # pp_index = np.outer(p_states, p_states)
-        # nn_index = np.outer(n_states, n_states)
-        # pn_index = np.outer(p_states, n_states)
-        # np_index = np.outer(n_states, p_states)
-        # count_p = p_states.sum()
-        # count_n = n_states.sum()
-        # inverse_g_reduced = np.linalg.inv(gamma_tensor)[pp_index].reshape((count_p, count_p))
-        # gpp = gamma_tensor[pp_index].reshape((count_p, count_p))
-        # gnn = gamma_tensor[nn_index].reshape((count_n, count_n))
-        # gpn = gamma_tensor[pn_index].reshape((count_p, count_n))
-        # gnp = gamma_tensor[np_index].reshape((count_n, count_p))
-
-
-        # inv_gpp = np.linalg.inv(gpp)
-        # inv_gnn = np.linalg.inv(gnn)
-
-        # green function theory
-        # gpp_inverse = np.linalg.inv(gpp - gpn.dot(inv_gnn.dot(gnp)))
-        # gnn_inverse = np.linalg.inv(gnn - gnp.dot(inv_gpp).dot(gpn))
-        # gpp_inverse = (inv_gpp + inv_gpp.dot(gpn).dot(np.linalg.inv(gnn - gnp.dot(inv_gpp).dot(gpn))).dot(gnp).dot(inv_gpp)).max()
-
-        # sqrt_cp = sqr_heat_capacity[p_states]
-        # sqrt_cn = sqr_heat_capacity[n_states]
-        # gpp_inv_rescaled = np.einsum('a,ab,b->ab', 1 / sqrt_cp, inv_gpp, sqrt_cp)
-        # gnn_inv_rescaled = np.einsum('a,ab,b->ab', 1 / sqrt_cn, inv_gnn, sqrt_cn)
-        # mfp_p = gpp_inv_rescaled.dot(v_p)
-        # mfp_n = gnn_inv_rescaled.dot(v_n)
-
-        # new_lambd = lambd[physical_mode, :].copy()
-        # new_lambd = np.zeros(physical_mode.sum())
-        # new_lambd[p_states] = mfp_p
-        # new_lambd[n_states] = mfp_n
-        # lambd[physical_mode, 1:] = 2 * lambd[physical_mode, 1:]
-        # lambd[physical_mode, 0] = 2 * new_lambd[:]
-        # return lambd
-
-        # import tensorflow as tf
-        # length = 10
-        # tf.linalg.expm(-1 * np.einsum('a,ab->ab', 1 / v, g) * length / 2)
-        # return 2 * lambd
 
 
     def _calculate_mfp_sc(self):
