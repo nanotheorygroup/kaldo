@@ -11,6 +11,7 @@ from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
+
 MAX_ITERATIONS_SC = 50
 EVTOTENJOVERMOL = units.mol / (10 * units.J)
 KELVINTOJOULE = units.kB / units.J
@@ -173,7 +174,7 @@ class Conductivity:
         if (method == 'qhgk'):
             cond = self.calculate_conductivity_qhgk().reshape((self.n_phonons, 3, 3))
         elif (method == 'evect'):
-            cond = self.calculate_conductivity_evect().reshape((self.n_phonons, 3, 3))
+            cond = self.calculate_conductivity_full().reshape((self.n_phonons, 3, 3))
         elif method in other_avail_methods:
             lambd = self.mean_free_path
             conductivity_per_mode = calculate_conductivity_per_mode(self.phonons.heat_capacity.reshape((self.n_phonons)),
@@ -393,45 +394,48 @@ class Conductivity:
         return lambd
 
 
-    def calculate_conductivity_evect(self):
-        """This calculates the conductivity free path using the full solution of the space-dependent Boltzmann Transport Equation.
+    def calculate_conductivity_full(self, is_using_gamma_tensor_evects=False):
+        """This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.
 
         Returns
 	    -------
         conductivity_per_mode : np array
             (n_k_points, n_modes, 3)
         """
-        phonons = self.phonons
-        physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
-        velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))[physical_mode, :]
+        n_phonons = self.n_phonons
+        n_k_points = self.n_k_points
+        volume = np.linalg.det(self.phonons.atoms.cell)
+        physical_mode = self.phonons.physical_mode.reshape(n_phonons)
+        velocity = self.phonons.velocity.real.reshape((n_phonons, 3))[physical_mode, :]
+        heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
+        sqr_heat_capacity = heat_capacity ** 0.5
+        length = self.length
+
         gamma_tensor = self.calculate_scattering_matrix(is_including_diagonal=True,
                                                         is_rescaling_omega=False,
                                                         is_rescaling_population=True)
 
-        evals, evects = np.linalg.eigh(gamma_tensor)
 
         neg_diag = (gamma_tensor.diagonal() < 0).sum()
         logging.info('negative on diagonal : ' + str(neg_diag))
-        logging.info('negative eigenvals : ' + str((evals < 0).sum()))
-        new_physical_states = np.argwhere(evals >= 0)[0, 0]
-        reduced_evects = evects[new_physical_states:, new_physical_states:]
-        reduced_evals = evals[new_physical_states:]
         log_size(gamma_tensor.shape, name='scattering_inverse')
-        scattering_inverse = np.zeros_like(gamma_tensor)
-        scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot((reduced_evects.T.conj()))
-        sqr_heat_capacity = phonons.heat_capacity.flatten()[physical_mode] ** 0.5
-        print('difference in velocity states ', (velocity > 0).sum() - (velocity < 0).sum())
+        if is_using_gamma_tensor_evects:
+            evals, evects = np.linalg.eigh(gamma_tensor)
+            logging.info('negative eigenvals : ' + str((evals < 0).sum()))
+            new_physical_states = np.argwhere(evals >= 0)[0, 0]
+            reduced_evects = evects[new_physical_states:, new_physical_states:]
+            reduced_evals = evals[new_physical_states:]
+            scattering_inverse = np.zeros_like(gamma_tensor)
+            scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot((reduced_evects.T))
+        else:
+            scattering_inverse = np.linalg.inv(gamma_tensor)
 
-        physical_mode = self.phonons.physical_mode
-        n_phonons = self.n_phonons
-        physical_mode = physical_mode.reshape(n_phonons)
         new_physical_states = np.invert(velocity[:, 0] == 0)
         v_new = velocity[new_physical_states, 0]
         new_index = np.outer(new_physical_states, new_physical_states)
         count_new = new_physical_states.sum()
-        gamma_new = gamma_tensor[new_index].reshape((count_new, count_new))
         sqrt_heat_new = sqr_heat_capacity[new_physical_states]
-        c_new = phonons.heat_capacity.flatten()[physical_mode][new_physical_states]
+        c_new = heat_capacity[new_physical_states]
         gamma_inv = scattering_inverse[new_index].reshape((count_new, count_new))
 
         # with evect
@@ -440,8 +444,10 @@ class Conductivity:
                                                  gamma_inv,
                                                  1 / sqrt_heat_new)
         lambd, psi = np.linalg.eig(lambd_tensor)
-        # evals and evect
-        # lambd_tensor = psi.dot(np.diag(lambd)).dot(np.linalg.inv(psi))
+        psi_inv = np.linalg.inv(psi)
+
+        # evals and evect equations
+        # lambd_tensor = psi.dot(np.diag(lambd)).dot(psi_inv)
         # lambd_tensor.dot(psi) = psi.dot(np.diag(lambd))
 
         forward_states = lambd > 0
@@ -452,32 +458,32 @@ class Conductivity:
         fig, ax = plt.subplots()
         plt.plot(lambd_p, label='positive')
         plt.plot(lambd_m, label='negative')
-        # plt.plot(lambd_p - lambd_m, label='delta(p-m)')
         ax.set_yscale('log')
         plt.legend()
         plt.show()
-
-        psi_inv = np.linalg.inv(psi)
-        volume = np.linalg.det(self.phonons.atoms.cell)
 
         only_lambd_plus = lambd.copy()
         only_lambd_plus[lambd<0] = 0
 
         lambd_tilde = only_lambd_plus
-        for length in (10 ** 2, 10 ** 3, 10 ** 4, 10 ** 5, 10 ** 6, 10 ** 7, 10 ** 8, 10 ** 9, 10 ** 10, 10 ** 11):
-            exp_tilde = np.zeros_like(lambd_tilde)
-            exp_tilde[lambd>0] = (1 - np.exp(-length / lambd_p)) * lambd_p
-            lambd_tilde = exp_tilde
-            conductivity_per_mode = 2 * np.einsum('nl,l,lk,k,k->n',
-                                               psi,
-                                               lambd_tilde,
-                                               psi_inv,
-                                               c_new,
-                                               v_new,
-                                               )
+        full_cond = np.zeros((n_phonons, 3, 3))
 
-            cond = conductivity_per_mode / (volume * self.n_k_points) * 1e22
-            print(cond.sum(axis=0))
+        if length is not None:
+            if length[0]:
+                exp_tilde = np.zeros_like(lambd_tilde)
+                exp_tilde[lambd>0] = (1 - np.exp(-length[0] / lambd_p)) * lambd_p
+                lambd_tilde = exp_tilde
+        full_cond[:, 0, 0] = 2 * np.einsum('nl,l,lk,k,k->n',
+                                           psi,
+                                           lambd_tilde,
+                                           psi_inv,
+                                           c_new,
+                                           v_new,
+                                           )
+        physical_mode[np.invert(new_physical_states)] = False
+        cond = full_cond / (volume * n_k_points) * 1e22
+        print(cond.sum(axis=0))
+        return full_cond
 
 
     def _calculate_mfp_sc(self):
