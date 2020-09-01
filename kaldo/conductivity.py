@@ -173,7 +173,7 @@ class Conductivity:
         other_avail_methods = ['rta', 'sc', 'inverse']
         if (method == 'qhgk'):
             cond = self.calculate_conductivity_qhgk().reshape((self.n_phonons, 3, 3))
-        elif (method == 'evect'):
+        elif (method == 'full'):
             cond = self.calculate_conductivity_full().reshape((self.n_phonons, 3, 3))
         elif method in other_avail_methods:
             lambd = self.mean_free_path
@@ -463,7 +463,7 @@ class Conductivity:
         if length is not None:
             if length[0]:
                 exp_tilde = np.zeros_like(lambd_tilde)
-                exp_tilde[lambd>0] = (1 - np.exp(-length[0] / lambd_p)) * lambd_p
+                exp_tilde[lambd>0] = (1 - np.exp(-length[0] / (lambd_p))) * lambd_p
                 lambd_tilde = exp_tilde
         cond = 2 * np.einsum('nl,l,lk,k,k->n',
                                            psi,
@@ -474,8 +474,6 @@ class Conductivity:
                                            )
 
         cond = cond / (volume * n_k_points) * 1e22
-        print(cond.sum(axis=0))
-
         full_cond[physical_mode, 0, 0] = cond
         return full_cond
 
