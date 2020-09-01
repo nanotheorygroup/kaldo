@@ -402,6 +402,7 @@ class Conductivity:
         conductivity_per_mode : np array
             (n_k_points, n_modes, 3)
         """
+        length = self.length
         n_phonons = self.n_phonons
         n_k_points = self.n_k_points
         volume = np.linalg.det(self.phonons.atoms.cell)
@@ -409,7 +410,6 @@ class Conductivity:
         velocity = self.phonons.velocity.real.reshape((n_phonons, 3))[physical_mode, :]
         heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
         sqr_heat_capacity = heat_capacity ** 0.5
-        length = self.length
 
         gamma_tensor = self.calculate_scattering_matrix(is_including_diagonal=True,
                                                         is_rescaling_omega=False,
@@ -430,7 +430,7 @@ class Conductivity:
         else:
             scattering_inverse = np.linalg.inv(gamma_tensor)
 
-        v_new = velocity[:, 0]
+        v_new = velocity[:, 2]
         lambd_tensor = contract('m,m,mn,n->mn', sqr_heat_capacity,
                                                  v_new,
                                                  scattering_inverse,
@@ -445,11 +445,11 @@ class Conductivity:
         forward_states = lambd > 0
         backward_states = lambd < 0
         lambd_p = lambd[forward_states]
-        lambd_m = - lambd[backward_states]
+        lambd_m = lambd[backward_states]
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         plt.plot(lambd_p, label='positive')
-        plt.plot(lambd_m, label='negative')
+        plt.plot(-lambd_m, label='negative')
         ax.set_yscale('log')
         plt.legend()
         plt.show()
@@ -461,21 +461,23 @@ class Conductivity:
         full_cond = np.zeros((n_phonons, 3, 3))
 
         if length is not None:
-            if length[0]:
+            if length[2]:
                 exp_tilde = np.zeros_like(lambd_tilde)
-                exp_tilde[lambd>0] = (1 - np.exp(-length[0] / (lambd_p))) * lambd_p
+                exp_tilde[lambd>0] = (1 - np.exp(-length[2] / (lambd_p))) * lambd_p
+                # exp_tilde[lambd<0] = (1 - np.exp(-length[0] / (-lambd_m))) * lambd_m
                 lambd_tilde = exp_tilde
         cond = 2 * np.einsum('nl,l,lk,k,k->n',
-                                           psi,
-                                           lambd_tilde,
-                                           psi_inv,
-                                           heat_capacity,
-                                           v_new,
-                                           )
+                             psi,
+                             lambd_tilde,
+                             psi_inv,
+                             heat_capacity,
+                             v_new,
+                             )
 
         cond = cond / (volume * n_k_points) * 1e22
-        full_cond[physical_mode, 0, 0] = cond
+        full_cond[physical_mode, 2, 2] = cond
         return full_cond
+
 
     def _calculate_mfp_sc(self):
         # TODO: rewrite this method as vector-vector multiplications instead of using the full inversion
