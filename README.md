@@ -21,7 +21,5 @@ Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Dav
 ## Acknowledgements
 
 We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech. 
-
-<img src="docs/docsource/_resources/acknowledgement.png" width="650">
-
+<img src="docs/docsource/_resources/acknowledgement.png" width="350">
 MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](https://molssi.org/software-projects/)
