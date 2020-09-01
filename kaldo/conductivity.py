@@ -430,19 +430,11 @@ class Conductivity:
         else:
             scattering_inverse = np.linalg.inv(gamma_tensor)
 
-        new_physical_states = np.invert(velocity[:, 0] == 0)
-        v_new = velocity[new_physical_states, 0]
-        new_index = np.outer(new_physical_states, new_physical_states)
-        count_new = new_physical_states.sum()
-        sqrt_heat_new = sqr_heat_capacity[new_physical_states]
-        c_new = heat_capacity[new_physical_states]
-        gamma_inv = scattering_inverse[new_index].reshape((count_new, count_new))
-
-        # with evect
-        lambd_tensor = contract('m,m,mn,n->mn', sqrt_heat_new,
+        v_new = velocity[:, 0]
+        lambd_tensor = contract('m,m,mn,n->mn', sqr_heat_capacity,
                                                  v_new,
-                                                 gamma_inv,
-                                                 1 / sqrt_heat_new)
+                                                 scattering_inverse,
+                                                 1 / sqr_heat_capacity)
         lambd, psi = np.linalg.eig(lambd_tensor)
         psi_inv = np.linalg.inv(psi)
 
@@ -473,18 +465,19 @@ class Conductivity:
                 exp_tilde = np.zeros_like(lambd_tilde)
                 exp_tilde[lambd>0] = (1 - np.exp(-length[0] / lambd_p)) * lambd_p
                 lambd_tilde = exp_tilde
-        full_cond[:, 0, 0] = 2 * np.einsum('nl,l,lk,k,k->n',
+        cond = 2 * np.einsum('nl,l,lk,k,k->n',
                                            psi,
                                            lambd_tilde,
                                            psi_inv,
-                                           c_new,
+                                           heat_capacity,
                                            v_new,
                                            )
-        physical_mode[np.invert(new_physical_states)] = False
-        cond = full_cond / (volume * n_k_points) * 1e22
-        print(cond.sum(axis=0))
-        return full_cond
 
+        cond = cond / (volume * n_k_points) * 1e22
+        print(cond.sum(axis=0))
+
+        full_cond[physical_mode, 0, 0] = cond
+        return full_cond
 
     def _calculate_mfp_sc(self):
         # TODO: rewrite this method as vector-vector multiplications instead of using the full inversion
