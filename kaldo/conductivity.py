@@ -174,7 +174,7 @@ class Conductivity:
         if (method == 'qhgk'):
             cond = self.calculate_conductivity_qhgk().reshape((self.n_phonons, 3, 3))
         elif (method == 'full'):
-            cond = self.calculate_conductivity_full().reshape((self.n_phonons, 3, 3))
+            cond = self.calculate_conductivity_full()
         elif method in other_avail_methods:
             lambd = self.mean_free_path
             conductivity_per_mode = calculate_conductivity_per_mode(self.phonons.heat_capacity.reshape((self.n_phonons)),
@@ -462,8 +462,17 @@ class Conductivity:
 
         if length is not None:
             if length[2]:
+                leng = np.zeros_like(lambd)
+                leng[:] = length[2]
+                leng[lambd<0] = 0
                 exp_tilde = np.zeros_like(lambd_tilde)
-                exp_tilde[lambd>0] = (1 - np.exp(-length[2] / (lambd_p))) * lambd_p
+                is_using_average = False
+                if is_using_average:
+                    # using average
+                    exp_tilde[lambd>0] = (length[2] + lambd_p * (-1 + np.exp(-length[2] / (lambd_p)))) * lambd_p/length[2]
+                else:
+                    exp_tilde[lambd > 0] = (1 - np.exp(-length[2] / (lambd_p))) * lambd_p
+
                 # exp_tilde[lambd<0] = (1 - np.exp(-length[0] / (-lambd_m))) * lambd_m
                 lambd_tilde = exp_tilde
         cond = 2 * np.einsum('nl,l,lk,k,k->n',
