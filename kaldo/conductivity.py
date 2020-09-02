@@ -450,9 +450,11 @@ class Conductivity:
         fig, ax = plt.subplots()
         plt.plot(lambd_p, label='positive')
         plt.plot(-lambd_m, label='negative')
+        plt.ylabel('mfp (A)')
         ax.set_yscale('log')
         plt.legend()
-        plt.show()
+        plt.grid()
+        plt.savefig('mfp_' + str(n_k_points) + '.pdf')
 
         only_lambd_plus = lambd.copy()
         only_lambd_plus[lambd<0] = 0
