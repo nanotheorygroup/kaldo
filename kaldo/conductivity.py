@@ -485,18 +485,7 @@ class Conductivity:
         log_size(gamma_tensor.shape, name='scattering_inverse')
         self.calculate_lambda_tensor()
         forward_states = self._lambd > 0
-        backward_states = self._lambd < 0
         lambd_p = self._lambd[forward_states]
-        lambd_m = self._lambd[backward_states]
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots()
-        plt.plot(lambd_p, label='positive')
-        plt.plot(-lambd_m, label='negative')
-        plt.ylabel('mfp (A)')
-        ax.set_yscale('log')
-        plt.legend()
-        plt.grid()
-        plt.savefig('mfp_' + str(n_k_points) + '.pdf')
 
         only_lambd_plus = self._lambd.copy()
         only_lambd_plus[self._lambd<0] = 0
