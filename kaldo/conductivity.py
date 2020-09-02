@@ -159,7 +159,6 @@ class Conductivity:
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
 
 
-
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
         """Calculate the thermal conductivity per mode in W/m/K
@@ -394,6 +393,70 @@ class Conductivity:
         return lambd
 
 
+    def calculate_lambda_tensor(self, is_using_gamma_tensor_evects=False):
+        n_k_points = self.n_k_points
+        third_bandwidth = self.phonons.third_bandwidth
+        lamdb_filename = 'lamdb_' + str(n_k_points)
+        psi_filename = 'psi_' + str(n_k_points)
+        psi_inv_filename = 'psi_inv_' + str(n_k_points)
+        if third_bandwidth is not None:
+            lamdb_filename = lamdb_filename + '_' + str(third_bandwidth)
+            psi_filename = psi_filename + '_' + str(third_bandwidth)
+            psi_inv_filename = psi_inv_filename + '_' + str(third_bandwidth)
+
+        lamdb_filename = lamdb_filename + '.npy'
+        psi_filename = psi_filename + '.npy'
+        psi_inv_filename = psi_inv_filename + '.npy'
+
+        try:
+            self._lambd = np.load(lamdb_filename, allow_pickle=True)
+            self._psi = np.load(psi_filename, allow_pickle=True)
+            self._psi_inv = np.load(psi_inv_filename, allow_pickle=True)
+        except FileNotFoundError as err:
+            logging.info(err)
+            n_phonons = self.n_phonons
+            physical_mode = self.phonons.physical_mode.reshape(n_phonons)
+            velocity = self.phonons.velocity.real.reshape((n_phonons, 3))[physical_mode, :]
+            heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
+            sqr_heat_capacity = heat_capacity ** 0.5
+
+            gamma_tensor = self.calculate_scattering_matrix(is_including_diagonal=True,
+                                                            is_rescaling_omega=False,
+                                                            is_rescaling_population=True)
+
+            neg_diag = (gamma_tensor.diagonal() < 0).sum()
+            logging.info('negative on diagonal : ' + str(neg_diag))
+            log_size(gamma_tensor.shape, name='scattering_inverse')
+
+            if is_using_gamma_tensor_evects:
+                evals, evects = np.linalg.eigh(gamma_tensor)
+                logging.info('negative eigenvals : ' + str((evals < 0).sum()))
+                new_physical_states = np.argwhere(evals >= 0)[0, 0]
+                reduced_evects = evects[new_physical_states:, new_physical_states:]
+                reduced_evals = evals[new_physical_states:]
+                scattering_inverse = np.zeros_like(gamma_tensor)
+                scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot((reduced_evects.T))
+            else:
+                scattering_inverse = np.linalg.inv(gamma_tensor)
+
+            v_new = velocity[:, 2]
+            lambd_tensor = contract('m,m,mn,n->mn', sqr_heat_capacity,
+                                                     v_new,
+                                                     scattering_inverse,
+                                                     1 / sqr_heat_capacity)
+
+            # evals and evect equations
+            # lambd_tensor = psi.dot(np.diag(lambd)).dot(psi_inv)
+            # lambd_tensor.dot(psi) = psi.dot(np.diag(lambd))
+
+            self._lambd, self._psi = np.linalg.eig(lambd_tensor)
+            self._psi_inv = np.linalg.inv(self._psi)
+            np.save(lamdb_filename, self._lambd)
+            np.save(psi_filename, self._psi)
+            np.save(psi_inv_filename, self._psi_inv)
+
+
+
     def calculate_conductivity_full(self, is_using_gamma_tensor_evects=False):
         """This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.
 
@@ -410,6 +473,7 @@ class Conductivity:
         velocity = self.phonons.velocity.real.reshape((n_phonons, 3))[physical_mode, :]
         heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
         sqr_heat_capacity = heat_capacity ** 0.5
+        v_new = velocity[:, 2]
 
         gamma_tensor = self.calculate_scattering_matrix(is_including_diagonal=True,
                                                         is_rescaling_omega=False,
@@ -419,33 +483,11 @@ class Conductivity:
         neg_diag = (gamma_tensor.diagonal() < 0).sum()
         logging.info('negative on diagonal : ' + str(neg_diag))
         log_size(gamma_tensor.shape, name='scattering_inverse')
-        if is_using_gamma_tensor_evects:
-            evals, evects = np.linalg.eigh(gamma_tensor)
-            logging.info('negative eigenvals : ' + str((evals < 0).sum()))
-            new_physical_states = np.argwhere(evals >= 0)[0, 0]
-            reduced_evects = evects[new_physical_states:, new_physical_states:]
-            reduced_evals = evals[new_physical_states:]
-            scattering_inverse = np.zeros_like(gamma_tensor)
-            scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot((reduced_evects.T))
-        else:
-            scattering_inverse = np.linalg.inv(gamma_tensor)
-
-        v_new = velocity[:, 2]
-        lambd_tensor = contract('m,m,mn,n->mn', sqr_heat_capacity,
-                                                 v_new,
-                                                 scattering_inverse,
-                                                 1 / sqr_heat_capacity)
-        lambd, psi = np.linalg.eig(lambd_tensor)
-        psi_inv = np.linalg.inv(psi)
-
-        # evals and evect equations
-        # lambd_tensor = psi.dot(np.diag(lambd)).dot(psi_inv)
-        # lambd_tensor.dot(psi) = psi.dot(np.diag(lambd))
-
-        forward_states = lambd > 0
-        backward_states = lambd < 0
-        lambd_p = lambd[forward_states]
-        lambd_m = lambd[backward_states]
+        self.calculate_lambda_tensor()
+        forward_states = self._lambd > 0
+        backward_states = self._lambd < 0
+        lambd_p = self._lambd[forward_states]
+        lambd_m = self._lambd[backward_states]
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         plt.plot(lambd_p, label='positive')
@@ -456,34 +498,34 @@ class Conductivity:
         plt.grid()
         plt.savefig('mfp_' + str(n_k_points) + '.pdf')
 
-        only_lambd_plus = lambd.copy()
-        only_lambd_plus[lambd<0] = 0
+        only_lambd_plus = self._lambd.copy()
+        only_lambd_plus[self._lambd<0] = 0
 
         lambd_tilde = only_lambd_plus
         full_cond = np.zeros((n_phonons, 3, 3))
 
         if length is not None:
             if length[2]:
-                leng = np.zeros_like(lambd)
+                leng = np.zeros_like(self._lambd)
                 leng[:] = length[2]
-                leng[lambd<0] = 0
+                leng[self._lambd<0] = 0
                 exp_tilde = np.zeros_like(lambd_tilde)
                 is_using_average = False
                 if is_using_average:
                     # using average
-                    exp_tilde[lambd>0] = (length[2] + lambd_p * (-1 + np.exp(-length[2] / (lambd_p)))) * lambd_p/length[2]
+                    exp_tilde[self._lambd>0] = (length[2] + lambd_p * (-1 + np.exp(-length[2] / (lambd_p)))) * lambd_p/length[2]
                 else:
-                    exp_tilde[lambd > 0] = (1 - np.exp(-length[2] / (lambd_p))) * lambd_p
+                    exp_tilde[self._lambd > 0] = (1 - np.exp(-length[2] / (lambd_p))) * lambd_p
 
                 # exp_tilde[lambd<0] = (1 - np.exp(-length[0] / (-lambd_m))) * lambd_m
                 lambd_tilde = exp_tilde
-        cond = 2 * np.einsum('nl,l,lk,k,k->n',
-                             psi,
-                             lambd_tilde,
-                             psi_inv,
-                             heat_capacity,
-                             v_new,
-                             )
+        cond = 2 * contract('nl,l,lk,k,k->n',
+                            self._psi,
+                            lambd_tilde,
+                            self._psi_inv,
+                            heat_capacity,
+                            v_new,
+                            )
 
         cond = cond / (volume * n_k_points) * 1e22
         full_cond[physical_mode, 2, 2] = cond
