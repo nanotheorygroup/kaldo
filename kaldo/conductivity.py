@@ -9,6 +9,7 @@ from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triang
 from kaldo.helpers.storage import lazy_property
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.helpers.logger import get_logger, log_size
+import tensorflow as tf
 logging = get_logger()
 
 
@@ -431,19 +432,21 @@ class Conductivity:
             scattering_inverse = np.linalg.inv(gamma_tensor)
 
         v_new = velocity[:, 2]
-        lambd_tensor = contract('m,m,mn,n->mn', sqr_heat_capacity,
-                                                 v_new,
-                                                 scattering_inverse,
-                                                 1 / sqr_heat_capacity)
-        lambd, psi = np.linalg.eig(lambd_tensor)
-        psi_inv = np.linalg.inv(psi)
+        lambd_tensor = contract('m,m,mn,n->mn',
+                                tf.convert_to_tensor(sqr_heat_capacity),
+                                tf.convert_to_tensor(v_new),
+                                tf.convert_to_tensor(scattering_inverse),
+                                1 / tf.convert_to_tensor(sqr_heat_capacity),
+                                backend='tensorflow')
+        lambd, psi = tf.linalg.eig(lambd_tensor)
+        psi_inv = tf.linalg.inv(psi)
 
         # evals and evect equations
         # lambd_tensor = psi.dot(np.diag(lambd)).dot(psi_inv)
         # lambd_tensor.dot(psi) = psi.dot(np.diag(lambd))
 
-        forward_states = lambd > 0
-        backward_states = lambd < 0
+        forward_states = lambd.numpy() > 0
+        backward_states = lambd.numpy() < 0
         lambd_p = lambd[forward_states]
         lambd_m = lambd[backward_states]
         import matplotlib.pyplot as plt
@@ -456,11 +459,13 @@ class Conductivity:
         plt.grid()
         plt.savefig('mfp_' + str(n_k_points) + '.pdf')
 
-        only_lambd_plus = lambd.copy()
-        only_lambd_plus[lambd<0] = 0
+        lambd = lambd.numpy()
+        lambd_tilde = lambd
+        lambd_tilde[lambd < 0] = 0
 
-        lambd_tilde = only_lambd_plus
         full_cond = np.zeros((n_phonons, 3, 3))
+        # TODO: cache everything before this point
+        # TODO: currently working only for z-z
 
         if length is not None:
             if length[2]:
@@ -477,14 +482,13 @@ class Conductivity:
 
                 # exp_tilde[lambd<0] = (1 - np.exp(-length[0] / (-lambd_m))) * lambd_m
                 lambd_tilde = exp_tilde
-        cond = 2 * np.einsum('nl,l,lk,k,k->n',
-                             psi,
-                             lambd_tilde,
-                             psi_inv,
-                             heat_capacity,
-                             v_new,
-                             )
-
+        cond = 2 * contract('nl,l,lk,k,k->n',
+                            tf.cast(psi, tf.complex64),
+                            tf.cast(lambd_tilde, tf.complex64),
+                            tf.cast(psi_inv, tf.complex64),
+                            tf.cast(heat_capacity, tf.complex64),
+                            tf.cast(v_new, tf.complex64),
+                            backend='tensorflow')
         cond = cond / (volume * n_k_points) * 1e22
         full_cond[physical_mode, 2, 2] = cond
         return full_cond
