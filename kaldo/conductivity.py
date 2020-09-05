@@ -3,23 +3,12 @@ kaldo
 Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
-import ase.units as units
 import numpy as np
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
-
-
-MAX_ITERATIONS_SC = 50
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-KELVINTOJOULE = units.kB / units.J
-KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-MAX_LENGTH_TRESHOLD = 1e15
-hbar = 1 / (KELVINTOTHZ * 2 * np.pi)
-kb = 1 / KELVINTOJOULE
-
 
 def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode, n_phonons):
     conductivity_per_mode = np.zeros((n_phonons, 3, 3))
@@ -549,12 +538,12 @@ class Conductivity:
         return lambd_n
 
 
-    def _calculate_sc_mfp(self, matthiessen_length=None):
+    def _calculate_sc_mfp(self, matthiessen_length=None, max_iterations_sc=50):
         tolerance = self.tolerance
         n_iterations = self.n_iterations
         phonons = self.phonons
         if n_iterations is None:
-            n_iterations = MAX_ITERATIONS_SC
+            n_iterations = max_iterations_sc
         velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3))
         velocity = velocity.reshape((phonons.n_phonons, 3))
         physical_mode = phonons.physical_mode.reshape(phonons.n_phonons)

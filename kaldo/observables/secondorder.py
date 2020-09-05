@@ -7,7 +7,6 @@ import numpy as np
 from kaldo.interface.eskm_io import import_from_files
 import kaldo.interface.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
-from kaldo.helpers.storage import lazy_property
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
