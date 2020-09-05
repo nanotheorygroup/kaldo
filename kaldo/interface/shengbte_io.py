@@ -9,9 +9,9 @@ from ase.units import Rydberg, Bohr
 from ase import Atoms
 import os
 import re
-from kaldo.grid import Grid, wrap_coordinates
+from kaldo.grid import Grid
 from sparse import COO
-from kaldo.helpers.logger import get_logger, log_size
+from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 BUFFER_PLOT = .2
@@ -410,8 +410,6 @@ def create_control_file_string(phonons, is_espresso=False):
         string += '\tespresso=.false.\n'
     if phonons.is_classic:
         string += '\tclassical=.true.\n'
-
-
     string += '\tnonanalytic=.false.\n'
     string += '\tisotopes=.false.\n'
     string += '&end\n'
