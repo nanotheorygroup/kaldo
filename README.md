@@ -1,8 +1,9 @@
 kALDo: Anharmonic Lattice Dynamics
 ==============================
 [//]: # (Badges)
-[![CircleCI](https://circleci.com/gh/nanotheorygroup/kaldo.svg?style=svg)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
-[![codecov](https://codecov.io/gh/nanotheorygroup/kaldo/branch/master/graphs/badge.svg?token=tiC2xj2OQG)](https://codecov.io/gh/gbarbalinardo/kaldo/branch/master)
+[![CircleCI](https://img.shields.io/circleci/build/github/nanotheorygroup/kaldo/master)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
+[![codecov](https://img.shields.io/codecov/c/github/nanotheorygroup/kaldo)](https://github.com/nanotheorygroup/kaldo/blob/master/LICENSE)
+[![licence](https://img.shields.io/github/license/nanotheorygroup/kaldo)](https://img.shields.io/github/license/nanotheorygroup/kaldo)
 
 <img src="docs/docsource/_resources/logo.png" width="650">
 
