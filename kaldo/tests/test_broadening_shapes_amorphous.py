@@ -4,9 +4,7 @@ Unit and regression test for the kaldo package.
 
 # Imports
 from kaldo.forceconstants import ForceConstants
-from kaldo.conductivity import Conductivity
 from kaldo.phonons import Phonons
-import ase.units as units
 import numpy as np
 import pytest
 
@@ -20,7 +18,7 @@ def phonons():
 
     # # Create a phonon object
     phonons = Phonons(forceconstants=forceconstants,
-                      is_classic=True,
+                      is_classic=False,
                       temperature=300,
                       third_bandwidth= 0.05 / 4.135,
                       storage='memory')
@@ -29,14 +27,14 @@ def phonons():
 
 def test_gaussian_broadening(phonons):
     phonons.broadening_shape='gauss'
-    np.testing.assert_approx_equal(phonons.bandwidth[0][250], 3.200066, significant=4)
+    np.testing.assert_approx_equal(phonons.bandwidth[0][250], 2.637789, significant=4)
 
 
 def test_lorentz_broadening(phonons):
     phonons.broadening_shape='lorentz'
-    np.testing.assert_approx_equal(phonons.bandwidth[0][250], 2.799976, significant=4)
+    np.testing.assert_approx_equal(phonons.bandwidth[0][250], 2.297890, significant=4)
 
 
 def test_triangle_broadening(phonons):
     phonons.broadening_shape='triangle'
-    np.testing.assert_approx_equal(phonons.bandwidth[0][250], 3.358182, significant=4)
+    np.testing.assert_approx_equal(phonons.bandwidth[0][250], 2.741297, significant=4)

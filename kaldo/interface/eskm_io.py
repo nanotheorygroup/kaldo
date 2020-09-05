@@ -11,7 +11,6 @@ from ase import Atoms
 import re
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
-tenjovermoltoev = 10 * units.J / units.mol
 
 
 def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, supercell=(1, 1, 1),
@@ -87,6 +86,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename='Dyn.form'):
         dynamical_matrix = dynamical_matrix.reshape((n_atoms, 3, 1, n_atoms, 3))
     else:
         logging.error('Impossible to read calculate_dynmat with size ' + str(dynamical_matrix.size))
+    tenjovermoltoev = 10 * units.J / units.mol
     return dynamical_matrix * tenjovermoltoev
 
 
@@ -100,7 +100,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_ener
     coords = np.zeros((array_size, 6), dtype=np.int16)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
-
+    tenjovermoltoev = 10 * units.J / units.mol
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())

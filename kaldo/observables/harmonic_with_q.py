@@ -3,7 +3,6 @@ from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
 from opt_einsum import contract
-import ase.units as units
 from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
@@ -12,13 +11,16 @@ from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
-
 
 class HarmonicWithQ(Observable):
 
     def __init__(self, q_point, second,
-                 distance_threshold=None, storage='numpy', is_nw=False, is_unfolding=False, *kargs, **kwargs):
+                 distance_threshold=None,
+                 storage='numpy',
+                 is_nw=False,
+                 is_unfolding=False,
+                 *kargs,
+                 **kwargs):
         super().__init__(*kargs, **kwargs)
         self.q_point = q_point
         self.atoms = second.atoms

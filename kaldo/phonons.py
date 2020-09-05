@@ -16,10 +16,6 @@ import ase.units as units
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-KELVINTOJOULE = units.kB / units.J
-
-
 
 class Phonons:
     """The Phonons object exposes all the phononic properties of a system.
@@ -102,6 +98,9 @@ class Phonons:
         self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
+        self.hbar = units._hbar
+        if self.is_classic:
+            self.hbar = self.hbar * 1e-6
 
 
 
