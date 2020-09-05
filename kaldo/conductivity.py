@@ -20,7 +20,7 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
     return conductivity_per_mode * 1e22
 
 
-def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, physical_mode, alpha, beta, curve,
+def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, physical_mode, curve,
                           is_diffusivity_including_antiresonant=False,
                           diffusivity_threshold=None):
     # TODO: cache this
@@ -322,7 +322,7 @@ class Conductivity:
                         sij_right = phonon._sij_z
                     diffusivity = calculate_diffusivity(omega[k_index], sij_left, sij_right,
                                                         diffusivity_bandwidth[k_index],
-                                                        physical_mode[k_index], alpha, beta,
+                                                        physical_mode[k_index],
                                                         curve,
                                                         is_diffusivity_including_antiresonant,
                                                         self.diffusivity_threshold)
@@ -382,12 +382,12 @@ class Conductivity:
         return lambd
 
 
-    def calculate_lambda_tensor(self, is_using_gamma_tensor_evects=False):
+    def calculate_lambda_tensor(self, alpha, scattering_inverse):
         n_k_points = self.n_k_points
         third_bandwidth = self.phonons.third_bandwidth
-        lamdb_filename = 'lamdb_' + str(n_k_points)
-        psi_filename = 'psi_' + str(n_k_points)
-        psi_inv_filename = 'psi_inv_' + str(n_k_points)
+        lamdb_filename = 'lamdb_' + str(n_k_points) + '_' + str(alpha)
+        psi_filename = 'psi_' + str(n_k_points) + '_' + str(alpha)
+        psi_inv_filename = 'psi_inv_' + str(n_k_points) + '_' + str(alpha)
         if third_bandwidth is not None:
             lamdb_filename = lamdb_filename + '_' + str(third_bandwidth)
             psi_filename = psi_filename + '_' + str(third_bandwidth)
@@ -409,26 +409,7 @@ class Conductivity:
             heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
             sqr_heat_capacity = heat_capacity ** 0.5
 
-            gamma_tensor = self.calculate_scattering_matrix(is_including_diagonal=True,
-                                                            is_rescaling_omega=False,
-                                                            is_rescaling_population=True)
-
-            neg_diag = (gamma_tensor.diagonal() < 0).sum()
-            logging.info('negative on diagonal : ' + str(neg_diag))
-            log_size(gamma_tensor.shape, name='scattering_inverse')
-
-            if is_using_gamma_tensor_evects:
-                evals, evects = np.linalg.eigh(gamma_tensor)
-                logging.info('negative eigenvals : ' + str((evals < 0).sum()))
-                new_physical_states = np.argwhere(evals >= 0)[0, 0]
-                reduced_evects = evects[new_physical_states:, new_physical_states:]
-                reduced_evals = evals[new_physical_states:]
-                scattering_inverse = np.zeros_like(gamma_tensor)
-                scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(np.diag(1/reduced_evals)).dot((reduced_evects.T))
-            else:
-                scattering_inverse = np.linalg.inv(gamma_tensor)
-
-            v_new = velocity[:, 2]
+            v_new = velocity[:, alpha]
             lambd_tensor = contract('m,m,mn,n->mn', sqr_heat_capacity,
                                                      v_new,
                                                      scattering_inverse,
@@ -461,53 +442,57 @@ class Conductivity:
         physical_mode = self.phonons.physical_mode.reshape(n_phonons)
         velocity = self.phonons.velocity.real.reshape((n_phonons, 3))[physical_mode, :]
         heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
-        sqr_heat_capacity = heat_capacity ** 0.5
-        v_new = velocity[:, 2]
-
         gamma_tensor = self.calculate_scattering_matrix(is_including_diagonal=True,
                                                         is_rescaling_omega=False,
                                                         is_rescaling_population=True)
 
-
         neg_diag = (gamma_tensor.diagonal() < 0).sum()
         logging.info('negative on diagonal : ' + str(neg_diag))
         log_size(gamma_tensor.shape, name='scattering_inverse')
-        self.calculate_lambda_tensor()
-        forward_states = self._lambd > 0
-        lambd_p = self._lambd[forward_states]
-
-        only_lambd_plus = self._lambd.copy()
-        only_lambd_plus[self._lambd<0] = 0
-
-        lambd_tilde = only_lambd_plus
+        if is_using_gamma_tensor_evects:
+            evals, evects = np.linalg.eigh(gamma_tensor)
+            logging.info('negative eigenvals : ' + str((evals < 0).sum()))
+            new_physical_states = np.argwhere(evals >= 0)[0, 0]
+            reduced_evects = evects[new_physical_states:, new_physical_states:]
+            reduced_evals = evals[new_physical_states:]
+            scattering_inverse = np.zeros_like(gamma_tensor)
+            scattering_inverse[new_physical_states:, new_physical_states:] = reduced_evects.dot(
+                np.diag(1 / reduced_evals)).dot((reduced_evects.T))
+        else:
+            scattering_inverse = np.linalg.inv(gamma_tensor)
         full_cond = np.zeros((n_phonons, 3, 3))
-
-        if length is not None:
-            if length[2]:
-                leng = np.zeros_like(self._lambd)
-                leng[:] = length[2]
-                leng[self._lambd<0] = 0
-                exp_tilde = np.zeros_like(lambd_tilde)
-                is_using_average = False
-                if is_using_average:
-                    # using average
-                    exp_tilde[self._lambd>0] = (length[2] + lambd_p * (-1 + np.exp(-length[2] / (lambd_p)))) * lambd_p/length[2]
+        for alpha in range(3):
+            self.calculate_lambda_tensor(alpha, scattering_inverse)
+            forward_states = self._lambd > 0
+            lambd_p = self._lambd[forward_states]
+            only_lambd_plus = self._lambd.copy()
+            only_lambd_plus[self._lambd < 0] = 0
+            lambd_tilde = only_lambd_plus
+            new_lambd = np.zeros_like(lambd_tilde)
+            # using average
+            # exp_tilde[self._lambd>0] = (length[alpha] + lambd_p * (-1 + np.exp(-length[alpha] / (lambd_p)))) * lambd_p/length[alpha]
+            if length is not None:
+                if length[alpha]:
+                    leng = np.zeros_like(self._lambd)
+                    leng[:] = length[alpha]
+                    leng[self._lambd < 0] = 0
+                    new_lambd[self._lambd > 0] = (1 - np.exp(-length[alpha] / (lambd_p))) * lambd_p
+                    # exp_tilde[lambd<0] = (1 - np.exp(-length[0] / (-lambd_m))) * lambd_m
                 else:
-                    exp_tilde[self._lambd > 0] = (1 - np.exp(-length[2] / (lambd_p))) * lambd_p
-
-                # exp_tilde[lambd<0] = (1 - np.exp(-length[0] / (-lambd_m))) * lambd_m
-                lambd_tilde = exp_tilde
-        cond = 2 * contract('nl,l,lk,k,k->n',
-                            self._psi,
-                            lambd_tilde,
-                            self._psi_inv,
-                            heat_capacity,
-                            v_new,
-                            )
-
-        cond = cond / (volume * n_k_points) * 1e22
-        full_cond[physical_mode, 2, 2] = cond
-        return full_cond
+                    new_lambd[self._lambd > 0] = lambd_p
+            else:
+                new_lambd[self._lambd > 0] = lambd_p
+            lambd_tilde = new_lambd
+            for beta in range(3):
+                cond = 2 * contract('nl,l,lk,k,k->n',
+                                self._psi,
+                                lambd_tilde,
+                                self._psi_inv,
+                                heat_capacity,
+                                velocity[:, beta],
+                                )
+                full_cond[physical_mode, alpha, beta] = cond
+        return full_cond / (volume * n_k_points) * 1e22
 
 
     def _calculate_mfp_sc(self):
