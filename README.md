@@ -2,8 +2,8 @@
 
 [//]: # (Badges)
 [![CircleCI](https://img.shields.io/circleci/build/github/nanotheorygroup/kaldo/master)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
-[![codecov](https://img.shields.io/codecov/c/github/nanotheorygroup/kaldo)](https://github.com/nanotheorygroup/kaldo/blob/master/LICENSE)
-[![licence](https://img.shields.io/github/license/nanotheorygroup/kaldo)](https://img.shields.io/github/license/nanotheorygroup/kaldo)
+[![codecov](https://img.shields.io/codecov/c/github/nanotheorygroup/kaldo)](https://codecov.io/gh/nanotheorygroup/kaldo)
+[![licence](https://img.shields.io/github/license/nanotheorygroup/kaldo)](https://github.com/nanotheorygroup/kaldo/blob/master/LICENSE)
 [![documentation](https://img.shields.io/badge/docs-github%20pages-informational)](https://nanotheorygroup.github.io/kaldo/)
 
 kALDo is a modern Python-based software that implements both the Boltzmann Transport equation and the Quasi-Harmonic Green Kubo method, which runs on GPUs and CPUs using Tensorflow.
