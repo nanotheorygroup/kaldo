@@ -1,11 +1,8 @@
 import numpy as np
-import ase.units as units
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
-
 from kaldo.observables.observable import Observable
 logging = get_logger()
-EVTOTENJOVERMOL = units.mol / (10 * units.J)
 
 
 def chi(qvec, list_of_replicas, cell_inv):
