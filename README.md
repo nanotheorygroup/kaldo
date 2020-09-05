@@ -1,12 +1,17 @@
 <img src="docs/docsource/_resources/logo.png" width="450">
 
 [//]: # (Badges)
-[![CircleCI](https://circleci.com/gh/nanotheorygroup/kaldo.svg?style=svg)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
-[![codecov](https://codecov.io/gh/nanotheorygroup/kaldo/branch/master/graph/badge.svg)](https://codecov.io/gh/nanotheorygroup/kaldo)
+[![CircleCI](https://img.shields.io/circleci/build/github/nanotheorygroup/kaldo/master)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
+[![codecov](https://img.shields.io/codecov/c/github/nanotheorygroup/kaldo)](https://github.com/nanotheorygroup/kaldo/blob/master/LICENSE)
+[![licence](https://img.shields.io/github/license/nanotheorygroup/kaldo)](https://img.shields.io/github/license/nanotheorygroup/kaldo)
+[![documentation](https://img.shields.io/badge/docs-github%20pages-informational)](https://nanotheorygroup.github.io/kaldo/)
 
-Please visit kALDo website [here](https://nanotheorygroup.github.io/kaldo/).
+kALDo is a modern Python-based software that implements both the Boltzmann Transport equation and the Quasi-Harmonic Green Kubo method, which runs on GPUs and CPUs using Tensorflow.
+More details can be found on the kALDo website [here](https://nanotheorygroup.github.io/kaldo/).
 
-Google Colab tutorials can be found [here](https://nanotheorygroup.github.io/kaldo/docsource/crystal_presentation.html) and [here](https://nanotheorygroup.github.io/kaldo/docsource/amorphous_presentation.html).
+You can run kALDO on Google Colab as a playground:
+- Silicon Crystal using the BTE, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb) 
+- Silicon Amorphous using QHGK, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb)
 
 kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA.
 
