@@ -481,11 +481,11 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <col style="width: 90%"/>
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
-<td><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([…])</p></td>
+<td><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_evect" title="kaldo.conductivity.Conductivity.calculate_mfp_evect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_evect</span></code></a>()</p></td>
-<td><p>This calculates the mean free path of evect.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
+<td><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
 <td><p>This method calculates the inverse of the mean free path for each phonon.</p></td>
@@ -498,11 +498,27 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <col style="width: 24%"/>
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><strong>calculate_scattering_matrix</strong></p></td>
+<tr class="row-odd"><td><p><strong>calculate_lambda_tensor</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>calculate_scattering_matrix</strong></p></td>
 <td></td>
 </tr>
 </tbody>
 </table>
+<dl class="py method">
+<dt id="kaldo.conductivity.Conductivity.calculate_conductivity_full">
+<code class="sig-name descname">calculate_conductivity_full</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">is_using_gamma_tensor_evects</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_full"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="Permalink to this definition">¶</a></dt>
+<dd><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>conductivity_per_mode</strong><span class="classifier">np array</span></dt><dd><p>(n_k_points, n_modes, 3)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
 <dl class="py method">
 <dt id="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">
 <code class="sig-name descname">calculate_conductivity_qhgk</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_qhgk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="Permalink to this definition">¶</a></dt>
@@ -514,21 +530,6 @@ The tensor is returned individual modes along the first axis and has units of W/
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.calculate_mfp_evect">
-<code class="sig-name descname">calculate_mfp_evect</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_evect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_evect" title="Permalink to this definition">¶</a></dt>
-<dd><p>This calculates the mean free path of evect. In materials where most scattering events conserve momentum
-:ref:’Relaxon Theory Section’ (e.g. in two dimensional materials or three dimensional materials at extremely low
-temparatures), this quantity can be used to calculate thermal conductivity.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>lambda</strong><span class="classifier">np array</span></dt><dd><p>(n_k_points, n_modes, 3)</p>
-</dd>
-</dl>
 </dd>
 </dl>
 </dd></dl>

@@ -406,10 +406,6 @@
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
-<span class="n">KELVINTOTHZ</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-12</span>
-<span class="n">KELVINTOJOULE</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">kB</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span>
-
-
 
 <div class="viewcode-block" id="Phonons"><a class="viewcode-back" href="../../docsource/api_phonons.html#kaldo.phonons.Phonons">[docs]</a><span class="k">class</span> <span class="nc">Phonons</span><span class="p">:</span>
     <span class="sd">"""The Phonons object exposes all the phononic properties of a system.</span>
@@ -492,6 +488,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_modes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_able_to_calculate</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">*</span> <span class="mf">1e-6</span>
 
 
 
