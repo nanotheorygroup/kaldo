@@ -48,5 +48,6 @@ To run this example, navigate to this directory and execute:
 			python 1_aSi512_Tersoff_thermal_conductivity.py
 			python 2_aSi512_Tersoff_visualize_QHGK_properties.py
 
+To view figures generated during simulations, navigate to this folder: plots/
 To access data computed during simulations, nativgate to this folder: ALD_Si_512
  
