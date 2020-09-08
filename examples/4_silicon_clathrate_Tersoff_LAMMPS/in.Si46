@@ -1,0 +1,15 @@
+units        metal
+processors      * * *
+boundary p p p
+atom_style    atomic
+atom_modify map yes
+# box tilt large
+read_data  Si46.lmp
+pair_style    tersoff
+pair_coeff    * * forcefields/Si.tersoff Si
+mass            1 28.06
+replicate 3 3 3
+print 'calculating dynmat'
+dynamical_matrix all eskm 1e-05 file fc_Si46/Dyn.form binary no
+print 'calculating third_order'
+third_order all eskm 1e-05 file fc_Si46/THIRD binary no
