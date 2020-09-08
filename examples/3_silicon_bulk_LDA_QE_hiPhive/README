@@ -1,0 +1,45 @@
+This example illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using hiPhive to extract 
+force constants from ASE_QE reference force calculations.
+
+
+External files required: 
+		        1) Si.pz-n-kjpaw_psl.0.1.UPF
+
+The calculation proceeds as follows:
+
+		        1_Si_hiPhive_generate_fcs.py:	
+		        1-1). Generate 50 reference structures and perform force calculations with standard rattle scheme.
+
+		        1-2). Set up StructureContainer with 2nd and 3rd order cutoffs of 4.0 angstrom.
+
+			1-3). Develop force constant potential model by fitting the reference structures and force calcualtions  with least square methods.
+
+			1-4). Extract 2nd and 3rd order force constants from force constant potential model and set up input files for kALDo with hiPhive format.
+
+			2_Si_hiPhive_thermal_conductivity.py:
+			2-1). Set up force constant object by loading in the 2nd, 3rd force constants computed from hiPhive.
+
+		        2-2). Set up phonon object (7x7x7 k-point mesh) and perform quantum simulation at 300K.
+
+			2-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Relaxation
+			           Time Approximation (RTA), self-consistent (sc) and direct inversion of scattering matrix (inverse) methods.
+
+
+			
+
+In order to use QE with ASE, set the environment variable:
+
+			export ASE_ESPRESSO_COMMAND="mpirun -np 8 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"				
+
+To run this example, navigate to this directory and execute:
+			
+		        python 1_Si_hiPhive_generate_fcs.py
+
+			or
+
+			./get_precalculated_fc.sh
+			
+ 			
+			python 2_Si_hiPhive_thermal_conductivity.py
+			      
+To access data computed during simulations, nativgate to this folder: ALD_si_bulk 

@@ -1,0 +1,80 @@
+These collections of examples show how to perform thermal transport with kALDo for cystall (example 1,3,4) and amorphous (example 2) 
+systems. Before running simulations with kALDo, some prerequired simulation tools are listed as follow:
+
+					Quantum ESPRESSO (https://www.quantum-espresso.org/) (example 3)
+				        LAMMPS (https://lammps.sandia.gov/download.html) (example 1, 2, 4)
+					hiPhive (https://hiphive.materialsmodeling.org/) (example 3)
+
+
+To enable calculations of the 2nd and 3rd order force constants with LAMMPS in ASE, please run the following lines in the command window:
+
+					cd path/to/lammps/src
+					make yes-manybody
+					make yes-molecule
+					make mpi mode=shlib
+
+After properly installed kALDo, run the following liine in command window to link LAMMPS with Python and ASE:
+
+					make install-python
+				
+
+To enable calculations of the 2nd and 3rd order force constants with Quantum ESPRESSO in ASE, please run the following lines in the command window:
+				
+
+					export ASE_ESPRESSO_COMMAND="mpirun -np 8 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"
+
+
+
+In examples 2 and 4, the 2nd and 3rd order force constants are computed by using LAMMPS USER-PHONON packages. Since these material systems have 
+relatively large  unit cell, computing force constants using the USER-PHONON package currently available in the official website can take hours. 
+To speed up the calculation, one can download and compile LAMMPS with optimized force constants calculation functionality from the following repo: 
+
+
+					https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix. 
+ 
+
+To obtain precalculated force constants for each example, please run the following lines in the command window:
+
+					chmod +x get_precalculated_fc.sh
+					./get_precalculated.sh
+
+
+To obtain reference calculations of phonon properties and plots for each example, please run the following lines in the command window:
+
+					chmod +x get_reference.sh
+					./get_reference.sh
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+                   			LIST AND CONTENT OF THE EXAMPLES
+
+For each example, more detailed information is provided by the README file contained in the corresponding directory.
+
+
+Example 1_carbon_diamond_Tersoff_ASE_LAMMPS:
+
+This example illustrates how to perform thermal transport simulation for a carbon diamond (2 atoms per cell) system using ASE and LAMMPS 
+as force calculator.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Example 2_amorphous_silicon_Tersoff_LAMMPS:
+
+This example illustrates how to perform thermal transport simulation for amorphous silicon samples (512 atoms system) with LAMMPS USER-PHONON 
+package as force calculator.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Example 3_silicon_bulk_LDA_QE_hiPhive:
+
+This example illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using hiPhive to extract 
+force constants from ASE_QE reference force calculations.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Example 4_silicon_clathrate_Tersoff_LAMMPS:
+
+This example illustrates how to perform thermal transport simulation for a type I clathrate (46 atoms per cell) system using LAMMPS USER-PHONON 
+package as force calculator.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
