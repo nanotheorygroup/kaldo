@@ -1,0 +1,52 @@
+Example 2_amorphous_silicon_Tersoff_LAMMPS illustrates how to perform thermal 
+transport simulation for amorphous silicon samples (512 atoms system) with
+LAMMPS USER-PHONON package as force calculator.
+
+External files required: 
+		       1) forcefields/Si.tersoff
+
+
+The forceconstant calculation proceeds as follows:
+			in.aSi512:
+			1-1).  Compute 2nd, 3rd interatomic force constants with LAMMPS USER-PHONON
+			
+			or
+			get_precalculated_fc.sh:
+			2-1).  Download precalculated forceconstants computed with LAMMPS USER-PHONON
+
+
+The phonon calculation proceeds as follows:
+
+		        1_aSi512_Tersoff_thermal_conductivity.py:
+		        1-1). Set up force constant object by loading in computed 2nd, 3rd interatomic force constants with LAMMPS.
+
+		        1-2). Set up phonon object and perform quantum simulation at 300K.
+
+			1-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Quasi
+			           Harmonic Green Kubo (QHGK) method.
+	
+			1-4). Set up Conductivity obejct and compute diffusivity with Quasi Harmonic Green Kubo (QHGK) method.
+
+
+LAMMPS with speed up force constant calculations for large systems is available in the following repo:
+(https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix.)
+
+
+To run this example, navigate to this directory and execute:
+
+			./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.aSi512 > aSi512.log 
+
+			or
+
+			./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.aSi512_speed_up > aSi512_speed_up.log 
+
+			or
+
+			chmod +x  get_precalculated_fc.sh
+			./get_precalculated_fc.sh
+
+			python 1_aSi512_Tersoff_thermal_conductivity.py
+			python 2_aSi512_Tersoff_visualize_QHGK_properties.py
+
+To access data computed during simulations, nativgate to this folder: ALD_Si_512
+ 

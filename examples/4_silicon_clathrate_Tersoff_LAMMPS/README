@@ -1,0 +1,61 @@
+Example 4_silicon_clathrate_Tersoff_LAMMPS illustrates how to perform thermal 
+transport simulation for a type I clathrate (46 atoms per cell) system using LAMMPS 
+USER-PHONON package as force calculator.
+
+External files required: 
+		       1) forcefields/Si.tersoff
+
+
+The forceconstant calculation proceeds as follows:
+			in.Si46:
+			1-1).  Compute 2nd, 3rd interatomic force constants with LAMMPS USER-PHONON
+			
+			or
+
+			get_precalculated_fc.sh:
+			2-1).  Download precalculated forceconstants computed with LAMMPS USER-PHONON
+
+
+The phonon calculation proceeds as follows:
+			 1_Si46_Tersoff_harmonic_properties.py:	
+		         1-1). Set up force constant object by loading in computed 2nd, 3rd interatomic force constants with LAMMPS.
+
+		         1-2). Set up phonon object (3x3x3 k-point mesh) and perform quantum simulation at 300K and compute
+			      harmonic properties (dispersion relation, group velocity , density of states and heat capacity).
+
+
+		        2_Si46_Tersoff_thermal_conductivity.py:
+		        2-1). Set up force constant object by loading in computed 2nd, 3rd interatomic force constants with LAMMPS.
+
+		        2-2). Set up phonon object (3x3x3 k-point mesh) and perform quantum simulation at 300K.
+
+			2-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) 
+				with Relaxation Time Approximation (RTA).
+
+			3_Si46_Tersoff_visualize_anharmonic_properties.py:
+			3-1). Compute and visualize phase spaces and life times from RTA.
+
+
+LAMMPS with speed up force constant calculations for large systems is available in the following repo:
+(https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix.)
+
+
+To run this example, navigate to this directory and execute:
+
+		        ./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.Si46 > Si46.log 
+			
+			or
+			
+			./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.Si46_speed_up > Si46_speed_up.log 
+			
+			or
+			
+			chmod +x  get_precalculated_fc.sh
+			./get_precalculated_fc.sh
+
+		        python 1_Si_Tersoff_thermal_conductivity.py
+
+To view figures generated during simulations, navigate to this folder: plots/3_3_3/
+To access data computed during simulations, nativgate to this folder: ALD_Si_46
+
+ 
