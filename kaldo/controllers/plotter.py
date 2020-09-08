@@ -130,7 +130,7 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True, input_fig=True):
+def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
     
     fig = plt.figure()
     physical_mode = phonons.physical_mode.flatten(order='C')
