@@ -55,7 +55,7 @@
   <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>Quick Install &#8212; kALDo  documentation</title>
+    <title>Introduction &#8212; kALDo  documentation</title>
     <link rel="stylesheet" href="../_static/material.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -104,7 +104,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Quick Install </span>
+          <span class="md-header-nav__topic"> Introduction </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -225,15 +225,17 @@
     
     
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> Quick Install </label>
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Introduction </label>
     
-      <a href="#" class="md-nav__link md-nav__link--active">Quick Install</a>
+      <a href="#" class="md-nav__link md-nav__link--active">Introduction</a>
       
         
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Introduction</a>
+        </li>
+        <li class="md-nav__item"><a href="#Quick-Install" class="md-nav__link">Quick Install</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#Using-pip-and-virtualenv" class="md-nav__link">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>
         </li>
@@ -282,6 +284,13 @@
 
   </ul>
 </nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#Quick-Install" class="md-nav__link">Quick Install</a>
       
     
     </li>
@@ -433,7 +442,9 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Quick Install</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Introduction</a>
+        </li>
+        <li class="md-nav__item"><a href="#Quick-Install" class="md-nav__link">Quick Install</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#Using-pip-and-virtualenv" class="md-nav__link">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>
         </li>
@@ -492,7 +503,13 @@
           <article class="md-content__inner md-typeset" role="main">
             
   
-<h1 id="docsource-introduction--page-root">Quick Install<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
+<h1 id="docsource-introduction--page-root">Introduction<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
+<p>κALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA. The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries. Using the Atomic Simulation Environment, κALDo can
+calculate the IFCs using several ab initio and molecular dynamics codes, thus enabling the use of first-principles DFT, empirical forcefields and semi-empirical tight- binding. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through seamless integration with the hiPhive package, the IFC calculation can take advantage of compressing-sensing machine learning algorithms The code is released open-source for the community to use and contribute with edits and
+suggestions. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.</p>
+
+
+<h1 id="Quick-Install">Quick Install<a class="headerlink" href="#Quick-Install" title="Permalink to this headline">¶</a></h1>
 <p>We recommend creating a new environment with Python 3.6, 3.7, or 3.8.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda create -n kaldo <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
 </pre></div>
@@ -623,12 +640,12 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="ab3ec9e7eaea4cba9f411d9cdc28fd0a" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="f2f937d62bb7476e956f2604392884dc" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="719b1353c7bf4affadd9e10448d0b5a3" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="26766747608c43b5b04fff8919491385" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
@@ -636,7 +653,7 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="d7ff9c60b5e54551aca60bf6fcca88c8" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="56e59ce6c9534f708cc5974ad44fcdc5" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 
