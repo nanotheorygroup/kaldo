@@ -72,7 +72,7 @@ force constants from ASE_QE reference force calculations.
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-Example 4_silicon_clathrate_Tersoff_LAMMPS :
+Example 4_silicon_clathrate_Tersoff_LAMMPS:
 
 This example illustrates how to perform thermal transport simulation for a type I clathrate (46 atoms per cell) system using LAMMPS USER-PHONON 
 package as force calculator.
