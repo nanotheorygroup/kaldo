@@ -30,7 +30,7 @@ The phonon calculation proceeds as follows:
 
 LAMMPS with speed up force constant calculations for large systems is available in the following repo:
 (https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix.)
-Pakcages to install/compile includes: MAKE MANYBODY MOLECULE KSPACE USER-PHONON.
+LAMMPS pakcages to install/compile includes: MAKE MANYBODY MOLECULE KSPACE USER-PHONON.
 
 
 To run this example, navigate to this directory and execute:
