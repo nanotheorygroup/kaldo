@@ -2,7 +2,7 @@
 
 [//]: # (Badges)
 [![CircleCI](https://img.shields.io/circleci/build/github/nanotheorygroup/kaldo/master)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
-[![codecov](https://img.shields.io/codecov/c/github/nanotheorygroup/kaldo)](https://codecov.io/gh/nanotheorygroup/kaldo)
+[![codecov](https://img.shields.io/codecov/c/gh/nanotheorygroup/kaldo)](https://codecov.io/gh/nanotheorygroup/kaldo)
 [![licence](https://img.shields.io/github/license/nanotheorygroup/kaldo)](https://github.com/nanotheorygroup/kaldo/blob/master/LICENSE)
 [![documentation](https://img.shields.io/badge/docs-github%20pages-informational)](https://nanotheorygroup.github.io/kaldo/)
 
