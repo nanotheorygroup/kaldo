@@ -6,14 +6,12 @@
 [![licence](https://img.shields.io/github/license/nanotheorygroup/kaldo)](https://github.com/nanotheorygroup/kaldo/blob/master/LICENSE)
 [![documentation](https://img.shields.io/badge/docs-github%20pages-informational)](https://nanotheorygroup.github.io/kaldo/)
 
-kALDo is a modern Python-based software that implements both the Boltzmann Transport equation and the Quasi-Harmonic Green Kubo method, which runs on GPUs and CPUs using Tensorflow.
+kALDo is a modern Python-based software that implements both the Boltzmann Transport equation (BTE) and the Quasi-Harmonic Green Kubo (QHGK) method, which runs on GPUs and CPUs using Tensorflow.
 More details can be found on the kALDo website [here](https://nanotheorygroup.github.io/kaldo/).
 
 You can run kALDO on Google Colab as a playground:
-- Silicon Crystal using the BTE, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb) 
-- Silicon Amorphous using QHGK, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb)
-
-kALDo features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle and RTA.
+- Thermal transport calculation for the silicon crystal using the BTE, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb) 
+- Thermal transport calculation for the silicon Amorphous using the QHGK method, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb)
 
 Below we illustrate the main features of the code.
 
