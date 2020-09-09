@@ -1,4 +1,4 @@
-This example illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using hiPhive to extract 
+Example silicon_bulk_LDA_QE_hiPhive illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using hiPhive to extract 
 force constants from ASE_QE reference force calculations.
 
 
