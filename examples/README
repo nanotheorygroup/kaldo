@@ -52,7 +52,7 @@ For each example, more detailed information is provided by the README file conta
 
 amorphous_silicon_Tersoff_LAMMPS:
 
-This example illustrates how to perform thermal transport simulation for amorphous silicon samples (512 atoms system) with LAMMPS USER-PHONON 
+This example illustrates how to perform thermal transport simulation for an amorphous silicon system (512 atoms system) with LAMMPS USER-PHONON 
 package as force calculator.
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
