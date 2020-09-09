@@ -3,7 +3,7 @@ from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 def wrap_coordinates(dxij, cell=None, cell_inv=None):
-    # exploit periodicity to calculate_second the shortest distance, which may not be the one we have
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
     if cell is not None and cell_inv is None:
         cell_inv = np.linalg.inv(cell)
     if cell is not None:

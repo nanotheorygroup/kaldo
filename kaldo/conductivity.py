@@ -78,14 +78,14 @@ class Conductivity:
     phonons : Phonons
         Contains all the information about the calculated phononic properties of the system
     method : 'rta', 'sc', 'qhgk', 'inverse'
-        Specifies the method used to calculate_second the conductivity.
+        Specifies the method used to calculate the conductivity.
     diffusivity_bandwidth : float, optional
         (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
         thermal conductivity in amorphous systems. Units: rad/ps
     diffusivity_threshold : float, optional
         (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
     diffusivity_shape : string, optional
-        (QHGK) Defines the algorithm to use to calculate_second the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
+        (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
         Default is `lorentz`.
     is_diffusivity_including_antiresonant : bool, optional
         (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
@@ -97,10 +97,10 @@ class Conductivity:
         (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
         calculation
     length: (3) tuple
-        (Finite Size) Specifies the length to use in x, y, z to calculate_second the finite size conductivity. 0 or None values
+        (Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values
         corresponds to the infinity length limit.
     finite_length_method : 'matthiessen', 'ms', 'caltech'
-        (Finite Size) Specifies how to calculate_second the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
+        (Finite Size) Specifies how to calculate the finite size conductivity. 'ms' is the Mckelvey-Schockley method.
     storage : 'formatted', 'hdf5', 'numpy', 'memory', optional
         Defines the type of storage used for the simulation.
         Default is `formatted`
@@ -112,7 +112,7 @@ class Conductivity:
 
     Examples
     --------
-    Here's an example to calculate_second the inverse conductivity on the phonons object and tracing over the phonons modes
+    Here's an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes
 
     ```
     Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
