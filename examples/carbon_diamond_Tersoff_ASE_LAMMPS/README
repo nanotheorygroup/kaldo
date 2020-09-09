@@ -1,4 +1,4 @@
-Example 1_carbon_diamond_Tersoff_ASE_LAMMPS illustrates how to perform thermal transport simulation for a carbon 
+Example carbon_diamond_Tersoff_ASE_LAMMPS illustrates how to perform thermal transport simulation for a carbon 
 diamond (2 atoms per cell) system using ASE and LAMMPS as force calculator.
 
 External files required: 
