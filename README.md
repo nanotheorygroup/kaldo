@@ -10,8 +10,8 @@ kALDo is a modern Python-based software that implements both the Boltzmann Trans
 More details can be found on the kALDo website [here](https://nanotheorygroup.github.io/kaldo/).
 
 You can run kALDO on Google Colab as a playground:
-- Thermal transport calculation for the silicon crystal using the BTE, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb) 
-- Thermal transport calculation for the silicon Amorphous using the QHGK method, [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb)
+- Thermal transport calculation for the silicon crystal using the BTE: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb) 
+- Thermal transport calculation for the silicon amorphous using the QHGK method: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb)
 
 Below we illustrate the main features of the code.
 
