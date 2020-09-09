@@ -1,4 +1,4 @@
-Example 4_silicon_clathrate_Tersoff_LAMMPS illustrates how to perform thermal 
+Example silicon_clathrate_Tersoff_LAMMPS illustrates how to perform thermal 
 transport simulation for a type I clathrate (46 atoms per cell) system using LAMMPS 
 USER-PHONON package as force calculator.
 
