@@ -19,7 +19,7 @@ plt.style.use('seaborn-poster')
 
 ### Set up the coordinates of the system and the force constant calculations ####
 
-# Define the system according to ASE style. 'a': lattice parameter(Angstrom)
+# Define the system according to ASE style. 'a': lattice parameter (Angstrom)
 atoms = bulk('C', 'diamond', a=3.566)
 
 # Replicate the unit cell 'nrep'=3 times
