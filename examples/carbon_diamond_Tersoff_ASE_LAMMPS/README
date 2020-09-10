@@ -11,7 +11,7 @@ The calculation proceeds as follows:
 		        1-1). Set up force constant object and compute 2nd, 3rd interatomic force constants using C.tersoff.
 
 		        1-2). Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K and compute
-			      harmonic properties (dispersion relation, group velocity , density of states and heat capacity).
+			      harmonic properties (dispersion relation, group velocity, density of states and heat capacity).
 
 
 		        2_C_Tersoff_thermal_conductivity.py:
