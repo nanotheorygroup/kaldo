@@ -1,5 +1,5 @@
 # Example 4.2: Type I silicon clathrate, Tersoff potential 
-# Computes:anharmonic properties and thermal conductivity for type I silicon clathrate (46 atoms per cell)
+# Computes: anharmonic properties and thermal conductivity for type I silicon clathrate (46 atoms per cell)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
 
@@ -66,7 +66,7 @@ folder = get_folder_from_label(phonons, base_folder='plots')
 if not os.path.exists(folder):
   os.makedirs(folder)
 
-# Define a boolean flag to specify if figure window pops during sumuatlion
+# Define a Boolean flag to specify if figure window pops during simulation
 is_show_fig = False
 
 # Plot cumulative conductivity from RTA method
