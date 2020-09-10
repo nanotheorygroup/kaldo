@@ -22,15 +22,15 @@ The phonon calculation proceeds as follows:
 
 		        1-2). Set up phonon object and perform quantum simulation at 300K.
 
-			1-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Quasi
+			1-3). Set up Conductivity object and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Quasi
 			           Harmonic Green Kubo (QHGK) method.
 	
-			1-4). Set up Conductivity obejct and compute diffusivity with Quasi Harmonic Green Kubo (QHGK) method.
+			1-4). Set up Conductivity object and compute diffusivity with Quasi Harmonic Green Kubo (QHGK) method.
 
 
 LAMMPS with speed up force constant calculations for large systems is available in the following repo:
 (https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix.)
-LAMMPS pakcages to install/compile includes: MAKE MANYBODY MOLECULE KSPACE USER-PHONON.
+LAMMPS packages to install/compile includes: MAKE MANYBODY MOLECULE KSPACE USER-PHONON.
 
 
 To run this example, navigate to this directory and execute:
@@ -50,5 +50,5 @@ To run this example, navigate to this directory and execute:
 			python 2_aSi512_Tersoff_visualize_QHGK_properties.py
 
 To view figures generated during simulations, navigate to this folder: plots/
-To access data computed during simulations, nativgate to this folder: ALD_Si_512
+To access data computed during simulations, navigate  to this folder: ALD_Si_512
  
