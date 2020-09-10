@@ -12,7 +12,7 @@ The calculation proceeds as follows:
 
 		        1-2). Set up StructureContainer with 2nd and 3rd order cutoffs of 4.0 angstrom.
 
-			1-3). Develop force constant potential model by fitting the reference structures and force calcualtions  with least square methods.
+			1-3). Develop force constant potential model by fitting the reference structures and force calculations with least square methods.
 
 			1-4). Extract 2nd and 3rd order force constants from force constant potential model and set up input files for kALDo with hiPhive format.
 
@@ -21,7 +21,7 @@ The calculation proceeds as follows:
 
 		        2-2). Set up phonon object (7x7x7 k-point mesh) and perform quantum simulation at 300K.
 
-			2-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Relaxation
+			2-3). Set up Conductivity object and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Relaxation
 			           Time Approximation (RTA), self-consistent (sc) and direct inversion of scattering matrix (inverse) methods.
 
 
@@ -40,4 +40,4 @@ To run this example, navigate to this directory and execute:
  			
 			python 2_Si_hiPhive_thermal_conductivity.py
 			      
-To access data computed during simulations, nativgate to this folder: ALD_si_bulk 
+To access data computed during simulations, navigate to this folder: ALD_si_bulk 
