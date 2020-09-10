@@ -1,11 +1,11 @@
 # get_precalculated_fc.sh is used to 
-# obtain precalculated forceconstant folder
+# obtain precalculated force constants folder
 #  for amorphous silicon sample.
 
 # Clean up existed fc folder
 rm -rf fc_aSi512
 
-# Fetch precalculated forceconstant folder from remote
+# Fetch precalculated force constants folder from remote
 wget http://sophe.ucdavis.edu/structures/fc_aSi512.tar.gz
 
 # Untar precalculated files and clean up 
