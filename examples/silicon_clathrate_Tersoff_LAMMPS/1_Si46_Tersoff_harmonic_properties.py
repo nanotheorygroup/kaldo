@@ -1,5 +1,5 @@
 # Example 4.1: Type I silicon clathrate, Tersoff potential 
-# Computes:harmonic properties for type I silicon clathrate (46 atoms per cell)
+# Computes: harmonic properties for type I silicon clathrate (46 atoms per cell)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
 
