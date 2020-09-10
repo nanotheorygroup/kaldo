@@ -13,7 +13,7 @@ import numpy as np
 
 ### Set up force constant objects via interface to LAMMPS ####
 
-# Replicate the unit cell 'nrep'=1 times
+# Replicate the unit cell 'nrep'=1 time
 nrep = 1
 supercell = np.array([nrep, nrep, nrep])
 
