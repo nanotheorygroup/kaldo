@@ -6,14 +6,14 @@ External files required:
 		       1) forcefields/Si.tersoff
 
 
-The forceconstant calculation proceeds as follows:
+The force constant calculation proceeds as follows:
 			in.Si46:
 			1-1).  Compute 2nd, 3rd interatomic force constants with LAMMPS USER-PHONON
 			
 			or
 
 			get_precalculated_fc.sh:
-			2-1).  Download precalculated forceconstants computed with LAMMPS USER-PHONON
+			2-1).  Download precalculated force constants computed with LAMMPS USER-PHONON
 
 
 The phonon calculation proceeds as follows:
@@ -29,7 +29,7 @@ The phonon calculation proceeds as follows:
 
 		        2-2). Set up phonon object (3x3x3 k-point mesh) and perform quantum simulation at 300K.
 
-			2-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) 
+			2-3). Set up Conductivity object and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) 
 				with Relaxation Time Approximation (RTA).
 
 			3_Si46_Tersoff_visualize_anharmonic_properties.py:
@@ -38,7 +38,7 @@ The phonon calculation proceeds as follows:
 
 LAMMPS with speed up force constant calculations for large systems is available in the following repo:
 (https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix.)
-LAMMPS pakcages to install/compile includes: MAKE MANYBODY MOLECULE KSPACE USER-PHONON.
+LAMMPS packages to install/compile includes: MAKE MANYBODY MOLECULE KSPACE USER-PHONON.
 
 
 To run this example, navigate to this directory and execute:
@@ -57,6 +57,6 @@ To run this example, navigate to this directory and execute:
 		        python 1_Si_Tersoff_thermal_conductivity.py
 
 To view figures generated during simulations, navigate to this folder: plots/3_3_3/
-To access data computed during simulations, nativgate to this folder: ALD_Si_46
+To access data computed during simulations, navigate to this folder: ALD_Si_46
 
  
