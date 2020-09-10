@@ -63,7 +63,7 @@ phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 ### Set up the Conductivity object and thermal conductivity calculations ####
 
 # Compute thermal conductivity (t.c.) by solving Boltzmann Transport
-# Equation (BTE) with various of methods.
+# Equation (BTE) with various of methods
 
 # 'phonons': phonon object obtained from the above calculations
 # 'method': specify methods to solve for BTE  
