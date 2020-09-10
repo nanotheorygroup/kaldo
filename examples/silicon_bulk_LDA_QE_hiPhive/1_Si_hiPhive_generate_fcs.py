@@ -14,7 +14,7 @@ import numpy as np
 import os
 
 ### Generate reference structures and perform force calculations ####
-# a0: lattice parameter(Angstrom)
+# a0: lattice parameter (Angstrom)
 # rattle_std: standard deviation of the distribution of displacements
 # number_of_structures: number of structures generated with standard rattle (random displacement) 
 # and used in force calculations
@@ -23,7 +23,7 @@ a0 = 5.516326
 rattle_std = 0.01
 number_of_structures =50
 
-# Define input information for the ase Espresso calculator
+# Define input information for the ASE Espresso calculator
 # LDA pseudopotential for si bulk (Si.pz-n-kjpaw_psl.0.1.UPF) is used for this example.
 calculator_inputs = {'pseudopotentials': {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'},
                      'tstress': True,
@@ -84,7 +84,7 @@ print('\n')
 ################ Set up StructureContainer #####################
 
 # Build StructureContainer
-# cutoffs: 2nd and 3rd order cuttoffs (Angstrom)
+# cutoffs: 2nd and 3rd order cutoffs (Angstrom)
 cutoffs = [4.0, 4.0]
 cs = ClusterSpace(rattled_structures[0], cutoffs)
 sc = StructureContainer(cs)
@@ -102,7 +102,7 @@ opt.train()
 print(opt)
 fcp = ForceConstantPotential(cs, opt.parameters)
 
-########### Generate and save fore constant of desired orders #############
+########### Generate and save force constant of desired orders #############
 
 fcs = fcp.get_force_constants(initial_structure)
 # Set up hiphive fcs folder
