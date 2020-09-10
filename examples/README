@@ -1,5 +1,5 @@
-These collections of examples show how to perform thermal transport with kALDo for cystall and amorphous
-systems. Before running simulations with kALDo, some prerequired simulation tools are listed as follow:
+This collection of examples shows how to perform thermal transport with kALDo for cystal and amorphous
+systems. Before running simulations with kALDo, download the following third-party packages:
 
 					Quantum ESPRESSO (https://www.quantum-espresso.org/)
 				        LAMMPS (https://lammps.sandia.gov/download.html)
