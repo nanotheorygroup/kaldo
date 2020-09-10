@@ -1,5 +1,5 @@
 # Example 1.3: carbon diamond, Tersoff potential 
-# Computes:anharmonic propertiesfor carbon diamond (2 atoms per cell)
+# Computes: anharmonic properties for carbon diamond (2 atoms per cell)
 # Uses: ASE, LAMMPS
 # External files: forcefields/C.tersoff
 
@@ -19,7 +19,7 @@ plt.style.use('seaborn-poster')
 
 ### Set up the coordinates of the system and the force constant calculations ####
 
-# Define the system according to ASE style. 'a': lattice parameter(Angstrom)
+# Define the system according to ASE style. 'a': lattice parameter (Angstrom)
 atoms = bulk('C', 'diamond', a=3.566)
 
 # Replicate the unit cell 'nrep'=3 times
@@ -68,10 +68,10 @@ folder = get_folder_from_label(phonons, base_folder='plots')
 if not os.path.exists(folder):
         os.makedirs(folder)
 
-# Define a boolean flag to specify if figure window pops during sumuatlion
+# Define a Boolean flag to specify if figure window pops during simulation
 is_show_fig = False
 
-# Visualize anharmonic phonon properties by using matplotlib. 
+# Visualize anharmonic phonon properties by using matplotlib
 # The following show examples of plotting
 # phase space vs frequency
 # 'order': Index order to reshape array, 
