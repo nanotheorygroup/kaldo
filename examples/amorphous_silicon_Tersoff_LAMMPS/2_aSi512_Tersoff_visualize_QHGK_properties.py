@@ -1,5 +1,5 @@
 # Example 2.2: amorphous silicon, Tersoff potential 
-# Computes:Quasi Harmonic Green Kubo (QHGK) properties for amorphous silicon (512 atoms)
+# Computes: Quasi Harmonic Green Kubo (QHGK) properties for amorphous silicon (512 atoms)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
 
@@ -18,7 +18,7 @@ plt.style.use('seaborn-poster')
 
 ### Set up force constant objects via interface to LAMMPS ####
 
-# Replicate the unit cell 'nrep'=1 times
+# Replicate the unit cell 'nrep'=1 time
 nrep = 1
 supercell = np.array([nrep, nrep, nrep])
 
