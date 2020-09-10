@@ -1,5 +1,5 @@
 # Example 4.3: Type I silicon clathrate, Tersoff potential 
-# Computes: anharmonic propertiesfor type I silicon clathrate (46 atoms per cell)
+# Computes: anharmonic properties for type I silicon clathrate (46 atoms per cell)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
 
@@ -52,16 +52,16 @@ folder = get_folder_from_label(phonons, base_folder='plots')
 if not os.path.exists(folder):
         os.makedirs(folder)
 
-# Define a boolean flag to specify if figure window pops during sumuatlion
+# Define a Boolean flag to specify if figure window pops during simulation
 is_show_fig = False
 
-# Visualize anharmonic phonon properties by using matplotlib. 
+# Visualize anharmonic phonon properties by using matplotlib
 # The following show examples of plotting
 # phase space vs frequency and 
 #  life tims using RTA vs frequency
 # 'order': Index order to reshape array, 
 # 'order'='C' for C-like index order; 'F' for Fortran-like index order
-# 'band_width': phonon bandwdith (THz) computed from diagonal elements
+# 'band_width': phonon bandwidth (THz) computed from diagonal elements
 
 frequency = phonons.frequency.flatten(order='C')
 phase_space = phonons.phase_space.flatten(order='C')
