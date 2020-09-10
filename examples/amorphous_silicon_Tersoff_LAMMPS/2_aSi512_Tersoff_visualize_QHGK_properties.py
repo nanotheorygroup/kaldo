@@ -70,7 +70,7 @@ if not os.path.exists(folder):
 # Define a boolean flag to specify if figure window pops during sumuatlion
 is_show_fig = True
 
-# Visualize anharmonic phonon properties by using matplotlib. 
+# Visualize anharmonic phonon properties by using matplotlib
 # The following show examples of plotting
 # phase space vs frequency and 
 #  life tims using RTA vs frequency
