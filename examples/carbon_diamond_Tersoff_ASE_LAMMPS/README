@@ -19,7 +19,7 @@ The calculation proceeds as follows:
 
 		        2-2). Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K.
 
-			2-3). Set up Conductivity obejct and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Relaxation
+			2-3). Set up Conductivity object and compute thermal conductivity by solving Boltzmann Transport Equation (BTE) with Relaxation
 			           Time Approximation (RTA), self-consistent (sc) and direct inversion of scattering matrix (inverse) methods.
 
 			3_C_Tersoff_visualize_anharmonic_properties.py:
@@ -34,6 +34,6 @@ To run this example, navigate to this directory and execute:
 			python 3_C_Tersoff_visualize_anharmonic_properties.py
 
 To view figures generated during simulations, navigate to this folder: plots/5_5_5/
-To access data computed during simulations, nativgate to this folder: ALD_c_diamond
+To access data computed during simulations, navigate to this folder: ALD_c_diamond
 
  
