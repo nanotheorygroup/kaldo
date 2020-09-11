@@ -7,7 +7,7 @@ from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 import numpy as np
 
-# Config force constants object by loading in the ICFs
+# Config force constants object by loading in the IFCs
 # from hiphive calculations
 forceconstants = ForceConstants.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
 
