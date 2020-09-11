@@ -81,7 +81,7 @@ plotter.plot_dos(phonons,is_showing=False)
 folder = get_folder_from_label(phonons, base_folder='plots')
 if not os.path.exists(folder):
         os.makedirs(folder)
-# Define a boolean flag to specify if figure window pops during sumuatlion
+# Define a Boolean flag to specify if figure window pops during simulation
 is_show_fig = False
 
 frequency = phonons.frequency.flatten(order='C')
