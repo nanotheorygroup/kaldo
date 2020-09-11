@@ -6,19 +6,19 @@ systems. Before running simulations with kALDo, download the following third-par
 					hiPhive (https://hiphive.materialsmodeling.org/)
 
 
-To enable calculations of the 2nd and 3rd order force constants with LAMMPS in ASE, please run the following lines in the command window:
+To calculate 2nd and 3rd order force constants with LAMMPS and ASE, after downloading LAMMPS,compile LAMMPS with shlib mode:
 
 					cd path/to/lammps/src
 					make yes-manybody
 					make yes-molecule
 					make mpi mode=shlib
 
-After properly installed kALDo, run the following line in command window to link LAMMPS with Python and ASE:
+After properly installed κALDo, run the following line in command window to link LAMMPS with Python and ASE:
 
 					make install-python
 				
 
-To enable calculations of the 2nd and 3rd order force constants with Quantum ESPRESSO in ASE, please run the following lines in the command window:
+To calculate 2nd and 3rd force constants with Quantum ESPRESSO and ASE, set the environment variable as follow::
 				
 
 					export ASE_ESPRESSO_COMMAND="mpirun -np 8 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"
