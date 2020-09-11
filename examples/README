@@ -13,7 +13,7 @@ To enable calculations of the 2nd and 3rd order force constants with LAMMPS in A
 					make yes-molecule
 					make mpi mode=shlib
 
-After properly installed kALDo, run the following liine in command window to link LAMMPS with Python and ASE:
+After properly installed kALDo, run the following line in command window to link LAMMPS with Python and ASE:
 
 					make install-python
 				
