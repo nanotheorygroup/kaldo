@@ -383,11 +383,17 @@ class Conductivity:
 
 
     def calculate_lambda_tensor(self, alpha, scattering_inverse):
+        # TODO: replace with same caching strategy as rest of code
         n_k_points = self.n_k_points
         third_bandwidth = self.phonons.third_bandwidth
-        lamdb_filename = 'lamdb_' + str(n_k_points) + '_' + str(alpha)
-        psi_filename = 'psi_' + str(n_k_points) + '_' + str(alpha)
-        psi_inv_filename = 'psi_inv_' + str(n_k_points) + '_' + str(alpha)
+        if self.phonons.is_classic:
+            stat_label = 'c'
+        else:
+            stat_label = 'q'
+        str_to_add = str(n_k_points) + '_' + str(alpha) + '_' + str(int(self.phonons.temperature)) + '_' + stat_label
+        lamdb_filename = 'lamdb_' + '_' + str_to_add
+        psi_filename = 'psi_' + str_to_add
+        psi_inv_filename = 'psi_inv_' + str_to_add
         if third_bandwidth is not None:
             lamdb_filename = lamdb_filename + '_' + str(third_bandwidth)
             psi_filename = psi_filename + '_' + str(third_bandwidth)
