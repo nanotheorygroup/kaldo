@@ -38,8 +38,8 @@ kALDo. Thermal transport in crystalline and non-crystalline solids.
 
 
 
-Indices and tables
-==================
+kALDo: Anharmonic Lattice Dynamics
+==================================
 
 * :ref:`genindex`
 * :ref:`modindex`
