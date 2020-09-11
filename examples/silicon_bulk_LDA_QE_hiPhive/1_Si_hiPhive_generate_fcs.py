@@ -41,7 +41,7 @@ calc = Espresso(**calculator_inputs)
 if not os.path.exists('structures'):
     os.mkdir('structures/')
 
-# Generate initali structure
+# Generate initial structure
 atoms_prim = bulk('Si', 'diamond', a=a0)
 n_prim = atoms_prim.get_masses().shape[0]
 # Replicate the unit cell 'nrep'=3 times
@@ -115,4 +115,4 @@ write('hiphive_si_bulk/replicated_atoms.xyz',replicated_structure,format='xyz')
 fcs.write(hiphive_filename + '/' + 'model2.fcs')
 fcs.write(hiphive_filename + '/' + 'model3.fcs')
 print('\n')
-print('ICF computations are completed!')
+print('IFC computations are completed!')
