@@ -54,7 +54,9 @@ To run this example, navigate to this directory and execute:
 			chmod +x  get_precalculated_fc.sh
 			./get_precalculated_fc.sh
 
-		        python 1_Si_Tersoff_thermal_conductivity.py
+		        python 1_Si46_Tersoff_harmonic_properties.py
+			python 2_Si46_Tersoff_thermal_conductivity.py
+			python 3_Si46_Tersoff_visualize_anharmonic_properties.py
 
 To view figures generated during simulations, navigate to this folder: plots/3_3_3/
 To access data computed during simulations, navigate to this folder: ALD_Si_46
