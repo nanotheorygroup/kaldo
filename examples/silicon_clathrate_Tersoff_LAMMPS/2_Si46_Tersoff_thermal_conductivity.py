@@ -39,7 +39,7 @@ k_points = 3#'k_points'=3 k points in each direction
 phonons_config = {'kpts': [k_points, k_points, k_points],
                   'is_classic': False, 
                   'temperature': 300, #'temperature'=300K
-                  'folder': 'ALD_Si64',
+                  'folder': 'ALD_Si46',
 		   'storage': 'formatted'}
 
 # Set up phonon object by passing in configuration details and the forceconstants object computed above
