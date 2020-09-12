@@ -20,7 +20,7 @@ External files required:
 
 - 1_aSi512_Tersoff_thermal_conductivity.py proceeds as follows:
 
-    1. Set up force constant object by loading in 2nd, 3rd interatomic force constants computed with LAMMPS USER-PHONON.
+    1. Set up force constant object by loading in 2nd, 3rd force constants computed with LAMMPS USER-PHONON.
 			
 	2. Set up phonon object and perform quantum simulation at 300K.
 			
@@ -30,7 +30,7 @@ External files required:
 
 - 2_aSi512_Tersoff_visualize_QHGK_properties.py proceeds as follows:
 
-	1. Set up force constant object by loading in 2nd, 3rd interatomic force constants with LAMMPS USER-PHONON.
+	1. Set up force constant object by loading in 2nd, 3rd force constants computed with LAMMPS USER-PHONON.
 			
 	2. Set up phonon object and perform quantum simulation at 300K.
 			
@@ -43,11 +43,11 @@ External files required:
 - LAMMPS packages to install/compile include: [MAKE, MANYBODY, MOLECULE, KSPACE, USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html).
 
 
-- To compute 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with LAMMPS, navigate to this directory and execute:
+- To compute 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with LAMMPS USER-PHONON, navigate to this directory and execute:
 ```bash
 ./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.aSi512 > aSi512.log 
 ```
-- To comput 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with speed-up LAMMPS, navigate to this directory and execute:
+- To comput 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with speed-up LAMMPS USER-PHONON, navigate to this directory and execute:
 ```bash
 ./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.aSi512_speed_up > aSi512_speed_up.log 
 ```
