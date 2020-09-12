@@ -1,4 +1,4 @@
-# Example 3.1: silicon bulk, LDA pseudo potential 
+# Example: silicon bulk, LDA pseudo potential 
 # Computes: force constant potential for silicon bulk (2 atoms per cell)
 # Uses: hiPhive, ASE, Quantum ESPRESSO (QE)
 # External files: Si.pz-n-kjpaw_psl.0.1.UPF

@@ -1,4 +1,4 @@
-# Example 3.2: silicon bulk, hiPhive 
+# Example: silicon bulk, hiPhive 
 # Computes: anharmonic properties and thermal conductivity for silicon bulk (2 atoms per cell)
 # Uses: hiPhive 
 
