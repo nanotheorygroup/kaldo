@@ -13,6 +13,7 @@ from kaldo.helpers.storage import get_folder_from_label
 from kaldo.phonons import Phonons
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 plt.style.use('seaborn-poster')
 
 ### Set up force constant objects via interface to LAMMPS ####
