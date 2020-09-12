@@ -1,7 +1,7 @@
 # `silicon_clathrate_Tersoff_LAMMPS`
 
 Example silicon_clathrate_Tersoff_LAMMPS illustrates how to perform thermal 
-transport simulation for a type I clathrate (46 atoms per cell) system using with
+transport simulation for a type I clathrate (46 atoms per cell) system using
 [LAMMPS USER-PHONON ](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
 
 External files required: 
@@ -11,7 +11,7 @@ External files required:
 - The force constant calculation proceeds as follows:
 
     in.Si46:
-    1.  Compute 2nd, 3rd interatomic force constants with LAMMPS USER-PHONON
+    1.  Compute 2nd, 3rd force constants computed with LAMMPS USER-PHONON
 			
 	or
 
@@ -21,7 +21,7 @@ External files required:
 
 - 1_Si46_Tersoff_harmonic_properties.py proceeds as follows:
 
-    1. Set up force constant object by loading in computed 2nd, 3rd force constants with LAMMPS.
+    1. Set up force constant object by loading in computed 2nd, 3rd force constants computed with LAMMPS USER-PHONON.
 
     2. Set up phonon object (3x3x3 k-point mesh) and perform quantum simulation at 300K.
      
@@ -29,15 +29,15 @@ External files required:
 
 -  2_Si46_Tersoff_thermal_conductivity.py proceeds as follows:
 
-    1. Set up force constant object by loading in computed 2nd, 3rd force constants with LAMMPS.
+    1. Set up force constant object by loading in computed 2nd, 3rd force constants computed with LAMMPS USER-PHONON.
 
     2. Set up phonon object (3x3x3 k-point mesh) and perform quantum simulation at 300K.
 
-    3. Set up Conductivity object and compute thermal conductivity with Relaxation Time Approximation (RTA).
+    3. Set up Conductivity object and compute thermal conductivity with Relaxation Time Approximation (RTA) method.
 
 -  3_Si46_Tersoff_visualize_anharmonic_properties.py proceeds as follows:
 
-    1. Set up force constant object by loading in computed 2nd, 3rd force constants with LAMMPS.
+    1. Set up force constant object by loading in computed 2nd, 3rd force constants computed with LAMMPS USER-PHONON.
 			
     2. Set up phonon object (3x3x3 k-point mesh) and perform quantum simulation at 300K.
 
@@ -48,11 +48,11 @@ External files required:
 - LAMMPS packages to install/compile include: [MAKE, MANYBODY, MOLECULE, KSPACE, USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html).
 
 
-- To compute 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with LAMMPS, navigate to this directory and execute:
+- To compute 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with LAMMPS USER-PHONON, navigate to this directory and execute:
 ```bash
 ./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.Si46 > Si46.log 
 ```
-- To comput 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with speed-up LAMMPS, navigate to this directory and execute:
+- To comput 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with speed-up LAMMPS USER-PHONON, navigate to this directory and execute:
 ```bash
 ./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.Si46_speed_up > Si46_speed_up.log 
 ```
