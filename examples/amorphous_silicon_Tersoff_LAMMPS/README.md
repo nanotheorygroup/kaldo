@@ -1,7 +1,7 @@
 # `amorphous_silicon_Tersoff_LAMMPS`
 
 Example amorphous_silicon_Tersoff_LAMMPS illustrates how to perform thermal 
-transport simulation for amorphous silicon samples (512 atoms system) with
+transport simulation for an amorphous silicon sample (512 atoms system) with
 [LAMMPS USER-PHONON ](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
 
 External files required: 
@@ -20,17 +20,17 @@ External files required:
 
 - 1_aSi512_Tersoff_thermal_conductivity.py proceeds as follows:
 
-    1. Set up force constant object by loading in computed 2nd, 3rd interatomic force constants with LAMMPS.
+    1. Set up force constant object by loading in 2nd, 3rd interatomic force constants computed with LAMMPS USER-PHONON.
 			
 	2. Set up phonon object and perform quantum simulation at 300K.
 			
-	3. Set up Conductivity object and compute thermal conductivity with QHGK method.
+	3. Set up Conductivity object and compute thermal conductivity with Quasi Harmonic Green Kubo method.
 			
-	4. Set up Conductivity object and compute diffusivity with Quasi Harmonic Green Kubo method.
+	4. Set up Conductivity object and compute diffusivity with QHGK method.
 
 - 2_aSi512_Tersoff_visualize_QHGK_properties.py proceeds as follows:
 
-	1. Set up force constant object by loading in computed 2nd, 3rd interatomic force constants with LAMMPS.
+	1. Set up force constant object by loading in 2nd, 3rd interatomic force constants with LAMMPS USER-PHONON.
 			
 	2. Set up phonon object and perform quantum simulation at 300K.
 			
