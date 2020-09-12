@@ -24,7 +24,7 @@ External files required:
 
     1. Set up force constant object by loading  in force constants computed from hiPhive.
 
-    2. Set up phonon object (7x7x7 k-point mesh) and perform quantum simulation at 300K.
+    2. Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K.
 
     3. Compute and visualize harmonic properties (i.e. dispersion relation, group velocity and DOS). 
 
@@ -33,7 +33,7 @@ External files required:
  
     1. Set up force constant object by loading  in force constants computed from hiPhive.
 
-    2. Set up phonon object (7x7x7 k-point mesh) and perform quantum simulation at 300K.
+    2. Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K.
 
     3. Set up Conductivity object and compute thermal conductivity with RTA, sc and inverse methods.
 					
