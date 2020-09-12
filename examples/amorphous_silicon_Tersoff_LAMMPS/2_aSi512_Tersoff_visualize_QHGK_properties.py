@@ -67,8 +67,8 @@ folder = get_folder_from_label(phonons, base_folder='plots')
 if not os.path.exists(folder):
   os.makedirs(folder)
 
-# Define a boolean flag to specify if figure window pops during sumuatlion
-is_show_fig = True
+# Define a Boolean flag to specify if figure window pops during simulation
+is_show_fig = False
 
 # Visualize anharmonic phonon properties by using matplotlib
 # The following show examples of plotting
