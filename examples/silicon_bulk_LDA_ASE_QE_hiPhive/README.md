@@ -1,7 +1,7 @@
 # `silicon_bulk_LDA_ASE_QE_hiPhive`
 
 Example silicon_bulk_LDA_QE_hiPhive illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using [hiPhive](https://hiphive.materialsmodeling.org/) to extract 
-force constants reference force calculations computed with [ASE and Quantum ESPRESSO](https://wiki.fysik.dtu.dk/ase/ase/calculators/espresso.html).
+force constants from reference force calculations computed with [ASE and Quantum ESPRESSO](https://wiki.fysik.dtu.dk/ase/ase/calculators/espresso.html).
 
 
 External files required: 
