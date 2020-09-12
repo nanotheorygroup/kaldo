@@ -1,4 +1,4 @@
-# Example 3.1: silicon bulk, LDA pseudo potential 
+# Example: silicon bulk, LDA pseudo potential 
 # Computes: force constant potential for silicon bulk (2 atoms per cell)
 # Uses: hiPhive, ASE, Quantum ESPRESSO (QE)
 # External files: Si.pz-n-kjpaw_psl.0.1.UPF
@@ -105,13 +105,13 @@ fcp = ForceConstantPotential(cs, opt.parameters)
 ########### Generate and save force constant of desired orders #############
 
 fcs = fcp.get_force_constants(initial_structure)
-# Set up hiphive fcs folder
-hiphive_filename = 'hiphive_si_bulk/'
-primitive_fname = 'hiphive_si_bulk/atom_prim.xyz'
+# Set up hiPhive fcs folder
+hiphive_filename = 'hiPhive_si_bulk/'
+primitive_fname = 'hiPhive_si_bulk/atom_prim.xyz'
 if not os.path.isdir(hiphive_filename):
     os.mkdir(hiphive_filename)
 write(primitive_fname, atoms_prim, format='xyz')
-write('hiphive_si_bulk/replicated_atoms.xyz',replicated_structure,format='xyz')
+write('hiPhive_si_bulk/replicated_atoms.xyz', replicated_structure, format='xyz')
 fcs.write(hiphive_filename + '/' + 'model2.fcs')
 fcs.write(hiphive_filename + '/' + 'model3.fcs')
 print('\n')

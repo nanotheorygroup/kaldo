@@ -1,4 +1,4 @@
-# Example 2.1: amorphous silicon, Tersoff potential 
+# Example: amorphous silicon, Tersoff potential 
 # Computes: Quasi Harmonic Green Kubo (QHGK) thermal conductivity for amorphous silicon (512 atoms)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
