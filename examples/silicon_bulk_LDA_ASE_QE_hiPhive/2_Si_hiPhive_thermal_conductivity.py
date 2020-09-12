@@ -9,7 +9,7 @@ import numpy as np
 
 # Config force constants object by loading in the IFCs
 # from hiphive calculations
-forceconstants = ForceConstants.from_folder('hiphive_si_bulk', supercell=[3, 3, 3],format='hiphive')
+forceconstants = ForceConstants.from_folder('hiPhive_si_bulk', supercell=[3, 3, 3],format='hiphive')
 
 ### Set up the phonon object and the anharmonic properties calculations ####
 
