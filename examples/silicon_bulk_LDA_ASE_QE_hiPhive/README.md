@@ -15,7 +15,7 @@ External files required:
 
     3. Develop force constant potentials by fitting reference structures and calculated force with least square method.
 
-    4. Extract force constants from force constant potential. 
+    4. Extract force constants from force constant potentials. 
 
     5. Set up input files for kALDo with hiPhive format.
 
