@@ -21,15 +21,15 @@ make install-python
 
 - 1_C_Tersoff_fc_and_harmonic_properties.py proceeds as follows:
 	
-    1. Set up force constant object and compute 2nd, 3rd interatomic force constants using C.tersoff.
+    1. Set up force constant object and compute 2nd, 3rd force constants using C.tersoff.
 
-    2. Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K
+    2. Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K.
      
     3. Compute and visualize harmonic properties (i.e. dispersion relation, group velocity and DOS). 
 			      
 -  2_C_Tersoff_thermal_conductivity.py proceeds as follows:
 
-    1. Set up force constant object and compute 2nd, 3rd interatomic force constants using C.tersoff.
+    1. Set up force constant object and compute 2nd, 3rd force constants using C.tersoff.
 
     2. Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K.
 
