@@ -1,4 +1,4 @@
-# Example 2.2: amorphous silicon, Tersoff potential 
+# Example: amorphous silicon, Tersoff potential 
 # Computes: Quasi Harmonic Green Kubo (QHGK) properties for amorphous silicon (512 atoms)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
@@ -96,7 +96,7 @@ else:
 qhgk_full_cond = Conductivity(phonons=phonons, method='qhgk').conductivity
 qhgk_cumulative_cond = plotter.cumulative_cond_cal(frequency,qhgk_full_cond,phonons.n_phonons)
 plt.figure()
-plt.plot(frequency,qhgk_cumulative_cond,'.')
+plt.plot(frequency[3:],qhgk_cumulative_cond[3:],'.')
 plt.xlabel(r'frequency($THz$)', fontsize=16)
 plt.ylabel(r'$\kappa_{cum,QHGK}(W/m/K)$', fontsize=16)
 plt.xlim([0, 20])
