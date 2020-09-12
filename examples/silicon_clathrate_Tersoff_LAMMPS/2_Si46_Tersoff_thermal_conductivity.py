@@ -1,4 +1,4 @@
-# Example 4.2: Type I silicon clathrate, Tersoff potential 
+# Example: Type I silicon clathrate, Tersoff potential 
 # Computes: anharmonic properties and thermal conductivity for type I silicon clathrate (46 atoms per cell)
 # Uses: LAMMPS
 # External files: forcefields/Si.tersoff
@@ -74,7 +74,7 @@ rta_full_cond = Conductivity(phonons=phonons, method='rta').conductivity
 frequency = phonons.frequency.flatten(order='C')
 rta_cumulative_cond = plotter.cumulative_cond_cal(frequency,rta_full_cond,phonons.n_phonons)
 plt.figure()
-plt.plot(frequency,rta_cumulative_cond,'.')
+plt.plot(frequency[3:],rta_cumulative_cond[3:],'.')
 plt.xlabel(r'frequency($THz$)', fontsize=16)
 plt.ylabel(r'$\kappa_{cum,RTA}(W/m/K)$', fontsize=16)
 plt.xlim([1, 18])

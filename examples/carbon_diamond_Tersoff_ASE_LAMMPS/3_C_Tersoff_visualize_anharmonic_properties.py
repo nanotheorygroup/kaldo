@@ -1,4 +1,4 @@
-# Example 1.3: carbon diamond, Tersoff potential 
+# Example: carbon diamond, Tersoff potential 
 # Computes: anharmonic properties for carbon diamond (2 atoms per cell)
 # Uses: ASE, LAMMPS
 # External files: forcefields/C.tersoff
