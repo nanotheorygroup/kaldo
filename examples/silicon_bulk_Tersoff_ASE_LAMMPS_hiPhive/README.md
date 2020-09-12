@@ -35,7 +35,7 @@ External files required:
 
     2. Set up phonon object (5x5x5 k-point mesh) and perform quantum simulation at 300K.
 
-    3. Set up Conductivity object and compute thermal conductivity with RTA, sc and inverse methods.
+    3. Set up Conductivity object and compute thermal conductivity with Relaxation Time Approximation (RTA), self-consistent (sc) and direct inversion of scattering matrix (inverse) methods.
 					
     4. Visualize cumulative conductivity from  RTA and inversion as functions of frequency. 
 		
