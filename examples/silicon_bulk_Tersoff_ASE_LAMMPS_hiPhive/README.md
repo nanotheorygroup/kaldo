@@ -1,7 +1,7 @@
 # `silicon_bulk_Tersoff_ASE_LAMMPS_hiPhive`
 
 Example silicon_bulk_Tersoff_LAMMPS_hiPhive illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using [hiPhive](https://hiphive.materialsmodeling.org/) to extract 
-force constants from [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html) reference force calculations.
+force constants from reference force calculations computed with [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html).
 
 
 External files required: 
@@ -13,9 +13,9 @@ External files required:
 
     2. Set up StructureContainer with 2nd and 3rd order cutoffs of 4.0 angstrom.
 
-    3. Develop force constant potential by fitting reference structures and calculated force with least square methods.
+    3. Develop force constant potentials by fitting reference structures and calculated force with least square methods.
 
-    4. Extract force constants from force constant potential 
+    4. Extract force constants from force constant potentials 
 
     5. Set up input files for kALDo with hiPhive format.
 
