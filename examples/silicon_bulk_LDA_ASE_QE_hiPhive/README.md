@@ -26,7 +26,7 @@ External files required:
 
     2. Set up phonon object (7x7x7 k-point mesh) and perform quantum simulation at 300K.
 
-    3. Set up Conductivity object and compute thermal conductivity with RTA, sc and inverse methods.
+    3. Set up Conductivity object and compute thermal conductivity with Relaxation Time Approximation (RTA), self-consistent (sc) and direct inversion of scattering matrix (inverse) methods.
 
 
 - To calculate 2<sup>nd</sup> and 3<sup>rd</sup> force constants with Quantum ESPRESSO and ASE, set the environment variable as follow:
