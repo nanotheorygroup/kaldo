@@ -34,8 +34,7 @@ chmod +x get_reference.sh
 ## List and content of examples folder
 For each example, more detailed information is provided by the README.md file contained in the corresponding directory.
 - `amorphous_silicon_Tersoff_LAMMPS:`
-This example illustrates how to perform thermal transport simulation for an amorphous silicon system (512 atoms system) with [LAMMPS USER-PHONON]
-(https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
+This example illustrates how to perform thermal transport simulation for an amorphous silicon system (512 atoms system) with [LAMMPS USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
 - `carbon_diamond_Tersoff_ASE_LAMMPS:`
 This example illustrates how to perform thermal transport simulation for a carbon diamond (2 atoms per cell) system using [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html) as force calculator.
 - `silicon_bulk_LDA_ASE_QE_hiPhive:`
@@ -45,5 +44,4 @@ force constants from [ASE and Quantum ESPRESSO](https://wiki.fysik.dtu.dk/ase/as
 This example illustrates how to perform thermal transport simulation for a bulk silicon (2 atoms per cell) system using hiPhive to extract 
 force constants from [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html) reference force calculations.
 - `silicon_clathrate_Tersoff_LAMMPS:`
-This example illustrates how to perform thermal transport simulation for a type I clathrate (46 atoms per cell) system using [LAMMPS USER-PHONON] 
-(https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
+This example illustrates how to perform thermal transport simulation for a type I clathrate (46 atoms per cell) system using [LAMMPS USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
