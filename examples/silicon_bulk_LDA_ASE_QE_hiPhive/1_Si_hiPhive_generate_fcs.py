@@ -53,7 +53,7 @@ replicated_structure = initial_structure.copy()
 ######## Set up the standard rattle (random displacement) scheme #######
 # seed_int_struct = np.random.randint(1, 100000, size=1, dtype=np.int64)[0]
 
-# Fix random seed here is used so results can be checked against the reference. 
+# Fix random seed is used here so results can be checked against the reference. 
 seed_int_struct = 36000
 
 # Generate and save rattled structures
