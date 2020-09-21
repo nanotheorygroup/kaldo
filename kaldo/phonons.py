@@ -123,6 +123,7 @@ class Phonons:
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage,
+                                   is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding)
 
             physical_mode[ik] = phonon.physical_mode
@@ -150,6 +151,7 @@ class Phonons:
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage,
+                                   is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding)
 
             frequency[ik] = phonon.frequency
@@ -176,6 +178,7 @@ class Phonons:
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage,
+                                   is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding)
             velocity[ik] = phonon.velocity
         return velocity
@@ -204,6 +207,7 @@ class Phonons:
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
                                    storage=self.storage,
+                                   is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding)
 
             eigensystem[ik] = phonon._eigensystem
@@ -238,6 +242,7 @@ class Phonons:
                                        storage=self.storage,
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding)
             c_v[ik] = phonon.heat_capacity
         return c_v
@@ -266,6 +271,7 @@ class Phonons:
                                        storage=self.storage,
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding)
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
@@ -293,6 +299,7 @@ class Phonons:
                                        storage=self.storage,
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding)
             population[ik] = phonon.population
         return population
