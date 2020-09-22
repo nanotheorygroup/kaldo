@@ -7,6 +7,9 @@
    :width: 400
 
 kALDo. Thermal transport in crystalline and non-crystalline solids.
+Read the paper here_.
+
+.. _here: https://arxiv.org/abs/2009.01967
 
 .. toctree::
    :glob:
