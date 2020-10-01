@@ -374,11 +374,14 @@ class Conductivity:
 
                     for alpha in range(3):
                         if (self.length[alpha] is not None) and (self.length[alpha] != 0):
-                            lambd[physical_mode, alpha] = np.sign(velocity[physical_mode, alpha]) / (
-                                        np.sign(velocity[physical_mode, alpha]) / lambd[physical_mode, alpha] + 1 /
+                            new_physical_modes = (lambd[physical_mode, alpha] != 0) & \
+                                                 (velocity[physical_mode, alpha]!=0)
+                            new_lambd = np.zeros(physical_mode.sum())
+                            new_lambd[new_physical_modes] = 1 / (
+                                        1 / lambd[physical_mode, alpha][new_physical_modes] +
+                                        np.sign(velocity[physical_mode, alpha][new_physical_modes]) /
                                         np.array(self.length)[np.newaxis, alpha])
-
-                        lambd[velocity[:, alpha] == 0, alpha] = 0
+                            lambd[physical_mode, alpha] = new_lambd
 
             if finite_length_method == 'ballistic':
                 if (self.length[alpha] is not None) and (self.length[alpha] != 0):
