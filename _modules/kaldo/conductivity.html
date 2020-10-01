@@ -602,21 +602,21 @@
         <span class="k">if</span> <span class="p">(</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'qhgk'</span><span class="p">):</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Mean free path not available for '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">method</span><span class="p">))</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span><span class="p">:</span>
-            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
+            <span class="n">mfp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'sc'</span><span class="p">:</span>
-            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
+            <span class="n">mfp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
         <span class="k">elif</span> <span class="p">(</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'inverse'</span><span class="p">):</span>
-            <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mfp_inverse</span><span class="p">()</span>
+            <span class="n">mfp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mfp_inverse</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Conductivity method not implemented'</span><span class="p">)</span>
 
         <span class="c1"># folder = get_folder_from_label(phonons, '&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;')</span>
         <span class="c1"># save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \</span>
         <span class="c1">#      format=phonons.store_format['conductivity'])</span>
-        <span class="nb">sum</span> <span class="o">=</span> <span class="p">(</span><span class="n">cond</span><span class="o">.</span><span class="n">imag</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="nb">sum</span> <span class="o">=</span> <span class="p">(</span><span class="n">mfp</span><span class="o">.</span><span class="n">imag</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">sum</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'The conductivity has an immaginary part. Sum(Im(k)) = '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">cond</span><span class="o">.</span><span class="n">real</span>
+        <span class="k">return</span> <span class="n">mfp</span><span class="o">.</span><span class="n">real</span>
 
 
     <span class="nd">@property</span>
@@ -781,6 +781,14 @@
                     <span class="n">lambd</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_lambda</span>
             
                 <span class="n">lambd</span><span class="p">[</span><span class="n">velocity</span><span class="p">[:,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">'ballistic'</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+                    <span class="n">new_lambda</span> <span class="o">=</span> <span class="n">lambd</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span>
+                    <span class="n">new_lambda</span><span class="p">[</span><span class="n">new_lambda</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">new_lambda</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span>
+                    <span class="n">lambd</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_lambda</span>
+
         <span class="k">return</span> <span class="n">lambd</span></div>
 
 
