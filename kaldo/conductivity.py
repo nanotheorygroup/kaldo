@@ -198,21 +198,21 @@ class Conductivity:
         if (method == 'qhgk'):
             logging.error('Mean free path not available for ' + str(method))
         elif method == 'rta':
-            cond = self._calculate_mfp_sc()
+            mfp = self._calculate_mfp_sc()
         elif method == 'sc':
-            cond = self._calculate_mfp_sc()
+            mfp = self._calculate_mfp_sc()
         elif (method == 'inverse'):
-            cond = self.calculate_mfp_inverse()
+            mfp = self.calculate_mfp_inverse()
         else:
             logging.error('Conductivity method not implemented')
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
         #      format=phonons.store_format['conductivity'])
-        sum = (cond.imag).sum()
+        sum = (mfp.imag).sum()
         if sum > 1e-3:
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
-        return cond.real
+        return mfp.real
 
 
     @property
@@ -377,6 +377,14 @@ class Conductivity:
                     lambd[physical_mode, alpha] = new_lambda
             
                 lambd[velocity[:, alpha] == 0, alpha] = 0
+
+            if finite_length_method == 'ballistic':
+                if (self.length[alpha] is not None) and (self.length[alpha] != 0):
+                    new_lambda = lambd[physical_mode, alpha]
+                    new_lambda[new_lambda < 0] = 0
+                    new_lambda = 2 * self.length[alpha]
+                    lambd[physical_mode, alpha] = new_lambda
+
         return lambd
 
 
