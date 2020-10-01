@@ -371,19 +371,21 @@ class Conductivity:
                         lambd[:, alpha] = mfp_caltech(lambd[:, alpha], velocity[:, alpha], length[alpha], physical_mode)
             if finite_length_method == 'matthiessen':
                 if (self.length[alpha] is not None) and (self.length[alpha] != 0):
-                    new_lambda = lambd[physical_mode, alpha]
-                    new_lambda[new_lambda < 0] = 0
-                    new_lambda = 2 / (1 / new_lambda + 1 / self.length[alpha])
-                    lambd[physical_mode, alpha] = new_lambda
-            
-                lambd[velocity[:, alpha] == 0, alpha] = 0
+
+                    for alpha in range(3):
+                        if (self.length[alpha] is not None) and (self.length[alpha] != 0):
+                            lambd[physical_mode, alpha] = np.sign(velocity[physical_mode, alpha]) / (
+                                        np.sign(velocity[physical_mode, alpha]) / lambd[physical_mode, alpha] + 1 /
+                                        np.array(self.length)[np.newaxis, alpha])
+
+                        lambd[velocity[:, alpha] == 0, alpha] = 0
 
             if finite_length_method == 'ballistic':
                 if (self.length[alpha] is not None) and (self.length[alpha] != 0):
-                    new_lambda = lambd[physical_mode, alpha]
-                    new_lambda[new_lambda < 0] = 0
-                    new_lambda = 2 * self.length[alpha]
-                    lambd[physical_mode, alpha] = new_lambda
+                    velocity = velocity[physical_mode, alpha]
+                    gamma_inv = np.zeros_like(velocity)
+                    gamma_inv[velocity != 0] = length[alpha] / (2 * np.abs(velocity[velocity != 0]))
+                    lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity)
 
         return lambd
 
