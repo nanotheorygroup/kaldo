@@ -360,35 +360,31 @@ class Conductivity:
                 if length is not None:
                     if length[alpha]:
                         gamma = gamma + 2 * np.abs(velocity[:, alpha]) / length[alpha]
-
-
+                        
             scattering_matrix += np.diag(gamma[physical_mode])
             scattering_inverse = np.linalg.inv(scattering_matrix)
             lambd[physical_mode, alpha] = scattering_inverse.dot(velocity[physical_mode, alpha])
-            if finite_length_method == 'caltech':
-                if length is not None:
-                    if length[alpha]:
-                        lambd[:, alpha] = mfp_caltech(lambd[:, alpha], velocity[:, alpha], length[alpha], physical_mode)
-            if finite_length_method == 'matthiessen':
-                if (self.length[alpha] is not None) and (self.length[alpha] != 0):
+            if (self.length[alpha] is not None) and (self.length[alpha] != 0):
 
-                    for alpha in range(3):
-                        if (self.length[alpha] is not None) and (self.length[alpha] != 0):
-                            new_physical_modes = (lambd[physical_mode, alpha] != 0) & \
-                                                 (velocity[physical_mode, alpha]!=0)
-                            new_lambd = np.zeros(physical_mode.sum())
-                            new_lambd[new_physical_modes] = 1 / (
-                                        1 / lambd[physical_mode, alpha][new_physical_modes] +
-                                        np.sign(velocity[physical_mode, alpha][new_physical_modes]) /
-                                        np.array(self.length)[np.newaxis, alpha])
-                            lambd[physical_mode, alpha] = new_lambd
+                if finite_length_method == 'caltech':
+                    lambd[:, alpha] = mfp_caltech(lambd[:, alpha], velocity[:, alpha], length[alpha], physical_mode)
 
-            if finite_length_method == 'ballistic':
-                if (self.length[alpha] is not None) and (self.length[alpha] != 0):
+                if finite_length_method == 'ballistic':
                     velocity = velocity[physical_mode, alpha]
                     gamma_inv = np.zeros_like(velocity)
                     gamma_inv[velocity != 0] = length[alpha] / (2 * np.abs(velocity[velocity != 0]))
                     lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity)
+
+                if finite_length_method == 'matthiessen':
+                    velocity = velocity[physical_mode, alpha]
+                    gamma_inv = np.zeros_like(velocity)
+                    gamma_inv[velocity != 0] = length[alpha] / (2 * np.abs(velocity[velocity != 0]))
+                    lambd_ballistic = np.diag(gamma_inv).dot(velocity)
+                    lambd_diffusive = lambd[physical_mode, alpha]
+                    new_physical_modes = (lambd_diffusive != 0)
+                    new_lambda = np.zeros_like(lambd_diffusive)
+                    new_lambda[new_physical_modes] = (1 / lambd_ballistic[new_physical_modes] + 1 / lambd_diffusive[new_physical_modes]) ** (-1)
+                    lambd[physical_mode, alpha] = new_lambda
 
         return lambd
 
