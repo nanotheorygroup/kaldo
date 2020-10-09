@@ -19,6 +19,7 @@ Below we illustrate the main features of the code.
 
 ## Reference Paper
 Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. https://doi.org/10.1063/5.0020443
+
 also available open access on ArXiv: https://arxiv.org/abs/2009.01967
 
 ## Copyright
