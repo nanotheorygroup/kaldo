@@ -265,6 +265,8 @@
         </li>
         <li class="md-nav__item"><a href="#Examples" class="md-nav__link">Examples</a>
         </li>
+        <li class="md-nav__item"><a href="#How-to-cite" class="md-nav__link">How to cite</a>
+        </li>
         <li class="md-nav__item"><a href="#Copyright" class="md-nav__link">Copyright</a>
         </li>
         <li class="md-nav__item"><a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
@@ -328,6 +330,13 @@
     
     
       <a href="#Examples" class="md-nav__link">Examples</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#How-to-cite" class="md-nav__link">How to cite</a>
       
     
     </li>
@@ -482,6 +491,8 @@
         <li class="md-nav__item"><a href="#Main-Features" class="md-nav__link">Main Features</a>
         </li>
         <li class="md-nav__item"><a href="#Examples" class="md-nav__link">Examples</a>
+        </li>
+        <li class="md-nav__item"><a href="#How-to-cite" class="md-nav__link">How to cite</a>
         </li>
         <li class="md-nav__item"><a href="#Copyright" class="md-nav__link">Copyright</a>
         </li>
@@ -662,16 +673,33 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="0816f26feb1b486c8d423f2499f881b1" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="9d63adfb6f5d411c9e6d211e4f3bf7d7" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="65b90e72384849d08a52ca3029d898a2" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="fda1939c45f144598adaf7616f46a548" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this headline">¶</a></h1>
 <p>Examples and the explanation on how to use them are located in the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/tree/master/examples">examples folder of the repo</a>.</p>
+
+
+<h1 id="How-to-cite">How to cite<a class="headerlink" href="#How-to-cite" title="Permalink to this headline">¶</a></h1>
+<p>If you have used kALDo, please cite the following article:</p>
+<p>Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. <a class="reference external" href="https://doi.org/10.1063/5.0020443">https://doi.org/10.1063/5.0020443</a> also available open access on ArXiv: <a class="reference external" href="https://arxiv.org/abs/2009.01967">https://arxiv.org/abs/2009.01967</a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">kaldo</span><span class="p">,</span>
+<span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Barbalinardo</span><span class="p">,</span> <span class="n">Giuseppe</span> <span class="ow">and</span> <span class="n">Chen</span><span class="p">,</span> <span class="n">Zekun</span> <span class="ow">and</span> <span class="n">Lundgren</span><span class="p">,</span> <span class="n">Nicholas</span> <span class="n">W</span> <span class="ow">and</span> <span class="n">Donadio</span><span class="p">,</span> <span class="n">Davide</span><span class="p">},</span>
+<span class="n">title</span> <span class="o">=</span> <span class="p">{{</span><span class="n">Efficient</span> <span class="n">anharmonic</span> <span class="n">lattice</span> <span class="n">dynamics</span> <span class="n">calculations</span> <span class="n">of</span> <span class="n">thermal</span> <span class="n">transport</span> <span class="ow">in</span> <span class="n">crystalline</span> <span class="ow">and</span> <span class="n">disordered</span> <span class="n">solids</span><span class="p">}},</span>
+<span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">Journal</span> <span class="n">of</span> <span class="n">Applied</span> <span class="n">Physics</span><span class="p">},</span>
+<span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2020</span><span class="p">},</span>
+<span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">128</span><span class="p">},</span>
+<span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">13</span><span class="p">},</span>
+<span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">135104</span><span class="o">--</span><span class="mi">12</span><span class="p">},</span>
+<span class="n">month</span> <span class="o">=</span> <span class="nb">oct</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 
 
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
@@ -679,7 +707,7 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="44f4f35ee312430dbd93a65f6fbf4fb0" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="879171e966b840bdaac863d2b2b7edf2" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 
