@@ -36,4 +36,8 @@ def test_second_gamma(phonons):
     thztomev = units.J * units._hbar * 2 * np.pi * 1e15
     np.testing.assert_approx_equal(phonons.bandwidth[0, 4] * thztomev / (2 * np.pi), 23.748, significant=3)
 
+def test_participation_ratio(phonons):
+    print(phonons.participation_ratio[0:600:60])
+    np.testing.assert_approx_equal(phonons.participation_ratio[0, 1], 1, significant=3)
+
 

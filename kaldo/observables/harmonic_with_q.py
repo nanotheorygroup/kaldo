@@ -53,6 +53,11 @@ class HarmonicWithQ(Observable):
         return velocity
 
     @lazy_property(label='<q_point>')
+    def participation_ratio(self):
+        participation_ratio = self.calculate_participation_ratio()
+        return participation_ratio
+
+    @lazy_property(label='<q_point>')
     def _dynmat_derivatives_x(self):
         if self.is_unfolding:
             _dynmat_derivatives = self.calculate_dynmat_derivatives_unfolded(direction=0)
@@ -271,6 +276,16 @@ class HarmonicWithQ(Observable):
             esystem = tf.linalg.eigh(dyn_s)
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
+
+    def calculate_participation_ratio(self):
+        n_atoms = self.n_modes // 3
+        esystem = self._eigensystem
+        eigenvects = esystem[1:, :]
+        eigenvects = np.reshape(eigenvects, (self.n_modes, n_atoms, 3))
+        participation_ratio = np.power(np.linalg.norm(eigenvects, axis=2), 4)
+        participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1)*n_atoms)
+        return participation_ratio
+
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         q_point = self.q_point
