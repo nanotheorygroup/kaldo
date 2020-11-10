@@ -5,10 +5,12 @@ from ase.io import read,write
 import numpy as np
 random_seed = 7793
 
-def phoninc_information(ge_concentration=0)
+def phononic_information(ge_concentration=0)
 
 	# Read in 1728 atom system
-	atoms = read('structures/replicated_atoms.xyz',format='xyz')
+	atoms = read('structures/aSi.xyz',format='xyz')
+	if ge_concentration != 0:
+		atoms = read('structures/aSiGe_C'+str(ge_concentration))
 	# Swap in Ge atoms
 	if ge_concentration != 0:
 		sym = atoms.get_chemical_symbols()
@@ -21,7 +23,7 @@ def phoninc_information(ge_concentration=0)
 
 
 	forceconstants = ForceConstants.from_files(atoms=atoms,
-		folder='structures/1728_atom_aSi/'+ge_concentration+'/ald')
+		folder='structures/1728_atom/'+ge_concentration+'/ald')
 	phonons = Phonons(forceconstants=forceconstants,
 		is_classic=False, # quantum stats
 		temperature=300, # 300 K
