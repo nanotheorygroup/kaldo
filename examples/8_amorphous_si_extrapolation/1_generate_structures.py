@@ -1,10 +1,10 @@
-from kaldo.forceconstants import ForceConstants
 from ase.calculators.lammpslib import LAMMPSlib
-from kaldo.conductivity import Conductivity
 from ase.optimize import LBFGSLineSearch
-from kaldo.phonons import Phonons
 from ase.io import read,write
+from mpi4py import MPI
 import numpy as np
+import subprocess
+import lammps
 random_seed = 7793
 
 def change_concentration(ge_concentration=0):
@@ -21,7 +21,7 @@ def change_concentration(ge_concentration=0):
 		atoms.set_chemical_symbols(symbols.tolist())
 	ge_concentration = str(int(ge_concentration*100))
 
-	# Minimize structure
+	# Minimize structure - LAMMPS + ASE
 	lammps_inputs = {'lmpcmds': ["pair_style tersoff",
 				"pair_coeff * * forcefields/SiCGe.tersoff Si(D) Ge"],
 				"log_file" : "lammps.log",
@@ -31,11 +31,26 @@ def change_concentration(ge_concentration=0):
 	atoms.pbc = True
 	search = LBFGSLineSearch(atoms)
 	search.run(fmax=.001)
-	write('structures/1728_atom/aSiGe_C'+ge_concentration+'.xyz',
-		 search.atoms, format='xyz')
-	
+	write('structures/1728_atom/aSiGe_C'+ge_concentration+'.lmp',
+		 search.atoms, format='lammps-data', specorder=['Si', 'Ge'])
+
+	# Find Force Constants - LAMMPS
+	print('Force Constants ########################')
+	cmdargs = ['-var', 'con', ge_concentration]
+	lmp = lammps.lammps(cmdargs=cmdargs)
+	lmp.file('in.lmp')
+	mpi = MPI.COMM_WORLD.Get_rank()
+	nprocs = MPI.COMM_WORLD.Get_size()
 
 
-desired_concentrations = [0.1, 0.2]
+
+	MPI.finalize()
+
+
+
+
+desired_concentrations = [0.0, 0.1]
+desired_concentrations = [0.1]
 for c in desired_concentrations:
 	change_concentration(c)
+
