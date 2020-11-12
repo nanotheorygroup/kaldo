@@ -1,3 +1,4 @@
+from ase.calculators.lammpslib import LAMMPSlib
 from ase.optimize import LBFGSLineSearch
 from ase.io import read,write
 from mpi4py import MPI
@@ -5,7 +6,9 @@ import numpy as np
 import subprocess
 import lammps
 import os
+
 random_seed = 7793
+desired_concentrations = [0.1]
 
 def change_concentration(ge_concentration=0):
 	# Read in 1728 atom system
@@ -48,8 +51,6 @@ def change_concentration(ge_concentration=0):
 	# MPI.finalize()
 
 
-desired_concentrations = [0.0, 0.1]
-desired_concentrations = [0.1]
 for c in desired_concentrations:
 	change_concentration(c)
 
