@@ -1,12 +1,10 @@
-from kaldo.observables.secondorder import SecondOrder
-from kaldo.observables.thirdorder import ThirdOrder
 from ase.calculators.lammpslib import LAMMPSlib
 from kaldo.forceconstants import ForceConstants
 from kaldo.conductivity import Conductivity
 from kaldo.phonons import Phonons
 from ase.io import read
 import numpy as np
-random_seed = 7793
+desired_concentrations = [0.1]
 
 def phononics(ge_concentration='0'):
 
@@ -15,7 +13,7 @@ def phononics(ge_concentration='0'):
 	atoms = read(folder_string+'replicated_atoms.xyz',format='xyz')
 
 	forceconstants = ForceConstants(atoms=atoms,
-		folder=folder_string+'/ald')
+		folder=folder_string)
 
 	# Calculate the 2nd + 3rd Forceconstant matrices
 	lammps_inputs = {'lmpcmds': ["pair_style tersoff",
@@ -53,7 +51,6 @@ def phononics(ge_concentration='0'):
 	np.save('conductivity', 1/3*np.einsum('iaa->i', conductivity))
 	print("Thermal Conductivity (W/m/K): %.3f" % conductivity.sum(axis=0).diagonal().mean())
 
-desired_concentrations = [0.1]
 for c in desired_concentrations:
 	phononics(str(int(c*100)))
 
