@@ -1,10 +1,14 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.interpolate import UnivariateSpline
-import scipy
 from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import UnivariateSpline
+import matplotlib.pyplot as plt
 plt.style.use ("seaborn-darkgrid")
+import pandas as pd
+import numpy as np
+import scipy
+
+desired_concentrations = [0.1] # concentration as decimal
+train_size = '1728' # atoms
+interpolate_size = '13284' # atoms
 
 def resample(frequency, gamma, n_samples=18, alpha=1):
     # Prefer a non linear binning to weight low freqs more
@@ -33,26 +37,26 @@ def spline_with_zero(freqs, gamma):
     spl = scipy.interpolate.splrep(x, y)
     return spl
 
-train_folder = 'train'
-interpolate_folder = 'interpolate'
+def interpolater(conc, training, interpolating, plot=True)
+    training_frequencies = np.load(training+'/frequency.npy')
+    training_gammas = np.load(training+'/bandwidth.npy')
 
-plt.title('Bandwidth')
-c = '0'
-for i in range(len(samples)):
-    # Training Frequencies/Gammas
-    tr_freqs = np.load('./train/freqs/aSiGe_C'+c+'.npy')
-    tr_gams = np.load('./train/gammas/aSiGe_C'+c+'_300.npy')
-    inp_freqs = np.load('./interpolate/freqs/aSiGe_C'+c+'.npy')
-    inp_gams = np.load('./interpolate/gammas/aSiGe_C'+c+'_300.npy')
-    re_freqs, re_gams = resample(tr_freqs, tr_gams)
-    spline = spline_with_zero(re_freqs, re_gams)
-    plt.scatter(tr_freqs, tr_gams, label='Training Set')
-    plt.scatter(inp_freqs, inp_gams, label='Input Set')
-    plt.scatter(inp_freqs, spline, label='Interpolated')
+    # Note: resampling is not necessary, but because we care most about the behavior at low frequency,
+    # increasing weights in this region can improve results.
+    resample_frequencies, resample_gammas = resample(training_frequencies, training_gammas)
 
+    interpolation_frequencies = np.load(interpolating+'/frequency.npy')
+    spline = spline_with_zero(resample_frequencies, resample_gammas)
 
-plt.legend()
-plt.grid()
-plt.xlabel('freq(THz)', fontsize=16)
-plt.ylabel('$\Gamma$(meV)', fontsize=16)
-plt.savefig('testing.png')
+    if plot:
+        plt.scatter(training_frequencies, training_gammas, label='Training Set')
+        plt.scatter(interpolation_frequencies, spline, label='Interpolated')
+        plt.xlabel('freq(THz)', fontsize=16); plt.ylabel('$\Gamma$(meV)', fontsize=16)
+        plt.legend(); plt.grid(); plt.title('Bandwidth')
+        plt.savefig('testing.png')
+
+for c in desired_concentrations:
+    training_folder = 'structures/'+train_size+'_atom/aSiGe_C'+str(int(c*100))+'/'
+    interpolating_folder = 'structures/'+interpolate_size+'_atom/aSiGe_C'+str(int(c*100))+'/'
+    interpolater(c, training_folder, interpolating_folder)
+    print(str(int(c*100))+' concentration sample interpolated')

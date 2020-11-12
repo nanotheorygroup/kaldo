@@ -5,17 +5,17 @@ atom_style    atomic
 atom_modify map yes
 box tilt large
 
-read_data structures/1728_atom/aSiGe_C${conc}.lmp
+read_data structures/1728_atom/aSiGe_C${conc}/atoms.lmp
 
 pair_style    tersoff
-pair_coeff    * * forcefields/SiCGe.tersoff Si(D) Ge
-mass            1 28.06 # Si
-mass            2 72.64 # Ge
+pair_coeff    * * forcefields/SiCGe.tersoff Ge Si(D)
+mass            1 72.64 # Ge
+mass            2 28.06 # Si
 
 fix com all momentum 1 linear 1 1 1
 
 print 'calculating dynamical_matrix'
-dynamical_matrix all eskm 0.00001 file structures/1728_atom/Dyn_C${conc}.form binary no
+dynamical_matrix all eskm 0.00001 file structures/1728_atom/aSiGe_C${conc}/Dyn.form binary no
 
 print 'calculating third_order'
-third_order all eskm 0.00001 file structures/1728_atom/THIRD_C${conc} binary no
+third_order all eskm 0.00001 file structures/1728_atom/aSiGe_C${conc}/THIRD binary no

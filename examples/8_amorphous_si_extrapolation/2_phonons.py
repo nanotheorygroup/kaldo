@@ -1,50 +1,61 @@
-from ballistico.forceconstants import ForceConstants
-from ballistico.conductivity import Conductivity
-from ballistico.phonons import Phonons
-from ase.io import read,write
+from kaldo.observables.secondorder import SecondOrder
+from kaldo.observables.thirdorder import ThirdOrder
+from ase.calculators.lammpslib import LAMMPSlib
+from kaldo.forceconstants import ForceConstants
+from kaldo.conductivity import Conductivity
+from kaldo.phonons import Phonons
+from ase.io import read
 import numpy as np
 random_seed = 7793
 
-def phononic_information(ge_concentration=0)
+def phononics(ge_concentration='0'):
 
-	# Read in 1728 atom system
-	atoms = read('structures/aSi.xyz',format='xyz')
-	if ge_concentration != 0:
-		atoms = read('structures/aSiGe_C'+str(ge_concentration))
-	# Swap in Ge atoms
-	if ge_concentration != 0:
-		sym = atoms.get_chemical_symbols()
-		n_ge_atoms = int(np.round(ge_concentration * len(sym), 0))
-		rng = np.random.default_rng(seed=random_seed)
-		id = rng.choice(len(atoms), size=n_ge_atoms, replace=False)
-		symbols[id] = 'Ge'
-		atoms.set_chemical_symbols(symbols.tolist())
-	ge_concentration = string(ge_concentration)
+	# Set up Forceconstants Object
+	folder_string = 'structures/1728_atom/aSiGe_C'+ge_concentration+'/'
+	atoms = read(folder_string+'replicated_atoms.xyz',format='xyz')
 
+	forceconstants = ForceConstants(atoms=atoms,
+		folder=folder_string+'/ald')
 
-	forceconstants = ForceConstants.from_files(atoms=atoms,
-		folder='structures/1728_atom/'+ge_concentration+'/ald')
+	# Calculate the 2nd + 3rd Forceconstant matrices
+	lammps_inputs = {'lmpcmds': ["pair_style tersoff",
+				"pair_coeff * * forcefields/SiCGe.tersoff Si(D) Ge"],
+				"log_file" : "min.log",
+				"keep_alive":True}
+	calc = LAMMPSlib(**lammps_inputs)
+	second = forceconstants.second
+	second.calculate(calculator=calc)
+	third = forceconstants.third
+	third.calculate(calc=calc, is_verbose=True)
+
+	# Create Phonon Object
 	phonons = Phonons(forceconstants=forceconstants,
 		is_classic=False, # quantum stats
 		temperature=300, # 300 K
-		folder='structures/ald',
-		third_bandwidth=0.5/4.135, #0.5 eV
-		broadening_shape='gauss')
+		folder=folder_string,
+		third_bandwidth=0.5/4.135, # 0.5 eV smearing
+		broadening_shape='gauss') # shape of smearing
 
-	# Phononic Data #############################
-	# These save files to help us look at phononic properties
-	# with our plotter (3_plotting.py)
+	# Phononic Data
+	## These save files to help us look at phononic properties
+	## with our plotter (4_plotting.py). These properties are "lazy" which
+	## means they won't be calculated unless explicitly called, or required
+	## by another calculation.
+
 	np.save('frequency', phonons.frequency)
 	np.save('bandwidth', phonons.bandwidth)
 	np.save('diffusivity', phonons.diffusivity)
 	#np.save('participation', phonons.participation_ratio)
 
-	# Conductivity Properties #########################
-	# This will print out the total conductivity and save
-	# the contribution per mode
+	# Conductivity Object
+	# This will print out the total conductivity and save the contribution per mode
 	conductivity = Conductivity(phonons=phonons, method='qhgk').conductivity
-	print("Thermal Conductivity (W/m/K): %.3f" % conductivity.sum(axis=0).diagonal().mean())
 	np.save('conductivity', 1/3*np.einsum('iaa->i', conductivity))
+	print("Thermal Conductivity (W/m/K): %.3f" % conductivity.sum(axis=0).diagonal().mean())
+
+desired_concentrations = [0.1]
+for c in desired_concentrations:
+	phononics(str(int(c*100)))
 
 
 
