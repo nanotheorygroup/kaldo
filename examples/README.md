@@ -29,7 +29,7 @@ chmod +x get_precalculated_fc.sh
 chmod +x get_reference.sh
 ./get_reference.sh
 ```
-- Precalculated force constant and reference calculation files can be accessed [here](http://sophe.ucdavis.edu/structures/).
+- Precalculated force constant and reference calculation files can be accessed [here](http://sophe.ucdavis.edu/structures/reference/updated_example/).
 - Suggestions of specificing GPU/CPU usage for tensorflow can be accessed [here](https://stackoverflow.com/questions/40069883/how-to-set-specific-gpu-in-tensorflow).
 ## List and content of examples folder
 For each example, more detailed information is provided by the README.md file contained in the corresponding directory.
