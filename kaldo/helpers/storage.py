@@ -110,7 +110,6 @@ def save(property, folder, loaded_attr, format='formatted'):
         if property == 'velocity':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
-
         elif property == 'mean_free_path':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,

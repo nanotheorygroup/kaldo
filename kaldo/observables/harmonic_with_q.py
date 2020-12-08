@@ -279,8 +279,8 @@ class HarmonicWithQ(Observable):
 
     def calculate_participation_ratio(self):
         n_atoms = self.n_modes // 3
-        esystem = self._eigensystem
-        eigenvects = esystem[1:, :]
+        esystem = self._eigensystem[1:, :]
+        eigenvects = tf.transpose(esystem)
         eigenvects = np.reshape(eigenvects, (self.n_modes, n_atoms, 3))
         participation_ratio = np.power(np.linalg.norm(eigenvects, axis=2), 4)
         participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1)*n_atoms)
