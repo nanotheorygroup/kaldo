@@ -8,6 +8,7 @@ import numpy as np
 from kaldo.phonons import Phonons
 import ase.units as units
 import pytest
+import matplotlib.pyplot as plt
 
 
 @pytest.yield_fixture(scope="session")
@@ -37,7 +38,6 @@ def test_second_gamma(phonons):
     np.testing.assert_approx_equal(phonons.bandwidth[0, 4] * thztomev / (2 * np.pi), 23.748, significant=3)
 
 def test_participation_ratio(phonons):
-    print(phonons.participation_ratio[0:600:60])
     np.testing.assert_approx_equal(phonons.participation_ratio[0, 1], 1, significant=3)
 
 
