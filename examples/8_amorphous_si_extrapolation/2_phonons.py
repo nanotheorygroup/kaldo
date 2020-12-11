@@ -7,6 +7,7 @@ from kaldo.phonons import Phonons
 from ase.io import read
 import numpy as np
 
+
 def phononics(ge_concentration='0'):
 
 	# Set up Forceconstants Object
