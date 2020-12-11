@@ -1,9 +1,7 @@
+from ase.calculators.lammpslib import LAMMPSlib
 from ase.optimize import LBFGSLineSearch
 from ase.io import read,write
-from mpi4py import MPI
 import numpy as np
-import subprocess
-import lammps
 import os
 random_seed = 7793
 
@@ -36,17 +34,6 @@ def change_concentration(ge_concentration=0):
 	search.run(fmax=.001)
 	write('structures/1728_atom/aSiGe_C'+str(ge_concentration)+'/replicated_atoms.xyz',
 		 search.atoms, format='xyz')
-	# write('structures/1728_atom/aSiGe'+str(ge_concentration)+'/atoms.lmp',
-	# 	 search.atoms, format='lammps-data')
-
-	# # Find Force Constants - LAMMPS
-	# cmdargs = ['-var', 'conc', ge_concentration, '-log', 'dyn.log']
-	# lmp = lammps.lammps(cmdargs=cmdargs)
-	# lmp.file('in.lmp')
-	# mpi = MPI.COMM_WORLD.Get_rank()
-	# nprocs = MPI.COMM_WORLD.Get_size()
-	# MPI.finalize()
-
 
 desired_concentrations = [0.0, 0.1]
 desired_concentrations = [0.1]

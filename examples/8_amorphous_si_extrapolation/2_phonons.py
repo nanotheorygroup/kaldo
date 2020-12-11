@@ -6,7 +6,6 @@ from kaldo.conductivity import Conductivity
 from kaldo.phonons import Phonons
 from ase.io import read
 import numpy as np
-random_seed = 7793
 
 def phononics(ge_concentration='0'):
 
@@ -24,9 +23,11 @@ def phononics(ge_concentration='0'):
 				"keep_alive":True}
 	calc = LAMMPSlib(**lammps_inputs)
 	second = forceconstants.second
-	second.calculate(calculator=calc)
+	second.load(folder=folder_string+'/ald')
+	print('Third')
+#	second.calculate(calculator=calc)
 	third = forceconstants.third
-	third.calculate(calc=calc, is_verbose=True)
+	third.calculate(calculator=calc, is_verbose=True)
 
 	# Create Phonon Object
 	phonons = Phonons(forceconstants=forceconstants,
