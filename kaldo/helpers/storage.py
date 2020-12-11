@@ -143,8 +143,11 @@ def get_folder_from_label(instance, label='', base_folder=None):
             kpts = instance.kpts
             base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
     except AttributeError:
-        q_point = instance.q_point
-        base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+        try:
+            q_point = instance.q_point
+            base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+        except AttributeError:
+            pass
     if label != '':
         if '<diffusivity_bandwidth>' in label:
             if instance.diffusivity_bandwidth is not None:

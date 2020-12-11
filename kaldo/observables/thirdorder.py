@@ -210,6 +210,7 @@ class ThirdOrder(ForceConstant):
                 self.value = ThirdOrder.load(folder=self.folder, supercell=self.supercell).value
 
             except FileNotFoundError:
+                logging.info('Third order not found. Calculating.')
                 self.value = calculate_third(atoms,
                                              replicated_atoms,
                                              delta_shift,

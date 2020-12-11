@@ -16,10 +16,6 @@ import ase.units as units
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-KELVINTOTHZ = units.kB / units.J / (2 * np.pi * units._hbar) * 1e-12
-KELVINTOJOULE = units.kB / units.J
-
-
 
 class Phonons:
     """The Phonons object exposes all the phononic properties of a system.
@@ -65,6 +61,8 @@ class Phonons:
         Specify if to use 'C" style atoms replica grid of fortran
         style 'F',
         Default 'C'
+    is_balanced : Enforce detailed balance when calculating anharmonic properties,
+        Default: False
 
     Returns
     -------
@@ -78,11 +76,12 @@ class Phonons:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)
         self.kpts = kwargs.pop('kpts', (1, 1, 1))
-        grid_type = kwargs.pop('grid_type', 'C')
-        self._reciprocal_grid = Grid(self.kpts, order=grid_type)
-
+        self._grid_type = kwargs.pop('grid_type', 'C')
+        self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
+        self.is_unfolding = kwargs.pop('is_unfolding', False)
+        if self.is_unfolding:
+            logging.info('Using unfolding.')
         self.kpts = np.array(self.kpts)
-
         self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
@@ -91,6 +90,7 @@ class Phonons:
         self.storage = kwargs.pop('storage', 'formatted')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
         self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
+        self.is_balanced = kwargs.pop('is_balanced', False)
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -98,6 +98,9 @@ class Phonons:
         self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_able_to_calculate = True
+        self.hbar = units._hbar
+        if self.is_classic:
+            self.hbar = self.hbar * 1e-6
 
 
 
@@ -110,16 +113,18 @@ class Phonons:
         physical_mode : np array
             (n_k_points, n_modes) bool
         """
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=np.bool)
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_nw=self.is_nw,
+                                   is_unfolding=self.is_unfolding)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -137,15 +142,17 @@ class Phonons:
         frequency : np array
             (n_k_points, n_modes) frequency in THz
         """
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_nw=self.is_nw,
+                                   is_unfolding=self.is_unfolding)
 
             frequency[ik] = phonon.frequency
 
@@ -162,15 +169,17 @@ class Phonons:
             (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
         """
 
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_nw=self.is_nw,
+                                   is_unfolding=self.is_unfolding)
             velocity[ik] = phonon.velocity
         return velocity
 
@@ -187,17 +196,19 @@ class Phonons:
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
         log_size(shape, name='eigensystem', type=np.complex)
         eigensystem = np.zeros(shape, dtype=np.complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second_order,
+                                   second=self.forceconstants.second,
                                    distance_threshold=self.forceconstants.distance_threshold,
                                    folder=self.folder,
-                                   storage=self.storage)
+                                   storage=self.storage,
+                                   is_nw=self.is_nw,
+                                   is_unfolding=self.is_unfolding)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -220,17 +231,19 @@ class Phonons:
         c_v : np.array(n_k_points, n_modes)
             heat capacity in W/m/K for each k point and each mode
         """
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         c_v = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second_order,
+                                       second=self.forceconstants.second,
                                        distance_threshold=self.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
                                        temperature=self.temperature,
-                                       is_classic=self.is_classic)
+                                       is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
+                                       is_unfolding=self.is_unfolding)
             c_v[ik] = phonon.heat_capacity
         return c_v
 
@@ -245,19 +258,21 @@ class Phonons:
         heat_capacity_2d : np.array(n_k_points, n_modes, n_modes)
             heat capacity in W/m/K for each k point and each modes couple.
         """
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes, self.n_modes)
         log_size(shape, name='heat_capacity_2d', type=np.float)
         heat_capacity_2d = np.zeros(shape)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second_order,
+                                       second=self.forceconstants.second,
                                        distance_threshold=self.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
                                        temperature=self.temperature,
-                                       is_classic=self.is_classic)
+                                       is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
+                                       is_unfolding=self.is_unfolding)
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
 
@@ -273,17 +288,19 @@ class Phonons:
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        q_points = self._main_q_mesh
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         population = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second_order,
+                                       second=self.forceconstants.second,
                                        distance_threshold=self.forceconstants.distance_threshold,
                                        folder=self.folder,
                                        storage=self.storage,
                                        temperature=self.temperature,
-                                       is_classic=self.is_classic)
+                                       is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
+                                       is_unfolding=self.is_unfolding)
             population[ik] = phonon.population
         return population
 
@@ -372,10 +389,6 @@ class Phonons:
 
 
     @property
-    def _main_q_mesh(self):
-        return self._reciprocal_grid.unitary_grid()
-
-    @property
     def _rescaled_eigenvectors(self):
         n_atoms = self.n_atoms
         n_modes = self.n_modes
@@ -395,11 +408,12 @@ class Phonons:
 
     def _allowed_third_phonons_index(self, index_q, is_plus):
         q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
-        qp_vec = self._reciprocal_grid.unitary_grid()
+        qp_vec = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
         rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
         rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
-        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise')
+        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise',
+                                              order=self._grid_type)
         return index_qpp_full
 
 

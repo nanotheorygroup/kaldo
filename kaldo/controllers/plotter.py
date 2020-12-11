@@ -109,10 +109,11 @@ def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05):
 
 
 def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
+    physical_mode = phonons.physical_mode.flatten()
     frequency = phonons.frequency.flatten()
     observable = observable.flatten()
     fig = plt.figure()
-    plt.scatter(frequency[3:], observable[3:], s=5)
+    plt.scatter(frequency[physical_mode], observable[physical_mode], s=5)
     observable[np.isnan(observable)] = 0
     plt.ylabel(observable_name, fontsize=16)
     plt.xlabel("$\\nu$ (THz)", fontsize=16)
@@ -129,13 +130,14 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True, input_fig=None):
-    if input_fig is None:
-        fig = plt.figure()
-    else:
-        fig = input_fig
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(phonons.frequency.flatten(order='C').reshape(-1, 1))
-    x = np.linspace(phonons.frequency.min(), phonons.frequency.max(), n_points)
+def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
+    
+    fig = plt.figure()
+    physical_mode = phonons.physical_mode.flatten(order='C')
+    frequency = phonons.frequency.flatten(order='C')
+    frequency = frequency[physical_mode]
+    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(frequency.reshape(-1, 1))
+    x = np.linspace(frequency.min(), phonons.frequency.max(), n_points)
     y = np.exp(kde.score_samples(x.reshape((-1, 1))))
     plt.plot(x, y)
     plt.fill_between(x, y, alpha=.2)
@@ -149,16 +151,12 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True, input_fig=Non
     fig.savefig(folder + '/' + 'dos.png')
     if is_showing:
         plt.show()
-    elif input_fig is None:
-        plt.close()
     else:
-        return fig
+        plt.close()
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b'):
-    # TODO: remove useless symmetry flag
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False):
     atoms = phonons.atoms
-
     if is_nw is None and phonons.is_nw:
         is_nw = phonons.is_nw
     if is_nw:
@@ -184,11 +182,12 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     vel_plot = []
     vel_norm = []
     for q_point in k_list:
-        phonon = HarmonicWithQ(q_point, phonons.forceconstants.second_order,
+        phonon = HarmonicWithQ(q_point, phonons.forceconstants.second,
                                distance_threshold=phonons.forceconstants.distance_threshold,
-                               storage='memory')
+                               storage='memory',
+                               is_nw=is_nw,
+                               is_unfolding=is_unfolding)
         freqs_plot.append(phonon.frequency.flatten())
-
         if with_velocity:
             val_value = phonon.velocity[0]
             vel_plot.append(val_value)
@@ -197,14 +196,11 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     if with_velocity:
         vel_plot = np.array(vel_plot)
         vel_norm = np.array(vel_norm)
-
     fig1, ax1 = plt.subplots()
-
     plt.tick_params(axis='both', which='minor', labelsize=16)
-    plt.ylabel("$\\nu$ (Thz)", fontsize=16)
+    plt.ylabel("$\\nu$ (THz)", fontsize=16)
     plt.xlabel('$q$', fontsize=16)
     plt.tick_params(axis='both', which='major', labelsize=16)
-
     plt.xticks(Q, point_names)
     plt.xlim(q[0], q[-1])
     if color is not None:
@@ -216,12 +212,10 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
-
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
     fig1.savefig(folder + '/' + 'dispersion' + '.png')
     np.savetxt(folder + '/' + 'q', q)
     np.savetxt(folder + '/' + 'dispersion', freqs_plot)
-
     if is_showing:
         plt.show()
     else:
@@ -229,7 +223,6 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     if with_velocity:
         for alpha in range(3):
             np.savetxt(folder + '/' + 'velocity_' + str(alpha), vel_plot[:, :, alpha])
-
         fig2, ax2 = plt.subplots()
         plt.ylabel('$|v|(\AA/ps)$', fontsize=16)
         plt.xlabel('$q$', fontsize=16)
@@ -244,14 +237,23 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
 
         plt.grid()
         plt.tick_params(axis='both', which='major', labelsize=16)
-
         fig2.savefig(folder + '/' + 'velocity.png')
         np.savetxt(folder + '/' + 'velocity_norm',  vel_norm)
-
         if is_showing:
             plt.show()
         else:
             plt.close()
+
+
+def cumulative_cond_cal(freq, full_cond, n_phonons):
+    conductivity = np.einsum('maa->m', 1/3 * full_cond)
+    conductivity = conductivity.reshape(n_phonons)
+    cumulative_cond = np.zeros_like(conductivity)
+    freq_reshaped = freq.reshape(n_phonons)
+    for mu in range(cumulative_cond.size):
+        single_cumulative_cond = conductivity[(freq_reshaped < freq_reshaped[mu])].sum()
+        cumulative_cond[mu] = single_cumulative_cond
+    return cumulative_cond
 
 
 def plot_crystal(phonons):

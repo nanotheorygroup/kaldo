@@ -3,7 +3,7 @@ from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 def wrap_coordinates(dxij, cell=None, cell_inv=None):
-    # exploit periodicity to calculate_second the shortest distance, which may not be the one we have
+    # exploit periodicity to calculate the shortest distance, which may not be the one we have
     if cell is not None and cell_inv is None:
         cell_inv = np.linalg.inv(cell)
     if cell is not None:
@@ -38,11 +38,11 @@ class Grid:
         return grid
 
 
-    def unitary_grid(self, is_wrapping=False):
+    def unitary_grid(self, is_wrapping):
         return self.grid(is_wrapping) / self.grid_shape
 
 
-    def grid(self, is_wrapping=False):
+    def grid(self, is_wrapping):
         try:
             index_grid = self._grid
         except AttributeError:

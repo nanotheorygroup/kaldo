@@ -7,6 +7,9 @@
    :width: 400
 
 kALDo. Thermal transport in crystalline and non-crystalline solids.
+Read the paper here_.
+
+.. _here: https://aip.scitation.org/doi/abs/10.1063/5.0020443
 
 .. toctree::
    :glob:
@@ -38,8 +41,8 @@ kALDo. Thermal transport in crystalline and non-crystalline solids.
 
 
 
-Indices and tables
-==================
+kALDo: Anharmonic Lattice Dynamics
+==================================
 
 * :ref:`genindex`
 * :ref:`modindex`
