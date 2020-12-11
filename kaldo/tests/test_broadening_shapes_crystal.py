@@ -4,9 +4,7 @@ Unit and regression test for the kaldo package.
 
 # Imports
 from kaldo.forceconstants import ForceConstants
-from kaldo.conductivity import Conductivity
 from kaldo.phonons import Phonons
-import ase.units as units
 import numpy as np
 import pytest
 
