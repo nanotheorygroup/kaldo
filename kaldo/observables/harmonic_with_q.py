@@ -208,6 +208,8 @@ class HarmonicWithQ(Observable):
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
+        if self.is_amorphous:
+            inverse_sqrt_freq = tf.cast(inverse_sqrt_freq, tf.float64)
         for alpha in range(3):
             if alpha == 0:
                 sij = self._sij_x
