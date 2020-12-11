@@ -37,7 +37,7 @@ def spline_with_zero(freqs, gamma):
     spl = scipy.interpolate.splrep(x, y)
     return spl
 
-def interpolater(conc, training, interpolating, plot=True)
+def interpolater(training, interpolating, plot=True)
     training_frequencies = np.load(training+'/frequency.npy')
     training_gammas = np.load(training+'/bandwidth.npy')
 
@@ -47,16 +47,17 @@ def interpolater(conc, training, interpolating, plot=True)
 
     interpolation_frequencies = np.load(interpolating+'/frequency.npy')
     spline = spline_with_zero(resample_frequencies, resample_gammas)
+    interpolation_gammas = scipy.interpolate.splev(interpolation_frequencies, spline)
 
     if plot:
         plt.scatter(training_frequencies, training_gammas, label='Training Set')
-        plt.scatter(interpolation_frequencies, spline, label='Interpolated')
+        plt.scatter(interpolation_frequencies, interpolation_gammas, label='Interpolated')
         plt.xlabel('freq(THz)', fontsize=16); plt.ylabel('$\Gamma$(meV)', fontsize=16)
         plt.legend(); plt.grid(); plt.title('Bandwidth')
         plt.savefig('testing.png')
 
 for c in desired_concentrations:
-    training_folder = 'structures/'+train_size+'_atom/aSiGe_C'+str(int(c*100))+'/'
-    interpolating_folder = 'structures/'+interpolate_size+'_atom/aSiGe_C'+str(int(c*100))+'/'
+    training_folder = 'structures/'+train_size+'_atom/aSiGe_C'+str(int(c*100))
+    interpolating_folder = 'structures/'+interpolate_size+'_atom/aSiGe_C'+str(int(c*100))
     interpolater(c, training_folder, interpolating_folder)
     print(str(int(c*100))+' concentration sample interpolated')

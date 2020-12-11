@@ -3,7 +3,9 @@ from ase.optimize import LBFGSLineSearch
 from ase.io import read,write
 import numpy as np
 import os
+
 random_seed = 7793
+desired_concentrations = [0.1]
 
 def change_concentration(ge_concentration=0):
 	# Read in 1728 atom system
@@ -35,8 +37,6 @@ def change_concentration(ge_concentration=0):
 	write('structures/1728_atom/aSiGe_C'+str(ge_concentration)+'/replicated_atoms.xyz',
 		 search.atoms, format='xyz')
 
-desired_concentrations = [0.0, 0.1]
-desired_concentrations = [0.1]
 for c in desired_concentrations:
 	change_concentration(c)
 
