@@ -41,4 +41,7 @@ def test_participation_ratio(phonons):
     participation = phonons.participation_ratio.squeeze()
     np.testing.assert_approx_equal(participation[100], 0.52007, significant=3)
 
+def test_velocity_amorphous(phonons):
+    np.testing.assert_approx_equal(phonons.velocity.squeeze()[10, 2], 0, significant=2)
+
 

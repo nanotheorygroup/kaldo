@@ -219,6 +219,8 @@ class HarmonicWithQ(Observable):
                 sij = self._sij_y
             if alpha == 2:
                 sij = self._sij_z
+            if self.is_amorphous:
+                inverse_sqrt_freq = tf.cast(inverse_sqrt_freq, tf.float64)
             velocity_AF = 1 / (2 * np.pi) * contract('mn,m,n->mn', sij,
                                    inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
             velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
