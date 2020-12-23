@@ -29,12 +29,12 @@ chmod +x get_precalculated_fc.sh
 chmod +x get_reference.sh
 ./get_reference.sh
 ```
-- Precalculated force constant and reference calculation files can be accessed [here](http://sophe.ucdavis.edu/structures/).
+- Precalculated force constant and reference calculation files can be accessed [here](http://sophe.ucdavis.edu/structures/reference/updated_example/).
 - Suggestions of specificing GPU/CPU usage for tensorflow can be accessed [here](https://stackoverflow.com/questions/40069883/how-to-set-specific-gpu-in-tensorflow).
 ## List and content of examples folder
 For each example, more detailed information is provided by the README.md file contained in the corresponding directory.
 - `amorphous_silicon_Tersoff_LAMMPS:`
-This example illustrates how to perform thermal transport simulation for an amorphous silicon system (512 atoms system) with [LAMMPS USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
+This example illustrates how to perform thermal transport simulation for an amorphous silicon system (512 atoms per cell) with [LAMMPS USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
 - `carbon_diamond_Tersoff_ASE_LAMMPS:`
 This example illustrates how to perform thermal transport simulation for a carbon diamond (2 atoms per cell) system using [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html) as force calculator.
 - `silicon_bulk_LDA_ASE_QE_hiPhive:`

@@ -34,8 +34,7 @@ calculator_inputs = {'pseudopotentials': {'Si': 'Si.pz-n-kjpaw_psl.0.1.UPF'},
                           'electrons': {'conv_thr': 1e-10, 'mixing_beta': 0.5},
                           'disk_io': 'low',
                           'pseudo_dir': 'potentials'},
-                     'kpts': [1, 1, 1],
-                     'koffset': [1, 1, 1]
+                     'kpts': None,
                      }
 calc = Espresso(**calculator_inputs)
 if not os.path.exists('structures'):
