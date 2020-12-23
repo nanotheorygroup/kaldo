@@ -267,6 +267,7 @@ class HarmonicWithQ(Observable):
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
         return dyn_s
 
+
     def calculate_eigensystem(self, only_eigenvals):
         dyn_s = self._dynmat_fourier
         if only_eigenvals:
@@ -277,13 +278,14 @@ class HarmonicWithQ(Observable):
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
 
+
     def calculate_participation_ratio(self):
         n_atoms = self.n_modes // 3
         esystem = self._eigensystem[1:, :]
         eigenvects = tf.transpose(esystem)
         eigenvects = np.reshape(eigenvects, (self.n_modes, n_atoms, 3))
         participation_ratio = np.power(np.linalg.norm(eigenvects, axis=2), 4)
-        participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1)*n_atoms)
+        participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1) * n_atoms)
         return participation_ratio
 
 

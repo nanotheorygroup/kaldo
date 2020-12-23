@@ -13,6 +13,7 @@ FOLDER_NAME = 'data'
 # TODO: move this into single observables
 DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          'frequency': 'formatted',
+                         'participation_ratio':'formatted',
                          'velocity': 'formatted',
                          'heat_capacity': 'formatted',
                          'population': 'formatted',
