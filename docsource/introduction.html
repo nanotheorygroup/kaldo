@@ -245,7 +245,9 @@
         </li>
         <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#LAMMPS-setup" class="md-nav__link">LAMMPS setup</a>
+        <li class="md-nav__item"><a href="#LAMMPS-library-setup" class="md-nav__link">LAMMPS library setup</a>
+        </li>
+        <li class="md-nav__item"><a href="#LAMMPS-executable-setup" class="md-nav__link">LAMMPS executable setup</a>
         </li>
         <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
         </li></ul>
@@ -472,7 +474,9 @@
         </li>
         <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#LAMMPS-setup" class="md-nav__link">LAMMPS setup</a>
+        <li class="md-nav__item"><a href="#LAMMPS-library-setup" class="md-nav__link">LAMMPS library setup</a>
+        </li>
+        <li class="md-nav__item"><a href="#LAMMPS-executable-setup" class="md-nav__link">LAMMPS executable setup</a>
         </li>
         <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
         </li></ul>
@@ -576,7 +580,7 @@ git clone git+https://github.com/nanotheorygroup/kaldo
 
 <h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
 
-<h2 id="LAMMPS-setup">LAMMPS setup<a class="headerlink" href="#LAMMPS-setup" title="Permalink to this headline">¶</a></h2>
+<h2 id="LAMMPS-library-setup">LAMMPS library setup<a class="headerlink" href="#LAMMPS-library-setup" title="Permalink to this headline">¶</a></h2>
 <p>In order to use LAMMPS with ASE, it needs to be compiled a lib</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> path/to/lammps/src
 make yes-manybody
@@ -597,7 +601,11 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">install</span><span class="o">-</span><span class="n">python</span>
 </pre></div>
 </div>
-<p>Update 07/2020: It you are having any issue with the July 2020 version of <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code>, try using the September 2019 version.</p>
+<p>Update 07/2020: It you are having any issue with the July 2020 version of <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code>, try using the October 2019 version.</p>
+
+
+<h2 id="LAMMPS-executable-setup">LAMMPS executable setup<a class="headerlink" href="#LAMMPS-executable-setup" title="Permalink to this headline">¶</a></h2>
+<p>You can use LAMMPS executable directly, as illustrated in the example folder. For that purpose, you will need the <a class="reference external" href="https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon">LAMMPS user-phonon package by Charles Sievers</a> to calculate the dynamical matrix and the third order interatomic force constants.</p>
 
 
 <h2 id="Quantum-Espresso-setup">Quantum Espresso setup<a class="headerlink" href="#Quantum-Espresso-setup" title="Permalink to this headline">¶</a></h2>
@@ -673,12 +681,12 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="64cdd647cb5a4cee853687a8c75e651f" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="b276f76d043744b0a10422459242658a" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 
 
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="3c4755c460ff41fe8b21237c135382aa" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="228d7911e88b42409ed2c5c69240e6f0" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 
 
 <h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this headline">¶</a></h1>
@@ -707,7 +715,7 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 
 
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="946fb3c2cdf94f3893631e4439e8cf2b" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="685ef41e5f324460a6756315336c08e3" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 
