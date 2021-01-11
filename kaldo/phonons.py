@@ -160,6 +160,31 @@ class Phonons:
 
 
     @lazy_property(label='')
+    def participation_ratio(self):
+        """Calculate phonons participation ratio. A value of 1 corresponds to translation.
+        Returns
+        -------
+        participation_ratio : np array
+            (n_k_points, n_modes) atomic participation
+        """
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        participation_ratio = np.zeros((self.n_k_points, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQ(q_point=q_point,
+                                   second=self.forceconstants.second,
+                                   distance_threshold=self.forceconstants.distance_threshold,
+                                   folder=self.folder,
+                                   storage=self.storage,
+                                   is_nw=self.is_nw,
+                                   is_unfolding=self.is_unfolding)
+
+            participation_ratio[ik] = phonon.participation_ratio
+
+        return participation_ratio
+
+
+    @lazy_property(label='')
     def velocity(self):
         """Calculates the velocity using Hellmann-Feynman theorem.
 
