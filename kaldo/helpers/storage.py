@@ -13,6 +13,7 @@ FOLDER_NAME = 'data'
 # TODO: move this into single observables
 DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          'frequency': 'formatted',
+                         'participation_ratio':'formatted',
                          'velocity': 'formatted',
                          'heat_capacity': 'formatted',
                          'population': 'formatted',
@@ -110,7 +111,6 @@ def save(property, folder, loaded_attr, format='formatted'):
         if property == 'velocity':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
-
         elif property == 'mean_free_path':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,
