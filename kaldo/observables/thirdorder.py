@@ -226,8 +226,9 @@ class ThirdOrder(ForceConstant):
                                          delta_shift,
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose)
-            self.save('third')
-            ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
+            if is_storing:
+                self.save('third')
+                ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
 
 
