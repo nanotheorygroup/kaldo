@@ -1,8 +1,6 @@
 from scipy.interpolate import InterpolatedUnivariateSpline
-from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 plt.style.use ("seaborn-darkgrid")
-import pandas as pd
 import numpy as np
 import scipy
 
@@ -37,7 +35,7 @@ def spline_with_zero(freqs, gamma):
     spl = scipy.interpolate.splrep(x, y)
     return spl
 
-def interpolater(training, interpolating, plot=True)
+def interpolater(training, interpolating, plot=True):
     training_frequencies = np.load(training+'/frequency.npy')
     training_gammas = np.load(training+'/bandwidth.npy')
 
