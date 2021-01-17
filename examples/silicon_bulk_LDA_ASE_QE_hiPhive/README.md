@@ -29,7 +29,7 @@ External files required:
     3. Set up Conductivity object and compute thermal conductivity with Relaxation Time Approximation (RTA), self-consistent (sc) and direct inversion of scattering matrix (inverse) methods.
 
 
-- To calculate 2<sup>nd</sup> and 3<sup>rd</sup> force constants with Quantum ESPRESSO and ASE, set the environment variable as follow:
+- To set up the force calculator with Quantum ESPRESSO and ASE, set the environment variable as follow:
 ```bash
 export ASE_ESPRESSO_COMMAND="mpirun -np 8 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"				
 ```  
