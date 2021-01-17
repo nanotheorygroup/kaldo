@@ -41,7 +41,7 @@ phonons = Phonons(forceconstants=forceconstants,
                   is_classic=False,
                   temperature=temperature,
                   is_nw=True,
-                  folder='ald',
+                  folder='ALD_CNT',
                   storage='numpy')
 
 # Compute conductivity from direct inversion of
