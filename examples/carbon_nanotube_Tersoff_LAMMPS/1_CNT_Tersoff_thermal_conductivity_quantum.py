@@ -7,6 +7,7 @@
 from kaldo.conductivity import Conductivity
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
+import numpy as np
 
 # -- Set up force constant objects via interface to LAMMPS --#
 
