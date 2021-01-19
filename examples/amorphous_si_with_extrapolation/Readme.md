@@ -1,6 +1,6 @@
 # Running this Example
 
-This example is made to repeat the results found in <link_to_prb> by calculating phononic 
+This example is made to repeat the results found in https://arxiv.org/abs/2011.08318 by calculating phononic 
 and conductivity information.
 First a set of data is generated for a 1728 atom system, and then an interpolation fits the
 bandwidths of a larger system to match the trendline of the smaller system. A plotter is 
