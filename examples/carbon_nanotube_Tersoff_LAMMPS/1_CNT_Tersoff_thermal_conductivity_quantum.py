@@ -44,7 +44,7 @@ phonons = Phonons(forceconstants=forceconstants,
                   storage='numpy')
 
 # Compute conductivity from direct inversion of
-# scattering matrix for infinte size samples
+# scattering matrix for infinite size samples
 # 29.92 is the rescale factor between
 # the volume of the simulation box and the
 # volume of the 10,0 Carbon Nanotube
