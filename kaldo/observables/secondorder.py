@@ -228,9 +228,6 @@ class SecondOrder(ForceConstant):
                 logging.info('Reading stored second')
         else:
             self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
-            if is_storing:
-                self.save('second')
-                ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
