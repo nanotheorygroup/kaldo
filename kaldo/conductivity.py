@@ -10,6 +10,7 @@ from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
+
 def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode, n_phonons):
     conductivity_per_mode = np.zeros((n_phonons, 3, 3))
     physical_mode = physical_mode.reshape(n_phonons)
@@ -182,7 +183,6 @@ class Conductivity:
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
         logging.info('Conductivity calculated')
         return cond.real
-
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
     def mean_free_path(self):
@@ -448,7 +448,7 @@ class Conductivity:
         """This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.
 
         Returns
-	    -------
+        -------
         conductivity_per_mode : np array
             (n_k_points, n_modes, 3)
         """
