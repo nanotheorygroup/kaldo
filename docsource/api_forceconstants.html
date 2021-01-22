@@ -494,14 +494,14 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
 Default is (1, 1, 1)</p></li>
 <li><p><strong>format</strong> (<em>'numpy'</em><em>, </em><em>'eskm'</em><em>, </em><em>'lammps'</em><em>, </em><em>'shengbte'</em><em>, </em><em>'shengbte-qe'</em><em>, </em><em>'hiphive'</em>) – Format of force constant information being loaded into ForceConstants object.
 Default is ‘numpy’</p></li>
-<li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When importing sparse third order force constant matrices, energies below
-the threshold value in magnitude are ignored. Units: ev/A^3
-Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
-<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <dl class="simple">
-<dt>When calculating force constants, contributions from atoms further than the</dt><dd><p>distance threshold will be ignored.</p>
-</dd>
-</dl>
+<li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <p>When importing sparse third order force constant matrices, energies below
+the threshold value in magnitude are ignored. Units: ev/A^3</p>
+<blockquote>
+<div><p>Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p>
+</div></blockquote>
 </p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than the
+distance threshold will be ignored.</p></li>
 <li><p><strong>third_supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Takes in the unit cell for the third order force constant matrix.
 Default is self.supercell</p></li>
 <li><p><strong>is_acoustic_sum</strong> (<em>Bool</em><em>, </em><em>optional</em>) – If true, the accoustic sum rule is applied to the dynamical matrix.

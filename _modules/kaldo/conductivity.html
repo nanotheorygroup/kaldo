@@ -421,6 +421,7 @@
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
+
 <span class="k">def</span> <span class="nf">calculate_conductivity_per_mode</span><span class="p">(</span><span class="n">heat_capacity</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">mfp</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">n_phonons</span><span class="p">):</span>
     <span class="n">conductivity_per_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_phonons</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
     <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_phonons</span><span class="p">)</span>
@@ -593,7 +594,6 @@
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'The conductivity has an immaginary part. Sum(Im(k)) = '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Conductivity calculated'</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">cond</span><span class="o">.</span><span class="n">real</span>
-
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">mean_free_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -859,7 +859,7 @@
         <span class="sd">"""This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</span>
 
 <span class="sd">        Returns</span>
-<span class="sd">	    -------</span>
+<span class="sd">        -------</span>
 <span class="sd">        conductivity_per_mode : np array</span>
 <span class="sd">            (n_k_points, n_modes, 3)</span>
 <span class="sd">        """</span>
