@@ -1,11 +1,9 @@
 import numpy as np
 import os
-from sparse import COO
+import h5py
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-import pandas as pd
-import h5py
 
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'

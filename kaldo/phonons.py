@@ -70,8 +70,7 @@ class Phonons:
     """
     def __init__(self, **kwargs):
         self.forceconstants = kwargs.pop('forceconstants')
-        if 'is_classic' in kwargs:
-            self.is_classic = bool(kwargs['is_classic'])
+        self.is_classic = bool(kwargs.pop('is_classic', False))
         if 'temperature' in kwargs:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)

@@ -1,16 +1,16 @@
 from kaldo.observables.forceconstant import ForceConstant
-
 from ase import Atoms
 import os
 import ase.io
 import numpy as np
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
-from kaldo.interface.eskm_io import import_from_files
-import kaldo.interface.shengbte_io as shengbte_io
+from kaldo.interfaces.eskm_io import import_from_files
+import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third
 from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
 REPLICATED_ATOMS_THIRD_FILE = 'replicated_atoms_third.xyz'
@@ -126,7 +126,7 @@ class ThirdOrder(ForceConstant):
             # TODO: add replicated filename in example
             replicated_filename = 'replicated_atoms.xyz'
             try:
-                import kaldo.interface.hiphive_io as hiphive_io
+                import kaldo.interfaces.hiphive_io as hiphive_io
             except ImportError:
                 logging.error('In order to use hiphive along with kaldo, hiphive is required. \
                       Please consider installing hihphive. More info can be found at: \
