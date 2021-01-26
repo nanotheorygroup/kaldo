@@ -5,7 +5,8 @@ transport simulation for an amorphous silicon sample (512 atoms system) with
 [LAMMPS USER-PHONON ](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
 
 External files required: 
-		       1). forcefields/Si.tersoff 2). fc_aSi512/replicated_atoms.xyz: amorphous silicon structures (512 atoms, same structure as aSi_512.lmp).
+		       1). forcefields/Si.tersoff 
+		       2). fc_aSi512/replicated_atoms.xyz: amorphous silicon structures (same structure as aSi_512.lmp).
 
 
 - The force constants calculation proceeds as follows:
