@@ -23,5 +23,5 @@ write('CNT.lmp',format = 'lammps-data',images = atoms)
 write('fc_CNT/replicated_atoms.xyz',format ='extxyz',images=atoms.copy().repeat(supercell))
 
 # Print reminder information
-print('Supercell structures and LAMMPs input generated.') 
+print('Supercell structures and LAMMPS input generated.') 
 print('Supercell dimension is: ' + str(supercell))
