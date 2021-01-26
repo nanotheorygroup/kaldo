@@ -6,6 +6,7 @@ transport simulation for a 10,0 carbon nanotube (40 atoms per cell) system using
 
 External files required: 
 			1). forcefields/C.optimize.tersoff
+			2). unit.xyz : (10,0) Carbon Nanotube unit cell (40 atoms per cell)
 
 - The force constant calculation proceeds as follows:
 
