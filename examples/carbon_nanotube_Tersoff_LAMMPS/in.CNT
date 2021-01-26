@@ -3,12 +3,14 @@ processors      * * *
 boundary f f p
 atom_style    atomic
 atom_modify map yes
-# box tilt large
 read_data  CNT.lmp
 pair_style    tersoff
 pair_coeff    * * forcefields/C.optimize.tersoff C(O)
 mass            1 12.0100
-replicate 1 1 5
+
+# Please be consistent with supercell structures generated 
+# from 0_generate_LAMMPS_input_and_supercell_structures.py 
+replicate 1 1 3
 print 'calculating dynmat'
 dynamical_matrix all eskm 4e-6 file fc_CNT/Dyn.form binary no
 print 'calculating third_order'
