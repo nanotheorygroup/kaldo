@@ -17,7 +17,12 @@ External files required:
 	get_precalculated_fc.sh:
 	1.  Download precalculated force constants computed with LAMMPS USER-PHONON
 
+- 0_generate_LAMMPS_input_and_supercell_structures.py proceeds as follows:
 
+    1. Loading in 10,0 CNT unit cell structure (unit.xyz) and write it as LAMMPS input format (CNT.lmp).
+
+    2. Replicate the unit cell (1x1x3 supercell) and write it to force constant input folder (fc_CNT).
+     
 - 1_CNT_Tersoff_thermal_conductivity_quantum.py proceeds as follows:
 
     1. Set up force constant object by loading in computed 2nd, 3rd force constants computed with LAMMPS USER-PHONON.
@@ -36,6 +41,10 @@ External files required:
 
 - LAMMPS packages to install/compile include: [MAKE, MANYBODY, MOLECULE, KSPACE, USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html).
 
+- To generate input files for LAMMPS calculations and the supercell structures, navigate to this directory and execute:
+```python
+python 0_generate_LAMMPS_input_and_supercell_structures.py
+```
 - To compute 2<sup>nd</sup> and 3<sup>rd</sup> order force constants with LAMMPS USER-PHONON, navigate to this directory and execute:
 ```bash
 ./mpirun -np 8 /path/to/lammps/src/lmp_mpi < in.CNT > CNT.log 
