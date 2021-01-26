@@ -46,11 +46,6 @@ def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, phy
     return diffusivity
 
 
-def gamma_with_matthiessen(gamma, velocity, length):
-    gamma = gamma + 2 * np.abs(velocity) / length
-    return gamma
-
-
 def mfp_matthiessen(gamma, velocity, length, physical_mode):
     lambd_0 = np.zeros_like(velocity)
     for alpha in range(3):
@@ -59,15 +54,6 @@ def mfp_matthiessen(gamma, velocity, length, physical_mode):
                 gamma = gamma + 2 * abs(velocity[:, alpha]) / length[alpha]
         lambd_0[physical_mode, alpha] = 1 / gamma[physical_mode] * velocity[physical_mode, alpha]
     return lambd_0
-
-
-def mfp_caltech(lambd, velocity, length, physical_mode):
-    reduced_physical_mode = physical_mode.copy() & (velocity[:] != 0)
-    lambd[reduced_physical_mode] = lambd[reduced_physical_mode] * \
-                                   (1 - np.abs(lambd[reduced_physical_mode]) / (length / 2) *
-                                    (1 - np.exp(- length / 2 / np.abs(
-                                        lambd[reduced_physical_mode]))))
-    return lambd
 
 
 class Conductivity:
