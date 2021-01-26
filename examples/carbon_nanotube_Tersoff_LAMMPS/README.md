@@ -62,4 +62,4 @@ python 2_CNT_Tersoff_thermal_conductivity_classical.py
 ```
 - To access data computed during simulations, navigate to this folder: ***ALD_CNT***
 - Reference conductivity (1x1x3 supercell,1x1x151 k-point mesh): 2999.680 W/m-K (classical), 8794.771 W/m-K (Quantum) 
-- Reference conductivity (1x1x5 supercell,1x1x151 k-point mesh): 3121.130 W/m-K (classical), 8641.888 W/m-K (Quantum) 
+- Reference conductivity (1x1x5 supercell,1x1x151 k-point mesh): 3120.487 W/m-K (classical), 8639.604 W/m-K (Quantum) 
