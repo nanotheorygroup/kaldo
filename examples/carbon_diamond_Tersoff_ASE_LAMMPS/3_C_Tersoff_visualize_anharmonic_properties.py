@@ -90,7 +90,7 @@ if not is_show_fig:
 else:
     plt.show()
 
-# --Compare phonon life times at different level of theory -- #
+# -- Compare phonon life times at different level of theory -- #
 
 # The following shows a comparison of phonon life times
 # computed using Relaxation Time Approximation (RTA) and at direct inversion
