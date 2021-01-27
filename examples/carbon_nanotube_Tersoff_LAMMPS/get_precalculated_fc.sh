@@ -8,6 +8,7 @@ wget http://sophe.ucdavis.edu/structures/fc_CNT_1_1_3.tar.gz
 
 # Untar precalculated files and clean up 
 tar xzvf fc_CNT_1_1_3.tar.gz
+mv fc_CNT_1_1_3 fc_CNT
 rm -rf fc_CNT_1_1_3.tar.gz
 
 echo  "  "
