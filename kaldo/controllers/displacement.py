@@ -52,7 +52,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     Approximate the second order force constant matrices
     using central difference formula
     """
-    logging.info('Calculating second order potential derivatives')
+    logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
     replicated_atoms = replicated_atoms
     n_replicated_atoms = len(replicated_atoms.numbers)
@@ -73,6 +73,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     Compute third order force constant matrices by using the central
     difference formula for the approximation
     """
+    logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
     replicated_atoms = replicated_atoms
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
