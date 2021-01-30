@@ -4,11 +4,12 @@
 # Clean up existed fc folder
 rm -rf fc_CNT
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/fc_CNT.tar.gz
+wget http://sophe.ucdavis.edu/structures/fc_CNT_1_1_3.tar.gz
 
 # Untar precalculated files and clean up 
-tar xzvf fc_CNT.tar.gz
-rm -rf fc_CNT.tar.gz
+tar xzvf fc_CNT_1_1_3.tar.gz
+mv fc_CNT_1_1_3 fc_CNT
+rm -rf fc_CNT_1_1_3.tar.gz
 
 echo  "  "
 echo "Precalculated force constant files are obtained."
