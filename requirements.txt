@@ -1,6 +1,6 @@
 numpy>=1.16
 scipy==1.4.1
-ase>=3.18.1
+ase==3.19.1
 sparse>=0.6
 spglib>=1.11
 seekpath>=1.8
