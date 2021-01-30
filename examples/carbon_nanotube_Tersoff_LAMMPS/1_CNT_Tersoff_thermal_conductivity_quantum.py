@@ -11,8 +11,10 @@ import numpy as np
 
 # -- Set up force constant objects via interface to LAMMPS --#
 
-# Replicate the unit cell 'nrep'=5 times
-nrep = 5
+# Replicate the unit cell 'nrep'=3 times
+# Please be consistent with supercell structures generated 
+# from 0_generate_LAMMPS_input_and_supercell_structures.py 
+nrep = 3
 supercell = np.array([1, 1, nrep])
 
 # Load in computed 2nd, 3rd IFCs from LAMMPS outputs
