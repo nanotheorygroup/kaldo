@@ -103,6 +103,8 @@
     "```bash\n",
     "export ASE_ESPRESSO_COMMAND=\"mpirun -np 4 /path/to/pw.x -in PREFIX.pwi > PREFIX.pwo\"\n",
     "```\n",
+    "Update 01/2021: It you are having any issue with ASE version 3.20+, try using ASE version 3.19.1.\n",
+    "\n",
     "\n",
     "See the [ASE documentation](https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html) for more info.\n",
     "\n",
