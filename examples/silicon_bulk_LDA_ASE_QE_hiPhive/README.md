@@ -11,7 +11,7 @@ External files required:
 	
     1. Generate 50 reference structures and perform force calculations with standard rattle scheme.
 
-    2. Set up StructureContainer with 2nd and 3rd order cutoffs of 4.0 angstrom.
+    2. Set up StructureContainer with 2nd, 3rd, 4th order cutoffs of 3.0, 4.0, 5.0 angstrom.
 
     3. Develop force constant potentials by fitting reference structures and calculated force with least square method.
 
