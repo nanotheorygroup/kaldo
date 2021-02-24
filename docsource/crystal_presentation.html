@@ -831,8 +831,8 @@ forceconstants = ForceConstants(**forceconstants_config)
 
 # Compute 2nd and 3rd IFCs with the defined calculators
 
-forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))
-forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
+forceconstants.second.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
+forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 </pre></div>
 </div>
 </div>
