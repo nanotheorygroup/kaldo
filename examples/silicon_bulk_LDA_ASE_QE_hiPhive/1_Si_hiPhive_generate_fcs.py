@@ -19,8 +19,8 @@ import os
 # number_of_structures: number of structures generated with standard rattle (random displacement) 
 # and used in force calculations
 
-a0 = 5.516326
-rattle_std = 0.01
+a0 = 5.431
+rattle_std = 0.05
 number_of_structures =50
 
 # Define input information for the ASE Espresso calculator
@@ -84,7 +84,7 @@ print('\n')
 
 # Build StructureContainer
 # cutoffs: 2nd and 3rd order cutoffs (Angstrom)
-cutoffs = [4.0, 4.0]
+cutoffs = [3.0, 4.0, 5.0]
 cs = ClusterSpace(rattled_structures[0], cutoffs)
 sc = StructureContainer(cs)
 for structure in rattled_structures:
