@@ -29,14 +29,6 @@ phonons = Phonons(forceconstants=forceconstants,
 
 print(phonons.frequency)
 
-def check_zeros(matrix):
-    raise ValueError('Matrix of zeros!')
-    if not np.sum(matrix):
-        return True
-    else:
-        return False
-
-
 # if check_zeros(zeros):
 #     print('error')
 # else:

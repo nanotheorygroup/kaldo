@@ -51,6 +51,7 @@ class ForceConstant(Observable):
         self._direct_grid = Grid(self.supercell, grid_type)
 
 
+
     @classmethod
     def from_supercell(cls, atoms, supercell, grid_type, value=None, folder='kALDo'):
         _direct_grid = Grid(supercell, grid_type)

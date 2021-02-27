@@ -135,6 +135,7 @@ class Phonons:
 
 
     @lazy_property(label='')
+    @check_sum
     def frequency(self):
         """Calculate phonons frequency
         Returns
