@@ -3,7 +3,8 @@
 #  for example carbon_diamond_Tersoff_ASE_LAMMPS
 
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/reference/updated_example/carbon_diamond_Tersoff_ASE_LAMMPS.tar.gz
+wget https://www.dropbox.com/s/kvtuedw27acs8tw/carbon_diamond_Tersoff_ASE_LAMMPS.tar.gz?dl=0
+mv carbon_diamond_Tersoff_ASE_LAMMPS.tar.gz?dl=0 carbon_diamond_Tersoff_ASE_LAMMPS.tar.gz
 
 # Untar precalculated files and clean up 
 tar xzvf carbon_diamond_Tersoff_ASE_LAMMPS.tar.gz
