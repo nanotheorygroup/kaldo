@@ -739,7 +739,7 @@ div.rendered_html tbody tr:hover {
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span># Clone the share file folders from kalo resource repo
 !git clone https://github.com/nanotheorygroup/kaldo_resources.git
- Copy files from to the workspace
+# Copy files from to the workspace
 !cp -r kaldo_resources/forcefields.zip ./
 # Unzip files
 !unzip forcefields.zip
@@ -759,7 +759,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!wget https://www.dropbox.com/s/cqqhh1ax5er0u8b/lmp-tesla-t4-intel-xeon.gz?dl=0
+<span></span># Fetch prebuild lammps binary files from dropbox
+!wget https://www.dropbox.com/s/cqqhh1ax5er0u8b/lmp-tesla-t4-intel-xeon.gz?dl=0
 !mv lmp-tesla-t4-intel-xeon.gz?dl=0 lmp-tesla-t4-intel-xeon.gz
 !tar xvzf lmp-tesla-t4-intel-xeon.gz
 !rm /content/lmp-tesla-t4-intel-xeon.gz
