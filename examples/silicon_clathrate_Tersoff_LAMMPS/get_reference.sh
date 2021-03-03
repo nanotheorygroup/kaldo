@@ -3,7 +3,9 @@
 # for example silicon_clathrate_Tersoff_LAMMPS
 
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/reference/updated_example/silicon_clathrate_Tersoff_LAMMPS.tar.gz
+wget https://www.dropbox.com/s/t301igth6qe1p93/silicon_clathrate_Tersoff_LAMMPS.tar.gz?dl=0
+mv silicon_clathrate_Tersoff_LAMMPS.tar.gz?dl=0 silicon_clathrate_Tersoff_LAMMPS.tar.gz
+
 # Untar precalculated files and clean up 
 tar xzvf silicon_clathrate_Tersoff_LAMMPS.tar.gz
 rm -rf silicon_clathrate_Tersoff_LAMMPS.tar.gz
