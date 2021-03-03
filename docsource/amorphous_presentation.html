@@ -778,7 +778,6 @@ if not os.path.exists('structure_a_si_512.zip'):
 <span></span>from kaldo.forceconstants import ForceConstants
 
 # Read amporphous silicon with eskm format
-
 forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')
 </pre></div>
 </div>
@@ -796,7 +795,6 @@ forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format=
 # Create a phonon object
 # is_classic flag can be true or false, as
 # well as 0 (quantum) or 1 (classic)
-
 phonons = Phonons (forceconstants=forceconstants,
                    is_classic=0,
                    temperature=300,
@@ -820,12 +818,10 @@ plt.style.use('seaborn-poster')
 
 # Direct access to properties
 # calculated during the simulation
-
 frequency = phonons.frequency.flatten(order='C')
 bandwidth = phonons.bandwidth.flatten(order='C')
 
 # Plot phonon bandwidth vs frequency
-
 print('\n')
 plt.plot(frequency[3:],bandwidth[3:],'.',markersize=10,label= 'broadening shape: ' + str(phonons.broadening_shape))
 plt.ylabel('$\Gamma$ (THz)', fontsize=25, fontweight='bold')
@@ -861,17 +857,14 @@ from kaldo.controllers import plotter
 import numpy as np
 
 # Compute conductivity with per phonon mode basis using qhgk method
-
 kappa_qhgk_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='qhgk',n_iterations=20).conductivity)
 
 # Compute cumulative conductivity by frequency with qhgk method
-
 kappa_qhgk_cum_freq = plotter.cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)
 
 print('\n')
 
 # Visualize the per mode conductivity vs frequency
-
 plt.figure()
 plt.plot(frequency[3:],kappa_qhgk_per_mode[3:],'.',label='QHGK',ms=8)
 plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
@@ -882,7 +875,6 @@ plt.show()
 print('\n')
 
 # Visualize the cumulative conductivity vs frequency
-
 plt.figure()
 plt.plot(frequency[3:],kappa_qhgk_cum_freq[3:],'.',label='QHGK',ms=8)
 plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
