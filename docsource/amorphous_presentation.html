@@ -747,14 +747,9 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>import os
+<span></span># Clone the share file folders from kalo resource repo
 
-# Fetch forcefield files
-
-if not os.path.exists('forcefields.zip'):
-  !wget http://sophe.ucdavis.edu/structures/forcefields.zip
-  !unzip forcefields.zip
-  !rm -r forcefields.zip
+!git clone https://github.com/nanotheorygroup/kaldo_resources.git
 
 # Fetch force constants file for amprohous silicon (512 atoms)
 
