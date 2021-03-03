@@ -95,8 +95,10 @@
    },
    "outputs": [],
    "source": [
-    "# Clone the share file folders from kalo resource repo\n",
-    "!git clone https://github.com/nanotheorygroup/kaldo_resources.git\n",
+    "# Remote fetch kaldo resources from drop box\n",
+    "!wget https://www.dropbox.com/s/bvw0qcxy397g25q/kaldo_resources.zip?dl=0\n",
+    "!mv kaldo_resources.zip?dl=0 kaldo_resources.zip\n",
+    "!unzip kaldo_resources.zip\n",
     "\n",
     "# Copy files from to the workspace\n",
     "!cp -r kaldo_resources/forcefields.zip ./\n",
