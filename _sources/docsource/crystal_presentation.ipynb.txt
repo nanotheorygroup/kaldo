@@ -129,7 +129,7 @@
     "shutil.copyfile(src_path,dist_path)\n",
     "\n",
     "# Naviagate back to main folder before simulation\n",
-    "%cd /content\n",
+    "%cd /content\n",,
     "print('\\n')\n",
     "print('LAMMPS-Python Integration is completed!')"
    ]
@@ -253,7 +253,7 @@
    "source": [
     "from kaldo.conductivity import Conductivity\n",
     "\n",
-    "# Calculate conductivity  with direct inversion approach (inverse)\n",
+    "# Calculate conductivity  with direct inversion approach (inverse)\n",,
     "print('\\n')\n",
     "inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0))\n",
     "print('Inverse conductivity (W/mK): %.3f'%(np.mean(np.diag(inv_cond_matrix))))\n",
