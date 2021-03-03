@@ -2,7 +2,8 @@
 # obtain reference calculations
 # for 10,0 carbon nanotube sample.
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/reference/updated_example/carbon_nanotube_Tersoff_LAMMPS_1_1_3.tar.gz
+wget https://www.dropbox.com/s/2dxobxjxzsgnn8y/carbon_nanotube_Tersoff_LAMMPS_1_1_3.tar.gz?dl=0
+mv carbon_nanotube_Tersoff_LAMMPS_1_1_3.tar.gz?dl=0 carbon_nanotube_Tersoff_LAMMPS_1_1_3.tar.gz
 # Untar precalculated files and clean up 
 tar xzvf carbon_nanotube_Tersoff_LAMMPS_1_1_3.tar.gz
 mv carbon_nanotube_Tersoff_LAMMPS_1_1_3 carbon_nanotube_Tersoff_LAMMPS
