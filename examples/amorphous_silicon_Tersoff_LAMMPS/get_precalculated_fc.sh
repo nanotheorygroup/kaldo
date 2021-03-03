@@ -6,7 +6,8 @@
 rm -rf fc_aSi512
 
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/fc_aSi512.tar.gz
+wget https://www.dropbox.com/s/9ecdycd33bcjarh/fc_aSi512.tar.gz?dl=0
+mv fc_aSi512.tar.gz?dl=0 fc_aSi512.tar.gz
 
 # Untar precalculated files and clean up 
 tar xzvf fc_aSi512.tar.gz

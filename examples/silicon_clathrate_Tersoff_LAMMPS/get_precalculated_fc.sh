@@ -6,7 +6,8 @@
 rm -rf fc_Si46
 
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/fc_Si46.tar.gz
+wget https://www.dropbox.com/s/r80yvlsmyzb7bqo/fc_Si46.tar.gz?dl=0
+mv fc_Si46.tar.gz?dl=0 fc_Si46.tar.gz
 
 # Untar precalculated files and clean up 
 tar xzvf fc_Si46.tar.gz
