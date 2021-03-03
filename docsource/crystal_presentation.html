@@ -753,14 +753,13 @@ if not os.path.exists('forcefields.zip'):
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!wget http://sophe.ucdavis.edu/structures/lmp-tesla-t4-intel-xeon.gz
+<span></span>!wget https://www.dropbox.com/s/cqqhh1ax5er0u8b/lmp-tesla-t4-intel-xeon.gz?dl=0
+!mv lmp-tesla-t4-intel-xeon.gz?dl=0 lmp-tesla-t4-intel-xeon.gz
 !tar xvzf lmp-tesla-t4-intel-xeon.gz
 !rm /content/lmp-tesla-t4-intel-xeon.gz
-!ln -s /content/lammps/src/lmp_gpu /usr/local/bin/lmp_gpu
 
 # Navigate back to lammps source foder when for
 # later LAMMPS-Python integration
-
 %cd /content/lammps/src
 
 print('\n')
@@ -779,16 +778,13 @@ print('Remote Fetching precomplied LAMMPS is finished!')
 <span></span>!make install-python
 
 # Copy executable file to where the python Module locates
-
 import shutil
 src_path = '/usr/lib/python3/dist-packages/liblammps.so'
 dist_path = '/usr/local/lib/python3.7/dist-packages/liblammps.so'
 shutil.copyfile(src_path,dist_path)
 
 # Naviagate back to main folder before simulation
-
 %cd /content
-
 print('\n')
 print('LAMMPS-Python Integration is completed!')
 </pre></div>
@@ -810,11 +806,9 @@ from kaldo.forceconstants import ForceConstants
 import numpy as np
 
 # We start from the atoms object
-
 atoms = bulk('Si', 'diamond', a=5.432)
 
 # Config super cell and calculator input
-
 supercell = np.array([3, 3, 3])
 lammps_inputs = {
       'lmpcmds': [
@@ -825,12 +819,10 @@ lammps_inputs = {
       'keep_alive':True}
 
 # Create a finite difference object
-
 forceconstants_config  = {'atoms':atoms,'supercell': supercell,'folder':'fd'}
 forceconstants = ForceConstants(**forceconstants_config)
 
 # Compute 2nd and 3rd IFCs with the defined calculators
-
 forceconstants.second.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 </pre></div>
@@ -849,7 +841,6 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 # Define k-point grids, temperature
 # and the assumption for the
 # phonon poluation (i.e classical vs. quantum)
-
 k = 7
 kpts = [k, k, k]
 temperature = 300
@@ -857,7 +848,6 @@ is_classic = False
 k_label = str(k) + '_' + str(k) + '_' + str(k)
 
 # Create a phonon object
-
 phonons = Phonons(forceconstants=forceconstants,
                 kpts=kpts,
                 is_classic=is_classic,
@@ -878,19 +868,16 @@ phonons = Phonons(forceconstants=forceconstants,
 <span></span>from kaldo.conductivity import Conductivity
 
 # Calculate conductivity  with direct inversion approach (inverse)
-
 print('\n')
 inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0))
 print('Inverse conductivity (W/mK): %.3f'%(np.mean(np.diag(inv_cond_matrix))))
 print(inv_cond_matrix)
 
 # Calculate conductivity  with  relaxation time approximation (rta)
-
 print('\n')
 rta_cond_matrix = Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0)
 print('Rta conductivity (W/mK): %.3f'%(np.mean(np.diag(rta_cond_matrix))))
 print(rta_cond_matrix)
-
 # Calculate conductivity  with  self-consistent approach (sc)
 
 print('\n')
@@ -913,7 +900,6 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-poster')
 
 # Plot dispersion relation and group velocity in each direction
-
 plotter.plot_dispersion(phonons,n_k_points=int(k_label))
 print('\n')
 </pre></div>
@@ -931,7 +917,6 @@ print('\n')
 # calculated during the simulation
 
 # Plot heat capacity vs frequency
-
 freq_full = phonons.frequency.flatten(order='C')
 cv_1d = phonons.heat_capacity.flatten(order='C')[3:]
 
@@ -945,7 +930,6 @@ plt.ylim(0.9*1e23*cv_1d[cv_1d&gt;0].min(),
 plt.show()
 
 # Plot phonon bandwidth vs frequency
-
 band_wdidth_flatten = phonons.bandwidth.flatten(order='C')
 freq = freq_full[band_wdidth_flatten!=0]
 
@@ -958,7 +942,6 @@ plt.ylim(0.95*band_wdidth_flatten .min(), 1.05*band_wdidth_flatten .max())
 plt.show()
 
 # Plot phase space vs frequency
-
 print('\n')
 plt.figure()
 plt.scatter(freq_full[3:],phonons.phase_space.flatten(order='C')[3:],s=15)
@@ -998,22 +981,18 @@ plt.show()
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span># Compute conductivity with per phonon mode basis using different methods
-
 kappa_rta_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='rta').conductivity)
 kappa_inv_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='inverse').conductivity)
 kappa_sc_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity)
 
 # Compute cumulative conductivity by frequency using different methods
-
 kappa_rta_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='rta').conductivity,phonons.n_phonons)
 kappa_sc_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity,phonons.n_phonons)
 kappa_inv_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='inverse').conductivity,phonons.n_phonons)
 kappa_qhgk_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)
-
 print('\n')
 
 # Visualize the cumulative conductivity vs frequency
-
 plt.figure()
 plt.plot(freq_full,kappa_rta_per_mode,'r.',label='RTA')
 plt.plot(freq_full,kappa_sc_per_mode,'mo',label='Self Consistent',ms=8)
@@ -1023,11 +1002,9 @@ plt.ylabel(r'$\kappa(W/m/K)$', fontsize=25, fontweight='bold')
 plt.legend(loc=1,frameon=False)
 #plt.grid()
 plt.show()
-
 print('\n')
 
 # Visualize the cumulative conductivity vs frequency
-
 plt.figure()
 plt.plot(freq_full,kappa_rta_cum_freq,'r.',label='RTA')
 plt.plot(freq_full,kappa_sc_cum_freq,'mo',label='Self Consistent',ms=8)
