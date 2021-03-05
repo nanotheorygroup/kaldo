@@ -46,7 +46,8 @@ class ForceConstants:
                  supercell=(1, 1, 1),
                  third_supercell=None,
                  folder=MAIN_FOLDER,
-                 distance_threshold=None):
+                 distance_threshold=None,
+                 store_xyz=False):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -59,13 +60,15 @@ class ForceConstants:
         self.folder = folder
         self.distance_threshold = distance_threshold
         self._list_of_replicas = None
+        self.store_xyz = store_xyz
 
         # TODO: we should probably remove the following initialization
         self.second = SecondOrder.from_supercell(atoms,
                                                  supercell=self.supercell,
                                                  grid_type='C',
                                                  is_acoustic_sum=False,
-                                                 folder=folder)
+                                                 folder=folder,
+                                                 store_xyz=self.store_xyz)
         if third_supercell is None:
             third_supercell = supercell
         self.third = ThirdOrder.from_supercell(atoms,

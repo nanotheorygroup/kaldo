@@ -42,10 +42,10 @@ class SecondOrder(ForceConstant):
 
 
     @classmethod
-    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo'):
+    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo', store_xyz=False):
         if value is not None and is_acoustic_sum is not None:
             value = acoustic_sum_rule(value)
-        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
+        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder, store_xyz=False)
         return ifc
 
 
@@ -211,6 +211,7 @@ class SecondOrder(ForceConstant):
     def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
+        store_xyz = self.store_xyz
         atoms.set_calculator(calculator)
         replicated_atoms.set_calculator(calculator)
 
@@ -221,13 +222,13 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 logging.info('Second order not found. Calculating.')
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+                self.value = calculate_second(atoms, replicated_atoms, delta_shift, store_xyz, is_verbose)
                 self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored second')
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+            self.value = calculate_second(atoms, replicated_atoms, delta_shift, store_xyz, is_verbose)
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
