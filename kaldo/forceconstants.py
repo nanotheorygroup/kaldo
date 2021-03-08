@@ -76,48 +76,47 @@ class ForceConstants:
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
 
-
     @classmethod
     def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
                     is_acoustic_sum=False, only_second=False, distance_threshold=None):
         """
         Create a finite difference object from a folder
 
-    	Parameters
-    	----------
+        Parameters
+        ----------
         folder : str
-    		Chosen folder to load in system information.
+            Chosen folder to load in system information.
         supercell : (int, int, int), optional
-    		Number of unit cells in each cartesian direction replicated to form the input structure.
-    		Default is (1, 1, 1)
+            Number of unit cells in each cartesian direction replicated to form the input structure.
+            Default is (1, 1, 1)
         format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
-    		Format of force constant information being loaded into ForceConstants object.
-    		Default is 'numpy'
+            Format of force constant information being loaded into ForceConstants object.
+            Default is 'numpy'
         third_energy_threshold : float, optional
-    		When importing sparse third order force constant matrices, energies below
-    		the threshold value in magnitude are ignored. Units: ev/A^3
-            	Default is `None`
+            When importing sparse third order force constant matrices, energies below
+            the threshold value in magnitude are ignored. Units: ev/A^3
+                Default is `None`
         distance_threshold : float, optional
-    		When calculating force constants, contributions from atoms further than the
-		    distance threshold will be ignored.
+            When calculating force constants, contributions from atoms further than the
+            distance threshold will be ignored.
         third_supercell : (int, int, int), optional
-    		Takes in the unit cell for the third order force constant matrix.
-    		Default is self.supercell
+            Takes in the unit cell for the third order force constant matrix.
+            Default is self.supercell
         is_acoustic_sum : Bool, optional
-    		If true, the accoustic sum rule is applied to the dynamical matrix.
-    		Default is False
+            If true, the accoustic sum rule is applied to the dynamical matrix.
+            Default is False
 
         Returns
-    	-------
-    	ForceConstants object
-
+        -------
+        ForceConstants object
         """
-        second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format, is_acoustic_sum=is_acoustic_sum)
+        second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
+                                        is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
         # Create a finite difference object
         forceconstants = {'atoms': atoms,
-                             'supercell': supercell,
-                             'folder': folder}
+                          'supercell': supercell,
+                          'folder': folder}
         forceconstants = cls(**forceconstants)
         forceconstants.second = second_order
         if not only_second:
@@ -133,7 +132,6 @@ class ForceConstants:
             forceconstants.third = third_order
         forceconstants.distance_threshold = distance_threshold
         return forceconstants
-
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
@@ -174,7 +172,8 @@ class ForceConstants:
             (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
         replicated_positions = self.third.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
         dxij_reduced = wrap_coordinates(atoms.positions[:, np.newaxis, np.newaxis, :]
-                                        - replicated_positions[np.newaxis, :, :, :], self.third.replicated_atoms.cell, replicated_cell_inv)
+                                        - replicated_positions[np.newaxis, :, :, :], self.third.replicated_atoms.cell,
+                                        replicated_cell_inv)
         indices = np.argwhere(np.linalg.norm(dxij_reduced, axis=-1) < distance_threshold)
 
         coords = []

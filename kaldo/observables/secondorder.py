@@ -4,8 +4,8 @@ import os
 import tensorflow as tf
 import ase.io
 import numpy as np
-from kaldo.interface.eskm_io import import_from_files
-import kaldo.interface.shengbte_io as shengbte_io
+from kaldo.interfaces.eskm_io import import_from_files
+import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
@@ -153,7 +153,7 @@ class SecondOrder(ForceConstant):
             # TODO: add replicated filename in example
             replicated_filename = 'replicated_atoms.xyz'
             try:
-                import kaldo.interface.hiphive_io as hiphive_io
+                import kaldo.interfaces.hiphive_io as hiphive_io
             except ImportError:
                 logging.error('In order to use hiphive along with kaldo, hiphive is required. \
                       Please consider installing hihphive. More info can be found at: \
@@ -228,8 +228,6 @@ class SecondOrder(ForceConstant):
                 logging.info('Reading stored second')
         else:
             self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
-            self.save('second')
-            ase.io.write('/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
