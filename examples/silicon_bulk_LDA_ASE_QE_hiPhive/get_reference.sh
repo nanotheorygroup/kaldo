@@ -3,7 +3,9 @@
 # for example silicon_bulk_LDA_QE_hiPhive
 
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/reference/updated_example/silicon_bulk_LDA_ASE_QE_hiPhive.tar.gz
+wget https://www.dropbox.com/s/bvxk7zkcyv8d3ak/silicon_bulk_LDA_ASE_QE_hiPhive.tar.gz?dl=0
+mv silicon_bulk_LDA_ASE_QE_hiPhive.tar.gz?dl=0 silicon_bulk_LDA_ASE_QE_hiPhive.tar.gz  
+
 # Untar precalculated files and clean up 
 tar xzvf silicon_bulk_LDA_ASE_QE_hiPhive.tar.gz
 rm -rf silicon_bulk_LDA_ASE_QE_hiPhive.tar.gz
