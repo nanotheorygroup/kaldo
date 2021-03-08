@@ -1,4 +1,4 @@
-# Example: carbon diamond, Tersoff potential 
+# Example: carbon diamond, Tersoff potential
 # Computes:anharmonic properties and thermal conductivity for carbon diamond (2 atoms per cell)
 # Uses: ASE, LAMMPS
 # External files: forcefields/C.tersoff
@@ -15,7 +15,7 @@ from kaldo.phonons import Phonons
 import numpy as np
 import os
 
-### Set up the coordinates of the system and the force constant calculations ####
+# -- Set up the coordinates of the system and the force constant calculations -- #
 
 # Define the system according to ASE style. 'a': lattice parameter (Angstrom)
 atoms = bulk('C', 'diamond', a=3.566)
@@ -37,36 +37,37 @@ lammps_inputs = {'lmpcmds': [
     'log_file': 'lammps-c-diamond.log'}
 
 # Compute 2nd and 3rd IFCs with the defined calculators
-forceconstants.second.calculate(LAMMPSlib(**lammps_inputs))
-forceconstants.third.calculate(LAMMPSlib(**lammps_inputs))
+# delta_shift: finite difference displacement, in angstrom
+forceconstants.second.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
+forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 
-### Set up the phonon object and the anharmonic properties calculations ####
+# -- Set up the phonon object and the anharmonic properties calculations -- #
 
 # Configure phonon object
 # 'k_points': number of k-points
 # 'is_classic': specify if the system is classic, True for classical and False for quantum
 # 'temperature: temperature (Kelvin) at which simulation is performed
 # 'folder': name of folder containing phonon property and thermal conductivity calculations
-# 'storage': Format to storage phonon properties ('formatted' for ASCII format data, 'numpy' 
+# 'storage': Format to storage phonon properties ('formatted' for ASCII format data, 'numpy'
 #            for python numpy array and 'memory' for quick calculations, no data stored)
 
 # Define the k-point mesh using 'kpts' parameter
-k_points = 5 #'k_points'=5 k points in each direction
+k_points = 5  # 'k_points'=5 k points in each direction
 phonons_config = {'kpts': [k_points, k_points, k_points],
-                  'is_classic': False, 
-                  'temperature': 300, #'temperature'=300K
+                  'is_classic': False,
+                  'temperature': 300,  # 'temperature'=300K
                   'folder': 'ALD_c_diamond',
-		   'storage': 'formatted'}
+                  'storage': 'formatted'}
 # Set up phonon object by passing in configuration details and the forceconstants object computed above
 phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
-### Set up the Conductivity object and thermal conductivity calculations ####
+# -- Set up the Conductivity object and thermal conductivity calculations -- #
 
 # Compute thermal conductivity (t.c.) by solving Boltzmann Transport
 # Equation (BTE) with various of methods
 
 # 'phonons': phonon object obtained from the above calculations
-# 'method': specify methods to solve for BTE  
+# 'method': specify methods to solve for BTE
 # ('rta' for RTA,'sc' for self-consistent and 'inverse' for direct inversion of the scattering matrix)
 
 print('\n')

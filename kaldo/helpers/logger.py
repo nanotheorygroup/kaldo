@@ -17,6 +17,7 @@ formatter = logging.Formatter(format)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+
 def get_logger():
     logger = logging.getLogger('kaldo')
     return logger
