@@ -8,7 +8,6 @@ import numpy as np
 from kaldo.phonons import Phonons
 import ase.units as units
 import pytest
-import matplotlib.pyplot as plt
 
 
 @pytest.yield_fixture(scope="session")
