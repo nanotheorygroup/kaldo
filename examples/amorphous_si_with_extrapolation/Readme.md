@@ -32,7 +32,8 @@ The third script runs the interpolation used which generates a set of lifetimes 
 is not intimately tied to kaldo, but provided to promote open-source chemistry and data sharing.
 
 The fourth script can be run independently of the third script and plots the quantities calculated in 
-the second script.
+the second script. Note that kALDo does contain plotting scripts demo'd in some of the other example scripts,
+though for the sake of replacating the PRB data this example has its own, more specialized, plotting suite.
 
 ### Syntax for returning the full generalized velocity matrix
 ```
