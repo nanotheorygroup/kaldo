@@ -21,6 +21,34 @@ The structures will be returned to mechanical equilibrium using an LFBGS linesea
 ~2s and then the force constants will be calculated.
 
 Secondly, phononic information will be recovered. Explicit phonon bandwidth calculations will take the bulk
-of the computation time for this example. 
+of the computation time for this example. Other information is output and saved in numpy's .npy file format
+to be used later for plotting. Outputs include frequencies, lifetimes, participation ratios, and diffusivity.
+To recreate the velocity plot found in the paper, do not use phonons.velocity as this outputs the diagonal terms
+from the generalized velocity in x y and z, which would all be zero for an amorphous system. To extract the 
+full matrix requires using an undocumented process creating a HarmonicwithQ object and loading the _sij_<x/y/z>
+property (Syntax provided below)
+
+The third script runs the interpolation used which generates a set of lifetimes for a larger system. The process
+is not intimately tied to kaldo, but provided to promote open-source chemistry and data sharing.
+
+The fourth script can be run independently of the third script and plots the quantities calculated in 
+the second script.
+
+### Syntax for returning the full generalized velocity matrix
+```
+harmonic = HarmonicWithQ(q_point=np.array([0,0,0]),
+                    second=phonons.forceconstants.second,
+                    distance_threshold=phonons.forceconstants.distance_thre$
+                    folder=phonons.folder,
+                    storage=phonons.storage,
+                    is_nw=phonons.is_nw)
+vx = harmonic._sij_x
+vy = harmonic._sij_y
+vz = harmonic._sij_z
+full_generalized_velocity_tensor = np.stack((vx, vy, vz))
+```
+   
+
+
 
 

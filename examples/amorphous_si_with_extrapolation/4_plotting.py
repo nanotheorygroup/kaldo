@@ -18,7 +18,7 @@ plt.rcParams.update(params)
 
 # Enter desired plots as a dictionary key with None as its value
 # Options:
-# dos, bandwidth, participation, diffusivity
+# dos, bandwidth, participation, diffusivity, participation_ratio
 # conductivity, cumulative_conductivity
 desired_plots = {'dos': None,
                  'bandwidth': None}
@@ -80,11 +80,10 @@ for size in desired_comparisons.keys():
                         plt.ylabel(r'D_{nm} (mm^2/s)')
                     if obs=='conductivity':
                         plt.ylabel(r'\kappa _{nm} (W/m/K)')
-                    if obs=='participation':
+                    if obs=='participation_ratio':
                         plt.ylabel('Participation Ratio (%)')
                     if obs=='bandwidth':
                         plt.ylabel('Bandwidth (1/ps)')
-
                 ax = desired_plots[obs][0]
                 plot_observable_against_frequency(size, conc, obs, ax)
 

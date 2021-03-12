@@ -47,7 +47,7 @@ def phononics(ge_concentration='0'):
 	np.save('frequency', phonons.frequency)
 	np.save('bandwidth', phonons.bandwidth)
 	np.save('diffusivity', phonons.diffusivity)
-	#np.save('participation', phonons.participation_ratio)
+	np.save('participation', phonons.participation_ratio)
 
 	# Conductivity Object
 	# This will print out the total conductivity and save the contribution per mode
