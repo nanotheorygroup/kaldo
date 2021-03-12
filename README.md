@@ -24,7 +24,7 @@ also available open access on ArXiv: https://arxiv.org/abs/2009.01967
 
 ## Copyright
 
-Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio
+Copyright (c) 2021, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio
 
 ## Acknowledgements
 
