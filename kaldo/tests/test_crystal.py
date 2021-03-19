@@ -8,6 +8,7 @@ import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
 import pytest
+import os
 
 
 @pytest.yield_fixture(scope="session")
@@ -44,3 +45,8 @@ def test_rta_conductivity(phonons):
 def test_inverse_conductivity(phonons):
     cond = np.abs(np.mean(Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0).diagonal()))
     np.testing.assert_approx_equal(cond, 256, significant=3)
+
+def test_store_configurations(phonons):
+    second = phonons.forceconstants.second
+    second.store_displacements(calculator=EMT(), delta_shift=1e-4, is_verbose=True)
+    np.testing.assert_equal(os.path.isfile('second_order_xyz/001'), True)
