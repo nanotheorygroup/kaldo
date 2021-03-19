@@ -3,7 +3,9 @@
 #  for silicon bulk,using hiphive.
 
 # Fetch precalculated force constants folder from remote
-wget http://sophe.ucdavis.edu/structures/hiPhive_si_bulk.tar.gz
+wget https://www.dropbox.com/s/8sqspll51yewsze/hiPhive_si_bulk.tar.gz?dl=0
+mv hiPhive_si_bulk.tar.gz?dl=0 hiPhive_si_bulk.tar.gz
+
 # Untar precalculated files and clean up 
 tar xzvf hiPhive_si_bulk.tar.gz
 rm -rf hiPhive_si_bulk.tar.gz
