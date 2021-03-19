@@ -28,7 +28,7 @@ def calculate_gradient(x, input_atoms):
     return grad
 
 
-def calculate_single_second(replicated_atoms, atom_id, second_order_delta, store_xyzt):
+def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
     """
     Compute the numerator of the approximated second matrices
     (approximated force from forward difference -
@@ -45,7 +45,7 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta, store
     return second_per_atom
 
 
-def calculate_second(atoms, replicated_atoms, second_order_delta, store_xyz=False, is_verbose=False):
+def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False):
     # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
@@ -62,7 +62,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, store_xyz=Fals
     for i in range(n_atoms):
         if is_verbose:
             logging.info('calculating forces on atom ' + str(i))
-        second[i] = calculate_single_second(replicated_atoms, i, second_order_delta, store_xyz)
+        second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
     return second

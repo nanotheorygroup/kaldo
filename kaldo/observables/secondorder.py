@@ -42,10 +42,10 @@ class SecondOrder(ForceConstant):
 
 
     @classmethod
-    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo', store_xyz=False):
+    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo'):
         if value is not None and is_acoustic_sum is not None:
             value = acoustic_sum_rule(value)
-        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder, store_xyz=False)
+        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
         return ifc
 
 
@@ -207,11 +207,49 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
+    def store_xyz(self, calculator, delta_shift=1e-3, dir='second_order_xyz', format='extxyz', is_verbose=False):
+        '''
+        Code that will store configuration files in a folder for use in parallel computing
+        of force constants. Defaults to
+
+        Parameters
+        ----------
+        delta_shift : float
+            How far to move the atoms. This is a sensitive parameter
+            for force constant calculations.
+        dir: string
+            Where to place the xyz files. Directory created if
+            not existant.
+            Defaults to 'second_order_xyz'
+        format: string
+            Which format ASE will use to write the outputs.
+            Defaults to 'extxyz'
+        '''
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        atoms.set_calculator(calculator)
+        replicated_atoms.set_calculator(calculator)
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        magnitude = np.floor(np.log10(n_replicated_atoms))
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+
+        counter = 0
+        for i in range(n_replicated_atoms):
+            for alpha in range(3):
+                for move in (-1, 1):
+                    shift = np.zeros((n_replicated_atoms, 3))
+                    shift[i, alpha] += move * delta_shift
+                    replicated_atoms.positions = replicated_atoms.positions + shift
+                    counter_string = "{:0>"+magnitude+"d}".format(counter)
+                    replicated_atoms.write(dir+counter_string, format='extxyz')
+                    counter += 1
+
+
 
     def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        store_xyz = self.store_xyz
         atoms.set_calculator(calculator)
         replicated_atoms.set_calculator(calculator)
 
@@ -222,13 +260,13 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 logging.info('Second order not found. Calculating.')
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift, store_xyz, is_verbose)
+                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
                 self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored second')
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift, store_xyz, is_verbose)
+            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
