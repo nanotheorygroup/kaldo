@@ -1,4 +1,3 @@
-
 import numpy as np
 from kaldo.helpers.logger import get_logger
 from sparse import COO

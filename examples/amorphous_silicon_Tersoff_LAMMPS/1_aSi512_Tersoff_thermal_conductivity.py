@@ -33,7 +33,7 @@ phonons_config = {'is_classic': False,
                   'folder': 'ALD_aSi512',
                    'third_bandwidth':0.5/4.135, # 0.5 eV is used here.
                    'broadening_shape':'triangle',
-		   'storage': 'numpy'}
+                   'storage': 'numpy'}
 
 # Set up phonon object by passing in configuration details and the forceconstants object computed above
 phonons = Phonons(forceconstants=forceconstants, **phonons_config)
