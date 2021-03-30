@@ -160,7 +160,9 @@ class Phonons:
 
     @lazy_property(label='')
     def participation_ratio(self):
-        """Calculate phonons participation ratio. A value of 1 corresponds to translation.
+        """Calculates the participation ratio of each normal mode. Participation ratio's
+        represent the fraction of atoms that are displaced meaning a value of 1 corresponds
+        to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
         Returns
         -------
         participation_ratio : np array
