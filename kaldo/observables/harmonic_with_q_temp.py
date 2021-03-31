@@ -1,7 +1,9 @@
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-import numpy as np
-import ase.units as units
 from kaldo.helpers.storage import lazy_property
+import ase.units as units
+import numpy as np
+
+
 
 
 class HarmonicWithQTemp(HarmonicWithQ):

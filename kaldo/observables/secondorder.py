@@ -207,6 +207,45 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
+    def store_displacements(self, calculator, delta_shift=1e-3, dir='second_order_xyz', format='extxyz', is_verbose=False):
+        '''
+        Code that will store configuration files in a folder for use in parallel computing
+        of force constants. Defaults to
+
+        Parameters
+        ----------
+        delta_shift : float
+            How far to move the atoms. This is a sensitive parameter
+            for force constant calculations.
+        dir: string
+            Where to place the xyz files. Directory created if
+            not existant.
+            Defaults to 'second_order_xyz'
+        format: string
+            Which format ASE will use to write the outputs.
+            Defaults to 'extxyz'
+        '''
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        atoms.set_calculator(calculator)
+        replicated_atoms.set_calculator(calculator)
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        magnitude = int(np.floor(np.log10(n_replicated_atoms)) + 1.)
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+
+        counter = 0
+        for i in range(n_replicated_atoms):
+            for alpha in range(3):
+                for move in (-1, 1):
+                    shift = np.zeros((n_replicated_atoms, 3))
+                    shift[i, alpha] += move * delta_shift
+                    replicated_atoms.positions = replicated_atoms.positions + shift
+                    counter_string = str(counter).zfill(magnitude)
+                    replicated_atoms.write(dir+'/'+counter_string, format='extxyz')
+                    counter += 1
+
+
 
     def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
         atoms = self.atoms
