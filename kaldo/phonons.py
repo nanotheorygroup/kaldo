@@ -14,7 +14,6 @@ import kaldo.controllers.anharmonic as aha
 import numpy as np
 import ase.units as units
 from kaldo.helpers.logger import get_logger
-from kaldo.helpers.tools import check_sum
 logging = get_logger()
 
 
@@ -135,7 +134,6 @@ class Phonons:
 
 
     @lazy_property(label='')
-    @check_sum
     def frequency(self):
         """Calculate phonons frequency
         Returns
@@ -156,7 +154,6 @@ class Phonons:
                                    is_unfolding=self.is_unfolding)
 
             frequency[ik] = phonon.frequency
-        check_sum(*args, **kwargs)
         return frequency
 
 
@@ -209,7 +206,6 @@ class Phonons:
             velocity[ik] = phonon.velocity
         return velocity
 
-    @check_sum
     @lazy_property(label='')
     def _eigensystem(self):
         """Calculate the eigensystems, for each k point in k_points.
