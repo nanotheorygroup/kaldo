@@ -503,7 +503,7 @@ Default ‘C’</p></li>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.participation_ratio" title="kaldo.phonons.Phonons.participation_ratio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">participation_ratio</span></code></a></dt><dd><p>Calculate phonons participation ratio.</p>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.participation_ratio" title="kaldo.phonons.Phonons.participation_ratio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">participation_ratio</span></code></a></dt><dd><p>Calculates the participation ratio of each normal mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_space</span></code></a></dt><dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
 </dd>
@@ -612,7 +612,9 @@ If classical, it returns the Boltzmann constant in W/m/K.</p>
 <dl class="py method">
 <dt id="kaldo.phonons.Phonons.participation_ratio">
 <em class="property">property </em><code class="sig-name descname">participation_ratio</code><a class="headerlink" href="#kaldo.phonons.Phonons.participation_ratio" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate phonons participation ratio. A value of 1 corresponds to translation.
+<dd><p>Calculates the participation ratio of each normal mode. Participation ratio’s
+represent the fraction of atoms that are displaced meaning a value of 1 corresponds
+to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 :returns: <strong>participation_ratio</strong> – (n_k_points, n_modes) atomic participation
 :rtype: np array</p>
 </dd></dl>

@@ -571,7 +571,9 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">participation_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate phonons participation ratio. A value of 1 corresponds to translation.</span>
+        <span class="sd">"""Calculates the participation ratio of each normal mode. Participation ratio's</span>
+<span class="sd">        represent the fraction of atoms that are displaced meaning a value of 1 corresponds</span>
+<span class="sd">        to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469</span>
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        participation_ratio : np array</span>
