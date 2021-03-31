@@ -1,7 +1,7 @@
 numpy>=1.16
 scipy==1.4.1
 ase==3.19.1
-sparse>=0.6
+sparse==0.11.2
 spglib>=1.11
 seekpath>=1.8
 tensorflow>=2.0
