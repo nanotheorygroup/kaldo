@@ -157,7 +157,7 @@ class Conductivity:
                                                                     self.phonons.velocity, lambd, self.phonons.physical_mode,
                                                                     self.n_phonons)
 
-            volume = np.linalg.det(self.phonons.atoms.cell)
+            volume = np.abs(np.linalg.det(self.phonons.atoms.cell))
             cond = conductivity_per_mode / (volume * self.n_k_points)
         else:
             logging.error('Conductivity method not implemented')
@@ -252,7 +252,7 @@ class Conductivity:
         """
         phonons = self.phonons
         omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
-        volume = np.linalg.det(phonons.atoms.cell)
+        volume = np.abs(np.linalg.det(phonons.atoms.cell))
         q_points = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
         physical_mode = phonons.physical_mode
         conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3))
@@ -424,7 +424,7 @@ class Conductivity:
         length = self.length
         n_phonons = self.n_phonons
         n_k_points = self.n_k_points
-        volume = np.linalg.det(self.phonons.atoms.cell)
+        volume = np.abs(np.linalg.det(self.phonons.atoms.cell))
         physical_mode = self.phonons.physical_mode.reshape(n_phonons)
         velocity = self.phonons.velocity.real.reshape((n_phonons, 3))[physical_mode, :]
         heat_capacity = self.phonons.heat_capacity.flatten()[physical_mode]
