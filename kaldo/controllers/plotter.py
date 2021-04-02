@@ -14,7 +14,7 @@ A. Togo, I. Tanaka, "Spglib: a software library for crystal symmetry search", ar
 import matplotlib.pyplot as plt
 import seekpath
 import numpy as np
-from sklearn.neighbors.kde import KernelDensity
+from sklearn.neighbors import KernelDensity
 from scipy import ndimage
 from kaldo.helpers.storage import get_folder_from_label
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
