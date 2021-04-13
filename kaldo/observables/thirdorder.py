@@ -13,8 +13,10 @@ from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
 
+
 REPLICATED_ATOMS_THIRD_FILE = 'replicated_atoms_third.xyz'
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
+THIRD_ORDER_PROGRESS = 'third_order_displacements'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
@@ -189,7 +191,7 @@ class ThirdOrder(ForceConstant):
                                         out_file.write('\n')
             logging.info('Done exporting third.')
         elif format=='sparse':
-            config_file = folder + REPLICATED_ATOMS_THIRD_FILE
+            config_file = folder + '/' + REPLICATED_ATOMS_THIRD_FILE
             ase.io.write(config_file, self.replicated_atoms, format='extxyz')
 
             save_npz(folder + '/' + THIRD_ORDER_FILE_SPARSE, self.value.reshape((n_atoms * 3 * self.n_replicas *
@@ -200,7 +202,7 @@ class ThirdOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False):
+    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, progress=False, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
@@ -231,6 +233,51 @@ class ThirdOrder(ForceConstant):
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
 
+    def store_displacements(self, delta_shift, format='xyz', dir=THIRD_ORDER_PROGRESS):
+        '''
+        Code that will store configuration files in a folder for use in parallel computing
+        of force constants. Defaults to 'second_order_displacements'
+
+        Parameters
+        ----------
+        delta_shift : float
+            How far to move the atoms. This is a sensitive parameter
+            for force constant calculations.
+        dir: string
+            Where to place the xyz files. Directory created if
+            not existant.
+            Defaults to 'second_order_xyz'
+        format: string
+            Which format ASE will use to write the outputs.
+            Defaults to 'xyz'
+        '''
+        extensions = {
+            'xyz':'.xyz',
+            'lammps-dump-text':'.lmp',
+            'lammps-dump-binary':'.lmp'
+        }
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        copied_atoms = replicated_atoms.copy()
+        n_unit_cell_atoms = len(atoms.numbers)
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        magnitude = len(str(n_unit_cell_atoms))
+        n_displacements = n_unit_cell_atoms * 3 * 2
+        alpha_names = ['x', 'y', 'z']
+        move_names = [None, '+', '-']
+        logging.info('Storing '+str(n_displacements)+' frames with '+str(delta_shift)+'A shift')
+        logging.info('Writing to '+str(dir))
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+        for i in range(n_unit_cell_atoms):
+            for alpha in range(3):
+                for move in (-1, 1):
+                    shift = np.zeros((n_replicated_atoms, 3))
+                    shift[i, alpha] += move * delta_shift
+                    copied_atoms.positions = replicated_atoms.positions + shift
+                    file_string = str(i).zfill(magnitude)+'_'+alpha_names[alpha]+move_names[move]
+                    ase.io.write(dir+'/'+file_string+extensions[format], images=copied_atoms, format=format)
+        logging.info('Second order displacements stored')
 
 
     def __str__(self):

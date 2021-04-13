@@ -1,7 +1,10 @@
 
 import numpy as np
-from kaldo.helpers.logger import get_logger
 from sparse import COO
+import ase.io
+from os import mkdir
+from os.path import isdir
+from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 
@@ -12,7 +15,7 @@ def list_of_replicas(atoms, replicated_atoms):
     return list_of_cells
 
 
-def calculate_gradient(x, input_atoms):
+def calculate_gradient(x, input_atoms, alpha, move, save_progress):
     """
     Construct the calculate_gradient based on the given structure and atom object
     Set a copy for the atom object so that
@@ -23,6 +26,13 @@ def calculate_gradient(x, input_atoms):
     atoms = input_atoms.copy()
     input_atoms.positions = np.reshape(x, (int(x.size / 3.), 3))
     gr = -1. * input_atoms.get_forces()
+    if np.sum(gr[0:10,:]) == 0: # Check for force convergence, yell if failed.
+        logging.warning('WARNING: Force calculation failed.')
+        logging.info('Outputting failed geometry calculation to failed.xyz')
+        ase.io.write('failed.xyz', images=input_atoms, format='xyz')
+        exit(1)
+    if save_progress:
+        ase.io.write('test')
     grad = np.reshape(gr, gr.size)
     input_atoms.positions = atoms.positions
     return grad
@@ -33,36 +43,56 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
     Compute the numerator of the approximated second matrices
     (approximated force from forward difference -
     approximated force from backward difference )
-     """
-    n_replicated_atoms = len(replicated_atoms.numbers)
+    """
+    n_replicated_atoms = len(replicated_atoms .numbers)
     second_per_atom = np.zeros((3, n_replicated_atoms * 3))
     for alpha in range(3):
         for move in (-1, 1):
             shift = np.zeros((n_replicated_atoms, 3))
             shift[atom_id, alpha] += move * second_order_delta
             second_per_atom[alpha, :] += move * calculate_gradient(replicated_atoms.positions + shift,
-                                                                   replicated_atoms)
+                                                                   replicated_atoms,
+                                                                   alpha,
+                                                                   move)
     return second_per_atom
 
 
-def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False):
+def calculate_second(atoms, replicated_atoms, second_order_delta, progress=None, is_verbose=False):
     # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
     using central difference formula
     """
-    logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
+    logging.info('Calculating second order potential derivatives, ' +
+                 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
-    replicated_atoms = replicated_atoms
     n_replicated_atoms = len(replicated_atoms.numbers)
     n_atoms = n_unit_cell_atoms
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
+    logging.info('Requires force evaluations on %i frames'%(int(3*2*n_atoms)))
     second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
-    for i in range(n_atoms):
-        if is_verbose:
-            logging.info('calculating forces on atom ' + str(i))
-        second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
+    if progress != None:
+        folder = progress[0]
+        progress_indices = progress[1]
+        atom_index = progress_indices[0]
+        for i in range(atom_index):
+            if is_verbose:
+                logging.info('loading forces on atom ' + str(i))
+            try:
+                second[i] = load_single_second(folder, i, n_atoms)
+            except FileNotFoundError:
+                logging.info('Attempt to load force on atom ' + str(i) + ' failed')
+                second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
+        for i in range(atom_index, n_atoms):
+            if is_verbose:
+                logging.info('calculating forces on atom ' + str(i))
+            second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
+    else:
+        for i in range(n_atoms):
+            if is_verbose:
+                logging.info('calculating forces on atom ' + str(i))
+            second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
     return second
@@ -145,3 +175,16 @@ def calculate_single_third_with_shift(atoms, replicated_atoms, shift):
     phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
     phi_partial[:] = (-1. * calculate_gradient(replicated_atoms.positions + shift, replicated_atoms))
     return phi_partial
+
+def load_single_second(folder, index, n_atoms):
+    second_per_atom = np.zeros((3, n_atoms * 3))
+    digits = len(str(n_atoms))
+    alpha_names = ['x', 'y', 'z']
+    move_names = [None, 'p', 'm']
+    for alpha in range(3):
+        for move in (-1, 1):
+            atoms = ase.io.read(folder+'/'+index.zfill(digits)+'_'+alpha_names[alpha]+move_names[move]+'.xyz', format='extxyz')
+            forces = atoms.get_forces()
+            second_per_atom[alpha, :] += move * np.reshape(forces, forces.size)
+    return second_per_atom
+
