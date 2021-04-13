@@ -28,6 +28,12 @@ def count_rows(filename):
     return sum(buf.count(b'\n') for buf in bufgen if buf)
 
 
-
-
-
+def check_sum(func):
+    def checks(*args, **kwargs):
+        print('Positional Args:', args)
+        print('Keyword Args:', kwargs)
+        for i in args:
+            if np.sum(i) == 0:
+                print('Zeros Detected!')
+        func(*args, **kwargs)
+    return checks

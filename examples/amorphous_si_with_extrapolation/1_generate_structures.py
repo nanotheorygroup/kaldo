@@ -5,7 +5,7 @@ import numpy as np
 import os
 
 random_seed = 7793
-desired_concentrations = [0.1]
+desired_concentrations = [0.1, .2, .3]
 
 def change_concentration(ge_concentration=0):
 	# Read in 1728 atom system
