@@ -1,17 +1,19 @@
+from kaldo.controllers.displacement import calculate_second
 from kaldo.observables.forceconstant import ForceConstant
-from ase import Atoms
-import os
-import tensorflow as tf
-import ase.io
-import numpy as np
+from kaldo.helpers.logger import get_logger, log_size
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
-from kaldo.controllers.displacement import calculate_second
+import tensorflow as tf
 import ase.units as units
-from kaldo.helpers.logger import get_logger, log_size
+from ase import Atoms
+import numpy as np
+import fileinput
+import ase.io
+import os
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
+SECOND_ORDER_PROGRESS = 'second_order_displacements'
 
 
 def acoustic_sum_rule(dynmat):
@@ -252,19 +254,34 @@ class SecondOrder(ForceConstant):
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
         replicated_atoms.set_calculator(calculator)
+        progress = self.check_progress()
 
         if is_storing:
             try:
                 self.value = SecondOrder.load(folder=self.folder, supercell=self.supercell, format='numpy',
                                                 is_acoustic_sum=self.is_acoustic_sum).value
-
             except FileNotFoundError:
                 logging.info('Second order not found. Calculating.')
+                if progress:
+                    logging.info('Trying to load progress')
+                    try:
+                        index = progress
+                        last_atom = str(int(inidices[0]))
+                        folder = self.folder + '/' + SECOND_ORDER_PROGRESS
+                        progress = [folder, indices]
+                        logging.info('Second order progress found. Starting from atom %i' % last_atom)
+                        self.value = calculate_second(atoms, replicated_atoms, delta_shift, progress=progress,
+                                                      is_verbose=False)
+                        self.save('second')
+                        ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
+                    except:
+                        logging.info('Unknown error loading progress, calculating from scratch')
                 self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
                 self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored second')
+
         else:
             self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
         if self.is_acoustic_sum:
@@ -282,8 +299,8 @@ class SecondOrder(ForceConstant):
 
 
     def calculate_super_replicas(self):
-        scell = self.supercell
-        n_replicas = np.prod(scell)
+        supercell = self.supercell
+        n_replicas = np.prod(supercell)
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
@@ -325,3 +342,104 @@ class SecondOrder(ForceConstant):
                         sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2,iy2,iz2]))
                     ir = ir + 1
         return sc_r_pos
+
+
+    def check_progress(self):
+        '''
+        Checks for progress made in the SECOND_ORDER_PROGRESS folder,
+        which by default is named 'second_order_displacements'
+
+        Returns
+        -------
+        progress: 3 tuple (atom index, coordinate, p/m)
+            last set of calculated forces
+        '''
+        folder = self.folder
+        progress_folder = folder+'/'+SECOND_ORDER_PROGRESS
+        num_atoms = len(self.replicated_atoms)
+        digits = len(str(num_atoms))
+        if os.path.isdir(progress_folder):
+            last_calculated_frame = sorted(os.listdir(progress_folder))[-1]
+            try:
+                atoms = ase.io.read(last_calculated_frame, format='xyz')
+                if np.sum(atoms.get_forces()) != 0.:
+                    last_index = last_calculated_frame[0:digits]
+                    return last_index
+                else:
+                    logging.info('Remove '+progress_folder+'/'+last_calculated_frame+', forces are zero')
+                    logging.info('Calculating from scratch')
+                    return None
+            except:
+                logging.info('File '+last_calculated_frame+' is not an xyz frame.')
+                logging.info('Remove non-xyz files from '+progress_folder+', progress load failed.')
+                return None
+        else:
+            logging.info(progress_folder+' is not a folder. Calculating second from scratch')
+            return None
+
+
+    def store_displacements(self, delta_shift, format='xyz', dir=SECOND_ORDER_PROGRESS):
+        '''
+        Code that will store configuration files in a folder for use in parallel computing
+        of force constants. Defaults to 'second_order_displacements'
+
+        Parameters
+        ----------
+        delta_shift : float
+            How far to move the atoms. This is a sensitive parameter
+            for force constant calculations.
+        dir: string
+            Where to place the xyz files. Directory created if
+            not existant.
+            Defaults to 'second_order_xyz'
+        format: string
+            Which format ASE will use to write the outputs.
+            Defaults to 'xyz'
+        '''
+        extensions = {
+            'xyz':'.xyz',
+            'lammps-dump-text':'.lmp',
+            'lammps-dump-binary':'.lmp'
+        }
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        copied_atoms = replicated_atoms.copy()
+        n_unit_cell_atoms = len(atoms.numbers)
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        magnitude = len(str(n_unit_cell_atoms))
+        n_displacements = n_unit_cell_atoms * 3 * 2
+        alpha_names = ['x', 'y', 'z']
+        move_names = [None, '+', '-']
+        logging.info('Storing '+str(n_displacements)+' frames with '+str(delta_shift)+'A shift')
+        logging.info('Writing to '+str(dir))
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+        for i in range(n_unit_cell_atoms):
+            for alpha in range(3):
+                for move in (-1, 1):
+                    shift = np.zeros((n_replicated_atoms, 3))
+                    shift[i, alpha] += move * delta_shift
+                    copied_atoms.positions = replicated_atoms.positions + shift
+                    file_string = str(i).zfill(magnitude)+'_'+alpha_names[alpha]+move_names[move]
+                    ase.io.write(dir+'/'+file_string+extensions[format], images=copied_atoms, format=format)
+        logging.info('Second order displacements stored')
+
+    def write_trajectory(self, name='trajectory.xyz', dir=SECOND_ORDER_PROGRESS):
+        # get files
+        if os.listdir(dir) == []:
+            logging.info('No displacement frames stored')
+            logging.info('Writing displacements to '+dir+' with 1e-5 A displacement')
+            self.store_displacements(delta_shift=1e-5)
+        all_files = os.listdir(dir)
+        files_to_write = []
+        for f in all_files:
+            if f[-4:]=='.xyz':
+                files_to_write.append(f)
+        files_to_write.sort()
+
+        # write files to xyz trajectory
+        logging.info('Writing '+str(len(files_to_write))+' frames to '+dir+'/'+name)
+        with open(os.path.join(dir,name), 'w') as fout:
+            with fileinput.FileInput(os.path.join(dir, files_to_write[0])) as fin:
+                for line in fin:
+                    fout.write(line)
