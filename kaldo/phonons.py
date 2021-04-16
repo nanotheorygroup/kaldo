@@ -244,7 +244,7 @@ class Phonons:
     @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity(self):
         """Calculate the heat capacity for each k point in k_points and each mode.
-        If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the
+        If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
         Bose-Einstein weighted by each phonons energy.
         .. math::
 
@@ -255,7 +255,7 @@ class Phonons:
         Returns
         -------
         c_v : np.array(n_k_points, n_modes)
-            heat capacity in W/m/K for each k point and each mode
+            heat capacity in J/K for each k point and each mode
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         c_v = np.zeros((self.n_k_points, self.n_modes))
