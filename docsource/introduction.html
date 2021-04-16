@@ -4,7 +4,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -528,14 +529,14 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  
+  <section id="Introduction">
 <h1 id="docsource-introduction--page-root">Introduction<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
 <p>κALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA.</p>
 <p>The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.</p>
 <p>Using the Atomic Simulation Environment, κALDo can calculate the IFCs using several ab initio and molecular dynamics codes, thus enabling the use of first-principles DFT, empirical forcefields and semi-empirical tight- binding. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through seamless integration with the hiPhive package, the IFC calculation can take advantage of compressing-sensing machine learning algorithms</p>
 <p>The code is released open-source for the community to use and contribute with edits and suggestions. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.</p>
-
-
+</section>
+<section id="Quick-Install">
 <h1 id="Quick-Install">Quick Install<a class="headerlink" href="#Quick-Install" title="Permalink to this headline">¶</a></h1>
 <p>We recommend creating a new environment with Python 3.6, 3.7, or 3.8.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda create -n kaldo <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
@@ -550,7 +551,7 @@ conda install pip
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
-
+<section id="Using-pip-and-virtualenv">
 <h2 id="Using-pip-and-virtualenv">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code><a class="headerlink" href="#Using-pip-and-virtualenv" title="Permalink to this headline">¶</a></h2>
 <p>You can also install kALDO without using <code class="docutils literal notranslate"><span class="pre">conda</span></code></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip3 install virtualenv
@@ -559,8 +560,8 @@ virtualenv --system-site-packages -p python3 ~/kaldo
 pip3 install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
-
-
+</section>
+<section id="Development-mode">
 <h2 id="Development-mode">Development mode<a class="headerlink" href="#Development-mode" title="Permalink to this headline">¶</a></h2>
 <p>The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip uninstall kaldo
@@ -575,11 +576,11 @@ git clone git+https://github.com/nanotheorygroup/kaldo
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s2">"export PYTHONPATH=~/development/kaldo:</span><span class="nv">$PYTHONPATH</span><span class="s2">"</span> &gt;&gt; ~/.bashrc
 </pre></div>
 </div>
-
-
-
+</section>
+</section>
+<section id="Interfacing-with-Other-Codes">
 <h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
-
+<section id="LAMMPS-library-setup">
 <h2 id="LAMMPS-library-setup">LAMMPS library setup<a class="headerlink" href="#LAMMPS-library-setup" title="Permalink to this headline">¶</a></h2>
 <p>In order to use LAMMPS with ASE, it needs to be compiled a lib</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> path/to/lammps/src
@@ -602,12 +603,12 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </pre></div>
 </div>
 <p>Update 07/2020: It you are having any issue with the July 2020 version of <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code>, try using the October 2019 version.</p>
-
-
+</section>
+<section id="LAMMPS-executable-setup">
 <h2 id="LAMMPS-executable-setup">LAMMPS executable setup<a class="headerlink" href="#LAMMPS-executable-setup" title="Permalink to this headline">¶</a></h2>
 <p>You can use LAMMPS executable directly, as illustrated in the example folder. For that purpose, you will need the <a class="reference external" href="https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon">LAMMPS user-phonon package by Charles Sievers</a> to calculate the dynamical matrix and the third order interatomic force constants.</p>
-
-
+</section>
+<section id="Quantum-Espresso-setup">
 <h2 id="Quantum-Espresso-setup">Quantum Espresso setup<a class="headerlink" href="#Quantum-Espresso-setup" title="Permalink to this headline">¶</a></h2>
 <p>In order to use QE with ASE, Set the environment variable:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">ASE_ESPRESSO_COMMAND</span><span class="o">=</span><span class="s2">"mpirun -np 4 /path/to/pw.x -in PREFIX.pwi &gt; PREFIX.pwo"</span>
@@ -615,11 +616,11 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </div>
 <p>Update 01/2021: It you are having any issue with ASE version 3.20+, try using ASE version 3.19.1.</p>
 <p>See the <a class="reference external" href="https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html">ASE documentation</a> for more info.</p>
-
-
-
+</section>
+</section>
+<section id="Output-Storage">
 <h1 id="Output-Storage">Output Storage<a class="headerlink" href="#Output-Storage" title="Permalink to this headline">¶</a></h1>
-
+<section id="Default-Storage">
 <h2 id="Default-Storage">Default Storage<a class="headerlink" href="#Default-Storage" title="Permalink to this headline">¶</a></h2>
 <p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files:</p>
 <ul class="simple">
@@ -646,8 +647,8 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma_tensor</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma</span></code>, when only RTA conductivity is required</p></li>
 </ul>
-
-
+</section>
+<section id="Alternative-Storage">
 <h2 id="Alternative-Storage">Alternative Storage<a class="headerlink" href="#Alternative-Storage" title="Permalink to this headline">¶</a></h2>
 <p>Other storage options available are <code class="docutils literal notranslate"><span class="pre">numpy</span></code> and <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> where all the files are saved as one of those formats. Finally the <code class="docutils literal notranslate"><span class="pre">memory</span></code> option doesn’t store any permanent files.</p>
 <table>
@@ -678,22 +679,22 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </tr>
 </tbody>
 </table>
-
-
-
+</section>
+</section>
+<section id="Code-Architecture">
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="0597855ac7f747d396d238b9d1aa1bff" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
-
-
+<p><img alt="a92d7971ea034bf988510456222549a0" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+</section>
+<section id="Main-Features">
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="eaf4d01ae2f043a0b20fe517163493f1" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
-
-
+<p><img alt="eed25d0ec35d4de5b8c698c746074b10" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+</section>
+<section id="Examples">
 <h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this headline">¶</a></h1>
 <p>Examples and the explanation on how to use them are located in the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/tree/master/examples">examples folder of the repo</a>.</p>
-
-
+</section>
+<section id="How-to-cite">
 <h1 id="How-to-cite">How to cite<a class="headerlink" href="#How-to-cite" title="Permalink to this headline">¶</a></h1>
 <p>If you have used kALDo, please cite the following article:</p>
 <p>Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. <a class="reference external" href="https://doi.org/10.1063/5.0020443">https://doi.org/10.1063/5.0020443</a> also available open access on ArXiv: <a class="reference external" href="https://arxiv.org/abs/2009.01967">https://arxiv.org/abs/2009.01967</a></p>
@@ -709,18 +710,18 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 <span class="p">}</span>
 </pre></div>
 </div>
-
-
+</section>
+<section id="Copyright">
 <h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
 <p>Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio</p>
-
-
+</section>
+<section id="Acknowledgements">
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="952e1f41f885450faa660fc853925786" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="b9f0ec9b970b437b804821701ae12435" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
-
-
+</section>
+<section id="Other-codes">
 <h1 id="Other-codes">Other codes<a class="headerlink" href="#Other-codes" title="Permalink to this headline">¶</a></h1>
 <p>We are thankful to the whole open-source community, and in particular we want to acknowledge some other great anharmonic lattice dynamics related projects. If using kALDo example, you If, while you are running kALDo examples, you use any of these codes, please don’t forget to cite them.</p>
 <ul class="simple">
@@ -731,12 +732,12 @@ python library for work- ing with atoms,” Journal of Physics: Condensed Matter
 Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N Vast, X Wu and S Baroni, J.Phys.:Condens.Matter 29, 465901 (2017)</p></li>
 <li><p>HiPhive: The Hiphive Package for the Extraction of High‐Order Force Constants by Machine Learning, Fredrik Eriksson, Erik Fransson, and Paul Erhart, Advanced Theory and Simulations, (2019)</p></li>
 </ul>
-
-
+</section>
+<section id="Project-template">
 <h1 id="Project-template">Project template<a class="headerlink" href="#Project-template" title="Permalink to this headline">¶</a></h1>
 <p>Project template from the <a class="reference external" href="https://github.com/molssi/cookiecutter-cms">Computational Molecular Science Python Cookiecutter</a>.</p>
-
-
+</section>
+<section id="How-to-contribute-changes">
 <h1 id="How-to-contribute-changes">How to contribute changes<a class="headerlink" href="#How-to-contribute-changes" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">
 <li><p>Clone the repository if you have write access to the main repo, fork the repository if you are a collaborator.</p></li>
@@ -751,7 +752,7 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
 <li><p>Make a PR on GitHub with your changes</p></li>
 <li><p>We’ll review the changes and get your code into the repo after lively discussion!</p></li>
 </ul>
-
+<section id="Checklist-for-updates">
 <h2 id="Checklist-for-updates">Checklist for updates<a class="headerlink" href="#Checklist-for-updates" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>☐ Make sure there is an/are issue(s) opened for your specific update</p></li>
@@ -764,16 +765,16 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
 </li>
 <li><p>☐ Get the PR merged in</p></li>
 </ul>
-
-
+</section>
+<section id="Versioneer-Auto-version">
 <h2 id="Versioneer-Auto-version">Versioneer Auto-version<a class="headerlink" href="#Versioneer-Auto-version" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference external" href="https://github.com/warner/python-versioneer">Versioneer</a> will automatically infer what version is installed by looking at the <code class="docutils literal notranslate"><span class="pre">git</span></code> tags and how many commits ahead this version is. The format follows <a class="reference external" href="https://www.python.org/dev/peps/pep-0440/">PEP 440</a> and has the regular expression of:</p>
 <div class="highlight-regexp notranslate"><div class="highlight"><pre><span></span>\d+.\d+.\d+(?\+\d+-[a-z0-9]+)
 </pre></div>
 </div>
 <p>If the version of this commit is the same as a <code class="docutils literal notranslate"><span class="pre">git</span></code> tag, the installed version is the same as the tag, e.g. <code class="docutils literal notranslate"><span class="pre">kaldo-0.1.2</span></code>, otherwise it will be appended with <code class="docutils literal notranslate"><span class="pre">+X</span></code> where <code class="docutils literal notranslate"><span class="pre">X</span></code> is the number of commits ahead from the last tag, and then <code class="docutils literal notranslate"><span class="pre">-YYYYYY</span></code> where the <code class="docutils literal notranslate"><span class="pre">Y</span></code>’s are replaced with the <code class="docutils literal notranslate"><span class="pre">git</span></code> commit hash.</p>
-
-
+</section>
+</section>
 
 
           </article>

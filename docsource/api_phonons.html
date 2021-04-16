@@ -4,7 +4,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -436,12 +437,12 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  
+  <section id="phonons-api-reference">
 <span id="phonons-api"></span><h1 id="docsource-api-phonons--page-root">Phonons API Reference<a class="headerlink" href="#docsource-api-phonons--page-root" title="Permalink to this headline">¶</a></h1>
 <p>Building the phonons object is the intermediate step
 between finishing your Finite Difference object, and
 initializing the Conductivity object.</p>
-
+<section id="attributes">
 <h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="kaldo.phonons.Phonons">
@@ -566,7 +567,7 @@ Default ‘C’</p></li>
 <dt id="kaldo.phonons.Phonons.heat_capacity">
 <em class="property">property </em><code class="sig-name descname">heat_capacity</code><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the heat capacity for each k point in k_points and each mode.
-If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the
+If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
 Bose-Einstein weighted by each phonons energy.
 .. math:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">c_</span>\<span class="n">mu</span> <span class="o">=</span> <span class="n">k_B</span> \<span class="n">frac</span><span class="p">{</span>\<span class="n">nu_</span>\<span class="n">mu</span><span class="o">^</span><span class="mi">2</span><span class="p">}{</span> \<span class="n">tilde</span> <span class="n">T</span><span class="o">^</span><span class="mi">2</span><span class="p">}</span> <span class="n">n_</span>\<span class="n">mu</span> <span class="p">(</span><span class="n">n_</span>\<span class="n">mu</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
@@ -575,7 +576,7 @@ Bose-Einstein weighted by each phonons energy.
 <p>where the frequency <img alt="\nu" class="math" src="../_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> and the temperature <img alt="\tilde T" class="math" src="../_images/math/a1973297dcd8ed1a36edc696aef0e150cf6bf502.png"/> are in THz.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><strong>c_v</strong> – heat capacity in W/m/K for each k point and each mode</p>
+<dd class="field-odd"><p><strong>c_v</strong> – heat capacity in J/K for each k point and each mode</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
@@ -668,8 +669,8 @@ If quantum it returns the Bose-Einstein distribution</p>
 </dl>
 </dd></dl>
 </dd></dl>
-
-
+</section>
+</section>
 
 
           </article>

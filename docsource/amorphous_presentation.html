@@ -4,7 +4,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -703,9 +704,9 @@ div.rendered_html tbody tr:hover {
 <p>This notebook can be run on Google Colab.</p>
 <p><a class="reference external" href="https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
-
+<section id="Amorphous-silicon-tutorial">
 <h1 id="docsource-amorphous-presentation--page-root">Amorphous silicon tutorial<a class="headerlink" href="#docsource-amorphous-presentation--page-root" title="Permalink to this headline">¶</a></h1>
-
+<section id="Remote-fetch-source-code-from-Github">
 <h2 id="Remote-fetch-source-code-from-Github">Remote fetch source code from Github<a class="headerlink" href="#Remote-fetch-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -716,8 +717,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Install-Kaldo-from-source">
 <h2 id="Install-Kaldo-from-source">Install Kaldo from source<a class="headerlink" href="#Install-Kaldo-from-source" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -739,8 +740,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Fetch-supplyment-data-remotely">
 <h2 id="Fetch-supplyment-data-remotely">Fetch supplyment data remotely<a class="headerlink" href="#Fetch-supplyment-data-remotely" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -767,10 +768,10 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)">
 <h2 id="Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)">Thermal transport simulation for Amorphous-Silicon (a-Si)<a class="headerlink" href="#Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)" title="Permalink to this headline">¶</a></h2>
-
+<section id="Read-in-force-constant-objects-from-folder">
 <h3 id="Read-in-force-constant-objects-from-folder">Read in force constant objects from folder<a class="headerlink" href="#Read-in-force-constant-objects-from-folder" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -784,8 +785,8 @@ forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format=
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Create-phonons-object">
 <h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -807,8 +808,8 @@ phonons = Phonons (forceconstants=forceconstants,
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Access-and-visualize-properties-calculated-during-simulations">
 <h3 id="Access-and-visualize-properties-calculated-during-simulations">Access and visualize properties calculated during simulations<a class="headerlink" href="#Access-and-visualize-properties-calculated-during-simulations" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -845,8 +846,8 @@ plt.show()
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">
 <h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -888,9 +889,9 @@ plt.show()
 </pre></div>
 </div>
 </div>
-
-
-
+</section>
+</section>
+</section>
 
 
           </article>

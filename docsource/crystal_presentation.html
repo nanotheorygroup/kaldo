@@ -4,7 +4,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -716,9 +717,9 @@ div.rendered_html tbody tr:hover {
 <p>This notebook can be run on Google Colab.</p>
 <p><a class="reference external" href="https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
-
+<section id="Silicon-diamond-tutorial">
 <h1 id="docsource-crystal-presentation--page-root">Silicon diamond tutorial<a class="headerlink" href="#docsource-crystal-presentation--page-root" title="Permalink to this headline">¶</a></h1>
-
+<section id="Remote-fetch-source-code-from-Github">
 <h2 id="Remote-fetch-source-code-from-Github">Remote fetch source code from Github<a class="headerlink" href="#Remote-fetch-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -729,8 +730,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Remote-fetch-supplyment-files">
 <h2 id="Remote-fetch-supplyment-files">Remote fetch supplyment files<a class="headerlink" href="#Remote-fetch-supplyment-files" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -756,8 +757,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Remote-fetch-precomplied-LAMMPS">
 <h2 id="Remote-fetch-precomplied-LAMMPS">Remote fetch precomplied LAMMPS<a class="headerlink" href="#Remote-fetch-precomplied-LAMMPS" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -779,8 +780,8 @@ print('Remote Fetching precomplied LAMMPS is finished!')
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Integrate-LAMMPS-Into-Python">
 <h2 id="Integrate-LAMMPS-Into-Python">Integrate LAMMPS Into Python<a class="headerlink" href="#Integrate-LAMMPS-Into-Python" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -802,10 +803,10 @@ print('LAMMPS-Python Integration is completed!')
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Thermal-transport-simulation-for-silicon-bulk">
 <h2 id="Thermal-transport-simulation-for-silicon-bulk">Thermal transport simulation for silicon-bulk<a class="headerlink" href="#Thermal-transport-simulation-for-silicon-bulk" title="Permalink to this headline">¶</a></h2>
-
+<section id="Compute-2^{nd}-and-3^{rd}-order-IFCS.">
 <h3 id="Compute-2^{nd}-and-3^{rd}-order-IFCS.">Compute <img alt="2^{nd}" class="math" src="../_images/math/9e9c0443bb8d613447030ed93ef81bc841548d02.png"/> and <img alt="3^{rd}" class="math" src="../_images/math/1d4ce1ab7cc397d41d73397829697f1d85989b06.png"/> order IFCS.<a class="headerlink" href="#Compute-2^{nd}-and-3^{rd}-order-IFCS." title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -840,8 +841,8 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Create-phonons-object">
 <h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
@@ -869,8 +870,8 @@ phonons = Phonons(forceconstants=forceconstants,
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Calculate-conductivities-for-infinite-size-sample">
 <h3 id="Calculate-conductivities-for-infinite-size-sample">Calculate conductivities for infinite-size sample<a class="headerlink" href="#Calculate-conductivities-for-infinite-size-sample" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -899,8 +900,8 @@ print(sc_cond_matrix)
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Visualize-harmonic-properties-using-built-in-plotter">
 <h3 id="Visualize-harmonic-properties-using-built-in-plotter">Visualize harmonic properties using built-in plotter<a class="headerlink" href="#Visualize-harmonic-properties-using-built-in-plotter" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -917,8 +918,8 @@ print('\n')
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Access-and-visualize-properties-calculated-during-simulations">
 <h3 id="Access-and-visualize-properties-calculated-during-simulations">Access and visualize properties calculated during simulations<a class="headerlink" href="#Access-and-visualize-properties-calculated-during-simulations" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -964,8 +965,8 @@ plt.show()
 </pre></div>
 </div>
 </div>
-
-
+</section>
+<section id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">
 <h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
@@ -1029,9 +1030,9 @@ plt.show()
 </pre></div>
 </div>
 </div>
-
-
-
+</section>
+</section>
+</section>
 
 
           </article>

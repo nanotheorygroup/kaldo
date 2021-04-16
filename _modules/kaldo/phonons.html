@@ -655,7 +655,7 @@
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">"""Calculate the heat capacity for each k point in k_points and each mode.</span>
-<span class="sd">        If classical, it returns the Boltzmann constant in W/m/K. If quantum it returns the derivative of the</span>
+<span class="sd">        If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the</span>
 <span class="sd">        Bose-Einstein weighted by each phonons energy.</span>
 <span class="sd">        .. math::</span>
 
@@ -666,7 +666,7 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        c_v : np.array(n_k_points, n_modes)</span>
-<span class="sd">            heat capacity in W/m/K for each k point and each mode</span>
+<span class="sd">            heat capacity in J/K for each k point and each mode</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">c_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>

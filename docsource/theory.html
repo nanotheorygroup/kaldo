@@ -4,7 +4,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
   <meta name="lang:clipboard.copy" content="Copy to clipboard">
@@ -464,13 +465,13 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  <!-- ![funding]({{ site.url }}{{ site.baseurl }}/assets/images/gbarbalinardo-poster/funding.png) -->
+  <!-- ![funding]({{ site.url }}{{ site.baseurl }}/assets/images/gbarbalinardo-poster/funding.png) --><section id="Introduction">
 <h1 id="docsource-theory--page-root">Introduction<a class="headerlink" href="#docsource-theory--page-root" title="Permalink to this headline">¶</a></h1>
 <p>Understanding heat transport in semiconductors and insulators is of fundamental importance because of its technological impact in electronics and renewable energy harvesting and conversion. Anharmonic Lattice Dynamics provides a powerful framework for the description of heat transport at the nanoscale. One of the advantages of this method is that it naturally includes quantum effects due to atoms vibrations, which are needed to compute thermal properties of semiconductors widely use in
 nanotechnology, like Silicon and Carbon, even at room temperature. While heat transport in amorphous and crystalline semiconductors has a different microscopic origin, a unified approach to simulate both crystals and glasses has been devised. Here we introduce a unified workflow, which implements both the Boltzmann Transport equation (BTE) and the Quasi Harmonic Green-Kubo (QHGK) methods. We discuss how the theory can be optimized to exploit modern parallel architectures, and how it is
 implemented in kALDo: a versatile and scalable open-source software to compute phonon transport in solids.</p>
-
-
+</section>
+<section id="Theory">
 <h1 id="Theory">Theory<a class="headerlink" href="#Theory" title="Permalink to this headline">¶</a></h1>
 <p>In semiconductors, electronic and vibrational dynamics often occur over different time scales, and can thus be decoupled using the Born Oppenheimer approximation. Under this assumption, the potential <img alt="\phi" class="math" src="../_images/math/8d4b26ae65ca854986cf150c8fbef20db93a402b.png"/> of a system made of <img alt="N_{atoms}" class="math" src="../_images/math/bced6265a9a5ed6d8a3f63f71ce29b2851f0e468.png"/> atoms, is a function of all the <img alt="x_{i\alpha}" class="math" src="../_images/math/21dfd2fd9265de558f67909e229063930f6967b8.png"/> atomic positions, where <img alt="i" class="math" src="../_images/math/8216274682ad4c02b3821d303fe8a1c94b09b3bd.png"/> and <img alt="\alpha" class="math" src="../_images/math/04d011ebcba612844adea8dbc1d9c21e8bc7bc26.png"/> refer to the atomic and Cartesian indices, respectively. Near thermal equilibrium, the potential energy can be Taylor expanded in the atomic
 displacements, <img alt="\mathbf{u}=\mathbf x-\mathbf{x}_{\rm equilibrium}" class="math" src="../_images/math/3ace6a7dd6a4122a46b2a4e2e6e791358e426948.png"/>,</p>
@@ -502,7 +503,7 @@ also possible and often convenient to compute IFCs using perturbation theory.</p
 <div class="math">
 <p><img alt="\sum_{i'\alpha'} D_{i \alpha k i' \alpha'} \eta_{i' \alpha'k s}=\omega_{k m}^{2} \eta_{i \alpha k s }." src="../_images/math/31f639dfd1c1cbb270d1c4156b5c96009c43b5ee.png"/></p>
 </div><p>which now depends on the quasi-momentum index, <img alt="k" class="math" src="../_images/math/c3144087f4141b1a902ffbbca1128a22f5df8682.png"/>, and the phonons mode <img alt="s" class="math" src="../_images/math/66b7b213f6794acfd003d7b9471d389cfc120aa3.png"/>.</p>
-
+<section id="Boltzman-Transport-Equation">
 <h2 id="Boltzman-Transport-Equation">Boltzman Transport Equation<a class="headerlink" href="#Boltzman-Transport-Equation" title="Permalink to this headline">¶</a></h2>
 <p>At finite temperature <img alt="T" class="math" src="../_images/math/1a99e57b148bd48c6519ff1158f1ce03a258c7ff.png"/>, the Bose Einstein statistic is the quantum distribution for atomic vibrations</p>
 <div class="math">
@@ -613,8 +614,8 @@ _{ksk's'k'' s''}=
 \qquad
 \lambda^{n+1}_{\mu\alpha} = - \frac{1}{\Gamma^0_\mu}\sum_{\mu'}\Gamma^{1}_{\mu\mu'} \lambda^{n}_{\mu'\alpha}." src="../_images/math/fd98d00ba6c2e3ed17d7d120df78b2516d85cb9b.png"/></p>
 </div><p>Hence, the inversion in of the scattering tensor is obtained by a recursive expression. Once the mean free path is calculated, the conductivity is straightforwardly computed.</p>
-
-
+</section>
+<section id="Quasi-Harmonic-Green-Kubo">
 <h2 id="Quasi-Harmonic-Green-Kubo">Quasi-Harmonic Green Kubo<a class="headerlink" href="#Quasi-Harmonic-Green-Kubo" title="Permalink to this headline">¶</a></h2>
 <p>In non-crystalline solids with no long range order, such as glasses, alloys, nano-crystalline, and partially disordered systems, the phonon picture is formally not well-defined. While vibrational modes are still the heat carriers, their mean-free-paths may be so short that the quasi-particle picture of heat carriers breaks down and the BTE is no longer applicable. In glasses heat transport is dominated by a diffusive processes in which delocalized modes with similar frequency transfer energy
 from one to another. Whereas this mechanism is intrinsically distinct from the underlying hypothesis of the BTE approach, the two transport pictures have been recently reconciled in a unified theory, in which the thermal conductivity is written as:</p>
@@ -636,14 +637,14 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 <div class="math">
 <p><img alt="D_{\mu} =\frac{1}{N_k V} \sum_{\mu'}v_{\mu\mu'} \tau_{\mu\mu'}v_{\mu\mu'}," src="../_images/math/9fce8c0ab4f4597b0cd165b3cbb34bc92e67bc78.png"/></p>
 </div><p>which conveniently provide a measure of the temperature-independent contribution of each mode to thermal transport.</p>
-
-
-
+</section>
+</section>
+<section id="Benchmarks-applications">
 <h1 id="Benchmarks-applications">Benchmarks applications<a class="headerlink" href="#Benchmarks-applications" title="Permalink to this headline">¶</a></h1>
 <p>The workflow for ALD calculations is illustrated below</p>
-<p><img alt="f9930bf3b543480fb4d70f2c27e73858" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
+<p><img alt="858080a961614ac6a41015fa18bf9203" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
 <p>Here, we present two example simulations of both a periodic and an amorphous structure.</p>
-
+<section id="Ab-initio-silicon-diamond">
 <h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Permalink to this headline">¶</a></h2>
 <p>In this example we calculate the second order IFC using Density Functional Perturbation Theory as implemented in the Quantum-Espresso package. The phonon lifetimes and thermal conductivity calculations are performed using a (19, 19, 19) q-point grid.</p>
 <p>The kALDo minimal input file, looks like</p>
@@ -670,10 +671,10 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 </div>
 <p>We performed the simulation using the local density approximation for the exchange and correlation functional and a Bachelet-Hamann-Schluter norm-conserving pseudoptential. Kohn-Sham orbitals are represented on a plane-waves basis set with a cutoff of 20 Ry and (8, 8, 8) k-points mesh. The minimized lattice parameter is 5.398A. The third-order IFC is calculated using finite difference displacement on (5, 5, 5) replicas of the irreducible fcc-unit cell, including up to the 5th nearest neighbor.
 We obtained the following thermal properties</p>
-<p><img alt="ff6a6727fde1498988b3f73bb228158f" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
+<p><img alt="3ca3795b5dfa41eabda8b48ecfecea44" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
 <p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <img alt="g" class="math" src="../_images/math/86b44067536d63fd1271ac76c4a35eb79a6aa5dd.png"/>, c) lifetime per mode <img alt="\tau" class="math" src="../_images/math/303b8f73dd9a98bea8df8d22419bc3436abe91a9.png"/>, d) mean free path <img alt="\lambda" class="math" src="../_images/math/b67363a3f3c2ddf224f82975c53b7004abc08d20.png"/>, and e) cumulative conductivity <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/>.</p>
-
-
+</section>
+<section id="Amorphous-silicon">
 <h2 id="Amorphous-silicon">Amorphous silicon<a class="headerlink" href="#Amorphous-silicon" title="Permalink to this headline">¶</a></h2>
 <p>Here we study a-Si generated by LAMMPS molecular dynamics simulations of quenching from the melt a 4096 atom crystal silicon structure, with 1989 Tersoff interatomic potential and the QHGK method. The minimal input file looks like the following</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># IFCs object creation</span>
@@ -692,10 +693,10 @@ We obtained the following thermal properties</p>
 </pre></div>
 </div>
 <p>In a simliar treatment to the silicon crystal, a full battery of modal analysis can be calculated with both quantum and classical statistics on the amorphous systems re- turning the phonon DoS as well as the associated lifetimes, generalized diffusivities, normalized phase space and cumulative conductivity</p>
-<p><img alt="d7955d2af84a4b4e8a487e21f942c662" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
+<p><img alt="356ea28dbd334dbe94b0ed96a803f188" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
 <p>Classical and quantum properties for 4096 atom amorphous silicon system are shown above. a) density of states, b) lifetimes, c) diffusivities, and e) cumulative thermal conductivity. In spite of the increased quantum lifetimes, a decrease of 0.17W/m/K is seen in the quantum conductivity. The difference in conductivity is primarily a result of the overestimation of classical high frequency heat capacities.</p>
-
-
+</section>
+<section id="References">
 <h2 id="References">References<a class="headerlink" href="#References" title="Permalink to this headline">¶</a></h2>
 <p>[1]: B. J. Alder, D. M. Gass, and T. E. Wainwright, “Studies in Molecular Dynamics. VIII. The Transport Coefficients for a Hard-Sphere Fluid,” Journal Chemical Physics 53, 3813–3826 (1970).</p>
 <p>[2]: A. J. C. Ladd, B. Moran, and W. G. Hoover, “Lattice thermal conductivity: A comparison of molecular dynamics and anharmonic lattice dynamics,” Physical Review B 34, 5058–5064 (1986).</p>
@@ -747,8 +748,8 @@ Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Tho
 <p>[41]: A. Krylov, T. L. Windus, T. Barnes, E. Marin-Rimoldi, J. A. Nash, B. Pritchard, D. G. Smith, D. Altarawy, P. Saxe, C. Clementi, T. D. Crawford, R. J. Harrison, S. Jha, V. S. Pande, and T. Head-Gordon, “Perspective: Computational chemistry software and its advancement as illustrated through three grand challenge cases for molecular science,” Journal of Chemical Physics 149, 180901 (2018).</p>
 <p>[42]: N.Wilkins-Diehrand, T.D.Crawford,“NSF’s Inaugural Software Institutes: The Science Gateways Community Institute and the Molecular Sciences Software Institute.” Computing in Science and Engineering 20 (2018).</p>
 <p>[43]: W. Li, N. Mingo, L. Lindsay, D. A. Broido, D. A. Stewart, and N. A. Katcho, “Thermal conductivity of diamond nanowires from first princi- ples,” Physical Review B 85, 195436 (2012).</p>
-
-
+</section>
+</section>
 
 
           </article>
