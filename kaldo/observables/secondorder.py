@@ -275,7 +275,7 @@ class SecondOrder(ForceConstant):
                         self.save('second')
                         ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
                     except:
-                        logging.info('Unknown error loading progress, calculating from scratch')
+                        logging.info('No progress found, calculating from scratch')
                 self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
                 self.save('second')
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
@@ -397,6 +397,7 @@ class SecondOrder(ForceConstant):
             Defaults to 'xyz'
         '''
         extensions = {
+            'extxyz': '.extxyz',
             'xyz':'.xyz',
             'lammps-dump-text':'.lmp',
             'lammps-dump-binary':'.lmp'
@@ -425,21 +426,40 @@ class SecondOrder(ForceConstant):
         logging.info('Second order displacements stored')
 
     def write_trajectory(self, name='trajectory.xyz', dir=SECOND_ORDER_PROGRESS):
-        # get files
-        if os.listdir(dir) == []:
-            logging.info('No displacement frames stored')
-            logging.info('Writing displacements to '+dir+' with 1e-5 A displacement')
-            self.store_displacements(delta_shift=1e-5)
-        all_files = os.listdir(dir)
-        files_to_write = []
-        for f in all_files:
-            if f[-4:]=='.xyz':
-                files_to_write.append(f)
-        files_to_write.sort()
+        # TODO: support multiple atom types
+        '''
+        Currently only supports writing to extxyz for a single element system.
 
-        # write files to xyz trajectory
-        logging.info('Writing '+str(len(files_to_write))+' frames to '+dir+'/'+name)
-        with open(os.path.join(dir,name), 'w') as fout:
-            with fileinput.FileInput(os.path.join(dir, files_to_write[0])) as fin:
-                for line in fin:
-                    fout.write(line)
+        Parameters
+        ----------
+        name : string
+            specifies file name
+        dir : string
+            output directory, defaults to 'second_order_displacements'
+
+        Returns
+        -------
+        None
+        '''
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        copied_atoms = replicated_atoms.copy()
+        n_unit_cell_atoms = len(atoms.numbers)
+        n_replicated_atoms = len(replicated_atoms.numbers)
+        magnitude = len(str(n_unit_cell_atoms))
+        n_displacements = n_unit_cell_atoms * 3 * 2
+        alpha_names = ['x', 'y', 'z']
+        move_names = [None, '+', '-']
+        logging.info('Storing '+str(n_displacements)+' frames with '+str(delta_shift)+'A shift')
+        logging.info('Writing to '+str(dir))
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+        for i in range(n_unit_cell_atoms):
+            for alpha in range(3):
+                for move in (-1, 1):
+                    shift = np.zeros((n_replicated_atoms, 3))
+                    shift[i, alpha] += move * delta_shift
+                    copied_atoms.positions = replicated_atoms.positions + shift
+                    file_string = str(i).zfill(magnitude)+'_'+alpha_names[alpha]+move_names[move]
+                    ase.io.write(dir+'/'+file_string+extensions[format], images=copied_atoms, format=format)
+        logging.info('Second order displacements stored')

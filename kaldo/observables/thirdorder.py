@@ -233,51 +233,88 @@ class ThirdOrder(ForceConstant):
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
 
-    def store_displacements(self, delta_shift, format='xyz', dir=THIRD_ORDER_PROGRESS):
+    def store_displacements(self, delta_shift, distance_threshold=None, format='extxyz', trajectory=False, dir=THIRD_ORDER_PROGRESS):
         '''
         Code that will store configuration files in a folder for use in parallel computing
         of force constants. Defaults to 'second_order_displacements'
 
         Parameters
         ----------
-        delta_shift : float
+        delta_shift: float
             How far to move the atoms. This is a sensitive parameter
             for force constant calculations.
+
+        distance_threshold: float
+            How far apart two atoms can be to have their third order deriv considered.
+
+        trajectory: bool
+            whether or now to format as an extxyz trajectory.
+
         dir: string
             Where to place the xyz files. Directory created if
             not existant.
             Defaults to 'second_order_xyz'
-        format: string
-            Which format ASE will use to write the outputs.
-            Defaults to 'xyz'
         '''
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
         extensions = {
+            'extxyz' : '.extxyz',
             'xyz':'.xyz',
             'lammps-dump-text':'.lmp',
             'lammps-dump-binary':'.lmp'
         }
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
+        positions = replicated_atoms.positions
+
         copied_atoms = replicated_atoms.copy()
         n_unit_cell_atoms = len(atoms.numbers)
         n_replicated_atoms = len(replicated_atoms.numbers)
+        n_replicas = n_replicated_atoms // n_unit_cell_atoms
+
+        # TODO: implement multi-element support here
+        copied_atoms.set_chemical_symbols([1] * n_replicated_atoms)
         magnitude = len(str(n_unit_cell_atoms))
-        n_displacements = n_unit_cell_atoms * 3 * 2
-        alpha_names = ['x', 'y', 'z']
+        n_displacements = n_unit_cell_atoms * 3 * 2 * n_replicated_atoms * 3 * 2
+        logging.info('%i, %i, %i' % (n_unit_cell_atoms, n_replicated_atoms, n_displacements))
+        alpha = ['x', 'y', 'z']
         move_names = [None, '+', '-']
         logging.info('Storing '+str(n_displacements)+' frames with '+str(delta_shift)+'A shift')
         logging.info('Writing to '+str(dir))
-        if not os.path.isdir(dir):
-            os.mkdir(dir)
-        for i in range(n_unit_cell_atoms):
-            for alpha in range(3):
-                for move in (-1, 1):
-                    shift = np.zeros((n_replicated_atoms, 3))
-                    shift[i, alpha] += move * delta_shift
-                    copied_atoms.positions = replicated_atoms.positions + shift
-                    file_string = str(i).zfill(magnitude)+'_'+alpha_names[alpha]+move_names[move]
-                    ase.io.write(dir+'/'+file_string+extensions[format], images=copied_atoms, format=format)
-        logging.info('Second order displacements stored')
+        n_frames_skipped = 0; n_frames_written = 0
+        for iat in range(n_unit_cell_atoms):
+            for jat in range(n_replicated_atoms):
+                is_computing = True
+                m, j_small = np.unravel_index(jat, (n_replicas, n_replicated_atoms))
+                if (distance_threshold is not None):
+                    dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
+                    if (np.linalg.norm(dxij) > distance_threshold):
+                            is_computing = False
+                        n_frames_skipped += 9
+                if is_computing:
+                    for icoord in range(3):
+                        for jcoord in range(3):
+                                    for isign in (1, -1):
+                                        for jsign in (1, -1):
+                                            n_frames_written +=1
+                                            shift = np.zeros((n_replicated_atoms, 3))
+                                            shift[iat, icoord] += isign * delta_shift
+                                            shift[jat, jcoord] += jsign * delta_shift
+                                            copied_atoms.positions = positions + shift
+                                            if not trajectory:
+                                                filestring = str(iat) + alpha[icoord] + move_names[isign]
+                                                filestring += '_' + str(jat) + alpha[jcoord] + move_names[jsign]
+                                                ase.io.write(dir+'/'+filestring+extensions[format],
+                                                             images = copied_atoms,
+                                                             format = 'extxyz',
+                                                             columns = ['numbers', 'positions'])
+                                            else:
+                                                ase.io.write(dir+'/'+'trajectory'+extensions[format],
+                                                             images = copied_atoms,
+                                                             format = 'extxyz',
+                                                             columns = ['numbers', 'positions'],
+                                                             append = True)
+        logging.info('Third order displacements stored, %i skipped, %i written ' % (n_frames_skipped, n_frames_written))
 
 
     def __str__(self):
