@@ -10,6 +10,7 @@ import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third
 from kaldo.helpers.logger import get_logger
+from ase.build import make_supercell
 
 logging = get_logger()
 
@@ -23,7 +24,7 @@ THIRD_ORDER_FILE = 'third.npy'
 class ThirdOrder(ForceConstant):
 
     @classmethod
-    def load(cls, folder, supercell=(1, 1, 1), format='sparse', third_energy_threshold=0.):
+    def load(cls, folder, supercell=(1, 1, 1), format='sparse', third_energy_threshold=0., distance_threshold=None, third_order_delta=None):
         """
         Create a finite difference object from a folder
         :param folder:
@@ -155,6 +156,80 @@ class ThirdOrder(ForceConstant):
                                   value=_third_order,
                                   folder=folder)
 
+        elif format == 'trajectory':
+            # TODO: make these defaults changeable -> kwargs
+            filename = folder+'third_order_displacements/forces.lmp'
+            format = 'lammps-dump-text'
+            atoms = ase.io.read(folder+'atoms.xyz', format='xyz')
+            replicated_atoms = ase.io.read(folder+'replicated_atoms.xyz', format='xyz')
+
+            n_atoms = len(atoms)
+            n_replicas = np.prod(supercell)
+            n_replicated_atoms = len(replicated_atoms)
+            i_at_sparse = []
+            i_coord_sparse = []
+            j_at_sparse = []
+            j_coord_sparse = []
+            k_sparse = []
+            _third_order = []
+            n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
+            n_forces_done = 0
+            n_forces_skipped = 0
+
+            # ASE reads all frames into memory at once, even when specifying a single index, so best just call this once
+            frames = ase.io.read(filename, format=format, index=':')
+            num_frames = len(frames)
+            frame_index = 0
+            if ((num_frames * 4) != n_forces_to_calculate) and distance_threshold is None:
+                logging.info('number of frames loaded incorrect.')
+                exit()
+            logging.info('found %i frames' % num_frames)
+
+            for iat in range(n_atoms):
+                for jat in range(n_replicas * n_atoms):
+                    is_computing = True
+                    m, j_small = np.unravel_index(jat, (n_replicas, n_atoms))
+                    if (distance_threshold is not None):
+                        dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
+                        if (np.linalg.norm(dxij) > distance_threshold):
+                            is_computing = False
+                            n_forces_skipped += 9
+                    if is_computing:
+                        for icoord in range(3):
+                            for jcoord in range(3):
+                                _partial_third = np.zeros((n_replicated_atoms * 3))
+                                for isign in (1, -1):
+                                    for jsign in (1, -1):
+                                        single_frame = frames[frame_index]
+                                        forces = single_frame.get_forces().flatten()
+                                        dpotential = forces / (isign * third_order_delta)
+                                        dpotential = dpotential / (jsign * third_order_delta)
+                                        _partial_third[:] += -1 * dpotential / 4
+                                        frame_index += 1
+
+                                for id in range(_partial_third.shape[0]):
+                                    i_at_sparse.append(iat)
+                                    i_coord_sparse.append(icoord)
+                                    j_at_sparse.append(jat)
+                                    j_coord_sparse.append(jcoord)
+                                    k_sparse.append(id)
+                                    _third_order.append(_partial_third[id])
+                        n_forces_done += 9
+                    if (n_forces_done + n_forces_skipped % 300) == 0:
+                        logging.info('loading third derivatives ' + str
+                        (int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
+
+            logging.info('forces calculated : ' + str(n_forces_done))
+            logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
+            coords = np.array([i_at_sparse, i_coord_sparse, j_at_sparse, j_coord_sparse, k_sparse])
+            shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
+            _third_order = COO(coords, np.array(_third_order), shape)
+            _third_order = _third_order.reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
+            third_order = cls(atoms=atoms,
+                              replicated_positions=replicated_atoms.positions,
+                              supercell=supercell,
+                              value=_third_order,
+                              folder=folder)
         else:
             logging.error('Third order format not recognized: ' + str(format))
             raise ValueError
@@ -202,7 +277,7 @@ class ThirdOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, progress=False, is_storing=True, is_verbose=False):
+    def calculate(self, calculator, delta_shift, distance_threshold=None, trajectory=False, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
@@ -290,7 +365,7 @@ class ThirdOrder(ForceConstant):
                     dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
                     if (np.linalg.norm(dxij) > distance_threshold):
                             is_computing = False
-                        n_frames_skipped += 9
+                            n_frames_skipped += 9
                 if is_computing:
                     for icoord in range(3):
                         for jcoord in range(3):

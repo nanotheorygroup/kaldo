@@ -189,3 +189,84 @@ def load_single_second(folder, index, n_atoms):
             second_per_atom[alpha, :] += move * np.reshape(forces, forces.size)
     return second_per_atom
 
+
+def calculate_third_from_trajectory(atoms, replicated_atoms, distance_threshold=None, is_verbose=False):
+    """
+    Load in forces from a Lammps-dump trajectory and use them to create a third order force constant matrix.
+
+    Returns
+    -------
+    phifull : np.array (n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3)t
+    """
+    # TODO: make these defaults changeable
+    filename = 'third_order_displacements/trajectory.extxyz'
+    format = 'lammps-dump-text'
+    n_atoms = len(atoms.numbers)
+    replicated_atoms = replicated_atoms
+    n_replicated_atoms = len(replicated_atoms.numbers)
+    n_supercell = int(replicated_atoms.positions.shape[0] / n_atoms)
+    i_at_sparse = []
+    i_coord_sparse = []
+    jat_sparse = []
+    j_coord_sparse = []
+    k_sparse = []
+    value_sparse = []
+    n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
+    n_forces_done = 0
+    n_forces_skipped = 0
+    logging.info(
+        'calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom' % third_order_delta)
+    logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
+
+    # ASE reads all frames into memory at once, even when specifying a single index, so best just call this once
+    frames = ase.io.read(filename, format=format, index=':')
+    num_frames = len(frames)
+    frame_index = 0
+    if ((num_frames * 4) != n_forces_to_calculate) and distance_threshold is None:
+        logging.info('number of frames loaded incorrect.')
+        exit()
+
+    for iat in range(n_atoms):
+        for jat in range(n_replicas * n_atoms):
+            is_computing = True
+            m, j_small = np.unravel_index(jat, (n_supercell, n_atoms))
+            if (distance_threshold is not None):
+                dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
+                if (np.linalg.norm(dxij) > distance_threshold):
+                    is_computing = False
+                    n_forces_skipped += 9
+            if is_computing:
+                if is_verbose:
+                    logging.info('calculating forces on atoms: ' + str(iat) + ',' + str(jat))
+                for icoord in range(3):
+                    for jcoord in range(3):
+                        phi_partial = np.zeros((n_replicated_atoms * 3))
+                        for isign in (1, -1):
+                            for jsign in (1, -1):
+                                single_frame = frames[frame_index]
+                                forces = single_frame.get_forces().flatten()
+                                dpotential = forces / (isign * third_order_delta)
+                                dpotential = dpotential / (jsign * third_order_delta)
+                                phi_partial[:] += -1 * dpotential / 4
+                                frame_index += 1
+
+                        for id in range(phi_partial.shape[0]):
+                            i_at_sparse.append(iat)
+                            i_coord_sparse.append(icoord)
+                            jat_sparse.append(jat)
+                            j_coord_sparse.append(jcoord)
+                            k_sparse.append(id)
+                            value_sparse.append(phi_partial[id])
+                n_forces_done += 9
+            if (n_forces_done + n_forces_skipped % 300) == 0:
+                logging.info('loading third derivatives ' + str
+                (int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
+
+    logging.info('forces calculated : ' + str(n_forces_done))
+    logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
+    coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
+    shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
+    phifull = COO(coords, np.array(value_sparse), shape)
+    phifull = phifull.reshape \
+        ((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
+    return phifull

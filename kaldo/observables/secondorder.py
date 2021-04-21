@@ -209,6 +209,7 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
+
     def store_displacements(self, calculator, delta_shift=1e-3, dir='second_order_xyz', format='extxyz', is_verbose=False):
         '''
         Code that will store configuration files in a folder for use in parallel computing
@@ -249,7 +250,7 @@ class SecondOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
+    def calculate(self, calculator, delta_shift, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         atoms.set_calculator(calculator)
