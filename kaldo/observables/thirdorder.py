@@ -157,6 +157,7 @@ class ThirdOrder(ForceConstant):
                                   folder=folder)
 
         elif format == 'trajectory':
+            logging.info('calculating third order from trajectory')
             # TODO: make these defaults changeable -> kwargs
             filename = folder+'third_order_displacements/forces.lmp'
             format = 'lammps-dump-text'
@@ -218,9 +219,6 @@ class ThirdOrder(ForceConstant):
                     if (n_forces_done + n_forces_skipped % 300) == 0:
                         logging.info('loading third derivatives ' + str
                         (int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
-
-            logging.info('forces calculated : ' + str(n_forces_done))
-            logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
             coords = np.array([i_at_sparse, i_coord_sparse, j_at_sparse, j_coord_sparse, k_sparse])
             shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
             _third_order = COO(coords, np.array(_third_order), shape)
@@ -308,7 +306,7 @@ class ThirdOrder(ForceConstant):
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
 
-    def store_displacements(self, delta_shift, distance_threshold=None, format='extxyz', trajectory=False, dir=THIRD_ORDER_PROGRESS):
+    def store_displacements(self, delta_shift, distance_threshold=None, format='extxyz', trajectory=True, dir=THIRD_ORDER_PROGRESS):
         '''
         Code that will store configuration files in a folder for use in parallel computing
         of force constants. Defaults to 'second_order_displacements'
@@ -333,7 +331,7 @@ class ThirdOrder(ForceConstant):
         if not os.path.isdir(dir):
             os.mkdir(dir)
         extensions = {
-            'extxyz' : '.extxyz',
+            'extxyz' : '.xyz',
             'xyz':'.xyz',
             'lammps-dump-text':'.lmp',
             'lammps-dump-binary':'.lmp'
@@ -346,10 +344,11 @@ class ThirdOrder(ForceConstant):
         n_unit_cell_atoms = len(atoms.numbers)
         n_replicated_atoms = len(replicated_atoms.numbers)
         n_replicas = n_replicated_atoms // n_unit_cell_atoms
+        box = np.max(replicated_atoms.positions)
 
         # TODO: implement multi-element support here
         copied_atoms.set_chemical_symbols([1] * n_replicated_atoms)
-        magnitude = len(str(n_unit_cell_atoms))
+        mag = len(str(n_unit_cell_atoms))
         n_displacements = n_unit_cell_atoms * 3 * 2 * n_replicated_atoms * 3 * 2
         logging.info('%i, %i, %i' % (n_unit_cell_atoms, n_replicated_atoms, n_displacements))
         alpha = ['x', 'y', 'z']
@@ -375,20 +374,28 @@ class ThirdOrder(ForceConstant):
                                             shift = np.zeros((n_replicated_atoms, 3))
                                             shift[iat, icoord] += isign * delta_shift
                                             shift[jat, jcoord] += jsign * delta_shift
-                                            copied_atoms.positions = positions + shift
-                                            if not trajectory:
-                                                filestring = str(iat) + alpha[icoord] + move_names[isign]
-                                                filestring += '_' + str(jat) + alpha[jcoord] + move_names[jsign]
-                                                ase.io.write(dir+'/'+filestring+extensions[format],
-                                                             images = copied_atoms,
-                                                             format = 'extxyz',
-                                                             columns = ['numbers', 'positions'])
-                                            else:
+                                            coords = positions + shift
+                                            if np.max(coords) > box:
+                                                index = np.argmax(coords)
+                                                coords[np.unravel_index(index, coords.shape)] -= box
+                                            if np.min(coords) < box:
+                                                index = np.argmin(coords)
+                                                coords[np.unravel_index(index, coords.shape)] += box
+                                            copied_atoms.positions = coords
+                                            if trajectory:
                                                 ase.io.write(dir+'/'+'trajectory'+extensions[format],
                                                              images = copied_atoms,
-                                                             format = 'extxyz',
+                                                             format = format,
                                                              columns = ['numbers', 'positions'],
                                                              append = True)
+                                            else:
+                                                filestring = str(iat).zfill(mag) + alpha[icoord] + move_names[isign]
+                                                filestring += '_' + str(jat).zfill(mag) + alpha[jcoord] + move_names[
+                                                    jsign]
+                                                ase.io.write(dir+'/'+filestring+extensions[format],
+                                                             images = copied_atoms,
+                                                             format = format,
+                                                             columns = ['numbers', 'positions'])
         logging.info('Third order displacements stored, %i skipped, %i written ' % (n_frames_skipped, n_frames_written))
 
 

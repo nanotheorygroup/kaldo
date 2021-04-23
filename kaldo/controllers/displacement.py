@@ -74,8 +74,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, progress=None,
     second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
     if progress != None:
         folder = progress[0]
-        progress_indices = progress[1]
-        atom_index = progress_indices[0]
+        atom_index = progress[1]
         for i in range(atom_index):
             if is_verbose:
                 logging.info('loading forces on atom ' + str(i))
