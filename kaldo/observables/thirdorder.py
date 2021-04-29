@@ -164,6 +164,10 @@ class ThirdOrder(ForceConstant):
             atoms = ase.io.read(folder+'atoms.xyz', format='xyz')
             replicated_atoms = ase.io.read(folder+'replicated_atoms.xyz', format='xyz')
 
+            # aSi:
+            #replicated_atoms = ase.io.read(folder+'atoms.xyz', format='xyz')
+            # replicated_atoms = ase.io.read(folder+'replicated_atoms.xyz', format='xyz')
+
             n_atoms = len(atoms)
             n_replicas = np.prod(supercell)
             n_replicated_atoms = len(replicated_atoms)

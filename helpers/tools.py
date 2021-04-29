@@ -3,6 +3,7 @@ kaldo
 Anharmonic Lattice Dynamics
 """
 import time
+import numpy as np
 from itertools import takewhile, repeat
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
@@ -25,14 +26,3 @@ def count_rows(filename):
     f = open(filename, 'rb')
     bufgen = takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in repeat(None)))
     return sum(buf.count(b'\n') for buf in bufgen if buf)
-
-
-def check_sum(func):
-    def checks(*args, **kwargs):
-        print('Positional Args:', args)
-        print('Keyword Args:', kwargs)
-        for i in args:
-            if np.sum(i) == 0:
-                print('Zeros Detected!')
-        func(*args, **kwargs)
-    return checks

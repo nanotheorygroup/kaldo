@@ -3,8 +3,9 @@ from kaldo.observables.forceconstant import ForceConstant
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
-import tensorflow as tf
+import ase.calculators.lammpslib
 import ase.units as units
+import tensorflow as tf
 from ase import Atoms
 import numpy as np
 import fileinput
@@ -181,8 +182,14 @@ class SecondOrder(ForceConstant):
                 logging.info('Calculating dynamical from trajectory')
                 filename = folder + 'second_order_displacements/forces.lmp'
                 format = 'lammps-dump-text'
+                # # for aSi:
+                # atoms = ase.io.read('atoms.xyz')
+                # replicated_atoms = atoms.copy()
+
+                # # for carbon:
                 atoms = ase.io.read('atoms.xyz', format='extxyz')
                 replicated_atoms = ase.io.read('replicated_atoms.xyz', format='extxyz')
+                atoms.set_atomic_numbers([6, 6])
                 n_unit_cell_atoms = len(atoms.numbers)
                 n_replicated_atoms = len(replicated_atoms.numbers)
                 n_replicas = int(n_replicated_atoms/n_unit_cell_atoms)
@@ -373,7 +380,6 @@ class SecondOrder(ForceConstant):
 
     def store_displacements(self, delta_shift, format='xyz', trajectory=True, dir=SECOND_ORDER_PROGRESS):
         '''
-        Code that will store configuration files in a folder for use in parallel computing
         of force constants. Defaults to 'second_order_displacements'
 
         Parameters
@@ -400,9 +406,10 @@ class SecondOrder(ForceConstant):
         replicated_atoms = self.replicated_atoms
         copied_atoms = replicated_atoms.copy()
         copied_atoms.numbers = np.ones_like(replicated_atoms.numbers)
+        cell, transformation = ase.calculators.lammpslib.convert_cell(replicated_atoms.cell)
+        replicated_atoms.set_positions(np.dot(transformation, replicated_atoms.positions.T).T)
 
         # get parameters like box size, number of atoms etc.
-        box = np.max(replicated_atoms.positions)
         n_unit_cell_atoms = len(atoms.numbers)
         n_replicated_atoms = len(replicated_atoms.numbers)
         mag = len(str(n_unit_cell_atoms))
@@ -421,13 +428,7 @@ class SecondOrder(ForceConstant):
                     shift = np.zeros((n_replicated_atoms, 3))
                     shift[i, alpha] += move * delta_shift
                     coords = replicated_atoms.positions + shift
-                    # if np.max(coords) > box:
-                    #     index = np.argmax(coords)
-                    #     coords[np.unravel_index(index, coords.shape)] -= box
-                    # if np.min(coords) < box:
-                    #     index = np.argmin(coords)
-                    #     coords[np.unravel_index(index, coords.shape)] += box
-                    copied_atoms.positions = coords
+                    copied_atoms.set_positions(coords)
                     if trajectory:
                         ase.io.write(dir + '/' + 'trajectory' + extensions[format],
                                      images=copied_atoms,
@@ -441,3 +442,7 @@ class SecondOrder(ForceConstant):
                                      format='extxyz',
                                      columns=['numbers', 'positions'])
         logging.info('Second order displacements stored')
+        logging.info('Lammps "region prism" arguments:')
+        logging.info('coordinate hi - x: %.5f, y: %.5f, z: %.5f' %
+                     (cell[0,0], cell[1,1], cell[2,2]))
+        logging.info('tilts:  xy: %.5f, xz: %.5f, yz: %.5f' % (cell[0, 1], cell[0, 2], cell[1, 2]))
