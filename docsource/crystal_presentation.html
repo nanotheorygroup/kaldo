@@ -726,7 +726,7 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!pip install git+https://github.com/nanotheorygroup/kaldo
+<span></span>! pip install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
 </div>
@@ -739,20 +739,20 @@ div.rendered_html tbody tr:hover {
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span># Remote fetch kaldo resources from drop box
-!wget https://www.dropbox.com/s/bvw0qcxy397g25q/kaldo_resources.zip?dl=0
-!mv kaldo_resources.zip?dl=0 kaldo_resources.zip
-!unzip kaldo_resources.zip
+! wget https://www.dropbox.com/s/bvw0qcxy397g25q/kaldo_resources.zip?dl=0
+! mv kaldo_resources.zip?dl=0 kaldo_resources.zip
+! unzip kaldo_resources.zip
 
 # Copy files from to the workspace
-!cp -r kaldo_resources/forcefields.zip ./
+! cp -r kaldo_resources/forcefields.zip ./
 
 # Unzip files
 !unzip forcefields.zip
 
 # Clean workspace
-!rm -r forcefields.zip
-!rm -r structure_a_si_512.zip
-!rm -r kaldo_resources.zip
+! rm -r forcefields.zip
+! rm -r structure_a_si_512.zip
+! rm -r kaldo_resources.zip
 
 </pre></div>
 </div>
@@ -766,10 +766,10 @@ div.rendered_html tbody tr:hover {
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
 <span></span># Fetch prebuild lammps binary files from dropbox
-!wget https://www.dropbox.com/s/cqqhh1ax5er0u8b/lmp-tesla-t4-intel-xeon.gz?dl=0
-!mv lmp-tesla-t4-intel-xeon.gz?dl=0 lmp-tesla-t4-intel-xeon.gz
-!tar xvzf lmp-tesla-t4-intel-xeon.gz
-!rm /content/lmp-tesla-t4-intel-xeon.gz
+! wget https://www.dropbox.com/s/cqqhh1ax5er0u8b/lmp-tesla-t4-intel-xeon.gz?dl=0
+! mv lmp-tesla-t4-intel-xeon.gz?dl=0 lmp-tesla-t4-intel-xeon.gz
+! tar xvzf lmp-tesla-t4-intel-xeon.gz
+! rm /content/lmp-tesla-t4-intel-xeon.gz
 
 # Navigate back to lammps source foder when for
 # later LAMMPS-Python integration
@@ -788,7 +788,7 @@ print('Remote Fetching precomplied LAMMPS is finished!')
 </pre></div>
 </div>
 <div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>!make install-python
+<span></span>! make install-python
 
 # Copy executable file to where the python Module locates
 import shutil
@@ -943,15 +943,15 @@ plt.ylim(0.9*1e23*cv_1d[cv_1d&gt;0].min(),
 plt.show()
 
 # Plot phonon bandwidth vs frequency
-band_wdidth_flatten = phonons.bandwidth.flatten(order='C')
+band_width_flatten = phonons.bandwidth.flatten(order='C')
 freq = freq_full[band_wdidth_flatten!=0]
 
 print('\n')
 plt.figure()
-plt.scatter(freq,band_wdidth_flatten[band_wdidth_flatten!=0] ,s=15)
+plt.scatter(freq,band_width_flatten[band_width_flatten!=0] ,s=15)
 plt.ylabel (r"$\Gamma$ (Thz)", fontsize=25, fontweight='bold')
 plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylim(0.95*band_wdidth_flatten .min(), 1.05*band_wdidth_flatten .max())
+plt.ylim(0.95*band_width_flatten .min(), 1.05*band_width_flatten .max())
 plt.show()
 
 # Plot phase space vs frequency
