@@ -37,7 +37,6 @@ Read the paper here_.
    :caption: Tutorials
 
    docsource/crystal_presentation.ipynb
-   docsource/amorphous_presentation.ipynb
 
 
 
