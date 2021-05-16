@@ -32,12 +32,6 @@ Read the paper here_.
    docsource/api_phonons
    docsource/api_conductivity
 
-.. toctree::
-   :glob:
-   :caption: Tutorials
-
-   docsource/crystal_presentation.ipynb
-
 
 
 kALDo: Anharmonic Lattice Dynamics
