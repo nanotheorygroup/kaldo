@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -57,13 +57,12 @@
   
   
     <title>Introduction &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" href="../_static/material.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -591,15 +590,15 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </pre></div>
 </div>
 <p>Next, activate your environment</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">activate</span> <span class="n">kaldo</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>conda activate kaldo
 </pre></div>
 </div>
 <p>or if you used <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="o">~/</span><span class="n">kaldo</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>source ~/kaldo/bin/activate
 </pre></div>
 </div>
 <p>and finally install <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code> using</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">install</span><span class="o">-</span><span class="n">python</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>make install-python
 </pre></div>
 </div>
 <p>Update 07/2020: It you are having any issue with the July 2020 version of <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code>, try using the October 2019 version.</p>
@@ -683,12 +682,12 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </section>
 <section id="Code-Architecture">
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="006c7fa9b9154b23981336280e5f5f1d" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="b7de3cb8ef704c1899f2056aac8d2124" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 </section>
 <section id="Main-Features">
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="7618b490761340adb0c81cc7d5dae507" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="6820d9adc0344b1e9ef0bfa3ba2b209a" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 </section>
 <section id="Examples">
 <h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this headline">¶</a></h1>
@@ -698,16 +697,16 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 <h1 id="How-to-cite">How to cite<a class="headerlink" href="#How-to-cite" title="Permalink to this headline">¶</a></h1>
 <p>If you have used kALDo, please cite the following article:</p>
 <p>Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. <a class="reference external" href="https://doi.org/10.1063/5.0020443">https://doi.org/10.1063/5.0020443</a> also available open access on ArXiv: <a class="reference external" href="https://arxiv.org/abs/2009.01967">https://arxiv.org/abs/2009.01967</a></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">kaldo</span><span class="p">,</span>
-<span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Barbalinardo</span><span class="p">,</span> <span class="n">Giuseppe</span> <span class="ow">and</span> <span class="n">Chen</span><span class="p">,</span> <span class="n">Zekun</span> <span class="ow">and</span> <span class="n">Lundgren</span><span class="p">,</span> <span class="n">Nicholas</span> <span class="n">W</span> <span class="ow">and</span> <span class="n">Donadio</span><span class="p">,</span> <span class="n">Davide</span><span class="p">},</span>
-<span class="n">title</span> <span class="o">=</span> <span class="p">{{</span><span class="n">Efficient</span> <span class="n">anharmonic</span> <span class="n">lattice</span> <span class="n">dynamics</span> <span class="n">calculations</span> <span class="n">of</span> <span class="n">thermal</span> <span class="n">transport</span> <span class="ow">in</span> <span class="n">crystalline</span> <span class="ow">and</span> <span class="n">disordered</span> <span class="n">solids</span><span class="p">}},</span>
-<span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">Journal</span> <span class="n">of</span> <span class="n">Applied</span> <span class="n">Physics</span><span class="p">},</span>
-<span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2020</span><span class="p">},</span>
-<span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">128</span><span class="p">},</span>
-<span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">13</span><span class="p">},</span>
-<span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">135104</span><span class="o">--</span><span class="mi">12</span><span class="p">},</span>
-<span class="n">month</span> <span class="o">=</span> <span class="nb">oct</span>
-<span class="p">}</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>@article{kaldo,
+author = {Barbalinardo, Giuseppe and Chen, Zekun and Lundgren, Nicholas W and Donadio, Davide},
+title = {{Efficient anharmonic lattice dynamics calculations of thermal transport in crystalline and disordered solids}},
+journal = {Journal of Applied Physics},
+year = {2020},
+volume = {128},
+number = {13},
+pages = {135104--12},
+month = oct
+}
 </pre></div>
 </div>
 </section>
@@ -717,7 +716,7 @@ make mpi <span class="nv">mode</span><span class="o">=</span>shlib
 </section>
 <section id="Acknowledgements">
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="1c8293761aac4c9c84ad55649fad65be" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="2efaacf298fe4b9fab0c51187e3d905a" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 </section>
@@ -823,7 +822,7 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 4.0.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
