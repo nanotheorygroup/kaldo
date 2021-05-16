@@ -13,6 +13,12 @@ Read the paper here_.
 
 .. toctree::
    :glob:
+   :caption: Documentation
+
+   docsource/introduction.ipynb
+
+.. toctree::
+   :glob:
    :caption: API
    :maxdepth: 1
 
