@@ -1,4 +1,4 @@
-numpy>=1.16
+numpy==1.19
 scipy==1.4.1
 ase==3.19.1
 sparse==0.11.2
