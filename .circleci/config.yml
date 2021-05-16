@@ -37,6 +37,9 @@ jobs:
           name: Add psutil
           command: conda install psutil>=5.7.2
       - run:
+          name: Install dependencies
+          command: pip install -r requirements.txt
+      - run:
           name: Install docs dependencies
           command: pip install -r docs/doc_requirements.txt
       - run:
