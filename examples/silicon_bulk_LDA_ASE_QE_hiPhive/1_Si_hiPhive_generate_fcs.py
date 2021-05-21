@@ -110,6 +110,11 @@ primitive_fname = 'hiPhive_si_bulk/atom_prim.xyz'
 if not os.path.isdir(hiphive_filename):
     os.mkdir(hiphive_filename)
 write(primitive_fname, atoms_prim, format='xyz')
+
+# Explicitly set periodic boundary conditions (pbc) for replicated structures. 
+# This pbc infomration is now used when loading fcs to kaldo
+# [True, True, True] means pbc is applied in all three directions.
+replicated_structure.set_pbc(np.array([True, True, True]))
 write('hiPhive_si_bulk/replicated_atoms.xyz', replicated_structure, format='xyz')
 fcs.write(hiphive_filename + '/' + 'model2.fcs')
 fcs.write(hiphive_filename + '/' + 'model3.fcs')
