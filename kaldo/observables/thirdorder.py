@@ -143,7 +143,8 @@ class ThirdOrder(ForceConstant):
                 supercell = np.array(supercell)
                 n_prim = atoms.copy().get_masses().shape[0]
                 n_sc = np.prod(supercell)
-                dim = len(supercell[supercell > 1])
+                pbc_conditions = replicated_atoms.get_pbc()
+                dim = len(pbc_conditions[pbc_conditions == True])
                 _third_order = hiphive_io.import_third_from_hiphive(atoms, supercell, folder)
                 _third_order = _third_order[0].reshape(n_prim * dim, n_sc * n_prim * dim,
                                                                        n_sc * n_prim * dim)
