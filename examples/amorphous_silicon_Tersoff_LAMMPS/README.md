@@ -40,7 +40,7 @@ External files required:
 	4. Visualize diffusivity and cumulative conductivity from QHGK method as functions of frequency. 
 
 
-- LAMMPS with speed up force constant calculations for large systems is available in the following repo: [OptimizedDynamicalMatrix](https://github.com/charlessievers/lammps/tree/OptimizedDynamicalMatrix).
+- LAMMPS with speed up force constant calculations for large systems is available in the following repo: [OptimizedDynamicalMatrix](https://github.com/charlessievers/lammps/tree/fed47b9ffc833bebffe0e460739ebd6ff69e9c8d).
 - Some features on the OptimizedDynamicalMatrix are broken as of commits in April 2020, please checkout the following commit which works reliably from 01/29/2020: 
 	- in your cloned repo: `git checkout fed47b9ffc833bebffe0e460739ebd6ff69e9c8d`
 - LAMMPS packages to install/compile include: [MAKE, MANYBODY, MOLECULE, KSPACE, USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html).
