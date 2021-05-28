@@ -215,7 +215,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
     fig1.savefig(folder + '/' + 'dispersion' + '.png')
     np.savetxt(folder + '/' + 'q', q)
-    np.savetxt(folder + '/' + 'dispersion', freqs_plot)
+    nspecial_points: dictp.savetxt(folder + '/' + 'dispersion', freqs_plot)
     if is_showing:
         plt.show()
     else:

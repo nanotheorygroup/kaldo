@@ -1,16 +1,17 @@
 from kaldo.observables.forceconstant import ForceConstant
-from ase import Atoms
-import os
-import ase.io
-import numpy as np
-from scipy.sparse import load_npz, save_npz
-from sparse import COO
+from ase.calculators.lammpslib import convert_cell
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
-import ase.units as units
 from kaldo.controllers.displacement import calculate_third
 from kaldo.helpers.logger import get_logger
+from scipy.sparse import load_npz, save_npz
 from ase.build import make_supercell
+import ase.units as units
+from sparse import COO
+from ase import Atoms
+import numpy as np
+import ase.io
+import os
 
 logging = get_logger()
 
@@ -159,11 +160,15 @@ class ThirdOrder(ForceConstant):
         elif format == 'trajectory':
             logging.info('calculating third order from trajectory')
             # TODO: make these defaults changeable -> kwargs
+
             filename = folder+'third_order_displacements/forces.lmp'
             format = 'lammps-dump-text'
             atoms = ase.io.read(folder+'atoms.xyz', format='xyz')
+            transform = convert_cell(atoms.get_cell())[1]
+            atoms.set_positions(np.dot(tranform, atoms.get_positions().T).T)
             replicated_atoms = ase.io.read(folder+'replicated_atoms.xyz', format='xyz')
-
+            replicated_atoms.set_positions(np.dot(tranform,
+                                            replicated_atoms.get_positions().T).T)
             # aSi:
             #replicated_atoms = ase.io.read(folder+'atoms.xyz', format='xyz')
             # replicated_atoms = ase.io.read(folder+'replicated_atoms.xyz', format='xyz')
@@ -332,6 +337,7 @@ class ThirdOrder(ForceConstant):
             not existant.
             Defaults to 'second_order_xyz'
         '''
+        # TODO:
         if not os.path.isdir(dir):
             os.mkdir(dir)
         extensions = {
@@ -342,24 +348,27 @@ class ThirdOrder(ForceConstant):
         }
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        positions = replicated_atoms.positions
+        cell, transform = convert_cell(atoms.get_cell())
+        positions = np.dot(transform, replicated_atoms.get_positions().T).T
+        replicated_atoms.set_positions=positions
+        ase.io.write('replicated_atoms.xyz',
+                     images=replicated_atoms, format='xyz')
 
-        copied_atoms = replicated_atoms.copy()
         n_unit_cell_atoms = len(atoms.numbers)
         n_replicated_atoms = len(replicated_atoms.numbers)
         n_replicas = n_replicated_atoms // n_unit_cell_atoms
-        box = np.max(replicated_atoms.positions)
+        copied_atoms = replicated_atoms.copy()
+        copied_atoms.numbers = np.ones_like(replicated_atoms.numbers)
 
         # TODO: implement multi-element support here
-        copied_atoms.set_chemical_symbols([1] * n_replicated_atoms)
-        mag = len(str(n_unit_cell_atoms))
         n_displacements = n_unit_cell_atoms * 3 * 2 * n_replicated_atoms * 3 * 2
-        logging.info('%i, %i, %i' % (n_unit_cell_atoms, n_replicated_atoms, n_displacements))
+        n_frames_skipped = 0; n_frames_written = 0
+        mag = len(str(n_unit_cell_atoms))
         alpha = ['x', 'y', 'z']
         move_names = [None, '+', '-']
+        logging.info('%i, %i, %i' % (n_unit_cell_atoms, n_replicated_atoms, n_displacements))
         logging.info('Storing '+str(n_displacements)+' frames with '+str(delta_shift)+'A shift')
         logging.info('Writing to '+str(dir))
-        n_frames_skipped = 0; n_frames_written = 0
         for iat in range(n_unit_cell_atoms):
             for jat in range(n_replicated_atoms):
                 is_computing = True
@@ -368,24 +377,17 @@ class ThirdOrder(ForceConstant):
                     dxij = atoms.positions[iat] - replicated_atoms.positions[jat]
                     if (np.linalg.norm(dxij) > distance_threshold):
                             is_computing = False
-                            n_frames_skipped += 9
+                            n_frames_skipped += 36
                 if is_computing:
+                    n_frames_written += 36
                     for icoord in range(3):
                         for jcoord in range(3):
                                     for isign in (1, -1):
                                         for jsign in (1, -1):
-                                            n_frames_written +=1
                                             shift = np.zeros((n_replicated_atoms, 3))
                                             shift[iat, icoord] += isign * delta_shift
                                             shift[jat, jcoord] += jsign * delta_shift
-                                            coords = positions + shift
-                                            if np.max(coords) > box:
-                                                index = np.argmax(coords)
-                                                coords[np.unravel_index(index, coords.shape)] -= box
-                                            if np.min(coords) < box:
-                                                index = np.argmin(coords)
-                                                coords[np.unravel_index(index, coords.shape)] += box
-                                            copied_atoms.positions = coords
+                                            copied_atoms.set_positions(positions+shift)
                                             if trajectory:
                                                 ase.io.write(dir+'/'+'trajectory'+extensions[format],
                                                              images = copied_atoms,
@@ -401,6 +403,10 @@ class ThirdOrder(ForceConstant):
                                                              format = format,
                                                              columns = ['numbers', 'positions'])
         logging.info('Third order displacements stored, %i skipped, %i written ' % (n_frames_skipped, n_frames_written))
+        logging.info('Lammps "region prism" arguments:')
+        logging.info('coordinate hi - x: %.5f, y: %.5f, z: %.5f' %
+                     (cell[0,0], cell[1,1], cell[2,2]))
+        logging.info('tilts:  xy: %.5f, xz: %.5f, yz: %.5f' % (cell[0, 1], cell[0, 2], cell[1, 2]))
 
 
     def __str__(self):

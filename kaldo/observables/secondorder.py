@@ -3,14 +3,15 @@ from kaldo.observables.forceconstant import ForceConstant
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
-import ase.calculators.lammpslib
+from ase.calculators.lammpslib import convert_cell
+from pandas import DataFrame as dataframe
 import ase.units as units
 import tensorflow as tf
 from ase import Atoms
 import numpy as np
-import fileinput
 import ase.io
 import os
+
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
@@ -107,7 +108,6 @@ class SecondOrder(ForceConstant):
                           cell=unit_cell,
                           pbc=[1, 1, 1])
 
-
             _second_order, _ = import_from_files(replicated_atoms=replicated_atoms,
                                                  dynmat_file=dynmat_file,
                                                  supercell=supercell)
@@ -182,14 +182,21 @@ class SecondOrder(ForceConstant):
                 logging.info('Calculating dynamical from trajectory')
                 filename = folder + 'second_order_displacements/forces.lmp'
                 format = 'lammps-dump-text'
-                # # for aSi:
-                # atoms = ase.io.read('atoms.xyz')
-                # replicated_atoms = atoms.copy()
-
-                # # for carbon:
                 atoms = ase.io.read('atoms.xyz', format='extxyz')
                 replicated_atoms = ase.io.read('replicated_atoms.xyz', format='extxyz')
-                atoms.set_atomic_numbers([6, 6])
+                sorting_frame = dataframe(np.zeros(replicated_atoms.shape[0], 6),
+                                            columns=['x','y','z','fx','fy','fz'])
+
+                # transform + sort coordinates and set atomic information
+                transform = convert_cell(atoms.get_cell())[1]
+                atoms.set_atomic_numbers([6, 6]) # for carbon
+                atoms.set_positions(np.dot(transform, atoms.positions.T).T)
+                replicated_positions = np.dot(transform,
+                                            replicated_atoms.positions.T).T
+                sorted_positions = dataframe(replicated_positions,
+                                                 columns = ['x', 'y', 'z']).sort_values(by=['x', 'y', 'z'])
+                replicated_atoms.set_positions(sorted_positions)
+
                 n_unit_cell_atoms = len(atoms.numbers)
                 n_replicated_atoms = len(replicated_atoms.numbers)
                 n_replicas = int(n_replicated_atoms/n_unit_cell_atoms)
@@ -386,7 +393,6 @@ class SecondOrder(ForceConstant):
         ----------
         delta_shift : float
             How far to move the atoms. This is a sensitive parameter
-            for force constant calculations.
         dir: string
             Where to place the xyz files. Directory created if
             not existant.
@@ -395,6 +401,9 @@ class SecondOrder(ForceConstant):
             Which format ASE will use to write the outputs.
             Defaults to 'xyz'
         '''
+        # TODO: Make this accept any atoms object, use ase.repeat to not need replicated_atoms
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
         extensions = {
             'extxyz': '.extxyz',
             'xyz':'.xyz',
@@ -404,10 +413,13 @@ class SecondOrder(ForceConstant):
         # get atoms and mave mutable copy
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
+        cell, transform = convert_cell(atoms.get_cell())
+        positions = np.dot(transform, replicated_atoms.positions.T).T
+        replicated_atoms.set_positions(positions)
+        ase.io.write('replicated_atoms.xyz',
+                     images=replicated_atoms, format='xyz')
         copied_atoms = replicated_atoms.copy()
         copied_atoms.numbers = np.ones_like(replicated_atoms.numbers)
-        cell, transformation = ase.calculators.lammpslib.convert_cell(replicated_atoms.cell)
-        replicated_atoms.set_positions(np.dot(transformation, replicated_atoms.positions.T).T)
 
         # get parameters like box size, number of atoms etc.
         n_unit_cell_atoms = len(atoms.numbers)
@@ -429,6 +441,7 @@ class SecondOrder(ForceConstant):
                     shift[i, alpha] += move * delta_shift
                     coords = replicated_atoms.positions + shift
                     copied_atoms.set_positions(coords)
+
                     if trajectory:
                         ase.io.write(dir + '/' + 'trajectory' + extensions[format],
                                      images=copied_atoms,

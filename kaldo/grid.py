@@ -38,7 +38,6 @@ class Grid:
         grid = self.id_to_grid_index(ids)
         return grid
 
-
     def unitary_grid(self, is_wrapping):
         return self.grid(is_wrapping) / self.grid_shape
 
