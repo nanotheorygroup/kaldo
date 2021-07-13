@@ -52,7 +52,7 @@ class ForceConstants:
         self.atoms = atoms
         self.supercell = supercell
         self.n_atoms = atoms.positions.shape[0]
-        self.n_modes = self.n_atoms *grep -oP "config_type=\K[a-zA-Z ]+" Carbon_GAP_20_Training_Set.xyz | sort | uniq -c 3
+        self.n_modes = self.n_atoms * 3
         self.n_replicas = np.prod(supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
         self.cell_inv = np.linalg.inv(atoms.cell)

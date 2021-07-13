@@ -420,6 +420,7 @@ class SecondOrder(ForceConstant):
                      images=replicated_atoms, format='xyz')
         copied_atoms = replicated_atoms.copy()
         copied_atoms.numbers = np.ones_like(replicated_atoms.numbers)
+        copied_atoms.set_array('ids', np.arange(len(replicated_atoms)))
 
         # get parameters like box size, number of atoms etc.
         n_unit_cell_atoms = len(atoms.numbers)
@@ -446,14 +447,14 @@ class SecondOrder(ForceConstant):
                         ase.io.write(dir + '/' + 'trajectory' + extensions[format],
                                      images=copied_atoms,
                                      format='extxyz',
-                                     columns=['numbers', 'positions'],
+                                     columns=['numbers', 'positions', 'ids'],
                                      append=True)
                     else:
                         filename = str(i).zfill(mag) + '_' + alpha_names[alpha] + move_names[move]
                         ase.io.write(dir + '/' + filename + extensions[format],
                                      images=copied_atoms,
                                      format='extxyz',
-                                     columns=['numbers', 'positions'])
+                                     columns=['numbers', 'positions', 'ids'])
         logging.info('Second order displacements stored')
         logging.info('Lammps "region prism" arguments:')
         logging.info('coordinate hi - x: %.5f, y: %.5f, z: %.5f' %
