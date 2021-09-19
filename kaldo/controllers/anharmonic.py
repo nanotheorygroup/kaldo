@@ -94,13 +94,13 @@ def project_crystal(phonons):
     except AttributeError:
         third_tf = tf.convert_to_tensor(phonons.forceconstants.third.value)
         is_sparse = False
-    third_tf = tf.cast(third_tf, dtype=tf.complex64)
+    third_tf = tf.cast(third_tf, dtype=tf.complex128)
     k_mesh = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
     n_k_points = k_mesh.shape[0]
     _chi_k = tf.convert_to_tensor(phonons.forceconstants.third._chi_k(k_mesh))
-    _chi_k = tf.cast(_chi_k, dtype=tf.complex64)
+    _chi_k = tf.cast(_chi_k, dtype=tf.complex128)
     evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
-    evect_tf = tf.cast(evect_tf, dtype=tf.complex64)
+    evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
         shape = (phonons.n_phonons, 2 + phonons.n_phonons)
@@ -131,7 +131,7 @@ def project_crystal(phonons):
 
         third_nu_tf = tf.cast(
             tf.reshape(third_nu_tf, (n_replicas, phonons.n_modes, n_replicas, phonons.n_modes)),
-            dtype=tf.complex64)
+            dtype=tf.complex128)
         third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
         third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, phonons.n_modes, phonons.n_modes))
         for is_plus in (0, 1):
@@ -263,7 +263,7 @@ def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, br
         mup = mup_vec
         index_kpp = index_kpp_vec
         mupp = mupp_vec
-        return tf.cast(dirac_delta_tf, dtype=tf.float32), index_kp, mup, index_kpp, mupp
+        return tf.cast(dirac_delta_tf, dtype=tf.float64), index_kp, mup, index_kpp, mupp
 
 
 def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu, is_balanced, default_delta_threshold=2):
