@@ -45,18 +45,21 @@
   <meta name="theme-color" content="#3f51b5">
   <script src="../_static/javascripts/modernizr.js"></script>
   
-  <script>
-      window.ga = window.ga || function () {
-          (ga.q = ga.q || []).push(arguments)
-      };
-      ga.l = +new Date;
-      ga('create', 'UA-172053863-1', 'auto');
-      ga('send', 'pageview');
-  </script>
-  <script async src='https://www.google-analytics.com/analytics.js'></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-172053863-1"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+        dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+
+    gtag('config', 'UA-172053863-1');
+</script>
   
   
-    <title>Introduction &#8212; kALDo  documentation</title>
+    <title>&lt;no title&gt; &#8212; kALDo  documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/material.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -66,7 +69,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Introduction" href="theory.html" />
+    <link rel="next" title="&lt;no title&gt;" href="theory.html" />
     <link rel="prev" title="kALDo: Anharmonic Lattice Dynamics" href="../index.html" />
   
    
@@ -104,7 +107,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Introduction </span>
+          <span class="md-header-nav__topic"> &lt;no title&gt; </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -113,7 +116,7 @@
 <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
-    <form class="md-search__form" action="../search.html" method="GET" name="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
       <input type="text" class="md-search__input" name="q" placeholder="Search"
              autocapitalize="off" autocomplete="off" spellcheck="false"
              data-md-component="query" data-md-state="active">
@@ -218,193 +221,6 @@
   <ul class="md-nav__list">
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> Introduction </label>
-    
-      <a href="#" class="md-nav__link md-nav__link--active">Introduction</a>
-      
-        
-<nav class="md-nav md-nav--secondary">
-    <label class="md-nav__title" for="__toc">Contents</label>
-  <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Introduction</a>
-        </li>
-        <li class="md-nav__item"><a href="#Quick-Install" class="md-nav__link">Quick Install</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Using-pip-and-virtualenv" class="md-nav__link">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>
-        </li>
-        <li class="md-nav__item"><a href="#Development-mode" class="md-nav__link">Development mode</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#LAMMPS-library-setup" class="md-nav__link">LAMMPS library setup</a>
-        </li>
-        <li class="md-nav__item"><a href="#LAMMPS-executable-setup" class="md-nav__link">LAMMPS executable setup</a>
-        </li>
-        <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Output-Storage" class="md-nav__link">Output Storage</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Default-Storage" class="md-nav__link">Default Storage</a>
-        </li>
-        <li class="md-nav__item"><a href="#Alternative-Storage" class="md-nav__link">Alternative Storage</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
-        </li>
-        <li class="md-nav__item"><a href="#Main-Features" class="md-nav__link">Main Features</a>
-        </li>
-        <li class="md-nav__item"><a href="#Examples" class="md-nav__link">Examples</a>
-        </li>
-        <li class="md-nav__item"><a href="#How-to-cite" class="md-nav__link">How to cite</a>
-        </li>
-        <li class="md-nav__item"><a href="#Copyright" class="md-nav__link">Copyright</a>
-        </li>
-        <li class="md-nav__item"><a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-        </li>
-        <li class="md-nav__item"><a href="#Other-codes" class="md-nav__link">Other codes</a>
-        </li>
-        <li class="md-nav__item"><a href="#Project-template" class="md-nav__link">Project template</a>
-        </li>
-        <li class="md-nav__item"><a href="#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Checklist-for-updates" class="md-nav__link">Checklist for updates</a>
-        </li>
-        <li class="md-nav__item"><a href="#Versioneer-Auto-version" class="md-nav__link">Versioneer Auto-version</a>
-        </li></ul>
-            </nav>
-        </li>
-    
-<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/introduction.ipynb.txt">Show Source</a> </li>
-
-  </ul>
-</nav>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Quick-Install" class="md-nav__link">Quick Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Main-Features" class="md-nav__link">Main Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Examples" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#How-to-cite" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Other-codes" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Theory</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html" class="md-nav__link">Introduction</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Theory" class="md-nav__link">Theory</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
       <span class="md-nav__link caption"><span class="caption-text">API</span></span>
     
     </li>
@@ -429,25 +245,6 @@
       
     
     </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
-      
-    
-    </li>
   </ul>
   
 
@@ -460,60 +257,7 @@
               <div class="md-sidebar__inner">
                 
 <nav class="md-nav md-nav--secondary">
-    <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-introduction--page-root" class="md-nav__link">Introduction</a>
-        </li>
-        <li class="md-nav__item"><a href="#Quick-Install" class="md-nav__link">Quick Install</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Using-pip-and-virtualenv" class="md-nav__link">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>
-        </li>
-        <li class="md-nav__item"><a href="#Development-mode" class="md-nav__link">Development mode</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#LAMMPS-library-setup" class="md-nav__link">LAMMPS library setup</a>
-        </li>
-        <li class="md-nav__item"><a href="#LAMMPS-executable-setup" class="md-nav__link">LAMMPS executable setup</a>
-        </li>
-        <li class="md-nav__item"><a href="#Quantum-Espresso-setup" class="md-nav__link">Quantum Espresso setup</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Output-Storage" class="md-nav__link">Output Storage</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Default-Storage" class="md-nav__link">Default Storage</a>
-        </li>
-        <li class="md-nav__item"><a href="#Alternative-Storage" class="md-nav__link">Alternative Storage</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Code-Architecture" class="md-nav__link">Code Architecture</a>
-        </li>
-        <li class="md-nav__item"><a href="#Main-Features" class="md-nav__link">Main Features</a>
-        </li>
-        <li class="md-nav__item"><a href="#Examples" class="md-nav__link">Examples</a>
-        </li>
-        <li class="md-nav__item"><a href="#How-to-cite" class="md-nav__link">How to cite</a>
-        </li>
-        <li class="md-nav__item"><a href="#Copyright" class="md-nav__link">Copyright</a>
-        </li>
-        <li class="md-nav__item"><a href="#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-        </li>
-        <li class="md-nav__item"><a href="#Other-codes" class="md-nav__link">Other codes</a>
-        </li>
-        <li class="md-nav__item"><a href="#Project-template" class="md-nav__link">Project template</a>
-        </li>
-        <li class="md-nav__item"><a href="#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Checklist-for-updates" class="md-nav__link">Checklist for updates</a>
-        </li>
-        <li class="md-nav__item"><a href="#Versioneer-Auto-version" class="md-nav__link">Versioneer Auto-version</a>
-        </li></ul>
-            </nav>
-        </li>
     
 <li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/introduction.ipynb.txt">Show Source</a> </li>
 
@@ -528,252 +272,355 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  <section id="Introduction">
-<h1 id="docsource-introduction--page-root">Introduction<a class="headerlink" href="#docsource-introduction--page-root" title="Permalink to this headline">¶</a></h1>
-<p>κALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA.</p>
-<p>The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.</p>
-<p>Using the Atomic Simulation Environment, κALDo can calculate the IFCs using several ab initio and molecular dynamics codes, thus enabling the use of first-principles DFT, empirical forcefields and semi-empirical tight- binding. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through seamless integration with the hiPhive package, the IFC calculation can take advantage of compressing-sensing machine learning algorithms</p>
-<p>The code is released open-source for the community to use and contribute with edits and suggestions. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.</p>
-</section>
-<section id="Quick-Install">
-<h1 id="Quick-Install">Quick Install<a class="headerlink" href="#Quick-Install" title="Permalink to this headline">¶</a></h1>
-<p>We recommend creating a new environment with Python 3.6, 3.7, or 3.8.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda create -n kaldo <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
-</pre></div>
+  <dl>
+<dt>{</dt><dd><dl>
+<dt>“cells”: [</dt><dd><dl>
+<dt>{</dt><dd><p>“cell_type”: “markdown”,
+“metadata”: {</p>
+<blockquote>
+<div><p>“collapsed”: false,
+“pycharm”: {</p>
+<blockquote>
+<div><p>“name”: “#%% mdn”</p>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<p>},
+“source”: [</p>
+<blockquote>
+<div><p>“### Introductionn”,
+“n”,
+“κALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA. n”,
+“n”,
+“The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.n”,
+“n”,
+“Using the Atomic Simulation Environment, κALDo can calculate the IFCs using several ab initio and molecular dynamics codes, thus enabling the use of first-principles DFT, empirical forcefields and semi-empirical tight- binding. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through seamless integration with the hiPhive package, the IFC calculation can take advantage of compressing-sensing machine learning algorithmsn”,
+“n”,
+“The code is released open-source for the community to use and contribute with edits and suggestions. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.n”,
+“n”,
+“n”,
+“### Quick Installn”,
+“n”,
+“We recommend creating a new environment with Python 3.6, 3.7, or 3.8.n”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"conda</span> <span class="pre">create</span> <span class="pre">-n</span> <span class="pre">kaldo</span> <span class="pre">python=3.7\n",</span>
+<span class="pre">"`</span></code>n”,
+“and enable the environmentn”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"conda</span> <span class="pre">activate</span> <span class="pre">kaldo\n",</span>
+<span class="pre">"conda</span> <span class="pre">install</span> <span class="pre">pip\n",</span>
+<span class="pre">"`</span></code>n”,
+“n”,
+“kALDo installation can be done using <img alt="pip" class="math" src="../_images/math/5987d33a82a34f3d6038ae2b9a68c99dc66a7eea.png"/>n”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"pip</span> <span class="pre">install</span> <span class="pre">git+https://github.com/nanotheorygroup/kaldo\n",</span>
+<span class="pre">"`</span></code>n”,
+“n”,
+“#### Using <img alt="pip" class="math" src="../_images/math/5987d33a82a34f3d6038ae2b9a68c99dc66a7eea.png"/> and <img alt="virtualenv" class="math" src="../_images/math/aa3725bbe589393d8b98a8a50cdd7c6f0665670b.png"/>n”,
+“n”,
+“You can also install kALDO without using <img alt="conda" class="math" src="../_images/math/ccc1a1590342fb79fd1d2b579ff4ef10a9847811.png"/>n”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"pip3</span> <span class="pre">install</span> <span class="pre">virtualenv\n",</span>
+<span class="pre">"virtualenv</span> <span class="pre">--system-site-packages</span> <span class="pre">-p</span> <span class="pre">python3</span> <span class="pre">~/kaldo\n",</span>
+<span class="pre">"source</span> <span class="pre">~/kaldo/bin/activate\n",</span>
+<span class="pre">"pip3</span> <span class="pre">install</span> <span class="pre">git+https://github.com/nanotheorygroup/kaldo\n",</span>
+<span class="pre">"`</span></code>n”,
+“#### Development moden”,
+“n”,
+“The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.n”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"pip</span> <span class="pre">uninstall</span> <span class="pre">kaldo\n",</span>
+<span class="pre">"make</span> <span class="pre">~/develoment\n",</span>
+<span class="pre">"cd</span> <span class="pre">~/development\n",</span>
+<span class="pre">"git</span> <span class="pre">clone</span> <span class="pre">git+https://github.com/nanotheorygroup/kaldo\n",</span>
+<span class="pre">"export</span> <span class="pre">PYTHONPATH=~/development/kaldo:$PYTHONPATH\n",</span>
+<span class="pre">"`</span></code>n”,
+“If you followed the steps in the quickstart and then uninstall kaldo, you will have all the dependencies correctly installed.n”,
+“The next lines are pulling the repo from Github and adding it to the <img alt="PYTHONPATH" class="math" src="../_images/math/7c580c6033b66679abc7a0c1cfc1b04d136ec76c.png"/>.n”,
+“n”,
+“If you want to make the last change in the <img alt="PYTHONPATH" class="math" src="../_images/math/7c580c6033b66679abc7a0c1cfc1b04d136ec76c.png"/> permanent, you can also runn”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"echo</span> <span class="pre">\"export</span> <span class="pre">PYTHONPATH=~/development/kaldo:$PYTHONPATH\"</span> <span class="pre">&gt;&gt;</span> <span class="pre">~/.bashrc\n",</span>
+<span class="pre">"`</span></code>n”,
+“n”,
+“n”,
+“n”,
+“### Interfacing with Other Codesn”,
+” n”,
+“#### LAMMPS library setupn”,
+“n”,
+“In order to use LAMMPS with ASE, it needs to be compiled a libn”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"cd</span> <span class="pre">path/to/lammps/src\n",</span>
+<span class="pre">"make</span> <span class="pre">yes-manybody\n",</span>
+<span class="pre">"make</span> <span class="pre">yes-molecule\n",</span>
+<span class="pre">"...\n",</span>
+<span class="pre">"make</span> <span class="pre">mpi</span> <span class="pre">mode=shlib\n",</span>
+<span class="pre">"`</span></code>n”,
+“Next, activate your environmentn”,
+“<code class="docutils literal notranslate"><span class="pre">`\n",</span>
+<span class="pre">"conda</span> <span class="pre">activate</span> <span class="pre">kaldo\n",</span>
+<span class="pre">"`</span></code>n”,
+“or if you used <img alt="virtualenv" class="math" src="../_images/math/aa3725bbe589393d8b98a8a50cdd7c6f0665670b.png"/>n”,
+“<code class="docutils literal notranslate"><span class="pre">`\n",</span>
+<span class="pre">"source</span> <span class="pre">~/kaldo/bin/activate\n",</span>
+<span class="pre">"`</span></code>n”,
+“and finally install <img alt="lammpslib" class="math" src="../_images/math/25ee4e78b84a4015ec98c46068bf1ea16a929645.png"/> usingn”,
+“<code class="docutils literal notranslate"><span class="pre">`\n",</span>
+<span class="pre">"make</span> <span class="pre">install-python\n",</span>
+<span class="pre">"`</span></code>n”,
+“Update 07/2020: It you are having any issue with the July 2020 version of <img alt="lammpslib" class="math" src="../_images/math/25ee4e78b84a4015ec98c46068bf1ea16a929645.png"/>, try using the October 2019 version.n”,
+“n”,
+“#### LAMMPS executable setupn”,
+“n”,
+“You can use LAMMPS executable directly, as illustrated in the example folder.n”,
+“For that purpose, you will need the  [LAMMPS user-phonon package by Charles Sievers](<a class="reference external" href="https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon">https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon</a>) to calculate the dynamical matrix and the third order interatomic force constants.n”,
+“n”,
+“#### Quantum Espresso setupn”,
+“n”,
+“In order to use QE with ASE, Set the environment variable:n”,
+“<code class="docutils literal notranslate"><span class="pre">`bash\n",</span>
+<span class="pre">"export</span> <span class="pre">ASE_ESPRESSO_COMMAND=\"mpirun</span> <span class="pre">-np</span> <span class="pre">4</span> <span class="pre">/path/to/pw.x</span> <span class="pre">-in</span> <span class="pre">PREFIX.pwi</span> <span class="pre">&gt;</span> <span class="pre">PREFIX.pwo\"\n",</span>
+<span class="pre">"`</span></code>n”,
+“Update 01/2021: It you are having any issue with ASE version 3.20+, try using ASE version 3.19.1.n”,
+“n”,
+“n”,
+“See the [ASE documentation](<a class="reference external" href="https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html">https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html</a>) for more info.n”,
+“n”,
+“### Output Storagen”,
+“n”,
+“#### Default Storagen”,
+“n”,
+“When using the storage <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655ca06a8192bc6a440969509266d2.png"/>, kALDo stores the following dense tensor as formatted, human readable, files:n”,
+“n”,
+“- <img alt="frequency" class="math" src="../_images/math/2c5786f70adaafcc081210c6be3c04f6313ae828.png"/> $(n_{kpoints}, n_{modes})$. mode changes first k changes aftern”,
+“- <img alt="velocity_alpha" class="math" src="../_images/math/588ee4d0434f634eb6a1875cbb83c045b4191c61.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;" class="math" src="../_images/math/c47fbb4047e258c997be17149bed97c8f26d776e.png"/> $(n_{kpoints}, n_{modes})$n”,
+“n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity" class="math" src="../_images/math/b76b3cda270f8ffc936de40b68a0c0616a250608.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/population" class="math" src="../_images/math/19e82921668c548a64449d7137001c1aaa1a2773.png"/> $(n_{kpoints}, n_{modes})$n”,
+“n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;" class="math" src="../_images/math/c9cd4ac21f218c90937324185774ca988b13ce4d.png"/> $(n_{kpoints}, n_{modes})$ where the <img alt="&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;" class="math" src="../_images/math/205ccc2b820af76ba7200d01a1a680cb61f60681.png"/> folder is created only if those values are definedn”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity" class="math" src="../_images/math/4588596e032369bef03bf6fda67830ec1ad4b284.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path" class="math" src="../_images/math/98a205716a9366fb78cb53a0ca8cf02c65e90eb8.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime" class="math" src="../_images/math/4a5e6ebb42b27cc3f6edfac6a77c0f647a3ed841.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth" class="math" src="../_images/math/d1ff99afcc99a58d0197354385d61057c51f0169.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space" class="math" src="../_images/math/472f52c4ab9acd42d76df08e399bced9dd11f97e.png"/> $(n_{kpoints}, n_{modes})$n”,
+“- <img alt="&lt;diffusivity_bandwidth&gt;flux_dense" class="math" src="../_images/math/7e4887e4a7016d1add1cacbe137729f04f7c89dc.png"/> $(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})$, when <img alt="diffusivity_threshold" class="math" src="../_images/math/7fed178405c4ef48653991a26430cb4f8ea45f78.png"/> is not specified.n”,
+“- <img alt="&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse" class="math" src="../_images/math/639de286dbcacfd2b85eee1bff92439b64c63326.png"/> $(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})$. Sparse only when  <img alt="diffusivity_threshold" class="math" src="../_images/math/7fed178405c4ef48653991a26430cb4f8ea45f78.png"/> is specified.n”,
+“n”,
+“n”,
+“The folder structure depends on the input parameters to the Phonon Objectn”,
+“and in parenthesis is the shape of the tensor. All of the above observables are stored in a dense format, n”,
+“except for <img alt="flux_alpha" class="math" src="../_images/math/8b7116a4c41642fc454292c8a8ce4c4ff2a1a533.png"/> which is stored as formatted file in a <img alt="index value" class="math" src="../_images/math/fabb1f78a284384bc2959bf66fbe5b2fafe58921.png"/> format.n”,
+“n”,
+“The following tensors are stored in raw binary format and help saving time when performing different simulations on the same sample.n”,
+“n”,
+“- <img alt="_eigensystem (eigenvalues and eigenvectors)" class="math" src="../_images/math/6adaeb2ee9b31c6c4a10fc1107136c5d9865f1c7.png"/>n”,
+“- <img alt="_dynmat_derivatives" class="math" src="../_images/math/6d7cb2bce3d226ef5e691c2e85fcd2313c131ecb.png"/>n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/_generalized_diffusivity" class="math" src="../_images/math/08ece161b3aa7132e6ec4fd451a12d03b771937d.png"/> n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma_tensor" class="math" src="../_images/math/69208b334b969e753280cbd53c9be8bd9229b64a.png"/>n”,
+“- <img alt="&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma" class="math" src="../_images/math/793f229240e8352b2fa48bf0386bfc2c53071271.png"/>, when only RTA conductivity is requiredn”,
+“n”,
+“#### Alternative Storagen”,
+“n”,
+“Other storage options available are <img alt="numpy" class="math" src="../_images/math/aaedfd9573d304e4ff29db8875c79a2fd8739c99.png"/> and <img alt="hdf5" class="math" src="../_images/math/e3c8c90ec5439ab0f021b8e486a1117a86a57440.png"/> where all the files are saved as one of those formats.n”,
+“Finally the <img alt="memory" class="math" src="../_images/math/4b67ee5a160b1dbd47ca4fc555268878cd573e28.png"/> option doesn’t store any permanent files.n”,
+“n”,
+“| Measurement             | Units                    <a href="#id3"><span class="problematic" id="id4">|\n",
+"|</span></a>————————-<a href="#id5"><span class="problematic" id="id6">|--------------------------|</span></a>n”,
+“| Distances               | $A$                      <a href="#id7"><span class="problematic" id="id8">|\n",
+"|</span></a> Masses                  | $g/N_A$                  <a href="#id9"><span class="problematic" id="id10">|\n",
+"|</span></a> Frequencies             | $THz$                    <a href="#id11"><span class="problematic" id="id12">|\n",
+"|</span></a> Potential Derivatives   | $eV/(A^2)$ or $eV/(A^3)$ <a href="#id13"><span class="problematic" id="id14">|\n",
+"|</span></a> Conductivity [$\kappa$]| $\frac{W}{m\ K}$       <a href="#id1"><span class="problematic" id="id2">|</span></a>n”,
+“n”,
+“n”,
+“n”,
+“### Code Architecturen”,
+“n”,
+“&lt;img src="_resources/class_diagram.png" width="650"&gt;n”,
+“n”,
+“n”,
+“### Main Featuresn”,
+“n”,
+“Below we illustrate the main features of the coden”,
+“n”,
+“&lt;img src="_resources/features.png" width="650"&gt;n”,
+“n”,
+“### Examplesn”,
+“n”,
+“Examples and the explanation on how to use them are located in the [examples folder of the repo](<a class="reference external" href="https://github.com/nanotheorygroup/kaldo/tree/master/examples).n">https://github.com/nanotheorygroup/kaldo/tree/master/examples).n</a>”,
+“n”,
+“n”,
+“### How to citen”,
+“n”,
+“If you have used kALDo, please cite the following article:n”,
+“n”,
+“Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. https://doi.org/10.1063/5.0020443n”,
+“also available open access on ArXiv: https://arxiv.org/abs/2009.01967n”,
+“n”,
+“<code class="docutils literal notranslate"><span class="pre">`\n",</span>
+<span class="pre">"@article{kaldo,\n",</span>
+<span class="pre">"author</span> <span class="pre">=</span> <span class="pre">{Barbalinardo,</span> <span class="pre">Giuseppe</span> <span class="pre">and</span> <span class="pre">Chen,</span> <span class="pre">Zekun</span> <span class="pre">and</span> <span class="pre">Lundgren,</span> <span class="pre">Nicholas</span> <span class="pre">W</span> <span class="pre">and</span> <span class="pre">Donadio,</span> <span class="pre">Davide},\n",</span>
+<span class="pre">"title</span> <span class="pre">=</span> <span class="pre">{{Efficient</span> <span class="pre">anharmonic</span> <span class="pre">lattice</span> <span class="pre">dynamics</span> <span class="pre">calculations</span> <span class="pre">of</span> <span class="pre">thermal</span> <span class="pre">transport</span> <span class="pre">in</span> <span class="pre">crystalline</span> <span class="pre">and</span> <span class="pre">disordered</span> <span class="pre">solids}},\n",</span>
+<span class="pre">"journal</span> <span class="pre">=</span> <span class="pre">{Journal</span> <span class="pre">of</span> <span class="pre">Applied</span> <span class="pre">Physics},\n",</span>
+<span class="pre">"year</span> <span class="pre">=</span> <span class="pre">{2020},\n",</span>
+<span class="pre">"volume</span> <span class="pre">=</span> <span class="pre">{128},\n",</span>
+<span class="pre">"number</span> <span class="pre">=</span> <span class="pre">{13},\n",</span>
+<span class="pre">"pages</span> <span class="pre">=</span> <span class="pre">{135104--12},\n",</span>
+<span class="pre">"month</span> <span class="pre">=</span> <span class="pre">oct\n",</span>
+<span class="pre">"}\n",</span>
+<span class="pre">"`</span></code>n”,
+“n”,
+“### Copyrightn”,
+“n”,
+“Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadion”,
+“n”,
+“### Acknowledgementsn”,
+“n”,
+“&lt;img src="_resources/funding.png" width="650"&gt;n”,
+“n”,
+“We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech. n”,
+“n”,
+“MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](<a class="reference external" href="https://molssi.org/software-projects/)n">https://molssi.org/software-projects/)n</a>”,
+“n”,
+“### Other codesn”,
+“n”,
+“We are thankful to the whole open-source community, and in particular we want to acknowledge some other great anharmonic lattice dynamics related projects. If using kALDo example, you n”,
+“If, while you are running kALDo examples, you use any of these codes, please don’t forget to cite them. n”,
+“n”,
+“- ASE: A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dułak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. Jensen, J. Kermode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Schütt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, “The atomic simulation environment—a python library for work- ing with atoms,” Journal of Physics: Condensed Matter 29, 273002 (2017).n”,
+“- LAMMPS: S. Plimpton, Fast Parallel Algorithms for Short-Range Molecular Dynamics, J Comp Phys, 117, 1-19 (1995).n”,
+“- Quantum Espresso: P Giannozzi, O Andreussi, T Brumme, O Bunau, M Buongiorno Nardelli, M Calandra, R Car, C Cavazzoni, D Ceresoli, M Cococcioni, N Colonna, I Carnimeo, A Dal Corso, S de Gironcoli, P Delugas, R A DiStasio Jr, A Ferretti, A Floris, G Fratesi, G Fugallo, R Gebauer, U Gerstmann, F Giustino, T Gorni, J Jia, M Kawamura, H-Y Ko, A Kokalj, E Küçükbenli, M Lazzeri, M Marsili, N Marzari, F Mauri, N L Nguyen, H-V Nguyen, A Otero-de-la-Roza, L Paulatto, S Poncé, D Rocca, R Sabatini, B Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N Vast, X Wu and S Baroni, J.Phys.:Condens.Matter 29, 465901 (2017)n”,
+“- HiPhive: The Hiphive Package for the Extraction of High‐Order Force Constants by Machine Learning, Fredrik Eriksson, Erik Fransson, and Paul Erhart, Advanced Theory and Simulations,  (2019)n”,
+“n”,
+“### Project templaten”,
+“n”,
+“Project template from the [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms).n”,
+“n”,
+“### How to contribute changesn”,
+“- Clone the repository if you have write access to the main repo, fork the repository if you are a collaborator.n”,
+“- Make a new branch with <img alt="git checkout -b {your branch name}" class="math" src="../_images/math/3be546e22e1d9989e853a93877bbc028debfd4b8.png"/>n”,
+“- Make changes and test your coden”,
+“- Ensure that the test environment dependencies (<img alt="conda-envs" class="math" src="../_images/math/793a8f1c918c1ec3077ca2fbb23da7319ac49859.png"/>) line up with the build and deploy dependencies (<img alt="conda-recipe/meta.yaml" class="math" src="../_images/math/83fd30afc0cc94561cf1765acc2d3196b0184031.png"/>)n”,
+“- Push the branch to the repo (either the main or your fork) with <img alt="git push -u origin {your branch name}" class="math" src="../_images/math/384762c882ca6e77b425dc60971455812fb93fa1.png"/>n”,
+”  * Note that <img alt="origin" class="math" src="../_images/math/7080da66df571910339e4afcb1f94e61e0d5fdaf.png"/> is the default name assigned to the remote, yours may be differentn”,
+“- Make a PR on GitHub with your changesn”,
+“- We’ll review the changes and get your code into the repo after lively discussion!n”,
+“n”,
+“n”,
+“#### Checklist for updatesn”,
+“- [ ] Make sure there is an/are issue(s) opened for your specific updaten”,
+“- [ ] Create the PR, referencing the issuen”,
+“- [ ] Debug the PR as needed until tests passn”,
+“- [ ] Tag the final, debugged version n”,
+”   *  <div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">git tag -a X.Y.Z [latest pushed commit] &amp;&amp; git push --follow-tags</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.14159265-2.6-1.40.17 (TeX Live 2016/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2017/01/01&gt; patch level 3
+Babel &lt;3.9r&gt; and hyphenation patterns for 83 language(s) loaded.
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2014/09/29 v1.4h Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty
+(/usr/share/texlive/texmf-dist/tex/latex/base/utf8.def
+(/usr/share/texlive/texmf-dist/tex/latex/base/t1enc.dfu)
+(/usr/share/texlive/texmf-dist/tex/latex/base/ot1enc.dfu)
+(/usr/share/texlive/texmf-dist/tex/latex/base/omsenc.dfu)))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/anyfontsize/anyfontsize.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/bm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/mathtools/mathtools.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/calc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/mathtools/mhsetup.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/doublestroke/dsfont.sty) (./math.aux)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphicx.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphics.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/trig.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-def/dvips.def)))
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd)
+! Misplaced alignment tab character &amp;.
+l.18 ...$git tag -a X.Y.Z [latest pushed commit] &amp;
+                                                  &amp; git push --follow-tags$
+! Misplaced alignment tab character &amp;.
+l.18 ...git tag -a X.Y.Z [latest pushed commit] &amp;&amp;
+                                                   git push --follow-tags$
+[1] (./math.aux) )
+(see the transcript file for additional information)
+Output written on math.dvi (1 page, 428 bytes).
+Transcript written on math.log.
+</p>
 </div>
-<p>and enable the environment</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda activate kaldo
-conda install pip
-</pre></div>
-</div>
-<p>kALDo installation can be done using <code class="docutils literal notranslate"><span class="pre">pip</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install git+https://github.com/nanotheorygroup/kaldo
-</pre></div>
-</div>
-<section id="Using-pip-and-virtualenv">
-<h2 id="Using-pip-and-virtualenv">Using <code class="docutils literal notranslate"><span class="pre">pip</span></code> and <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code><a class="headerlink" href="#Using-pip-and-virtualenv" title="Permalink to this headline">¶</a></h2>
-<p>You can also install kALDO without using <code class="docutils literal notranslate"><span class="pre">conda</span></code></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip3 install virtualenv
-virtualenv --system-site-packages -p python3 ~/kaldo
-<span class="nb">source</span> ~/kaldo/bin/activate
-pip3 install git+https://github.com/nanotheorygroup/kaldo
-</pre></div>
-</div>
-</section>
-<section id="Development-mode">
-<h2 id="Development-mode">Development mode<a class="headerlink" href="#Development-mode" title="Permalink to this headline">¶</a></h2>
-<p>The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip uninstall kaldo
-make ~/develoment
-<span class="nb">cd</span> ~/development
-git clone git+https://github.com/nanotheorygroup/kaldo
-<span class="nb">export</span> <span class="nv">PYTHONPATH</span><span class="o">=</span>~/development/kaldo:<span class="nv">$PYTHONPATH</span>
-</pre></div>
-</div>
-<p>If you followed the steps in the quickstart and then uninstall kaldo, you will have all the dependencies correctly installed. The next lines are pulling the repo from Github and adding it to the <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code>.</p>
-<p>If you want to make the last change in the <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code> permanent, you can also run</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s2">"export PYTHONPATH=~/development/kaldo:</span><span class="nv">$PYTHONPATH</span><span class="s2">"</span> &gt;&gt; ~/.bashrc
-</pre></div>
-</div>
-</section>
-</section>
-<section id="Interfacing-with-Other-Codes">
-<h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this headline">¶</a></h1>
-<section id="LAMMPS-library-setup">
-<h2 id="LAMMPS-library-setup">LAMMPS library setup<a class="headerlink" href="#LAMMPS-library-setup" title="Permalink to this headline">¶</a></h2>
-<p>In order to use LAMMPS with ASE, it needs to be compiled a lib</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> path/to/lammps/src
-make yes-manybody
-make yes-molecule
-...
-make mpi <span class="nv">mode</span><span class="o">=</span>shlib
-</pre></div>
-</div>
-<p>Next, activate your environment</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>conda activate kaldo
-</pre></div>
-</div>
-<p>or if you used <code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>source ~/kaldo/bin/activate
-</pre></div>
-</div>
-<p>and finally install <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code> using</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>make install-python
-</pre></div>
-</div>
-<p>Update 07/2020: It you are having any issue with the July 2020 version of <code class="docutils literal notranslate"><span class="pre">lammpslib</span></code>, try using the October 2019 version.</p>
-</section>
-<section id="LAMMPS-executable-setup">
-<h2 id="LAMMPS-executable-setup">LAMMPS executable setup<a class="headerlink" href="#LAMMPS-executable-setup" title="Permalink to this headline">¶</a></h2>
-<p>You can use LAMMPS executable directly, as illustrated in the example folder. For that purpose, you will need the <a class="reference external" href="https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon">LAMMPS user-phonon package by Charles Sievers</a> to calculate the dynamical matrix and the third order interatomic force constants.</p>
-</section>
-<section id="Quantum-Espresso-setup">
-<h2 id="Quantum-Espresso-setup">Quantum Espresso setup<a class="headerlink" href="#Quantum-Espresso-setup" title="Permalink to this headline">¶</a></h2>
-<p>In order to use QE with ASE, Set the environment variable:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">ASE_ESPRESSO_COMMAND</span><span class="o">=</span><span class="s2">"mpirun -np 4 /path/to/pw.x -in PREFIX.pwi &gt; PREFIX.pwo"</span>
-</pre></div>
-</div>
-<p>Update 01/2021: It you are having any issue with ASE version 3.20+, try using ASE version 3.19.1.</p>
-<p>See the <a class="reference external" href="https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html">ASE documentation</a> for more info.</p>
-</section>
-</section>
-<section id="Output-Storage">
-<h1 id="Output-Storage">Output Storage<a class="headerlink" href="#Output-Storage" title="Permalink to this headline">¶</a></h1>
-<section id="Default-Storage">
-<h2 id="Default-Storage">Default Storage<a class="headerlink" href="#Default-Storage" title="Permalink to this headline">¶</a></h2>
-<p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> where the <code class="docutils literal notranslate"><span class="pre">&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;</span></code> folder is created only if those values are defined</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;flux_dense</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>, when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is not specified.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>. Sparse only when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is specified.</p></li>
-</ul>
-<p>The folder structure depends on the input parameters to the Phonon Object and in parenthesis is the shape of the tensor. All of the above observables are stored in a dense format, except for <code class="docutils literal notranslate"><span class="pre">flux_alpha</span></code> which is stored as formatted file in a <code class="docutils literal notranslate"><span class="pre">index</span> <span class="pre">value</span></code> format.</p>
-<p>The following tensors are stored in raw binary format and help saving time when performing different simulations on the same sample.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">_eigensystem</span> <span class="pre">(eigenvalues</span> <span class="pre">and</span> <span class="pre">eigenvectors)</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">_dynmat_derivatives</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/_generalized_diffusivity</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma_tensor</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/_ps_and_gamma</span></code>, when only RTA conductivity is required</p></li>
-</ul>
-</section>
-<section id="Alternative-Storage">
-<h2 id="Alternative-Storage">Alternative Storage<a class="headerlink" href="#Alternative-Storage" title="Permalink to this headline">¶</a></h2>
-<p>Other storage options available are <code class="docutils literal notranslate"><span class="pre">numpy</span></code> and <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> where all the files are saved as one of those formats. Finally the <code class="docutils literal notranslate"><span class="pre">memory</span></code> option doesn’t store any permanent files.</p>
-<table>
-<colgroup>
-<col style="width: 45%"/>
-<col style="width: 55%"/>
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Measurement</p></th>
-<th class="head"><p>Units</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Distances</p></td>
-<td><p><img alt="A" class="math" src="../_images/math/06aa34aab0dfa56eff4b2d179b459554df6f0726.png"/></p></td>
-</tr>
-<tr class="row-odd"><td><p>Masses</p></td>
-<td><p><img alt="g/N_A" class="math" src="../_images/math/909c442e716b6ffb0f496988e623ed801700cf77.png"/></p></td>
-</tr>
-<tr class="row-even"><td><p>Frequencies</p></td>
-<td><p><img alt="THz" class="math" src="../_images/math/47569dc3dd27a62e0f220eb670cd81145d3bff43.png"/></p></td>
-</tr>
-<tr class="row-odd"><td><p>Potential Derivatives</p></td>
-<td><p><img alt="eV/(A^2)" class="math" src="../_images/math/2cf0039f91ed360cffccde7898c23add1a3e7a08.png"/> or <img alt="eV/(A^3)" class="math" src="../_images/math/632884ea881305ca73c39e8149b8c4f54e53de78.png"/></p></td>
-</tr>
-<tr class="row-even"><td><p>Conductivity [<img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>]</p></td>
-<td><p><img alt="\frac{W}{m\ K}" class="math" src="../_images/math/32abdb97536404e33a889e321cbf942abf6bdc23.png"/></p></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="Code-Architecture">
-<h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this headline">¶</a></h1>
-<p><img alt="a719abc0dc8446d684ca8a009d3cb1d2" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
-</section>
-<section id="Main-Features">
-<h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this headline">¶</a></h1>
-<p>Below we illustrate the main features of the code</p>
-<p><img alt="5dcd0177063347a0bcbe943e89cd4f92" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
-</section>
-<section id="Examples">
-<h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this headline">¶</a></h1>
-<p>Examples and the explanation on how to use them are located in the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/tree/master/examples">examples folder of the repo</a>.</p>
-</section>
-<section id="How-to-cite">
-<h1 id="How-to-cite">How to cite<a class="headerlink" href="#How-to-cite" title="Permalink to this headline">¶</a></h1>
-<p>If you have used kALDo, please cite the following article:</p>
-<p>Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. <a class="reference external" href="https://doi.org/10.1063/5.0020443">https://doi.org/10.1063/5.0020443</a> also available open access on ArXiv: <a class="reference external" href="https://arxiv.org/abs/2009.01967">https://arxiv.org/abs/2009.01967</a></p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>@article{kaldo,
-author = {Barbalinardo, Giuseppe and Chen, Zekun and Lundgren, Nicholas W and Donadio, Davide},
-title = {{Efficient anharmonic lattice dynamics calculations of thermal transport in crystalline and disordered solids}},
-journal = {Journal of Applied Physics},
-year = {2020},
-volume = {128},
-number = {13},
-pages = {135104--12},
-month = oct
-}
-</pre></div>
-</div>
-</section>
-<section id="Copyright">
-<h1 id="Copyright">Copyright<a class="headerlink" href="#Copyright" title="Permalink to this headline">¶</a></h1>
-<p>Copyright (c) 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio</p>
-</section>
-<section id="Acknowledgements">
-<h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this headline">¶</a></h1>
-<p><img alt="231d5f826b4e4c808f5a4ade76c22fdc" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
-<p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
-<p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
-</section>
-<section id="Other-codes">
-<h1 id="Other-codes">Other codes<a class="headerlink" href="#Other-codes" title="Permalink to this headline">¶</a></h1>
-<p>We are thankful to the whole open-source community, and in particular we want to acknowledge some other great anharmonic lattice dynamics related projects. If using kALDo example, you If, while you are running kALDo examples, you use any of these codes, please don’t forget to cite them.</p>
-<ul class="simple">
-<li><p>ASE: A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dułak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. Jensen, J. Kermode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Schütt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, “The atomic simulation environment—a
-python library for work- ing with atoms,” Journal of Physics: Condensed Matter 29, 273002 (2017).</p></li>
-<li><p>LAMMPS: S. Plimpton, Fast Parallel Algorithms for Short-Range Molecular Dynamics, J Comp Phys, 117, 1-19 (1995).</p></li>
-<li><p>Quantum Espresso: P Giannozzi, O Andreussi, T Brumme, O Bunau, M Buongiorno Nardelli, M Calandra, R Car, C Cavazzoni, D Ceresoli, M Cococcioni, N Colonna, I Carnimeo, A Dal Corso, S de Gironcoli, P Delugas, R A DiStasio Jr, A Ferretti, A Floris, G Fratesi, G Fugallo, R Gebauer, U Gerstmann, F Giustino, T Gorni, J Jia, M Kawamura, H-Y Ko, A Kokalj, E Küçükbenli, M Lazzeri, M Marsili, N Marzari, F Mauri, N L Nguyen, H-V Nguyen, A Otero-de-la-Roza, L Paulatto, S Poncé, D Rocca, R Sabatini, B
-Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N Vast, X Wu and S Baroni, J.Phys.:Condens.Matter 29, 465901 (2017)</p></li>
-<li><p>HiPhive: The Hiphive Package for the Extraction of High‐Order Force Constants by Machine Learning, Fredrik Eriksson, Erik Fransson, and Paul Erhart, Advanced Theory and Simulations, (2019)</p></li>
-</ul>
-</section>
-<section id="Project-template">
-<h1 id="Project-template">Project template<a class="headerlink" href="#Project-template" title="Permalink to this headline">¶</a></h1>
-<p>Project template from the <a class="reference external" href="https://github.com/molssi/cookiecutter-cms">Computational Molecular Science Python Cookiecutter</a>.</p>
-</section>
-<section id="How-to-contribute-changes">
-<h1 id="How-to-contribute-changes">How to contribute changes<a class="headerlink" href="#How-to-contribute-changes" title="Permalink to this headline">¶</a></h1>
-<ul class="simple">
-<li><p>Clone the repository if you have write access to the main repo, fork the repository if you are a collaborator.</p></li>
-<li><p>Make a new branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">-b</span> <span class="pre">{your</span> <span class="pre">branch</span> <span class="pre">name}</span></code></p></li>
-<li><p>Make changes and test your code</p></li>
-<li><p>Ensure that the test environment dependencies (<code class="docutils literal notranslate"><span class="pre">conda-envs</span></code>) line up with the build and deploy dependencies (<code class="docutils literal notranslate"><span class="pre">conda-recipe/meta.yaml</span></code>)</p></li>
-<li><p>Push the branch to the repo (either the main or your fork) with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span> <span class="pre">-u</span> <span class="pre">origin</span> <span class="pre">{your</span> <span class="pre">branch</span> <span class="pre">name}</span></code></p>
-<ul>
-<li><p>Note that <code class="docutils literal notranslate"><span class="pre">origin</span></code> is the default name assigned to the remote, yours may be different</p></li>
-</ul>
-</li>
-<li><p>Make a PR on GitHub with your changes</p></li>
-<li><p>We’ll review the changes and get your code into the repo after lively discussion!</p></li>
-</ul>
-<section id="Checklist-for-updates">
-<h2 id="Checklist-for-updates">Checklist for updates<a class="headerlink" href="#Checklist-for-updates" title="Permalink to this headline">¶</a></h2>
-<ul class="simple">
-<li><p>☐ Make sure there is an/are issue(s) opened for your specific update</p></li>
-<li><p>☐ Create the PR, referencing the issue</p></li>
-<li><p>☐ Debug the PR as needed until tests pass</p></li>
-<li><p>☐ Tag the final, debugged version</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">tag</span> <span class="pre">-a</span> <span class="pre">X.Y.Z</span> <span class="pre">[latest</span> <span class="pre">pushed</span> <span class="pre">commit]</span> <span class="pre">&amp;&amp;</span> <span class="pre">git</span> <span class="pre">push</span> <span class="pre">--follow-tags</span></code></p></li>
-</ul>
-</li>
-<li><p>☐ Get the PR merged in</p></li>
-</ul>
-</section>
-<section id="Versioneer-Auto-version">
-<h2 id="Versioneer-Auto-version">Versioneer Auto-version<a class="headerlink" href="#Versioneer-Auto-version" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference external" href="https://github.com/warner/python-versioneer">Versioneer</a> will automatically infer what version is installed by looking at the <code class="docutils literal notranslate"><span class="pre">git</span></code> tags and how many commits ahead this version is. The format follows <a class="reference external" href="https://www.python.org/dev/peps/pep-0440/">PEP 440</a> and has the regular expression of:</p>
-<div class="highlight-regexp notranslate"><div class="highlight"><pre><span></span>\d+.\d+.\d+(?\+\d+-[a-z0-9]+)
-</pre></div>
-</div>
-<p>If the version of this commit is the same as a <code class="docutils literal notranslate"><span class="pre">git</span></code> tag, the installed version is the same as the tag, e.g. <code class="docutils literal notranslate"><span class="pre">kaldo-0.1.2</span></code>, otherwise it will be appended with <code class="docutils literal notranslate"><span class="pre">+X</span></code> where <code class="docutils literal notranslate"><span class="pre">X</span></code> is the number of commits ahead from the last tag, and then <code class="docutils literal notranslate"><span class="pre">-YYYYYY</span></code> where the <code class="docutils literal notranslate"><span class="pre">Y</span></code>’s are replaced with the <code class="docutils literal notranslate"><span class="pre">git</span></code> commit hash.</p>
-</section>
-</section>
+n”,
+“- [ ] Get the PR merged inn”,
+“n”,
+“#### Versioneer Auto-versionn”,
+“[Versioneer](<a class="reference external" href="https://github.com/warner/python-versioneer">https://github.com/warner/python-versioneer</a>) will automatically infer what version n”,
+“is installed by looking at the <img alt="git" class="math" src="../_images/math/7d5416289e5283ea7725b7dfd9ca19269be78049.png"/> tags and how many commits ahead this version is. The format follows n”,
+“[PEP 440](<a class="reference external" href="https://www.python.org/dev/peps/pep-0440/">https://www.python.org/dev/peps/pep-0440/</a>) and has the regular expression of:n”,
+“<code class="docutils literal notranslate"><span class="pre">`regexp\n",</span>
+<span class="pre">"\\d+.\\d+.\\d+(?\\+\\d+-[a-z0-9]+)\n",</span>
+<span class="pre">"`</span></code>n”,
+“If the version of this commit is the same as a <img alt="git" class="math" src="../_images/math/7d5416289e5283ea7725b7dfd9ca19269be78049.png"/> tag, the installed version is the same as the tag, n”,
+“e.g. <img alt="kaldo-0.1.2" class="math" src="../_images/math/bdc2c38080ff66eaa5cff028c2264e2e4d2311a6.png"/>, otherwise it will be appended with <img alt="+X" class="math" src="../_images/math/4022b1f24bc178250b9a5fa3a3abb8e2ad54560d.png"/> where <img alt="X" class="math" src="../_images/math/398aa46beebfe1cfe153bb21341a5568a42776e4.png"/> is the number of commits n”,
+“ahead from the last tag, and then <img alt="-YYYYYY" class="math" src="../_images/math/1f4ef9497db33dcee8b2673188d8b2ee1f5f7f38.png"/> where the <img alt="Y" class="math" src="../_images/math/70defbf43eb38c7a83568d9895a43a32a81b47f6.png"/>’s are replaced with the <img alt="git" class="math" src="../_images/math/7d5416289e5283ea7725b7dfd9ca19269be78049.png"/> commit hash.”</p>
+</div></blockquote>
+<p>]</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>],
+“metadata”: {</p>
+<blockquote>
+<div><dl class="simple">
+<dt>“kernelspec”: {</dt><dd><p>“display_name”: “Python 3”,
+“language”: “python”,
+“name”: “python3”</p>
+</dd>
+</dl>
+<p>},
+“language_info”: {</p>
+<blockquote>
+<div><dl class="simple">
+<dt>“codemirror_mode”: {</dt><dd><p>“name”: “ipython”,
+“version”: 2</p>
+</dd>
+</dl>
+<p>},
+“file_extension”: “.py”,
+“mimetype”: “text/x-python”,
+“name”: “python”,
+“nbconvert_exporter”: “python”,
+“pygments_lexer”: “ipython2”,
+“version”: “2.7.6”</p>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<p>},
+“nbformat”: 4,
+“nbformat_minor”: 0</p>
+</dd>
+</dl>
+<p>}</p>
 
 
           </article>
@@ -799,12 +646,12 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
             </a>
           
           
-            <a href="theory.html" title="Introduction"
+            <a href="theory.html" title="&lt;no title&gt;"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Introduction </span>
+                class="md-footer-nav__direction"> Next </span> &lt;no title&gt; </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
@@ -822,7 +669,7 @@ Santra, M Schlipf, A P Seitsonen, A Smogunov, I Timrov, T Thonhauser, P Umari, N
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 4.0.2.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 4.2.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

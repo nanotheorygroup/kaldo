@@ -45,15 +45,18 @@
   <meta name="theme-color" content="#3f51b5">
   <script src="../_static/javascripts/modernizr.js"></script>
   
-  <script>
-      window.ga = window.ga || function () {
-          (ga.q = ga.q || []).push(arguments)
-      };
-      ga.l = +new Date;
-      ga('create', 'UA-172053863-1', 'auto');
-      ga('send', 'pageview');
-  </script>
-  <script async src='https://www.google-analytics.com/analytics.js'></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-172053863-1"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+        dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+
+    gtag('config', 'UA-172053863-1');
+</script>
   
   
     <title>Conductivity API Reference &#8212; kALDo  documentation</title>
@@ -66,7 +69,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Silicon diamond tutorial" href="crystal_presentation.html" />
+    <link rel="next" title="&lt;no title&gt;" href="crystal_presentation.html" />
     <link rel="prev" title="Phonons API Reference" href="api_phonons.html" />
   
    
@@ -113,7 +116,7 @@
 <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
-    <form class="md-search__form" action="../search.html" method="GET" name="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
       <input type="text" class="md-search__input" name="q" placeholder="Search"
              autocapitalize="off" autocomplete="off" spellcheck="false"
              data-md-component="query" data-md-state="active">
@@ -218,128 +221,6 @@
   <ul class="md-nav__list">
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html" class="md-nav__link">Introduction</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Quick-Install" class="md-nav__link">Quick Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Main-Features" class="md-nav__link">Main Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Examples" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#How-to-cite" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Other-codes" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Theory</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html" class="md-nav__link">Introduction</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Theory" class="md-nav__link">Theory</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
       <span class="md-nav__link caption"><span class="caption-text">API</span></span>
     
     </li>
@@ -380,25 +261,6 @@
 
   </ul>
 </nav>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
       
     
     </li>
@@ -503,11 +365,11 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <col style="width: 90%"/>
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([…])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([...])</p></td>
 <td><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
-<td><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.</p></td>
+<td><p>Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
 <td><p>This method calculates the inverse of the mean free path for each phonon.</p></td>
@@ -636,12 +498,12 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
             </a>
           
           
-            <a href="crystal_presentation.html" title="Silicon diamond tutorial"
+            <a href="crystal_presentation.html" title="&lt;no title&gt;"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Silicon diamond tutorial </span>
+                class="md-footer-nav__direction"> Next </span> &lt;no title&gt; </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
@@ -659,7 +521,7 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 4.0.2.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 4.2.0.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
