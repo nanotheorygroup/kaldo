@@ -165,7 +165,7 @@ class HarmonicWithQ(Observable):
                                                         replicated_cell_inv)
                     mask = (np.linalg.norm(wrapped_distance, axis=-1) < distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
-                    dynmat_derivatives[id_i, :, id_j, :, :] += contract('f,fbc->fbc', distance[id_i, l, id_j, direction], \
+                    dynmat_derivatives[id_i, :, id_j, :] += contract('f,fbc->fbc', distance[id_i, l, id_j, direction], \
                                                                          dynmat.numpy()[0, id_i, :, 0, id_j, :] *
                                                                          chi(q_point, list_of_replicas, cell_inv)[l])
             else:
