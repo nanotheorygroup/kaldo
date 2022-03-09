@@ -362,7 +362,7 @@ class SecondOrder(ForceConstant):
         progress_folder = folder+'/'+SECOND_ORDER_PROGRESS
         num_atoms = len(self.replicated_atoms)
         digits = len(str(num_atoms))
-        if os.path.isdir(progress_folder):
+        if os.path.isdir(progress_folder) and len(os.listdir(progress_folder))>4:
             files = sorted(os.listdir(progress_folder))
             last_calculated_frame=files[-1]
             if files[-1].startswith('trajectory'):
@@ -385,7 +385,7 @@ class SecondOrder(ForceConstant):
             return None
 
 
-    def store_displacements(self, delta_shift, format='xyz', trajectory=True, dir=SECOND_ORDER_PROGRESS):
+    def store_displacements(self, delta_shift, format='xyz', trajectory=True):
         '''
         of force constants. Defaults to 'second_order_displacements'
 
@@ -402,7 +402,9 @@ class SecondOrder(ForceConstant):
             Defaults to 'xyz'
         '''
         # TODO: Make this accept any atoms object, use ase.repeat to not need replicated_atoms
+        dir = self.folder+'/'+SECOND_ORDER_PROGRESS
         if not os.path.isdir(dir):
+            print('\n DIR: %s' % dir)
             os.mkdir(dir)
         extensions = {
             'extxyz': '.extxyz',
@@ -413,14 +415,17 @@ class SecondOrder(ForceConstant):
         # get atoms and mave mutable copy
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
+        replicated_atoms.set_chemical_symbols(atoms.get_chemical_symbols() * np.prod(self.supercell))
         cell, transform = convert_cell(atoms.get_cell())
-        positions = np.dot(transform, replicated_atoms.positions.T).T
+        rcell, _ = convert_cell(replicated_atoms.get_cell())
+        icell = np.linalg.inv(rcell)
+        positions = np.matmul(transform, replicated_atoms.positions.T).T
         replicated_atoms.set_positions(positions)
-        ase.io.write('replicated_atoms.xyz',
+        ase.io.write(self.folder+'/replicated_atoms.xyz',
                      images=replicated_atoms, format='xyz')
         copied_atoms = replicated_atoms.copy()
-        copied_atoms.numbers = np.ones_like(replicated_atoms.numbers)
         copied_atoms.set_array('ids', np.arange(len(replicated_atoms)))
+        copied_atoms.pbc = 1
 
         # get parameters like box size, number of atoms etc.
         n_unit_cell_atoms = len(atoms.numbers)
@@ -432,22 +437,24 @@ class SecondOrder(ForceConstant):
         alpha_names = ['x', 'y', 'z']
         move_names = [None, '+', '-']
         logging.info('Storing '+str(n_displacements)+' frames with '+str(delta_shift)+'A shift')
-        logging.info('Writing in directory '+str(dir))
-        if not os.path.isdir(dir):
-            os.mkdir(dir)
+        logging.info('Writing in directory '+str(self.folder+'/'+dir))
+        from ase.geometry import wrap_positions as wrapp
+        if os.path.isfile(dir+'/'+'trajectory'+ extensions[format]): #TODO: This should create a new name
+            print('Trajectory already exists, please move or delete it')
+            exit()
         for i in range(n_unit_cell_atoms):
             for alpha in range(3):
                 for move in (-1, 1):
                     shift = np.zeros((n_replicated_atoms, 3))
                     shift[i, alpha] += move * delta_shift
                     coords = replicated_atoms.positions + shift
-                    copied_atoms.set_positions(coords)
+                    copied_atoms.set_positions(np.matmul(icell, coords.T).T)
 
                     if trajectory:
                         ase.io.write(dir + '/' + 'trajectory' + extensions[format],
                                      images=copied_atoms,
                                      format='extxyz',
-                                     columns=['numbers', 'positions', 'ids'],
+                                     columns=['symbols', 'positions', 'ids'],
                                      append=True)
                     else:
                         filename = str(i).zfill(mag) + '_' + alpha_names[alpha] + move_names[move]
@@ -458,5 +465,5 @@ class SecondOrder(ForceConstant):
         logging.info('Second order displacements stored')
         logging.info('Lammps "region prism" arguments:')
         logging.info('coordinate hi - x: %.5f, y: %.5f, z: %.5f' %
-                     (cell[0,0], cell[1,1], cell[2,2]))
-        logging.info('tilts:  xy: %.5f, xz: %.5f, yz: %.5f' % (cell[0, 1], cell[0, 2], cell[1, 2]))
+                     (rcell[0,0], rcell[1,1], rcell[2,2]))
+        logging.info('tilts:  xy: %.5f, xz: %.5f, yz: %.5f' % (rcell[0, 1], rcell[0, 2], rcell[1, 2]))

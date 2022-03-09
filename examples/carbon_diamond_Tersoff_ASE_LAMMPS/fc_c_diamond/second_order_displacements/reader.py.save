@@ -1,0 +1,19 @@
+
+
+class Internal_Atoms:
+    def __init__(self, **kwargs):
+        self.positions = kwargs.pop('positions', np.zeros((
+
+    def read_lammps_dump(fname):
+        with open(fname, 'r') as f:
+            dat = f.readlines()
+        for i, line in enumerate(dat):
+            if line.startswith('ITEM: NUMBER OF ATOMS'):
+                n_atoms = int(dat[i+1].strip())
+            elif line.startswith('ITEM: BOX BOUNDS'):
+                bounds = ' '.join(dat[i+1:i+4])
+                xlob, xhib, xy, ylob, yhib, xz,\
+                    zlo, zhi, yz = float(bounds.split())
+            elif line.startswith('ITEM: ATOMS'):
+                
+

@@ -1,0 +1,67 @@
+LAMMPS (24 Dec 2020)
+  using 12 OpenMP thread(s) per MPI task
+Created triclinic box = (0.0000000 0.0000000 0.0000000) to (1.0000000 1.0000000 1.0000000) with tilt (0.20000000 0.20000000 0.10000000)
+  1 by 1 by 1 MPI processor grid
+Scanning dump file ...
+Reading snapshot from dump file ...
+  triclinic box = (0.0000000 0.0000000 0.0000000) to (7.5637998 6.5504355 6.1758004) with tilt (3.7818799 3.7818799 2.1834652)
+  0 atoms before read
+  54 atoms in snapshot
+  0 atoms purged
+  0 atoms replaced
+  0 atoms trimmed
+  54 atoms added
+  54 atoms after read
+Reading tersoff potential file /home/nwlundgren/potentials/lammps/C.tersoff with DATE: 2007-10-25
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.5
+  ghost atom cutoff = 2.5
+  binsize = 1.25, bins = 13 7 5
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair tersoff, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 1
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 14.03 | 14.03 | 14.03 Mbytes
+Time Step PotEng TotEng Volume Density Fmax Fnorm 
+           0        1   -398.00777   -398.00777    305.98733    3.5195114 0.0064764278  0.010621862 
+       0.001        2   -398.00777   -398.00777    305.98733    3.5195114  0.006302193  0.010297302 
+       0.002        3   -398.00777   -398.00777    305.98733    3.5195114 0.0057902901 0.0093504423 
+       0.003        4   -398.00777   -398.00777    305.98733    3.5195114  0.004972403 0.0078631799 
+       0.004        5   -398.00777   -398.00777    305.98733    3.5195114 0.0038989841 0.0059830949 
+Loop time of 0.000916923 on 12 procs for 4 steps with 54 atoms
+
+Performance: 376.913 ns/day, 0.064 hours/ns, 4362.416 timesteps/s
+57.3% CPU use with 1 MPI tasks x 12 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00041799 | 0.00041799 | 0.00041799 |   0.0 | 45.59
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 6.22e-06   | 6.22e-06   | 6.22e-06   |   0.0 |  0.68
+Output  | 0.00048547 | 0.00048547 | 0.00048547 |   0.0 | 52.95
+Modify  | 2.8e-06    | 2.8e-06    | 2.8e-06    |   0.0 |  0.31
+Other   |            | 4.45e-06   |            |       |  0.49
+
+Nlocal:        54.0000 ave          54 max          54 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:        287.000 ave         287 max         287 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         0.00000 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:      216.000 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 216
+Ave neighs/atom = 4.0000000
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:00

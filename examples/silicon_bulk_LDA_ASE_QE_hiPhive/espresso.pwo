@@ -1,0 +1,273 @@
+
+     Program PWSCF v.6.4.1 starts on  7Sep2021 at 19:41:12 
+
+     This program is part of the open-source Quantum ESPRESSO suite
+     for quantum simulation of materials; please cite
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 21 395502 (2009);
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 29 465901 (2017);
+          URL http://www.quantum-espresso.org", 
+     in publications or presentations arising from this work. More details at
+     http://www.quantum-espresso.org/quote
+
+     Parallel version (MPI), running on     1 processors
+
+     MPI processes distributed on     1 nodes
+     Reading input from espresso.pwi
+Warning: card &IONS ignored
+Warning: card / ignored
+Warning: card &CELL ignored
+Warning: card / ignored
+
+     Current dimensions of program PWSCF are:
+     Max number of different atomic species (ntypx) = 10
+     Max number of k-points (npk) =  40000
+     Max angular momentum in pseudopotentials (lmaxx) =  3
+               file Si.pz-n-kjpaw_psl.0.1.UPF: wavefunction(s)  3S renormalized
+
+     gamma-point specific algorithms are used
+
+     Subspace diagonalization in iterative solution of the eigenvalue problem:
+     a serial algorithm will be used
+
+
+     G-vector sticks info
+     --------------------
+     sticks:   dense  smooth     PW     G-vecs:    dense   smooth      PW
+     Sum        2083    2083    517                62871    62871    7823
+
+
+
+     bravais-lattice index     =            0
+     lattice parameter (alat)  =      21.7713  a.u.
+     unit-cell volume          =    7296.9234 (a.u.)^3
+     number of atoms/cell      =           54
+     number of atomic types    =            1
+     number of electrons       =       216.00
+     number of Kohn-Sham states=          108
+     kinetic-energy cutoff     =      16.0000  Ry
+     charge density cutoff     =      64.0000  Ry
+     convergence threshold     =      1.0E-10
+     mixing beta               =       0.5000
+     number of iterations used =            8  plain     mixing
+     Exchange-correlation      = SLA PZ NOGX NOGC ( 1  1  0  0 0 0)
+
+     celldm(1)=  21.771328  celldm(2)=   0.000000  celldm(3)=   0.000000
+     celldm(4)=   0.000000  celldm(5)=   0.000000  celldm(6)=   0.000000
+
+     crystal axes: (cart. coord. in units of alat)
+               a(1) = (   0.000000   0.707107   0.707107 )  
+               a(2) = (   0.707107   0.000000   0.707107 )  
+               a(3) = (   0.707107   0.707107   0.000000 )  
+
+     reciprocal axes: (cart. coord. in units 2 pi/alat)
+               b(1) = ( -0.707107  0.707107  0.707107 )  
+               b(2) = (  0.707107 -0.707107  0.707107 )  
+               b(3) = (  0.707107  0.707107 -0.707107 )  
+
+
+     PseudoPot. # 1 for Si read from file:
+     potentials/Si.pz-n-kjpaw_psl.0.1.UPF
+     MD5 check sum: 0f64179521154464f50d54a56d9f4e6d
+     Pseudo is Projector augmented-wave + core cor, Zval =  4.0
+     Generated using "atomic" code by A. Dal Corso v.5.0.2 svn rev. 9415
+     Shape of augmentation charge: PSQ
+     Using radial grid of 1141 points,  4 beta functions with: 
+                l(1) =   0
+                l(2) =   0
+                l(3) =   1
+                l(4) =   1
+     Q(r) pseudized with 0 coefficients 
+
+
+     atomic species   valence    mass     pseudopotential
+        Si             4.00    28.08500     Si( 1.00)
+
+     No symmetry found
+
+
+
+   Cartesian axes
+
+     site n.     atom                  positions (alat units)
+         1           Si  tau(   1) = (  -0.0014612   0.0032604  -0.0006097  )
+         2           Si  tau(   2) = (   0.1143294   0.1209888   0.1214067  )
+         3           Si  tau(   3) = (   0.0001596   0.2297194   0.2347112  )
+         4           Si  tau(   4) = (   0.1099365   0.3563240   0.3496515  )
+         5           Si  tau(   5) = (  -0.0107356   0.4761834   0.4730223  )
+         6           Si  tau(   6) = (   0.1199790   0.5912049   0.5870554  )
+         7           Si  tau(   7) = (   0.2289211  -0.0002252   0.2343018  )
+         8           Si  tau(   8) = (   0.3527937   0.1195586   0.3459037  )
+         9           Si  tau(   9) = (   0.2399935   0.2372373   0.4679113  )
+        10           Si  tau(  10) = (   0.3524412   0.3574603   0.5878670  )
+        11           Si  tau(  11) = (   0.2335256   0.4645151   0.7039667  )
+        12           Si  tau(  12) = (   0.3589890   0.5954874   0.8216489  )
+        13           Si  tau(  13) = (   0.4644426  -0.0016615   0.4743679  )
+        14           Si  tau(  14) = (   0.5930807   0.1113391   0.5936034  )
+        15           Si  tau(  15) = (   0.4624415   0.2404426   0.7002110  )
+        16           Si  tau(  16) = (   0.5845242   0.3519835   0.8291269  )
+        17           Si  tau(  17) = (   0.4618841   0.4680436   0.9435684  )
+        18           Si  tau(  18) = (   0.5910830   0.5962362   1.0550778  )
+        19           Si  tau(  19) = (   0.2277515   0.2394437   0.0030787  )
+        20           Si  tau(  20) = (   0.3527022   0.3575810   0.1146043  )
+        21           Si  tau(  21) = (   0.2372407   0.4753856   0.2323479  )
+        22           Si  tau(  22) = (   0.3526663   0.5929292   0.3544617  )
+        23           Si  tau(  23) = (   0.2368107   0.7047885   0.4721411  )
+        24           Si  tau(  24) = (   0.3577250   0.8172363   0.5826906  )
+        25           Si  tau(  25) = (   0.4757161   0.2385770   0.2314026  )
+        26           Si  tau(  26) = (   0.5945557   0.3491188   0.3586657  )
+        27           Si  tau(  27) = (   0.4710071   0.4693044   0.4712239  )
+        28           Si  tau(  28) = (   0.5855353   0.5827126   0.5843532  )
+        29           Si  tau(  29) = (   0.4734544   0.7050692   0.7111722  )
+        30           Si  tau(  30) = (   0.5904408   0.8239062   0.8198149  )
+        31           Si  tau(  31) = (   0.7133188   0.2307865   0.4700653  )
+        32           Si  tau(  32) = (   0.8266661   0.3478179   0.5935650  )
+        33           Si  tau(  33) = (   0.7027710   0.4751388   0.7077792  )
+        34           Si  tau(  34) = (   0.8347864   0.5812951   0.8392374  )
+        35           Si  tau(  35) = (   0.7069555   0.7032299   0.9473409  )
+        36           Si  tau(  36) = (   0.8250656   0.8204486   1.0622077  )
+        37           Si  tau(  37) = (   0.4753448   0.4779374  -0.0012662  )
+        38           Si  tau(  38) = (   0.5921793   0.5884843   0.1279140  )
+        39           Si  tau(  39) = (   0.4816228   0.7090587   0.2384141  )
+        40           Si  tau(  40) = (   0.5944937   0.8165897   0.3465755  )
+        41           Si  tau(  41) = (   0.4740276   0.9455150   0.4699442  )
+        42           Si  tau(  42) = (   0.5855690   1.0610698   0.5811815  )
+        43           Si  tau(  43) = (   0.7044379   0.4670322   0.2387283  )
+        44           Si  tau(  44) = (   0.8234619   0.5951663   0.3561986  )
+        45           Si  tau(  45) = (   0.7087989   0.7043680   0.4749151  )
+        46           Si  tau(  46) = (   0.8249156   0.8212437   0.5951654  )
+        47           Si  tau(  47) = (   0.6986594   0.9401530   0.7068597  )
+        48           Si  tau(  48) = (   0.8274198   1.0625399   0.8270941  )
+        49           Si  tau(  49) = (   0.9463079   0.4707178   0.4691569  )
+        50           Si  tau(  50) = (   1.0592850   0.5929073   0.5895068  )
+        51           Si  tau(  51) = (   0.9450945   0.7126939   0.7061487  )
+        52           Si  tau(  52) = (   1.0606281   0.8194777   0.8343924  )
+        53           Si  tau(  53) = (   0.9441505   0.9447438   0.9466605  )
+        54           Si  tau(  54) = (   1.0579845   1.0511966   1.0650513  )
+
+     number of k points=     1
+                       cart. coord. in units 2pi/alat
+        k(    1) = (   0.0000000   0.0000000   0.0000000), wk =   2.0000000
+
+     Dense  grid:    31436 G-vectors     FFT dimensions: (  60,  60,  60)
+
+     Estimated max dynamical RAM per process >     158.69 MB
+
+     Check: negative core charge=   -0.000064
+
+     Initial potential from superposition of free atoms
+
+     starting charge  215.97294, renormalised to  216.00000
+     Starting wfcs are  216 randomized atomic wfcs
+     Checking if some PAW data can be deallocated... 
+
+     total cpu time spent up to now is        1.2 secs
+
+     Self-consistent Calculation
+
+     iteration #  1     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  1.00E-02,  avg # of iterations =  2.0
+
+     Threshold (ethr) on eigenvalues was too large:
+     Diagonalizing with lowered threshold
+
+     Davidson diagonalization with overlap
+     ethr =  9.55E-04,  avg # of iterations =  1.0
+
+     total cpu time spent up to now is        2.9 secs
+
+     total energy              =   -2409.19436189 Ry
+     Harris-Foulkes estimate   =   -2409.83252034 Ry
+     estimated scf accuracy    <       2.06761173 Ry
+
+     iteration #  2     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  9.57E-04,  avg # of iterations =  1.0
+
+     total cpu time spent up to now is        3.7 secs
+
+     total energy              =   -2409.16186325 Ry
+     Harris-Foulkes estimate   =   -2409.26766664 Ry
+     estimated scf accuracy    <       0.32665409 Ry
+
+     iteration #  3     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  1.51E-04,  avg # of iterations =  2.0
+
+     total cpu time spent up to now is        4.6 secs
+
+     total energy              =   -2409.18692106 Ry
+     Harris-Foulkes estimate   =   -2409.19261823 Ry
+     estimated scf accuracy    <       0.01362322 Ry
+
+     iteration #  4     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  6.31E-06,  avg # of iterations =  7.0
+
+     total cpu time spent up to now is        5.9 secs
+
+     total energy              =   -2409.18995044 Ry
+     Harris-Foulkes estimate   =   -2409.19460940 Ry
+     estimated scf accuracy    <       0.00976636 Ry
+
+     iteration #  5     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  4.52E-06,  avg # of iterations =  5.0
+
+     total cpu time spent up to now is        7.0 secs
+
+     total energy              =   -2409.19180587 Ry
+     Harris-Foulkes estimate   =   -2409.19338855 Ry
+     estimated scf accuracy    <       0.00417657 Ry
+
+     iteration #  6     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  1.93E-06,  avg # of iterations =  3.0
+
+     total cpu time spent up to now is        8.0 secs
+
+     total energy              =   -2409.19258407 Ry
+     Harris-Foulkes estimate   =   -2409.19270866 Ry
+     estimated scf accuracy    <       0.00030681 Ry
+
+     iteration #  7     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  1.42E-07,  avg # of iterations =  3.0
+
+     total cpu time spent up to now is        9.1 secs
+
+     total energy              =   -2409.19265120 Ry
+     Harris-Foulkes estimate   =   -2409.19267122 Ry
+     estimated scf accuracy    <       0.00005039 Ry
+
+     iteration #  8     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  2.33E-08,  avg # of iterations =  3.0
+
+     total cpu time spent up to now is       10.2 secs
+
+     total energy              =   -2409.19266009 Ry
+     Harris-Foulkes estimate   =   -2409.19266694 Ry
+     estimated scf accuracy    <       0.00001662 Ry
+
+     iteration #  9     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  7.69E-09,  avg # of iterations =  4.0
+
+     total cpu time spent up to now is       11.2 secs
+
+     total energy              =   -2409.19266385 Ry
+     Harris-Foulkes estimate   =   -2409.19266403 Ry
+     estimated scf accuracy    <       0.00000091 Ry
+
+     iteration # 10     ecut=    16.00 Ry     beta= 0.50
+     Davidson diagonalization with overlap
+     ethr =  4.19E-10,  avg # of iterations =  7.0
+
+     total cpu time spent up to now is       12.5 secs
+
+     total energy              =   -2409.19266393 Ry
+     Harris-Foulkes estimate   =   -2409.19266416 Ry
+     estimated scf accuracy    <       0.00000067 Ry
+
+     iteration # 11     ecut=    16.00 Ry     beta= 0.50

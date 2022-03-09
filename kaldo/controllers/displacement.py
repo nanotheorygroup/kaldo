@@ -32,7 +32,8 @@ def calculate_gradient(x, input_atoms, alpha, move, save_progress):
         ase.io.write('failed.xyz', images=input_atoms, format='xyz')
         exit(1)
     if save_progress:
-        ase.io.write('test')
+        atoms.set_forces(gr*-1)
+        atoms.write('test.xyz', columns=['type', 'positions', 'forces'])
     grad = np.reshape(gr, gr.size)
     input_atoms.positions = atoms.positions
     return grad
@@ -53,7 +54,8 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
             second_per_atom[alpha, :] += move * calculate_gradient(replicated_atoms.positions + shift,
                                                                    replicated_atoms,
                                                                    alpha,
-                                                                   move)
+                                                                   move,
+                                                                   save_progress=True)
     return second_per_atom
 
 
@@ -72,7 +74,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, progress=None,
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
     logging.info('Requires force evaluations on %i frames'%(int(3*2*n_atoms)))
     second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
-    if progress != None:
+    if progress != None and progress !=0:
         folder = progress[0]
         atom_index = progress[1]
         for i in range(atom_index):

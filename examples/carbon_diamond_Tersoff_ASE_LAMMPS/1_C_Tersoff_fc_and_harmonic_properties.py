@@ -6,7 +6,7 @@
 # Import necessary packages
 
 from ase.build import bulk
-from ase.calculators.lammpslib import LAMMPSlib
+from ase.calculators.lammpslib import LAMMPSlib, convert_cell
 from kaldo.conductivity import Conductivity
 from kaldo.controllers import plotter
 from kaldo.forceconstants import ForceConstants
@@ -17,11 +17,65 @@ import numpy as np
 import os
 
 plt.style.use('seaborn-poster')
+def write_lammps_dump(atoms, step, fname, write_type='a+'):
+    # Input information
+    n_atoms = len(atoms)
+    cell = atoms.cell
+    positions = atoms.positions
+    symbols = np.array(atoms.get_chemical_symbols())
+    unique = np.unique(symbols)
+    for i, type in enumerate(unique):
+        indices = np.where(symbols==type)
+        symbols[indices] = i+1
+
+    # Rotate
+    cell, trans = convert_cell(cell)
+    positions = np.matmul(trans, positions.T).T
+    xx, xy, xz, _, yy, yz, _, _, zz = cell.flatten()
+
+    # Box Bounds (lammps formula: https://docs.lammps.org/Howto_triclinic.html)
+    xlob = 0 + np.min([0, xy, xz, xy+xz])
+    xhib = xx + np.max([0, xy, xz, xy+xz])
+    ylob = 0 + np.min([0, yz])
+    yhib = yy + np.max([0, yz])
+
+    # Stringify info
+    box_bounds = ' xy xz yz '
+    box_bounds += '\n%16.16e %16.16e %16.16e' % (xlob, xhib, xy)
+    box_bounds += '\n%16.16e %16.16e %16.16e' % (ylob, yhib, xz)
+    box_bounds += '\n%16.16e %16.16e %16.16e' % (0., zz, yz)
+    print(box_bounds)
+    # Atoms
+    ids = (np.arange(n_atoms) + 1)
+    atoms_stack = ' id type x y z\n'
+    for i in range(n_atoms):
+        atoms_stack += ' %i %s %.5f %.5f %.5f\n'\
+                    % (ids[i], symbols[i], *positions[i, :])
+
+    items_dic = {
+        'TIMESTEP': '\n%i' % step,
+        'NUMBER OF ATOMS': '\n%i' % n_atoms,
+        'BOX BOUNDS': box_bounds,
+        'ATOMS': atoms_stack
+        }
+
+    items_list = ['TIMESTEP', 'NUMBER OF ATOMS', 'BOX BOUNDS', 'ATOMS']
+    with open(fname, write_type) as f:
+        for ITEM in items_list:
+            f.write('ITEM: %s %s \n' % (ITEM, items_dic[ITEM]))
+
+
+
+
+
 
 # --  Set up the coordinates of the system and the force constant calculations -- #
 
 # Define the system according to ASE style. 'a': lattice parameter (Angstrom)
-atoms = bulk('C', 'diamond', a=3.566)
+atoms = bulk('C', 'diamond', a=3.5656)
+write_lammps_dump(atoms.repeat(3), 1, 'dumper')
+atoms.repeat(3).write('data.out', format='lammps-data')
+exit()
 
 # Replicate the unit cell 'nrep'=3 times
 nrep = 3
@@ -41,7 +95,25 @@ lammps_inputs = {'lmpcmds': [
 
 # Compute 2nd and 3rd IFCs with the defined calculator
 # delta_shift: finite difference displacement, in angstrom
-forceconstants.second.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
+forceconstants.second.store_displacements(delta_shift=1e-4, format='extxyz')
+exit()
+#forceconstants.second.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
+k_points = 5  # 'k_points'=5 k points in each direction
+phonons_config = {'kpts': [k_points, k_points, k_points],
+                  'is_classic': False,
+                  'temperature': 300,  # 'temperature'=300K
+                  'folder': 'ALD_c_diamond',
+                  'storage': 'formatted'}
+
+# Set up phonon object by passing in configuration details and the forceconstants object computed above
+phonons = Phonons(forceconstants=forceconstants, **phonons_config)
+freq = phonons.frequency
+print('Negative: {}/{}'.format(np.sum(freq<0), freq.size))
+print('Worst: {}'.format(np.min(freq)))
+exit()
+
+
+
 forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 
 # -- Set up the phonon object and the harmonic property calculations -- #
@@ -56,15 +128,6 @@ forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
 
 
 # Define the k-point mesh using 'kpts' parameter
-k_points = 5  # 'k_points'=5 k points in each direction
-phonons_config = {'kpts': [k_points, k_points, k_points],
-                  'is_classic': False,
-                  'temperature': 300,  # 'temperature'=300K
-                  'folder': 'ALD_c_diamond',
-                  'storage': 'formatted'}
-
-# Set up phonon object by passing in configuration details and the forceconstants object computed above
-phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
 # Visualize phonon dispersion, group velocity and density of states with
 # the build-in plotter.

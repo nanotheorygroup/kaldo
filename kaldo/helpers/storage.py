@@ -55,7 +55,7 @@ def load(property, folder, instance, format='formatted'):
             loaded = []
             for alpha in range(3):
                 loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
-            loaded = np.array(loaded).transpose(1, 2, 0)
+            loaded = np.array(loaded).transpose(1, 0)
         elif property == 'conductivity':
             loaded = []
             for alpha in range(3):

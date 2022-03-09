@@ -1,0 +1,14 @@
+graphene.lmp (written by ASE) 
+
+2 	 atoms 
+1  atom types
+0.0                     2.5  xlo xhi
+0.0      2.1650635094610968  ylo yhi
+0.0                      40  zlo zhi
+    -1.2499999999999996                       0                       0  xy xz yz
+
+
+Atoms 
+
+     1   1                       0                       0                       0
+     2   1  2.2204460492503131e-16      1.4433756729740645                       0

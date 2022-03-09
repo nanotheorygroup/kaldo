@@ -1,0 +1,34 @@
+units       metal
+processors  * * *
+boundary    p p p
+atom_modify map yes
+neighbor    0.4 bin
+
+#region      simbox prism 0. 7.565 0. 6.5512 0. 6.1765 3.7824 3.7824 2.1838
+#create_box  1 simbox 
+#create_atoms 1 random 54 7793 simbox
+
+region      simbox prism 0 1 0 1 0 1 0.2 0.2 0.1
+#region      simbox block 0 1 0 1 0 1
+create_box  1 simbox 
+##create_atoms 1 random 10 7793 simbox
+read_dump   1.out 1 x y z add yes box yes
+#read_data data.out
+
+mass        1 12.0100
+pair_style  tersoff
+pair_coeff  * * /home/nwlundgren/potentials/lammps/C.tersoff C
+dump        myforces all custom 1 2.out id type x y z fx fy fz
+thermo_style custom time step pe etotal vol density fmax fnorm
+thermo      1
+fix nve all nve
+min_style   cg
+minimize    0 1e-13 200 400
+
+#22-01-11 10:16:55,216 - kaldo - INFO - coordinate hi - x: 7.56463, y: 6.55116, z: 6.17649
+#2022-01-11 10:16:55,216 - kaldo - INFO - tilts:  xy: 3.78231, xz: 3.78231, yz: 2.18372
+
+#rerun      1.xyz every 1 dump type x y z box no replace yes scaled no format xyz
+#rerun      1.out every 1 dump x y z box yes
+#fix nve all nve
+#run 5

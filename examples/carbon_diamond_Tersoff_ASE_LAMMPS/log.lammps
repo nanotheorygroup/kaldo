@@ -1,0 +1,83 @@
+LAMMPS (24 Dec 2020)
+  using 12 OpenMP thread(s) per MPI task
+units       metal
+processors  * * *
+boundary    p p p
+atom_style  atomic
+atom_modify map yes
+neighbor    0.4 bin
+
+region      simbox prism 0. 7.565 0. 6.5512 0. 6.1765 3.7824 3.7824 2.1838
+create_box  1 simbox
+Created triclinic box = (0.0000000 0.0000000 0.0000000) to (7.5650000 6.5512000 6.1765000) with tilt (3.7824000 3.7824000 2.1838000)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 random 54 7793 simbox
+Created 54 atoms
+  create_atoms CPU = 0.001 seconds
+mass        1 12.0100
+pair_style  tersoff
+pair_coeff  * * /home/nwlundgren/potentials/lammps/C.tersoff C
+Reading tersoff potential file /home/nwlundgren/potentials/lammps/C.tersoff with DATE: 2007-10-25
+dump        myforces all custom 1 fc_c_diamond/second_order_displacements/trajectory.out id type x y z fx fy fz
+thermo      1
+
+#22-01-11 10:16:55,216 - kaldo - INFO - coordinate hi - x: 7.56463, y: 6.55116, z: 6.17649
+#2022-01-11 10:16:55,216 - kaldo - INFO - tilts:  xy: 3.78231, xz: 3.78231, yz: 2.18372
+
+rerun       fc_c_diamond/second_order_displacements/trajectory.extxyz every 1 dump type x y z box no replace yes format xyz
+WARNING: No fixes defined, atoms won't move (src/verlet.cpp:54)
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.5
+  ghost atom cutoff = 2.5
+  binsize = 1.25, bins = 13 7 5
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair tersoff, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 13.92 | 13.92 | 13.92 Mbytes
+Step Temp E_pair E_mol TotEng Press 
+       0            0    261542.69            0    261542.69 7.836991e+08 
+       1            0    261542.99            0    261542.99 7.8369959e+08 
+       2            0    261542.76            0    261542.76 7.836992e+08 
+       3            0    261542.92            0    261542.92 7.8369949e+08 
+       4            0    261542.78            0    261542.78 7.8369924e+08 
+       5            0     261542.9            0     261542.9 7.8369945e+08 
+       6            0    261542.72            0    261542.72 7.8369907e+08 
+       7            0    261542.96            0    261542.96 7.8369962e+08 
+       8            0    261542.77            0    261542.77 7.8369919e+08 
+       9            0    261542.91            0    261542.91 7.836995e+08 
+      10            0    261542.79            0    261542.79 7.8369923e+08 
+      11            0    261542.89            0    261542.89 7.8369946e+08 
+Loop time of 0.108258 on 12 procs for 12 steps with 54 atoms
+
+Performance: 9.577 ns/day, 2.506 hours/ns, 110.847 timesteps/s
+100.0% CPU use with 1 MPI tasks x 12 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.1083     |            |       |100.00
+
+Nlocal:        54.0000 ave          54 max          54 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:        378.000 ave         378 max         378 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         0.00000 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:      2862.00 ave        2862 max        2862 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 2862
+Ave neighs/atom = 53.000000
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:00

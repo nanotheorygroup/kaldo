@@ -1,0 +1,24 @@
+# Calculate Diamond FC's
+# Initialization
+units		metal
+processors	* * *
+boundary	p p p
+neighbor	0.01 bin
+neigh_modify	once yes 
+atom_style	atomic
+atom_modify	map yes
+box		tilt large
+
+read_data	graphene.lmp
+pair_style	tersoff
+pair_coeff	* * /home/nwlundgren/potentials/lammps/C.tersoff C
+mass            1 12.0100
+
+# Please be consistent with supercell structures generated 
+# from 0_generate_LAMMPS_input_and_supercell_structures.py 
+replicate	25 12 1
+region		unit block 0 1.238 0 1.428  0 3.37
+group		unit region unit
+
+print 'calculating dynamical matrix ########'
+dynamical_matrix	unit eskm 0.001 file Dyn.form binary no fold yes

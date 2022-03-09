@@ -1,0 +1,20 @@
+units       metal
+processors  * * *
+boundary    p p p
+atom_style  atomic
+atom_modify map yes
+neighbor    0.4 bin
+
+region      simbox prism 0. 7.565 0. 6.5512 0. 6.1765 3.7824 3.7824 2.1838
+create_box  1 simbox 
+create_atoms 1 random 54 7793 simbox
+mass        1 12.0100
+pair_style  tersoff
+pair_coeff  * * /home/nwlundgren/potentials/lammps/C.tersoff C
+dump        myforces all custom 1 fc_c_diamond/second_order_displacements/trajectory.out id type x y z fx fy fz
+thermo      1
+
+#22-01-11 10:16:55,216 - kaldo - INFO - coordinate hi - x: 7.56463, y: 6.55116, z: 6.17649
+#2022-01-11 10:16:55,216 - kaldo - INFO - tilts:  xy: 3.78231, xz: 3.78231, yz: 2.18372
+
+rerun       fc_c_diamond/second_order_displacements/trajectory.extxyz every 1 dump type x y z box no replace yes format xyz
