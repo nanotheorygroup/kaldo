@@ -262,10 +262,19 @@ class HarmonicWithQ(Observable):
                 else:
                     dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
             else:
-                dyn_s = contract('ialjb,l->iajb',
-                                 tf.cast(dynmat[0], tf.complex128),
-                                 tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten()),
-                                 backend='tensorflow')
+                shape = (n_unit_cell, 3, n_unit_cell, 3)
+                type = np.complex
+                dyn_s = np.zeros(shape, dtype=type)
+
+                for l in range(n_replicas):
+                    distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
+                        self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell ,3)[np.newaxis, l, :, :])
+
+                    for id_i in range(n_unit_cell):
+                        for id_j in range(n_unit_cell):
+                            chi_value = chi(q_point, distance_to_wrap[id_i, id_j], cell_inv)
+                            dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, l, id_j, :] * chi_value
+
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
         return dyn_s
 
