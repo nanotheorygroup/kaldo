@@ -63,7 +63,7 @@ def read_second_order_matrix(folder, supercell):
             j_ix, j_iy, j_iz, j_iatom = split_index(j, supercell[0], supercell[1], supercell[2])
             for alpha in range(3):
                 if (i_ix == 1) and (i_iy == 1) and (i_iz == 1):
-                    second_order[i_iatom - 1, alpha, j_iz - 1, j_iy - 1, j_ix - 1, j_iatom - 1, :] = \
+                    second_order[i_iatom - 1, alpha, j_ix - 1, j_iy - 1, j_iz - 1, j_iatom - 1, :] = \
                         np.fromstring(file.readline(), dtype=np.float, sep=' ')
                 else:
                     file.readline()
