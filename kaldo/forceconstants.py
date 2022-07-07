@@ -89,7 +89,7 @@ class ForceConstants:
         supercell : (int, int, int), optional
             Number of unit cells in each cartesian direction replicated to form the input structure.
             Default is (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
+        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe','shengbte-d3q', 'hiphive'
             Format of force constant information being loaded into ForceConstants object.
             Default is 'numpy'
         third_energy_threshold : float, optional

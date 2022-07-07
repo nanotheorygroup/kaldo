@@ -202,6 +202,55 @@ def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
     return third_order, np.array(sparse_data), np.array(second_cell_positions), np.array(third_cell_positions), np.array(atoms_coords)
 
 
+def read_third_d3q(filename,atoms,supercell,order='C'):
+    file = open('%s' % filename, 'r')
+    n_unit_atoms = atoms.positions.shape[0]
+    n_replicas = np.prod(supercell)
+    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
+    list_of_index = current_grid
+    third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+    ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
+    if (ibrav == 0):
+        file.readline()
+    for i in np.arange(ntype):
+        file.readline()
+    for i in np.arange(n_atoms):
+        file.readline()
+    polar = file.readline()
+    if ("T" in polar):
+        for i in np.arange(3):
+            file.readline()
+        for i in np.arange(n_atoms):
+            file.readline()
+            for j in np.arange(3):
+                file.readline()
+    test_supercell = [int(x) for x in file.readline().split()] #the third supercell can be different to the second one
+    if not (test_supercell[0]==supercell[0] and test_supercell[1]==supercell[1] and test_supercell[2]==supercell[2]):
+        print('third supercell not consistent with 3rd Forces file',test_supercell,supercell)
+    for i in range((3*n_unit_atoms)**3):
+        alpha,beta,gamma,atom_i,atom_j,atom_k=[int(x)-1 for x in file.readline().split()]
+        file.readline()
+        #print(alpha+1,beta+1,gamma+1,atom_i+1,atom_j+1,atom_k+1)
+        for j in range(n_replicas**2):
+            readline = file.readline().split()
+            second_cell_index=[int(x)  for x in readline[:3]]
+            third_cell_index=[int(x)  for x in readline[3:6]]
+            #print('index celle',second_cell_index,third_cell_index)
+            # create mask to find the index
+            second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
+            second_cell_id = np.argwhere(second_cell_id).flatten()
+            third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
+            third_cell_id = np.argwhere(third_cell_id).flatten()
+            #print('second  and third cell id',second_cell_id,third_cell_id)
+            third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = readline[6]
+    #print(third_order[0,0,:,0,0,:,0,0])
+    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
+                                       n_unit_atoms * 3))
+    return third_order
+
+
+
+
 def import_control_file(control_file):
     positions = []
     latt_vecs = []
