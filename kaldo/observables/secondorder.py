@@ -114,7 +114,7 @@ class SecondOrder(ForceConstant):
                                        value=_second_order,
                                        is_acoustic_sum=is_acoustic_sum,
                                        folder=folder)
-        elif format == 'shengbte' or format == 'shengbte-qe' or 'shengbte-d3q':
+        elif format == 'shengbte' or format == 'shengbte-qe' or format=='shengbte-d3q':
 
             config_file = folder + '/' + 'CONTROL'
             try:

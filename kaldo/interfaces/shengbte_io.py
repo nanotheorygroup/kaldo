@@ -242,7 +242,9 @@ def read_third_d3q(filename,atoms,supercell,order='C'):
             third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
             third_cell_id = np.argwhere(third_cell_id).flatten()
             #print('second  and third cell id',second_cell_id,third_cell_id)
-            third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = readline[6]
+            third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = float(readline[6]) * (Rydberg/ (
+                                Bohr ** 3))
+
     #print(third_order[0,0,:,0,0,:,0,0])
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
                                        n_unit_atoms * 3))
