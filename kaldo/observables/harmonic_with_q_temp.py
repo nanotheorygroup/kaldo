@@ -15,19 +15,19 @@ class HarmonicWithQTemp(HarmonicWithQ):
             self.hbar = self.hbar * 1e-6
 
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label='<temperature>/<statistics>/<q_point>')
     def population(self):
         population = self._calculate_population()
         return population
 
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label='<temperature>/<statistics>/<q_point>')
     def heat_capacity(self):
         heat_capacity = self._calculate_heat_capacity()
         return heat_capacity
 
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label='<temperature>/<statistics>/<q_point>')
     def heat_capacity_2d(self):
         heat_capacity_2d = self._calculate_2d_heat_capacity()
         return heat_capacity_2d
