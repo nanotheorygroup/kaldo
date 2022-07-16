@@ -308,6 +308,10 @@ class Conductivity:
                         sij_right = phonon._sij_y
                     if beta == 2:
                         sij_right = phonon._sij_z
+                    if not phonons._is_amorphous:
+                        sij_right=np.conjugate(sij_right)
+
+
                     diffusivity = calculate_diffusivity(omega[k_index], sij_left, sij_right,
                                                         diffusivity_bandwidth[k_index],
                                                         physical_mode[k_index],
