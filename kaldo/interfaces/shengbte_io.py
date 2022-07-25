@@ -227,10 +227,13 @@ def read_third_d3q(filename,atoms,supercell,order='C'):
     test_supercell = [int(x) for x in file.readline().split()] #the third supercell can be different to the second one
     if not (test_supercell[0]==supercell[0] and test_supercell[1]==supercell[1] and test_supercell[2]==supercell[2]):
         print('third supercell not consistent with 3rd Forces file',test_supercell,supercell)
+
+    error_notation = 0
     for i in range((3*n_unit_atoms)**3):
         alpha,beta,gamma,atom_i,atom_j,atom_k=[int(x)-1 for x in file.readline().split()]
         file.readline()
         #print(alpha+1,beta+1,gamma+1,atom_i+1,atom_j+1,atom_k+1)
+
         for j in range(n_replicas**2):
             readline = file.readline().split()
             second_cell_index=[int(x)  for x in readline[:3]]
@@ -242,8 +245,13 @@ def read_third_d3q(filename,atoms,supercell,order='C'):
             third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
             third_cell_id = np.argwhere(third_cell_id).flatten()
             #print('second  and third cell id',second_cell_id,third_cell_id)
-            third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = float(readline[6]) * (Rydberg/ (
-                                Bohr ** 3))
+            if str(str(readline[6])[-4])=='E':
+                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = float(readline[6]) \
+                                                                                                         * (Rydberg/ (Bohr ** 3))
+            else:
+                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] =0.0
+                error_notation+=1
+    logging.info('error with notation number <e-100, used default value=0.0. It happened {} times'.format(error_notation))
 
     #print(third_order[0,0,:,0,0,:,0,0])
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
