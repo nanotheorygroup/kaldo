@@ -16,6 +16,7 @@ jobs:
           name: Test
       - codecov/upload:
           file: ./coverage.xml
+    resource_class: medium
   docs-build:
     docker:
       - image: "jgoldfar/miniconda3-latex:full"
