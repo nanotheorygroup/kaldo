@@ -6,6 +6,7 @@ jobs:
   build-and-test:
     docker:
       - image: "tensorflow/tensorflow:latest"
+    resource_class: large
     steps:
       - checkout
       - python/load-cache
