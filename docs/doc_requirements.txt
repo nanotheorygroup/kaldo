@@ -1,3 +1,4 @@
+jinja2==3.0.3
 Sphinx==3.1.1
 sphinx_material==0.0.30
 sphinx-sitemap==0.3.1
