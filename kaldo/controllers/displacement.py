@@ -54,7 +54,6 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     """
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
-    replicated_atoms = replicated_atoms
     n_replicated_atoms = len(replicated_atoms.numbers)
     n_atoms = n_unit_cell_atoms
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
@@ -65,6 +64,8 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
         second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
+    asymmetry = np.sum(np.abs(second[0,:,:,0,:,:]-np.transpose(second[0,:,:,0,:,:],(2,3,0,1))))
+    logging.info('Symmetry of Dynamical Matrix ' + str(asymmetry))
     return second
 
 
