@@ -64,7 +64,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
         second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
-    asymmetry = np.sum(np.abs(second[0,:,:,0,:,:]-np.transpose(second[0,:,:,0,:,:],(2,3,0,1))))
+    asymmetry = np.sum(np.abs(second[0, :, :, 0, :, :] - np.transpose(second[0, :, :, 0, :, :], (2, 3, 0, 1))))
     logging.info('Symmetry of Dynamical Matrix ' + str(asymmetry))
     return second
 
