@@ -1,4 +1,4 @@
-# Publications developed or used `$\kappa$ ALDo`
+# Publications developed or used $\kappa$ALDo
 
 ## 2022 (5)
 
