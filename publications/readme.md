@@ -1,8 +1,8 @@
-# Publications developed or used `kALDo`
+# Publications developed or used `$\kappa$ALDo`
 
 ## 2022 (5)
 
-* S¯ren S.S¯rensen,Pawel P.Cielecki, Hicham Johra, Michal Bockowski, Esben Skovsen, Yuanzheng Yue, Morten M.Smedskjaer,
+* S√∏ren S.S√∏rensen,Pawel P.Cielecki, Hicham Johra, Michal Bockowski, Esben Skovsen, Yuanzheng Yue, Morten M.Smedskjaer,
 [Thermal conduction in a densified oxide glass: Insights from lattice dynamics](https://www.sciencedirect.com/science/article/pii/S235249282201011X),
 Mater. Today Commun. **32**,  104160 (2022).
 
@@ -10,16 +10,16 @@ Mater. Today Commun. **32**,  104160 (2022).
 [Barbalinardo et al. Reply](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.128.259602),
 Phys. Rev. Lett. **128**, 259602 (2022).
 
-* Daniel Bruns, Alireza Nojeh, A. Srikantha Phani, and Jˆrg Rottler, 
-[Comment on ìUltrahigh Convergent Thermal Conductivity of Carbon Nanotubes from Comprehensive Atomistic Modelingî](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.128.259601),
+* Daniel Bruns, Alireza Nojeh, A. Srikantha Phani, and J√∂rg Rottler, 
+[Comment on ‚ÄúUltrahigh Convergent Thermal Conductivity of Carbon Nanotubes from Comprehensive Atomistic Modeling‚Äù](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.128.259601),
 Phys. Rev. Lett. **128**, 259601 (2022).
 
-* Alexandros El Sachat, Peng Xiao, Davide Donadio, FrÈdÈric Bonell, Marianna Sledzinska, Alain Marty, CÈline Vergnaud, HervÈ Boukari, Matthieu Jamet, Guillermo Arregui, Zekun Chen, Francesc Alzina, Clivia M. Sotomayor Torres & Emigdio Chavez-Ange,
+* Alexandros El Sachat, Peng Xiao, Davide Donadio, Fr√©d√©ric Bonell, Marianna Sledzinska, Alain Marty, C√©line Vergnaud, Herv√© Boukari, Matthieu Jamet, Guillermo Arregui, Zekun Chen, Francesc Alzina, Clivia M. Sotomayor Torres & Emigdio Chavez-Ange,
 [Effect of crystallinity and thickness on thermal transport in layered PtSe2](https://www.nature.com/articles/s41699-022-00311-x), 
 NPJ 2D Mater. Appl. **6(1)**, 32,  (2022).
 
 * Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura ,  Sebastian Volz,
-[How coherence is governing diffuson heat transfer in amorphous solids] (https://www.nature.com/articles/s41524-022-00776-w), 
+[How coherence is governing diffuson heat transfer in amorphous solids](https://www.nature.com/articles/s41524-022-00776-w), 
 Npj Comput. Mater.  **8**, 96, (2022).
 
 ## 2021 (2)
