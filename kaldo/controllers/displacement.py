@@ -97,7 +97,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                     n_forces_skipped += 9
             if is_computing:
                 if is_verbose:
-                    logging.info('calculating forces on atoms: ' + str(iat) + ',' + str(jat) + ',' + str(np.linalg.norm(dxij))                          
+                    logging.info('calculating forces on atoms: ' + str(iat) + ',' + str(jat) + ',' + str(np.linalg.norm(dxij)))
                     print(j_small, replicated_atoms.positions[m], atoms.positions[j_small])
                 for icoord in range(3):
                     for jcoord in range(3):
