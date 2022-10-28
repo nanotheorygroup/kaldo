@@ -92,7 +92,8 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             is_computing = True
             m, j_small = np.unravel_index(jat, (n_replicas, n_atoms))
             if (distance_threshold is not None):
-                dxij = atoms.positions[iat] - (replicated_atoms.positions[m] + atoms.positions[j_small]) 
+                dxij = atoms.positions[iat] - (list_of_replicas(atoms, replicated_atoms)[m] + atoms.positions[j_small])
+                # dxij = atoms.positions[iat] - (replicated_atoms.positions[m] + atoms.positions[j_small]) 
                 if (np.linalg.norm(dxij) > distance_threshold):
                     is_computing = False
                     n_forces_skipped += 9
