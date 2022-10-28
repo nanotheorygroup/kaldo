@@ -86,6 +86,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
     n_forces_done = 0
     n_forces_skipped = 0
+    np.savetxt('replicatedpos.dat', replicated_atoms.positions)
     for iat in range(n_atoms):
         for jat in range(n_replicas * n_atoms):
             is_computing = True
