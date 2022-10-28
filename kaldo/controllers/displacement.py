@@ -88,7 +88,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_skipped = 0
     for iat in range(n_atoms):
         for jat in range(n_replicas * n_atoms):
-            print("calculate_third: Atom ", iat, " with ", jat)
             is_computing = True
             m, j_small = np.unravel_index(jat, (n_replicas, n_atoms))
             if (distance_threshold is not None):
@@ -98,7 +97,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                     n_forces_skipped += 9
             if is_computing:
                 if is_verbose:
-                    logging.info('calculating forces on atoms: ' + str(iat) + ',' + str(jat))
+                    logging.info('calculating forces on atoms: ' + str(iat) + ',' + str(jat) + ',' + np.linalg.norm(dxij))
                 for icoord in range(3):
                     for jcoord in range(3):
                         value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
