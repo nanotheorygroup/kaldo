@@ -14,6 +14,12 @@ if not os.path.exists(fc_folder):
 # Read in the 10,0 CNT unit cell 
 atoms = read('unit.xyz')
 
+# Sanity check for right hand convention
+if np.linalg.det(atoms.cell) < 0:
+    print('Non right-handed cell convetion detected. Execute cell index swapping !')
+    right_handed_convetion_cell = atoms.cell.get_bravais_lattice().tocell()
+    atoms.cell = right_handed_convetion_cell
+
 # Replicate the unit cell 'nrep'=3 times
 nrep = 3
 supercell = np.array([1, 1, nrep])
