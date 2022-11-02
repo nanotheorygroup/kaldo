@@ -1,3 +1,20 @@
+protobuf==3.20.2
+numpy==1.21.6
+opt-einsum==3.3.0
+scipy==1.4.1
+ase==3.19.1
+sparse==0.11.2
+spglib==2.0.1
+seekpath
+tensorflow==2.9.0
+scikit-learn==1.0.2
+h5py==3.7.0
+pandas==1.3.5
+codecov==2.1.12
+pytest-cov==4.0.0
+pytest==7.2.0
+grpcio==1.50.0
+psutil==5.9.3
 jinja2==3.0.3
 Sphinx==3.1.1
 sphinx_material==0.0.30
@@ -6,3 +23,4 @@ sphinxcontrib-jsmath==1.0.1
 recommonmark==0.6.0
 nbsphinx==0.8
 numpydoc==1.1.0
+
