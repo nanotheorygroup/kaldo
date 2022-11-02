@@ -64,7 +64,7 @@ jobs:
             git config user.name "ci-build"
       - add_ssh_keys:
           fingerprints:
-            - "52:d6:c7:57:4f:e2:8c:4d:3d:5c:eb:63:d8:2c:78:9b"
+            - "01:b7:fe:ba:37:0c:16:c9:28:5a:31:98:3b:dc:b5:4b"
       - run:
           name: Deploy docs to gh-pages branch
           command: gh-pages --dotfiles --message "[skip ci] Updates" --dist docs/_build/html
