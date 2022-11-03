@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -384,18 +384,14 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-crystal-presentation--page-root" class="md-nav__link">Silicon diamond tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Remote-fetch-source-code-from-Github" class="md-nav__link">Remote fetch source code from Github</a>
+        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
+        </li>
+        <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
         </li>
         <li class="md-nav__item"><a href="#Remote-fetch-supplyment-files" class="md-nav__link">Remote fetch supplyment files</a>
         </li>
-        <li class="md-nav__item"><a href="#Remote-fetch-precomplied-LAMMPS" class="md-nav__link">Remote fetch precomplied LAMMPS</a>
-        </li>
-        <li class="md-nav__item"><a href="#Integrate-LAMMPS-Into-Python" class="md-nav__link">Integrate LAMMPS Into Python</a>
-        </li>
         <li class="md-nav__item"><a href="#Thermal-transport-simulation-for-silicon-bulk" class="md-nav__link">Thermal transport simulation for silicon-bulk</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Compute-2^{nd}-and-3^{rd}-order-IFCS." class="md-nav__link">Compute <img alt="2^{nd}" class="math" src="../_images/math/9e9c0443bb8d613447030ed93ef81bc841548d02.png"/> and <img alt="3^{rd}" class="math" src="../_images/math/1d4ce1ab7cc397d41d73397829697f1d85989b06.png"/> order IFCS.</a>
-        </li>
         <li class="md-nav__item"><a href="#Create-phonons-object" class="md-nav__link">Create phonons object</a>
         </li>
         <li class="md-nav__item"><a href="#Calculate-conductivities-for-infinite-size-sample" class="md-nav__link">Calculate conductivities for infinite-size sample</a>
@@ -441,18 +437,14 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-crystal-presentation--page-root" class="md-nav__link">Silicon diamond tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Remote-fetch-source-code-from-Github" class="md-nav__link">Remote fetch source code from Github</a>
+        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
+        </li>
+        <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
         </li>
         <li class="md-nav__item"><a href="#Remote-fetch-supplyment-files" class="md-nav__link">Remote fetch supplyment files</a>
         </li>
-        <li class="md-nav__item"><a href="#Remote-fetch-precomplied-LAMMPS" class="md-nav__link">Remote fetch precomplied LAMMPS</a>
-        </li>
-        <li class="md-nav__item"><a href="#Integrate-LAMMPS-Into-Python" class="md-nav__link">Integrate LAMMPS Into Python</a>
-        </li>
         <li class="md-nav__item"><a href="#Thermal-transport-simulation-for-silicon-bulk" class="md-nav__link">Thermal transport simulation for silicon-bulk</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Compute-2^{nd}-and-3^{rd}-order-IFCS." class="md-nav__link">Compute <img alt="2^{nd}" class="math" src="../_images/math/9e9c0443bb8d613447030ed93ef81bc841548d02.png"/> and <img alt="3^{rd}" class="math" src="../_images/math/1d4ce1ab7cc397d41d73397829697f1d85989b06.png"/> order IFCS.</a>
-        </li>
         <li class="md-nav__item"><a href="#Create-phonons-object" class="md-nav__link">Create phonons object</a>
         </li>
         <li class="md-nav__item"><a href="#Calculate-conductivities-for-infinite-size-sample" class="md-nav__link">Calculate conductivities for infinite-size sample</a>
@@ -734,13 +726,58 @@ div.rendered_html tbody tr:hover {
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
 <section id="Silicon-diamond-tutorial">
 <h1 id="docsource-crystal-presentation--page-root">Silicon diamond tutorial<a class="headerlink" href="#docsource-crystal-presentation--page-root" title="Permalink to this headline">¶</a></h1>
-<section id="Remote-fetch-source-code-from-Github">
-<h2 id="Remote-fetch-source-code-from-Github">Remote fetch source code from Github<a class="headerlink" href="#Remote-fetch-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
+<section id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">
+<h2 id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">Complie <a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a> as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)<a class="headerlink" href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span># Sudo apt-get softwares
+! apt-get update
+! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.7-venv
+! echo "Sudo apt-get finishes!"
+
+# Upgrade python packages
+! pip install --upgrade pip
+! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython sklearn
+! echo "Python packages installation finishes!"
+
+# Build lammps with cmake
+%cd /content
+!rm -rf lammps
+! git clone https://github.com/lammps/lammps.git lammps
+%cd /content/lammps
+! rm -rf build
+! mkdir build
+%cd build
+! cmake ../cmake -DLAMMPS_EXCEPTIONS=yes \
+               -DBUILD_SHARED_LIBS=yes \
+               -DMLIAP_ENABLE_PYTHON=yes \
+               -DPKG_PYTHON=yes \
+               -DPKG_MANYBODY=yes \
+               -DPKG_KSPACE=yes \
+               -DPKG_PHONON=yes \
+               -DPYTHON_EXECUTABLE:FILEPATH=`which python`
+
+# Complie lammps as share-libary of python
+! make -j 2
+! make install-python
+! echo "LAMMPS compilation done!"
+
+# Redirect back to main folder
+%cd /content/
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Remote-fetch-and-install-source-code-from-Github">
+<h2 id="Remote-fetch-and-install-source-code-from-Github">Remote fetch and install source code from Github<a class="headerlink" href="#Remote-fetch-and-install-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span>! pip install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
@@ -752,14 +789,11 @@ div.rendered_html tbody tr:hover {
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span># Remote fetch kaldo resources from drop box
 ! wget https://www.dropbox.com/s/bvw0qcxy397g25q/kaldo_resources.zip?dl=0
 ! mv kaldo_resources.zip?dl=0 kaldo_resources.zip
 ! unzip kaldo_resources.zip
-
-# Copy files from to the workspace
-! cp -r kaldo_resources/forcefields.zip ./
 
 # Unzip files
 !unzip forcefields.zip
@@ -768,120 +802,71 @@ div.rendered_html tbody tr:hover {
 ! rm -r forcefields.zip
 ! rm -r structure_a_si_512.zip
 ! rm -r kaldo_resources.zip
-
-</pre></div>
-</div>
-</div>
-</section>
-<section id="Remote-fetch-precomplied-LAMMPS">
-<h2 id="Remote-fetch-precomplied-LAMMPS">Remote fetch precomplied LAMMPS<a class="headerlink" href="#Remote-fetch-precomplied-LAMMPS" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Fetch prebuild lammps binary files from dropbox
-! wget https://www.dropbox.com/s/cqqhh1ax5er0u8b/lmp-tesla-t4-intel-xeon.gz?dl=0
-! mv lmp-tesla-t4-intel-xeon.gz?dl=0 lmp-tesla-t4-intel-xeon.gz
-! tar xvzf lmp-tesla-t4-intel-xeon.gz
-! rm /content/lmp-tesla-t4-intel-xeon.gz
-
-# Navigate back to lammps source foder when for
-# later LAMMPS-Python integration
-%cd /content/lammps/src
-
-print('\n')
-print('Remote Fetching precomplied LAMMPS is finished!')
-</pre></div>
-</div>
-</div>
-</section>
-<section id="Integrate-LAMMPS-Into-Python">
-<h2 id="Integrate-LAMMPS-Into-Python">Integrate LAMMPS Into Python<a class="headerlink" href="#Integrate-LAMMPS-Into-Python" title="Permalink to this headline">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>! make install-python
-
-# Copy executable file to where the python Module locates
-import shutil
-src_path = '/usr/lib/python3/dist-packages/liblammps.so'
-dist_path = '/usr/local/lib/python3.7/dist-packages/liblammps.so'
-shutil.copyfile(src_path,dist_path)
-
-# Naviagate back to main folder before simulation
-%cd /content
-print('\n')
-print('LAMMPS-Python Integration is completed!')
+! rm -r sample_data
 </pre></div>
 </div>
 </div>
 </section>
 <section id="Thermal-transport-simulation-for-silicon-bulk">
 <h2 id="Thermal-transport-simulation-for-silicon-bulk">Thermal transport simulation for silicon-bulk<a class="headerlink" href="#Thermal-transport-simulation-for-silicon-bulk" title="Permalink to this headline">¶</a></h2>
-<section id="Compute-2^{nd}-and-3^{rd}-order-IFCS.">
-<h3 id="Compute-2^{nd}-and-3^{rd}-order-IFCS.">Compute <img alt="2^{nd}" class="math" src="../_images/math/9e9c0443bb8d613447030ed93ef81bc841548d02.png"/> and <img alt="3^{rd}" class="math" src="../_images/math/1d4ce1ab7cc397d41d73397829697f1d85989b06.png"/> order IFCS.<a class="headerlink" href="#Compute-2^{nd}-and-3^{rd}-order-IFCS." title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from ase.build import bulk
-from ase.calculators.lammpslib import LAMMPSlib
-from kaldo.forceconstants import ForceConstants
-import numpy as np
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">ase.build</span> <span class="kn">import</span> <span class="n">bulk</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.lammpslib</span> <span class="kn">import</span> <span class="n">LAMMPSlib</span>
+<span class="kn">from</span> <span class="nn">kaldo.forceconstants</span> <span class="kn">import</span> <span class="n">ForceConstants</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-# We start from the atoms object
-atoms = bulk('Si', 'diamond', a=5.432)
+<span class="c1"># We start from the atoms object</span>
+<span class="n">atoms</span> <span class="o">=</span> <span class="n">bulk</span><span class="p">(</span><span class="s1">'Si'</span><span class="p">,</span> <span class="s1">'diamond'</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mf">5.432</span><span class="p">)</span>
 
-# Config super cell and calculator input
-supercell = np.array([3, 3, 3])
-lammps_inputs = {
-      'lmpcmds': [
-          'pair_style tersoff',
-          'pair_coeff * * forcefields/Si.tersoff Si'],
+<span class="c1"># Config super cell and calculator input</span>
+<span class="n">supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<span class="n">lammps_inputs</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">'lmpcmds'</span><span class="p">:</span> <span class="p">[</span>
+          <span class="s1">'pair_style tersoff'</span><span class="p">,</span>
+          <span class="s1">'pair_coeff * * forcefields/Si.tersoff Si'</span><span class="p">],</span>
 
-      'log_file': 'lammps-si-bulk.txt',
-      'keep_alive':True}
+      <span class="s1">'log_file'</span><span class="p">:</span> <span class="s1">'lammps-si-bulk.log'</span><span class="p">,</span>
+      <span class="s1">'keep_alive'</span><span class="p">:</span><span class="kc">True</span><span class="p">}</span>
 
-# Create a finite difference object
-forceconstants_config  = {'atoms':atoms,'supercell': supercell,'folder':'fd'}
-forceconstants = ForceConstants(**forceconstants_config)
+<span class="c1"># Create a finite difference object</span>
+<span class="n">forceconstants_config</span>  <span class="o">=</span> <span class="p">{</span><span class="s1">'atoms'</span><span class="p">:</span><span class="n">atoms</span><span class="p">,</span><span class="s1">'supercell'</span><span class="p">:</span> <span class="n">supercell</span><span class="p">,</span><span class="s1">'folder'</span><span class="p">:</span><span class="s1">'fd'</span><span class="p">}</span>
+<span class="n">forceconstants</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="p">(</span><span class="o">**</span><span class="n">forceconstants_config</span><span class="p">)</span>
 
-# Compute 2nd and 3rd IFCs with the defined calculators
-forceconstants.second.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
-forceconstants.third.calculate(LAMMPSlib(**lammps_inputs), delta_shift=1e-4)
+<span class="c1"># Compute 2nd and 3rd IFCs with the defined calculators</span>
+<span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">LAMMPSlib</span><span class="p">(</span><span class="o">**</span><span class="n">lammps_inputs</span><span class="p">),</span> <span class="n">delta_shift</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+<span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">LAMMPSlib</span><span class="p">(</span><span class="o">**</span><span class="n">lammps_inputs</span><span class="p">),</span> <span class="n">delta_shift</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-</section>
 <section id="Create-phonons-object">
 <h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from kaldo.phonons import Phonons
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">kaldo.phonons</span> <span class="kn">import</span> <span class="n">Phonons</span>
 
-# Define k-point grids, temperature
-# and the assumption for the
-# phonon poluation (i.e classical vs. quantum)
-k = 7
-kpts = [k, k, k]
-temperature = 300
-is_classic = False
-k_label = str(k) + '_' + str(k) + '_' + str(k)
+<span class="c1"># Define k-point grids, temperature</span>
+<span class="c1"># and the assumption for the</span>
+<span class="c1"># phonon poluation (i.e classical vs. quantum)</span>
+<span class="n">k</span> <span class="o">=</span> <span class="mi">7</span>
+<span class="n">kpts</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
+<span class="n">temperature</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="n">is_classic</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">k_label</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
 
-# Create a phonon object
-phonons = Phonons(forceconstants=forceconstants,
-                kpts=kpts,
-                is_classic=is_classic,
-                temperature=temperature,
-                folder='si-bulk-ald-' + k_label,
-                storage='numpy')
+<span class="c1"># Create a phonon object</span>
+<span class="n">phonons</span> <span class="o">=</span> <span class="n">Phonons</span><span class="p">(</span><span class="n">forceconstants</span><span class="o">=</span><span class="n">forceconstants</span><span class="p">,</span>
+                <span class="n">kpts</span><span class="o">=</span><span class="n">kpts</span><span class="p">,</span>
+                <span class="n">is_classic</span><span class="o">=</span><span class="n">is_classic</span><span class="p">,</span>
+                <span class="n">temperature</span><span class="o">=</span><span class="n">temperature</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="s1">'si-bulk-ald-'</span> <span class="o">+</span> <span class="n">k_label</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -892,26 +877,26 @@ phonons = Phonons(forceconstants=forceconstants,
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from kaldo.conductivity import Conductivity
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">kaldo.conductivity</span> <span class="kn">import</span> <span class="n">Conductivity</span>
 
-# Calculate conductivity  with direct inversion approach (inverse)
-print('\n')
-inv_cond_matrix = (Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0))
-print('Inverse conductivity (W/mK): %.3f'%(np.mean(np.diag(inv_cond_matrix))))
-print(inv_cond_matrix)
+<span class="c1"># Calculate conductivity  with direct inversion approach (inverse)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">inv_cond_matrix</span> <span class="o">=</span> <span class="p">(</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'inverse'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'Inverse conductivity (W/mK): </span><span class="si">%.3f</span><span class="s1">'</span><span class="o">%</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">inv_cond_matrix</span><span class="p">))))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">inv_cond_matrix</span><span class="p">)</span>
 
-# Calculate conductivity  with  relaxation time approximation (rta)
-print('\n')
-rta_cond_matrix = Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0)
-print('Rta conductivity (W/mK): %.3f'%(np.mean(np.diag(rta_cond_matrix))))
-print(rta_cond_matrix)
-# Calculate conductivity  with  self-consistent approach (sc)
+<span class="c1"># Calculate conductivity  with  relaxation time approximation (rta)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">rta_cond_matrix</span> <span class="o">=</span> <span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'rta'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'Rta conductivity (W/mK): </span><span class="si">%.3f</span><span class="s1">'</span><span class="o">%</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">rta_cond_matrix</span><span class="p">))))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">rta_cond_matrix</span><span class="p">)</span>
+<span class="c1"># Calculate conductivity  with  self-consistent approach (sc)</span>
 
-print('\n')
-sc_cond_matrix = Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity.sum(axis=0)
-print('Self-consistent conductivity (W/mK): %.3f'%(np.mean(np.diag(sc_cond_matrix))))
-print(sc_cond_matrix)
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">sc_cond_matrix</span> <span class="o">=</span> <span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'sc'</span><span class="p">,</span><span class="n">n_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'Self-consistent conductivity (W/mK): </span><span class="si">%.3f</span><span class="s1">'</span><span class="o">%</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">sc_cond_matrix</span><span class="p">))))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sc_cond_matrix</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -922,14 +907,14 @@ print(sc_cond_matrix)
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>import kaldo.controllers.plotter as plotter
-import matplotlib.pyplot as plt
-plt.style.use('seaborn-poster')
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">kaldo.controllers.plotter</span> <span class="k">as</span> <span class="nn">plotter</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">'seaborn-poster'</span><span class="p">)</span>
 
-# Plot dispersion relation and group velocity in each direction
-plotter.plot_dispersion(phonons,n_k_points=int(k_label))
-print('\n')
+<span class="c1"># Plot dispersion relation and group velocity in each direction</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">plot_dispersion</span><span class="p">(</span><span class="n">phonons</span><span class="p">,</span><span class="n">n_k_points</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">k_label</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -940,43 +925,43 @@ print('\n')
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Direct access to properties
-# calculated during the simulation
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Direct access to properties</span>
+<span class="c1"># calculated during the simulation</span>
 
-# Plot heat capacity vs frequency
-freq_full = phonons.frequency.flatten(order='C')
-cv_1d = phonons.heat_capacity.flatten(order='C')[3:]
+<span class="c1"># Plot heat capacity vs frequency</span>
+<span class="n">freq_full</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
+<span class="n">cv_1d</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">heat_capacity</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)[</span><span class="mi">3</span><span class="p">:]</span>
 
-print('\n')
-plt.figure()
-plt.scatter(freq_full[3:],1e23*cv_1d,s=15)
-plt.ylabel (r"$C_{v}$ ($10^{23}$ J/K)", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylim(0.9*1e23*cv_1d[cv_1d&gt;0].min(),
-         1.05*1e23*cv_1d.max())
-plt.show()
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">freq_full</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="mf">1e23</span><span class="o">*</span><span class="n">cv_1d</span><span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span> <span class="p">(</span><span class="sa">r</span><span class="s2">"$C_</span><span class="si">{v}</span><span class="s2">$ ($10^</span><span class="si">{23}</span><span class="s2">$ J/K)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mf">0.9</span><span class="o">*</span><span class="mf">1e23</span><span class="o">*</span><span class="n">cv_1d</span><span class="p">[</span><span class="n">cv_1d</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+         <span class="mf">1.05</span><span class="o">*</span><span class="mf">1e23</span><span class="o">*</span><span class="n">cv_1d</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
-# Plot phonon bandwidth vs frequency
-band_width_flatten = phonons.bandwidth.flatten(order='C')
-freq = freq_full[band_width_flatten!=0]
+<span class="c1"># Plot phonon bandwidth vs frequency</span>
+<span class="n">band_width_flatten</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
+<span class="n">freq</span> <span class="o">=</span> <span class="n">freq_full</span><span class="p">[</span><span class="n">band_width_flatten</span><span class="o">!=</span><span class="mi">0</span><span class="p">]</span>
 
-print('\n')
-plt.figure()
-plt.scatter(freq,band_width_flatten[band_width_flatten!=0] ,s=15)
-plt.ylabel (r"$\Gamma$ (Thz)", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylim(0.95*band_width_flatten .min(), 1.05*band_width_flatten .max())
-plt.show()
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span><span class="n">band_width_flatten</span><span class="p">[</span><span class="n">band_width_flatten</span><span class="o">!=</span><span class="mi">0</span><span class="p">]</span> <span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span> <span class="p">(</span><span class="sa">r</span><span class="s2">"$\Gamma$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (Thz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mf">0.95</span><span class="o">*</span><span class="n">band_width_flatten</span> <span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="mf">1.05</span><span class="o">*</span><span class="n">band_width_flatten</span> <span class="o">.</span><span class="n">max</span><span class="p">())</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
-# Plot phase space vs frequency
-print('\n')
-plt.figure()
-plt.scatter(freq_full[3:],phonons.phase_space.flatten(order='C')[3:],s=15)
-plt.ylabel ("Phase space", fontsize=25, fontweight='bold')
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylim(phonons.phase_space.min(), phonons.phase_space.max())
-plt.show()
+<span class="c1"># Plot phase space vs frequency</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">freq_full</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="n">phonons</span><span class="o">.</span><span class="n">phase_space</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)[</span><span class="mi">3</span><span class="p">:],</span><span class="n">s</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span> <span class="p">(</span><span class="s2">"Phase space"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">phase_space</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">phonons</span><span class="o">.</span><span class="n">phase_space</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -984,22 +969,22 @@ plt.show()
 <section id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">
 <h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>def cumulative_cond_cal(freq,full_cond,n_phonons):
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="k">def</span> <span class="nf">cumulative_cond_cal</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span><span class="n">full_cond</span><span class="p">,</span><span class="n">n_phonons</span><span class="p">):</span>
 
-  conductivity = np.einsum('maa-&gt;m', 1/3 * full_cond)
-  conductivity = conductivity.reshape(n_phonons)
-  cumulative_cond = np.zeros_like(conductivity)
-  freq_reshaped = freq.reshape(n_phonons)
+  <span class="n">conductivity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'maa-&gt;m'</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">3</span> <span class="o">*</span> <span class="n">full_cond</span><span class="p">)</span>
+  <span class="n">conductivity</span> <span class="o">=</span> <span class="n">conductivity</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_phonons</span><span class="p">)</span>
+  <span class="n">cumulative_cond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">conductivity</span><span class="p">)</span>
+  <span class="n">freq_reshaped</span> <span class="o">=</span> <span class="n">freq</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_phonons</span><span class="p">)</span>
 
-  for mu in range(cumulative_cond.size):
-      single_cumulative_cond = conductivity[(freq_reshaped &lt; freq_reshaped[mu])].sum()
-      cumulative_cond[mu] = single_cumulative_cond
+  <span class="k">for</span> <span class="n">mu</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cumulative_cond</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+      <span class="n">single_cumulative_cond</span> <span class="o">=</span> <span class="n">conductivity</span><span class="p">[(</span><span class="n">freq_reshaped</span> <span class="o">&lt;</span> <span class="n">freq_reshaped</span><span class="p">[</span><span class="n">mu</span><span class="p">])]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+      <span class="n">cumulative_cond</span><span class="p">[</span><span class="n">mu</span><span class="p">]</span> <span class="o">=</span> <span class="n">single_cumulative_cond</span>
 
-  return cumulative_cond
+  <span class="k">return</span> <span class="n">cumulative_cond</span>
 </pre></div>
 </div>
 </div>
@@ -1007,41 +992,41 @@ plt.show()
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span># Compute conductivity with per phonon mode basis using different methods
-kappa_rta_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='rta').conductivity)
-kappa_inv_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='inverse').conductivity)
-kappa_sc_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity)
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Compute conductivity with per phonon mode basis using different methods</span>
+<span class="n">kappa_rta_per_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'maa-&gt;m'</span><span class="p">,</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="o">*</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'rta'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">)</span>
+<span class="n">kappa_inv_per_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'maa-&gt;m'</span><span class="p">,</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="o">*</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'inverse'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">)</span>
+<span class="n">kappa_sc_per_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'maa-&gt;m'</span><span class="p">,</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="o">*</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'sc'</span><span class="p">,</span><span class="n">n_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">)</span>
 
-# Compute cumulative conductivity by frequency using different methods
-kappa_rta_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='rta').conductivity,phonons.n_phonons)
-kappa_sc_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='sc',n_iterations=20).conductivity,phonons.n_phonons)
-kappa_inv_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='inverse').conductivity,phonons.n_phonons)
-kappa_qhgk_cum_freq = cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)
-print('\n')
+<span class="c1"># Compute cumulative conductivity by frequency using different methods</span>
+<span class="n">kappa_rta_cum_freq</span> <span class="o">=</span> <span class="n">cumulative_cond_cal</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'rta'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
+<span class="n">kappa_sc_cum_freq</span> <span class="o">=</span> <span class="n">cumulative_cond_cal</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'sc'</span><span class="p">,</span><span class="n">n_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
+<span class="n">kappa_inv_cum_freq</span> <span class="o">=</span> <span class="n">cumulative_cond_cal</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'inverse'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
+<span class="n">kappa_qhgk_cum_freq</span> <span class="o">=</span> <span class="n">cumulative_cond_cal</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'qhgk'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
 
-# Visualize the cumulative conductivity vs frequency
-plt.figure()
-plt.plot(freq_full,kappa_rta_per_mode,'r.',label='RTA')
-plt.plot(freq_full,kappa_sc_per_mode,'mo',label='Self Consistent',ms=8)
-plt.plot(freq_full,kappa_inv_per_mode,'k.',label='Direct Inversion')
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylabel(r'$\kappa(W/m/K)$', fontsize=25, fontweight='bold')
-plt.legend(loc=1,frameon=False)
-#plt.grid()
-plt.show()
-print('\n')
+<span class="c1"># Visualize the cumulative conductivity vs frequency</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">freq_full</span><span class="p">,</span><span class="n">kappa_rta_per_mode</span><span class="p">,</span><span class="s1">'r.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'RTA'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">freq_full</span><span class="p">,</span><span class="n">kappa_sc_per_mode</span><span class="p">,</span><span class="s1">'mo'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'Self Consistent'</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">freq_full</span><span class="p">,</span><span class="n">kappa_inv_per_mode</span><span class="p">,</span><span class="s1">'k.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'Direct Inversion'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1">#plt.grid()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
 
-# Visualize the cumulative conductivity vs frequency
-plt.figure()
-plt.plot(freq_full,kappa_rta_cum_freq,'r.',label='RTA')
-plt.plot(freq_full,kappa_sc_cum_freq,'mo',label='Self Consistent',ms=8)
-plt.plot(freq_full,kappa_inv_cum_freq,'k.',label='Direct Inversion')
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylabel(r'$\kappa_{cum}(W/m/K)$', fontsize=25, fontweight='bold')
-plt.legend(loc=4,frameon=False)
-plt.grid()
-plt.show()
+<span class="c1"># Visualize the cumulative conductivity vs frequency</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">freq_full</span><span class="p">,</span><span class="n">kappa_rta_cum_freq</span><span class="p">,</span><span class="s1">'r.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'RTA'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">freq_full</span><span class="p">,</span><span class="n">kappa_sc_cum_freq</span><span class="p">,</span><span class="s1">'mo'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'Self Consistent'</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">freq_full</span><span class="p">,</span><span class="n">kappa_inv_cum_freq</span><span class="p">,</span><span class="s1">'k.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'Direct Inversion'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa_</span><span class="si">{cum}</span><span class="s1">(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>

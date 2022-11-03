@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -451,7 +451,7 @@ initializing the Conductivity object.</p>
 It’s can be fed into a Conductivity object and must be built with a
 ForceConstant object.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>forceconstants</strong> (<a class="reference internal" href="api_forceconstants.html#kaldo.forceconstants.ForceConstants" title="kaldo.forceconstants.ForceConstants"><em>ForceConstants</em></a>) – contains all the information about the system and the derivatives
 of the potential.</p></li>
@@ -482,13 +482,13 @@ Default ‘C’</p></li>
 <li><p><strong>is_balanced</strong> (<em>Enforce detailed balance when calculating anharmonic properties</em><em>,</em>) – Default: False</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p></p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Phonons Object</p>
 </dd>
-<dt class="field-even">Attributes</dt>
+<dt class="field-even">Attributes<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
@@ -522,10 +522,10 @@ Default ‘C’</p></li>
 <em class="property">property </em><code class="sig-name descname">bandwidth</code><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>bandwidth</strong> – bandwidth for each k point and each mode</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
@@ -535,10 +535,10 @@ Default ‘C’</p></li>
 <em class="property">property </em><code class="sig-name descname">eigenvalues</code><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvalues" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>eigenvalues</strong> – (n_phonons) Eigenvalues of the dynamical matrix</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
@@ -548,10 +548,10 @@ Default ‘C’</p></li>
 <em class="property">property </em><code class="sig-name descname">eigenvectors</code><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvectors" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the eigenvectors of the dynamical matrix.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>eigenvectors</strong> – (n_phonons, n_phonons) Eigenvectors of the dynamical matrix</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
@@ -575,10 +575,10 @@ Bose-Einstein weighted by each phonons energy.
 </div>
 <p>where the frequency <img alt="\nu" class="math" src="../_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> and the temperature <img alt="\tilde T" class="math" src="../_images/math/a1973297dcd8ed1a36edc696aef0e150cf6bf502.png"/> are in THz.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>c_v</strong> – heat capacity in J/K for each k point and each mode</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
@@ -589,10 +589,10 @@ Bose-Einstein weighted by each phonons energy.
 <dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
 If classical, it returns the Boltzmann constant in W/m/K.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>heat_capacity_2d</strong> – heat capacity in W/m/K for each k point and each modes couple.</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes, n_modes)</p>
 </dd>
 </dl>
@@ -602,10 +602,10 @@ If classical, it returns the Boltzmann constant in W/m/K.</p>
 <em class="property">property </em><code class="sig-name descname">omega</code><a class="headerlink" href="#kaldo.phonons.Phonons.omega" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>frequency</strong> – (n_k_points, n_modes) frequency in rad</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
@@ -624,10 +624,10 @@ to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 <em class="property">property </em><code class="sig-name descname">phase_space</code><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>phase_space</strong> – phase_space for each k point and each mode</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
@@ -647,10 +647,10 @@ modes outside the frequency range min_frequency and max_frequency.
 If classical, it returns the temperature divided by each frequency, using equipartition theorem.
 If quantum it returns the Bose-Einstein distribution</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>population</strong> – population for each k point and each mode</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
@@ -660,10 +660,10 @@ If quantum it returns the Bose-Einstein distribution</p>
 <em class="property">property </em><code class="sig-name descname">velocity</code><a class="headerlink" href="#kaldo.phonons.Phonons.velocity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>velocity</strong> – (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>

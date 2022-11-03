@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -451,7 +451,7 @@ constants for the system.</p>
 the second/third order force constant matrices after providing the
 unit cell geometry and calculator information.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>atoms</strong> (<em>Tabulated xyz files</em><em> or </em><em>ASE Atoms object</em>) – The atoms to work on.</p></li>
 <li><p><strong>supercell</strong> – Size of supercell given by the number of repetitions (l, m, n) of
@@ -470,10 +470,6 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
 </dl>
 <p class="rubric">Methods</p>
 <table class="longtable docutils align-default">
-<colgroup>
-<col style="width: 10%"/>
-<col style="width: 90%"/>
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, …])</p></td>
 <td><p>Create a finite difference object from a folder</p></td>
@@ -488,7 +484,7 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
 <em class="property">classmethod </em><code class="sig-name descname">from_folder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">folder</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'numpy'</span></em>, <em class="sig-param"><span class="n">third_energy_threshold</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">third_supercell</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">is_acoustic_sum</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">only_second</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a finite difference object from a folder</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>folder</strong> (<em>str</em>) – Chosen folder to load in system information.</p></li>
 <li><p><strong>supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Number of unit cells in each cartesian direction replicated to form the input structure.
@@ -509,10 +505,10 @@ Default is self.supercell</p></li>
 Default is False</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p></p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>ForceConstants object</p>
 </dd>
 </dl>
@@ -523,7 +519,7 @@ Default is False</p></li>
 <dd><p>This method extrapolates a third order force constant matrix from a unit
 cell into a matrix for a larger supercell.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
 Default is <img alt="self.third" class="math" src="../_images/math/15cfbf59c2e9dda1f84c7dff795b1b1d95ca9bc1.png"/></p></li>

@@ -719,6 +719,10 @@
                         <span class="n">sij_right</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_sij_y</span>
                     <span class="k">if</span> <span class="n">beta</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
                         <span class="n">sij_right</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_sij_z</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">phonons</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">:</span>
+                        <span class="n">sij_right</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">conjugate</span><span class="p">(</span><span class="n">sij_right</span><span class="p">)</span>
+
+
                     <span class="n">diffusivity</span> <span class="o">=</span> <span class="n">calculate_diffusivity</span><span class="p">(</span><span class="n">omega</span><span class="p">[</span><span class="n">k_index</span><span class="p">],</span> <span class="n">sij_left</span><span class="p">,</span> <span class="n">sij_right</span><span class="p">,</span>
                                                         <span class="n">diffusivity_bandwidth</span><span class="p">[</span><span class="n">k_index</span><span class="p">],</span>
                                                         <span class="n">physical_mode</span><span class="p">[</span><span class="n">k_index</span><span class="p">],</span>

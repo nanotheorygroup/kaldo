@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -390,16 +390,14 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-amorphous-presentation--page-root" class="md-nav__link">Amorphous silicon tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Remote-fetch-source-code-from-Github" class="md-nav__link">Remote fetch source code from Github</a>
+        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
         </li>
-        <li class="md-nav__item"><a href="#Install-Kaldo-from-source" class="md-nav__link">Install Kaldo from source</a>
+        <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
         </li>
         <li class="md-nav__item"><a href="#Fetch-supplyment-data-remotely" class="md-nav__link">Fetch supplyment data remotely</a>
         </li>
         <li class="md-nav__item"><a href="#Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)" class="md-nav__link">Thermal transport simulation for Amorphous-Silicon (a-Si)</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Read-in-force-constant-objects-from-folder" class="md-nav__link">Read in force constant objects from folder</a>
-        </li>
         <li class="md-nav__item"><a href="#Create-phonons-object" class="md-nav__link">Create phonons object</a>
         </li>
         <li class="md-nav__item"><a href="#Access-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Access and visualize properties calculated during simulations</a>
@@ -434,16 +432,14 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-amorphous-presentation--page-root" class="md-nav__link">Amorphous silicon tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Remote-fetch-source-code-from-Github" class="md-nav__link">Remote fetch source code from Github</a>
+        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
         </li>
-        <li class="md-nav__item"><a href="#Install-Kaldo-from-source" class="md-nav__link">Install Kaldo from source</a>
+        <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
         </li>
         <li class="md-nav__item"><a href="#Fetch-supplyment-data-remotely" class="md-nav__link">Fetch supplyment data remotely</a>
         </li>
         <li class="md-nav__item"><a href="#Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)" class="md-nav__link">Thermal transport simulation for Amorphous-Silicon (a-Si)</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Read-in-force-constant-objects-from-folder" class="md-nav__link">Read in force constant objects from folder</a>
-        </li>
         <li class="md-nav__item"><a href="#Create-phonons-object" class="md-nav__link">Create phonons object</a>
         </li>
         <li class="md-nav__item"><a href="#Access-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Access and visualize properties calculated during simulations</a>
@@ -721,37 +717,59 @@ div.rendered_html tbody tr:hover {
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
 <section id="Amorphous-silicon-tutorial">
 <h1 id="docsource-amorphous-presentation--page-root">Amorphous silicon tutorial<a class="headerlink" href="#docsource-amorphous-presentation--page-root" title="Permalink to this headline">¶</a></h1>
-<section id="Remote-fetch-source-code-from-Github">
-<h2 id="Remote-fetch-source-code-from-Github">Remote fetch source code from Github<a class="headerlink" href="#Remote-fetch-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
+<section id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">
+<h2 id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">Complie <a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a> as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)<a class="headerlink" href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>! git clone https://github.com/nanotheorygroup/kaldo.git
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span># Sudo apt-get softwares
+! apt-get update
+! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.7-venv
+! echo "Sudo apt-get finishes!"
+
+# Upgrade python packages
+! pip install --upgrade pip
+! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython sklearn
+! echo "Python packages installation finishes!"
+
+# Build lammps with cmake
+%cd /content
+!rm -rf lammps
+! git clone https://github.com/lammps/lammps.git lammps
+%cd /content/lammps
+! rm -rf build
+! mkdir build
+%cd build
+! cmake ../cmake -DLAMMPS_EXCEPTIONS=yes \
+               -DBUILD_SHARED_LIBS=yes \
+               -DMLIAP_ENABLE_PYTHON=yes \
+               -DPKG_PYTHON=yes \
+               -DPKG_MANYBODY=yes \
+               -DPKG_KSPACE=yes \
+               -DPKG_PHONON=yes \
+               -DPYTHON_EXECUTABLE:FILEPATH=`which python`
+
+# Complie lammps as share-libary of python
+! make -j 2
+! make install-python
+! echo "LAMMPS compilation done!"
+
+# Redirect back to main folder
+%cd /content/
 </pre></div>
 </div>
 </div>
 </section>
-<section id="Install-Kaldo-from-source">
-<h2 id="Install-Kaldo-from-source">Install Kaldo from source<a class="headerlink" href="#Install-Kaldo-from-source" title="Permalink to this headline">¶</a></h2>
+<section id="Remote-fetch-and-install-source-code-from-Github">
+<h2 id="Remote-fetch-and-install-source-code-from-Github">Remote fetch and install source code from Github<a class="headerlink" href="#Remote-fetch-and-install-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>! rm -r /content/sample_data
-
-# Update utilities for tensorboard
-! pip install --upgrade grpcio
-! pip install --upgrade google-auth
-
-# Install kALDo from source
-%cd /content/kaldo
-! pip install .
-
-# Navigate back to workspace after installation completes
-%cd /content/
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span>! pip install git+https://github.com/nanotheorygroup/kaldo
 </pre></div>
 </div>
 </div>
@@ -762,15 +780,11 @@ div.rendered_html tbody tr:hover {
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span># Remote fetch kaldo resources from drop box
 ! wget https://www.dropbox.com/s/bvw0qcxy397g25q/kaldo_resources.zip?dl=0
 ! mv kaldo_resources.zip?dl=0 kaldo_resources.zip
 ! unzip kaldo_resources.zip
-
-# Copy files from to the workspace
-! cp -r kaldo_resources/forcefields.zip ./
-! cp -r kaldo_resources/structure_a_si_512.zip ./
 
 # Unzip files
 ! unzip forcefields.zip
@@ -786,40 +800,37 @@ div.rendered_html tbody tr:hover {
 </section>
 <section id="Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)">
 <h2 id="Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)">Thermal transport simulation for Amorphous-Silicon (a-Si)<a class="headerlink" href="#Thermal-transport-simulation-for-Amorphous-Silicon-(a-Si)" title="Permalink to this headline">¶</a></h2>
-<section id="Read-in-force-constant-objects-from-folder">
-<h3 id="Read-in-force-constant-objects-from-folder">Read in force constant objects from folder<a class="headerlink" href="#Read-in-force-constant-objects-from-folder" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from kaldo.forceconstants import ForceConstants
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">kaldo.forceconstants</span> <span class="kn">import</span> <span class="n">ForceConstants</span>
 
-# Read amporphous silicon with eskm format
-forceconstants = ForceConstants.from_folder(folder='structure_a_si_512', format='eskm')
+<span class="c1"># Read amporphous silicon with eskm format</span>
+<span class="n">forceconstants</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s1">'structure_a_si_512'</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'eskm'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-</section>
 <section id="Create-phonons-object">
 <h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from kaldo.phonons import Phonons
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">kaldo.phonons</span> <span class="kn">import</span> <span class="n">Phonons</span>
 
-# Create a phonon object
-# is_classic flag can be true or false, as
-# well as 0 (quantum) or 1 (classic)
-phonons = Phonons (forceconstants=forceconstants,
-                   is_classic=0,
-                   temperature=300,
-                   folder='si-amorphous',
-                   third_bandwidth=0.05/4.135,
-                   broadening_shape='triangle',
-                   storage='numpy')
+<span class="c1"># Create a phonon object</span>
+<span class="c1"># is_classic flag can be true or false, as</span>
+<span class="c1"># well as 0 (quantum) or 1 (classic)</span>
+<span class="n">phonons</span> <span class="o">=</span> <span class="n">Phonons</span> <span class="p">(</span><span class="n">forceconstants</span><span class="o">=</span><span class="n">forceconstants</span><span class="p">,</span>
+                   <span class="n">is_classic</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                   <span class="n">temperature</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+                   <span class="n">folder</span><span class="o">=</span><span class="s1">'si-amorphous'</span><span class="p">,</span>
+                   <span class="n">third_bandwidth</span><span class="o">=</span><span class="mf">0.05</span><span class="o">/</span><span class="mf">4.135</span><span class="p">,</span>
+                   <span class="n">broadening_shape</span><span class="o">=</span><span class="s1">'triangle'</span><span class="p">,</span>
+                   <span class="n">storage</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -830,33 +841,33 @@ phonons = Phonons (forceconstants=forceconstants,
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>import matplotlib.pyplot as plt
-plt.style.use('seaborn-poster')
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">'seaborn-poster'</span><span class="p">)</span>
 
-# Direct access to properties
-# calculated during the simulation
-frequency = phonons.frequency.flatten(order='C')
-bandwidth = phonons.bandwidth.flatten(order='C')
+<span class="c1"># Direct access to properties</span>
+<span class="c1"># calculated during the simulation</span>
+<span class="n">frequency</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
+<span class="n">bandwidth</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
 
-# Plot phonon bandwidth vs frequency
-print('\n')
-plt.plot(frequency[3:],bandwidth[3:],'.',markersize=10,label= 'broadening shape: ' + str(phonons.broadening_shape))
-plt.ylabel('$\Gamma$ (THz)', fontsize=25, fontweight='bold')
-plt.xlabel("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylim([bandwidth.min(), bandwidth.max()])
-plt.legend(loc=2,frameon = False)
-plt.show()
+<span class="c1"># Plot phonon bandwidth vs frequency</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="n">bandwidth</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="s1">'.'</span><span class="p">,</span><span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span><span class="n">label</span><span class="o">=</span> <span class="s1">'broadening shape: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">broadening_shape</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">'$\Gamma$ (THz)'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">bandwidth</span><span class="o">.</span><span class="n">max</span><span class="p">()])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">frameon</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
-phase_space = phonons.phase_space.flatten(order='C')
+<span class="n">phase_space</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">phase_space</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
 
-# Plot phase space vs frequency
-print('\n')
-plt.figure()
-plt.plot(frequency[3:], phase_space[3:], '.', markersize=10)
-plt.ylabel ("Phase space", fontsize=25, fontweight='bold')
-plt.xlabel("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.show()
+<span class="c1"># Plot phase space vs frequency</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span> <span class="n">phase_space</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span> <span class="s1">'.'</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span> <span class="p">(</span><span class="s2">"Phase space"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
 </pre></div>
 </div>
@@ -868,39 +879,39 @@ plt.show()
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>from kaldo.conductivity import Conductivity
-from kaldo.controllers import plotter
-import numpy as np
+<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">kaldo.conductivity</span> <span class="kn">import</span> <span class="n">Conductivity</span>
+<span class="kn">from</span> <span class="nn">kaldo.controllers</span> <span class="kn">import</span> <span class="n">plotter</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-# Compute conductivity with per phonon mode basis using qhgk method
-kappa_qhgk_per_mode = np.einsum('maa-&gt;m',1/3*Conductivity(phonons=phonons, method='qhgk',n_iterations=20).conductivity)
+<span class="c1"># Compute conductivity with per phonon mode basis using qhgk method</span>
+<span class="n">kappa_qhgk_per_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'maa-&gt;m'</span><span class="p">,</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="o">*</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'qhgk'</span><span class="p">,</span><span class="n">n_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">)</span>
 
-# Compute cumulative conductivity by frequency with qhgk method
-kappa_qhgk_cum_freq = plotter.cumulative_cond_cal(phonons.frequency,Conductivity(phonons=phonons, method='qhgk').conductivity,phonons.n_phonons)
+<span class="c1"># Compute cumulative conductivity by frequency with qhgk method</span>
+<span class="n">kappa_qhgk_cum_freq</span> <span class="o">=</span> <span class="n">plotter</span><span class="o">.</span><span class="n">cumulative_cond_cal</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span><span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'qhgk'</span><span class="p">)</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
 
-print('\n')
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
 
-# Visualize the per mode conductivity vs frequency
-plt.figure()
-plt.plot(frequency[3:],kappa_qhgk_per_mode[3:],'.',label='QHGK',ms=8)
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylabel(r'$\kappa(W/m/K)$', fontsize=25, fontweight='bold')
-plt.legend(loc=1,frameon=False)
-plt.show()
+<span class="c1"># Visualize the per mode conductivity vs frequency</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="n">kappa_qhgk_per_mode</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="s1">'.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'QHGK'</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (Thz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
-print('\n')
+<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
 
-# Visualize the cumulative conductivity vs frequency
-plt.figure()
-plt.plot(frequency[3:],kappa_qhgk_cum_freq[3:],'.',label='QHGK',ms=8)
-plt.xlabel ("$\\nu$ (Thz)", fontsize=25, fontweight='bold')
-plt.ylabel(r'$\kappa_{cum}(W/m/K)$', fontsize=25, fontweight='bold')
-plt.legend(loc=4,frameon=False)
-plt.grid()
-plt.show()
+<span class="c1"># Visualize the cumulative conductivity vs frequency</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="n">kappa_qhgk_cum_freq</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="s1">'.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'QHGK'</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (Thz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa_</span><span class="si">{cum}</span><span class="s1">(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
-# Please check out amorphous_silicon_Tersoff_LAMMPS in the example folder for more detail.
+<span class="c1"># Please check out amorphous_silicon_Tersoff_LAMMPS in the example folder for more detail.</span>
 </pre></div>
 </div>
 </div>

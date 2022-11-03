@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -450,7 +450,7 @@ be sure to include a phonon object and select a framework for calculation.</p>
 <dd><p>The conductivity object is responsible for mean free path and
 conductivity calculations. It takes a phonons object as a required argument.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>phonons</strong> (<a class="reference internal" href="api_phonons.html#kaldo.phonons.Phonons" title="kaldo.phonons.Phonons"><em>Phonons</em></a>) – Contains all the information about the calculated phononic properties of the system</p></li>
 <li><p><strong>method</strong> (<em>'rta'</em><em>, </em><em>'sc'</em><em>, </em><em>'qhgk'</em><em>, </em><em>'inverse'</em>) – Specifies the method used to calculate the conductivity.</p></li>
@@ -473,10 +473,10 @@ corresponds to the infinity length limit.</p></li>
 Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655ca06a8192bc6a440969509266d2.png"/></p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>An instance of the <img alt="Conductivity" class="math" src="../_images/math/d86e818b25701d35fc54e6c81501cc9af319d14a.png"/> class.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity">Conductivity</a></p>
 </dd>
 </dl>
@@ -486,7 +486,7 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <span class="pre">Conductivity(phonons=phonons,</span> <span class="pre">method='inverse',</span> <span class="pre">storage='memory').conductivity.sum(axis=0))</span>
 <span class="pre">`</span></code></p>
 <dl class="field-list simple">
-<dt class="field-odd">Attributes</dt>
+<dt class="field-odd">Attributes<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><a class="reference internal" href="#kaldo.conductivity.Conductivity.conductivity" title="kaldo.conductivity.Conductivity.conductivity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">conductivity</span></code></a></dt><dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
 </dd>
@@ -499,10 +499,6 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 </dl>
 <p class="rubric">Methods</p>
 <table class="longtable docutils align-default">
-<colgroup>
-<col style="width: 10%"/>
-<col style="width: 90%"/>
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([…])</p></td>
 <td><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p></td>
@@ -516,10 +512,6 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 </tbody>
 </table>
 <table>
-<colgroup>
-<col style="width: 76%"/>
-<col style="width: 24%"/>
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><strong>calculate_lambda_tensor</strong></p></td>
 <td></td>
@@ -534,10 +526,10 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <code class="sig-name descname">calculate_conductivity_full</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">is_using_gamma_tensor_evects</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_full"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="Permalink to this definition">¶</a></dt>
 <dd><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>conductivity_per_mode</strong> – (n_k_points, n_modes, 3)</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
@@ -548,10 +540,10 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <dd><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.
 The tensor is returned individual modes along the first axis and has units of W/m/K.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>conductivity_per_mode</strong> – (n_phonons, 3, 3) W/m/K</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array</p>
 </dd>
 </dl>
@@ -562,10 +554,10 @@ The tensor is returned individual modes along the first axis and has units of W/
 <dd><p>This method calculates the inverse of the mean free path for each phonon.
 The matrix returns k vectors for each mode and has units of inverse Angstroms.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>lambda</strong> – (n_k_points, n_modes)</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
@@ -575,10 +567,10 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 <em class="property">property </em><code class="sig-name descname">conductivity</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>conductivity</strong> – (n_k_points, n_modes, 3, 3) float</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
@@ -588,10 +580,10 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 <em class="property">property </em><code class="sig-name descname">diffusivity</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the diffusivity, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>diffusivity</strong> – diffusivity in mm^2/s</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
@@ -601,10 +593,10 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 <em class="property">property </em><code class="sig-name descname">mean_free_path</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the mean_free_path per mode in A</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>mfp</strong> – (n_k_points, n_modes) float</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
