@@ -1,4 +1,4 @@
-# Publications developed or used `kALDo`
+# Publications using kALDo
 
 ## 2022 (5)
 
