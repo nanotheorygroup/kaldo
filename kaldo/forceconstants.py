@@ -106,6 +106,16 @@ class ForceConstants:
             If true, the accoustic sum rule is applied to the dynamical matrix.
             Default is False
 
+        Inputs
+        ------
+        numpy: replicated_atoms.xyz, second.npy, third.npz
+        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
+        lammps: replicated_atoms.xyz, Dyn.form, THIRD
+        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
+
+
         Returns
         -------
         ForceConstants object
