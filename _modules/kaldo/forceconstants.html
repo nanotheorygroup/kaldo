@@ -517,6 +517,16 @@
 <span class="sd">            If true, the accoustic sum rule is applied to the dynamical matrix.</span>
 <span class="sd">            Default is False</span>
 
+<span class="sd">        Inputs</span>
+<span class="sd">        ------</span>
+<span class="sd">        numpy: replicated_atoms.xyz, second.npy, third.npz</span>
+<span class="sd">        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD</span>
+<span class="sd">        lammps: replicated_atoms.xyz, Dyn.form, THIRD</span>
+<span class="sd">        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD</span>
+<span class="sd">        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD</span>
+<span class="sd">        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs</span>
+
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        ForceConstants object</span>
