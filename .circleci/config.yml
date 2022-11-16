@@ -6,6 +6,7 @@ jobs:
   build-and-test:
     docker:
       - image: "tensorflow/tensorflow:latest"
+    resource_class: xlarge
     steps:
       - checkout
       - python/load-cache
@@ -37,9 +38,6 @@ jobs:
           name: Add psutil
           command: conda install psutil>=5.7.2
       - run:
-          name: Install dependencies
-          command: pip install -r requirements.txt
-      - run:
           name: Install docs dependencies
           command: pip install -r docs/doc_requirements.txt
       - run:
@@ -66,7 +64,7 @@ jobs:
             git config user.name "ci-build"
       - add_ssh_keys:
           fingerprints:
-            - "2e:d6:fb:40:f4:c4:c0:e3:79:f5:53:ad:e0:b4:a5:2a"
+            - "f6:5c:77:81:26:a6:9a:f9:90:50:75:f5:92:13:f2:ae"
       - run:
           name: Deploy docs to gh-pages branch
           command: gh-pages --dotfiles --message "[skip ci] Updates" --dist docs/_build/html
@@ -81,5 +79,5 @@ workflows:
             - build-and-test
           filters:
             branches:
-              only: master
+              only: main
 
