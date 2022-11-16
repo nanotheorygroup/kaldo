@@ -63,27 +63,35 @@ def interpolator(k_list, observable, fourier_order=0, interpolation_order=0, is_
     return out
 
 
-def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05):
-    spg_struct = convert_to_spg_structure(atoms)
-    autopath = seekpath.get_path(spg_struct, symprec=symprec)
-    path_cleaned = []
-    for edge in autopath['path']:
-        edge_cleaned = []
-        for point in edge:
-            if point == 'GAMMA':
-                edge_cleaned.append('G')
-            else:
-                edge_cleaned.append(point.replace('_', ''))
-        path_cleaned.append(edge_cleaned)
-    point_coords_cleaned = {}
-    for key in autopath['point_coords'].keys():
-        if key == 'GAMMA':
-            point_coords_cleaned['G'] = autopath['point_coords'][key]
-        else:
-            point_coords_cleaned[key.replace('_', '')] = autopath['point_coords'][key]
+def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05, manually_defined_path=None):
+    
+    # Use manually defined path if it is defined
+    if manually_defined_path is not None:
+        bandpath = manually_defined_path
 
-    density = n_k_points / 5
-    bandpath = atoms.cell.bandpath(path=path_cleaned,
+    else:
+
+        # Use auto-detect scheme only when not manually defined path is given
+        spg_struct = convert_to_spg_structure(atoms)
+        autopath = seekpath.get_path(spg_struct, symprec=symprec)
+        path_cleaned = []
+        for edge in autopath['path']:
+            edge_cleaned = []
+            for point in edge:
+                if point == 'GAMMA':
+                    edge_cleaned.append('G')
+                else:
+                    edge_cleaned.append(point.replace('_', ''))
+            path_cleaned.append(edge_cleaned)
+        point_coords_cleaned = {}
+        for key in autopath['point_coords'].keys():
+            if key == 'GAMMA':
+                point_coords_cleaned['G'] = autopath['point_coords'][key]
+            else:
+                point_coords_cleaned[key.replace('_', '')] = autopath['point_coords'][key]
+
+        density = n_k_points / 5
+        bandpath = atoms.cell.bandpath(path=path_cleaned,
                                    density=density,
                                    special_points=point_coords_cleaned)
 
@@ -155,7 +163,7 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
         plt.close()
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False, manually_defined_path=None):
     atoms = phonons.atoms
     if is_nw is None and phonons.is_nw:
         is_nw = phonons.is_nw
@@ -168,7 +176,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         point_names = ['$\\Gamma$', 'X']
     else:
         try:
-            k_list, Q, point_names = create_k_and_symmetry_space(atoms, n_k_points=n_k_points, symprec=symprec)
+            k_list, Q, point_names = create_k_and_symmetry_space(atoms, n_k_points=n_k_points, symprec=symprec,  manually_defined_path=manually_defined_path)
             q = np.linspace(0, 1, k_list.shape[0])
         except seekpath.hpkot.SymmetryDetectionError as err:
             print(err)
@@ -216,6 +224,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
     fig1.savefig(folder + '/' + 'dispersion' + '.png')
     np.savetxt(folder + '/' + 'q', q)
     np.savetxt(folder + '/' + 'dispersion', freqs_plot)
+    np.savetxt(folder + '/' + 'Q_val', Q)
+    np.savetxt(folder + '/' + 'point_names', point_names, fmt='%s')
     if is_showing:
         plt.show()
     else:
