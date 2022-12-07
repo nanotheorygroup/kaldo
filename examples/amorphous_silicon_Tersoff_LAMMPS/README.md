@@ -66,4 +66,5 @@ python 2_aSi512_Tersoff_visualize_QHGK_properties.py
 ```
 - To view figures generated during simulations, navigate to this folder: ***plots/***
 - To access data computed during simulations, navigate to this folder: ***ALD_Si_512***
+- Warning: While computing force constants using LAMMPS with a triclinic (non-orthogonal) cell, it follows a strict right-handed cell convention. More information about the cell conventioncan be found [here](https://docs.lammps.org/Howto_triclinic.html). The unit cell of the structure used in this example has been made based on the right-handed cell convention. Please be aware of this rule if lammps inputs were prepared from scratch. Alternatively, it is welcome to refer our [carbon nanotube example](https://github.com/nanotheorygroup/kaldo/tree/main/examples/carbon_nanotube_Tersoff_LAMMPS) where we imposed this convention and prepared lammps input files via a python script.
  

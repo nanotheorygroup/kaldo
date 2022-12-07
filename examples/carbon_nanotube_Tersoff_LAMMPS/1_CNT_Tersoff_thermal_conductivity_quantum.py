@@ -31,7 +31,7 @@ forceconstants = ForceConstants.from_folder(folder='fc_CNT', supercell=supercell
 #            for python numpy array and 'memory' for quick calculations, no data stored)
 
 # Define the k-point mesh using 'kpts' parameter
-k_points = 151
+k_points = 11
 # For one dimension system, only replicate k-point mesh
 # along the direction of transport (z-axis)
 kpts = [1, 1, k_points]
