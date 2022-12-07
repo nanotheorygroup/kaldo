@@ -174,6 +174,36 @@ class SecondOrder(ForceConstant):
                                            supercell=supercell,
                                            value=_second_order,
                                            folder=folder)
+        elif format == 'sscha':
+            filename = 'atom_prim.xyz'
+            replicated_filename = 'replicated_atoms.xyz'
+            try:
+                from hiphive import ForceConstants as HFC
+            except ImportError:
+                logging.error('In order to use hiphive along with kaldo, hiphive is required. \
+                      Please consider installing hihphive. More info can be found at: \
+                      https://hiphive.materialsmodeling.org/')
+                return None
+            atom_prime_file = str(folder) + '/' + filename
+            replicated_atom_prime_file = str(folder) + '/' + replicated_filename
+            atoms = ase.io.read(atom_prime_file)
+            replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            if 'second.npy' in os.listdir(str(folder)):
+                second_hiphive_file = str(folder) + '/second.npy'
+                second = np.load(second_hiphive_file)
+                fcs2 = HFC.from_arrays(supercell=replicated_atoms, fc2_array=second)
+
+                n_replicas = np.prod(supercell)
+                n_atoms = atoms.positions.shape[0]
+                _second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
+                _second_order = _second_order.reshape((n_replicas, n_atoms, 3,
+                                                       n_replicas, n_atoms, 3))
+                _second_order = _second_order[0, np.newaxis]
+                second_order = SecondOrder(atoms=atoms,
+                                           replicated_positions=replicated_atoms.positions,
+                                           supercell=supercell,
+                                           value=_second_order,
+                                           folder=folder)
 
 
         else:
