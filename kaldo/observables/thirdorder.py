@@ -154,6 +154,42 @@ class ThirdOrder(ForceConstant):
                                   value=_third_order,
                                   folder=folder)
 
+        # Newly added by me!!!!
+        elif format == 'sscha':
+            filename = 'atom_prim.xyz'
+            replicated_filename = 'replicated_atoms.xyz'
+            try:
+                from hiphive import ForceConstants as hFC
+            except ImportError:
+                logging.error('In order to use hiphive along with kaldo, hiphive is required. \
+                                  Please consider installing hihphive. More info can be found at: \
+                                  https://hiphive.materialsmodeling.org/')
+            atom_prime_file = str(folder) + '/' + filename
+            replicated_atom_prime_file = str(folder) + '/' + replicated_filename
+            atoms = ase.io.read(atom_prime_file)
+            replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            if 'THIRD' in os.listdir(str(folder)):
+                supercell = np.array(supercell)
+                n_prim = atoms.copy().get_masses().shape[0]
+                n_sc = np.prod(supercell)
+                pbc_conditions = replicated_atoms.get_pbc()
+                dim = len(pbc_conditions[pbc_conditions == True])
+                third_hiphive_file = str(folder) + '/THIRD'
+                supercell = np.array(supercell)
+                replicated_atoms = read(str(folder) + '/replicated_atoms.xyz')
+                # Derive constants used for third-order reshape
+                fcs3 = hFC.read_shengBTE(supercell=supercell,fname=third_hiphive_file,prim=prim)
+                _third_order = fcs3.get_fc_array(3).transpose(0, 3, 1, 4, 2, 5).reshape(n_sc, n_prim, dim,
+                                                                                       n_sc, n_prim, dim, n_sc, n_prim,
+                                                                                       dim)
+                _third_order = _third_order[0].reshape(n_prim * dim, n_sc * n_prim * dim,
+                                                       n_sc * n_prim * dim)
+                third_order = cls(atoms=atoms,
+                                  replicated_positions=replicated_atoms.positions,
+                                  supercell=supercell,
+                                  value=_third_order,
+                                  folder=folder)
+
         else:
             logging.error('Third order format not recognized: ' + str(format))
             raise ValueError
