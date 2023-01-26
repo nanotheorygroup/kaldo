@@ -429,7 +429,7 @@
 
 
 <div class="viewcode-block" id="Phonons"><a class="viewcode-back" href="../../docsource/api_phonons.html#kaldo.phonons.Phonons">[docs]</a><span class="k">class</span> <span class="nc">Phonons</span><span class="p">:</span>
-    <span class="sd">"""The Phonons object exposes all the phononic properties of a system.</span>
+<span class="w">    </span><span class="sd">"""The Phonons object exposes all the phononic properties of a system.</span>
 <span class="sd">    It's can be fed into a Conductivity object and must be built with a</span>
 <span class="sd">    ForceConstant object.</span>
 
@@ -516,7 +516,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">physical_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the</span>
+<span class="w">        </span><span class="sd">"""Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the</span>
 <span class="sd">        modes outside the frequency range min_frequency and max_frequency.</span>
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -546,7 +546,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate phonons frequency</span>
+<span class="w">        </span><span class="sd">"""Calculate phonons frequency</span>
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        frequency : np array</span>
@@ -571,7 +571,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">participation_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculates the participation ratio of each normal mode. Participation ratio's</span>
+<span class="w">        </span><span class="sd">"""Calculates the participation ratio of each normal mode. Participation ratio's</span>
 <span class="sd">        represent the fraction of atoms that are displaced meaning a value of 1 corresponds</span>
 <span class="sd">        to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469</span>
 <span class="sd">        Returns</span>
@@ -598,7 +598,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculates the velocity using Hellmann-Feynman theorem.</span>
+<span class="w">        </span><span class="sd">"""Calculates the velocity using Hellmann-Feynman theorem.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -623,7 +623,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_eigensystem</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the eigensystems, for each k point in k_points.</span>
+<span class="w">        </span><span class="sd">"""Calculate the eigensystems, for each k point in k_points.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -654,7 +654,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">heat_capacity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the heat capacity for each k point in k_points and each mode.</span>
+<span class="w">        </span><span class="sd">"""Calculate the heat capacity for each k point in k_points and each mode.</span>
 <span class="sd">        If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the</span>
 <span class="sd">        Bose-Einstein weighted by each phonons energy.</span>
 <span class="sd">        .. math::</span>
@@ -687,7 +687,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">heat_capacity_2d</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</span>
+<span class="w">        </span><span class="sd">"""Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</span>
 <span class="sd">        If classical, it returns the Boltzmann constant in W/m/K.</span>
 
 <span class="sd">        Returns</span>
@@ -716,7 +716,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">population</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the phonons population for each k point in k_points and each mode.</span>
+<span class="w">        </span><span class="sd">"""Calculate the phonons population for each k point in k_points and each mode.</span>
 <span class="sd">        If classical, it returns the temperature divided by each frequency, using equipartition theorem.</span>
 <span class="sd">        If quantum it returns the Bose-Einstein distribution</span>
 
@@ -744,7 +744,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</span>
+<span class="w">        </span><span class="sd">"""Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -757,7 +757,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">phase_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</span>
+<span class="w">        </span><span class="sd">"""Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -770,7 +770,7 @@
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">eigenvalues</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculates the eigenvalues of the dynamical matrix in Thz^2.</span>
+<span class="w">        </span><span class="sd">"""Calculates the eigenvalues of the dynamical matrix in Thz^2.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -783,7 +783,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">eigenvectors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculates the eigenvectors of the dynamical matrix.</span>
+<span class="w">        </span><span class="sd">"""Calculates the eigenvectors of the dynamical matrix.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -815,7 +815,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">omega</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Calculates the angular frequencies from the diagonalized dynamical matrix.</span>
+<span class="w">        </span><span class="sd">"""Calculates the angular frequencies from the diagonalized dynamical matrix.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>

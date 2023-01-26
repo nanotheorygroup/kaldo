@@ -425,7 +425,7 @@
 
 
 <div class="viewcode-block" id="ForceConstants"><a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants">[docs]</a><span class="k">class</span> <span class="nc">ForceConstants</span><span class="p">:</span>
-    <span class="sd">"""</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Class for constructing the finite difference object to calculate</span>
 <span class="sd">    the second/third order force constant matrices after providing the</span>
 <span class="sd">    unit cell geometry and calculator information.</span>
@@ -490,7 +490,7 @@
 <div class="viewcode-block" id="ForceConstants.from_folder"><a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants.from_folder">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_folder</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">,</span> <span class="n">third_energy_threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">third_supercell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                     <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">only_second</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">"""</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Create a finite difference object from a folder</span>
 
 <span class="sd">        Parameters</span>
@@ -555,7 +555,7 @@
         <span class="k">return</span> <span class="n">forceconstants</span></div>
 
 <div class="viewcode-block" id="ForceConstants.unfold_third_order"><a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants.unfold_third_order">[docs]</a>    <span class="k">def</span> <span class="nf">unfold_third_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reduced_third</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">"""</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        This method extrapolates a third order force constant matrix from a unit</span>
 <span class="sd">        cell into a matrix for a larger supercell.</span>
 
