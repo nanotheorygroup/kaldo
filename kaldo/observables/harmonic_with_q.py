@@ -12,6 +12,7 @@ logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
 
+
 class HarmonicWithQ(Observable):
 
     def __init__(self, q_point, second,
@@ -29,7 +30,7 @@ class HarmonicWithQ(Observable):
         self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         self.second = second
         self.distance_threshold = distance_threshold
-        self.physical_mode= np.ones((1, self.n_modes), dtype=bool)
+        self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
         if (q_point == [0, 0, 0]).all():
@@ -109,9 +110,8 @@ class HarmonicWithQ(Observable):
         _sij = self.calculate_sij(direction=2)
         return _sij
 
-
     def calculate_frequency(self):
-        #TODO: replace calculate_eigensystem() with eigensystem
+        # TODO: replace calculate_eigensystem() with eigensystem
         if self.is_unfolding:
             eigenvals = self.calculate_eigensystem_unfolded(only_eigenvals=True)
         else:
@@ -166,14 +166,16 @@ class HarmonicWithQ(Observable):
                     mask = (np.linalg.norm(wrapped_distance, axis=-1) < distance_threshold)
                     id_i, id_j = np.argwhere(mask).T
                     dynmat_derivatives[id_i, :, id_j, :] += contract('f,fbc->fbc', distance[id_i, l, id_j, direction], \
-                                                                         dynmat.numpy()[0, id_i, :, 0, id_j, :] *
-                                                                         chi(q_point, list_of_replicas, cell_inv)[l])
+                                                                     dynmat.numpy()[0, id_i, :, 0, id_j, :] *
+                                                                     chi(q_point, list_of_replicas, cell_inv)[l])
             else:
 
                 dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
                                               tf.convert_to_tensor(distance.astype(np.complex)[..., direction]),
                                               tf.cast(dynmat[0], tf.complex128),
-                                              tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten().astype(np.complex)),
+                                              tf.convert_to_tensor(
+                                                  chi(q_point, list_of_replicas, cell_inv).flatten().astype(
+                                                      np.complex)),
                                               backend='tensorflow')
         dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
         return dynmat_derivatives
@@ -222,7 +224,7 @@ class HarmonicWithQ(Observable):
             if alpha == 2:
                 sij = self._sij_z
             velocity_AF = 1 / (2 * np.pi) * contract('mn,m,n->mn', sij,
-                                   inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
+                                                     inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
             velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
             velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
         return velocity[np.newaxis, ...]
@@ -248,13 +250,14 @@ class HarmonicWithQ(Observable):
 
             for l in range(n_replicas):
                 distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
-                    self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell ,3)[np.newaxis, l, :, :])
+                    self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, l, :, :])
 
                 distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
 
                 mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
                 id_i, id_j = np.argwhere(mask).T
-                dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * chi(q_point, list_of_replicas, cell_inv)[l]
+                dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * \
+                                           chi(q_point, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
                 if is_amorphous:
@@ -269,7 +272,6 @@ class HarmonicWithQ(Observable):
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
         return dyn_s
 
-
     def calculate_eigensystem(self, only_eigenvals):
         dyn_s = self._dynmat_fourier
         if only_eigenvals:
@@ -280,7 +282,6 @@ class HarmonicWithQ(Observable):
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
 
-
     def calculate_participation_ratio(self):
         n_atoms = self.n_modes // 3
         esystem = self._eigensystem[1:, :]
@@ -290,37 +291,35 @@ class HarmonicWithQ(Observable):
         participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1) * n_atoms)
         return participation_ratio
 
-
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
+        # This algorithm should be the same as the ShengBTE version
         q_point = self.q_point
-        scell = self.supercell
+        supercell = self.supercell
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
-        positions = atoms.positions
         fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, scell[0], scell[1], scell[2], n_unit_cell, 3))
-        sc_r_pos = self.second.supercell_positions
-        sc_r_pos_norm = 1 / 2 * np.linalg.norm(sc_r_pos, axis=1) ** 2
+        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+        supercell_positions = self.second.supercell_positions
+        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
         dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-        tt = self.second.supercell_replicas
-        for ind in range(tt.shape[0]):
-            t = tt[ind]
-            replica_position = np.tensordot(t, cell, (-1, 0))
-            for iat in np.arange(n_unit_cell):
-                for jat in np.arange(n_unit_cell):
-                    distance = replica_position + (positions[iat, :] - positions[jat, :])
-                    projection = (np.dot(sc_r_pos, distance) - sc_r_pos_norm[:])
-                    if ((projection <= 1e-6).all()):
-                        neq = (np.abs(projection) <= 1e-6).sum()
-                        weight = 1.0 / (neq)
-                        qr = 2. * np.pi * np.dot(q_point[:], t[:])
-                        for ipol in np.arange(3):
-                            for jpol in np.arange(3):
-                                dyn_s[iat, ipol, jat, jpol] += fc_s[
-                                     jat, jpol, t[0], t[1], t[2], iat, ipol] * np.exp(-1j * qr) * weight
+        supercell_replicas = self.second.supercell_replicas
+        for ind in range(supercell_replicas.shape[0]):
+            supercell_replica = supercell_replicas[ind]
+            replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
+            distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
+            projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
+            mask = (projection <= 1e-6).all(axis=-1)
+            neq = (np.abs(projection) <= 1e-6).sum(axis=-1)
+            weight = 1.0 / neq
+            coefficient = weight * mask
+            if coefficient.any():
+                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
+                dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
+                                                                 fc_s[:, :, supercell_replica[0], supercell_replica[1],
+                                                                 supercell_replica[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
-        omega2,eigenvect,info = zheev(dyn)
+        omega2, eigenvect, info = zheev(dyn)
         frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
         frequency = frequency[:] / np.pi / 2
         if only_eigenvals:
@@ -330,33 +329,31 @@ class HarmonicWithQ(Observable):
         return esystem
 
     def calculate_dynmat_derivatives_unfolded(self, direction=None):
+        # This algorithm should be the same as the ShengBTE version
         q_point = self.q_point
         supercell = self.supercell
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
         ddyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
-        positions = atoms.positions
         fc_s = self.second.dynmat.numpy()
         fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-        sc_r_pos = self.second.supercell_positions
-        sc_r_pos_norm = 1 / 2 * np.linalg.norm(sc_r_pos, axis=1) ** 2
-        tt = self.second.supercell_replicas
-        for ind in range(tt.shape[0]):
-            t = tt[ind]
-            replica_position = np.tensordot(t, cell, (-1, 0))
-            for iat in np.arange(n_unit_cell):
-                for jat in np.arange(n_unit_cell):
-                    distance = replica_position + (positions[iat] - positions[jat])
-                    projection = (np.dot(sc_r_pos, distance) - sc_r_pos_norm)
-                    if (projection <= 1e-6).all():
-                        neq = (np.abs(projection) <= 1e-6).sum()
-                        weight = 1.0 / (neq)
-                        qr = 2. * np.pi * np.dot(q_point[:], t[:])
-                        for ipol in np.arange(3):
-                            for jpol in np.arange(3):
-                                ddyn_s[iat, ipol, jat, jpol] -= replica_position[direction] * fc_s[
-                                    jat, jpol, t[0], t[1], t[2], iat, ipol] * np.exp(-1j * qr) * weight
+        supercell_positions = self.second.supercell_positions
+        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
+        supercell_replicas = self.second.supercell_replicas
+        for ind in range(supercell_replicas.shape[0]):
+            supercell_replica = supercell_replicas[ind]
+            replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
+
+            distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
+            projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
+            mask = (projection <= 1e-6).all(axis=-1)
+            neq = (np.abs(projection) <= 1e-6).sum(axis=-1)
+            weight = 1.0 / neq
+            coefficient = weight * mask
+            if coefficient.any():
+                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
+                ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
+                                                                  fc_s[:, :, supercell_replica[0], supercell_replica[1],
+                                                                 supercell_replica[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-
