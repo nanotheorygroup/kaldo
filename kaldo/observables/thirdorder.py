@@ -136,7 +136,11 @@ class ThirdOrder(ForceConstant):
             replicated_atom_prime_file = str(folder) + '/' + replicated_filename
             # TODO: Make this independent of replicated file
             atoms = ase.io.read(atom_prime_file)
-            replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            try:
+                replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            except FileNotFoundError:
+                logging.warning('Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.')
+                replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
 
             if 'model3.fcs' in os.listdir(str(folder)):
                 # Derive constants used for third-order reshape
@@ -148,6 +152,40 @@ class ThirdOrder(ForceConstant):
                 _third_order = hiphive_io.import_third_from_hiphive(atoms, supercell, folder)
                 _third_order = _third_order[0].reshape(n_prim * dim, n_sc * n_prim * dim,
                                                                        n_sc * n_prim * dim)
+                third_order = cls(atoms=atoms,
+                                  replicated_positions=replicated_atoms.positions,
+                                  supercell=supercell,
+                                  value=_third_order,
+                                  folder=folder)
+        elif format == 'sscha':
+            filename = 'atom_prim.xyz'
+            replicated_filename = 'replicated_atoms.xyz'
+            try:
+                from hiphive import ForceConstants as hFC
+            except ImportError:
+                logging.error('In order to use hiphive along with kaldo, hiphive is required. \
+                                  Please consider installing hihphive. More info can be found at: \
+                                  https://hiphive.materialsmodeling.org/')
+            atom_prime_file = str(folder) + '/' + filename
+            replicated_atom_prime_file = str(folder) + '/' + replicated_filename
+            atoms = ase.io.read(atom_prime_file)
+            replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            if 'THIRD' in os.listdir(str(folder)):
+                supercell = np.array(supercell)
+                n_prim = atoms.copy().get_masses().shape[0]
+                n_sc = np.prod(supercell)
+                pbc_conditions = replicated_atoms.get_pbc()
+                dim = len(pbc_conditions[pbc_conditions == True])
+                third_hiphive_file = str(folder) + '/THIRD'
+                supercell = np.array(supercell)
+                replicated_atoms = read(str(folder) + '/replicated_atoms.xyz')
+                # Derive constants used for third-order reshape
+                fcs3 = hFC.read_shengBTE(supercell=supercell, fname=third_hiphive_file, prim=prim)
+                _third_order = fcs3.get_fc_array(3).transpose(0, 3, 1, 4, 2, 5).reshape(n_sc, n_prim, dim,
+                                                                                        n_sc, n_prim, dim, n_sc, n_prim,
+                                                                                        dim)
+                _third_order = _third_order[0].reshape(n_prim * dim, n_sc * n_prim * dim,
+                                                       n_sc * n_prim * dim)
                 third_order = cls(atoms=atoms,
                                   replicated_positions=replicated_atoms.positions,
                                   supercell=supercell,
