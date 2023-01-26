@@ -6,6 +6,10 @@ from ase.io import read
 from hiphive import ForceConstants
 import numpy as np
 
+from kaldo.helpers.logger import get_logger, log_size
+
+logging = get_logger()
+
 
 def import_second_from_hiphive(folder, n_replicas, n_atoms):
     second_hiphive_file = str(folder) + '/model2.fcs'
@@ -20,7 +24,13 @@ def import_second_from_hiphive(folder, n_replicas, n_atoms):
 def import_third_from_hiphive(atoms, supercell, folder):
     third_hiphive_file = str(folder) + '/model3.fcs'
     supercell = np.array(supercell)
-    replicated_atoms = read(str(folder) + '/replicated_atoms.xyz')
+    replicated_atom_prime_file = str(folder) + '/replicated_atoms.xyz'
+    try:
+        replicated_atoms = read(replicated_atom_prime_file)
+    except FileNotFoundError:
+        logging.warning(
+            'Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.')
+        replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
     # Derive constants used for third-order reshape
     n_prim = atoms.positions.shape[0]
     n_sc = np.prod(supercell)

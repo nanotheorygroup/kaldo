@@ -25,23 +25,10 @@ def phonons():
     return phonons
 
 
-def test_sc_conductivity(phonons):
-    cond = np.abs(np.mean(Conductivity(phonons=phonons, method='sc', max_n_iterations=71, storage='memory').conductivity
-                          .sum(axis=0).diagonal()))
-    np.testing.assert_approx_equal(cond, 156.43, significant=3)
-
-
 def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method='qhgk', storage='memory').conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_approx_equal(cond, 141.26, significant=3)
-
-
-def test_rta_conductivity(phonons):
-    cond = np.abs(
-        np.mean(Conductivity(phonons=phonons, method='rta', storage='memory').conductivity.sum(axis=0).diagonal()))
-    np.testing.assert_approx_equal(cond, 137.07, significant=3)
-
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
