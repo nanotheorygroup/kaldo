@@ -15,3 +15,4 @@ pytest-cov>=2.10.0
 pytest>=5.2.1
 grpcio>=1.24.3
 psutil>=5.7.2
+hiphive>=1.1

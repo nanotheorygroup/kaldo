@@ -9,6 +9,7 @@ import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
@@ -40,14 +41,12 @@ class SecondOrder(ForceConstant):
         self._list_of_replicas = None
         self.storage = 'numpy'
 
-
     @classmethod
     def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo'):
         if value is not None and is_acoustic_sum is not None:
             value = acoustic_sum_rule(value)
         ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
         return ifc
-
 
     @classmethod
     def load(cls, folder, supercell=(1, 1, 1), format='numpy', is_acoustic_sum=False):
@@ -104,7 +103,6 @@ class SecondOrder(ForceConstant):
                           cell=unit_cell,
                           pbc=[1, 1, 1])
 
-
             _second_order, _ = import_from_files(replicated_atoms=replicated_atoms,
                                                  dynmat_file=dynmat_file,
                                                  supercell=supercell)
@@ -146,8 +144,6 @@ class SecondOrder(ForceConstant):
                                                       is_acoustic_sum=True,
                                                       folder=folder)
 
-
-
         elif format == 'hiphive':
             filename = 'atom_prim.xyz'
             # TODO: add replicated filename in example
@@ -163,8 +159,11 @@ class SecondOrder(ForceConstant):
             replicated_atom_prime_file = str(folder) + '/' + replicated_filename
             # TODO: Make this independent of replicated file
             atoms = ase.io.read(atom_prime_file)
-            replicated_atoms = ase.io.read(replicated_atom_prime_file)
-
+            try:
+                replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            except FileNotFoundError:
+                logging.warning('Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.')
+                replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
             # Create a finite difference object
             if 'model2.fcs' in os.listdir(str(folder)):
                 _second_order = hiphive_io.import_second_from_hiphive(folder, np.prod(supercell),
@@ -180,7 +179,6 @@ class SecondOrder(ForceConstant):
             raise ValueError
         return second_order
 
-
     @property
     def supercell_replicas(self):
         try:
@@ -188,7 +186,6 @@ class SecondOrder(ForceConstant):
         except AttributeError:
             self._supercell_replicas = self.calculate_super_replicas()
             return self._supercell_replicas
-
 
     @property
     def supercell_positions(self):
@@ -198,7 +195,6 @@ class SecondOrder(ForceConstant):
             self._supercell_positions = self.calculate_supercell_positions()
             return self._supercell_positions
 
-
     @property
     def dynmat(self):
         try:
@@ -206,7 +202,6 @@ class SecondOrder(ForceConstant):
         except AttributeError:
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
-
 
     def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
         atoms = self.atoms
@@ -217,7 +212,7 @@ class SecondOrder(ForceConstant):
         if is_storing:
             try:
                 self.value = SecondOrder.load(folder=self.folder, supercell=self.supercell, format='numpy',
-                                                is_acoustic_sum=self.is_acoustic_sum).value
+                                              is_acoustic_sum=self.is_acoustic_sum).value
 
             except FileNotFoundError:
                 logging.info('Second order not found. Calculating.')
@@ -231,7 +226,6 @@ class SecondOrder(ForceConstant):
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
-
     def calculate_dynmat(self):
         mass = self.atoms.get_masses()
         shape = self.value.shape
@@ -240,7 +234,6 @@ class SecondOrder(ForceConstant):
         dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         evtotenjovermol = units.mol / (10 * units.J)
         return tf.convert_to_tensor(dynmat * evtotenjovermol)
-
 
     def calculate_super_replicas(self):
         scell = self.supercell
@@ -260,7 +253,6 @@ class SecondOrder(ForceConstant):
             for iy2 in [-1, 0, 1]:
                 for iz2 in [-1, 0, 1]:
                     for f in range(list_of_index.shape[0]):
-
                         scell_id = np.array([ix2 * scell[0], iy2 * scell[1], iz2 * scell[2]])
                         replica_id = list_of_index[f]
                         t = replica_id + scell_id
@@ -270,7 +262,6 @@ class SecondOrder(ForceConstant):
 
         tt = np.array(tt)
         return tt
-
 
     def calculate_supercell_positions(self):
         supercell = self.supercell
@@ -283,6 +274,6 @@ class SecondOrder(ForceConstant):
             for iy2 in [-1, 0, 1]:
                 for iz2 in [-1, 0, 1]:
                     for i in np.arange(3):
-                        sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2,iy2,iz2]))
+                        sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2, iy2, iz2]))
                     ir = ir + 1
         return sc_r_pos
