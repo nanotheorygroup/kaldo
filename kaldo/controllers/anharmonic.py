@@ -23,21 +23,23 @@ def project_amorphous(phonons):
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
+    try:
+        coords = phonons.forceconstants.third.value.coords
+        data = phonons.forceconstants.third.value.data
+        coords = np.vstack([coords[1], coords[2], coords[0]])
+        third_tf = tf.SparseTensor(coords.T, data, (
+            phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
 
-    coords = phonons.forceconstants.third.value.coords
-    data = phonons.forceconstants.third.value.data
-    coords = np.vstack([coords[1], coords[2], coords[0]])
-    third_tf = tf.SparseTensor(coords.T, data, (
-        phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
+        third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+    except:
+        third_tf = tf.convert_to_tensor(phonons.forceconstants.third.value)
 
-    third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
     physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     logging.info('Projection started')
     gamma_to_thz = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
     thztomev = units.J * phonons.hbar * 2 * np.pi * 1e15
     for nu_single in range(phonons.n_phonons):
         sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
-
         out = calculate_dirac_delta_amorphous(omega,
                                               population,
                                               physical_mode,
