@@ -162,7 +162,8 @@ class SecondOrder(ForceConstant):
             try:
                 replicated_atoms = ase.io.read(replicated_atom_prime_file)
             except FileNotFoundError:
-                logging.warning('Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.')
+                logging.warning(
+                    'Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.')
                 replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
             # Create a finite difference object
             if 'model2.fcs' in os.listdir(str(folder)):
@@ -189,20 +190,21 @@ class SecondOrder(ForceConstant):
             replicated_atom_prime_file = str(folder) + '/' + replicated_filename
             atoms = ase.io.read(atom_prime_file)
             replicated_atoms = ase.io.read(replicated_atom_prime_file)
+            replicated_positions = replicated_atoms.positions
             if 'second.npy' in os.listdir(str(folder)):
                 second_hiphive_file = str(folder) + '/second.npy'
-                fcs2 = HFC.from_arrays(supercell=supercell,fc2_array=np.load(second_hiphive_file))
+                fcs2 = HFC.from_arrays(supercell=supercell, fc2_array=np.load(second_hiphive_file))
                 n_replicas = np.prod(supercell)
                 n_atoms = atoms.positions.shape[0]
                 _second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
                 _second_order = _second_order.reshape((n_replicas, n_atoms, 3,
-                                                      n_replicas, n_atoms, 3))
+                                                       n_replicas, n_atoms, 3))
                 _second_order = _second_order[0, np.newaxis]
                 second_order = SecondOrder(atoms=atoms,
-                                          replicated_positions=replicated_positions,
-                                          supercell=supercell,
-                                          value=_second_order,
-                                          folder=folder)
+                                           replicated_positions=replicated_positions,
+                                           supercell=supercell,
+                                           value=_second_order,
+                                           folder=folder)
 
 
         else:

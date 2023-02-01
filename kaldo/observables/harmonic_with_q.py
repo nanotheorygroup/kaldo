@@ -211,7 +211,7 @@ class HarmonicWithQ(Observable):
         return sij
 
     def calculate_velocity(self):
-        frequency = self.frequency[0]
+        frequency = self.frequency.flatten()
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
         if self.is_amorphous:
