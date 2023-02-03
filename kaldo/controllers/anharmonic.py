@@ -9,6 +9,7 @@ import tensorflow as tf
 from opt_einsum import contract
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
+
 logging = get_logger()
 
 
@@ -49,8 +50,13 @@ def project_amorphous(phonons):
                                               is_balanced)
         if not out:
             continue
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
-                                                    tf.reshape(evect_tf[:, nu_single], ((phonons.n_modes, 1))))
+        try:
+            # if it's sparse
+            third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
+                                                        tf.reshape(evect_tf[:, nu_single], (phonons.n_modes, 1)))
+        except TypeError:
+            # if it's not sparse
+            third_nu_tf = contract('ijk,k->ij', third_tf, evect_tf[:, nu_single])
         third_nu_tf = tf.reshape(third_nu_tf,
                                  (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas))
 
@@ -60,7 +66,7 @@ def project_amorphous(phonons):
         # pot_times_dirac_tf = tf.SparseTensor(coords, tf.abs(tf.gather_nd(scaled_potential_tf, coords)) ** 2 \
         # * dirac_delta_tf, (n_phonons, n_phonons))
 
-        pot_times_dirac = tf.gather_nd(scaled_potential_tf,coords) **  2
+        pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
         pot_times_dirac = pot_times_dirac / tf.gather(omega[0], mup_vec) / tf.gather(omega[0], mupp_vec)
         pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
         pot_times_dirac = np.pi * phonons.hbar / 4. * pot_times_dirac / phonons.n_k_points * gamma_to_thz
@@ -122,7 +128,7 @@ def project_crystal(phonons):
     gamma_to_thz = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
-            logging.info('Calculating third order projection ' + str(nu_single) +  ', ' + \
+            logging.info('Calculating third order projection ' + str(nu_single) + ', ' + \
                          str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         if is_sparse:
@@ -187,7 +193,8 @@ def project_crystal(phonons):
             nup_vec = index_kp_vec * phonons.n_modes + mup_vec
             nupp_vec = index_kpp_vec * phonons.n_modes + mupp_vec
             pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64)
-            pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
+            pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(),
+                                                                                                nupp_vec)
 
             if is_gamma_tensor_enabled:
                 # We need to use bincount together with fancy indexing here. See:
@@ -227,7 +234,6 @@ def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, br
     omegas_difference = tf.abs(omega[index_k, mu] + second_sign * omega[:, :, tf.newaxis] -
                                tf.gather(omega, index_kpp_full)[:, tf.newaxis, :])
 
-
     condition = (omegas_difference < default_delta_threshold * 2 * np.pi * sigma_tf) & \
                 (physical_mode[:, :, np.newaxis]) & \
                 (physical_mode[index_kpp_full, np.newaxis, :])
@@ -247,17 +253,21 @@ def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, br
             if is_balanced:
                 # Detail balance
                 # (n0) * (n1) * (n2 + 2) - (n0 + 1) * (n1 + 1) * (n2) = 0
-                dirac_delta_tf = 0.5 * (tf.gather_nd(population, coords_1) + 1) * (tf.gather_nd(population, coords_2)) / (population[index_k, mu])
-                dirac_delta_tf += 0.5 * (tf.gather_nd(population, coords_1)) * (tf.gather_nd(population, coords_2) + 1) / (1 + population[index_k, mu])
+                dirac_delta_tf = 0.5 * (tf.gather_nd(population, coords_1) + 1) * (
+                    tf.gather_nd(population, coords_2)) / (population[index_k, mu])
+                dirac_delta_tf += 0.5 * (tf.gather_nd(population, coords_1)) * (
+                        tf.gather_nd(population, coords_2) + 1) / (1 + population[index_k, mu])
         else:
             dirac_delta_tf = 0.5 * (1 + tf.gather_nd(population, coords_1) + tf.gather_nd(population, coords_2))
             if is_balanced:
                 # Detail balance
                 # (n0) * (n1 + 1) * (n2 + 2) - (n0 + 1) * (n1) * (n2) = 0
-                dirac_delta_tf = 0.25 * (tf.gather_nd(population, coords_1)) * (tf.gather_nd(population, coords_2)) / (population[index_k, mu])
-                dirac_delta_tf += 0.25 * (tf.gather_nd(population, coords_1) + 1) * (tf.gather_nd(population, coords_2) + 1) / (1 + population[index_k, mu])
+                dirac_delta_tf = 0.25 * (tf.gather_nd(population, coords_1)) * (tf.gather_nd(population, coords_2)) / (
+                    population[index_k, mu])
+                dirac_delta_tf += 0.25 * (tf.gather_nd(population, coords_1) + 1) * (
+                        tf.gather_nd(population, coords_2) + 1) / (1 + population[index_k, mu])
         omegas_difference_tf = (omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(
-                omega, coords_2))
+            omega, coords_2))
 
         dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
@@ -268,7 +278,8 @@ def calculate_dirac_delta_crystal(omega, population, physical_mode, sigma_tf, br
         return tf.cast(dirac_delta_tf, dtype=tf.float64), index_kp, mup, index_kpp, mupp
 
 
-def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu, is_balanced, default_delta_threshold=2):
+def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, broadening_shape, mu, is_balanced,
+                                    default_delta_threshold=2):
     if not physical_mode[0, mu]:
         return None
     if broadening_shape == 'triangle':
@@ -280,8 +291,8 @@ def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, 
         omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] -
                                    omega[0, np.newaxis, :])
         condition = (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf) & \
-                (physical_mode[0, :, np.newaxis]) & \
-                (physical_mode[0, np.newaxis, :])
+                    (physical_mode[0, :, np.newaxis]) & \
+                    (physical_mode[0, np.newaxis, :])
         interactions = tf.where(condition)
         if interactions.shape[0] > 0:
             # Create sparse index
@@ -295,7 +306,7 @@ def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, 
                     dirac_delta_tf = 0.5 * (tf.gather(population[0], mup_vec) + 1) * (
                         tf.gather(population[0], mupp_vec)) / (population[0, mu])
                     dirac_delta_tf += 0.5 * (tf.gather(population[0], mup_vec)) * (
-                                tf.gather(population[0], mupp_vec) + 1) / (1 + population[0, mu])
+                            tf.gather(population[0], mupp_vec) + 1) / (1 + population[0, mu])
             else:
                 dirac_delta_tf = 0.5 * (1 + tf.gather(population[0], mup_vec) + tf.gather(population[0], mupp_vec))
                 if is_balanced:
@@ -315,9 +326,9 @@ def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, 
             elif broadening_shape == 'lorentz':
                 broadening_function = lorentz_delta
             else:
-                raise('Broadening function not implemented')
+                raise ('Broadening function not implemented')
 
-            dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf,  2 * np.pi * sigma_tf)
+            dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
             try:
                 mup = tf.concat([mup, mup_vec], 0)
@@ -334,7 +345,7 @@ def calculate_dirac_delta_amorphous(omega, population, physical_mode, sigma_tf, 
 
 
 def calculate_broadening(velocity_tf, cellinv, k_size, index_kpp_vec):
-    velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:,tf.newaxis, :, :]
+    velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:, tf.newaxis, :, :]
     # we want the last index of velocity (the coordinate index to dot from the right to rlattice vec
     delta_k = cellinv / k_size
     base_sigma = tf.reduce_sum((tf.tensordot(velocity_difference, delta_k, [-1, 1])) ** 2, axis=-1)
