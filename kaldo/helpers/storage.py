@@ -49,7 +49,11 @@ def load(property, folder, instance, format='formatted'):
         elif property == 'velocity':
             loaded = []
             for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
+                ltxt = np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1)
+                # If loadtxt produces a 1D array, add an extra dimesion to the front
+                if len(ltxt.shape) == 1:
+                    ltxt = ltxt[None, ...]
+                loaded.append(ltxt)
             loaded = np.array(loaded).transpose(1, 2, 0)
         elif property == 'mean_free_path':
             loaded = []
