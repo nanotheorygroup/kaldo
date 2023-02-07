@@ -192,7 +192,7 @@ class SecondOrder(ForceConstant):
             replicated_atoms = ase.io.read(replicated_atom_prime_file)
             if 'second.npy' in os.listdir(str(folder)):
                 second_hiphive_file = str(folder) + '/second.npy'
-                fcs2 = HFC.from_arrays(supercell=supercell,fc2_array=np.load(second_hiphive_file))
+                fcs2 = HFC.from_arrays(supercell=replicated_atoms,fc2_array=np.load(second_hiphive_file))
                 n_replicas = np.prod(supercell)
                 n_atoms = atoms.positions.shape[0]
                 _second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
@@ -200,7 +200,7 @@ class SecondOrder(ForceConstant):
                                                       n_replicas, n_atoms, 3))
                 _second_order = _second_order[0, np.newaxis]
                 second_order = SecondOrder(atoms=atoms,
-                                          replicated_positions=replicated_positions,
+                                          replicated_positions=replicated_atoms.positions,
                                           supercell=supercell,
                                           value=_second_order,
                                           folder=folder)

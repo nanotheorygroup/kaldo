@@ -168,7 +168,8 @@ class ThirdOrder(ForceConstant):
             replicated_atom_prime_file = str(folder) + '/' + replicated_filename
             atoms = ase.io.read(atom_prime_file)
             replicated_atoms = ase.io.read(replicated_atom_prime_file)
-            with open('FC3', 'r') as f:
+            file_name = str(folder) + '/' + 'FC3'
+            with open(file_name, 'r') as f:
                 lines = f.readlines()
                 f.close()
             c = 13.605693012183622 * (1.889725989 ** (3))
@@ -194,7 +195,7 @@ class ThirdOrder(ForceConstant):
                 n_sc = np.prod(supercell)
                 pbc_conditions = replicated_atoms.get_pbc()
                 dim = len(pbc_conditions[pbc_conditions == True])
-                third_hiphive_file = str(folder) + '/THIRD'
+                third_hiphive_file = str(folder) + '/THIRD.sheng'
                 supercell = np.array(supercell)
                 # Derive constants used for third-order reshape
                 fcs3 = hFC.read_shengBTE(supercell=replicated_atoms,fname=third_hiphive_file,prim=atoms)
