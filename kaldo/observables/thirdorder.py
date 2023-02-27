@@ -172,7 +172,7 @@ class ThirdOrder(ForceConstant):
             with open(file_name, 'r') as f:
                 lines = f.readlines()
                 f.close()
-            c = 13.605693012183622 * (1.889725989 ** (3))
+            c = units.Rydberg * ((1/units.Bohr) ** (3)) # conversion factor from Ry/bohr^3 to eV/A^3
             with open(str(folder + '/THIRD.sheng'), 'w') as f:
                 i = 1
                 for line in lines:
