@@ -65,13 +65,13 @@ def load(property, folder, instance, format='formatted'):
         elif '_sij' in property:
             loaded = []
             for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=np.complex))
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=complex))
             loaded = np.array(loaded).transpose(1, 0)
         else:
             if property == 'diffusivity':
-                dt = np.complex
+                dt = complex
             else:
-                dt = np.float
+                dt = float
             loaded = np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
         return loaded
     elif format == 'memory':

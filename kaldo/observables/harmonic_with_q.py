@@ -7,6 +7,7 @@ from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
+# from numpy.linalg import eigh
 
 logging = get_logger()
 
@@ -135,9 +136,9 @@ class HarmonicWithQ(Observable):
         n_replicas = np.prod(self.supercell)
         shape = (1, n_unit_cell * 3, n_unit_cell * 3)
         if is_amorphous:
-            type = np.float
+            type = float
         else:
-            type = np.complex
+            type = complex
         dir = ['_x', '_y', '_z']
         log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
         if is_amorphous:
@@ -158,7 +159,7 @@ class HarmonicWithQ(Observable):
                     np.newaxis, :, :, :])
 
                 shape = (n_unit_cell, 3, n_unit_cell, 3)
-                type = np.complex
+                type = complex
                 dynmat_derivatives = np.zeros(shape, dtype=type)
                 for l in range(n_replicas):
                     wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
@@ -171,11 +172,11 @@ class HarmonicWithQ(Observable):
             else:
 
                 dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
-                                              tf.convert_to_tensor(distance.astype(np.complex)[..., direction]),
+                                              tf.convert_to_tensor(distance.astype(complex)[..., direction]),
                                               tf.cast(dynmat[0], tf.complex128),
                                               tf.convert_to_tensor(
                                                   chi(q_point, list_of_replicas, cell_inv).flatten().astype(
-                                                      np.complex)),
+                                                      complex)),
                                               backend='tensorflow')
         dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
         return dynmat_derivatives
@@ -185,9 +186,9 @@ class HarmonicWithQ(Observable):
         is_amorphous = self.is_amorphous
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
         if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
-            type = np.float
+            type = float
         else:
-            type = np.complex
+            type = complex
         eigenvects = self._eigensystem[1:, :]
         if direction == 0:
             dynmat_derivatives = self._dynmat_derivatives_x
@@ -241,10 +242,10 @@ class HarmonicWithQ(Observable):
         is_at_gamma = (q_point == (0, 0, 0)).all()
         is_amorphous = (n_replicas == 1)
         list_of_replicas = self.second.list_of_replicas
-        log_size((self.n_modes, self.n_modes), np.complex, name='dynmat_fourier')
+        log_size((self.n_modes, self.n_modes), complex, name='dynmat_fourier')
         if distance_threshold is not None:
             shape = (n_unit_cell, 3, n_unit_cell, 3)
-            type = np.complex
+            type = complex
             dyn_s = np.zeros(shape, dtype=type)
             replicated_cell = self.second.replicated_atoms.cell
 
@@ -277,7 +278,7 @@ class HarmonicWithQ(Observable):
         if only_eigenvals:
             esystem = tf.linalg.eigvalsh(dyn_s)
         else:
-            log_size(self._dynmat_fourier.shape, type=np.complex, name='eigensystem')
+            log_size(self._dynmat_fourier.shape, type=complex, name='eigensystem')
             esystem = tf.linalg.eigh(dyn_s)
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
@@ -302,7 +303,7 @@ class HarmonicWithQ(Observable):
         fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-        dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
+        dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
         supercell_replicas = self.second.supercell_replicas
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
@@ -320,6 +321,7 @@ class HarmonicWithQ(Observable):
                                                                  supercell_replica[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
         omega2, eigenvect, info = zheev(dyn)
+        # omega2, eigenvect = eigh(dyn)
         frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
         frequency = frequency[:] / np.pi / 2
         if only_eigenvals:
@@ -335,7 +337,7 @@ class HarmonicWithQ(Observable):
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
-        ddyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=np.complex)
+        ddyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
         fc_s = self.second.dynmat.numpy()
         fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions

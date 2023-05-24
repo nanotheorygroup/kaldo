@@ -33,7 +33,7 @@ class ForceConstant(Observable):
         atoms_positions = self.atoms.positions
         detected_grid = np.round(
             (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
-                np.linalg.inv(self.atoms.cell))[:, 0, :], 0).astype(np.int)
+                np.linalg.inv(self.atoms.cell))[:, 0, :], 0).astype(int)
 
         grid_c = Grid(grid_shape=self.supercell, order='C')
         grid_fortran = Grid(grid_shape=self.supercell, order='F')
@@ -108,7 +108,7 @@ class ForceConstant(Observable):
 
     def _chi_k(self, k_points):
         n_k_points = np.shape(k_points)[0]
-        ch = np.zeros((n_k_points, self.n_replicas), dtype=np.complex)
+        ch = np.zeros((n_k_points, self.n_replicas), dtype=complex)
         for index_q in range(n_k_points):
             k_point = k_points[index_q]
 
