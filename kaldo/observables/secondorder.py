@@ -259,7 +259,7 @@ class SecondOrder(ForceConstant):
     def calculate_dynmat(self):
         mass = self.atoms.get_masses()
         shape = self.value.shape
-        log_size(shape, np.float, name='dynmat')
+        log_size(shape, float, name='dynmat')
         dynmat = self.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
         dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         evtotenjovermol = units.mol / (10 * units.J)
@@ -274,7 +274,7 @@ class SecondOrder(ForceConstant):
         replicated_positions = self.replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
 
         list_of_index = np.round((replicated_positions - self.atoms.positions).dot(
-            np.linalg.inv(atoms.cell))).astype(np.int)
+            np.linalg.inv(atoms.cell))).astype(int)
         list_of_index = list_of_index[:, 0, :]
 
         tt = []

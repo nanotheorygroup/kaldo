@@ -226,7 +226,7 @@ class Conductivity:
         gamma_tensor = -1 * self.phonons._ps_gamma_and_gamma_tensor[:, 2:]
         index = np.outer(physical_mode, physical_mode)
         n_physical = physical_mode.sum()
-        log_size((n_physical, n_physical), np.float, name='_scattering_matrix')
+        log_size((n_physical, n_physical), float, name='_scattering_matrix')
         gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
         if is_rescaling_population:
             n = self.phonons.population.reshape((self.n_phonons))[physical_mode]

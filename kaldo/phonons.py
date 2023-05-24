@@ -224,8 +224,8 @@ class Phonons:
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
-        log_size(shape, name='eigensystem', type=np.complex)
-        eigensystem = np.zeros(shape, dtype=np.complex)
+        log_size(shape, name='eigensystem', type=complex)
+        eigensystem = np.zeros(shape, dtype=complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -286,7 +286,7 @@ class Phonons:
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes, self.n_modes)
-        log_size(shape, name='heat_capacity_2d', type=np.float)
+        log_size(shape, name='heat_capacity_2d', type=float)
         heat_capacity_2d = np.zeros(shape)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -436,7 +436,7 @@ class Phonons:
         q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
         qp_vec = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
+        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(int)
         rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
         index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise',
                                               order=self._grid_type)
