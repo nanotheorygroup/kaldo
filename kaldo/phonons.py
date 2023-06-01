@@ -113,7 +113,7 @@ class Phonons:
             (n_k_points, n_modes) bool
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
-        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=np.bool)
+        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]

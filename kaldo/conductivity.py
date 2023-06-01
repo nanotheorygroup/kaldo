@@ -26,7 +26,7 @@ def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, phy
                           diffusivity_threshold=None):
     # TODO: cache this
     sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
-    physical_mode = physical_mode.astype(np.bool)
+    physical_mode = physical_mode.astype(bool)
     delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
     kernel = curve(delta_energy, sigma)
     if diffusivity_threshold is not None:

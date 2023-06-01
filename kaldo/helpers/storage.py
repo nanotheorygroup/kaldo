@@ -45,7 +45,7 @@ def load(property, folder, instance, format='formatted'):
     elif format == 'formatted':
         if property == 'physical_mode':
             loaded = np.loadtxt(name + '.dat', skiprows=1)
-            loaded = np.round(loaded, 0).astype(np.bool)
+            loaded = np.round(loaded, 0).astype(bool)
         elif property == 'velocity':
             loaded = []
             for alpha in range(3):
