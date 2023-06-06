@@ -31,16 +31,19 @@ class ForceConstant(Observable):
         self._list_of_replicas = None
         n_replicas, n_unit_atoms, _ = self.replicated_positions.shape
         atoms_positions = self.atoms.positions
-        detected_grid = np.round(
-            (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
-                np.linalg.inv(self.atoms.cell))[:, 0, :], 0).astype(int)
+        detected_grid = (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
+                np.linalg.inv(self.atoms.cell))[:, 0, :]
 
         grid_c = Grid(grid_shape=self.supercell, order='C')
+        if self.n_replicas == 1 or len(detected_grid) == len(self.atoms):
+            # if it's only one replica, they are the same
+            self._direct_grid = grid_c
+            return
         grid_fortran = Grid(grid_shape=self.supercell, order='F')
-        if (grid_c.grid(is_wrapping=False) == detected_grid).all():
+        if np.linalg.norm(grid_c.grid(is_wrapping=False) - detected_grid) < 1e-5:
             grid_type = 'C'
             logging.debug("Using C-style position grid")
-        elif (grid_fortran.grid(is_wrapping=False) == detected_grid).all():
+        elif np.linalg.norm(grid_fortran.grid(is_wrapping=False) - detected_grid) < 1e-5:
             grid_type = 'F'
             logging.debug("Using fortran-style position grid")
         else:

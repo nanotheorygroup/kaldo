@@ -90,7 +90,10 @@ class SecondOrder(ForceConstant):
                 replicated_atoms = ase.io.read(config_file, format='extxyz')
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
-            n_unit_atoms = int(n_total_atoms / n_replicas)
+            n_unit_atoms = n_total_atoms / n_replicas
+            if n_unit_atoms != int(n_unit_atoms):
+                raise ValueError('Number of atoms in the unit cell not detected correctly.')
+            n_unit_atoms = int(n_unit_atoms)
             unit_symbols = []
             unit_positions = []
             for i in range(n_unit_atoms):
@@ -199,7 +202,7 @@ class SecondOrder(ForceConstant):
                                                       n_replicas, n_atoms, 3))
                 _second_order = _second_order[0, np.newaxis]
                 second_order = SecondOrder(atoms=atoms,
-                                          replicated_positions=replicated_positions,
+                                          replicated_positions=replicated_atoms.positions,
                                           supercell=supercell,
                                           value=_second_order,
                                           folder=folder)

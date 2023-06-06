@@ -33,7 +33,6 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
 
     second_order = None
     third_order = None
-
     if dynmat_file:
         logging.info('Reading dynamical matrix')
         second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
@@ -58,7 +57,6 @@ def import_from_files(replicated_atoms, dynmat_file=None, third_file=None, super
             n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
         third_dl = third_dl.reshape(third_shape)
         third_order = third_dl
-
     return second_order, third_order
 
 
@@ -97,7 +95,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_ener
     n_replicated_atoms = n_atoms * n_replicas
     n_rows = count_rows(filename)
     array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
-    coords = np.zeros((array_size, 6), dtype=int16)
+    coords = np.zeros((array_size, 6), dtype=int)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol

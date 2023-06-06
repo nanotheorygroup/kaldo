@@ -150,8 +150,6 @@ class ThirdOrder(ForceConstant):
                 pbc_conditions = replicated_atoms.get_pbc()
                 dim = len(pbc_conditions[pbc_conditions == True])
                 _third_order = hiphive_io.import_third_from_hiphive(atoms, supercell, folder)
-                _third_order = _third_order[0].reshape(n_prim * dim, n_sc * n_prim * dim,
-                                                                       n_sc * n_prim * dim)
                 third_order = cls(atoms=atoms,
                                   replicated_positions=replicated_atoms.positions,
                                   supercell=supercell,

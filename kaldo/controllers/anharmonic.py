@@ -87,7 +87,7 @@ def project_crystal(phonons):
         sparse_third = phonons.forceconstants.third.value.reshape((phonons.n_modes, -1))
         # transpose
         sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
-        third_tf = tf.SparseTensor(sparse_coords,
+        third_tf = tf.SparseTensor(tf.cast(sparse_coords, dtype=tf.int64),
                                    sparse_third.data,
                                    ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
         is_sparse = True

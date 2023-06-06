@@ -159,6 +159,7 @@ class ForceConstants:
             the distance threshold will be ignored.
             Default is self.distance_threshold
         """
+        # TODO: combine this logic with the lifetime calculation
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
             if self.distance_threshold is not None:
@@ -177,9 +178,14 @@ class ForceConstants:
         atoms = self.atoms
         n_replicas = self.n_replicas
         replicated_cell_inv = np.linalg.inv(self.third.replicated_atoms.cell)
+        try:
+            reduced_third = reduced_third.reshape(
+                (n_unit_atoms, 3, 1, n_replicas * n_unit_atoms, 3, 1, n_replicas * n_unit_atoms, 3))
+        except ValueError:
+            logging.info('The third order force constant matrix is in the reduced shape. ')
+            reduced_third = reduced_third.reshape(
+                (n_unit_atoms, 3, 1, n_unit_atoms, 3, 1, n_unit_atoms, 3))
 
-        reduced_third = reduced_third.reshape(
-            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
         replicated_positions = self.third.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
         dxij_reduced = wrap_coordinates(atoms.positions[:, np.newaxis, np.newaxis, :]
                                         - replicated_positions[np.newaxis, :, :, :], self.third.replicated_atoms.cell,

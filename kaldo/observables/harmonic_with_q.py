@@ -295,12 +295,11 @@ class HarmonicWithQ(Observable):
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         # This algorithm should be the same as the ShengBTE version
         q_point = self.q_point
-        supercell = self.supercell
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
         fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+        fc_s = fc_s.reshape((n_unit_cell, 3, 1, 1, 1, n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
         dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
@@ -317,8 +316,7 @@ class HarmonicWithQ(Observable):
             if coefficient.any():
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                 fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                                                                 fc_s[:, :, 0, 0, 0, :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
         omega2, eigenvect, info = zheev(dyn)
         # omega2, eigenvect = eigh(dyn)
@@ -339,7 +337,7 @@ class HarmonicWithQ(Observable):
         n_unit_cell = atoms.positions.shape[0]
         ddyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
         fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+        fc_s = fc_s.reshape((n_unit_cell, 3, 1, 1, 1, n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
         supercell_replicas = self.second.supercell_replicas
@@ -356,6 +354,5 @@ class HarmonicWithQ(Observable):
             if coefficient.any():
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                  fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                                                                  fc_s[:, :, 0, 0, 0, :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
