@@ -97,14 +97,14 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_ener
     n_replicated_atoms = n_atoms * n_replicas
     n_rows = count_rows(filename)
     array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
-    coords = np.zeros((array_size, 6), dtype=int16)
+    coords = np.zeros((array_size, 6), dtype=np.int16)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
-            coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
+            coords_to_write = np.array(l_split[0:-3], dtype=np.int16) - 1
             values_to_write = np.array(l_split[-3:], dtype=float)
             #TODO: add 'if' third_energy_threshold before calculating the mask
             mask_to_write = np.abs(values_to_write) > third_energy_threshold
