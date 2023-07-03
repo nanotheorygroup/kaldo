@@ -18,50 +18,75 @@ logging = get_logger()
 
 
 class Phonons:
-    """The Phonons object exposes all the phononic properties of a system.
-    It's can be fed into a Conductivity object and must be built with a
-    ForceConstant object.
+    """
+    The Phonons object exposes all the phononic properties of a system by manipulation
+    of the quantities passed into the ForceConstant object. The arguments passed in here
+    reflect assumptions to be made about the macroscopic system e.g. the temperature, or
+    whether the system is amorphous or a nanowire.
+    The ForceConstants, and temperature are the only two required parameters, though we
+    highly recommend the switch controlling whether to use quantum/classical statistics
+    (`is_classic`) and the number of k-points to consider (`kpts`).
+    For most users, you will not need to access any Phonon object functions directly
+    , but only reference an attribute (e.g. Phonons.frequency). Please check out the
+    examples for details on our recommendations for retrieving, and plotting data.
 
     Parameters
     ----------
     forceconstants : ForceConstants
-        contains all the information about the system and the derivatives
-        of the potential.
-    is_classic : bool
-        specifies if the system is classic, `True` or quantum, `False`
-        Default is `False`
-    kpts : (3) tuple, optional
-        defines the number of k points to use to create the k mesh
-        Default is (1, 1, 1)
+        Contains all the information about the system and the derivatives
+        of the potential energy.
     temperature : float
-        defines the temperature of the simulation. Units: K.
-    min_frequency : float, optional
-        ignores all phonons with frequency below `min_frequency` THz,
-        Default is `None`
-    max_frequency : float, optional
-        ignores all phonons with frequency above `max_frequency` THz
-        Default is `None`
-    third_bandwidth : float, optional
+        Defines the temperature of the simulation
+        Units: K
+    is_classic : bool
+        Specifies if the system is treated with classical or quantum
+        statistics.
+        Default: `False`
+    kpts : (int, int, int)
+        Defines the number of k points to use to create the k mesh
+        Default: (1, 1, 1)
+    min_frequency : float
+        Ignores all phonons with frequency below `min_frequency`
+        Units: Thz
+        Default: `None`
+    max_frequency : float
+        Ignores all phonons with frequency above `max_frequency`
+        Units: THz
+        Default: `None`
+    third_bandwidth : float
         Defines the width of the energy conservation smearing in the phonons
         scattering calculation. If `None` the width is calculated
         dynamically. Otherwise the input value corresponds to the width.
-        Units: THz.
-    broadening_shape : string, optional
+        Units: THz
+        Default: `None`
+    broadening_shape : string
         Defines the algorithm to use for the broadening of the conservation
-        of the energy for third irder interactions. Available broadenings
-        are `gauss`, `lorentz` and `triangle`.
-        Default is `gauss`.
-    folder : string, optional
-        Specifies where to store the data files. Default is `output`.
-    storage : `default`, `formatted`, `numpy`, `memory`, `hdf5`, optional
+        of the energy for third irder interactions.
+        Options: `gauss`, `lorentz` and `triangle`.
+        Default: `gauss`.
+    folder : string
+        Specifies where to store the data files.
+        Default: `output`.
+    storage : string
         Defines the storing strategy used to store the observables. The
-        `default` strategy stores formatted output and numpy arrays.
-        `memory` storage doesn't generate any output.
-    grid_type : 'F' or 'C, optional
-        Specify if to use 'C" style atoms replica grid of fortran
-        style 'F',
-        Default 'C'
-    is_balanced : Enforce detailed balance when calculating anharmonic properties,
+        `default` strategy stores formatted text files for most harmonic
+        properties but relies on numpy arrays for large arrays like the
+        gamma tensor. The `memory` option doesn't generate any output.
+        Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`
+        Default: 'formatted'
+    grid_type : string
+        Specifies whether the atoms in the replicated system were repeated using
+        a C-like index ordering which changes the last axis the fastest or
+        FORTRAN-like index ordering which changes the first index fastest.
+        Options: 'C', 'F'
+        Default: 'C'
+    is_balanced : bool
+        Enforce detailed balance when calculating anharmonic properties. Useful for
+        simulations where it may be difficult to get a sufficiently dense k-point grid.
+        Default: False
+    is_unfolding : bool
+        If the second order force constants need to be unfolded like in P. B. Allen
+        et al., Phys. Rev. B 87, 085322 (2013) set this to True.
         Default: False
 
     Returns
@@ -74,13 +99,12 @@ class Phonons:
         if 'temperature' in kwargs:
             self.temperature = float(kwargs['temperature'])
         self.folder = kwargs.pop('folder', FOLDER_NAME)
-        self.kpts = kwargs.pop('kpts', (1, 1, 1))
+        self.kpts = np.array(kwargs.pop('kpts', (1, 1, 1)))
         self._grid_type = kwargs.pop('grid_type', 'C')
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
         self.is_unfolding = kwargs.pop('is_unfolding', False)
         if self.is_unfolding:
             logging.info('Using unfolding.')
-        self.kpts = np.array(self.kpts)
         self.min_frequency = kwargs.pop('min_frequency', 0)
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
@@ -96,7 +120,6 @@ class Phonons:
         self.n_atoms = self.forceconstants.n_atoms
         self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
-        self.is_able_to_calculate = True
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
