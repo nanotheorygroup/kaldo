@@ -112,8 +112,6 @@ class Conductivity:
         self.method = kwargs.pop('method', 'rta')
         self.storage = kwargs.pop('storage', 'formatted')
 
-        #TODO: remove is_unfolding from this class
-        self.is_unfolding = kwargs.pop('is_unfolding', False)
         if self.method == 'rta':
             self.n_iterations = 0
         else:
@@ -289,8 +287,8 @@ class Conductivity:
                                        storage=self.storage,
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
-                                       is_nw=self.phonons.is_nw,
-                                       is_unfolding=self.is_unfolding)
+                                       is_nw=phonons.is_nw,
+                                       is_unfolding=phonons.is_unfolding)
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:
                 logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
