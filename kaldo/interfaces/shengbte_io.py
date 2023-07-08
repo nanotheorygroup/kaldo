@@ -7,6 +7,7 @@ import numpy as np
 from kaldo.phonons import Phonons
 from ase.units import Rydberg, Bohr
 from ase import Atoms
+from ase.io import read
 import os
 import re
 from kaldo.grid import Grid
@@ -284,15 +285,22 @@ def save_second_order_matrix(phonons):
 
 
 def save_second_order_qe_matrix(phonons):
+    unit_cell_atoms = read(phonons.forceconstants.folder + '/POSCAR')
+    replicated_atoms = unit_cell_atoms.repeat(phonons.forceconstants.supercell)
     shenbte_folder = phonons.folder + '/'
+    n_unit_cell = len(unit_cell_atoms)
     n_replicas = phonons.forceconstants.n_replicas
     n_atoms = int(phonons.n_modes / 3)
-    second_order = phonons.second.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
+    second_order = phonons.forceconstants.second.value.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
+    replicated_positions = replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
+    list_of_index = np.round((replicated_positions - phonons.atoms.positions).dot(
+        np.linalg.inv(phonons.atoms.cell))).astype(np.int)
+    list_of_index = list_of_index[:, 0, :]
 
-    list_of_index = phonons.list_of_index()
+    #list_of_index = phonons.list_of_index()
 
     file.write (header(phonons))
     for alpha in range (3):
@@ -302,13 +310,13 @@ def save_second_order_qe_matrix(phonons):
                     file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
                     for id_replica in range(list_of_index.shape[0]):
 
-                        l_vec = (phonons.list_of_index()[id_replica] + 1)
+                        l_vec = (list_of_index[id_replica] + 1)
                         for delta in range(3):
                             if l_vec[delta] <= 0:
                                 l_vec[delta] = phonons.forceconstants.supercell[delta]
 
 
-                        file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
+                        file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[0])))
 
                         matrix_element = second_order[i, alpha, id_replica, j, beta]
 
