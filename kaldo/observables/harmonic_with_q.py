@@ -29,12 +29,12 @@ class HarmonicWithQ(Observable):
         self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
         self.supercell = second.supercell
-        self.is_amorphous = is_amorphous
         self.second = second
         self.distance_threshold = distance_threshold
         self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
+        self.is_amorphous = is_amorphous
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
                 self.physical_mode[0, :4] = False
@@ -136,9 +136,9 @@ class HarmonicWithQ(Observable):
         n_replicas = np.prod(self.supercell)
         shape = (1, n_unit_cell * 3, n_unit_cell * 3)
         dir = ['_x', '_y', '_z']
+        type = complex if (not self.is_amorphous) else float
+        log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
         if self.is_amorphous:
-            type = float
-            log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
             dynmat_derivatives = contract('ij,ibjc->ibjc',
@@ -146,8 +146,6 @@ class HarmonicWithQ(Observable):
                                           dynmat[0, :, :, 0, :, :],
                                           backend='tensorflow')
         else:
-            type = complex
-            log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
             distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
 
