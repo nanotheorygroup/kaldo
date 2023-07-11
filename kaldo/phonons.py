@@ -463,7 +463,7 @@ class Phonons:
 
     @property
     def _is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell=(1,1,1)).all()
+        is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell == (1,1,1)).all()
         return is_amorphous
 
 
