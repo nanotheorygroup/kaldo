@@ -146,7 +146,8 @@ class Phonons:
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding)
+                                   is_unfolding=self.is_unfolding,
+                                   is_amorphous=self.is_amorphous)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -174,7 +175,8 @@ class Phonons:
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding)
+                                   is_unfolding=self.is_unfolding,
+                                   is_amorphous=self.is_amorphous)
 
             frequency[ik] = phonon.frequency
 
@@ -201,7 +203,8 @@ class Phonons:
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding)
+                                   is_unfolding=self.is_unfolding,
+                                   is_amorphous=self.is_amorphous)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -228,7 +231,9 @@ class Phonons:
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding)
+                                   is_unfolding=self.is_unfolding,
+                                   is_amorphous=self.is_amorphous)
+
             velocity[ik] = phonon.velocity
         return velocity
 
@@ -257,7 +262,8 @@ class Phonons:
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding)
+                                   is_unfolding=self.is_unfolding,
+                                   is_amorphous=self.is_amorphous)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -292,7 +298,8 @@ class Phonons:
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding)
+                                       is_unfolding=self.is_unfolding,
+                                       is_amorphous=self.is_amorphous)
             c_v[ik] = phonon.heat_capacity
         return c_v
 
@@ -321,7 +328,9 @@ class Phonons:
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding)
+                                       is_unfolding=self.is_unfolding,
+                                       is_amorphous=self.is_amorphous)
+
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
 
@@ -349,7 +358,9 @@ class Phonons:
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding)
+                                       is_unfolding=self.is_unfolding,
+                                       is_amorphous=self.is_amorphous)
+
             population[ik] = phonon.population
         return population
 
