@@ -147,7 +147,7 @@ class Phonons:
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self.is_amorphous)
+                                   is_amorphous=self._is_amorphous)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -176,7 +176,7 @@ class Phonons:
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self.is_amorphous)
+                                   is_amorphous=self._is_amorphous)
 
             frequency[ik] = phonon.frequency
 
@@ -204,7 +204,7 @@ class Phonons:
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self.is_amorphous)
+                                   is_amorphous=self._is_amorphous)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -232,7 +232,7 @@ class Phonons:
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self.is_amorphous)
+                                   is_amorphous=self._is_amorphous)
 
             velocity[ik] = phonon.velocity
         return velocity
@@ -250,10 +250,11 @@ class Phonons:
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
+        type = complex if (not self._is_amorphous) else float
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
-        log_size(shape, name='eigensystem', type=complex)
-        eigensystem = np.zeros(shape, dtype=complex)
+        log_size(shape, name='eigensystem', type=type)
+        eigensystem = np.zeros(shape, dtype=type)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -263,7 +264,7 @@ class Phonons:
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self.is_amorphous)
+                                   is_amorphous=self._is_amorphous)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -299,7 +300,7 @@ class Phonons:
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding,
-                                       is_amorphous=self.is_amorphous)
+                                       is_amorphous=self._is_amorphous)
             c_v[ik] = phonon.heat_capacity
         return c_v
 
@@ -329,7 +330,7 @@ class Phonons:
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding,
-                                       is_amorphous=self.is_amorphous)
+                                       is_amorphous=self._is_amorphous)
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
@@ -359,7 +360,7 @@ class Phonons:
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding,
-                                       is_amorphous=self.is_amorphous)
+                                       is_amorphous=self._is_amorphous)
 
             population[ik] = phonon.population
         return population
@@ -462,7 +463,7 @@ class Phonons:
 
     @property
     def _is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all()
+        is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell=(1,1,1)).all()
         return is_amorphous
 
 

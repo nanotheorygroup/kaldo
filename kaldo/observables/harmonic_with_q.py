@@ -263,7 +263,6 @@ class HarmonicWithQ(Observable):
                 else:
                     dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
             else:
-                print(dyn_s)
                 dyn_s = contract('ialjb,l->iajb',
                                  tf.cast(dynmat[0], tf.complex128),
                                  tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten()),
