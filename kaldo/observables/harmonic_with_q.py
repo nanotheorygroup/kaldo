@@ -302,7 +302,7 @@ class HarmonicWithQ(Observable):
         supercell_replicas = self.second.supercell_replicas
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
-            replica_position = np.tensordot(supercell_replica, cell.T, (-1, 0))
+            replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
             distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
             projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
             mask = (projection <= 1e-6).all(axis=-1)
@@ -310,11 +310,11 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
-                image = supercell_replica%supercell
+                supercell_index = supercell_replica%supercell
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                 fc_s[:, :, image[0], image[1],
-                                                                 image[2], :, :], coefficient)
+                                                                 fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                                 supercell_index[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
         omega2, eigenvect, info = zheev(dyn)
         # omega2, eigenvect = eigh(dyn)
@@ -341,7 +341,7 @@ class HarmonicWithQ(Observable):
         supercell_replicas = self.second.supercell_replicas
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
-            replica_position = np.tensordot(supercell_replica, cell.T, (-1, 0))
+            replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
 
             distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
             projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
@@ -350,9 +350,9 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
-                image = supercell_replica%supercell
+                supercell_index = supercell_replica%supercell
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                  fc_s[:, :, image[0], image[1],
-                                                                    image[2], :, :], coefficient)
+                                                                  fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                                    supercell_index[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
