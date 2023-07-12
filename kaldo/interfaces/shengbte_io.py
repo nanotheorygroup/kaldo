@@ -326,7 +326,7 @@ def save_third_order_matrix(phonons):
     file = open ('%s' % filename, 'w+')
     n_in_unit_cell = len (phonons.atoms.numbers)
     n_replicas = phonons.forceconstants.n_replicas
-    third_order = phonons.forceconstants.third\
+    third_order = phonons.forceconstants.third.value\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
 

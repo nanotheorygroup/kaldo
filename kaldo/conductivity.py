@@ -289,7 +289,7 @@ class Conductivity:
                                        is_classic=self.is_classic,
                                        is_nw=phonons.is_nw,
                                        is_unfolding=phonons.is_unfolding,
-                                       is_amorphous=phonons.is_amorphous)
+                                       is_amorphous=phonons._is_amorphous)
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:
                 logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
