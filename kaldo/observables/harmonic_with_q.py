@@ -167,7 +167,6 @@ class HarmonicWithQ(Observable):
                                                                      dynmat.numpy()[0, id_i, :, 0, id_j, :] *
                                                                      chi(q_point, list_of_replicas, cell_inv)[l])
             else:
-
                 dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
                                               tf.convert_to_tensor(distance.astype(complex)[..., direction]),
                                               tf.cast(dynmat[0], tf.complex128),
@@ -342,7 +341,6 @@ class HarmonicWithQ(Observable):
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
             replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
-
             distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
             projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
             mask = (projection <= 1e-6).all(axis=-1)
@@ -350,9 +348,9 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
-                supercell_index = supercell_replica%supercell
-                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
-                ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                  fc_s[:, :, supercell_index[0], supercell_index[1],
-                                                                    supercell_index[2], :, :], coefficient)
+                supercell_index = supercell_replica % supercell
+                qr = 2. * np.pi * np.dot(q_point, supercell_replica)
+                ddyn_s[:, :, :, :] += replica_position[direction] * np.exp(-1j * qr) *\
+                                      contract('jbia,ij->iajb', fc_s[:, :, supercell_index[0],
+                                          supercell_index[1], supercell_index[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
