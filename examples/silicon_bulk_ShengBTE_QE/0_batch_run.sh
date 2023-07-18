@@ -1,21 +1,26 @@
 #!/bin/bash
-# unpack silicon-qe data?
+# Instructions:
+# Edit the variables in the run parameters section to
+# reflect your preferences
+# Run the script with your preffered flags
+# "0_batch_run.sh -p"
+# -p/--parallel if you can launch parallel processes safely
+
+
+## Run Parameters ################################
+## Unpack silicon-qe data + create directories
 setup="true"
 
-# can we launch multiple processes?
-parallel="true"
-
-# Calculate or plot?
+## Calculate or plot?
 run_type="calculate"
 
 # Do we want Kappa? (~ 1 hour per system)
 harmonic_only="true"
 
-# Systems to compare
-systems_to_run=('3u' '3n' '8n')
+# Quantities to plot
+plot_quants=('bandwidth' 'phasespace' 'participationratio')
 
-# where to put output
-outputdir="kaldo-outputs"
+#################################################
 
 if [ "${run_type}" == "calculate" ];
 then
@@ -29,7 +34,7 @@ then
 
     # create directory for output files
     printf "Creating directories.."
-    mkdir ${outputdir}
+    mkdir ${kaldo_outputs}
   fi
 
   printf "## Running kALDo! --\n"
@@ -40,16 +45,48 @@ then
 
   for sys in ${systems_to_run[@]}
   do
-          printf "\tLaunching calculations on ${sys}\n"
-          printf "\t\tpython 1_run_kaldo.py ${sys} ${harmonicflag}\n"
-          python 1_run_kaldo.py ${sys} ${harmonicflag} &> ${outputdir}/${sys}.out & disown
+    printf "\tLaunching calculations on ${sys}\n"
+    printf "\t\tpython 1_run_kaldo.py ${sys} ${dispersionflag}\n"
+    case "$1" in
+      -p|--parallel)
+        python 1_run_kaldo.py ${sys} ${harmonicflag} &> ${kaldo_outputs}/${sys}.out & disown
+        printf "\t\tLaunch succesful\n"
+        ;;
+      *)
+        python 1_run_kaldo.py ${sys} ${harmonicflag} &> ${kaldo_outputs}/${sys}.out
+        ;;
+    esac
   done
-  printf "\n\n### Launch succesful ###\n"
 elif ${run_type}=='plot'
 then
-  echo Plotting! --
-  python 2_plot_dispersion.py ${systems_to_run[@]}
-  python 2_plot_dispersion.py ${systems_to_run[@]} bandwidth
-  python 2_plot_dispersion.py ${systems_to_run[@]} phasespace
-  python 2_plot_dispersion.py ${systems_to_run[@]} participation_ratio
+  printf "Plotting! --\n"
+  # note vd arg passed to 2_plot_dispersion.py is to indicate you want velocity+dispersion plotted
+  case "$1" in
+    -p|--parallel)
+      python 2_plot_dispersion.py vd ${systems_to_run[@]} &> ${kaldo_outputs}/plot_dispersion.out & disown
+      ;;
+    *)
+      python 2_plot_dispersion.py vd ${systems_to_run[@]} &> ${kaldo_outputs}/plot_dispersion.out
+      ;;
+  esac
+  if [ "${harmonic_only}" == "true" ];
+  then
+    printf "\nComplete!\n"
+    quit(0)
+  else
+  then
+    for quantity in plot_quants
+    do
+      case "$1" in
+        -p|--parallel)
+          python 3_plot_phonon_data.py ${quantity} ${systems_to_run[@]} &> ${kaldo_outputs}/plot_dispersion.out & disown
+          ;;
+        *)
+          python 3_plot_phonon_data.py ${quantity} ${systems_to_run[@]} &> ${kaldo_outputs}/plot_dispersion.out
+          ;;
+      esac
+    done
+  fi
 fi
+printf "\nComplete!\n"
+quit(0)
