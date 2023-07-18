@@ -12,13 +12,8 @@
 # representation across interfaces will result in unphysical output from kALDo
 import os
 import sys
-os.environ['CUDA_VISIBLE_DEVICES']=""
 import numpy as np
 from ase.io import read
-from kaldo.forceconstants import ForceConstants
-from kaldo.phonons import Phonons
-from kaldo.conductivity import Conductivity
-from kaldo.controllers.plotter import plot_dispersion
 
 # Number of replicas controlled by command line argument
 nrep = int(sys.argv[1][0])
@@ -26,7 +21,7 @@ supercell, folder = np.array([nrep, nrep, nrep]), '{}x{}x{}'.format(nrep, nrep, 
 third_supercell = np.array([3,3,3])
 
 # Parameter controlling k-pt grid
-k = 9
+k = 7 # should be changed a bit higher probably for real example
 kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k,k,k)
 
 # Detect whether you want to unfold
@@ -38,43 +33,53 @@ if 'u' in sys.argv[1]:
 
 # Dispersion information
 npoints = 150
+only_second = False
 pathstring = 'GXULG' # edit this to change dispersion path
-atoms = read('3x3x3/POSCAR', format='vasp')
-cell = atoms.cell
-lat = cell.get_bravais_lattice()
-path = cell.bandpath(pathstring, npoints=npoints)
-print('Unit cell detected: {}'.format(atoms))
-print('Special points on cell:')
-print(lat.get_special_points())
-print('Path: {}'.format(path))
-if 'disp' in sys.argv:
-    only_dispersion = True
+if 'harmonic' in sys.argv:
+    only_second = True
 
 # Control data IO + overwriting controls
 overwrite = False; prefix='data'
 outfolder = prefix+'/{}{}'.format(nrep, unfold)
-print('\n\n\t\tPlotting for supercell {}x{}x{} -- '.format(nrep, nrep, nrep))
-print('\t\t Unfolding (u/n): {}'.format(unfold))
-print('\t\t In folder:       {}'.format(folder))
-print('\t\t Out folder:      {}'.format(outfolder))
 if 'overwrite' in sys.argv:
     overwrite = True
 if os.path.isdir(prefix):
-    print('!! - '+prefix+' directory already exists')
+    print('\n!! - '+prefix+' directory already exists')
     if os.path.isdir(outfolder):
         print('!! - '+outfolder+' directory already exists')
-        print('!! - continuing may overwrite, or load previous data')
+        print('!! - continuing may overwrite, or load previous data\n')
         if not overwrite:
+            print('!! - overwrites disallowed, exiting safely..')
             exit()
 else:
     os.mkdir(prefix)
 
 # You shouldn't need to edit below this line
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+print('\n\n\tCalculating for supercell {}x{}x{} -- '.format(nrep, nrep, nrep))
+print('\t\t Unfolding (u/n): {}'.format(unfold))
+print('\t\t In folder:       {}'.format(folder))
+print('\t\t Out folder:      {}'.format(outfolder))
+print('\t\t Dispersion only: {}'.format(only_second))
+print('\t\t Overwrite permission: {}\n\n'.format(overwrite))
 
+# Control threading behavior
+os.environ['CUDA_VISIBLE_DEVICES']=" "
+import tensorflow as tf
+tf.config.threading.set_inter_op_parallelism_threads(2)
+tf.config.threading.set_intra_op_parallelism_threads(2)
+
+# Import kALDo
+from kaldo.forceconstants import ForceConstants
+from kaldo.phonons import Phonons
+from kaldo.conductivity import Conductivity
+from kaldo.controllers.plotter import plot_dispersion
+
+# Create kALDo objects
 forceconstant = ForceConstants.from_folder(
                        folder=folder,
                        supercell=supercell,
+                       only_second=only_second,
                        third_supercell=third_supercell,
                        is_acoustic_sum=True,
                        format='shengbte-qe')
@@ -86,12 +91,23 @@ phonons = Phonons(forceconstants=forceconstant,
               is_classic=False,
               temperature=300,
               folder=outfolder,
-              is_unfolding=unfold,
+              is_unfolding=unfold_bool,
               storage='numpy')
 
 # Dispersion - plotted by an imported function from our `controllers/plotter.py`
+atoms = read('3x3x3/POSCAR', format='vasp')
+cell = atoms.cell
+lat = cell.get_bravais_lattice()
+path = cell.bandpath(pathstring, npoints=npoints)
+print('Unit cell detected: {}'.format(atoms))
+print('Special points on cell:')
+print(lat.get_special_points())
+print('Path: {}'.format(path))
 plot_dispersion(phonons, is_showing=False,
             manually_defined_path=path, folder=outfolder+'/dispersion')
+if only_second:
+    print('\n\n\n\tHarmonic quantities generated, exiting safely ..')
+    quit(0)
 
 # Conductivity - different methods of calculating the conductivity can be compared
 # but full inversion of the three-phonon scattering matrix typically agrees with

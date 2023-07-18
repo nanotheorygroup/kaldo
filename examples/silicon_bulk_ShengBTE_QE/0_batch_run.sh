@@ -1,35 +1,50 @@
 #!/bin/bash
-# Set run_type to either calculate or plot
-run_type="calculate"
-dispersion_only="false"
+# unpack silicon-qe data?
+setup="true"
+
+# can we launch multiple processes?
 parallel="true"
-systems_to_run=('3u', '3n', '8u', '8n')
 
-if ${run_type}=="calculate"
+# Calculate or plot?
+run_type="calculate"
+
+# Do we want Kappa? (~ 1 hour per system)
+harmonic_only="true"
+
+# Systems to compare
+systems_to_run=('3u' '3n' '8n')
+
+# where to put output
+outputdir="kaldo-outputs"
+
+if [ "${run_type}" == "calculate" ];
 then
-  echo Running kALDo! --
-  # untar Silicon force constants
-  tar -xvzf si-qe-sheng-dat.tgz
-
-  # create directory for output files
-  export outputdir=kaldo-outputs
-  mkdir ${outputdir}
-
-  disownflag==""
-  if ${parallel}=="true"
+  printf "## Preparing batch kALDo launch ###\n"
+  if [ "${setup}" == "true" ];
   then
-    disownflag=="& disown"
+    # untar Silicon force constants
+    printf "Unpacking forces.."
+    tar -xvzf si-qe-sheng-dat.tgz
+    printf "\tUnpacked!\n\n"
+
+    # create directory for output files
+    printf "Creating directories.."
+    mkdir ${outputdir}
   fi
-  dispersionflag=""
-  if ${dispersion_only}=="true"
+
+  printf "## Running kALDo! --\n"
+  if [ "${harmonic_only}" == "true" ];
   then
-    dispersionflag="disp"
+    harmonicflag="harmonic"
   fi
+
   for sys in ${systems_to_run[@]}
   do
-          echo Launching calculations on ${sys}
-          python 1_run_kaldo.py ${sys} ${dispersionflag} &> ${outputdir}/${sys}.out ${disownflag}
+          printf "\tLaunching calculations on ${sys}\n"
+          printf "\t\tpython 1_run_kaldo.py ${sys} ${harmonicflag}\n"
+          python 1_run_kaldo.py ${sys} ${harmonicflag} &> ${outputdir}/${sys}.out & disown
   done
+  printf "\n\n### Launch succesful ###\n"
 elif ${run_type}=='plot'
 then
   echo Plotting! --
