@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -9,7 +10,7 @@ from plotting_dictionaries import scatterstyledic, stats_bool_dic, scale_dic, la
 systems_to_compare = ['3n-', '3n+', '8n-', '8n+', ]
 kaldo_output_folder = 'kaldo-outputs'
 to_plot_x = 'frequency'
-to_plot_y = 'bandwidth'
+to_plot_y = sys.argv[1]
 
 # !! -- These parameters need to match 1_run_kaldo.py
 prefix = 'data/'
