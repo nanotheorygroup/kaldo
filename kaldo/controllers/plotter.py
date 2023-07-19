@@ -163,7 +163,7 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
         plt.close()
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True, color='b', manually_defined_path=None):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True, color='b', manually_defined_path=None, folder=None):
     atoms = phonons.atoms
     if phonons.is_nw:
         q = np.linspace(0, 0.5, n_k_points)
@@ -215,7 +215,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with
         plt.plot(q, freqs_plot, '.', linewidth=4, markersize=4)
     plt.grid()
     plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
-    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not folder:
+        folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
