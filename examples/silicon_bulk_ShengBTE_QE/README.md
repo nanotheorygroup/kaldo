@@ -20,7 +20,7 @@ calculations on a supercell.
 
     4. The dispersion is calculated along the path specified.
 
-    5. The conductivity is calculated as long as the "disp" argument is not provided on the command line.
+    5. The conductivity is calculated as long as the "harmonic" argument is not provided on the command line.
 
 - 2_plot_dispersions.py
   Using our handy in house plot_dispersion function, this script compares data
@@ -42,30 +42,33 @@ calculations on a supercell.
 ### Auxillary scripts
 
 - 0_batch_run.sh
-  If you'd like to run everything just like we did, bash this file.
 
-    1. First, it decompresses the silicon data
+  1. using a combination of environment variables and parameters in the script header this file
+  executes a number of either ALD simulations or plotting routines
+  To run it, edit the internal parameters to control whether you'd like to calculate/plot and then
+  in your CLI use "./0_batch_run.sh -p". Remove the -p flag if you want it run in serial
 
-    2. Then it makes a directory to collect kaldo output for easier debugging
-
-    3. Next it runs in parallel 8 kALDo simulations for silicon
-       a. To run this in serial, just remove the "& disown" from line 14
-
-- plotting_dictionaries.py
+- tools/plotting_dictionaries.py
 
     1. Contains dictionaries to increase flexibility of plotting tool without adding
       to much bulk to the plotting script itself.
 
-- si-qe-sheng-dat.tgz
+- tools/si-qe-sheng-dat.tgz
 
     1. This contains the qe+thirdorder data compressed in a tar ball
+
+- tools/vars.sh
+
+    1. source this to load in environment variables helpful to these scripts
 
 ## Subdirectory Organization
 
 - Directories with NxNxN contain the QE force constants, ShengBTE-thirdorder force constants and optimized atom
   coordinates in a VASP-style POSCAR file
 
-- kALDo outputs data in the directory specified by the "prefix" variable in "1_run_kaldo.py" set to 'data' by default
+- kALDo outputs data in the directory specified by the "kaldo_ald" environment variable in vars.sh set to 'data' by default
+
+- kALDo outputs logging info and plots to the directory specified by the "kaldo_outputs" environment variable
 
 - Dispersion data will be found in <prefix>/<system>/dispersion
 
