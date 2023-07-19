@@ -11,7 +11,7 @@ from scipy import constants as con
 #             8-purple
 # Unfolding: Yes-solid line
 #            No -dashed
-linestyledic = {
+linestyle_dic = {
     '1': np.array([225, 0, 0]) / 255,
     '3': np.array([0, 255, 0]) / 255,
     '5': np.array([0, 0, 255]) / 255,
@@ -26,7 +26,7 @@ linestyledic = {
 #              8-purple
 # Unfolding: Yes-O
 #             No-X
-scatterstyledic = {
+scatterstyle_dic = {
     '1': np.array([225, 0, 0]) / 255,
     '3': np.array([0, 255, 0]) / 255,
     '5': np.array([0, 0, 255]) / 255,
@@ -43,23 +43,27 @@ scale_dic = {
 ############################################################
 # kALDo STORAGE INFORMATION ################################
 ############################################################
-# Formatting dictionary
-# To find the output kaldo uses
-format_dic={
-    'bandwidth':'.npy'
-}
 # Stats boolean dictionary
 # To find whether we need the temp+stats directories
 stats_bool_dic={
     'bandwidth':True,
     'frequency':False,
-    'phase space':True,
+    'phase_space':True,
+    'heat_capacity':True,
+    'population':True,
+    'velocity':True,
+    'participation_ratio':False,
 }
-# File name dictionary
+
+# Retrieval dictionary
 # To account for properties whose filename is saved
-# as something other than the word itself
+# as something other than the word itself or has irregular
+# shape.
 filename_dic={
-    'phase space':'_ps_gamma.npy',
+    'phase_space':{'filename':'_ps_gamma',
+                   'coords':(-1, 0)},
+    'velocity':{'filename':None,
+                   'coords':(-1, 3)},
 }
 
 ############################################################
@@ -67,8 +71,13 @@ filename_dic={
 ############################################################
 # Label dictionary
 label_dic = {
-    'bandwidth':r'$\gamma_{\mu}$',
+    'bandwidth':r'$\gamma_{\mu} (ps)$',
+    'frequency':r'$\omega_{\mu} (THz)$',
+    'phase_space':r'$P^{3}_{\mu} (Arb)$',
+    'heat_capacity':r'$C_{v} (J/K)$',
+    'velocity':r'$\Vert v \Vert_{2} (\AA / ps)$',
 }
+
 # Conversions dictionary
 conversions = {
     'bohr_to_ang':con.value('Bohr radius')/con.angstrom,
