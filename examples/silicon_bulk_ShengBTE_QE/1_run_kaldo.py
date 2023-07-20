@@ -10,34 +10,44 @@
 # atoms at negative coordinates ((0,0,0)+(-1/4, 1/4, 1/4)) but shengbte forces
 # it to be represented as ((0,0,0)+(1/4, 1/4, 1/4)). Similar differences in
 # representation across interfaces will result in unphysical output from kALDo
+
+# Harmonic ----------------------
+# Dispersion args
+npoints = 150 # points along path
+pathstring = 'GXULG' # actual path
+
+# Anharmonic --------------------
+# Threading per process
+nthread = 2
+# K-pt grid
+k = 7 # cubed
+# Conductivity method
+cond_method = 'inverse'
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# You shouldn't need to edit below this line, but it should be well commented
+# so that you can reference it for how to set up your own workflow
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+### Settings detected by environment variables, POSCARs and arguments
 import os
 import sys
 import numpy as np
 from ase.io import read
-
-# Number of replicas controlled by command line argument
+# Replicas
 nrep = int(sys.argv[1][0])
 supercell, folder = np.array([nrep, nrep, nrep]), '{}x{}x{}'.format(nrep, nrep, nrep)
-third_supercell = np.array([3,3,3])
-
-# Parameter controlling k-pt grid
-k = 7 # should be changed a bit higher probably for real example
 kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k,k,k)
-
-# Detect whether you want to unfold
+third_supercell = np.array([3,3,3])
+# Detect unfolding
 unfold_bool = False
 unfold = 'n'
 if 'u' in sys.argv[1]:
     unfold_bool = True
     unfold = 'u'
-
-# Dispersion information
-npoints = 150
-only_second = False
-pathstring = 'GXULG' # edit this to change dispersion path
+# Detect harmonic
+harmonic = False
 if 'harmonic' in sys.argv:
-    only_second = True
-
+    harmonic = True
 # Control data IO + overwriting controls
 overwrite = False; prefix='data'
 outfolder = prefix+'/{}{}'.format(nrep, unfold)
@@ -53,22 +63,23 @@ if os.path.isdir(prefix):
             exit()
 else:
     os.mkdir(prefix)
+# Control threading behavior
+os.environ['CUDA_VISIBLE_DEVICES']=" "
+import tensorflow as tf
+tf.config.threading.set_inter_op_parallelism_threads(nthread)
+tf.config.threading.set_intra_op_parallelism_threads(nthread)
 
-# You shouldn't need to edit below this line
+
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+### Print out detected settings
 print('\n\n\tCalculating for supercell {}x{}x{} -- '.format(nrep, nrep, nrep))
 print('\t\t Unfolding (u/n): {}'.format(unfold))
 print('\t\t In folder:       {}'.format(folder))
 print('\t\t Out folder:      {}'.format(outfolder))
 print('\t\t Dispersion only: {}'.format(only_second))
 print('\t\t Overwrite permission: {}\n\n'.format(overwrite))
-
-# Control threading behavior
-os.environ['CUDA_VISIBLE_DEVICES']=" "
-import tensorflow as tf
-tf.config.threading.set_inter_op_parallelism_threads(2)
-tf.config.threading.set_intra_op_parallelism_threads(2)
-
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+### Begin simulation
 # Import kALDo
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
@@ -79,7 +90,7 @@ from kaldo.controllers.plotter import plot_dispersion
 forceconstant = ForceConstants.from_folder(
                        folder=folder,
                        supercell=supercell,
-                       only_second=only_second,
+                       only_second=harmonic,
                        third_supercell=third_supercell,
                        is_acoustic_sum=True,
                        format='shengbte-qe')
@@ -94,7 +105,11 @@ phonons = Phonons(forceconstants=forceconstant,
               is_unfolding=unfold_bool,
               storage='numpy')
 
-# Dispersion - plotted by an imported function from our `controllers/plotter.py`
+# Harmonic data along path
+# Although you need to specify the k-pt grid for the Phonons object, we don't
+# actually use it for dispersion relations and velocities the sampling is taken
+# care of by the path specified and the npoints variable set above.
+# Note: Choice of k-pt grid WILL effect DoS calculations for amorphous models.
 atoms = read('3x3x3/POSCAR', format='vasp')
 cell = atoms.cell
 lat = cell.get_bravais_lattice()
@@ -105,20 +120,26 @@ print(lat.get_special_points())
 print('Path: {}'.format(path))
 plot_dispersion(phonons, is_showing=False,
             manually_defined_path=path, folder=outfolder+'/dispersion')
-if only_second:
+if harmonic:
     print('\n\n\n\tHarmonic quantities generated, exiting safely ..')
     quit(0)
 
-# Conductivity - different methods of calculating the conductivity can be compared
+# Conductivity & Anharmonics
+# Different methods of calculating the conductivity can be compared
 # but full inversion of the three-phonon scattering matrix typically agrees with
-# experiment more than say the relaxation time approximation.
-# Calculating this quantity will produce as a byproduct things like the phonon
-# bandwidths, phase space etc.
-cond = Conductivity(phonons=phonons, method='inverse', storage='numpy')
-inv_cond_matrix = cond.conductivity.sum(axis=0)
-diag = np.diag(inv_cond_matrix)
-offdiag = np.abs(inv_cond_matrix).sum() - np.abs(diag).sum()
+# experiment more than say the relaxation time approximation (not applicable for
+# systems without symmetry).
+# Calculating this K will produce as a byproduct things like the phonon
+# bandwidths, phase space etc, but some need to be explicitly called to output
+# numpy files (e.g. Phonons.participation_ratio, find more in Phonons docs).
+#
+# All of the anharmonic quantities should be converged according to a sensitivity
+# analysis of their value against increasing k-points.
+cond = Conductivity(phonons=phonons, method=cond_method, storage='numpy')
+cond_matrix = cond.conductivity.sum(axis=0)
+diag = np.diag(cond_matrix)
+offdiag = np.abs(cond_matrix).sum() - np.abs(diag).sum()
 print('Conductivity from full inversion (W/m-K):\n%.3f' % (np.mean(diag)))
 print('Sum of off-diagonal terms: %.3f' % offdiag)
 print('Full matrix:')
-print(inv_cond_matrix)
+print(cond_matrix)
