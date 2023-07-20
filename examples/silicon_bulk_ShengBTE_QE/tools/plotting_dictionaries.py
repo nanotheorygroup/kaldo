@@ -4,36 +4,37 @@ from scipy import constants as con
 ############################################################
 # PYPLOT GRAPHING INFORMATION ##############################
 ############################################################
-# Line style dic controls color and linestyle options
-# Supercells: 1-red
-#             3-green
-#             5-blue
-#             8-purple
-# Unfolding: Yes-solid line
-#            No -dashed
-linestyle_dic = {
-    '1': np.array([225, 0, 0]) / 255,
-    '3': np.array([0, 255, 0]) / 255,
-    '5': np.array([0, 0, 255]) / 255,
-    '8': np.array([0, 130, 130]) / 255,
-    'u': '-',
-    'n': ':',
+# Line dic controls color and linestyle options
+# Supercells: 1-Bright red # Least accurate
+#             3-Darker red
+#             5-Green
+#             8-Blue       # Most accurate
+# Unfolding: Yes - solid
+#            No  - dashed
+line_dic = {
+    '1': np.array([255, 0, 0]) / 255,
+    '3': np.array([190, 30, 30]) / 255,
+    '5': np.array([0, 255, 60]) / 255,
+    '8': np.array([0, 60, 255]) / 255,
+    'u': ':',
+    'n': '-',
 }
-# Scatter style dic controls color and marker
-# Supercells:  1-red
-#              3-green
-#              5-blue
-#              8-purple
-# Unfolding: Yes-O
-#             No-X
-scatterstyle_dic = {
-    '1': np.array([225, 0, 0]) / 255,
-    '3': np.array([0, 255, 0]) / 255,
-    '5': np.array([0, 0, 255]) / 255,
-    '8': np.array([0, 130, 130]) / 255,
-    'u': 'o',
-    'n': 'x',
+# Scatter dic controls color and marker
+# Supercells: 1-Bright red # Least accurate
+#             3-Darker red
+#             5-Green
+#             8-Blue       # Most accurate
+# Unfolding: Yes-X
+#             No-O
+scatter_dic = {
+    '1': np.array([255, 0, 0]) / 255,
+    '3': np.array([190, 30, 30]) / 255,
+    '5': np.array([0, 255, 60]) / 255,
+    '8': np.array([0, 60, 255]) / 255,
+    'u': 'x',
+    'n': 'o',
 }
+
 # Scaling for properties that can span multiple orders of magnitudes
 # in the same data set.
 scale_dic = {
