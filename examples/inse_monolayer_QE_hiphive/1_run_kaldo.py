@@ -7,8 +7,9 @@
 
 # Harmonic ----------------------
 # Dispersion args
-npoints = 100 # points along path
-pathstring = 'GXULG' # actual path
+npoints = 50 # points along path
+pathstring = 'GMKG' # actual path
+unfold_bool = False
 
 # Anharmonic --------------------
 # Threading per process
@@ -28,33 +29,27 @@ import sys
 import numpy as np
 from ase.io import read
 # Replicas
-nrep = int(sys.argv[1][0])
-supercell, folder = np.array([nrep, nrep, nrep]), '{}x{}x{}'.format(nrep, nrep, nrep)
-kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k,k,k)
-third_supercell = np.array([3,3,3])
-# Detect unfolding
-unfold_bool = False
-unfold = 'n'
-if 'u' in sys.argv[1]:
-    unfold_bool = True
-    unfold = 'u'
+nrep = int(9)
+nrep_third = int(5)
+supercell = np.array([nrep, nrep, 1])
+kpts, kptfolder = [k, k, 1], '{}_{}_{}'.format(k,k,k)
+third_supercell = np.array([nrep_third, nrep_third, nrep_third])
+
 # Detect harmonic
 harmonic = False
 if 'harmonic' in sys.argv:
     harmonic = True
 # Control data IO + overwriting controls
-overwrite = False; prefix='data'
-outfolder = prefix+'/{}{}'.format(nrep, unfold)
+qe_data = 'espresso_fcs'; hp_data = 'hiphive_fcs'
+overwrite = False; prefix=os.environ['kaldo_ald']+'/'
 if 'overwrite' in sys.argv:
     overwrite = True
 if os.path.isdir(prefix):
-    print('\n!! - '+prefix+' directory already exists')
-    if os.path.isdir(outfolder):
-        print('!! - '+outfolder+' directory already exists')
-        print('!! - continuing may overwrite, or load previous data\n')
-        if not overwrite:
-            print('!! - overwrites disallowed, exiting safely..')
-            exit()
+    print('!! - '+prefix+' directory already exists')
+    print('!! - continuing may overwrite, or load previous data\n')
+    if not overwrite:
+        print('!! - overwrites disallowed, exiting safely..')
+        exit()
 else:
     os.mkdir(prefix)
 # Control threading behavior
@@ -66,11 +61,10 @@ tf.config.threading.set_intra_op_parallelism_threads(nthread)
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ### Print out detected settings
-print('\n\n\tCalculating for supercell {}x{}x{} -- '.format(nrep, nrep, nrep))
-print('\t\t Unfolding (u/n): {}'.format(unfold))
-print('\t\t In folder:       {}'.format(folder))
-print('\t\t Out folder:      {}'.format(outfolder))
-print('\t\t Dispersion only: {}'.format(only_second))
+print('\n\n\tCalculating for supercell {} -- '.format(supercell))
+print('\t\t In folder:       QE:{} HP:{}'.format(qe_data, hp_data))
+print('\t\t Out folder:      {}'.format(prefix))
+print('\t\t Dispersion only: {}'.format(harmonic))
 print('\t\t Overwrite permission: {}\n\n'.format(overwrite))
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ### Begin simulation
@@ -80,22 +74,19 @@ from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
 from kaldo.controllers.plotter import plot_dispersion
 
-# Create kALDo objects
+# Create harmonic ForceConstants object from QE-data
 forceconstant = ForceConstants.from_folder(
-                       folder=folder,
+                       folder=qe_data,
                        supercell=supercell,
                        only_second=harmonic,
                        third_supercell=third_supercell,
                        is_acoustic_sum=True,
                        format='shengbte-qe')
-#if unfold: # unfold the third order force constants too
-#    unfolded_third = forceconstant.unfold_third_order(distance_threshold=4)
-#    forceconstant.third.value = unfolded_third
 phonons = Phonons(forceconstants=forceconstant,
               kpts=kpts,
               is_classic=False,
               temperature=300,
-              folder=outfolder,
+              folder=prefix,
               is_unfolding=unfold_bool,
               storage='numpy')
 
@@ -104,16 +95,16 @@ phonons = Phonons(forceconstants=forceconstant,
 # actually use it for dispersion relations and velocities the sampling is taken
 # care of by the path specified and the npoints variable set above.
 # Note: Choice of k-pt grid WILL effect DoS calculations for amorphous models.
-atoms = read('3x3x3/POSCAR', format='vasp')
+atoms = read('hiphive_fcs/atom_prim.xyz')
 cell = atoms.cell
 lat = cell.get_bravais_lattice()
 path = cell.bandpath(pathstring, npoints=npoints)
-print('Unit cell detected: {}'.format(atoms))
-print('Special points on cell:')
+print('Unit cell detected: {} '.format(atoms))
+print('Special points on cell: ')
 print(lat.get_special_points())
 print('Path: {}'.format(path))
 plot_dispersion(phonons, is_showing=False,
-            manually_defined_path=path, folder=outfolder+'/dispersion')
+            manually_defined_path=path, folder=prefix+'/dispersion')
 if harmonic:
     print('\n\n\n\tHarmonic quantities generated, exiting safely ..')
     quit(0)
