@@ -35,7 +35,8 @@ import numpy as np
 from ase.io import read
 # Replicas
 nrep = int(sys.argv[1][0])
-supercell, folder = np.array([nrep, nrep, nrep]), '{}x{}x{}'.format(nrep, nrep, nrep)
+inp_folder = os.environ["kaldo_inputs"]
+supercell, fcs_folder = np.array([nrep, nrep, nrep]), inp_folder+'/{}x{}x{}'.format(nrep, nrep, nrep)
 kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k,k,k)
 third_supercell = np.array([3,3,3])
 # Detect unfolding
@@ -49,14 +50,15 @@ harmonic = False
 if 'harmonic' in sys.argv:
     harmonic = True
 # Control data IO + overwriting controls
-overwrite = False; prefix='data'
-outfolder = prefix+'/{}{}'.format(nrep, unfold)
+overwrite = False;
+prefix = os.environ['kaldo_ald']
+ald_folder = prefix+'/{}{}'.format(nrep, unfold)
 if 'overwrite' in sys.argv:
     overwrite = True
 if os.path.isdir(prefix):
     print('\n!! - '+prefix+' directory already exists')
-    if os.path.isdir(outfolder):
-        print('!! - '+outfolder+' directory already exists')
+    if os.path.isdir(ald_folder):
+        print('!! - '+ald_folder+' directory already exists')
         print('!! - continuing may overwrite, or load previous data\n')
         if not overwrite:
             print('!! - overwrites disallowed, exiting safely..')
@@ -74,9 +76,9 @@ tf.config.threading.set_intra_op_parallelism_threads(nthread)
 ### Print out detected settings
 print('\n\n\tCalculating for supercell {}x{}x{} -- '.format(nrep, nrep, nrep))
 print('\t\t Unfolding (u/n): {}'.format(unfold))
-print('\t\t In folder:       {}'.format(folder))
-print('\t\t Out folder:      {}'.format(outfolder))
-print('\t\t Dispersion only: {}'.format(only_second))
+print('\t\t In folder:       {}'.format(fcs_folder))
+print('\t\t Out folder:      {}'.format(ald_folder))
+print('\t\t Dispersion only: {}'.format(harmonic))
 print('\t\t Overwrite permission: {}\n\n'.format(overwrite))
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ### Begin simulation
@@ -88,7 +90,7 @@ from kaldo.controllers.plotter import plot_dispersion
 
 # Create kALDo objects
 forceconstant = ForceConstants.from_folder(
-                       folder=folder,
+                       folder=fcs_folder,
                        supercell=supercell,
                        only_second=harmonic,
                        third_supercell=third_supercell,
@@ -101,7 +103,7 @@ phonons = Phonons(forceconstants=forceconstant,
               kpts=kpts,
               is_classic=False,
               temperature=300,
-              folder=outfolder,
+              folder=ald_folder,
               is_unfolding=unfold_bool,
               storage='numpy')
 
@@ -110,7 +112,7 @@ phonons = Phonons(forceconstants=forceconstant,
 # actually use it for dispersion relations and velocities the sampling is taken
 # care of by the path specified and the npoints variable set above.
 # Note: Choice of k-pt grid WILL effect DoS calculations for amorphous models.
-atoms = read('3x3x3/POSCAR', format='vasp')
+atoms = read(inp_folder+'/3x3x3/POSCAR', format='vasp')
 cell = atoms.cell
 lat = cell.get_bravais_lattice()
 path = cell.bandpath(pathstring, npoints=npoints)
@@ -119,7 +121,7 @@ print('Special points on cell:')
 print(lat.get_special_points())
 print('Path: {}'.format(path))
 plot_dispersion(phonons, is_showing=False,
-            manually_defined_path=path, folder=outfolder+'/dispersion')
+            manually_defined_path=path, folder=ald_folder+'/dispersion')
 if harmonic:
     print('\n\n\n\tHarmonic quantities generated, exiting safely ..')
     quit(0)
