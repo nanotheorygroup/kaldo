@@ -76,7 +76,7 @@ print('\n\n\tCalculating for supercell {}x{}x{} -- '.format(nrep, nrep, nrep))
 print('\t\t Unfolding (u/n): {}'.format(unfold))
 print('\t\t In folder:       {}'.format(folder))
 print('\t\t Out folder:      {}'.format(outfolder))
-print('\t\t Dispersion only: {}'.format(only_second))
+print('\t\t Dispersion only: {}'.format(harmonic))
 print('\t\t Overwrite permission: {}\n\n'.format(overwrite))
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ### Begin simulation
