@@ -315,15 +315,18 @@ class HarmonicWithQ(Observable):
                                                                  fc_s[:, :, supercell_index[0], supercell_index[1],
                                                                  supercell_index[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
-        omega2, eigenvect, info = zheev(dyn)
         # omega2, eigenvect = eigh(dyn)
-        frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-        frequency = frequency[:] / np.pi / 2
         if only_eigenvals:
-            esystem = (frequency[:] * np.pi * 2) ** 2
+            omega2, __, info = zheev(dyn, compute_v=0)
+            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+            frequency = frequency[:] / np.pi / 2
+            return frequency
         else:
+            omega2, eigenvect, info = zheev(dyn, compute_v=1)
+            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+            frequency = frequency[:] / np.pi / 2
             esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
-        return esystem
+            return esystem
 
     def calculate_dynmat_derivatives_unfolded(self, direction=None):
         # This algorithm should be the same as the ShengBTE version
