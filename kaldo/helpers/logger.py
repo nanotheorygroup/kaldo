@@ -23,13 +23,13 @@ def get_logger():
     return logger
 
 
-def log_size(shape, type=np.float, name=None, memory_threshold_in_mb=10):
+def log_size(shape, type=float, name=None, memory_threshold_in_mb=10):
     shape = np.array(shape)
     label_size =  str(int(psutil.virtual_memory().available/1e6)) + ' / '
     label_size +=  str(int(psutil.virtual_memory().total/1e6)) + ' MB'
-    if type == np.float:
+    if type == float:
         size = 64
-    elif type == np.complex:
+    elif type == complex:
         size = 128
     out = str(shape)
     out += ' * ' + str(type)

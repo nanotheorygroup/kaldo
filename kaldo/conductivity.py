@@ -112,8 +112,6 @@ class Conductivity:
         self.method = kwargs.pop('method', 'rta')
         self.storage = kwargs.pop('storage', 'formatted')
 
-        #TODO: remove is_unfolding from this class
-        self.is_unfolding = kwargs.pop('is_unfolding', False)
         if self.method == 'rta':
             self.n_iterations = 0
         else:
@@ -226,7 +224,7 @@ class Conductivity:
         gamma_tensor = -1 * self.phonons._ps_gamma_and_gamma_tensor[:, 2:]
         index = np.outer(physical_mode, physical_mode)
         n_physical = physical_mode.sum()
-        log_size((n_physical, n_physical), np.float, name='_scattering_matrix')
+        log_size((n_physical, n_physical), float, name='_scattering_matrix')
         gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
         if is_rescaling_population:
             n = self.phonons.population.reshape((self.n_phonons))[physical_mode]
@@ -289,8 +287,9 @@ class Conductivity:
                                        storage=self.storage,
                                        temperature=self.temperature,
                                        is_classic=self.is_classic,
-                                       is_nw=self.phonons.is_nw,
-                                       is_unfolding=self.is_unfolding)
+                                       is_nw=phonons.is_nw,
+                                       is_unfolding=phonons.is_unfolding,
+                                       is_amorphous=phonons._is_amorphous)
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:
                 logging.info('calculating conductivity for q = ' + str(q_points[k_index]))
