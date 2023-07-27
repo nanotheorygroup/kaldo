@@ -7,7 +7,6 @@ from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
-# from numpy.linalg import eigh
 
 logging = get_logger()
 
@@ -315,17 +314,15 @@ class HarmonicWithQ(Observable):
                                                                  fc_s[:, :, supercell_index[0], supercell_index[1],
                                                                  supercell_index[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
-        # omega2, eigenvect = eigh(dyn)
+
+        # omega2 = 2 * pi * frequency^2
+        # todo: performance check with zheev vs tf.linalg.eigh(dyn) (+ eigvalsh(dyn)
         if only_eigenvals:
             omega2, __, info = zheev(dyn, compute_v=0)
-            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-            frequency = frequency[:] / np.pi / 2
-            return frequency
+            return omega2
         else:
             omega2, eigenvect, info = zheev(dyn, compute_v=1)
-            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-            frequency = frequency[:] / np.pi / 2
-            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
+            esystem = np.vstack((omega2, eigenvect))
             return esystem
 
     def calculate_dynmat_derivatives_unfolded(self, direction=None):
