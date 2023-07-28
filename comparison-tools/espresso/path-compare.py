@@ -16,59 +16,60 @@
 # 1 - Desired array name
 output_array_fn="mismatch.npy"
 # 2 - Allowance for relative difference when comparing q-vectors
-relative_tolerance = rtoll = 5e-3 # half a percent
+relative_tolerance = rtoll = 5e-4 # half a percent
 # 3 - force folder name
 fcs_folder="forces"
 
 
-
-
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Section 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Import libraries, Record unit cell info for transformations
+# Import libraries + set counters
 import sys
 import numpy as np
 from ase.io import read
 from ase.units import Rydberg, Bohr
 np.set_printoptions(linewidth=200, suppress=True)
-n_errors = -1 # track number of mismatches
-n_errors_on_sc = 0
-n_errors_on_q = 0
+n_errors_global = -1 # track number of mismatches
 
-#atoms = read(fcs_folder+'/POSCAR', format='vasp')
-#alat = atoms.cell.array[0,2]*2 # lattice constant
-#cellt = atoms.cell.array.T/alat # normalized cell transpose
-#n_unit_cell=len(atoms)
-
-# Load in data from two programs
-# Grab unique q-vectors and supercells so we can cycle over them
+# Helper function for returning sorted list of unique values
 def pull_unique(your_array): # helper function
-    return np.unique(your_array, axis=0)
+    __, indices = np.unique(your_array, axis=0, return_index=True)
+    return your_array[np.sort(indices)]
+
+# Input arrays
 kaldo = np.load('kaldo.out.npy')
 matdyn = np.load('md.out.npy')
-q_kaldo, sc_kaldo = pull_unique(kaldo['qvec']), pull_unique(kaldo['sc'])
-q_matdyn, sc_matdyn = pull_unique(matdyn['qvec']), pull_unique(matdyn['sc'])
-#print(q_kaldo, q_matdyn)
-# Structures to record problems
-# error_count will hold integer trackers to record the number of errors detected
-# The comparison array holds an object array that looks like:
-# ( Label        kALDo             Matdyn)
-# Label specifies which type of mismatch was detected
-# kALDo/Matdyn is the debug array where they mismatched which contains the
-#        q-vector, supercell index, weight, phase argument, phase, force
-debug_raw_type = matdyn.dtype # Typed explicity above for readability
-error_dtype = [('missed supercell', int),
-               ('weights mismatch', int),
-               ('phase arg mismatch', int),
-               ('phase mismatch', int),]
-#               ('force mismatch', int),] # when units get corrected add this
+matdyn['forces'] *= 7.07079859 * (Rydberg/(Bohr **2))
+debug_raw_type = matdyn.dtype
+# [(("qvec", float, (3)),
+#  ("sc", int, (3)),)
+#  ("qr", float),
+#  ("eiqr", complex),
+#  ("weights", float, (n_unit, n_unit)),
+#  ("forces", complex, (n_unit, 3, n_unit, 3))]
+
+# Output array 1 - integer mismatch counter
+# This will be printed out at the bottom of the text output
+error_dtype = [('missed q-pt', int),
+               ('missed supercell', int),
+               ('missed phase-arg', int),
+               ('missed phase', int),
+               ('missed weights', int),
+               ('missed force', int),]
 error_count = np.zeros(1, dtype=error_dtype)
+
+# Output array 2 - mismatched data collector
+# This is saved to our final array for closer inspection
 compare_dtype = [('label', str),
-               ('kaldo', matdyn.dtype),
-               ('matdyn', matdyn.dtype)]
+                 ('kaldo', matdyn.dtype),
+                 ('matdyn', matdyn.dtype)]
 comparisons = np.zeros(kaldo.shape[0], dtype=compare_dtype)
-values = matdyn.dtype.names[2:-1]
-labels = error_count.dtype.names[1:]
+
+# To loop
+# test_props = ['qvec', 'sc', 'weights', 'qr', 'eiqr']
+test_props = matdyn.dtype.names
+test_labels = error_count.dtype.names
+
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Section 0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -77,8 +78,10 @@ labels = error_count.dtype.names[1:]
 # Section 1+2 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ## Begin Looping - Warning: This may take on the order of minutes
 # because of the attention to detail required here.
+q_kaldo, sc_kaldo = pull_unique(kaldo['qvec']), pull_unique(kaldo['sc'])
+q_matdyn, sc_matdyn = pull_unique(matdyn['qvec']), pull_unique(matdyn['sc'])
 for q in q_matdyn:
-    n_errors_on_q = 0
+    n_errors_on_q = 0 # reset counter
 
     matdyn_q_args = np.prod(np.isclose(matdyn['qvec'], q, rtol=rtoll), axis=1)
     kaldo_q_args  = np.prod(np.isclose(kaldo['qvec'], q, rtol=rtoll), axis=1)
@@ -90,7 +93,6 @@ for q in q_matdyn:
         exit(1)
     else: # cleared
         sys.stdout.write('\nProcessing Q: {} >>>>>>>>>>>\n'.format(q, q))
-        sys.stdout.write('Processing SC- ')
 
     for sc in sc_matdyn:
         n_errors_on_sc = 0
@@ -101,7 +103,7 @@ for q in q_matdyn:
             sys.stderr.write('Fatal! exiting ..\n')
             exit(1)
         else:
-            sys.stdout.write('{} '.format(sc))
+            sys.stdout.write('\tProcessing SC: {} ### '.format(sc))
 
         # Presuming they both have contributions from this supercell at this q-point:
         matdyn_total_matches = (matdyn_q_args*matdyn_sc_args).astype(bool)
@@ -130,55 +132,53 @@ for q in q_matdyn:
         if kaldo_total_matches.sum() == 0: # No kALDo entries, store a blank for kALDo
             sys.stdout.write('\n\tkALDo missed taking contributions from a supercell ' + \
             'that QE includes.\n\t\t--- Q-point: {}  SC: {} - Error recorded ----\n'.format(q, sc))
-            n_errors+=1; n_errors_on_q += 1; n_errors_on_sc += 1
+            n_errors_global+=1; n_errors_on_q += 1; n_errors_on_sc += 1
             error_count['missed supercell'] += 1
-            comparisons[n_errors] = ('missed supercell',
+            comparisons[n_errors_global] = ('missed supercell',
                                          matdyn[matdyn_total_matches],
                                          np.zeros(1, dtype=debug_raw_type))
             continue
         elif kaldo_total_matches.sum() > 1:
             # compare data if we see two entries
-            for dat in ['qvec', 'sc', 'weight', 'totfrc']:
+            for dat in test_props:
                 unique = np.unique(kaldo_subarray[dat], axis=0).flatten()
-                if not (unique == kaldo_subarray[0]).all():
-                    sys.stderr.write('\n\n\t\t!!! kALDo recorded different {} '.format(dat) + \
-                      ' on entries thought to be at the same q-point and supercell.\n' + \
-                      '\t\t!!! Q-point: {} \tSC: {} \tValues: {}'.format(q, sc, kaldo_subarray[dat]) + \
-                      '\n\t\t!!! FATAL ERROR !!!\n')
-                    exit(1)
-            for dat in ['qr', 'eiqr']:
-                if not np.unique(kaldo_subarray[dat]).size == 1:
+                if (unique.size != kaldo_subarray[0][dat].size):
                     sys.stderr.write('\n\n\t\t!!! kALDo recorded different {} '.format(dat) + \
                       ' on entries thought to be at the same q-point and supercell.\n' + \
                       '\t\t!!! Q-point: {} \tSC: {} \tValues: {}'.format(q, sc, kaldo_subarray[dat]) + \
                       '\n\t\t!!! FATAL ERROR !!!\n')
                     exit(1)
 
-        kaldo_sample = kaldo_subarray[1]
-        matdyn_sample = matdyn_subarray[1]
-        for value, label in zip(values, labels): # loop over qr, eiqr, & weights
+        kaldo_sample = kaldo_subarray[0]
+        matdyn_sample = matdyn_subarray[0]
+        for value, label in zip(matdyn.dtype.names, error_count.dtype.names):
             k = kaldo_sample[value]
-            m = kaldo_sample[value]
-            if k != m:
+            m = matdyn_sample[value]
+            if not np.prod(np.isclose(k, m, rtol=rtoll)):
                 sys.stdout.write('\n\t{}: q {} \t sc {}'.format(label.title(), q, sc) + \
-                  'm: {:.2f} k: {:.2f}'.format(m, k))
-                n_errors += 1; n_errors_on_q += 1; n_errors_on_sc += 1
+                  '\n\t\tm: {}\n\t\t k: {}'.format(m.flatten(), k.flatten()))
+                n_errors_global += 1; n_errors_on_q += 1; n_errors_on_sc += 1
                 error_count[label] += 1
-                comparisons[n_errors] = (label, matdyn_sample, kaldo_sample)
+                comparisons[n_errors_global] = (label, matdyn_sample, kaldo_sample)
+            else:
+                sys.stdout.write('\n\t{}-m\t{}'.format(value, m.flatten()))
+                sys.stdout.write('\n\t{}-k\t{}\n'.format(value, k.flatten()))
         if n_errors_on_sc:
             sys.stdout.write('\n\t\tContinuing on Q-point {}' + \
                 '\nProcessing SC - '.format(q, sc))
     if not n_errors_on_q:
-        sys.stdout.write('\n\tq-pt clean\n\n')
+        sys.stdout.write('\n\tq-pt clean\n')
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Section 1+2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # Section 3
-if n_errors+1 > 0: # account for -1 offset used for indexing help
-    np.save(output_array_fn, comparisons[:n_errors+1])
+if n_errors_global+1 > 0: # account for -1 offset used for indexing help
+    np.save(output_array_fn, comparisons[:n_errors_global+1])
     sys.stdout.write('\n\n\n\t\tFinal Error Report:\n')
-    for label in labels:
+    for label in test_labels:
         sys.stdout('{}\'s detected - {}'.format(label, error_count[label]))
-sys.stdout.write('\n\nSweep complete, exiting safely.\n')
+else:
+    sys.stdout.write('\nNo mismatches detected')
+sys.stdout.write('\nSweep complete, exiting safely.\n\n')
 exit(0)
 

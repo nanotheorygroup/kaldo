@@ -1,3 +1,4 @@
+from scipy import constants
 from ase.units import Rydberg, Bohr
 from ase.io import read
 import subprocess as sp
@@ -16,10 +17,11 @@ atoms = read('forces/POSCAR', format='vasp')
 cell = atoms.cell.array
 cellt = cell.T / (cell.max() * 2)
 n_unit = len(atoms)
-ninteractions = n_unit**2
 
-# Conversions
-RyBr_to_eVA = Rydberg/(Bohr**2)
+# Conversions - Energy in eV, Length in Angstrom
+rydberg = constants.value('Rydberg constant times hc in eV')
+bohr = constants.value('Bohr radius') / constants.angstrom
+RyBr_to_eVA = rydberg/(bohr**2)
 force_prefactor = RyBr_to_eVA if format=='espresso' else 1
 
 
@@ -131,7 +133,7 @@ for nq,q in enumerate(q_unique): # loop over q
                                                                                                            absdiff)
                         print(warningstring)
                         exit()
-                    forces[nanbab] = (row[14] + 1j * row[15])
+                    forces[nanbab] = force_prefactor * (row[14] + 1j * row[15])
         # Looped over force components for q-vec + supercell
         # Push filled temp arrays to output array
         repack[ii] = qp, sc, qr, eiqr, weights, forces

@@ -327,7 +327,7 @@ class HarmonicWithQ(Observable):
                       ("qr", float),
                       ("eiqr", complex),
                       ("weights", float, (n_unit_cell, n_unit_cell)),
-                      ("forces", float, (n_unit_cell, 3, n_unit_cell, 3))]
+                      ("forces", complex, (n_unit_cell, 3, n_unit_cell, 3))]
         debug = np.zeros(debugshape, dtype=debugdtype)
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
