@@ -309,7 +309,7 @@ class HarmonicWithQ(Observable):
         # No changes are made to the harmonic_with_q.py other than to output data.
         # Output data per q-point since the HarmonicWithQ is unique to each q-point
         # Array will store: (name, description, shape of array, type)
-        #   q-vec     sc               qr       eiqr                       weight   force
+        #   q-vec     sc               qr       eiqr                       weights   force
         #   q-vector, supercell index, q dot r, total phase factor (eiqr), weights, force contribution to dynmat
         #   (1,3)     (1,3)            (1)      (1)                        (2, 2)    (2, 3, 2, 3)
         #   float     int              float    complex                    float    complex
@@ -326,8 +326,8 @@ class HarmonicWithQ(Observable):
                       ("sc", int, (3)),
                       ("qr", float),
                       ("eiqr", complex),
-                      ("weight", float, (n_unit_cell, n_unit_cell)),
-                      ("force", float, (n_unit_cell, 3, n_unit_cell, 3))]
+                      ("weights", float, (n_unit_cell, n_unit_cell)),
+                      ("forces", float, (n_unit_cell, 3, n_unit_cell, 3))]
         debug = np.zeros(debugshape, dtype=debugdtype)
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
@@ -348,9 +348,9 @@ class HarmonicWithQ(Observable):
                 dyn_s[:, :, :, :] += values
                 debug[ir] = (q_point, supercell_replica, qr, phase, weight, values)
                 ir += 1
-        qstr='_{}_{}_{}'.format(q_point[0], q_point[1], q_point[2])
+        qstr='{}_{}_{}'.format(q_point[0], q_point[1], q_point[2])
         debug = debug[:ir+1] # snip to include only nonzero indices
-        np.save('kaldo-per-qpt/'+qstr, debug)
+        np.save('kaldo.out.per_qpt/'+qstr, debug)
         # <<<< END MODIFICATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

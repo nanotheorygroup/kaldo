@@ -18,13 +18,14 @@ qpt_folder = 'kaldo.out.per_qpt/'
 txtpath = 'path.out.txt'
 repacked_md = 'md.out'
 repacked_fn = 'kaldo.out'
-atoms = read('POSCAR', format='vasp')
+atoms = read(fcs_folder+'/POSCAR', format='vasp')
+to_calculate = True
 
 if not os.path.isdir(qpt_folder):
     os.mkdir(qpt_folder)
 else:
     print('Data already exists in qpt folder')
-    exit(1)
+    to_calculate=False
 
 forceconstant = ForceConstants.from_folder(folder=fcs_folder,
                            supercell=supercell,
@@ -39,30 +40,34 @@ phonons = Phonons(forceconstants=forceconstant,
                   folder=ald_folder,
                   storage='numpy')
 
-print('\n\n\n!! kALDo objects created, executing calculations along path')
-print('Working ...')
-qs_to_run = np.loadtxt(txtpath)
-nqs = qs_to_run.shape[0]
-print('\t0 of {}'.format(nqs))
-for i,q in enumerate(qs_to_run):
-    if (i%20)==0:
-        print('\t{} of {}'.format(i, nqs))
-    hrm = HarmonicWithQ(q_point=q, supercell=supercell,
+if to_calculate:
+    print('\n\n\n!! kALDo objects created, executing calculations along path')
+    print('Working ...')
+    qs_to_run = np.loadtxt(txtpath)
+    nqs = qs_to_run.shape[0]
+    print('\t0 of {}'.format(nqs))
+    for i,q in enumerate(qs_to_run):
+        if (i%20)==0:
+            print('\t{} of {}'.format(i, nqs))
+        hrm = HarmonicWithQ(q_point=q, supercell=supercell,
                 second=forceconstant.second, is_unfolding=phonons.is_unfolding)
-    hrm.frequency # cause kALDo to calculate the frequency at q
-    #hrm.velocity
+        hrm.frequency # cause kALDo to calculate the frequency at q
+        #hrm.velocity
+    print('!! Calculations complete, repackaging ..')
 
-print('!! Calculations complete, repackaging ..')
+print('!! Attempting packing ..')
 gamma = qpt_folder+'0.0_0.0_0.0.npy'
 filenames = [fn for fn in os.listdir(qpt_folder) if fn != gamma]
-print('Compiling {} q-points'.format(len(filenames)+1))
+print('\tFound {} per_qpt files ')
 repack = np.load(gamma)
 for f in filenames:
     repack = np.append(repack, np.load(qpt_folder+f))
 
-print('!! Completed')
-print('!! final shape {}'.format(repack.shape))
 np.save(repacked_fn, repack)
+print('!! Completed packing')
+print('\t Final shape: {}'.format(repack.shape))
+print('Exiting ..')
+print('\n\n')
 
 # qe_data = np.load(fcs_folder+repacked_md+'.npy')['qvec']
 # __, args = np.unique(qe_data, axis=0, return_index=True)

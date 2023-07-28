@@ -3,6 +3,7 @@
     amass(1)=28.011,
     flfrc='forces/espresso.ifc2',
     flfrq='md.out.freq',
+    flvec='md.out.vec'
      q_in_band_form=.true.,
  /
 

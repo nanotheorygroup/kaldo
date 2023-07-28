@@ -4,15 +4,17 @@
 # home=$( realpath . )
 md_mods="modded_espresso"
 k_mods="modded_kaldo"
-tarball="forces.tgz"
 
 # scripts
 py_kpack='pack-kaldo.py'
 py_mdpack='pack-md.py'
 py_path='path-gen.py'
-py_compare="path-compare.py"
+py_final="path-compare.py"
 
 # Data files
+tarball="forces.tgz"
+forcedir="forces"
+
 # mdin="md.in.band_path" # Option 1
 mdin="md.in.coord_path" # Option 2
 mdout="md.out.txt"
@@ -24,7 +26,7 @@ kpack="kaldo.out.pack"
 
 ptxt="path.out.txt"
 
-compare="mismatch.txt"
+final="mismatch.txt"
 finalout="mismatch.npy"
 
 # executables
@@ -36,25 +38,34 @@ printf "\n\n!!\tWorking on comparisons \n"
 if [ ! -f ${mdcomp} ];
 then
   printf "! Attempting to package QE data ..."
-  if [ ! -f espresso.ifc2 ]; # untar
+  if [ ! -f ${forcedir}/espresso.ifc2 ]; # untar
   then
+    printf "\n\tUntar forces to ${forcedir} .."
     tar -xvzf ${tarball}
+    printf "\tdone!"
   fi
 
+  printf "\n\tMake text file for k-path at ${ptxt} .."
   python ${py_path}
-  cat ${mdin}.tmp > ${mdin}
-  printf "$( cat ${ptxt} | wc -l )\n" >> ${mdin}
-  cat ${ptxt} >> ${mdin}
+  printf "\tdone!"
 
+  printf "\n\tGenerating matdyn input ${mdin} from ${mdin}.tmp .."
+  cat ${mdin}.tmp > ${mdin}
+  printf "\n$( cat ${ptxt} | wc -l )\n" >> ${mdin}
+  cat ${ptxt} >> ${mdin}
+  printf "\tdone!"
+
+  printf "\n\tRunning matdyn.x from path ${matdyn}.."
   ${matdyn} < ${mdin} &> ${mdout}
+  printf "\tdone!"
   if [ $( wc -l < ${mdout}) -lt 5000 ];
   then # if the output is small something went wrong
-    printf "\n\tUnusual matdyn.x behaviour, fatal error\n\n"
+    printf "\n\t\tUnusual matdyn.x behaviour, fatal error\n\n"
     exit 1
   fi
 
   python ${py_mdpack} > ${mdpack}
-  printf " complete! :) \n"
+  printf "\nMatdyn Segment Complete! :) \n"
 fi
 ################################################################
 
@@ -70,9 +81,13 @@ then
     exit 1
   fi
 
+  printf "\n\tRunning kaldo .."
   python ${py_kpack} &> ${kpack}
-  printf " complete! :) \n"
+  printf "\tdone!"
+  printf "\n\tKaldo data was packed!"
+  printf "Kaldo Segment Complete! :) \n"
 fi
+
 ################################################################
 ########################################################################
 
@@ -80,7 +95,7 @@ printf "\n! We think data for both programs has been output and packaged uniform
 printf "Attempting to run comparison script .. "
 
 # Attempt to run comparison
-python ${py_compare} > ${compare}
+python ${py_final} > ${final}
 
 printf "\tComparison has run and exited!\n\tOutput can be found at out.py.comparison\n"
 printf "\tMismatches saved to ${finalout}\n"

@@ -12,19 +12,16 @@
 # 3. Save to Arrays for Closer Inspection
 # Mismatched arrays are saved to espresso_kaldo_mismatchs.npy
 
-# Parameters (2):
+# Parameters (3):
 # 1 - Desired array name
 output_array_fn="mismatch.npy"
 # 2 - Allowance for relative difference when comparing q-vectors
 relative_tolerance = rtoll = 5e-3 # half a percent
+# 3 - force folder name
+fcs_folder="forces"
 
-# Input data dtype
-# debug_raw_type = [("qvec", float, (3)),
-#                   ("sc", int, (3)),
-#                   ("qr", float),
-#                   ("eiqr", complex),
-#                   ("weight", float, (n_unit_cell, n_unit_cell)),
-#                   ("force", float, (n_unit_cell, 3, n_unit_cell, 3))]
+
+
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Section 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -37,17 +34,18 @@ np.set_printoptions(linewidth=200, suppress=True)
 n_errors = -1 # track number of mismatches
 n_errors_on_sc = 0
 n_errors_on_q = 0
-atoms = read('workup/POSCAR', format='vasp')
-alat = atoms.cell.array[0,2]*2 # lattice constant
-cellt = atoms.cell.array.T/alat # normalized cell transpose
-n_unit_cell=len(atoms)
+
+#atoms = read(fcs_folder+'/POSCAR', format='vasp')
+#alat = atoms.cell.array[0,2]*2 # lattice constant
+#cellt = atoms.cell.array.T/alat # normalized cell transpose
+#n_unit_cell=len(atoms)
 
 # Load in data from two programs
 # Grab unique q-vectors and supercells so we can cycle over them
 def pull_unique(your_array): # helper function
     return np.unique(your_array, axis=0)
-kaldo = np.load('workup/compiled-kaldo.npy')
-matdyn = np.load('workup/compiled-matdyn.npy')
+kaldo = np.load('kaldo.out.npy')
+matdyn = np.load('md.out.npy')
 q_kaldo, sc_kaldo = pull_unique(kaldo['qvec']), pull_unique(kaldo['sc'])
 q_matdyn, sc_matdyn = pull_unique(matdyn['qvec']), pull_unique(matdyn['sc'])
 #print(q_kaldo, q_matdyn)

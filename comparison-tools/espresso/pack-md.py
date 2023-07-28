@@ -13,7 +13,8 @@ matdynoutfile = 'md.out.txt'
 output_text_file = 'md.tmp.txt'
 repacked_fn = 'md.out'
 atoms = read('forces/POSCAR', format='vasp')
-cell = np.array([[0, 0.5, 0.5,], [0.5, 0., 0.5,], [0.5, 0.5, 0]])
+cell = atoms.cell.array
+cellt = cell.T / (cell.max() * 2)
 n_unit = len(atoms)
 ninteractions = n_unit**2
 
@@ -49,9 +50,9 @@ repack_raw_type = [("qvec", float, (3)),
                   ("forces", complex, (n_unit, 3, n_unit, 3))]
 repack = np.zeros(repack_shape, dtype=repack_raw_type)
 for nq,q in enumerate(q_unique): # loop over q
-    qk = q @ cell
+    qp = q @ cellt
     q_args = np.prod(np.isclose(raw[:, :3], q), axis=1)
-    print('Processing {}-th q: {} (matdyn: {})'.format(nq, qk, q))
+    print('Processing {}-th q: {} (md equiv: {})'.format(nq, qp, q))
     for sc in sc_unique: # loop over supercells
         sc_args = np.prod((raw[:,3:6]==sc), axis=1)
         sum_args = (q_args*sc_args).astype(bool)
@@ -59,9 +60,10 @@ for nq,q in enumerate(q_unique): # loop over q
 
         if total_matches.shape[0]==0: # missing SC on a q-point
             print('\n\n\t\tSC missing on q-point')
-            print('\tii {} | q {} | sc {} | Supercell absent in dataset'.format(ii, qk, sc, matrix[:, 10]))
+            print('\tii {} | q {} | sc {} | Supercell absent in dataset'.format(ii, sc, matrix[:, 10]))
             exit(1) # fatal
-        print('\tSupercell: {}'.format(sc))
+
+        #print('\tSupercell: {}'.format(sc))
 
         # Check if phase-arg is the same for every entry
         unique_phase_arg, index_upa = np.unique(total_matches[:, 11], axis=0, return_index=True)
@@ -83,7 +85,9 @@ for nq,q in enumerate(q_unique): # loop over q
         weights = np.zeros((n_unit, n_unit))
         forces  = np.zeros((n_unit, 3, n_unit, 3), dtype=complex)
         interactions, index_uint = np.unique(total_matches[:, 6:8], axis=0, return_index=True)
-        print('\tTotal Interactions Found: {}'.format(index_uint.size))
+
+        #print('\tTotal Interactions Found: {}'.format(index_uint.size))
+
         for nanb in interactions:
             na, nb = int(nanb[0]-1), int(nanb[1]-1) # removes fortran offset
             matrix = total_matches[np.prod((total_matches[:, 6:8]==nanb), axis=1).astype(bool)]
@@ -130,7 +134,7 @@ for nq,q in enumerate(q_unique): # loop over q
                     forces[nanbab] = (row[14] + 1j * row[15])
         # Looped over force components for q-vec + supercell
         # Push filled temp arrays to output array
-        repack[ii] = q, sc, qr, eiqr, weights, forces
+        repack[ii] = qp, sc, qr, eiqr, weights, forces
         ii += 1
 
 repack['forces'] *= force_prefactor
