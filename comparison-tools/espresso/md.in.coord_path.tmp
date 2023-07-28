@@ -1,0 +1,7 @@
+ &input
+    asr='simple',
+    amass(1)=28.011,
+    flfrc='forces/espresso.ifc2',
+    flfrq='md.out.freq',
+    q_in_cryst_coord=.true.,
+ /

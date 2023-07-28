@@ -1012,8 +1012,8 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
     PRINT *, "To extract use- grep '<keyword>' <output-file> > <", &
              "your-text-file-name>"
     PRINT *, "This prints 9*N rows where N is the number of ",     &
-             "intractions with finite weight. The factor of 9 ",   &
-             "accounts for the 3x3 matrix per interactions"        &
+             "interactions with finite weight. The factor of 9",   &
+             " accounts for the entire matrix of interaction."     
     PRINT *, "Variables I added: "
     PRINT *, "COMPLEX- eiqr, totfrc"
     PRINT *, "REAL- real_eiqr, imag_eiqr, real_totfrc imag_totfrc"

@@ -12,14 +12,21 @@ temperature = 300
 unfold_bool = True
 kpts = [k, k, k]
 supercell = np.array([rep, rep, rep])
-folder = 'workup/'
-kaldo_qptdat = 'kaldo_per_qpt/'
-repacked_md = 'compiled-matdyn'
-repacked_fn = 'compiled-matdyn'
-atoms = read(folder+'POSCAR', format='vasp')
-cellt = atoms.cell.array.T/(atoms.cell.array[0,2]*2)
+fcs_folder='forces'
+ald_folder='./'
+qpt_folder = 'kaldo.out.per_qpt/'
+txtpath = 'path.out.txt'
+repacked_md = 'md.out'
+repacked_fn = 'kaldo.out'
+atoms = read('POSCAR', format='vasp')
 
-forceconstant = ForceConstants.from_folder(folder=folder,
+if not os.path.isdir(qpt_folder):
+    os.mkdir(qpt_folder)
+else:
+    print('Data already exists in qpt folder')
+    exit(1)
+
+forceconstant = ForceConstants.from_folder(folder=fcs_folder,
                            supercell=supercell,
                            only_second=True,
                            is_acoustic_sum=True,
@@ -29,30 +36,34 @@ phonons = Phonons(forceconstants=forceconstant,
                   is_classic=False,
                   is_unfolding=unfold_bool,
                   temperature=temperature,
-                  folder=folder,
+                  folder=ald_folder,
                   storage='numpy')
 
 print('\n\n\n!! kALDo objects created, executing calculations along path')
 print('Working ...')
-qe_data = np.load(folder+repacked_md+'.npy')['qvec']
-__, args = np.unique(qe_data, axis=0, return_index=True)
-qs_to_run = qe_data[np.sort(args)] @ cellt
-nqs = qs_to_run.shape[0]; print('\t0 of {}'.format(nqs))
+qs_to_run = np.loadtxt(txtpath)
+nqs = qs_to_run.shape[0]
+print('\t0 of {}'.format(nqs))
 for i,q in enumerate(qs_to_run):
     if (i%20)==0:
         print('\t{} of {}'.format(i, nqs))
     hrm = HarmonicWithQ(q_point=q, supercell=supercell,
                 second=forceconstant.second, is_unfolding=phonons.is_unfolding)
     hrm.frequency # cause kALDo to calculate the frequency at q
+    #hrm.velocity
 
 print('!! Calculations complete, repackaging ..')
-gamma = kaldo_qptdat+'0.0_0.0_0.0.npy'
-filenames = [fn for fn in os.listdir(kaldo_qptdat) if fn != gamma]
+gamma = qpt_folder+'0.0_0.0_0.0.npy'
+filenames = [fn for fn in os.listdir(qpt_folder) if fn != gamma]
 print('Compiling {} q-points'.format(len(filenames)+1))
 repack = np.load(gamma)
 for f in filenames:
-    repack = np.append(repack, np.load(kaldo_qptdat+f))
+    repack = np.append(repack, np.load(qpt_folder+f))
 
 print('!! Completed')
 print('!! final shape {}'.format(repack.shape))
 np.save(repacked_fn, repack)
+
+# qe_data = np.load(fcs_folder+repacked_md+'.npy')['qvec']
+# __, args = np.unique(qe_data, axis=0, return_index=True)
+# qs_to_run = qe_data[np.sort(args)] @ cellt

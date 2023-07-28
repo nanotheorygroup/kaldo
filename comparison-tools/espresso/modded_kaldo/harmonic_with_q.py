@@ -339,16 +339,17 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
+                supercell_index = supercell_replica%supercell
                 qr = 2. * np.pi * np.dot(q_point, supercell_replica)
+                phase = np.exp(-1j*qr)
                 values = np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                 fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                        supercell_replica[2], :, :], coefficient)
+                                 fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                 supercell_index[2], :, :], coefficient)
                 dyn_s[:, :, :, :] += values
-
-                debug[ir] = (q_point, supercell_replica, weight, values)
+                debug[ir] = (q_point, supercell_replica, qr, phase, weight, values)
                 ir += 1
         qstr='_{}_{}_{}'.format(q_point[0], q_point[1], q_point[2])
-        debug = debug[:ir+1, :] # snip to include only nonzero indices
+        debug = debug[:ir+1] # snip to include only nonzero indices
         np.save('kaldo-per-qpt/'+qstr, debug)
         # <<<< END MODIFICATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

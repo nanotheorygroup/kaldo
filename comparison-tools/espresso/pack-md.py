@@ -4,15 +4,16 @@ import subprocess as sp
 import numpy as np
 import pandas as pd
 import os
+np.set_printoptions(linewidth=300, suppress=True)
 
 rtoll = 5e-3
+atoll = 1e-6 #for forces
 format = 'espresso'
-repacked_fn = 'compiled-matdyn'
-output_text_file = 'raw.txt'
-matdynoutfile = 'output.md'
-atoms = read('POSCAR', format='vasp')
-alat = atoms.cell.array[0,2]*2
-cellt = atoms.cell.array.T/alat
+matdynoutfile = 'md.out.txt'
+output_text_file = 'md.tmp.txt'
+repacked_fn = 'md.out'
+atoms = read('forces/POSCAR', format='vasp')
+cell = np.array([[0, 0.5, 0.5,], [0.5, 0., 0.5,], [0.5, 0.5, 0]])
 n_unit = len(atoms)
 ninteractions = n_unit**2
 
@@ -28,10 +29,11 @@ print('Creating/Loading intermediate text files ..')
 # q    n    na nb alpha beta  w  qr eiqr-real eiqr-imag totfrc-real totfrc-imag
 if not os.path.exists(output_text_file):
     sp.run('grep "FORCES  " {} > {}'.format(matdynoutfile, output_text_file), shell=True)
-raw = pd.read_csv(output_text_file, header=None, usecols=np.arange(16),
+raw = pd.read_csv(output_text_file, header=None, usecols=np.arange(16)+1,
     delim_whitespace=True).to_numpy()
 
-q_unique = np.unique(raw[:, :3], axis=0)
+__, qind= np.unique(raw[:, :3], axis=0, return_index=True)
+q_unique = raw[np.sort(qind), :3]
 sc_unique = np.unique(raw[:, 3:6], axis=0)
 
 # Setup new data
@@ -44,17 +46,16 @@ repack_raw_type = [("qvec", float, (3)),
                   ("qr", float),
                   ("eiqr", complex),
                   ("weights", float, (n_unit, n_unit)),
-                  ("forces", float, (n_unit, 3, n_unit, 3))]
+                  ("forces", complex, (n_unit, 3, n_unit, 3))]
 repack = np.zeros(repack_shape, dtype=repack_raw_type)
-for q in q_unique: # loop over q
-    qk = q@cellt
-    q_args = np.prod(np.isclose(repack[:, :3], q), axis=1)
-    print('Processing q: {} (matdynequiv: {})'.format(qk, q))
-
+for nq,q in enumerate(q_unique): # loop over q
+    qk = q @ cell
+    q_args = np.prod(np.isclose(raw[:, :3], q), axis=1)
+    print('Processing {}-th q: {} (matdyn: {})'.format(nq, qk, q))
     for sc in sc_unique: # loop over supercells
-        sc_args = np.prod((repack[:,3:6]==sc), axis=1)
+        sc_args = np.prod((raw[:,3:6]==sc), axis=1)
         sum_args = (q_args*sc_args).astype(bool)
-        total_matches = repack[sum_args]
+        total_matches = raw[sum_args]
 
         if total_matches.shape[0]==0: # missing SC on a q-point
             print('\n\n\t\tSC missing on q-point')
@@ -72,7 +73,7 @@ for q in q_unique: # loop over q
 
         # Check if phase is the same for every entry
         unique_phases, index_uph = np.unique(total_matches[:, 12:14], axis=0, return_index=True)
-        if unique_phases.size != 1:
+        if unique_phases.size != 2:
             print('\n\n\tNon-constant phase detected at single q-point')
             print('ii {} | q {} | sc {} - Phase warning: {}\n'.format(ii, qk, sc, unique_phases))
             exit(1) # fatal
@@ -98,7 +99,7 @@ for q in q_unique: # loop over q
                 weights[na, nb] = matrix[0, 10]
 
             # Fill (2,3,2,3) force matrix
-            if (matrix.shape[0] % 9) == 0:
+            if (matrix.shape[0] % 9) != 0.:
                 # We have unfilled 3x3 matrices -- Weirdest case. Defective matdyn.f90
                 print('\t\tNA-NB: {} {}-{}'.format(nanb, na, nb))
                 print('\t\tN force entries: {}'.format(matrix.shape[0]))
@@ -109,28 +110,30 @@ for q in q_unique: # loop over q
                 exit(1) # fatal
             elif matrix.shape[0]==9: # The whole 3x3 matrix is unique
                 for row in matrix:   # Best case scenario
-                    alpha, beta, = int(row[12]-1), int(row[13]-1)
+                    alpha, beta, = int(row[8]-1), int(row[9]-1)
                     nanbab = (na, alpha, nb, beta)
-                    forces[na, alpha, nb, beta] = force_prefactor * (row[15] + 1j * row[16])
+                    forces[na, alpha, nb, beta] = force_prefactor * (row[14] + 1j * row[15])
             else: # Implying there are multiple 3x3 matrices.
                 for row in matrix:  # Probably copies from a duplicated q-point (e.g. gamma)
-                    alpha, beta, = int(row[12] - 1), int(row[13] - 1)
+                    alpha, beta, = int(row[8] - 1), int(row[9] - 1)
                     nanbab = (na, alpha, nb, beta)
-                    nforce = row[15]
-                    if forces[nanbab] != 0. or (not np.isclose(forces[nanbab], nforce, rtol=rtoll)):
-                        oforce = forces[nanbab]
-                        absdiff = oforce - nforce
+                    oforce = forces[nanbab]
+                    nforce = (row[14] + 1j * row[15])
+                    is_zero = (oforce.real==0 and oforce.imag==0)
+                    if (not is_zero) and (not np.isclose(np.abs(nforce), np.abs(oforce), 1e-6, atol=atoll)):
                         print('\t\tWarning, overwriting on {}'.format(nanbab))
-                        print('\t\tOld, New, Diff: {} {} {}'.format(oforce, nforce, absdiff))
+                        print(matrix)
                         warningstring += 'ii {} | q {} | sc {} | Force mismatch - Difference: {}\n'.format(ii, qk, sc,
                                                                                                            absdiff)
-                        continue
-                    forces[nanbab] = force_prefactor * (row[15] + 1j * row[16])
+                        print(warningstring)
+                        exit()
+                    forces[nanbab] = (row[14] + 1j * row[15])
         # Looped over force components for q-vec + supercell
         # Push filled temp arrays to output array
-        repack[ii] = qk, sc, qr, eiqr, weights, forces
+        repack[ii] = q, sc, qr, eiqr, weights, forces
         ii += 1
 
+repack['forces'] *= force_prefactor
 np.save(repacked_fn, repack)
 
 # Compile and print warnings

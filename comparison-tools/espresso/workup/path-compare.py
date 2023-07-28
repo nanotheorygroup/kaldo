@@ -14,17 +14,10 @@
 
 # Parameters (2):
 # 1 - Desired array name
-output_array_fn="espresso_kaldo_mismatchs.npy"
+final_array="mismatch.npy"
 # 2 - Allowance for relative difference when comparing q-vectors
 relative_tolerance = rtoll = 5e-3 # half a percent
 
-# Input data dtype
-# debug_raw_type = [("qvec", float, (3)),
-#                   ("sc", int, (3)),
-#                   ("qr", float),
-#                   ("eiqr", complex),
-#                   ("weight", float, (n_unit_cell, n_unit_cell)),
-#                   ("force", float, (n_unit_cell, 3, n_unit_cell, 3))]
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Section 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -38,8 +31,6 @@ n_errors = -1 # track number of mismatches
 n_errors_on_sc = 0
 n_errors_on_q = 0
 atoms = read('3x3x3/POSCAR', format='vasp')
-alat = atoms.cell.array[0,2]*2 # lattice constant
-cellt = atoms.cell.array.T/alat # normalized cell transpose
 n_unit_cell=len(atoms)
 
 # Load in data from two programs
@@ -176,3 +167,5 @@ if n_errors+1 > 0: # account for -1 offset used for indexing help
 sys.stdout.write('\n\nSweep complete, exiting safely.\n')
 exit(0)
 
+#alat = atoms.cell.array[0,2]*2 # lattice constant
+# cellt = atoms.cell.array.T/alat # normalized cell transpose
