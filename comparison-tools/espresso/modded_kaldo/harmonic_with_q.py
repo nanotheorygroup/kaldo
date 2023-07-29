@@ -346,10 +346,10 @@ class HarmonicWithQ(Observable):
                                  fc_s[:, :, supercell_index[0], supercell_index[1],
                                                  supercell_index[2], :, :], coefficient)
                 dyn_s[:, :, :, :] += values
-                debug[ir] = (q_point, supercell_replica, qr, phase, weight, values)
+                debug[ir] = (q_point, supercell_replica, qr, phase, coefficient, values)
                 ir += 1
         qstr='{}_{}_{}'.format(q_point[0], q_point[1], q_point[2])
-        debug = debug[:ir+1] # snip to include only nonzero indices
+        debug = debug[:ir] # snip to include only nonzero indices
         np.save('kaldo.out.per_qpt/'+qstr, debug)
         # <<<< END MODIFICATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

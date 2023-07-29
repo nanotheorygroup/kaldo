@@ -20,7 +20,6 @@ repacked_md = 'md.out'
 repacked_fn = 'kaldo.out'
 atoms = read(fcs_folder+'/POSCAR', format='vasp')
 to_calculate = True
-
 if not os.path.isdir(qpt_folder):
     os.mkdir(qpt_folder)
 else:

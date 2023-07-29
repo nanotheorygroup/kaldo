@@ -7,10 +7,11 @@ import pandas as pd
 import os
 np.set_printoptions(linewidth=300, suppress=True)
 
-rtoll = 5e-3
+rtoll = 5e-4
 atoll = 1e-6 #for forces
 format = 'espresso'
 matdynoutfile = 'md.out.txt'
+weights_fn = 'md.out.weights'
 output_text_file = 'md.tmp.txt'
 repacked_fn = 'md.out'
 atoms = read('forces/POSCAR', format='vasp')
@@ -51,7 +52,7 @@ repack_raw_type = [("qvec", float, (3)),
                   ("weights", float, (n_unit, n_unit)),
                   ("forces", complex, (n_unit, 3, n_unit, 3))]
 repack = np.zeros(repack_shape, dtype=repack_raw_type)
-for nq,q in enumerate(q_unique): # loop over q
+for nq, q in enumerate(q_unique): # loop over q
     qp = q @ cellt
     q_args = np.prod(np.isclose(raw[:, :3], q), axis=1)
     print('Processing {}-th q: {} (md equiv: {})'.format(nq, qp, q))
@@ -71,7 +72,7 @@ for nq,q in enumerate(q_unique): # loop over q
         unique_phase_arg, index_upa = np.unique(total_matches[:, 11], axis=0, return_index=True)
         if unique_phase_arg.size != 1:
             print('\n\n\tNon-constant phase-arg detected at single q-point')
-            print('ii {} | q {} | sc {} - Phase warning: {}\n'.format(ii, qk, sc, unique_phase_arg))
+            print('ii {} | q {} | sc {} - Phase warning: {}\n'.format(ii, qp, sc, unique_phase_arg))
             exit(1) # fatal
         qr = unique_phase_arg.flatten()
 
@@ -79,7 +80,7 @@ for nq,q in enumerate(q_unique): # loop over q
         unique_phases, index_uph = np.unique(total_matches[:, 12:14], axis=0, return_index=True)
         if unique_phases.size != 2:
             print('\n\n\tNon-constant phase detected at single q-point')
-            print('ii {} | q {} | sc {} - Phase warning: {}\n'.format(ii, qk, sc, unique_phases))
+            print('ii {} | q {} | sc {} - Phase warning: {}\n'.format(ii, qp, sc, unique_phases))
             exit(1) # fatal
         eiqr = unique_phases[0, 0] + 1j*unique_phases[0, 1]
 
@@ -99,7 +100,7 @@ for nq,q in enumerate(q_unique): # loop over q
                 continue
             elif not np.isclose(matrix[0, 10], np.mean(matrix[:, 10]), rtol=rtoll):
                 print('\n\n\t\tMultiple weights exists for one interaction')
-                print('\tii {} | q {} | sc {} | Weight mismatch - Weights: {}'.format(ii, qk, sc, matrix[:, 10]))
+                print('\tii {} | q {} | sc {} | Weight mismatch - Weights: {}'.format(ii, qp, sc, matrix[:, 10]))
                 exit(1)  # Fatal error
             else:
                 weights[na, nb] = matrix[0, 10]
@@ -112,7 +113,7 @@ for nq,q in enumerate(q_unique): # loop over q
                 print('\t\tN matrices expected: {}'.format(matrix.shape[0]%9))
                 print('\t\tn-unique shape: {}'.format(np.unique(matrix[:, 6:8], axis=0).shape))
                 print('\t\talpha-betas\n', matrix[:, 8:10])
-                print('ii {} | q {} | sc {} - Force N-component warning\n'.format(ii, qk, sc))
+                print('ii {} | q {} | sc {} - Force N-component warning\n'.format(ii, qp, sc))
                 exit(1) # fatal
             elif matrix.shape[0]==9: # The whole 3x3 matrix is unique
                 for row in matrix:   # Best case scenario
@@ -124,13 +125,13 @@ for nq,q in enumerate(q_unique): # loop over q
                     alpha, beta, = int(row[8] - 1), int(row[9] - 1)
                     nanbab = (na, alpha, nb, beta)
                     oforce = forces[nanbab]
-                    nforce = (row[14] + 1j * row[15])
+                    nforce = (row[14] + 1j * row[15]) * force_prefactor
                     is_zero = (oforce.real==0 and oforce.imag==0)
-                    if (not is_zero) and (not np.isclose(np.abs(nforce), np.abs(oforce), 1e-6, atol=atoll)):
+                    if (not is_zero) and (not np.isclose(nforce, oforce, rtol=rtoll)):
                         print('\t\tWarning, overwriting on {}'.format(nanbab))
                         print(matrix)
-                        warningstring += 'ii {} | q {} | sc {} | Force mismatch - Difference: {}\n'.format(ii, qk, sc,
-                                                                                                           absdiff)
+                        warningstring += ('ii {} | q {} | sc {} | '.format(ii, qp, sc,) +
+                                          'Force mismatch - Difference: {}\n').format(oforce-nforce)
                         print(warningstring)
                         exit()
                     forces[nanbab] = force_prefactor * (row[14] + 1j * row[15])
