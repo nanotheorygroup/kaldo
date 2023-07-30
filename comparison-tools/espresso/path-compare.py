@@ -27,7 +27,7 @@ tol = {'qvec':{'rtol':0,
        'weights':{'rtol':0,
                   'atol':0,},
        'forces':{'rtol':5e-2,
-                 'atol':1e-1}}
+                 'atol':5e-0}}
 constant_force_factor = 7.09 # not sure why this needs to be here
 
 # 3 - force folder name
