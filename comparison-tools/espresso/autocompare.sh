@@ -1,36 +1,40 @@
 #!/bin/bash
 # Assumes modded harmonic_with_q.py file is installed in your kALDo build
+# executables
+matdyn="/home/nwlundgren/develop/quantumespresso/build-6.21.2023/bin/matdyn.x"
 # directories
-# home=$( realpath . )
-md_mods="modded_espresso"
-k_mods="modded_kaldo"
-
-# scripts
-py_kpack='pack-kaldo.py'
-py_mdpack='pack-md.py'
-py_path='path-gen.py'
-py_final="path-compare.py"
-
+forcedir="forces"
 # Data files
 tarball="forces.tgz"
-forcedir="forces"
 
+
+### py scripts ##########
+# 0 - gen path
+py_path='0_gen_path.py'
+# 1 - run kaldo + matdyn
+py_kpack='1_pack_kaldo.py'
+py_mdpack='1_pack_md.py'
+# 2 - analyze dynmat
+py_frc="2_compare_frc.py"
+
+
+# IO Files ##############
+# 0_
+ptxt="path.out.txt"
+# 1_
 # mdin="md.in.band_path" # Option 1
 mdin="md.in.coord_path" # Option 2
 mdout="md.out.txt"
 mdpack="md.out.pack"
 mdcomp="md.out.npy"
-
 kcomp="kaldo.out.npy"
 kpack="kaldo.out.pack"
+# 2_
+fout="frc.out.txt"
+fpack="frc.out.npy"
+wout="freq.out.txt"
+wpack="freq.out.npy"
 
-ptxt="path.out.txt"
-
-final="mismatch.txt"
-finalout="mismatch.npy"
-
-# executables
-matdyn="/home/nwlundgren/develop/quantumespresso/build-6.21.2023/bin/matdyn.x"
 
 printf "\n\n!!\tWorking on comparisons \n"
 #########################################################################
@@ -95,7 +99,7 @@ printf "\n! We think data for both programs has been output and packaged uniform
 printf "Attempting to run comparison script .. "
 
 # Attempt to run comparison
-python ${py_final} > ${final}
+python ${py_frc} > ${fout}
 
 printf "\tComparison has run and exited!\n\tOutput can be found at out.py.comparison\n"
 printf "\tMismatches saved to ${finalout}\n"

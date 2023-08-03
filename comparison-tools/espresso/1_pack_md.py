@@ -1,30 +1,47 @@
+# Repackages text output from a program into numpy objects
+# The general strategy is to throw a fatal error if we find any inconsistency
+# ensuring the captured data is organized as we expected.
+
+# Parameters # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# rtoll - permissible relative difference between two instances of the same data point
+# format - what program are we comparing ( espresso / shengbte / .. )
+#       primarily controls the unit conversions we need to use
+# txtpattern - pattern to grep in text output of program we are comparing with
+rtoll = 1e-5 # 1 one-thousandth of 1 %
+format = 'espresso'
+txtpattern = 'FORCES  '
+
+# filenames
+matdynoutfile = 'md.out.txt'
+weights_fn = 'md.out.weights'
+output_text_file = 'md.tmp.txt'
+packed_fn = 'md.out'
+atomconfig = 'forces/POSCAR'
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 from scipy import constants
-from ase.units import Rydberg, Bohr
 from ase.io import read
 import subprocess as sp
 import numpy as np
 import pandas as pd
 import os
-np.set_printoptions(linewidth=300, suppress=True)
+np.set_printoptions(linewidth=125, suppress=True)
 
-rtoll = 5e-4
-atoll = 1e-6 #for forces
-format = 'espresso'
-matdynoutfile = 'md.out.txt'
-weights_fn = 'md.out.weights'
-output_text_file = 'md.tmp.txt'
-repacked_fn = 'md.out'
-atoms = read('forces/POSCAR', format='vasp')
+# SI SPECIFIC # # # # # # # # # # # # # # # # # # # # # # # # #
+atoms = read(atomconfig, format='vasp')
 cell = atoms.cell.array
 cellt = cell.T / (cell.max() * 2)
 n_unit = len(atoms)
+inv_mass =  1/28.08
+# # # # # # # # # # # # # # # # # # # # # # # # #
 
-# Conversions - Energy in eV, Length in Angstrom
+# Conversions - Frc from Ry/Bohr to 10*J / mol
+# Normalize by mass for dynamical matrix
 rydberg = constants.value('Rydberg constant times hc in eV')
 bohr = constants.value('Bohr radius') / constants.angstrom
 RyBr_to_eVA = rydberg/(bohr**2)
-force_prefactor = RyBr_to_eVA if format=='espresso' else 1
-
+eVA_to_10Jm = constants.Avogadro*constants.value('electron volt-joule relationship')/10
+force_prefactor = ( RyBr_to_eVA * inv_mass * eVA_to_10Jm ) if format=='espresso' else 1
 
 print('Processing {}'.format(matdynoutfile))
 print('Creating/Loading intermediate text files ..')
@@ -32,26 +49,33 @@ print('Creating/Loading intermediate text files ..')
 # 0-2  3-5  6  7  8     9     10 11 12        13        14          15
 # q    n    na nb alpha beta  w  qr eiqr-real eiqr-imag totfrc-real totfrc-imag
 if not os.path.exists(output_text_file):
-    sp.run('grep "FORCES  " {} > {}'.format(matdynoutfile, output_text_file), shell=True)
+    print('\tGrepping {} from {} into {}'.format(txtpattern, matdynoutfile, output_text_file))
+    sp.run('grep "{}  " {} > {}'.format(txtpattern, matdynoutfile, output_text_file), shell=True)
+    print('\tText file created')
+print('Reading filtered text output as csv ..')
 raw = pd.read_csv(output_text_file, header=None, usecols=np.arange(16)+1,
     delim_whitespace=True).to_numpy()
 
+
 __, qind= np.unique(raw[:, :3], axis=0, return_index=True)
 q_unique = raw[np.sort(qind), :3]
-sc_unique = np.unique(raw[:, 3:6], axis=0)
+sc_unique, scind = np.unique(raw[:, 3:6], axis=0, return_index=True)
+print('\tQ-points to process: {}'.format(len(qind)))
+print('\tNumber of contributing cells at each Q: {}'.format(len(scind)))
 
 # Setup new data
 # qvector, supercell, q dot r, eiqr, weight, forces
 ii = 0
 warningstring = ''
-repack_shape = q_unique.shape[0]*sc_unique.shape[0]
-repack_raw_type = [("qvec", float, (3)),
+pack_shape = q_unique.shape[0]*sc_unique.shape[0]
+pack_raw_type = [("qvec", float, (3)),
                   ("sc", int, (3)),
                   ("qr", float),
                   ("eiqr", complex),
                   ("weights", float, (n_unit, n_unit)),
                   ("forces", complex, (n_unit, 3, n_unit, 3))]
-repack = np.zeros(repack_shape, dtype=repack_raw_type)
+pack = np.zeros(pack_shape, dtype=pack_raw_type)
+print('Begin for loops ..')
 for nq, q in enumerate(q_unique): # loop over q
     qp = q @ cellt
     q_args = np.prod(np.isclose(raw[:, :3], q), axis=1)
@@ -119,13 +143,13 @@ for nq, q in enumerate(q_unique): # loop over q
                 for row in matrix:   # Best case scenario
                     alpha, beta, = int(row[8]-1), int(row[9]-1)
                     nanbab = (na, alpha, nb, beta)
-                    forces[na, alpha, nb, beta] = force_prefactor * (row[14] + 1j * row[15])
+                    forces[na, alpha, nb, beta] = (row[14] + 1j * row[15])
             else: # Implying there are multiple 3x3 matrices.
                 for row in matrix:  # Probably copies from a duplicated q-point (e.g. gamma)
                     alpha, beta, = int(row[8] - 1), int(row[9] - 1)
                     nanbab = (na, alpha, nb, beta)
                     oforce = forces[nanbab]
-                    nforce = (row[14] + 1j * row[15]) * force_prefactor
+                    nforce = (row[14] + 1j * row[15])
                     is_zero = (oforce.real==0 and oforce.imag==0)
                     if (not is_zero) and (not np.isclose(nforce, oforce, rtol=rtoll)):
                         print('\t\tWarning, overwriting on {}'.format(nanbab))
@@ -134,27 +158,34 @@ for nq, q in enumerate(q_unique): # loop over q
                                           'Force mismatch - Difference: {}\n').format(oforce-nforce)
                         print(warningstring)
                         exit()
-                    forces[nanbab] = force_prefactor * (row[14] + 1j * row[15])
+                    forces[nanbab] = (row[14] + 1j * row[15])
         # Looped over force components for q-vec + supercell
         # Push filled temp arrays to output array
-        repack[ii] = qp, sc, qr, eiqr, weights, forces
+        pack[ii] = qp, sc, qr, eiqr, weights, forces
         ii += 1
 
-repack['forces'] *= force_prefactor
-np.save(repacked_fn, repack)
+# Convert forces to correct units and save numpy object
+pack['forces'] *= force_prefactor
+np.save(packed_fn, pack)
 
 # Compile and print warnings
-print('''
-##################################################################################
-##################################################################################
-WARNINGS DETECTED DURING PROCESSING  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-{}
-##################################################################################
-##################################################################################
-'''.format(warningstring))
-print('completed repackage succesful!')
+if len(warningstring) > 5:
+    print('''
+    ##################################################################################
+    ##################################################################################
+    WARNINGS DETECTED DURING PROCESSING  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    {}
+    ##################################################################################
+    ##################################################################################
+    '''.format(warningstring))
+else:
+    print('No mismatch warnings detected, implies {} data is consistent'.format(format))
+
 # Detect if we missed a supercell at any q-point
-if ii!=repack.shape[0]:
-    print('zero rows exist')
-    print(ii-repack.shape[0])
+if ii!=pack.shape[0]:
+    print('Zero Row Warning')
+    print("Collected & Expected: {} vs {}".format(ii,pack.shape[0]))
+    print("This implies we may have missed contributing supercells on some q-point(s)")
+
+print('Completed packing! \n\n')
 exit(0)

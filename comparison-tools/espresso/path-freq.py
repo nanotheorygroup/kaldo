@@ -14,7 +14,7 @@
 
 # Parameters (3):
 # 1 - Desired array name
-output_array_fn="mismatch.npy"
+output_array_fn="dynmat.out.npy"
 # 2 - Allowance for relative difference when comparing q-vectors
 tol = {'qvec':{'rtol':0,
                 'atol':1e-4},

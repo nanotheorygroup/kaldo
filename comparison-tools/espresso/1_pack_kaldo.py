@@ -67,7 +67,3 @@ print('!! Completed packing')
 print('\t Final shape: {}'.format(repack.shape))
 print('Exiting ..')
 print('\n\n')
-
-# qe_data = np.load(fcs_folder+repacked_md+'.npy')['qvec']
-# __, args = np.unique(qe_data, axis=0, return_index=True)
-# qs_to_run = qe_data[np.sort(args)] @ cellt
