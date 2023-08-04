@@ -64,7 +64,7 @@ fpack="frc.out.npy"
 #wout="freq.out.txt"
 #wpack="freq.out.npy"
 printf "Input Files: ${mdin} + ${forcedir} (or ${tarball})\n"
-printf "Selected Executable: ${matdyn}\n-----\n\n"
+printf "Selected Executable: ${matdyn}\n---\n"
 
 
 printf "!! Step 0 - Path Configuration\n"
@@ -112,10 +112,10 @@ then
   printf "\t done!\n"
   if [ ${exitcomp} != 0 ];
   then
-    printf "!! Matdyn failed\n\n${mdout} --\n"
+    printf "\n\n!! Matdyn failed\n\n${mdout} --\n"
     cat ${mdout}
-    printf "\n--\n"
-    printf ">>> kactus failed, exiting .. <<<\n\n"
+    printf "\n--\n\n"
+    printf ">>> Exiting kactus <<<\n\n"
     exit ${exitcomp}
   fi
 
@@ -125,10 +125,10 @@ then
   printf "\tdone!\n"
   if [ ${exitcomp} != 0 ];
   then
-    printf "!! Python failed on ${py_mdpack}\n\n${mdpack} --\n"
+    printf "\n\n!! Python failed on ${py_mdpack}\n\nPrinting relevant log file:\n${mdpack} --\n"
     cat ${mdpack}
-    printf "\n--\n"
-    printf ">>> kactus failed, exiting .. <<<\n\n"
+    printf "\n--\n\n"
+    printf ">>> Exiting kactus <<<\n\n"
     exit ${exitcomp}
   fi
   printf "\tStep Complete! :) \n\n"
@@ -159,10 +159,10 @@ then
   printf "\tdone!\n"
   if [ ${exitcomp} != 0 ];
   then
-    printf "!! Python failed to run ${py_kpack}\n\n${kpack} --\n"
+    printf "\n\n!! Python failed to run ${py_kpack}\n\nPrinting relevant log file:\n${kpack} --\n"
     cat ${kpack}
-    printf "\n--\n"
-    printf ">>> kactus failed, exiting .. <<<\n\n"
+    printf "\n--\n\n"
+    printf ">>> Exiting kactus <<<\n\n"
     exit ${exitcomp}
   fi
   printf "\tStep Complete! :) \n\n"
@@ -184,7 +184,7 @@ printf "\tdone!\n"
 if [ ${exitcomp} == 0 ];
 then
   if [ -f ${fpack} ];
-  then
+  then''
     printf "!! Final Verdict: Guilty.\n"
     printf "!! Mismatches detected in at least one category\n"
     printf "!! Mismatches were not fatal\n"
@@ -196,10 +196,10 @@ then
   fi
   printf "\n>>> kactus ran succesfully <<<\n\n"
 else
-  printf "\tPython failed to run ${py_frc}\n\n${fout} --\n"
+  printf "\n\n!! Python failed to run ${py_frc}\n\nPrinting relevant log file:\n${fout} --\n"
   cat ${fout}
-  printf "\n--\n"
-  printf "\n\n>>> kactus failed during final stage <<<\n\n"
+  printf "\n--\n\n"
+  printf "\n\n>>> Exiting kactus <<<\n\n"
   exit ${exitcomp}
 fi
 ################################################################
