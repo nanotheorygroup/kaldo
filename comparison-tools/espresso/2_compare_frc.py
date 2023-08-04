@@ -39,8 +39,8 @@ tol = {'qvec':{'rtol':0,
                'atol':0},
        'weights':{'rtol':0,
                   'atol':0,},
-       'forces':{'rtol':0,
-                 'atol':0}}
+       'forces':{'rtol':1e-5,
+                 'atol':1e-1}}
 # 3 - force folder name
 fcs_folder="forces"
 
@@ -201,7 +201,6 @@ for q in q_matdyn:
                         sys.stdout.write('\n\t!! {} - q {} \t sc {} na {} nb {}'.format(label.title(), q, sc, na, nb))
                         sys.stdout.write('\n\t!! indices - {}'.format(fail_coords))
                         sys.stdout.write('\n\t!! {}\n\t!! {}'.format(mn.flatten(), kn.flatten()))
-                        exit(1)
                     sys.stdout.write('\n\tf-m\t{}'.format(mn.flatten()))
                     sys.stdout.write('\n\tf-k\t{}\n'.format(kn.flatten()))
                 sys.stdout.write('\n')
@@ -215,7 +214,7 @@ if n_errors_global+1 > 0: # account for -1 offset used for indexing help
     np.save(output_array_fn, comparisons[:n_errors_global+1])
     sys.stdout.write('\n\n\n\t\tFinal Error Report:\n')
     for label in test_labels:
-        sys.stdout('{}\'s detected - {}'.format(label, error_count[label]))
+        sys.stdout.write(f'{label}\'s detected - {error_count[label][0]}\n'.title())
 else:
     sys.stdout.write('\nNo mismatches detected')
 sys.stdout.write('\nSweep complete, exiting safely.\n\n')

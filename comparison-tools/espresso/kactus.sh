@@ -1,9 +1,19 @@
 #!/bin/bash
-printf "\n>>> kALDo Automated Comparison Tool (kactus v.0a) <<<\n"
-printf "\t          __ ___       __\n\t|_/  /\\  /    |  /  \\ (_\n\t| \\ /--\\ \\__  |  \\__/ __)\n"
-printf "\t        __              __\n\t       /  \    /\  |   |__) |__|  /\ \n"
-printf "\t\/ .   \__/   /--\ |__ |    |  | /--\ \n"
-printf "\n"
+printf "\n>>> kALDo Automated Comparison Tool (kactus v.0.2a) <<<\n"
+printf "
+#     ▄█   ▄█▄    ▄████████  ▄████████     ███     ███    █▄     ▄████████
+#    ███ ▄███▀   ███    ███ ███    ███ ▀█████████▄ ███    ███   ███    ███
+#    ███▐██▀     ███    ███ ███    █▀     ▀███▀▀██ ███    ███   ███    █▀
+#   ▄█████▀      ███    ███ ███            ███   ▀ ███    ███   ███
+#  ▀▀█████▄    ▀███████████ ███            ███     ███    ███ ▀███████████
+#    ███▐██▄     ███    ███ ███    █▄      ███     ███    ███          ███
+#    ███ ▀███▄   ███    ███ ███    ███     ███     ███    ███    ▄█    ███
+#    ███   ▀█▀   ███    █▀  ████████▀     ▄████▀   ████████▀   ▄████████▀
+#    ▀
+#                       VERSION 0.1(a)
+#             INTENDED FOR NANOTHEORY INTERNAL USE
+#                 https://nanotheory.github.io
+"
 
 # Assumes modded harmonic_with_q.py file is installed in your kALDo build
 # executables
@@ -33,8 +43,8 @@ py_kpack='1_pack_kaldo.py'
 py_mdpack='1_pack_md.py'
 # 2 - analyze dynmat
 py_frc="2_compare_frc.py"
-printf "Execution Plan --\n\t${py_path}\n\tmatdyn.x & ${py_mdpack}"
-printf "\n\t${py_kpack}\n\t${py_frc}\n--\n\n"
+printf "- Execution Plan -----\n\t${py_path}\n\tmatdyn.x & ${py_mdpack}"
+printf "\n\t${py_kpack}\n\t${py_frc}\n\n"
 
 # IO Files ##############
 # 0_
@@ -50,10 +60,11 @@ kpack="kaldo.out.pack"
 # 2_
 fout="frc.out.txt"
 fpack="frc.out.npy"
+# 3_
 #wout="freq.out.txt"
 #wpack="freq.out.npy"
 printf "Input Files: ${mdin} + ${forcedir} (or ${tarball})\n"
-printf "Selected Executable: ${matdyn}\n"
+printf "Selected Executable: ${matdyn}\n-----\n\n"
 
 
 printf "!! Step 0 - Path Configuration\n"
@@ -63,12 +74,15 @@ then
   printf "\tSection output files: ${ptxt}\n\tRunning python .."
   python ${py_path} &> /dev/null
   printf "\tdone!\n"
+  printf "\tPath stored as text at ${ptxt}\n"
+  printf "\tStep Complete! :) \n\n"
 else
-  printf "\tPath config found at ${ptxt}\n"
+  printf "\tFound previous path config found at ${ptxt}\n"
+  printf "\tStep Complete! :) \n\n"
 fi
 
 printf "!! Step 1 - Generate Espresso Data Along Path\n"
-#########################################################################
+################################################################
 ##############  E  S  P  R  E  S  S  O  ########################
 if [ ! -f ${mdcomp} ];
 then
@@ -94,23 +108,39 @@ then
 
   printf "\tRunning ${matdyn} .."
   ${matdyn} < ${mdin} &> ${mdout}
+  exitcomp=$?
   printf "\t done!\n"
-  if [ $( wc -l < ${mdout}) -lt 5000 ];
-  then # if the output is small something went wrong; exit
-    printf "!! Unusual matdyn.x behaviour, fatal error\n"
+  if [ ${exitcomp} != 0 ];
+  then
+    printf "!! Matdyn failed\n\n${mdout} --\n"
+    cat ${mdout}
+    printf "\n--\n"
     printf ">>> kactus failed, exiting .. <<<\n\n"
-    exit 1
+    exit ${exitcomp}
   fi
 
+  printf "\tRunning ${py_mdpack} .."
   python ${py_mdpack} &> ${mdpack}
-  printf "\tStep Complete! :) \n"
+  exitcomp=$?
+  printf "\tdone!\n"
+  if [ ${exitcomp} != 0 ];
+  then
+    printf "!! Python failed on ${py_mdpack}\n\n${mdpack} --\n"
+    cat ${mdpack}
+    printf "\n--\n"
+    printf ">>> kactus failed, exiting .. <<<\n\n"
+    exit ${exitcomp}
+  fi
+  printf "\tStep Complete! :) \n\n"
 else
-  printf "\tFound previously generated ${mdcomp}! Continuing.\n"
+  printf "\tFound previously generated ${mdcomp}!\n"
+  printf "\tStep Complete! :) \n\n"
 fi
 ################################################################
-
+################################################################
 
 printf "!! Step 2 - Run kALDo Along Same Path\n"
+################################################################
 ##############  k  A  L  D  O  #################################
 if [ ! -f ${kcomp} ];
 then
@@ -125,28 +155,32 @@ then
 
   printf "\tRunning kaldo .."
   python ${py_kpack} &> ${kpack}
+  exitcomp=$?
   printf "\tdone!\n"
-  if [ ! -f ${kcomp} ];
+  if [ ${exitcomp} != 0 ];
   then
-    printf "!! Failed to generate ${kcomp}, check ${kpack} log file\n"
-    printf "\n>>> kactus failed, exiting .. <<<\n\n"
-    exit 1
+    printf "!! Python failed to run ${py_kpack}\n\n${kpack} --\n"
+    cat ${kpack}
+    printf "\n--\n"
+    printf ">>> kactus failed, exiting .. <<<\n\n"
+    exit ${exitcomp}
   fi
-  printf "Step Complete! :) \n"
+  printf "\tStep Complete! :) \n\n"
 else
   printf "\tFound previously generated ${kcomp}! Continuing.\n"
+  printf "\tStep Complete! :) \n\n"
 fi
 ################################################################
-########################################################################
+################################################################
 
 printf "!! Step 3 - Compare Forces Along Path\n"
+################################################################
+##### C O M P A R E ############################################
 # Attempt to run comparison
 printf "\tRunning comparison script .."
 python ${py_frc} &> ${fout}
 exitcomp=$?
 printf "\tdone!\n"
-
-
 if [ ${exitcomp} == 0 ];
 then
   if [ -f ${fpack} ];
@@ -154,13 +188,20 @@ then
     printf "!! Final Verdict: Guilty.\n"
     printf "!! Mismatches detected in at least one category\n"
     printf "!! Mismatches were not fatal\n"
+    printf "!! Check text output: vi ${fout}\n"
+    printf "!! Check object arrays stored at ${fpack}\n"
   else
     printf "!! Final Verdict: Innocent.\n"
     printf "!! No mismatches detected in any category\n"
   fi
   printf "\n>>> kactus ran succesfully <<<\n\n"
 else
-  printf "!!"
-  printf "\n>>> kactus failed, check logs <<<\n\n"
+  printf "\tPython failed to run ${py_frc}\n\n${fout} --\n"
+  cat ${fout}
+  printf "\n--\n"
+  printf "\n\n>>> kactus failed during final stage <<<\n\n"
+  exit ${exitcomp}
 fi
+################################################################
+################################################################
 exit 0
