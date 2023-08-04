@@ -30,17 +30,17 @@ output_array_fn="frc.out.npy"
 #       kaldo:  3.444980795903108-3.609105959416382e-17j +/- 287.33431245177076
 #       matdyn: 3.43295549346849-3.2273639101774425e-19j +/- 285.2797329700704
 tol = {'qvec':{'rtol':0,
-                'atol':1e-4},
+                'atol':1e-5},
        'sc':{'rtol':0,
              'atol':0},
        'qr':{'rtol':0,
              'atol':1e-4},
-       'eiqr':{'rtol':5e-4,
+       'eiqr':{'rtol':5e-5,
                'atol':0},
        'weights':{'rtol':0,
                   'atol':0,},
-       'forces':{'rtol':1e-2,
-                 'atol':0.8e-0}}
+       'forces':{'rtol':0,
+                 'atol':0}}
 # 3 - force folder name
 fcs_folder="forces"
 
@@ -200,6 +200,8 @@ for q in q_matdyn:
                         fail_coords = np.where(~(match.flatten() == 0))
                         sys.stdout.write('\n\t!! {} - q {} \t sc {} na {} nb {}'.format(label.title(), q, sc, na, nb))
                         sys.stdout.write('\n\t!! indices - {}'.format(fail_coords))
+                        sys.stdout.write('\n\t!! {}\n\t!! {}'.format(mn.flatten(), kn.flatten()))
+                        exit(1)
                     sys.stdout.write('\n\tf-m\t{}'.format(mn.flatten()))
                     sys.stdout.write('\n\tf-k\t{}\n'.format(kn.flatten()))
                 sys.stdout.write('\n')

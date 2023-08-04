@@ -1077,10 +1077,6 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
                     !
                     ! FOURIER TRANSFORM
                     !
-                    do i=1,3
-                       ttt(i,na,m1,m2,m3)=tau(i,na)+m1*at(i,1)+m2*at(i,2)+m3*at(i,3)
-                       ttt(i,nb,m1,m2,m3)=tau(i,nb)+m1*at(i,1)+m2*at(i,2)+m3*at(i,3)
-                    end do
 
                     arg = tpi*(q(1)*r(1) + q(2)*r(2) + q(3)*r(3))
                     eiqr = CMPLX(COS(arg), -SIN(arg), kind=DP)
@@ -1099,7 +1095,7 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
                           dyn(ipol,jpol,na,nb) = dyn(ipol,jpol,na,nb) +                &
                                (frc(m1,m2,m3,ipol,jpol,na,nb)+f_of_q(ipol,jpol,na,nb)) &
                                *CMPLX(COS(arg),-SIN(arg),kind=DP)*weight
-                          PRINT *, "FORCES ", q(1), q(2), q(3), n1, n2, n3, na, nb,    &
+                          PRINT *, "FORCES   ", q(1), q(2), q(3), n1, n2, n3, na, nb,    &
                                     ipol, jpol, weight, arg, real_eiqr, imag_eiqr,     &
                                     real_totfrc, imag_totfrc
                           ! END MODIFIED CODE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -79,7 +79,7 @@ print('Begin for loops ..')
 for nq, q in enumerate(q_unique): # loop over q
     qp = q @ cellt
     q_args = np.prod(np.isclose(raw[:, :3], q), axis=1)
-    print('Processing {}-th q: {} (md equiv: {})'.format(nq, qp, q))
+    print('Processing {}-th q: {} (md equiv: {})'.format(nq+1, qp, q))
     for sc in sc_unique: # loop over supercells
         sc_args = np.prod((raw[:,3:6]==sc), axis=1)
         sum_args = (q_args*sc_args).astype(bool)
