@@ -15,4 +15,4 @@ pytest-cov>=2.10.0
 seekpath>=1.8
 sparse==0.11.2
 spglib>=1.11
-tensorflow>=2.0
+tensorflow<=2.4
