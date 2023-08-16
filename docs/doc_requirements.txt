@@ -13,9 +13,9 @@ pytest-cov>=2.10.0
 recommonmark>=0.6.0
 sparse==0.11.2
 #spglib==2.0.1
-sphinx=>3.0
+sphinx>=3.0
 sphinx-sitemap==0.3.1
 sphinx_material>=0.0.30
 sphinxcontrib-jsmath>=1.0.1
-tensorflow<=2.4
+tensorflow<=2.12
 
