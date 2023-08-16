@@ -9,7 +9,7 @@ from kaldo.phonons import Phonons
 import numpy as np
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def phonons():
     print("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder('kaldo/tests/si-crystal/hiphive', supercell=[3, 3, 3], format='hiphive')

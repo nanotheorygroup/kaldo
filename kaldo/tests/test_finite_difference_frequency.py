@@ -134,7 +134,7 @@ frequency = np.array([[-1.25649072e-04, -8.34000390e-05, -3.59057257e-05],
 
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def phonons():
     print ("Preparing phonons object.")
     # Setup crystal and EMT calculator

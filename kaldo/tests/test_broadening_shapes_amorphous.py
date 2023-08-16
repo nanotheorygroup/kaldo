@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 # NOTE: the scope of this fixture needs to be 'function' for these tests to work properly.
-@pytest.yield_fixture(scope="function")
+@pytest.fixture(scope="function")
 def phonons():
     print ("Preparing phonons object.")
 

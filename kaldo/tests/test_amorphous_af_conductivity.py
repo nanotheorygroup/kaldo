@@ -10,7 +10,7 @@ from kaldo.conductivity import Conductivity
 import pytest
 
 
-@pytest.yield_fixture(scope="function")
+@pytest.fixture(scope="function")
 def phonons():
     print ("Preparing phonons object.")
 

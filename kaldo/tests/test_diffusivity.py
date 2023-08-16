@@ -11,7 +11,7 @@ import tensorflow as tf
 import pytest
 
 
-@pytest.yield_fixture(scope="function")
+@pytest.fixture(scope="function")
 def phonons():
     print ("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder(folder='kaldo/tests/si-amorphous', format='eskm')

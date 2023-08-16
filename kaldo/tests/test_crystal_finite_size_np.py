@@ -10,7 +10,7 @@ from kaldo.conductivity import Conductivity
 import pytest
 import os
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def phonons():
     print ("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder(folder='kaldo/tests/si-crystal',
