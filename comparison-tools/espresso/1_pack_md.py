@@ -9,7 +9,7 @@
 # txtpattern - pattern to grep in text output of program we are comparing with
 rtoll = 1e-5 # 1 one-thousandth of 1 %
 format = 'espresso'
-txtpattern = 'FORCES  '
+txtpattern = 'FORCES '
 
 # filenames
 matdynoutfile = 'md.out.txt'
@@ -32,7 +32,7 @@ atoms = read(atomconfig, format='vasp')
 cell = atoms.cell.array
 cellt = cell.T / (cell.max() * 2)
 n_unit = len(atoms)
-inv_mass =  1/28.08
+inv_mass =  1/28.085
 # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # Conversions - Frc from Ry/Bohr to 10*J / mol
@@ -48,10 +48,9 @@ print('Creating/Loading intermediate text files ..')
 # DATA OUTPUT BY MATDYN.F90
 # 0-2  3-5  6  7  8     9     10 11 12        13        14          15
 # q    n    na nb alpha beta  w  qr eiqr-real eiqr-imag totfrc-real totfrc-imag
-if not os.path.exists(output_text_file):
-    print('\tGrepping {} from {} into {}'.format(txtpattern, matdynoutfile, output_text_file))
-    sp.run('grep "{}  " {} > {}'.format(txtpattern, matdynoutfile, output_text_file), shell=True)
-    print('\tText file created')
+print('\tGrepping {} from {} into {}'.format(txtpattern, matdynoutfile, output_text_file))
+sp.run('grep "{}" {} > {}'.format(txtpattern, matdynoutfile, output_text_file), shell=True)
+print('\tText file created')
 print('Reading filtered text output as csv ..')
 raw = pd.read_csv(output_text_file, header=None, usecols=np.arange(16)+1,
     delim_whitespace=True).to_numpy()

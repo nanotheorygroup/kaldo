@@ -40,7 +40,7 @@ tol = {'qvec':{'rtol':0,
        'weights':{'rtol':0,
                   'atol':0,},
        'forces':{'rtol':1e-5,
-                 'atol':1e-1}}
+                 'atol':1e-5}}
 # 3 - force folder name
 fcs_folder="forces"
 

@@ -1,8 +1,8 @@
  &input
     asr='simple',
-    amass(1)=28.011,
+    amass(1)=28.085,
     flfrc='forces/espresso.ifc2',
     flfrq='md.out.freq',
-    flvec='md.out.vec'
+    flvec='md.out.vec',
     q_in_cryst_coord=.true.,
  /

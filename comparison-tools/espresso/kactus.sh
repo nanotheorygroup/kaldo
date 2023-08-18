@@ -10,14 +10,14 @@ printf "
 #    ███ ▀███▄   ███    ███ ███    ███     ███     ███    ███    ▄█    ███
 #    ███   ▀█▀   ███    █▀  ████████▀     ▄████▀   ████████▀   ▄████████▀
 #    ▀
-#                       VERSION 0.1(a)
+#                       VERSION 0.2(a)
 #             INTENDED FOR NANOTHEORY INTERNAL USE
 #                 https://nanotheory.github.io
 "
 
 # Assumes modded harmonic_with_q.py file is installed in your kALDo build
 # executables
-matdyn="REPLACEME"
+matdyn="/home/nwlundgren/develop/quantumespresso/build-6.21.2023/bin/matdyn.x"
 if [ ! -f ${matdyn} ];
 then
     echo "Uh-oh! You need to replace the matdyn variable in this script"
@@ -25,7 +25,7 @@ then
     echo "Then try again! :)"
     echo "Make sure it's compiled with the modified matdyn.f90 file"
     echo "You can probably use this command:"
-    echo "sed -i \"s/REPLACEME/<your-path>/\" kactus.sh"
+    echo "sed -i \"s//home/nwlundgren/develop/quantumespresso/build-6.21.2023/bin/matdyn.x/<your-path>/\" kactus.sh"
     printf "\n\n"
     exit 1
 fi
@@ -43,7 +43,8 @@ py_kpack='1_pack_kaldo.py'
 py_mdpack='1_pack_md.py'
 # 2 - analyze dynmat
 py_frc="2_compare_frc.py"
-printf "- Execution Plan -----\n\t${py_path}\n\tmatdyn.x & ${py_mdpack}"
+printf "Execution Plan -----"
+printf "\n\t${py_path}\n\tmatdyn.x & ${py_mdpack}"
 printf "\n\t${py_kpack}\n\t${py_frc}\n\n"
 
 # IO Files ##############
@@ -184,7 +185,7 @@ printf "\tdone!\n"
 if [ ${exitcomp} == 0 ];
 then
   if [ -f ${fpack} ];
-  then''
+  then
     printf "!! Final Verdict: Guilty.\n"
     printf "!! Mismatches detected in at least one category\n"
     printf "!! Mismatches were not fatal\n"

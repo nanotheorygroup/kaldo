@@ -351,6 +351,7 @@ class HarmonicWithQ(Observable):
         qstr='{}_{}_{}'.format(q_point[0], q_point[1], q_point[2])
         debug = debug[:ir] # snip to include only nonzero indices
         np.save('kaldo.out.per_qpt/'+qstr, debug)
+        np.save('kaldo.out.dyn/'+qstr, dyn_s)
         # <<<< END MODIFICATION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -388,8 +389,13 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
-                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
+                supercell_index = supercell_replica%supercell
+                qr = 2. * np.pi * np.dot(q_point, supercell_replica)
+                phase = np.exp(-1j*qr)
+                values = -1 * replica_position[direction] * phase * contract('jbia,ij->iajb',
+                                 fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                 supercell_index[2], :, :], coefficient)
                 ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                  fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                                                                  fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                                 supercell_index[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
