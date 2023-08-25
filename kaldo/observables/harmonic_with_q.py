@@ -317,8 +317,7 @@ class HarmonicWithQ(Observable):
             if coefficient.any():
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                 fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                                                                 fc_s[:, :, 0, 0, 0, :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
         omega2, eigenvect, info = zheev(dyn)
         # omega2, eigenvect = eigh(dyn)

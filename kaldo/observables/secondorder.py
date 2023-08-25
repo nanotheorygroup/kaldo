@@ -276,7 +276,6 @@ class SecondOrder(ForceConstant):
         list_of_index = np.round((replicated_positions - self.atoms.positions).dot(
             np.linalg.inv(atoms.cell))).astype(int)
         list_of_index = list_of_index[:, 0, :]
-        list_of_index = list_of_index - [1, 1, 1]
 
         tt = []
         rreplica = []
