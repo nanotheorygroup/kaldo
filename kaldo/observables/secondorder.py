@@ -112,7 +112,8 @@ class SecondOrder(ForceConstant):
                                        value=_second_order,
                                        is_acoustic_sum=is_acoustic_sum,
                                        folder=folder)
-        elif format == 'shengbte' or format == 'shengbte-qe':
+        #elif format == 'shengbte' or format == 'shengbte-qe':
+        elif format == 'shengbte' or format == 'shengbte-qe' or 'shengbte-d3q':
 
             config_file = folder + '/' + 'CONTROL'
             try:
@@ -124,7 +125,8 @@ class SecondOrder(ForceConstant):
 
             # Create a finite difference object
             # TODO: we need to read the grid type here
-            is_qe_input = (format == 'shengbte-qe')
+            #is_qe_input = (format == 'shengbte-qe')
+            is_qe_input = (format == 'shengbte-qe' or 'shengbte-d3q')
             n_replicas = np.prod(supercell)
             n_unit_atoms = atoms.positions.shape[0]
             if is_qe_input:
@@ -248,6 +250,7 @@ class SecondOrder(ForceConstant):
                 logging.info('Second order not found. Calculating.')
                 self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
                 self.save('second')
+                self.replicated_atoms.get_forces()
                 ase.io.write(self.folder + '/replicated_atoms.xyz', self.replicated_atoms, 'extxyz')
             else:
                 logging.info('Reading stored second')

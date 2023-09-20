@@ -201,11 +201,72 @@ def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
     return third_order, np.array(sparse_data), np.array(second_cell_positions), np.array(third_cell_positions), np.array(atoms_coords)
 
+def read_third_d3q(filename,atoms,supercell,order='C'):
+    file = open('%s' % filename, 'r')
+    n_unit_atoms = atoms.positions.shape[0]
+    n_replicas = np.prod(supercell)
+    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
+    list_of_index = current_grid
+    third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+    ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
+    if (ibrav == 0):
+        file.readline()
+    for i in np.arange(ntype):
+        file.readline()
+    for i in np.arange(n_atoms):
+        file.readline()
+    polar = file.readline()
+    if ("T" in polar):
+        for i in np.arange(3):
+            file.readline()
+        for i in np.arange(n_atoms):
+            file.readline()
+            for j in np.arange(3):
+                file.readline()
+    test_supercell = [int(x) for x in file.readline().split()] #the third supercell can be different to the second one
+    logging.info('Important:the cell indeces in FORCECONSTANTS_3RD must be from 0 to nrep, not [-nrep/2,nrep/2]')
+    if not (test_supercell[0]==supercell[0] and test_supercell[1]==supercell[1] and test_supercell[2]==supercell[2]):
+        print('third supercell not consistent with 3rd Forces file',test_supercell,supercell)
+
+    error_notation = 0
+    for i in range((3*n_unit_atoms)**3):
+        alpha,beta,gamma,atom_i,atom_j,atom_k=[int(x)-1 for x in file.readline().split()]
+        file.readline()
+        #print(alpha+1,beta+1,gamma+1,atom_i+1,atom_j+1,atom_k+1)
+
+        for j in range(n_replicas**2):
+            readline = file.readline().split()
+            second_cell_index=[int(x)  for x in readline[:3]]
+            third_cell_index=[int(x)  for x in readline[3:6]]
+            #wrap cell index
+            second_cell_index=second_cell_index-supercell*np.round(second_cell_index/supercell)
+            third_cell_index=third_cell_index-supercell*np.round(third_cell_index/supercell)
+            #print('index celle',second_cell_index,third_cell_index)
+            # create mask to find the index
+            second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
+            second_cell_id = np.argwhere(second_cell_id).flatten()
+            third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
+            third_cell_id = np.argwhere(third_cell_id).flatten()
+            #print('second  and third cell id',second_cell_id,third_cell_id)
+            if str(str(readline[6])[-4])=='E':
+                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = float(readline[6]) \
+                                                                                                         * (Rydberg/ (Bohr ** 3))
+            else:
+                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] =0.0
+                error_notation+=1
+    logging.info('error with notation number <e-100, used default value=0.0. It happened {} times'.format(error_notation))
+
+    #print(third_order[0,0,:,0,0,:,0,0])
+    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
+                                       n_unit_atoms * 3))
+    return third_order
+
 
 def import_control_file(control_file):
     positions = []
     latt_vecs = []
     lfactor = 1
+    masses=None
     with open(control_file, "r") as fo:
         lines = fo.readlines()
     for line in lines:
@@ -232,6 +293,11 @@ def import_control_file(control_file):
             positions.append(np.fromstring(value, dtype=np.float, sep=' '))
         if 'lfactor' in line:
             lfactor = float(line.split('=')[1].split(',')[0])
+        #TODO: only one species/mass at the moment
+        if 'masses' in line:
+            value = line.split('=')[1]
+            masses=np.fromstring(value, dtype=np.float, sep=' ')
+            #masses = float(line.split('=')[1].split(',')[0])
         if 'scell' in line:
             value = line.split('=')[1]
             supercell = np.fromstring(value, dtype=np.int, sep=' ')
@@ -239,13 +305,24 @@ def import_control_file(control_file):
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
     list_of_elem = []
-    for i in range(len(types)):
-        list_of_elem.append(elements[types[i] - 1])
-
-    atoms = Atoms(list_of_elem,
-                  positions=positions,
-                  cell=cell,
-                  pbc=[1, 1, 1])
+    if masses==None:
+        for i in range(len(types)):
+            list_of_elem.append(elements[types[i] - 1])
+    
+        atoms = Atoms(list_of_elem,
+                      positions=positions,
+                      cell=cell,
+                      pbc=[1, 1, 1])
+    else:
+        list_of_masses=[]
+        for i in range(len(types)):
+            list_of_elem.append(elements[types[i] - 1])
+            list_of_masses.append(masses[types[i] - 1])
+        atoms = Atoms(list_of_elem,
+                      positions=positions,
+                      cell=cell,
+                      masses=list_of_masses,
+                      pbc=[1, 1, 1])
 
     logging.info('Atoms object created.')
     return atoms, supercell
