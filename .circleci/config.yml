@@ -4,8 +4,9 @@ orbs:
   codecov: codecov/codecov@1.1.1
 jobs:
   build-and-test:
-    executor: python/default
-    tag: '3.10'
+    executor:
+        name: python/default
+        tag: '2.30'
     docker:
       - image: "tensorflow/tensorflow:latest"
     resource_class: xlarge
