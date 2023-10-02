@@ -13,7 +13,7 @@ jobs:
     steps:
       - checkout
       - run:
-          command: conda install -c anaconda numpy=1.24.3
+          command: conda install -c anaconda numpy=1.23.0
           name: Install numpy
       - python/install-deps
       - run:
