@@ -6,7 +6,7 @@ jobs:
   build-and-test:
     executor:
         name: python/default
-        tag: '2.30'
+        tag: '3.10'
     docker:
       - image: "tensorflow/tensorflow:latest"
     resource_class: xlarge
