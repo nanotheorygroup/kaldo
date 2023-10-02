@@ -12,9 +12,6 @@ jobs:
     resource_class: xlarge
     steps:
       - checkout
-      - run:
-          command: conda install -c anaconda numpy=1.25.1
-          name: Install numpy
       - python/install-deps
       - run:
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
