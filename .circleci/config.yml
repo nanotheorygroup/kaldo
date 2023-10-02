@@ -12,6 +12,12 @@ jobs:
     resource_class: xlarge
     steps:
       - checkout
+      - run:
+          command: pip install --upgrade pip
+          name: Upgrade pip
+      - run:
+          command: python -m pip install numpy==1.21.1
+          name: Install numpy
       - python/install-deps
       - run:
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
