@@ -8,22 +8,10 @@ jobs:
         name: python/default
         tag: '3.11'
     docker:
-      - image: "tensorflow/tensorflow:latest"
+      - image: "continuumio/miniconda3"
     resource_class: xlarge
     steps:
       - checkout
-      - run:
-          command: apt-get install python3-dev
-          name: Update python3
-      - run:
-          command: pip cache purge
-          name: Clean pip cache
-      - run:
-          command: pip install --upgrade pip
-          name: Upgrade pip
-      - run:
-          command: python -m pip install numpy==1.21.1
-          name: Install numpy
       - python/install-deps
       - run:
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
