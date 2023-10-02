@@ -19,7 +19,10 @@ def project_amorphous(phonons):
     omega = 2 * np.pi * frequency
     population = phonons.population
     n_replicas = phonons.forceconstants.n_replicas
-    rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
+    rescaled_eigenvectors = phonons._rescaled_eigenvectors.real.astype(float)
+    delta_casting = np.linalg.norm(rescaled_eigenvectors - phonons._rescaled_eigenvectors)
+    if delta_casting > 1e-10:
+        logging.warning('Casting eigenvectors to float failed. Delta: ' + str(delta_casting))
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
