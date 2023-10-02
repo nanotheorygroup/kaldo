@@ -56,7 +56,7 @@ def read_second_order_matrix(folder, supercell):
         line = file.readline()
         while line:
             try:
-                i, j = np.fromstring(line, dtype=np.int, sep=' ')
+                i, j = np.fromstring(line, dtype=int, sep=' ')
             except ValueError as err:
                 print(err)
             i_ix, i_iy, i_iz, i_iatom = split_index(i, supercell[0], supercell[1], supercell[2])
@@ -64,7 +64,7 @@ def read_second_order_matrix(folder, supercell):
             for alpha in range(3):
                 if (i_ix == 1) and (i_iy == 1) and (i_iz == 1):
                     second_order[i_iatom - 1, alpha, j_ix - 1, j_iy - 1, j_iz - 1, j_iatom - 1, :] = \
-                        np.fromstring(file.readline(), dtype=np.float, sep=' ')
+                        np.fromstring(file.readline(), dtype=float, sep=' ')
                 else:
                     file.readline()
             line = file.readline()
@@ -119,7 +119,7 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
         for i in range(n_third):
             file.readline()
             file.readline()
-            second_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
             second_cell_list.append(second_cell_index)
 
@@ -127,7 +127,7 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
             second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
             second_cell_id = np.argwhere(second_cell_id).flatten()
 
-            third_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            third_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             third_cell_index = third_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
             third_cell_list.append(third_cell_index)
 
@@ -135,9 +135,9 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
             third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
             third_cell_id = np.argwhere(third_cell_id).flatten()
 
-            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=np.int, sep=' ') - 1
+            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
             for _ in range(27):
-                values = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+                values = np.fromstring(file.readline(), dtype=float, sep=' ')
                 alpha, beta, gamma = values[:3].round(0).astype(int) - 1
                 third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = values[
                         3]
@@ -170,7 +170,7 @@ def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
             file.readline()
             file.readline()
 
-            second_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             second_cell_positions.append(second_cell_position)
             d_1 = list_of_replicas[:, :] - second_cell_position[np.newaxis, :]
             # d_1 = wrap_coordinates(d_1,  replicated_cell, replicated_cell_inv)
@@ -178,19 +178,19 @@ def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
             mask_second = np.linalg.norm(d_1, axis=1) < 1e-5
             second_cell_id = np.argwhere(mask_second).flatten()
 
-            third_cell_position = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+            third_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             third_cell_positions.append(third_cell_position)
             d_2 = list_of_replicas[:, :] - third_cell_position[np.newaxis, :]
             # d_2 = wrap_coordinates(d_2,  replicated_cell, replicated_cell_inv)
             mask_third = np.linalg.norm(d_2, axis=1) < 1e-5
             third_cell_id = np.argwhere(mask_third).flatten()
 
-            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=np.int, sep=' ') - 1
+            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
             atoms_coords.append([atom_i, atom_j, atom_k])
             small_data = []
             for _ in range(27):
 
-                values = np.fromstring(file.readline(), dtype=np.float, sep=' ')
+                values = np.fromstring(file.readline(), dtype=float, sep=' ')
                 alpha, beta, gamma = values[:3].round(0).astype(int) - 1
                 coords.append([atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma])
                 data.append(values[3])
@@ -211,7 +211,7 @@ def import_control_file(control_file):
     for line in lines:
         if 'lattvec' in line:
             value = line.split('=')[1]
-            latt_vecs.append(np.fromstring(value, dtype=np.float, sep=' '))
+            latt_vecs.append(np.fromstring(value, dtype=float, sep=' '))
         if 'elements' in line and not ('nelements' in line):
             value = line.split('=')[1]
             # TODO: only one species at the moment
@@ -226,15 +226,15 @@ def import_control_file(control_file):
         if 'types' in line:
             value = line.split('=')[1]
 
-            types = np.fromstring(value, dtype=np.int, sep=' ')
+            types = np.fromstring(value, dtype=int, sep=' ')
         if 'positions' in line:
             value = line.split('=')[1]
-            positions.append(np.fromstring(value, dtype=np.float, sep=' '))
+            positions.append(np.fromstring(value, dtype=float, sep=' '))
         if 'lfactor' in line:
             lfactor = float(line.split('=')[1].split(',')[0])
         if 'scell' in line:
             value = line.split('=')[1]
-            supercell = np.fromstring(value, dtype=np.int, sep=' ')
+            supercell = np.fromstring(value, dtype=int, sep=' ')
     # l factor is in nanometer
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
