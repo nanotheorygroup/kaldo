@@ -4,14 +4,15 @@ orbs:
   codecov: codecov/codecov@1.1.1
 jobs:
   build-and-test:
+    executor:
+        name: python/default
+        tag: '3.10'
     docker:
-      - image: "tensorflow/tensorflow:latest"
+      - image: "continuumio/miniconda3"
     resource_class: xlarge
     steps:
       - checkout
-      - python/load-cache
       - python/install-deps
-      - python/save-cache
       - run:
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
