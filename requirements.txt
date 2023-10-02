@@ -1,6 +1,6 @@
 numpy==1.24.3
 protobuf==3.20.2
-scipy==1.4.1
+scipy==1.11.1
 ase==3.19.1
 sparse==0.11.2
 spglib>=1.11
