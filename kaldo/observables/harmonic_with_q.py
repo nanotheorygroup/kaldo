@@ -304,7 +304,8 @@ class HarmonicWithQ(Observable):
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
         fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, 1, 1, 1, n_unit_cell, 3))
+        supercell = self.supercell
+        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
         dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
@@ -336,13 +337,13 @@ class HarmonicWithQ(Observable):
     def calculate_dynmat_derivatives_unfolded(self, direction=None):
         # This algorithm should be the same as the ShengBTE version
         q_point = self.q_point
-        supercell = self.supercell
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
         ddyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
         fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, 1, 1, 1, n_unit_cell, 3))
+        supercell = self.supercell
+        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
         supercell_replicas = self.second.supercell_replicas
