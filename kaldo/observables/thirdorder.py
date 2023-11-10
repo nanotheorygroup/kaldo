@@ -103,7 +103,7 @@ class ThirdOrder(ForceConstant):
 
 
         #elif format == 'shengbte' or format == 'shengbte-qe':
-        elif format == 'shengbte' or format == 'shengbte-qe' or 'shengbte-d3q':
+        elif format == 'shengbte' or format == 'shengbte-qe' or format=='shengbte-d3q':
             grid_type='F'
             config_file = folder + '/' + 'CONTROL'
             try:
