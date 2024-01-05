@@ -250,7 +250,7 @@ class ThirdOrder(ForceConstant):
         elif format == 'tdep':
             uc = ase.io.read(folder+'/infile.ucposcar', format='vasp')
             sc = ase.io.read(folder+'/infile.ssposcar', format='vasp')
-            fc_filename = 'infile.forceconstant_thirdorder'
+            fc_filename = folder+'/infile.forceconstant_thirdorder'
             n_unit_atoms = uc.positions.shape[0]
             n_replicas = np.prod(supercell)
             order = 'C'

@@ -476,7 +476,7 @@ class SecondOrder(ForceConstant):
             replicated_atom_prime_file = str(folder) + '/' + replicated_filename
             uc = ase.io.read(atom_prime_file, format='vasp')
             sc = ase.io.read(replicated_atom_prime_file, format='vasp')
-            d2 = parse_tdep_forceconstant(fc_file=folder+"/infile.forceconstant", primitive=uc_filename, supercell=replicated_filename, reduce_fc=False)
+            d2 = parse_tdep_forceconstant(fc_file=folder+"/infile.forceconstant", primitive=atom_prime_file, supercell=replicated_atom_prime_file, reduce_fc=False)
             n_unit_atoms = uc.positions.shape[0]
             n_replicas = np.prod(supercell)
             d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
