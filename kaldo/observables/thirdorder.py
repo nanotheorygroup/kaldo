@@ -284,7 +284,8 @@ class ThirdOrder(ForceConstant):
 
 
             coords = []
-            frcs = []
+            #frcs = []
+            frcs = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
 
             for count1 in range(num1):
                 for j in range(len(num_triplets)):
@@ -329,10 +330,24 @@ class ThirdOrder(ForceConstant):
                         for alpha in range(3):
                             for beta in range(3):
                                 for gamma in range(3):
-                                    coords.append((atom_i, alpha, second_cell_id[0], atom_j, beta, third_cell_id[0], atom_k, gamma))
-                                    frcs.append(phi[alpha, beta, gamma])
+                                    #coords.append((atom_i, alpha, second_cell_id[0], atom_j, beta, third_cell_id[0], atom_k, gamma))
+                                    #frcs.append(phi[alpha, beta, gamma])
+                                    frcs[atom_i, alpha, second_cell_id[0], atom_j, beta, third_cell_id[0], atom_k, gamma] = phi[alpha, beta, gamma]
 
-            third_ifcs = COO(np.array(coords).T, np.array(frcs), shape=(n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+            sparse_frcs = []
+            for n1 in range(n_unit_atoms):
+                for a in range(3):
+                    for nr1 in range(n_replicas):
+                        for n2 in range(n_unit_atoms):
+                            for b in range(3):
+                                for nr2 in range(n_replicas):
+                                    for n3 in range(n_unit_atoms):
+                                        for c in range(3):
+                                            coords.append((n1, a, nr1, n2, b, nr2, n3, c))
+                                            sparse_frcs.append(frcs[n1, a, nr1, n2, b, nr2, n3, c])
+
+
+            third_ifcs = COO(np.array(coords).T, np.array(sparse_frcs), shape=(n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
 
             third_ifcs.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             third_order = cls(atoms=uc,
