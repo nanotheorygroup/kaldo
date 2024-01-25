@@ -211,7 +211,7 @@ class ForceConstants:
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
 
-    def df(self, calculator, replicated_cell, delta_shift=1e-3):
+    def df(self, calculator, replicated_cell, delta_shift=1e-3, with_sigma2=True):
         atoms = self.atoms
         replicated_atoms = replicated_cell
         n_unit_atoms = atoms.positions.shape[0]
@@ -232,6 +232,10 @@ class ForceConstants:
             phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             three_forces = np.dot(np.dot(phi_3, delta), delta)
             print(three_forces.shape)
-            df = (forces - two_forces - three_forces).std()
-            df = df/forces.std()
-        return df
+            s2 = (forces - two_forces).std()/forces.std()
+            s3 = (forces - two_forces - three_forces).std()
+            s3 = s3/forces.std()
+        if with_sigma2:
+            return s2, s3
+        else:
+            return s3
