@@ -4,10 +4,12 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
+
 from kaldo.grid import wrap_coordinates
+from kaldo.helpers.logger import get_logger
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
-from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -208,3 +210,25 @@ class ForceConstants:
         expanded_third = expanded_third.reshape(
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
+
+    def df(self, calculator, delta_shift=1e-3):
+        atoms = self.atoms
+        replicated_atoms = self.replicated_atoms
+        n_unit_atoms = atoms.positions.shape[0]
+        n_replicas = np.prod(self.supercell)
+        new_super = replicated_atoms.copy()
+        atoms.set_calculator(calculator)
+        replicated_atoms.set_calculator(calculator)
+        R0 = replicated_atoms.positions
+        new_super.set_calculator(calculator)
+        displacement = delta_shift*np.ones(new_super.positions.shape)
+        for s in [-4, -3, -2, -1, 1, 2, 3, 4]:
+            new_super.positions = new_super.positions + s*displacement
+            delta = np.array(new_super.positions - R0)
+            forces = new_super.get_forces().flatten()
+            two_forces = np.dot(self.second.value.reshape((n_replicas*n_unit_atoms*3, n_replicas*n_unit_atoms*3)),delta).flatten()
+            phi_3 = self.third.value.reshape((n_unit_atoms * n_replicas * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            three_forces = np.dot(np.dot(phi_3, delta), delta).flatten()
+            df = (forces - two_forces - three_forces).std()
+            df = df/forces.std()
+        return df
