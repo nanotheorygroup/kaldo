@@ -211,9 +211,9 @@ class ForceConstants:
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
 
-    def df(self, calculator, delta_shift=1e-3):
+    def df(self, calculator, replicated_cell, delta_shift=1e-3):
         atoms = self.atoms
-        replicated_atoms = self.replicated_atoms
+        replicated_atoms = replicated_cell
         n_unit_atoms = atoms.positions.shape[0]
         n_replicas = np.prod(self.supercell)
         new_super = replicated_atoms.copy()
