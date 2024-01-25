@@ -224,10 +224,10 @@ class ForceConstants:
         displacement = delta_shift*np.ones(new_super.positions.shape)
         for s in [-4, -3, -2, -1, 1, 2, 3, 4]:
             new_super.positions = new_super.positions + s*displacement
-            delta = np.array(new_super.positions - R0)
+            delta = np.array(new_super.positions - R0).flatten()
             forces = new_super.get_forces().flatten()
-            two_forces = np.dot(self.second.value.reshape((n_replicas*n_unit_atoms*3, n_replicas*n_unit_atoms*3)),delta).flatten()
-            phi_3 = self.third.value.reshape((n_unit_atoms * n_replicas * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            two_forces = np.dot(self.second.value.reshape((n_unit_atoms*3, n_replicas*n_unit_atoms*3)),delta).flatten()
+            phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             three_forces = np.dot(np.dot(phi_3, delta), delta).flatten()
             df = (forces - two_forces - three_forces).std()
             df = df/forces.std()
