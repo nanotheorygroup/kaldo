@@ -219,17 +219,19 @@ class ForceConstants:
         new_super = replicated_atoms.copy()
         atoms.set_calculator(calculator)
         replicated_atoms.set_calculator(calculator)
-        R0 = replicated_atoms.positions
+        R0 = replicated_atoms.get_positions()
         new_super.set_calculator(calculator)
-        displacement = delta_shift*np.ones(new_super.positions.shape)
+        displacement = delta_shift*np.ones(new_super.get_positions().shape)
         for s in [-4, -3, -2, -1, 1, 2, 3, 4]:
-            new_super.positions = new_super.positions + s*displacement
-            delta = np.array(new_super.positions - R0).flatten()
-            forces = new_super.get_forces().flatten()
+            new_super.positions = new_super.get_positions() + s*displacement
+            delta = np.array(new_super.get_positions() - R0).flatten()
+            forces = atoms.get_forces().flatten()
             phi_2 = self.second.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             two_forces = np.dot(phi_2, delta)
+            print(two_forces.shape)
             phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             three_forces = np.dot(np.dot(phi_3, delta), delta)
+            print(three_forces.shape)
             df = (forces - two_forces - three_forces).std()
             df = df/forces.std()
         return df
