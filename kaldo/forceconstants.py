@@ -223,6 +223,8 @@ class ForceConstants:
         R0 = replicated_atoms.get_positions()
         sup_d = delta_shift*np.ones(new_super.get_positions().shape)
         prim_d = delta_shift*np.ones(new_atoms.get_positions().shape)
+        new_atoms.set_calculator(calculator)
+        new_super.set_calculator(calculator)
         for s in [-4, -3, -2, -1, 1, 2, 3, 4]:
             new_super.positions = replicated_atoms.get_positions() + s*sup_d
             new_atoms.positions = atoms.get_positions() + s*prim_d
