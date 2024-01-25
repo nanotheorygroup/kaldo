@@ -216,12 +216,11 @@ class ForceConstants:
         replicated_atoms = replicated_cell
         n_unit_atoms = atoms.positions.shape[0]
         n_replicas = np.prod(self.supercell)
-        new_super = replicated_atoms.copy()
-        new_atoms = atoms.copy()
         atoms.set_calculator(calculator)
         replicated_atoms.set_calculator(calculator)
+        new_super = replicated_atoms.copy()
+        new_atoms = atoms.copy()
         R0 = replicated_atoms.get_positions()
-        new_super.set_calculator(calculator)
         sup_d = delta_shift*np.ones(new_super.get_positions().shape)
         prim_d = delta_shift*np.ones(new_atoms.get_positions().shape)
         for s in [-4, -3, -2, -1, 1, 2, 3, 4]:
