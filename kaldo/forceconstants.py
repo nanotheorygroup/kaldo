@@ -225,18 +225,20 @@ class ForceConstants:
         prim_d = delta_shift*np.ones(new_atoms.get_positions().shape)
         new_atoms.set_calculator(calculator)
         new_super.set_calculator(calculator)
-        for s in [-4, -3, -2, -1, 1, 2, 3, 4]:
+        forces = []
+        two_forces = []
+        three_forces = []
+        for s in [-1, 1]:
             new_super.positions = replicated_atoms.get_positions() + s*sup_d
             new_atoms.positions = atoms.get_positions() + s*prim_d
             delta = np.array(new_super.get_positions() - R0).flatten()
-            forces = new_atoms.get_forces().flatten()
+            forces.append(new_atoms.get_forces().flatten())
             phi_2 = self.second.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-            two_forces = np.dot(phi_2, delta)
+            two_forces.append(np.dot(phi_2, delta))
             phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-            three_forces = np.dot(np.dot(phi_3, delta), delta)
-            s2 = (forces - two_forces).std()/forces.std()
-            s3 = (forces - two_forces - three_forces).std()
-            s3 = s3/forces.std()
+            three_forces.append(np.dot(np.dot(phi_3, delta), delta))
+        s2 = np.mean((forces - two_forces)**2)/forces.std()
+        s3 = np.mean((forces - two_forces - three_forces)**2)/forces.std()
         if with_sigma2:
             return s2, s3
         else:
