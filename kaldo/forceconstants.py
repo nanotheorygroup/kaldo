@@ -237,6 +237,9 @@ class ForceConstants:
             two_forces.append(np.dot(phi_2, delta))
             phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             three_forces.append(np.dot(np.dot(phi_3, delta), delta))
+        forces = np.array(forces)
+        two_forces = np.array(two_forces)
+        three_forces = np.array(three_forces)
         s2 = np.sqrt(np.mean((forces - two_forces)**2))/forces.std()
         s3 = np.sqrt(np.mean((forces - two_forces - three_forces)**2))/forces.std()
         if with_sigma2:
