@@ -15,30 +15,41 @@ MAIN_FOLDER = 'displacement'
 
 class ForceConstants:
     """
-    Class for constructing the finite difference object to calculate
-    the second/third order force constant matrices after providing the
-    unit cell geometry and calculator information.
+    The ForceConstants class creates objects that store the system information and load (or calculate) force constant
+    matrices (IFCs) for use with a Phonons object. This is normally the first thing you should initialize when working
+    with kALDo.
+    In general, it's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs because Python
+    has other priorities than speed. However, if you're system is small enough and you are using an interatomic
+    potential with a relatively short cutoff (e.g. Tersoff), it may be tractable to calculate everything in kALDo.
+    To load precalcualted IFCs:
+        Use the `from_folder` method to load in the force constant matrices from a folder. See the method's docstring
+        for information on required input files.
+    To calculate IFCs:
+        Create a ForceConstants object with the appropriate atoms and supercell information. Then use the `calculate`
+        methods of the SecondOrder and ThirdOrder objects (accessed using ForceConstants.second) to generate the IFCs.
+        Note that this requires the atoms object to have an ASE calculator object set. See their documentation for
+        information on how to do this. https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
 
     Parameters
     ----------
 
-    atoms: Tabulated xyz files or ASE Atoms object
+    atoms: ASE Atoms object
         The atoms to work on.
     supercell: (3) tuple, optional
         Size of supercell given by the number of repetitions (l, m, n) of
         the small unit cell in each direction.
-        Defaults to (1, 1, 1)
+        Default: (1, 1, 1)
     third_supercell: tuple, optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
-        Defaults to `self.supercell`
+        Default: self.supercell
     folder: str, optional
         Name to be used for the displacement information folder.
-        Defaults to 'displacement'
+        Default: displacement
     distance_threshold: float, optional
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
-        Defaults to `None`
+        Default: None
     """
 
     def __init__(self,
@@ -80,28 +91,34 @@ class ForceConstants:
     def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
                     is_acoustic_sum=False, only_second=False, distance_threshold=None):
         """
-        Create a finite difference object from a folder
+        Initializes a ForceConstants object from data in the folder provided. The folder should contain a file with the
+        configuration of the atoms, a file with the second order force constants and a file with the third order force
+        constants.
+        The format of the files need to be consistent e.g. if you use a LAMMPS data file for the configuration, the
+        forces constants need to be in LAMMPS format as well.
+        Additionally, the files should be named following the `Inputs` section below. Where possible, we tried to set
+        these to the default filenames of the respective codes.
 
         Parameters
         ----------
         folder : str
             Chosen folder to load in system information.
+        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
+            Format of force constant information being loaded into ForceConstants object.
+            Default: 'numpy'
         supercell : (int, int, int), optional
             Number of unit cells in each cartesian direction replicated to form the input structure.
             Default is (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
-            Format of force constant information being loaded into ForceConstants object.
-            Default is 'numpy'
-        third_energy_threshold : float, optional
-            When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: ev/A^3
-                Default is `None`
-        distance_threshold : float, optional
-            When calculating force constants, contributions from atoms further than the
-            distance threshold will be ignored.
         third_supercell : (int, int, int), optional
             Takes in the unit cell for the third order force constant matrix.
             Default is self.supercell
+        third_energy_threshold : float, optional
+            When importing sparse third order force constant matrices, energies below
+            the threshold value in magnitude are ignored. Units: ev/A^3
+            Default is `None`
+        distance_threshold : float, optional
+            When calculating force constants, contributions from atoms further than the
+            distance threshold will be ignored.
         is_acoustic_sum : Bool, optional
             If true, the accoustic sum rule is applied to the dynamical matrix.
             Default is False
