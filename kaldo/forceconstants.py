@@ -254,7 +254,7 @@ class ForceConstants:
         else:
             return sigma3
 
-    def df_trajectory(self, traj_file='dump.xyz', replica_atoms, calculator, with_sigma2=True):
+    def df_trajectory(self, replica_atoms, calculator, traj_file='dump.xyz', with_sigma2=True):
         traj_atoms = Trajectory(traj_file, 'r')
         forces = []
         two_forces = []
