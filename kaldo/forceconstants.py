@@ -266,9 +266,9 @@ class ForceConstants:
             delta = np.array(sup_atoms.get_positions() - R0).flatten()
             forces.append(sup_atoms.get_forces().flatten())
             phi_2 = self.second.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-            two_forces.append(np.dot(phi_2, delta))
+            two_forces.append(np.dot(phi_2, delta)).flatten()
             phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-            three_forces.append(np.dot(np.dot(phi_3, delta), delta))
+            three_forces.append(np.dot(np.dot(phi_3, delta), delta)).flatten()
             #forces = np.array(forces)
             #two_forces = np.array(two_forces)
             #three_forces = np.array(three_forces)
@@ -279,8 +279,8 @@ class ForceConstants:
         three_forces = np.array(three_forces)
         #sigma2 = np.mean(s2)
         #sigma3 = np.mean(s3)
-        sigma2 = np.sqrt(np.mean((forces - two_forces) / forces.std()
-        sigma3 = np.sqrt(np.mean((forces - two_forces - three_forces) ** 2)) / forces.std()
+        sigma2 = np.sqrt(np.mean((forces - two_forces)/forces.std()
+        sigma3 = np.sqrt(np.mean((forces - two_forces - three_forces)**2))/forces.std()
         if with_sigma2:
             return sigma2, sigma3
         else:
