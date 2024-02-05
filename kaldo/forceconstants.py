@@ -255,7 +255,7 @@ class ForceConstants:
             return sigma3
 
     def df_trajectory(self, replica_atoms, calculator, traj_file='dump.xyz', with_sigma2=True):
-        traj_atoms = read(traj_file, format='exyz')
+        traj_atoms = read(traj_file, format='extxyz')
         forces = []
         two_forces = []
         three_forces = []
