@@ -257,7 +257,7 @@ class ForceConstants:
 
     def df_trajectory(self, replica_atoms, calculator, traj_file='dump.xyz', with_sigma2=True):
         atom_list = []
-        with open(traj_file) as file:
+        with open(traj_file, 'r') as file:
             lines = file.readlines()
             length = len(lines)
         for n in range(length):
