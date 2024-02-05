@@ -10,6 +10,7 @@ from kaldo.helpers.logger import get_logger
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from ase.io import read, write
+from ase.io.extxyz import read_extxyz
 
 logging = get_logger()
 
@@ -255,13 +256,19 @@ class ForceConstants:
             return sigma3
 
     def df_trajectory(self, replica_atoms, calculator, traj_file='dump.xyz', with_sigma2=True):
-        traj_atoms = read(traj_file, format='extxyz')
+        atom_list = []
+        with open(traj_file) as file:
+            lines = file.readlines()
+            length = len(lines)
+        for n in range(length):
+            traj_atoms = read_extxyz(traj_file, index=n)
+            atom_list.append(traj_atoms)
         forces = []
         two_forces = []
         three_forces = []
         R0 = replica_atoms.get_positions()
-        for a in range(len(traj_atoms)):
-            sup_atoms = traj_atoms[a]
+        for a in range(len(atom_list)):
+            sup_atoms = atom_list[a]
             sup_atoms.set_calculator(calculator)
             delta = np.array(sup_atoms.get_positions() - R0).flatten()
             forces.append(sup_atoms.get_forces().flatten())
