@@ -9,7 +9,7 @@ from kaldo.grid import wrap_coordinates
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
-from ase.io import Trajectory
+from ase.io import read, write
 
 logging = get_logger()
 
@@ -255,7 +255,7 @@ class ForceConstants:
             return sigma3
 
     def df_trajectory(self, replica_atoms, calculator, traj_file='dump.xyz', with_sigma2=True):
-        traj_atoms = Trajectory(traj_file, 'r')
+        traj_atoms = read(traj_file, format='exyz')
         forces = []
         two_forces = []
         three_forces = []
