@@ -1,0 +1,66 @@
+#!/bin/bash
+module purge
+module load profile/chem-phys
+module load  autoload qe/7.0 
+export OMP_NUM_THREADS=8
+echo $OMP_NUM_THREADS
+
+echo " Done."
+
+echo started at "$(date)"
+
+#rm -rf  tmp FILD3DYN
+
+export EXAMPLE=$(pwd)
+#export ESPRESSO=$(cd ../../../; pwd)
+#export ESPRESSO_BIN=$ESPRESSO/bin
+
+#bin="$ESPRESSO_BIN"
+bin=""
+pref="mpirun -np 12 "  # e.g. "mpirun -np 4 "
+post="-npool 4 "  # e.g. -npool 4
+
+echo "pw calculation"
+$pref  pw.x $post -in pw.in > pw.out 
+
+echo "ph calculation"
+$pref ph.x $post -in ph.in > ph.out 
+
+echo "d3 calculation"
+$pref d3q.x $post -in d3.in > d3.out 
+
+echo "computing 2-body force constants"
+$pref d3_q2r.x < q2r.in > d3_q2r.out
+
+echo "computing 2-body force constants for kaldo"
+$pref q2r.x -in kaldo_q2r.in >kaldo_q2r.out
+echo "computing 3-body force constants"
+ls FILD3DYN/anh* | d3_qq2rr.x 5 5 5 -o mat3R > d3_qq2rr.out
+
+echo "computing 3-body force constants recentered "
+ls FILD3DYN/anh* | d3_qq2rr.x 5 5 5 -f 0 -o FORCE_CONSTANTS_3RD > kaldo_3ifc.out
+
+echo "appying sum rules 3-body force constants"
+d3_asr3.x -i FORCE_CONSTANTS_3RD -o FORCE_CONSTANTS_3RD.asr -t 1.e-12 -n 10000 -p 2 -m > d3_asr3.out
+
+
+
+# uncomment to test kaldo results vs d3q ones
+#echo "appying sum rules 3-body force constants"
+#d3_asr3.x -i mat3R -o mat3R.asr -t 1.e-12 -n 10000 -p 2 > d3_asr3.out
+#
+#echo "preparing sparse representation of 3-body force constants"
+#d3_sparse.x -i mat3R.asr -o mat3R.asr.sparse -t 0. -n 10000 > d3_sparse.out
+#
+#echo "doing linewidth dispersion calculation"
+#$pref d3_lw.x -in input.LW > output.LW
+#gnuplot -persist plot-lw.gp
+#
+#echo "doing SMA thermal conductivity calculation"
+#$pref d3_tk.x -in input.TK-sma > output.TK-sma
+
+
+
+
+echo finished at "$(date)"
+echo " Done."
