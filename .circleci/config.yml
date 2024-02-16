@@ -1,14 +1,16 @@
 version: 2.1
+
 orbs:
-  python: circleci/python@0.2.1
-  codecov: codecov/codecov@1.1.1
+  python: circleci/python@1.2.0 # Updated version
+  codecov: codecov/codecov@1.1.5 # Updated version
+
 jobs:
   build-and-test:
     executor:
-        name: python/default
-        tag: '3.10'
+      name: python/default
+      tag: "3.10" # Ensure this matches the latest compatible version
     docker:
-      - image: "continuumio/miniconda3"
+      - image: "continuumio/miniconda3:latest" # Updated to use the latest image
     resource_class: xlarge
     steps:
       - checkout
@@ -16,30 +18,24 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
-          command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
+          command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
       - codecov/upload:
           file: ./coverage.xml
+
   docs-build:
     docker:
-      - image: "jgoldfar/miniconda3-latex:full"
+      - image: "jgoldfar/miniconda3-latex:latest" # Consider updating the tag to the latest or a more specific version
     steps:
       - checkout
       - run:
-          name: Add pip
-          command: conda install pip
-      - run:
-          name: Add pandoc
-          command: conda install -c conda-forge pandoc
-      - run:
-          name: Add make
-          command: conda install make
-      - run:
-          name: Add tensorflow
-          command: conda install -c conda-forge tensorflow=2.3
-      - run:
-          name: Add psutil
-          command: conda install psutil>=5.7.2
+          name: Setup Environment
+          command: |
+            conda install pip
+            conda install -c conda-forge pandoc
+            conda install make
+            conda install -c conda-forge tensorflow=2.3
+            conda install psutil>=5.7.2
       - run:
           name: Install docs dependencies
           command: pip install -r docs/doc_requirements.txt
@@ -51,36 +47,35 @@ jobs:
           command: cd docs/_build/html && touch .nojekyll
       - persist_to_workspace:
           root: docs/_build
-          paths: html
+          paths:
+            - html
+
   docs-deploy:
     docker:
-      - image: node:8.10.0
+      - image: cibuilds/github:0.13 # An updated image that simplifies GitHub operations
     steps:
       - checkout
       - attach_workspace:
           at: docs/_build
       - run:
-          name: Install and configure dependencies
+          name: Deploy docs to gh-pages branch
           command: |
-            npm install -g --silent gh-pages@2.0.1
+            apk add --no-cache git openssh-client # Ensure git and SSH are installed
             git config user.email "ci-build@klukas.net"
             git config user.name "ci-build"
-      - add_ssh_keys:
-          fingerprints:
-            - "f6:5c:77:81:26:a6:9a:f9:90:50:75:f5:92:13:f2:ae"
-      - run:
-          name: Deploy docs to gh-pages branch
-          command: gh-pages --dotfiles --message "[skip ci] Updates" --dist docs/_build/html
+            npx gh-pages -d docs/_build/html --dotfiles --message "[skip ci] Updates"
+
 workflows:
+  version: 2
   main:
     jobs:
       - build-and-test
-      - docs-build
+      - docs-build:
+          requires:
+            - build-and-test
       - docs-deploy:
           requires:
             - docs-build
-            - build-and-test
           filters:
             branches:
               only: main
-
