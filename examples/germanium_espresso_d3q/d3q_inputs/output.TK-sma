@@ -1,0 +1,176 @@
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+  Using     24 MPI processes
+  Using   192 total MPI+OpenMP threads
+ 
+      
+     For 2n+1 calculations of force constants please cite:
+      1. Lorenzo Paulatto, Francesco Mauri, and Michele Lazzeri
+         Phys. Rev. B 87, 214303 (2013)
+      
+     For thermal transport calculations please cite:
+      2. Giorgia Fugallo, Michele Lazzeri, Lorenzo Paulatto, and Francesco Mauri
+         Phys. Rev. B 88, 045430 (2013)
+      3. A. Cepellotti, G. Fugallo, L. Paulatto, M. Lazzeri, F. Mauri, N. Marzari,
+         Nature communications 6 (2015)
+      4. G. Fugallo, A. Cepellotti, L. Paulatto, M. Lazzeri, N. Marzari, F. Mauri,
+         Nano letters 14 (11), 6109-6114 (2014)
+      
+     For spectral function calculations also cite:
+      5. Lorenzo Paulatto, Ion Errea, Matteo Calandra, and Francesco Mauri,
+         Phys. Rev. B 91, 054304 (2015)
+ 
+  Reading input file 'input.TK-sma'
+  merging with command line arguments
+ &TKINPUT
+ CALCULATION     = sma             ,
+ OUTDIR  = ./TK-sma/                                                                                                                 
+                                                                                                                                     
+   ,
+ PREFIX  = ///                                                                                                                       
+                                                                                                                                     
+   ,
+ FILE_MAT2       = mat2R                                                                                                             
+                                                                                                                                     
+           ,
+ FILE_MAT3       = mat3R.asr.sparse                                                                                                  
+                                                                                                                                     
+           ,
+ ASR2    = simple  ,
+ THR_TK  =  1.000000000000000E-002,
+ NITER_MAX       =        1000,
+ NCONF   =           3,
+ NK      = 3*16,
+ NK_IN   = 3*16,
+ GRID_TYPE       = simple,
+ GRID_TYPE_IN    = ///   ,
+ XK0     = 3*0.000000000000000E+000  ,
+ XK0_IN  = 3*-1.000000000000000E+030 ,
+ OPTIMIZE_GRID   = F,
+ OPTIMIZE_GRID_THR       =  1.000000000000000E-002,
+ INTRINSIC_SCATTERING    = T,
+ ISOTOPIC_DISORDER       = F,
+ STORE_LW        = F,
+ CASIMIR_SCATTERING      = F,
+ MFP_CUTOFF      = F,
+ SAMPLE_DIR      = 3*0.000000000000000E+000  ,
+ SAMPLE_LENGTH_AU        =  -1.00000000000000     ,
+ SAMPLE_LENGTH_MU        =  -1.00000000000000     ,
+ SAMPLE_LENGTH_MM        =  -1.00000000000000     ,
+ VOLUME_FACTOR   =   1.00000000000000     ,
+ MAX_SECONDS     =          -1,
+ MAX_TIME        =  -1.00000000000000     ,
+ RESTART = F
+ /
+ ** Reading FC2 file: mat2R
+     alat (bohr)   10.596900
+     tpiba (1/bohr)    0.592927
+     at_1 = (   -0.500000    0.000000    0.500000 )
+     at_2 = (    0.000000    0.500000    0.500000 )
+     at_3 = (   -0.500000    0.500000    0.000000 )
+     bg_1 = (   -1.000000   -1.000000    1.000000 )
+     bg_2 = (    1.000000    1.000000    1.000000 )
+     bg_3 = (   -1.000000    1.000000   -1.000000 )
+     volume (bohr^3)  297.492839
+ Original FC2 grid:          10          10          10
+ ** Reading sparse FC3 file mat3R.asr.sparse
+     alat (bohr)   10.596900
+     tpiba (1/bohr)    0.592927
+     at_1 = (   -0.500000    0.000000    0.500000 )
+     at_2 = (    0.000000    0.500000    0.500000 )
+     at_3 = (   -0.500000    0.500000    0.000000 )
+     bg_1 = (   -1.000000   -1.000000    1.000000 )
+     bg_2 = (    1.000000    1.000000    1.000000 )
+     bg_3 = (   -1.000000    1.000000   -1.000000 )
+     volume (bohr^3)  297.492839
+    Original FC3 grid:           5           5           5
+    Number of R:             29407
+ Reading : done.
+ Memory used :            0 Mb
+ calculation: sma             full            
+ Reading CONFIGS           3
+  Temperatures:
+    200.0    300.0    400.0
+  Smearings:   
+   10.000   10.000   10.000
+ 
+ --> Setting up outer grid
+  Setup a simple grid of     4096 q-points
+ --> Setting up inner grid
+  Setup a simple grid of     4096 q-points
+         0.0% | STEP TIME:         0.0s | STEP END:          -.-s | WALL:         5.4s 
+         0.0% | STEP TIME:         3.7s | STEP END:      15082.3s | WALL:         9.1s 
+        10.0% | STEP TIME:      1091.2s | STEP END:      10898.6s | WALL:      1096.6s 
+        20.0% | STEP TIME:      2166.7s | STEP END:      10833.3s | WALL:      2172.1s 
+        30.0% | STEP TIME:      3250.2s | STEP END:      10829.5s | WALL:      3255.6s 
+        40.0% | STEP TIME:      4324.0s | STEP END:      10810.0s | WALL:      4329.4s 
+        50.0% | STEP TIME:      5394.9s | STEP END:      10787.2s | WALL:      5400.3s 
+        60.0% | STEP TIME:      6455.4s | STEP END:      10754.6s | WALL:      6460.8s 
+        70.0% | STEP TIME:      7518.3s | STEP END:      10738.6s | WALL:      7523.7s 
+        80.0% | STEP TIME:      8580.0s | STEP END:      10721.7s | WALL:      8585.4s 
+        90.0% | STEP TIME:      9645.3s | STEP END:      10715.5s | WALL:      9650.7s 
+       100.0% | STEP TIME:     10712.1s | STEP END:      10712.1s | WALL:     10717.5s 
+   ************
+   SMA thermal conductivity, stored to file:
+     ./TK-sma//sma_full.16x16x16.out
+   Diagonal components (conf, sigma, T, K_x, K_y, K_z):
+  1   10.000000  200.000000  0.10168138E+03  0.10168434E+03  0.10168108E+03
+  2   10.000000  300.000000  0.63921586E+02  0.63923330E+02  0.63921379E+02
+  3   10.000000  400.000000  0.46976631E+02  0.46977882E+02  0.46976474E+02
+   * WALL :   10720.0562 s
+   *                          *              ms *         ms/call *          ms*cpu *     ms*cpu/call *  % wtime *        calls *
+   *             sma thermalk * 10714548.501807 *   446439.520909 *   257149164.043 * 10714548.501807 *   99.949 *          24. *
+*** * Contributions to SMA conductivity:
+   *          sum of tk terms *        4.942852 *        0.000050 *         118.628 *        0.001207 *    0.000 *       98304. *
+   *                 lw ph-ph * 10622160.254109 *      108.054202 *   254931846.099 *     2593.300843 *   99.087 *       98304. *
+   *        ph group velocity *    91956.637580 *        0.935431 *     2206959.302 *       22.450351 *    0.858 *       98304. *
+   *        mpi communication *   516025.014344 *        5.249278 *    12384600.344 *      125.982670 *    4.814 *       98304. *
+   *             read fc data *     3313.254764 *      138.052282 *       79518.114 *     3313.254764 *    0.031 *          24. *
+*** * Contributions to ph-ph linewidth time:
+   *         ph interp & diag *   507741.092663 *        0.030087 *    12185786.224 *        0.722098 *    4.736 *    16875520. *
+   *             bose distrib *    23908.109362 *        0.000475 *      573794.625 *        0.011400 *    0.223 *    50331648. *
+   *                sum modes *    59524.720760 *        0.001183 *     1428593.298 *        0.028384 *    0.555 *    50331648. *
+   *          fc3 interpolate *  9450520.933385 *        0.563295 *   226812502.401 *       13.519079 *   88.157 *    16777216. *
+   *           fc3 modulus sq *      512.720486 *        0.000031 *       12305.292 *        0.000733 *    0.005 *    16777216. *
+   *               fc3 rotate *    63329.784765 *        0.003775 *     1519914.834 *        0.090594 *    0.591 *    16777216. *
+   *         merge degenerate *      139.158346 *        0.000003 *        3339.800 *        0.000066 *    0.001 *    50429952. *
+ 
+      
+     For 2n+1 calculations of force constants please cite:
+      1. Lorenzo Paulatto, Francesco Mauri, and Michele Lazzeri
+         Phys. Rev. B 87, 214303 (2013)
+      
+     For thermal transport calculations please cite:
+      2. Giorgia Fugallo, Michele Lazzeri, Lorenzo Paulatto, and Francesco Mauri
+         Phys. Rev. B 88, 045430 (2013)
+      3. A. Cepellotti, G. Fugallo, L. Paulatto, M. Lazzeri, F. Mauri, N. Marzari,
+         Nature communications 6 (2015)
+      4. G. Fugallo, A. Cepellotti, L. Paulatto, M. Lazzeri, N. Marzari, F. Mauri,
+         Nano letters 14 (11), 6109-6114 (2014)
+      
+     For spectral function calculations also cite:
+      5. Lorenzo Paulatto, Ion Errea, Matteo Calandra, and Francesco Mauri,
+         Phys. Rev. B 91, 054304 (2015)
+ 
