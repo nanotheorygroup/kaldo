@@ -59,7 +59,7 @@ phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 # One needs to compute conducvity from QHGK , and then compute diffusivity 
 print('\n')
 qhgk_cond = Conductivity(phonons=phonons, method='qhgk', storage='numpy')
-qhgk_cond.diffusivity_bandwidth = phonons.bandwidth
+#qhgk_cond.diffusivity_bandwidth = phonons.bandwidth
 print(np.abs(np.mean(qhgk_cond.conductivity.sum(axis=0).diagonal())))
 qhgk_cond.diffusivity
 	

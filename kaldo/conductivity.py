@@ -275,7 +275,7 @@ class Conductivity:
             logging.info('Using diffusivity bandwidth from input')
             diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
         else:
-            diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
+            diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy()
 
         # if self.diffusivity_threshold is None:
         logging.info('Start calculation diffusivity')
