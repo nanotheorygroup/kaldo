@@ -33,10 +33,7 @@ jobs:
           command: conda install -c conda-forge pandoc
       - run:
           name: Add make
-          command: conda install make
-      - run:
-          name: Add tensorflow
-          command: conda install -c conda-forge tensorflow=2.3
+          command: conda install make=
       - run:
           name: Add psutil
           command: conda install psutil>=5.7.2
