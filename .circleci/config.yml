@@ -12,6 +12,9 @@ jobs:
     resource_class: xlarge
     steps:
       - checkout
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
       - run:
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
