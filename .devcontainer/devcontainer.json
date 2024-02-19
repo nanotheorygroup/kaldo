@@ -2,7 +2,7 @@
     "name": "kALDo",
     "build": {
         "context": "..",
-        "dockerfile": "Dockerfile"
+        "dockerfile": "../Dockerfile"
     },
     "customizations": {
         "vscode": {

@@ -12,3 +12,5 @@ RUN conda install pip \
     && pip install pytest \
     && pip install pytest-cov \
     && pip install -r requirements.txt
+    
+CMD ["/bin/bash"]
