@@ -15,6 +15,11 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install pytest and curl
+          command: |
+            pip install pytest
+            apt-get update && apt-get install -y curl
+      - run:
           name: Test
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
       - codecov/upload:
