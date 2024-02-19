@@ -15,9 +15,9 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install pytest and curl
+          name: Install pytest, pytest-cov and curl
           command: |
-            pip install pytest
+            pip install pytest pytest-cov
             apt-get update && apt-get install -y curl
       - run:
           name: Test
