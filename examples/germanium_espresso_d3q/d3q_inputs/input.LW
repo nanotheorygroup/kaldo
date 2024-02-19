@@ -1,0 +1,25 @@
+&lwinput
+! Compute only the linewidth, or 1/2 FWHM, or HWHM, or inverse lifetime)
+  calculation = 'lw imag'
+!
+! Prefix to the name of the output files:
+  prefix="lw_NK"
+!
+  file_mat2 = 'mat2R'
+  file_mat3 = 'mat3R.asr.sparse'
+  outdir    = './LW/'  ! where to save the data
+  asr2 = 'simple'   ! second order sum rule, analogous to "crystal"
+  nk = 10,10,10     ! size of the integration grid (not converged!)
+  nconf = 1         ! number of configurations sigma/temperature to read
+  nq = 5            ! number of q-point lines to read
+/
+ CONFIGS
+ 10.0 300
+ QPOINTS
+   0.50 0.50 0.50      ! "L" point
+   0.00 0.00 0.00   50 ! "Gamma" point
+   0.00 0.00 1.00   40 ! "X" point
+   0.00 0.50 1.00   20 ! "W" point
+   0.00 0.00 0.00   40 ! "Gamma" point
+
+
