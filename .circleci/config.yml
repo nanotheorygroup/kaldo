@@ -25,9 +25,9 @@ jobs:
       - image: "jgoldfar/miniconda3-latex:full"
     steps:
       - checkout
-      - run:
-          name: Add pip
-          command: conda install pip
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
       - run:
           name: Add pandoc
           command: conda install -c conda-forge pandoc
