@@ -8,10 +8,13 @@ jobs:
         name: python/default
         tag: '3.10'
     docker:
-      - image: "gbarbalinardo/kaldo:latest"
+      - image: "continuumio/miniconda3"
     resource_class: xlarge
     steps:
       - checkout
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
       - run:
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
