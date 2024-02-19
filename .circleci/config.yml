@@ -25,18 +25,15 @@ jobs:
       - image: "jgoldfar/miniconda3-latex:full"
     steps:
       - checkout
-      - run:
-          name: Add pip
-          command: conda install pip
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
       - run:
           name: Add pandoc
           command: conda install -c conda-forge pandoc
       - run:
           name: Add make
           command: conda install make
-      - run:
-          name: Add tensorflow
-          command: conda install tensorflow
       - run:
           name: Add psutil
           command: conda install psutil>=5.7.2
@@ -54,23 +51,19 @@ jobs:
           paths: html
   docs-deploy:
     docker:
-      - image: node:8.10.0
+      - image: cibuilds/github:0.13 # An updated image that simplifies GitHub operations
     steps:
       - checkout
       - attach_workspace:
           at: docs/_build
       - run:
-          name: Install and configure dependencies
+          name: Deploy docs to gh-pages branch
           command: |
-            npm install -g --silent gh-pages@2.0.1
+            apk add --no-cache git openssh-client # Ensure git and SSH are installed
             git config user.email "ci-build@klukas.net"
             git config user.name "ci-build"
-      - add_ssh_keys:
-          fingerprints:
-            - "f6:5c:77:81:26:a6:9a:f9:90:50:75:f5:92:13:f2:ae"
-      - run:
-          name: Deploy docs to gh-pages branch
-          command: gh-pages --dotfiles --message "[skip ci] Updates" --dist docs/_build/html
+            npx gh-pages -d docs/_build/html --dotfiles --message "[skip ci] Updates"
+
 workflows:
   main:
     jobs:
@@ -83,4 +76,3 @@ workflows:
           filters:
             branches:
               only: main
-
