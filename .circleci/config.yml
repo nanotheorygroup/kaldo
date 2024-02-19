@@ -10,15 +10,10 @@ jobs:
       name: python/default
       tag: "3.10" # Ensure this matches the latest compatible version
     docker:
-      - image: "continuumio/miniconda3:latest" # Updated to use the latest image
+      - image: "gbarbalinardo/kaldo:latest" # Updated to use the latest image
     resource_class: xlarge
     steps:
       - checkout
-      - run:
-          name: Install pytest, pytest-cov and curl
-          command: |
-            pip install pytest pytest-cov
-            apt-get update && apt-get install -y curl
       - run:
           name: Test
           command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
