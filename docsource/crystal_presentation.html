@@ -1,10 +1,10 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -57,13 +57,13 @@
   
   
     <title>Silicon diamond tutorial &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" href="../_static/material.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -384,7 +384,46 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-crystal-presentation--page-root" class="md-nav__link">Silicon diamond tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
+        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\sim</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ 8 min)</a>
         </li>
         <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
         </li>
@@ -400,7 +439,85 @@
         </li>
         <li class="md-nav__item"><a href="#Access-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Access and visualize properties calculated during simulations</a>
         </li>
-        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/></a>
+        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{per \ mode}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{cum}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</a>
         </li></ul>
             </nav>
         </li></ul>
@@ -437,7 +554,46 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-crystal-presentation--page-root" class="md-nav__link">Silicon diamond tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
+        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\sim</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ 8 min)</a>
         </li>
         <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
         </li>
@@ -453,7 +609,85 @@
         </li>
         <li class="md-nav__item"><a href="#Access-and-visualize-properties-calculated-during-simulations" class="md-nav__link">Access and visualize properties calculated during simulations</a>
         </li>
-        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/></a>
+        <li class="md-nav__item"><a href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" class="md-nav__link">Calculate and visualize <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{per \ mode}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{cum}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</a>
         </li></ul>
             </nav>
         </li></ul>
@@ -725,9 +959,48 @@ div.rendered_html tbody tr:hover {
 <p><a class="reference external" href="https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
 <section id="Silicon-diamond-tutorial">
-<h1 id="docsource-crystal-presentation--page-root">Silicon diamond tutorial<a class="headerlink" href="#docsource-crystal-presentation--page-root" title="Permalink to this headline">¶</a></h1>
+<h1 id="docsource-crystal-presentation--page-root">Silicon diamond tutorial<a class="headerlink" href="#docsource-crystal-presentation--page-root" title="Permalink to this heading">¶</a></h1>
 <section id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">
-<h2 id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">Complie <a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a> as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)<a class="headerlink" href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" title="Permalink to this headline">¶</a></h2>
+<h2 id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">Complie <a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a> as shared-library of python (<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\sim</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ 8 min)<a class="headerlink" href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" title="Permalink to this heading">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -772,7 +1045,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Remote-fetch-and-install-source-code-from-Github">
-<h2 id="Remote-fetch-and-install-source-code-from-Github">Remote fetch and install source code from Github<a class="headerlink" href="#Remote-fetch-and-install-source-code-from-Github" title="Permalink to this headline">¶</a></h2>
+<h2 id="Remote-fetch-and-install-source-code-from-Github">Remote fetch and install source code from Github<a class="headerlink" href="#Remote-fetch-and-install-source-code-from-Github" title="Permalink to this heading">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -784,7 +1057,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Remote-fetch-supplyment-files">
-<h2 id="Remote-fetch-supplyment-files">Remote fetch supplyment files<a class="headerlink" href="#Remote-fetch-supplyment-files" title="Permalink to this headline">¶</a></h2>
+<h2 id="Remote-fetch-supplyment-files">Remote fetch supplyment files<a class="headerlink" href="#Remote-fetch-supplyment-files" title="Permalink to this heading">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -808,7 +1081,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Thermal-transport-simulation-for-silicon-bulk">
-<h2 id="Thermal-transport-simulation-for-silicon-bulk">Thermal transport simulation for silicon-bulk<a class="headerlink" href="#Thermal-transport-simulation-for-silicon-bulk" title="Permalink to this headline">¶</a></h2>
+<h2 id="Thermal-transport-simulation-for-silicon-bulk">Thermal transport simulation for silicon-bulk<a class="headerlink" href="#Thermal-transport-simulation-for-silicon-bulk" title="Permalink to this heading">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -843,7 +1116,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <section id="Create-phonons-object">
-<h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this headline">¶</a></h3>
+<h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this heading">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -872,7 +1145,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Calculate-conductivities-for-infinite-size-sample">
-<h3 id="Calculate-conductivities-for-infinite-size-sample">Calculate conductivities for infinite-size sample<a class="headerlink" href="#Calculate-conductivities-for-infinite-size-sample" title="Permalink to this headline">¶</a></h3>
+<h3 id="Calculate-conductivities-for-infinite-size-sample">Calculate conductivities for infinite-size sample<a class="headerlink" href="#Calculate-conductivities-for-infinite-size-sample" title="Permalink to this heading">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -902,7 +1175,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Visualize-harmonic-properties-using-built-in-plotter">
-<h3 id="Visualize-harmonic-properties-using-built-in-plotter">Visualize harmonic properties using built-in plotter<a class="headerlink" href="#Visualize-harmonic-properties-using-built-in-plotter" title="Permalink to this headline">¶</a></h3>
+<h3 id="Visualize-harmonic-properties-using-built-in-plotter">Visualize harmonic properties using built-in plotter<a class="headerlink" href="#Visualize-harmonic-properties-using-built-in-plotter" title="Permalink to this heading">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -920,7 +1193,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Access-and-visualize-properties-calculated-during-simulations">
-<h3 id="Access-and-visualize-properties-calculated-during-simulations">Access and visualize properties calculated during simulations<a class="headerlink" href="#Access-and-visualize-properties-calculated-during-simulations" title="Permalink to this headline">¶</a></h3>
+<h3 id="Access-and-visualize-properties-calculated-during-simulations">Access and visualize properties calculated during simulations<a class="headerlink" href="#Access-and-visualize-properties-calculated-during-simulations" title="Permalink to this heading">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -967,7 +1240,85 @@ div.rendered_html tbody tr:hover {
 </div>
 </section>
 <section id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">
-<h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <img alt="\kappa_{per \ mode}" class="math" src="../_images/math/60defc95ea0d4b6e1d6554c807add7af274af1ab.png"/> and <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/><a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this headline">¶</a></h3>
+<h3 id="Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}">Calculate and visualize <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{per \ mode}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{cum}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<a class="headerlink" href="#Calculate-and-visualize-\kappa_{per-\-mode}-and-\kappa_{cum}" title="Permalink to this heading">¶</a></h3>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -1081,7 +1432,7 @@ div.rendered_html tbody tr:hover {
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

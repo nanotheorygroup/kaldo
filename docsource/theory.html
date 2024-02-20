@@ -1,10 +1,10 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -57,13 +57,13 @@
   
   
     <title>Introduction &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" href="../_static/material.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -466,186 +466,3624 @@
           <article class="md-content__inner md-typeset" role="main">
             
   <!-- ![funding]({{ site.url }}{{ site.baseurl }}/assets/images/gbarbalinardo-poster/funding.png) --><section id="Introduction">
-<h1 id="docsource-theory--page-root">Introduction<a class="headerlink" href="#docsource-theory--page-root" title="Permalink to this headline">¶</a></h1>
+<h1 id="docsource-theory--page-root">Introduction<a class="headerlink" href="#docsource-theory--page-root" title="Permalink to this heading">¶</a></h1>
 <p>Understanding heat transport in semiconductors and insulators is of fundamental importance because of its technological impact in electronics and renewable energy harvesting and conversion. Anharmonic Lattice Dynamics provides a powerful framework for the description of heat transport at the nanoscale. One of the advantages of this method is that it naturally includes quantum effects due to atoms vibrations, which are needed to compute thermal properties of semiconductors widely use in
 nanotechnology, like Silicon and Carbon, even at room temperature. While heat transport in amorphous and crystalline semiconductors has a different microscopic origin, a unified approach to simulate both crystals and glasses has been devised. Here we introduce a unified workflow, which implements both the Boltzmann Transport equation (BTE) and the Quasi Harmonic Green-Kubo (QHGK) methods. We discuss how the theory can be optimized to exploit modern parallel architectures, and how it is
 implemented in kALDo: a versatile and scalable open-source software to compute phonon transport in solids.</p>
 </section>
 <section id="Theory">
-<h1 id="Theory">Theory<a class="headerlink" href="#Theory" title="Permalink to this headline">¶</a></h1>
-<p>In semiconductors, electronic and vibrational dynamics often occur over different time scales, and can thus be decoupled using the Born Oppenheimer approximation. Under this assumption, the potential <img alt="\phi" class="math" src="../_images/math/8d4b26ae65ca854986cf150c8fbef20db93a402b.png"/> of a system made of <img alt="N_{atoms}" class="math" src="../_images/math/bced6265a9a5ed6d8a3f63f71ce29b2851f0e468.png"/> atoms, is a function of all the <img alt="x_{i\alpha}" class="math" src="../_images/math/21dfd2fd9265de558f67909e229063930f6967b8.png"/> atomic positions, where <img alt="i" class="math" src="../_images/math/8216274682ad4c02b3821d303fe8a1c94b09b3bd.png"/> and <img alt="\alpha" class="math" src="../_images/math/04d011ebcba612844adea8dbc1d9c21e8bc7bc26.png"/> refer to the atomic and Cartesian indices, respectively. Near thermal equilibrium, the potential energy can be Taylor expanded in the atomic
-displacements, <img alt="\mathbf{u}=\mathbf x-\mathbf{x}_{\rm equilibrium}" class="math" src="../_images/math/3ace6a7dd6a4122a46b2a4e2e6e791358e426948.png"/>,</p>
-<div class="math">
-<p><img alt="\phi(\{x_{i\alpha}\})=\phi_0 +
+<h1 id="Theory">Theory<a class="headerlink" href="#Theory" title="Permalink to this heading">¶</a></h1>
+<p>In semiconductors, electronic and vibrational dynamics often occur over different time scales, and can thus be decoupled using the Born Oppenheimer approximation. Under this assumption, the potential <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\phi</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ of a system made of <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">N_{atoms}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ atoms, is a function of all the <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">x_{i\alpha}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ atomic positions, where <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">i</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\alpha</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ refer to the atomic and Cartesian indices, respectively. Near thermal equilibrium, the potential energy can be Taylor expanded in the atomic
+displacements, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mathbf{u}=\mathbf x-\mathbf{x}_{\rm equilibrium}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+,</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal"> \phi(\{x_{i\alpha}\})=\phi_0 +
 \sum_{i\alpha}\phi^{\prime}_{i\alpha }u_{i\alpha}
 +\frac{1}{2}
 \sum_{i\alpha i'\alpha'}
-\phi^{\prime\prime}_{i\alpha i'\alpha '}u_{i\alpha} u_{i'\alpha'}+" src="../_images/math/b8231ce8e7e8440797c8d7b36eb5383a4cac5ee0.png"/></p>
-</div><div class="math">
-<p><img alt="+
+\phi^{\prime\prime}_{i\alpha i'\alpha '}u_{i\alpha} u_{i'\alpha'}+</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">+
 \frac{1}{3!}\sum_{i\alpha i'\alpha 'i''\alpha ''}
-\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''} u_{i\alpha }u_{i'\alpha '} u_{i''\alpha ''}  + \dots," src="../_images/math/af41c508a6e811ff27b4524f93e47eeed5448720.png"/></p>
-</div><p>where</p>
-<div class="math">
-<p><img alt="\phi^{\prime\prime}_{i\alpha i'\alpha '}=\frac{\partial^{2} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} },\qquad
-\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''}=\frac{\partial^{3} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} \partial u_{i''\alpha ''}}," src="../_images/math/26ebc3736f4e1ef9c0bf858eb8a0fe4eb600a764.png"/></p>
-</div><p>are the second and third order interatomic force constants (IFC). The term <img alt="\phi_0" class="math" src="../_images/math/dd3aff514ed62571a49b5f37e6b063339bc2298e.png"/> can be discarded, and the forces <img alt="F = - \phi^{\prime}" class="math" src="../_images/math/9e44fa34424c3d8a310d7bb9410ad05b3893a9ad.png"/> are zero at equilibrium.</p>
-<p>The IFCs can be evaluated by finite difference, which consists in calculating the difference between the forces acting on the system when one of the atoms is displaced by a small finite shift along a Cartesian direction. The second and third order IFCs need respectively, <img alt="2N_{atoms}" class="math" src="../_images/math/a851bcbc94808871668ab7cd7c1641d01659bab9.png"/>, and <img alt="4N_{atoms}^2" class="math" src="../_images/math/6779a356e76a5c8f597a0deac1036e003cb7d78d.png"/> forces calculations. In crystals, this amount can be reduced exploiting the spatial symmetries of the system, or adopting a compressed sensing approach. In the framework of DFT, it is
+\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''} u_{i\alpha }u_{i'\alpha '} u_{i''\alpha ''}  + \dots,</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal"> \phi^{\prime\prime}_{i\alpha i'\alpha '}=\frac{\partial^{2} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} },\qquad
+\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''}=\frac{\partial^{3} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} \partial u_{i''\alpha ''}},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>are the second and third order interatomic force constants (IFC). The term <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\phi_0</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ can be discarded, and the forces <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">F = - \phi^{\prime}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ are zero at equilibrium.</p>
+<p>The IFCs can be evaluated by finite difference, which consists in calculating the difference between the forces acting on the system when one of the atoms is displaced by a small finite shift along a Cartesian direction. The second and third order IFCs need respectively, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">2N_{atoms}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">4N_{atoms}^2</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ forces calculations. In crystals, this amount can be reduced exploiting the spatial symmetries of the system, or adopting a compressed sensing approach. In the framework of DFT, it is
 also possible and often convenient to compute IFCs using perturbation theory.</p>
-<p>The dynamical matrix is the second order IFC rescaled by the masses, <img alt="D_{i\alpha i'\alpha}=\phi^{\prime\prime}_{i\alpha i'\alpha'}/\sqrt{m_im_{i'}}" class="math" src="../_images/math/837d6ba1ca6eb706558bf1676fa572c77b8ba256.png"/>. It is diagonal in the phonons basis</p>
-<div class="math">
-<p><img alt="\sum_{i'\alpha'} D_{i\alpha i'\alpha'}\eta_{i'\alpha'\mu} =\eta_{i\alpha\mu} \omega_\mu^2" src="../_images/math/1428a883e025ec25f8496cde9efaf4ba99c1165b.png"/></p>
-</div><p>and <img alt="\omega_\mu/(2\pi)" class="math" src="../_images/math/cce151bc0e208afb494682945fdb93c4dc303c79.png"/> are the frequencies of the normal modes of the system.</p>
-<p>For crystals, where there is long range order due to the periodicity, the dimensionality of the problem can be reduced. The Fourier transfom maps the large direct space onto a compact volume in the reciprocal space: the Brillouin zone. More precisely we adopt a supercell approach, where we calculate the dynamical matrix on <img alt="N_{\rm replicas}" class="math" src="../_images/math/235da8446439519b5b7aa8d8780b264caa608f21.png"/> replicas of a unit cell of <img alt="N_{\rm unit}" class="math" src="../_images/math/342d0d63e0c6a58e08c2950ba6a702e063d209da.png"/> atoms, at positions <img alt="\mathbf R_l" class="math" src="../_images/math/939d964931cb595013ec1bc6e7e83720f61fb28d.png"/>, and calculate</p>
-<div class="math">
-<p><img alt="D_{i \alpha k i' \alpha'}=\sum_l \chi_{kl}  D_{i \alpha l i' \alpha'},\quad \chi_{kl} = \mathrm{e}^{-i \mathbf{q_k}\cdot \mathbf{R}_{l} }," src="../_images/math/a7e8df9bbd60a79b59f6bae0b3e94370be1bd152.png"/></p>
-</div><p>where <img alt="\mathbf q_k" class="math" src="../_images/math/97c93ba870f07c2e7ced475cb3bf70361d00a327.png"/> is a grid of size <img alt="N_k" class="math" src="../_images/math/07bf00ff17cb51d080ac678bd294ac239b06a132.png"/> indexed by <img alt="k" class="math" src="../_images/math/c3144087f4141b1a902ffbbca1128a22f5df8682.png"/> and the eigenvalue equation becomes</p>
-<div class="math">
-<p><img alt="\sum_{i'\alpha'} D_{i \alpha k i' \alpha'} \eta_{i' \alpha'k s}=\omega_{k m}^{2} \eta_{i \alpha k s }." src="../_images/math/31f639dfd1c1cbb270d1c4156b5c96009c43b5ee.png"/></p>
-</div><p>which now depends on the quasi-momentum index, <img alt="k" class="math" src="../_images/math/c3144087f4141b1a902ffbbca1128a22f5df8682.png"/>, and the phonons mode <img alt="s" class="math" src="../_images/math/66b7b213f6794acfd003d7b9471d389cfc120aa3.png"/>.</p>
+<p>The dynamical matrix is the second order IFC rescaled by the masses, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">D_{i\alpha i'\alpha}=\phi^{\prime\prime}_{i\alpha i'\alpha'}/\sqrt{m_im_{i'}}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+. It is diagonal in the phonons basis</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\sum_{i'\alpha'} D_{i\alpha i'\alpha'}\eta_{i'\alpha'\mu} =\eta_{i\alpha\mu} \omega_\mu^2</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\omega_\mu/(2\pi)</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ are the frequencies of the normal modes of the system.</p>
+<p>For crystals, where there is long range order due to the periodicity, the dimensionality of the problem can be reduced. The Fourier transfom maps the large direct space onto a compact volume in the reciprocal space: the Brillouin zone. More precisely we adopt a supercell approach, where we calculate the dynamical matrix on <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">N_{\rm replicas}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ replicas of a unit cell of <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">N_{\rm unit}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ atoms, at positions <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mathbf R_l</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, and calculate</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">D_{i \alpha k i' \alpha'}=\sum_l \chi_{kl}  D_{i \alpha l i' \alpha'},\quad \chi_{kl} = \mathrm{e}^{-i \mathbf{q_k}\cdot \mathbf{R}_{l} },</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mathbf q_k</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ is a grid of size <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">N_k</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ indexed by <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">k</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and the eigenvalue equation becomes</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\sum_{i'\alpha'} D_{i \alpha k i' \alpha'} \eta_{i' \alpha'k s}=\omega_{k m}^{2} \eta_{i \alpha k s }.</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>which now depends on the quasi-momentum index, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">k</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, and the phonons mode <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">s</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p>
 <section id="Boltzman-Transport-Equation">
-<h2 id="Boltzman-Transport-Equation">Boltzman Transport Equation<a class="headerlink" href="#Boltzman-Transport-Equation" title="Permalink to this headline">¶</a></h2>
-<p>At finite temperature <img alt="T" class="math" src="../_images/math/1a99e57b148bd48c6519ff1158f1ce03a258c7ff.png"/>, the Bose Einstein statistic is the quantum distribution for atomic vibrations</p>
-<div class="math">
-<p><img alt="n_{\mu}=n(\omega_{\mu})=\frac{1}{e^{\frac{\hbar\omega_{\mu}}{k_B T}}-1}" src="../_images/math/4211a9b4f51fc9873cf74c29779e862030461c05.png"/></p>
-</div><p>where <img alt="k_B" class="math" src="../_images/math/44a6e23c9b975fb48206833723cba1ffe7dc6937.png"/> is the Boltzmann constant and we use <img alt="\mu =(k,s)" class="math" src="../_images/math/fd95d09370796bc141e065467fd123c60a6dc276.png"/>.</p>
-<p>We consider a small temperature gradient applied along the <img alt="\alpha" class="math" src="../_images/math/04d011ebcba612844adea8dbc1d9c21e8bc7bc26.png"/>-axis of a crystalline material. If the phonons population depends on the position only through the temperature, <img alt="\frac{\partial n_{\mu\alpha}}{\partial x_\alpha} = \frac{\partial n_{\mu\alpha}}{\partial T}\nabla_\alpha T" class="math" src="../_images/math/f74bbc8fffefdd30b8337f826ac200227c63a7e8.png"/>, we can Taylor expand it</p>
-<div class="math">
-<p><img alt="\tilde n_{\mu\alpha} \simeq n_\mu + \lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial x_\alpha} \simeq  n_\mu + \psi_{\mu\alpha}\nabla_\alpha T" src="../_images/math/b65295794f2545a70f73d4d22bffdd5665e16e00.png"/></p>
-</div><p>with <img alt="\psi_{\mu\alpha}=\lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial T}" class="math" src="../_images/math/8ba062745bfc7525f06df7ac3c15fed246bbe58a.png"/>, where <img alt="\lambda_{\mu\alpha}" class="math" src="../_images/math/e9f73010bf0e181e64a2fd9e6de01238d5376512.png"/> is the phonons mean free path. Being quantum quasi-particles, phonons have a well-defined group velocity, which, for the acoustic modes in the long wavelength limit, corresponds to the speed of sound in the material,</p>
-<div class="math">
-<p><img alt="v_{ ks\alpha}=\frac{\partial \omega_{k s}}{\partial {q_{k\alpha}}} = \frac{1}{2\omega_{ks}}\sum_{i\beta l i'\beta'}
+<h2 id="Boltzman-Transport-Equation">Boltzman Transport Equation<a class="headerlink" href="#Boltzman-Transport-Equation" title="Permalink to this heading">¶</a></h2>
+<p>At finite temperature <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">T</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, the Bose Einstein statistic is the quantum distribution for atomic vibrations</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">n_{\mu}=n(\omega_{\mu})=\frac{1}{e^{\frac{\hbar\omega_{\mu}}{k_B T}}-1}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">k_B</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ is the Boltzmann constant and we use <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mu =(k,s)</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p>
+<p>We consider a small temperature gradient applied along the <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\alpha</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+-axis of a crystalline material. If the phonons population depends on the position only through the temperature, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\frac{\partial n_{\mu\alpha}}{\partial x_\alpha} =  \frac{\partial n_{\mu\alpha}}{\partial T}\nabla_\alpha T</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, we can Taylor expand it</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tilde n_{\mu\alpha} \simeq n_\mu + \lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial x_\alpha} \simeq  n_\mu + \psi_{\mu\alpha}\nabla_\alpha T</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>with <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\psi_{\mu\alpha}=\lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial T}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, where <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\lambda_{\mu\alpha}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ is the phonons mean free path. Being quantum quasi-particles, phonons have a well-defined group velocity, which, for the acoustic modes in the long wavelength limit, corresponds to the speed of sound in the material,</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">v_{ ks\alpha}=\frac{\partial \omega_{k s}}{\partial {q_{k\alpha}}} = \frac{1}{2\omega_{ks}}\sum_{i\beta l i'\beta'}
 i R_{l \alpha} D_{i\beta li'\beta'}\chi_{kl}
-\eta_{ks i\beta}\eta_{ksi'\beta}" src="../_images/math/236929005cc97f021bac1b5e1f47cd1bb971c735.png"/></p>
-</div><p>and the last equality is obtained by applying the derivative with respect to <img alt="\mathbf{q}_k" class="math" src="../_images/math/7630b2fe2f924c2f5103e0af5d8780f852442335.png"/> directly to tbe eigenvectors Equation</p>
-<p>The heat current per mode is written in terms of the phonon energy <img alt="\hbar \omega" class="math" src="../_images/math/e508329683c88a0b4b703fb8097a05357f2dbacb.png"/>, velocity <img alt="v" class="math" src="../_images/math/b43d608e0158751c5b9d8cfaf328be4f257351be.png"/>, and out-of-equilibrium phonons population, <img alt="\tilde n" class="math" src="../_images/math/f3b610cd9fb6bb1be0af420f5b305fd0f6b3aeaf.png"/>:</p>
-<div class="math">
-<p><img alt="j_{\mu\alpha'} =\sum_\alpha \hbar \omega_\mu v_{\mu\alpha'} (\tilde n_{\mu\alpha} - n_{\mu})\simeq- \sum_\alpha c_\mu v_{\mu\alpha'} \mathbf{\lambda}_{\mu\alpha}  \nabla_\alpha T ." src="../_images/math/5c10839b0c0c27d07da4a29b3544b9b24923c5b1.png"/></p>
-</div><p>As we deal with extended systems, we can assume heat transport in the diffusive regime, and we can use Fourier’s law</p>
-<div class="math">
-<p><img alt="J_{\alpha}=-\sum_{\alpha'}\kappa_{\alpha\alpha'} \nabla_{\alpha'} T," src="../_images/math/2c407a4a34f9cfd9518fb4e68d30a273348e8f32.png"/></p>
-</div><p>where the heat current is the sum of the contribution from each phonon mode: <img alt="J_\alpha = 1/(N_k V)\sum_\mu j_{\mu\alpha}" class="math" src="../_images/math/c61c9f0da42d83b11fd672def616b0ce93e1303f.png"/>. The thermal conductivity then results:</p>
-<div class="math">
-<p><img alt="\kappa_{\alpha \alpha'}=\frac{1}{ V N_k} \sum_{\mu} c_\mu v_{\mu\alpha} \lambda_{\mu\alpha'}," src="../_images/math/c818593f21fee14492a75d8f0b7228a4c5ddda89.png"/></p>
-</div><p>where we defined the heat capacity per mode</p>
-<div class="math">
-<p><img alt="c_\mu=\hbar \omega_\mu \frac{\partial n_\mu}{\partial T}," src="../_images/math/d7cef486035c1ab22687e1733be213b972881618.png"/></p>
-</div><p>which is connected to total heat capacity through <img alt="C = \sum_\mu c_\mu /NV" class="math" src="../_images/math/da04106cc5514703843099260a74905de16259e5.png"/>.</p>
+\eta_{ks i\beta}\eta_{ksi'\beta}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>and the last equality is obtained by applying the derivative with respect to <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mathbf{q}_k</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ directly to tbe eigenvectors Equation</p>
+<p>The heat current per mode is written in terms of the phonon energy <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\hbar \omega</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, velocity <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">v</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, and out-of-equilibrium phonons population, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tilde n</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+:</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">j_{\mu\alpha'} =\sum_\alpha \hbar \omega_\mu v_{\mu\alpha'} (\tilde n_{\mu\alpha} - n_{\mu})\simeq- \sum_\alpha c_\mu v_{\mu\alpha'} \mathbf{\lambda}_{\mu\alpha}  \nabla_\alpha T .</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>As we deal with extended systems, we can assume heat transport in the diffusive regime, and we can use Fourier’s law</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">J_{\alpha}=-\sum_{\alpha'}\kappa_{\alpha\alpha'} \nabla_{\alpha'} T,</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where the heat current is the sum of the contribution from each phonon mode: <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">J_\alpha = 1/(N_k V)\sum_\mu j_{\mu\alpha}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+. The thermal conductivity then results:</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{\alpha \alpha'}=\frac{1}{ V N_k} \sum_{\mu} c_\mu v_{\mu\alpha} \lambda_{\mu\alpha'},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where we defined the heat capacity per mode</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">c_\mu=\hbar \omega_\mu \frac{\partial n_\mu}{\partial T},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>which is connected to total heat capacity through <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">C = \sum_\mu c_\mu /NV</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p>
 <p>We can now introduce the BTE, which combines the kinetic theory of gases with collective phonons vibrations:</p>
-<div class="math">
-<p><img alt="{\mathbf{v}}_{\mu} \cdot {\boldsymbol{\nabla}} T \frac{\partial n_{\mu}}{\partial T}=\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}}," src="../_images/math/43938f4a0a595d0c1cba93724564635e61191b77.png"/></p>
-</div><p>where the scattering term, in the linearized form is</p>
-<div class="math">
-<p><img alt="\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}}=" src="../_images/math/602ad9771d539de5ccbd10d6ba1ae47286538872.png"/></p>
-</div><div class="math">
-<p><img alt="\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{+} \Gamma_{\mu \mu^{\prime}  \mu^{\prime \prime}}^{+}
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">{\mathbf{v}}_{\mu} \cdot {\boldsymbol{\nabla}} T \frac{\partial n_{\mu}}{\partial T}=\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where the scattering term, in the linearized form is</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}}=</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{+} \Gamma_{\mu \mu^{\prime}  \mu^{\prime \prime}}^{+}
 \left(\omega_\mu\mathbf{\psi}_{\mu\alpha}
 +\omega_{\mu^{\prime}}\mathbf{\psi}_{\mu^{\prime}\alpha}
 -\omega_{\mu^{\prime \prime}} \mathbf{\psi}_{\mu^{\prime \prime}\alpha}\right)
-+" src="../_images/math/2aa27ecda86550b348df76c0b097ca9684d4abec.png"/></p>
-</div><div class="math">
-<p><img alt="+\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{-}  \frac{1}{2} \Gamma_{\mu  \mu^{\prime} \mu^{\prime \prime}}^{-}
++</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">+\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{-}  \frac{1}{2} \Gamma_{\mu  \mu^{\prime} \mu^{\prime \prime}}^{-}
 \left(\omega_\mu\mathbf{\psi}_{\mu\alpha}
 -\omega_{\mu^{\prime}} \mathbf{\psi}_{\mu^{\prime}\alpha}
--\omega_{\mu^{\prime \prime}} \mathbf{\psi}_{\mu^{\prime \prime}\alpha}\right) ." src="../_images/math/759afec27074b857c77935a39d0564c07008f504.png"/></p>
-</div><p><img alt="\Gamma^{+}_{\mu\mu'\mu''}" class="math" src="../_images/math/0ead92e5baefe0690454835d4d130d413068932b.png"/> and <img alt="\Gamma^{-}_{\mu\mu'\mu''}" class="math" src="../_images/math/850f6c1abb2c025e35b2e24145c4c54f110c1e2e.png"/> are the scattering rates for three-phonon scattering processes, and they correspond to the events of phonons annihilation <img alt="\mu, \mu'\rightarrow\mu''" class="math" src="../_images/math/9390693a225f6ab4f07068edc612ffe79da42788.png"/> and phonons creation $:nbsphinx-math:<img alt="\mu `:nbsphinx-math:" class="math" src="../_images/math/b192c851a3815daa1083169d441e3272469a3b5b.png"/>rightarrow`:nbsphinx-math:<img alt="\mu" class="math" src="../_images/math/a4caa874866b94dff22cb16659fd568d9e44caac.png"/>‘,:nbsphinx-math:<img alt="\mu" class="math" src="../_images/math/a4caa874866b94dff22cb16659fd568d9e44caac.png"/>’’</p>
-<div class="math">
-<p><img alt="\Gamma_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm} =\frac{\hbar \pi}{8} \frac{g_{\mu\mu'\mu''}^{\pm}}{\omega_{\mu} \omega_{\mu'} \omega_{\mu''}}\left|\phi_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm}\right|^{2}," src="../_images/math/fe6c787acf05aa597cff6053070b879317a40ef3.png"/></p>
-</div><p>and the projection of the potentials on the phonon modes are given by</p>
-<div class="math">
-<p><img alt="\phi^\pm
+-\omega_{\mu^{\prime \prime}} \mathbf{\psi}_{\mu^{\prime \prime}\alpha}\right) .</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p><aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\Gamma^{+}_{\mu\mu'\mu''}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\Gamma^{-}_{\mu\mu'\mu''}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ are the scattering rates for three-phonon scattering processes, and they correspond to the events of phonons annihilation <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mu, \mu'\rightarrow\mu''</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and phonons creation $:nbsphinx-math:<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mu `:nbsphinx-math:</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+rightarrow`:nbsphinx-math:<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mu</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+‘,:nbsphinx-math:<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mu</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+’’</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\Gamma_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm} =\frac{\hbar \pi}{8} \frac{g_{\mu\mu'\mu''}^{\pm}}{\omega_{\mu} \omega_{\mu'} \omega_{\mu''}}\left|\phi_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm}\right|^{2},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>and the projection of the potentials on the phonon modes are given by</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\phi^\pm
 _{ksk's'k'' s''}=
 \sum_{il'i'l''i''}
 \frac{
 \phi_{il'i'l''i''}}
 {\sqrt{m_{i}m_{i'}m_{i''}}}
 \eta_{i ks}\eta^{\pm}_{i'k' s'}
-\eta^*_{i''k''s''}\chi^\pm_{k'l'}\chi^*_{k''l''}" src="../_images/math/e800279098b845c089ef3bfa9eb70e76fb06aea4.png"/></p>
-</div><p>with <img alt="\eta^+=\eta" class="math" src="../_images/math/0e6c288c3c1e39b11141387dcc2d8bfe3641a84f.png"/>, <img alt="\chi^+=\chi" class="math" src="../_images/math/39417df6b0b48a4a7dfa8c02a9f3df8a75a5da6b.png"/> and <img alt="\eta^-=\eta^*" class="math" src="../_images/math/bd74c98b8d534558ed327b33cc64bdc6d9e8835c.png"/>, <img alt="\chi^-=\chi^*" class="math" src="../_images/math/8011d5e76f60e88b4eac4ad55f87558a98760fa3.png"/>. The phase space volume <img alt="g^\pm_{\mu\mu^\prime\mu^{\prime\prime}}" class="math" src="../_images/math/6708d4f3235f1c9f4e0a3d15968d755e8d27271d.png"/> in the previous equation are defined as</p>
-<div class="math">
-<p><img alt="g^+_{\mu\mu^\prime\mu^{\prime\prime}}  = (n_{\mu'}-n_{\mu''})
-\delta^+_{\mu\mu^\prime\mu^{\prime\prime}}" src="../_images/math/24649cb8bee623d0a021fa21991fcab0d354c55d.png"/></p>
-</div><div class="math">
-<p><img alt="g^-_{\mu\mu^\prime\mu^{\prime\prime}}  = (1 + n_{\mu'}+n_{\mu''})
-\delta^-_{\mu\mu^\prime\mu^{\prime\prime}}," src="../_images/math/fe82a5f419c311d420c88119ffa63f4f85ae04ea.png"/></p>
-</div><p>and include the <img alt="\delta" class="math" src="../_images/math/aa6d507fd5689e58b02e4120d3cda22a9ee6993e.png"/> for the conservation of the energy and momentum in three-phonons scattering processes,</p>
-<div class="math">
-<p><img alt="\delta_{ks k's' k''s''}^{\pm}=
+\eta^*_{i''k''s''}\chi^\pm_{k'l'}\chi^*_{k''l''}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>with <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\eta^+=\eta</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\chi^+=\chi</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\eta^-=\eta^*</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\chi^-=\chi^*</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+. The phase space volume <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">g^\pm_{\mu\mu^\prime\mu^{\prime\prime}}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ in the previous equation are defined as</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">g^+_{\mu\mu^\prime\mu^{\prime\prime}}  = (n_{\mu'}-n_{\mu''})
+\delta^+_{\mu\mu^\prime\mu^{\prime\prime}}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">g^-_{\mu\mu^\prime\mu^{\prime\prime}}  = (1 + n_{\mu'}+n_{\mu''})
+\delta^-_{\mu\mu^\prime\mu^{\prime\prime}},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>and include the <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\delta</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ for the conservation of the energy and momentum in three-phonons scattering processes,</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\delta_{ks k's' k''s''}^{\pm}=
 \delta_{\mathbf q_{k}\pm\mathbf q_{k'}-\mathbf q_{k''}, \mathbf Q}
-\delta\left(\omega_{ks}\pm\omega_{k's'}-\omega_{k''s''}\right)," src="../_images/math/462ff41b4596bee678a803124783d7d1d0154626.png"/></p>
-</div><p>with <img alt="Q" class="math" src="../_images/math/388feb12298f4406245e011ecd38a187e8587245.png"/> the lattice vectors. Finally, the normalized phase-space per mode <img alt="g_\mu=\frac{1}{N}\sum_{\mu'\mu''}g_{\mu\mu'\mu''}" class="math" src="../_images/math/262769ad6ec3528beb094b5082e1d683ae48a53c.png"/>, provides useful information about the weight of a specific mode in the anharmonic scattering processes.</p>
+\delta\left(\omega_{ks}\pm\omega_{k's'}-\omega_{k''s''}\right),</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>with <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">Q</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ the lattice vectors. Finally, the normalized phase-space per mode <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">g_\mu=\frac{1}{N}\sum_{\mu'\mu''}g_{\mu\mu'\mu''}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, provides useful information about the weight of a specific mode in the anharmonic scattering processes.</p>
 <p>In order to calculate the conductivity, we express the mean free path in terms of the 3-phonon scattering rates</p>
-<div class="math">
-<p><img alt="v_{\mu\alpha} = \tilde \Gamma_{\mu\mu' }\lambda_\mu = (\delta_{\mu\mu'}\Gamma^0_\mu + \Gamma^{1}_{\mu\mu'})\lambda_{\mu\alpha}," src="../_images/math/0d90eff801ae0a4a22bb6b763816daa29c0764a5.png"/></p>
-</div><p>where we introduced</p>
-<div class="math">
-<p><img alt="\Gamma^{0}_\mu=\sum_{\mu'\mu''}(\Gamma^+_{\mu\mu'\mu''}  + \Gamma^-_{\mu\mu'\mu''} )," src="../_images/math/83209f49b37dc7a2182b9cbed4a93ba65da7b516.png"/></p>
-</div><p>and</p>
-<div class="math">
-<p><img alt="\Gamma^{1}_{\mu\mu'}=
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">v_{\mu\alpha} = \tilde \Gamma_{\mu\mu' }\lambda_\mu = (\delta_{\mu\mu'}\Gamma^0_\mu + \Gamma^{1}_{\mu\mu'})\lambda_{\mu\alpha},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where we introduced</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\Gamma^{0}_\mu=\sum_{\mu'\mu''}(\Gamma^+_{\mu\mu'\mu''}  + \Gamma^-_{\mu\mu'\mu''} ),</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>and</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\Gamma^{1}_{\mu\mu'}=
 \frac{\omega_{\mu'}}{\omega_\mu}
 \sum_{\mu''}(\Gamma^+_{\mu\mu'\mu''}
 -\Gamma^+_{\mu\mu''\mu'}
 -\Gamma^-_{\mu\mu'\mu''}
 -\Gamma^-_{\mu\mu''\mu'}
-)." src="../_images/math/2e53808ef16bded55f20fec41f04d05c3890572e.png"/></p>
-</div><p>In RTA, the off-diagonal terms are ignored, <img alt="\Gamma^{1}_{\mu\mu'}=0" class="math" src="../_images/math/c1046a22c5ee02507eec28aa97f6be0713faf238.png"/>, and the conductivity is</p>
-<div class="math">
-<p><img alt="\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu}c_\mu v_{\mu\alpha}{\lambda_{\mu\alpha'}}
-=\frac{1}{N_kV} \sum_\mu c_\mu v_{\mu\alpha} {\tau_\mu}{v_{\mu\alpha'}}," src="../_images/math/308ea6b4d2596091d66db078c42ea13780e7b631.png"/></p>
-</div><p>where <img alt="\tau_\mu=1/2\Gamma_{\mu}^0" class="math" src="../_images/math/3144c9eef73802f731910e5a4811facefa7f01c7.png"/> corresponds the phonons lifetime calculated using the Fermi Golden Rule.</p>
+).</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>In RTA, the off-diagonal terms are ignored, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\Gamma^{1}_{\mu\mu'}=0</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, and the conductivity is</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu}c_\mu v_{\mu\alpha}{\lambda_{\mu\alpha'}}
+=\frac{1}{N_kV} \sum_\mu c_\mu v_{\mu\alpha} {\tau_\mu}{v_{\mu\alpha'}},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tau_\mu=1/2\Gamma_{\mu}^0</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ corresponds the phonons lifetime calculated using the Fermi Golden Rule.</p>
 <p>It has been shown that, to correctly capture the physics of phonon transport, especially in highly conductive materials, the off diagonal terms of the scattering rates cannot be disregarded. More generally, the mean free path is calculated inverting the scattering tensor</p>
-<div class="math">
-<p><img alt="\lambda_{\mu\alpha} = \sum_{\mu'}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha}." src="../_images/math/005dffd73253ed199b9266190f6b7b6f08cc8cea.png"/></p>
-</div><div class="math">
-<p><img alt="\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu\mu'} c_\mu v_{\mu\alpha}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha'}." src="../_images/math/7f7b9c1bec69a3edc5ca91648a27d6a5518348cc.png"/></p>
-</div><p>This inversion operation is computationally expensive; however, when the off-diagonal elements of the scattering rate matrix are much smaller than the diagonal, we can rewrite the mean free path obtained from the BTE as a series:</p>
-<div class="math">
-<p><img alt="\lambda_{\mu\alpha} = \sum_{\mu'}\left(\delta_{\mu\mu'} + \frac{1}{\Gamma^0_\mu}\Gamma^{1}_{\mu\mu'}\right)^{-1}\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} =" src="../_images/math/2d8213f183618ace63c459f78c3c4a4922afd3f1.png"/></p>
-</div><div class="math">
-<p><img alt="=
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\lambda_{\mu\alpha} = \sum_{\mu'}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha}.</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu\mu'} c_\mu v_{\mu\alpha}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha'}.</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>This inversion operation is computationally expensive; however, when the off-diagonal elements of the scattering rate matrix are much smaller than the diagonal, we can rewrite the mean free path obtained from the BTE as a series:</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\lambda_{\mu\alpha} = \sum_{\mu'}\left(\delta_{\mu\mu'} + \frac{1}{\Gamma^0_\mu}\Gamma^{1}_{\mu\mu'}\right)^{-1}\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} =</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">=
 \sum_{\mu'}
 \left[
 \sum^{\infty}_{n=0}\left(- \frac{1}{\Gamma^0_\mu}\Gamma^{1}_{\mu\mu'}\right)^n
-\right]\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} ," src="../_images/math/326a8525270bbc823de989bb5b800a3278297ef6.png"/></p>
-</div><p>where in the last step we used the identity <img alt="\sum_0 q^n = (1 - q)^{-1}" class="math" src="../_images/math/33e43e6365f1e6c4f5d070a1332f1b892b8b676d.png"/>, true when <img alt="|q|=|\Gamma^1/\Gamma^0|&lt;1" class="math" src="../_images/math/4544565957b449f4aa00fe1336e26205d1a5471c.png"/>. This equation can then be written in an iterative form</p>
-<div class="math">
-<p><img alt="\lambda^0_{\mu\alpha} = \frac{1}{\Gamma^0_\mu}v_\mu
+\right]\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} ,</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where in the last step we used the identity <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\sum_0 q^n = (1 - q)^{-1}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, true when <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">|q|=|\Gamma^1/\Gamma^0|&lt;1</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+. This equation can then be written in an iterative form</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\lambda^0_{\mu\alpha} = \frac{1}{\Gamma^0_\mu}v_\mu
 \qquad
-\lambda^{n+1}_{\mu\alpha} = - \frac{1}{\Gamma^0_\mu}\sum_{\mu'}\Gamma^{1}_{\mu\mu'} \lambda^{n}_{\mu'\alpha}." src="../_images/math/fd98d00ba6c2e3ed17d7d120df78b2516d85cb9b.png"/></p>
-</div><p>Hence, the inversion in of the scattering tensor is obtained by a recursive expression. Once the mean free path is calculated, the conductivity is straightforwardly computed.</p>
+\lambda^{n+1}_{\mu\alpha} = - \frac{1}{\Gamma^0_\mu}\sum_{\mu'}\Gamma^{1}_{\mu\mu'} \lambda^{n}_{\mu'\alpha}.</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>Hence, the inversion in of the scattering tensor is obtained by a recursive expression. Once the mean free path is calculated, the conductivity is straightforwardly computed.</p>
 </section>
 <section id="Quasi-Harmonic-Green-Kubo">
-<h2 id="Quasi-Harmonic-Green-Kubo">Quasi-Harmonic Green Kubo<a class="headerlink" href="#Quasi-Harmonic-Green-Kubo" title="Permalink to this headline">¶</a></h2>
+<h2 id="Quasi-Harmonic-Green-Kubo">Quasi-Harmonic Green Kubo<a class="headerlink" href="#Quasi-Harmonic-Green-Kubo" title="Permalink to this heading">¶</a></h2>
 <p>In non-crystalline solids with no long range order, such as glasses, alloys, nano-crystalline, and partially disordered systems, the phonon picture is formally not well-defined. While vibrational modes are still the heat carriers, their mean-free-paths may be so short that the quasi-particle picture of heat carriers breaks down and the BTE is no longer applicable. In glasses heat transport is dominated by a diffusive processes in which delocalized modes with similar frequency transfer energy
 from one to another. Whereas this mechanism is intrinsically distinct from the underlying hypothesis of the BTE approach, the two transport pictures have been recently reconciled in a unified theory, in which the thermal conductivity is written as:</p>
-<div class="math">
-<p><img alt="\kappa_{\alpha \alpha'}=\frac{1}{V} \sum_{\mu \mu'} c_{\mu \mu'} v_{\mu \mu' \alpha} v_{\mu \mu' \alpha'} \tau_{\mu \mu'}." src="../_images/math/0f4acc1b3d5531e4bfe81382f3b064f46cdfc42d.png"/></p>
-</div><p>This expression is analogous to the RTA one, where modal heat capacity, phonon group velocity and lifetimes are replaced by the generalized heat capacity,</p>
-<div class="math">
-<p><img alt="c_{\mu \mu'}=\frac{\hbar \omega_{\mu} \omega_{\mu'}}{T} \frac{n_{\mu}-n_{\mu'}}{\omega_{\mu}-\omega_{\mu'}}," src="../_images/math/43251a91640e3216f901f6cb39fdaf15377b5f60.png"/></p>
-</div><p>the generalized velocities,</p>
-<div class="math">
-<p><img alt="v_{\mu\mu'\alpha}=\frac{1}{2\sqrt{\omega_\mu\omega_{\mu'}}}
-\sum_{ii'\beta'\beta''}(x_{i\alpha}-x_{i'\alpha })D_{i\beta i'\beta'}\eta_{\mu i\beta}\eta_{\mu'i'\beta'}," src="../_images/math/ab036318aa270be105c25b8814c11af2e31d2889.png"/></p>
-</div><p>and the generalized lifetime <img alt="\tau_{\mu\mu'}" class="math" src="../_images/math/b0385b55b92597e01d3570a9b1d17a7f75a20a11.png"/>. The latter is expressed as a Lorentzian, which weighs diffusive processes between phonons with nearly-resonant frequencies:</p>
-<div class="math">
-<p><img alt="\tau_{\mu\mu'} =
- \frac{\gamma_{\mu}+\gamma_{\mu'}}{\left(\omega_{\mu}-\omega_{\mu'}\right)^{2}+\left(\gamma_{\mu}+\gamma_{\mu'}\right)^{2}}" src="../_images/math/422336aa5b2f35ad8b97e3b82914c9485d86eff1.png"/></p>
-</div><p>where <img alt="\gamma_\mu" class="math" src="../_images/math/abee54ea153278e0b566138aad51554e4195fbed.png"/> is the line width of mode <img alt="\mu" class="math" src="../_images/math/a4caa874866b94dff22cb16659fd568d9e44caac.png"/> that can be computed using Fermi Golden rule. These equations have been derived from the Green-Kubo theory of linear response applied to thermal conductivity, by taking a quasi-harmonic approximation of the heat current, from which this approach is named quasi-harmonic Green-Kubo (QHGK). It has been proven that for crystalline materials QHGK is formally equivalent to the BTE in the relaxation time approximation, and that its
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{\alpha \alpha'}=\frac{1}{V} \sum_{\mu \mu'} c_{\mu \mu'} v_{\mu \mu' \alpha} v_{\mu \mu' \alpha'} \tau_{\mu \mu'}.</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>This expression is analogous to the RTA one, where modal heat capacity, phonon group velocity and lifetimes are replaced by the generalized heat capacity,</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">c_{\mu \mu'}=\frac{\hbar \omega_{\mu} \omega_{\mu'}}{T} \frac{n_{\mu}-n_{\mu'}}{\omega_{\mu}-\omega_{\mu'}},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>the generalized velocities,</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">v_{\mu\mu'\alpha}=\frac{1}{2\sqrt{\omega_\mu\omega_{\mu'}}}
+\sum_{ii'\beta'\beta''}(x_{i\alpha}-x_{i'\alpha })D_{i\beta i'\beta'}\eta_{\mu i\beta}\eta_{\mu'i'\beta'},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>and the generalized lifetime <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tau_{\mu\mu'}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+. The latter is expressed as a Lorentzian, which weighs diffusive processes between phonons with nearly-resonant frequencies:</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tau_{\mu\mu'} =
+ \frac{\gamma_{\mu}+\gamma_{\mu'}}{\left(\omega_{\mu}-\omega_{\mu'}\right)^{2}+\left(\gamma_{\mu}+\gamma_{\mu'}\right)^{2}}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\gamma_\mu</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ is the line width of mode <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\mu</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ that can be computed using Fermi Golden rule. These equations have been derived from the Green-Kubo theory of linear response applied to thermal conductivity, by taking a quasi-harmonic approximation of the heat current, from which this approach is named quasi-harmonic Green-Kubo (QHGK). It has been proven that for crystalline materials QHGK is formally equivalent to the BTE in the relaxation time approximation, and that its
 classical limit reproduces correctly molecular dynamics simulations for amorphous silicon up to relatively high temperature (600 K). Finally, we provide a microscopic definition of the mode diffusivity,</p>
-<div class="math">
-<p><img alt="D_{\mu} =\frac{1}{N_k V} \sum_{\mu'}v_{\mu\mu'} \tau_{\mu\mu'}v_{\mu\mu'}," src="../_images/math/9fce8c0ab4f4597b0cd165b3cbb34bc92e67bc78.png"/></p>
-</div><p>which conveniently provide a measure of the temperature-independent contribution of each mode to thermal transport.</p>
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">D_{\mu} =\frac{1}{N_k V} \sum_{\mu'}v_{\mu\mu'} \tau_{\mu\mu'}v_{\mu\mu'},</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>which conveniently provide a measure of the temperature-independent contribution of each mode to thermal transport.</p>
 </section>
 </section>
 <section id="Benchmarks-applications">
-<h1 id="Benchmarks-applications">Benchmarks applications<a class="headerlink" href="#Benchmarks-applications" title="Permalink to this headline">¶</a></h1>
+<h1 id="Benchmarks-applications">Benchmarks applications<a class="headerlink" href="#Benchmarks-applications" title="Permalink to this heading">¶</a></h1>
 <p>The workflow for ALD calculations is illustrated below</p>
-<p><img alt="9fbba30ede344cd4805fc8633ab86b59" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
+<p><img alt="5eb37fa350d84037ac26e8e255ff70fd" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
 <p>Here, we present two example simulations of both a periodic and an amorphous structure.</p>
 <section id="Ab-initio-silicon-diamond">
-<h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Permalink to this headline">¶</a></h2>
+<h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Permalink to this heading">¶</a></h2>
 <p>In this example we calculate the second order IFC using Density Functional Perturbation Theory as implemented in the Quantum-Espresso package. The phonon lifetimes and thermal conductivity calculations are performed using a (19, 19, 19) q-point grid.</p>
 <p>The kALDo minimal input file, looks like</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># IFCs object creation using ase.build.bulk</span>
@@ -671,11 +4109,167 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 </div>
 <p>We performed the simulation using the local density approximation for the exchange and correlation functional and a Bachelet-Hamann-Schluter norm-conserving pseudoptential. Kohn-Sham orbitals are represented on a plane-waves basis set with a cutoff of 20 Ry and (8, 8, 8) k-points mesh. The minimized lattice parameter is 5.398A. The third-order IFC is calculated using finite difference displacement on (5, 5, 5) replicas of the irreducible fcc-unit cell, including up to the 5th nearest neighbor.
 We obtained the following thermal properties</p>
-<p><img alt="d3e26cd902ab468791d78d2cc1c612eb" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
-<p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <img alt="g" class="math" src="../_images/math/86b44067536d63fd1271ac76c4a35eb79a6aa5dd.png"/>, c) lifetime per mode <img alt="\tau" class="math" src="../_images/math/303b8f73dd9a98bea8df8d22419bc3436abe91a9.png"/>, d) mean free path <img alt="\lambda" class="math" src="../_images/math/b67363a3f3c2ddf224f82975c53b7004abc08d20.png"/>, and e) cumulative conductivity <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/>.</p>
+<p><img alt="76720bbee3b144948ac81b8915ddc1f2" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
+<p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">g</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, c) lifetime per mode <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tau</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, d) mean free path <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\lambda</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, and e) cumulative conductivity <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\kappa_{cum}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p>
 </section>
 <section id="Amorphous-silicon">
-<h2 id="Amorphous-silicon">Amorphous silicon<a class="headerlink" href="#Amorphous-silicon" title="Permalink to this headline">¶</a></h2>
+<h2 id="Amorphous-silicon">Amorphous silicon<a class="headerlink" href="#Amorphous-silicon" title="Permalink to this heading">¶</a></h2>
 <p>Here we study a-Si generated by LAMMPS molecular dynamics simulations of quenching from the melt a 4096 atom crystal silicon structure, with 1989 Tersoff interatomic potential and the QHGK method. The minimal input file looks like the following</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># IFCs object creation</span>
 <span class="n">fc</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
@@ -693,11 +4287,11 @@ We obtained the following thermal properties</p>
 </pre></div>
 </div>
 <p>In a simliar treatment to the silicon crystal, a full battery of modal analysis can be calculated with both quantum and classical statistics on the amorphous systems re- turning the phonon DoS as well as the associated lifetimes, generalized diffusivities, normalized phase space and cumulative conductivity</p>
-<p><img alt="115b4385866a464598219689e34b80c1" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
+<p><img alt="61d4bdde5dfe4c72b57666e964164324" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
 <p>Classical and quantum properties for 4096 atom amorphous silicon system are shown above. a) density of states, b) lifetimes, c) diffusivities, and e) cumulative thermal conductivity. In spite of the increased quantum lifetimes, a decrease of 0.17W/m/K is seen in the quantum conductivity. The difference in conductivity is primarily a result of the overestimation of classical high frequency heat capacities.</p>
 </section>
 <section id="References">
-<h2 id="References">References<a class="headerlink" href="#References" title="Permalink to this headline">¶</a></h2>
+<h2 id="References">References<a class="headerlink" href="#References" title="Permalink to this heading">¶</a></h2>
 <p>[1]: B. J. Alder, D. M. Gass, and T. E. Wainwright, “Studies in Molecular Dynamics. VIII. The Transport Coefficients for a Hard-Sphere Fluid,” Journal Chemical Physics 53, 3813–3826 (1970).</p>
 <p>[2]: A. J. C. Ladd, B. Moran, and W. G. Hoover, “Lattice thermal conductivity: A comparison of molecular dynamics and anharmonic lattice dynamics,” Physical Review B 34, 5058–5064 (1986).</p>
 <p>[3]: A. Marcolongo, P. Umari, and S. Baroni, “Microscopic theory and quantum simulation of atomic heat transport,” Nature Physics 12, 80–84 (2015).</p>
@@ -798,7 +4392,7 @@ Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Tho
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

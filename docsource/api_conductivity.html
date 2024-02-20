@@ -1,10 +1,10 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -57,13 +57,13 @@
   
   
     <title>Conductivity API Reference &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" href="../_static/material.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -438,15 +438,15 @@
           <article class="md-content__inner md-typeset" role="main">
             
   <section id="conductivity-api-reference">
-<span id="conductivity-api"></span><h1 id="docsource-api-conductivity--page-root">Conductivity API Reference<a class="headerlink" href="#docsource-api-conductivity--page-root" title="Permalink to this headline">¶</a></h1>
+<span id="conductivity-api"></span><h1 id="docsource-api-conductivity--page-root">Conductivity API Reference<a class="headerlink" href="#docsource-api-conductivity--page-root" title="Permalink to this heading">¶</a></h1>
 <p>The conductivity class is used to calculate the thermal conductivity in one of the four
 frameworks outline in the theory portion. When building a conductivity class object,
 be sure to include a phonon object and select a framework for calculation.</p>
 <section id="attributes">
-<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h2>
+<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
-<dt id="kaldo.conductivity.Conductivity">
-<em class="property">class </em><code class="sig-prename descclassname">kaldo.conductivity.</code><code class="sig-name descname">Conductivity</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.conductivity.</span></span><span class="sig-name descname"><span class="pre">Conductivity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>The conductivity object is responsible for mean free path and
 conductivity calculations. It takes a phonons object as a required argument.</p>
 <dl class="field-list simple">
@@ -457,10 +457,205 @@ conductivity calculations. It takes a phonons object as a required argument.</p>
 <li><p><strong>diffusivity_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
 thermal conductivity in amorphous systems. Units: rad/ps</p></li>
 <li><p><strong>diffusivity_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</p></li>
-<li><p><strong>diffusivity_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced22748f70360a59603b6252.png"/>, <img alt="lorentz" class="math" src="../_images/math/0ecd3a42fba2ac4f9fc492ba29a99a8a670a5f8e.png"/> and <img alt="triangle" class="math" src="../_images/math/34b7c8af4374add3e6f9fb880161480a6ac7ea40.png"/>.
-Default is <img alt="lorentz" class="math" src="../_images/math/0ecd3a42fba2ac4f9fc492ba29a99a8a670a5f8e.png"/>.</p></li>
+<li><p><strong>diffusivity_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">gauss</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">lorentz</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">triangle</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">lorentz</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p></li>
 <li><p><strong>is_diffusivity_including_antiresonant</strong> (<em>bool</em><em>, </em><em>optional</em>) – (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
-Default is <img alt="False" class="math" src="../_images/math/7492b7ed43697b62f89bfbfdd66b552e2ec5e7d1.png"/>.</p></li>
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">False</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p></li>
 <li><p><strong>tolerance</strong> (<em>int</em>) – (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
 and n+1 step, to set as exit/convergence condition.</p></li>
 <li><p><strong>n_iterations</strong> (<em>int</em>) – (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
@@ -470,11 +665,89 @@ corresponds to the infinity length limit.</p></li>
 <li><p><strong>finite_length_method</strong> (<em>'ms'</em><em>, </em><em>'ballistic'</em>) – (Finite Size) Specifies how to calculate the finite size conductivity. ‘ms’ is the Mckelvey-Schockley method.
 ‘ballistic’ is the ballistic limit.</p></li>
 <li><p><strong>storage</strong> (<em>'formatted'</em><em>, </em><em>'hdf5'</em><em>, </em><em>'numpy'</em><em>, </em><em>'memory'</em><em>, </em><em>optional</em>) – Defines the type of storage used for the simulation.
-Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655ca06a8192bc6a440969509266d2.png"/></p></li>
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">formatted</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>An instance of the <img alt="Conductivity" class="math" src="../_images/math/d86e818b25701d35fc54e6c81501cc9af319d14a.png"/> class.</p>
+<dd class="field-even"><p>An instance of the <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">Conductivity</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ class.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity">Conductivity</a></p>
@@ -498,13 +771,13 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 </dd>
 </dl>
 <p class="rubric">Methods</p>
-<table class="longtable docutils align-default">
+<table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([…])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([...])</p></td>
 <td><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
-<td><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.</p></td>
+<td><p>Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
 <td><p>This method calculates the inverse of the mean free path for each phonon.</p></td>
@@ -522,8 +795,8 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 </tbody>
 </table>
 <dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.calculate_conductivity_full">
-<code class="sig-name descname">calculate_conductivity_full</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">is_using_gamma_tensor_evects</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_full"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_conductivity_full">
+<span class="sig-name descname"><span class="pre">calculate_conductivity_full</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_using_gamma_tensor_evects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_full"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="Permalink to this definition">¶</a></dt>
 <dd><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -535,8 +808,8 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 </dl>
 </dd></dl>
 <dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">
-<code class="sig-name descname">calculate_conductivity_qhgk</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_qhgk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">
+<span class="sig-name descname"><span class="pre">calculate_conductivity_qhgk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_qhgk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.
 The tensor is returned individual modes along the first axis and has units of W/m/K.</p>
 <dl class="field-list simple">
@@ -549,8 +822,8 @@ The tensor is returned individual modes along the first axis and has units of W/
 </dl>
 </dd></dl>
 <dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.calculate_mfp_inverse">
-<code class="sig-name descname">calculate_mfp_inverse</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_inverse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_mfp_inverse">
+<span class="sig-name descname"><span class="pre">calculate_mfp_inverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_inverse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="Permalink to this definition">¶</a></dt>
 <dd><p>This method calculates the inverse of the mean free path for each phonon.
 The matrix returns k vectors for each mode and has units of inverse Angstroms.</p>
 <dl class="field-list simple">
@@ -562,9 +835,9 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.conductivity">
-<em class="property">property </em><code class="sig-name descname">conductivity</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.conductivity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">conductivity</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -575,9 +848,9 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.diffusivity">
-<em class="property">property </em><code class="sig-name descname">diffusivity</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.diffusivity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">diffusivity</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the diffusivity, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -588,9 +861,9 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.conductivity.Conductivity.mean_free_path">
-<em class="property">property </em><code class="sig-name descname">mean_free_path</code><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.mean_free_path">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mean_free_path</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the mean_free_path per mode in A</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -652,7 +925,7 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

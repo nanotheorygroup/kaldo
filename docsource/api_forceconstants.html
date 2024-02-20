@@ -1,10 +1,10 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -57,13 +57,13 @@
   
   
     <title>ForceConstants API Reference &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" href="../_static/material.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -438,15 +438,15 @@
           <article class="md-content__inner md-typeset" role="main">
             
   <section id="forceconstants-api-reference">
-<span id="forceconstants-api"></span><h1 id="docsource-api-forceconstants--page-root">ForceConstants API Reference<a class="headerlink" href="#docsource-api-forceconstants--page-root" title="Permalink to this headline">¶</a></h1>
+<span id="forceconstants-api"></span><h1 id="docsource-api-forceconstants--page-root">ForceConstants API Reference<a class="headerlink" href="#docsource-api-forceconstants--page-root" title="Permalink to this heading">¶</a></h1>
 <p>The ForceConstants class is the basis for all of the kALDo
 calculations. It holds or calculates the interatomic force
 constants for the system.</p>
 <section id="attributes">
-<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h2>
+<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
-<dt id="kaldo.forceconstants.ForceConstants">
-<em class="property">class </em><code class="sig-prename descclassname">kaldo.forceconstants.</code><code class="sig-name descname">ForceConstants</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">atoms</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">third_supercell</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">folder</span><span class="o">=</span><span class="default_value">'displacement'</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.forceconstants.</span></span><span class="sig-name descname"><span class="pre">ForceConstants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'displacement'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class for constructing the finite difference object to calculate
 the second/third order force constant matrices after providing the
 unit cell geometry and calculator information.</p>
@@ -459,29 +459,107 @@ the small unit cell in each direction.
 Defaults to (1, 1, 1)</p></li>
 <li><p><strong>third_supercell</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Same as supercell, but for the third order force constant matrix.
 If not provided, it’s copied from supercell.
-Defaults to <img alt="self.supercell" class="math" src="../_images/math/11c0006d15164d9da615ed3ccfd97139860f7f16.png"/></p></li>
+Defaults to <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">self.supercell</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
 <li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder.
 Defaults to ‘displacement’</p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the interatomic
 force is ignored.
-Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
+Defaults to <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
 </ul>
 </dd>
 </dl>
 <p class="rubric">Methods</p>
-<table class="longtable docutils align-default">
+<table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, ...])</p></td>
 <td><p>Create a finite difference object from a folder</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="kaldo.forceconstants.ForceConstants.unfold_third_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code></a>([reduced_third, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="kaldo.forceconstants.ForceConstants.unfold_third_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code></a>([reduced_third, ...])</p></td>
 <td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.</p></td>
 </tr>
 </tbody>
 </table>
 <dl class="py method">
-<dt id="kaldo.forceconstants.ForceConstants.from_folder">
-<em class="property">classmethod </em><code class="sig-name descname">from_folder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">folder</span></em>, <em class="sig-param"><span class="n">supercell</span><span class="o">=</span><span class="default_value">1, 1, 1</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'numpy'</span></em>, <em class="sig-param"><span class="n">third_energy_threshold</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">third_supercell</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">is_acoustic_sum</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">only_second</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.from_folder">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'numpy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_energy_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_acoustic_sum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">only_second</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a finite difference object from a folder</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -494,7 +572,46 @@ Default is ‘numpy’</p></li>
 <li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <p>When importing sparse third order force constant matrices, energies below
 the threshold value in magnitude are ignored. Units: ev/A^3</p>
 <blockquote>
-<div><p>Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p>
+<div><p>Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p>
 </div></blockquote>
 </p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than the
@@ -513,24 +630,60 @@ Default is False</p></li>
 <li><p><strong>hiphive</strong> (<em>atom_prim.xyz</em><em>, </em><em>replicated_atoms.xyz</em><em>, </em><em>model2.fcs</em><em>, </em><em>model3.fcs</em>) – </p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p></p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>ForceConstants object</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>ForceConstants object</p>
 </dd>
 </dl>
 </dd></dl>
 <dl class="py method">
-<dt id="kaldo.forceconstants.ForceConstants.unfold_third_order">
-<code class="sig-name descname">unfold_third_order</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">reduced_third</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">distance_threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.unfold_third_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.unfold_third_order">
+<span class="sig-name descname"><span class="pre">unfold_third_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduced_third</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.unfold_third_order"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="Permalink to this definition">¶</a></dt>
 <dd><p>This method extrapolates a third order force constant matrix from a unit
 cell into a matrix for a larger supercell.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
-Default is <img alt="self.third" class="math" src="../_images/math/15cfbf59c2e9dda1f84c7dff795b1b1d95ca9bc1.png"/></p></li>
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">self.third</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than
 the distance threshold will be ignored.
 Default is self.distance_threshold</p></li>
@@ -589,7 +742,7 @@ Default is self.distance_threshold</p></li>
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>

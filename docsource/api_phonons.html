@@ -1,10 +1,10 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
@@ -57,13 +57,13 @@
   
   
     <title>Phonons API Reference &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" href="../_static/material.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -438,15 +438,15 @@
           <article class="md-content__inner md-typeset" role="main">
             
   <section id="phonons-api-reference">
-<span id="phonons-api"></span><h1 id="docsource-api-phonons--page-root">Phonons API Reference<a class="headerlink" href="#docsource-api-phonons--page-root" title="Permalink to this headline">¶</a></h1>
+<span id="phonons-api"></span><h1 id="docsource-api-phonons--page-root">Phonons API Reference<a class="headerlink" href="#docsource-api-phonons--page-root" title="Permalink to this heading">¶</a></h1>
 <p>Building the phonons object is the intermediate step
 between finishing your Finite Difference object, and
 initializing the Conductivity object.</p>
 <section id="attributes">
-<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h2>
+<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
-<dt id="kaldo.phonons.Phonons">
-<em class="property">class </em><code class="sig-prename descclassname">kaldo.phonons.</code><code class="sig-name descname">Phonons</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#kaldo.phonons.Phonons" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.phonons.</span></span><span class="sig-name descname"><span class="pre">Phonons</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.phonons.Phonons" title="Permalink to this definition">¶</a></dt>
 <dd><p>The Phonons object exposes all the phononic properties of a system.
 It’s can be fed into a Conductivity object and must be built with a
 ForceConstant object.</p>
@@ -455,41 +455,818 @@ ForceConstant object.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>forceconstants</strong> (<a class="reference internal" href="api_forceconstants.html#kaldo.forceconstants.ForceConstants" title="kaldo.forceconstants.ForceConstants"><em>ForceConstants</em></a>) – contains all the information about the system and the derivatives
 of the potential.</p></li>
-<li><p><strong>is_classic</strong> (<em>bool</em>) – specifies if the system is classic, <img alt="True" class="math" src="../_images/math/629b47d70c41a9a2883e4821b0d333720f16673f.png"/> or quantum, <img alt="False" class="math" src="../_images/math/7492b7ed43697b62f89bfbfdd66b552e2ec5e7d1.png"/>
-Default is <img alt="False" class="math" src="../_images/math/7492b7ed43697b62f89bfbfdd66b552e2ec5e7d1.png"/></p></li>
+<li><p><strong>is_classic</strong> (<em>bool</em>) – specifies if the system is classic, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">True</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ or quantum, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">False</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">False</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
 <li><p><strong>kpts</strong> – defines the number of k points to use to create the k mesh
 Default is (1, 1, 1)</p></li>
 <li><p><strong>temperature</strong> (<em>float</em>) – defines the temperature of the simulation. Units: K.</p></li>
-<li><p><strong>min_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency below <img alt="min_frequency" class="math" src="../_images/math/bf23891d61557219ba636b6720cd4223a7a26858.png"/> THz,
-Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
-<li><p><strong>max_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency above <img alt="max_frequency" class="math" src="../_images/math/e269bbcc3b06d014e54b6209ea903384b5eb0897.png"/> THz
-Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
+<li><p><strong>min_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency below <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">min_frequency</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ THz,
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
+<li><p><strong>max_frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – ignores all phonons with frequency above <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">max_frequency</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ THz
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+</p></li>
 <li><p><strong>third_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – Defines the width of the energy conservation smearing in the phonons
-scattering calculation. If <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/> the width is calculated
+scattering calculation. If <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">None</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ the width is calculated
 dynamically. Otherwise the input value corresponds to the width.
 Units: THz.</p></li>
 <li><p><strong>broadening_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – Defines the algorithm to use for the broadening of the conservation
 of the energy for third irder interactions. Available broadenings
-are <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced22748f70360a59603b6252.png"/>, <img alt="lorentz" class="math" src="../_images/math/0ecd3a42fba2ac4f9fc492ba29a99a8a670a5f8e.png"/> and <img alt="triangle" class="math" src="../_images/math/34b7c8af4374add3e6f9fb880161480a6ac7ea40.png"/>.
-Default is <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced22748f70360a59603b6252.png"/>.</p></li>
-<li><p><strong>folder</strong> (<em>string</em><em>, </em><em>optional</em>) – Specifies where to store the data files. Default is <img alt="output" class="math" src="../_images/math/6f5e880e661425b8c2cc343cf4c3e1b55654e810.png"/>.</p></li>
-<li><p><strong>storage</strong> (<img alt="default" class="math" src="../_images/math/87c7fe6e0268bfac88f4292dbe657742137b6201.png"/>, <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655ca06a8192bc6a440969509266d2.png"/>, <img alt="numpy" class="math" src="../_images/math/aaedfd9573d304e4ff29db8875c79a2fd8739c99.png"/>, <img alt="memory" class="math" src="../_images/math/4b67ee5a160b1dbd47ca4fc555268878cd573e28.png"/>, <img alt="hdf5" class="math" src="../_images/math/e3c8c90ec5439ab0f021b8e486a1117a86a57440.png"/>, optional) – Defines the storing strategy used to store the observables. The
-<img alt="default" class="math" src="../_images/math/87c7fe6e0268bfac88f4292dbe657742137b6201.png"/> strategy stores formatted output and numpy arrays.
-<img alt="memory" class="math" src="../_images/math/4b67ee5a160b1dbd47ca4fc555268878cd573e28.png"/> storage doesn’t generate any output.</p></li>
+are <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">gauss</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">lorentz</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">triangle</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.
+Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">gauss</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p></li>
+<li><p><strong>folder</strong> (<em>string</em><em>, </em><em>optional</em>) – Specifies where to store the data files. Default is <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">output</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+.</p></li>
+<li><p><strong>storage</strong> (<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">default</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">formatted</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">numpy</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">memory</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">hdf5</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+, optional) – Defines the storing strategy used to store the observables. The
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">default</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ strategy stores formatted output and numpy arrays.
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">memory</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ storage doesn’t generate any output.</p></li>
 <li><p><strong>grid_type</strong> (<em>'F'</em><em> or </em><em>'C</em><em>, </em><em>optional</em>) – Specify if to use ‘C” style atoms replica grid of fortran
 style ‘F’,
 Default ‘C’</p></li>
 <li><p><strong>is_balanced</strong> (<em>Enforce detailed balance when calculating anharmonic properties</em><em>,</em>) – Default: False</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p></p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Phonons Object</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Phonons Object</p>
-</dd>
-<dt class="field-even">Attributes<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
+<dt class="field-odd">Attributes<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvalues</span></code></a></dt><dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
@@ -517,9 +1294,9 @@ Default ‘C’</p></li>
 </dl>
 </dd>
 </dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.bandwidth">
-<em class="property">property </em><code class="sig-name descname">bandwidth</code><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.bandwidth">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -530,9 +1307,9 @@ Default ‘C’</p></li>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.eigenvalues">
-<em class="property">property </em><code class="sig-name descname">eigenvalues</code><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvalues" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.eigenvalues">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">eigenvalues</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvalues" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -543,9 +1320,9 @@ Default ‘C’</p></li>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.eigenvectors">
-<em class="property">property </em><code class="sig-name descname">eigenvectors</code><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvectors" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.eigenvectors">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">eigenvectors</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvectors" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the eigenvectors of the dynamical matrix.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -556,16 +1333,16 @@ Default ‘C’</p></li>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.frequency">
-<em class="property">property </em><code class="sig-name descname">frequency</code><a class="headerlink" href="#kaldo.phonons.Phonons.frequency" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.frequency">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frequency</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.frequency" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate phonons frequency
 :returns: <strong>frequency</strong> – (n_k_points, n_modes) frequency in THz
 :rtype: np array</p>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.heat_capacity">
-<em class="property">property </em><code class="sig-name descname">heat_capacity</code><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.heat_capacity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">heat_capacity</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the heat capacity for each k point in k_points and each mode.
 If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
 Bose-Einstein weighted by each phonons energy.
@@ -573,7 +1350,85 @@ Bose-Einstein weighted by each phonons energy.
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">c_</span>\<span class="n">mu</span> <span class="o">=</span> <span class="n">k_B</span> \<span class="n">frac</span><span class="p">{</span>\<span class="n">nu_</span>\<span class="n">mu</span><span class="o">^</span><span class="mi">2</span><span class="p">}{</span> \<span class="n">tilde</span> <span class="n">T</span><span class="o">^</span><span class="mi">2</span><span class="p">}</span> <span class="n">n_</span>\<span class="n">mu</span> <span class="p">(</span><span class="n">n_</span>\<span class="n">mu</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>where the frequency <img alt="\nu" class="math" src="../_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> and the temperature <img alt="\tilde T" class="math" src="../_images/math/a1973297dcd8ed1a36edc696aef0e150cf6bf502.png"/> are in THz.</p>
+<p>where the frequency <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\nu</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ and the temperature <aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\tilde T</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2022-11-01&gt; patch level 1
+L3 programming layer &lt;2023-01-16&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ are in THz.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>c_v</strong> – heat capacity in J/K for each k point and each mode</p>
@@ -583,9 +1438,9 @@ Bose-Einstein weighted by each phonons energy.
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.heat_capacity_2d">
-<em class="property">property </em><code class="sig-name descname">heat_capacity_2d</code><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.heat_capacity_2d">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">heat_capacity_2d</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
 If classical, it returns the Boltzmann constant in W/m/K.</p>
 <dl class="field-list simple">
@@ -597,9 +1452,9 @@ If classical, it returns the Boltzmann constant in W/m/K.</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.omega">
-<em class="property">property </em><code class="sig-name descname">omega</code><a class="headerlink" href="#kaldo.phonons.Phonons.omega" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.omega">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">omega</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.omega" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -610,18 +1465,18 @@ If classical, it returns the Boltzmann constant in W/m/K.</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.participation_ratio">
-<em class="property">property </em><code class="sig-name descname">participation_ratio</code><a class="headerlink" href="#kaldo.phonons.Phonons.participation_ratio" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.participation_ratio">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">participation_ratio</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.participation_ratio" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the participation ratio of each normal mode. Participation ratio’s
 represent the fraction of atoms that are displaced meaning a value of 1 corresponds
 to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 :returns: <strong>participation_ratio</strong> – (n_k_points, n_modes) atomic participation
 :rtype: np array</p>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.phase_space">
-<em class="property">property </em><code class="sig-name descname">phase_space</code><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.phase_space">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">phase_space</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -632,17 +1487,17 @@ to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.physical_mode">
-<em class="property">property </em><code class="sig-name descname">physical_mode</code><a class="headerlink" href="#kaldo.phonons.Phonons.physical_mode" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.physical_mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">physical_mode</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.physical_mode" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
 modes outside the frequency range min_frequency and max_frequency.
 :returns: <strong>physical_mode</strong> – (n_k_points, n_modes) bool
 :rtype: np array</p>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.population">
-<em class="property">property </em><code class="sig-name descname">population</code><a class="headerlink" href="#kaldo.phonons.Phonons.population" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.population">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">population</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.population" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the phonons population for each k point in k_points and each mode.
 If classical, it returns the temperature divided by each frequency, using equipartition theorem.
 If quantum it returns the Bose-Einstein distribution</p>
@@ -655,9 +1510,9 @@ If quantum it returns the Bose-Einstein distribution</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt id="kaldo.phonons.Phonons.velocity">
-<em class="property">property </em><code class="sig-name descname">velocity</code><a class="headerlink" href="#kaldo.phonons.Phonons.velocity" title="Permalink to this definition">¶</a></dt>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.velocity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">velocity</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.velocity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -719,7 +1574,7 @@ If quantum it returns the Bose-Einstein distribution</p>
               
           </div>
             Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
              and
             <a href="https://github.com/bashtage/sphinx-material/">Material for
               Sphinx</a>
