@@ -18,14 +18,16 @@ class ForceConstants:
     The ForceConstants class creates objects that store the system information and load (or calculate) force constant
     matrices (IFCs) for use with a Phonons object. This is normally the first thing you should initialize when working
     with kALDo.
-    In general, it's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs because Python
-    has other priorities than speed. However, if you're system is small enough and you are using an interatomic
-    potential with a relatively short cutoff (e.g. Tersoff), it may be tractable to calculate everything in kALDo.
+    It's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs however, it may be
+    tractable in kALDo for the following case-
+    1. small systems with short ranges of interactions
+    2. low symmetry systems
+    3. Users have a custom potential, particularly when it can be calculated within python.
     To load precalcualted IFCs:
-        Use the `from_folder` method to load in the force constant matrices from a folder. See the method's docstring
-        for information on required input files.
+        Use the `ForceConstants.from_folder` See the method's docstring for information on required input files.
     To calculate IFCs:
-        Create a ForceConstants object with the appropriate atoms and supercell information. Then use the `calculate`
+        Create a `ForceConstants` instance with the appropriate atoms and supercell information. Then use the
+        `SecondOrder.calculate` method
         methods of the SecondOrder and ThirdOrder objects (accessed using ForceConstants.second) to generate the IFCs.
         Note that this requires the atoms object to have an ASE calculator object set. See their documentation for
         information on how to do this. https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
@@ -33,23 +35,34 @@ class ForceConstants:
     Parameters
     ----------
 
-    atoms: ASE Atoms object
-        The atoms to work on.
-    supercell: (3) tuple, optional
-        Size of supercell given by the number of repetitions (l, m, n) of
-        the small unit cell in each direction.
+    atoms: ase.Atoms
+        The atoms to study. This is required to be an ASE Atoms object, and if you would like to calculate the IFCs in
+        kALDo, it should have a calculator object set.
+    supercell: (int, int, int)
+        Size of supercell given by the number of repetitions (l, m, n) of the unit cell in each direction. You should be
+        able to calculate this by dividing the size of the supercell by the size of the unit cell in orthorhombic cells,
+        but may be more complicated for other cell types.
         Default: (1, 1, 1)
-    third_supercell: tuple, optional
-        Same as supercell, but for the third order force constant matrix.
-        If not provided, it's copied from supercell.
+    third_supercell: (int, int, int), optional
+        This argument should be used if you are loading force constants from an external source in the event that the
+        second and third order forces were calculated on different supercells. If not provided, we assume those
+        supercells were equivalent. This argument is most likely to be used for those with ab initio calculations, where
+        third order force constants are regularly calculated on smaller supercells to save computational cost.
         Default: self.supercell
     folder: str, optional
-        Name to be used for the displacement information folder.
+        Name to be used for the displacement information folder, in the event you would like to save to a custom location.
         Default: displacement
     distance_threshold: float, optional
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
         Default: None
+
+    Methods
+    -------
+    from_folder
+        Initialize a ForceConstants object from data in the folder provided.
+    unfold_third_order
+        Extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.
     """
 
     def __init__(self,
