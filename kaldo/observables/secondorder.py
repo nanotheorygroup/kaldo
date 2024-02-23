@@ -5,6 +5,7 @@ import tensorflow as tf
 import ase.io
 import numpy as np
 from kaldo.interfaces.eskm_io import import_from_files
+from kaldo.grid import Grid
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
 import ase.units as units
@@ -40,6 +41,7 @@ class SecondOrder(ForceConstant):
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None
         self.storage = 'numpy'
+        self.gmax = kwargs.pop('gmax', 14.)
 
     @classmethod
     def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo'):
@@ -129,7 +131,9 @@ class SecondOrder(ForceConstant):
             n_unit_atoms = atoms.positions.shape[0]
             if is_qe_input:
                 filename = folder + '/espresso.ifc2'
-                second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
+                second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
+                atoms.info['dielectric'] = charges[0, :, :]
+                atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                 second_order = second_order.transpose(3, 4, 2, 0, 1)
                 grid_type = 'F'
@@ -307,3 +311,141 @@ class SecondOrder(ForceConstant):
                         sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2, iy2, iz2]))
                     ir = ir + 1
         return sc_r_pos
+
+    def calculate_nonanalytical_corrections_gamma(self, bec=None):
+        '''
+        Calculates the nonanalytical contributions to the dynamical matrix according to
+        the forumla developed by X. Gonze et. al. PRB 50. 13035 (1994).
+        The implementation here is a pythonic version of the loops in rigid.f90 found
+        in the Quantum Espresso source code. (/<your QE home>/PHonon/PH/rigid.f90)
+
+        Parameters
+        -------
+        BEC (optional) : np.array(n_unit, 3, 3, )
+            The 2-dimensional charge tensor on every atom in units of
+            of
+
+        Returns
+        -------
+        dyn_g : np.array(n_unit, 3, 3, )
+            The ionic contribution to the dynamical matrix in
+            10 J / mol based on the Born effective charges found on the
+            atoms. Alternatively, users can specify arbitrary charges.
+
+        '''
+        e2 = 2.
+        gmax = self.gmax
+        atoms = self.atoms
+        try:
+            epsilon = atoms.info['dielectric']
+        except KeyError:
+            return np.zeros()
+        positions = atoms.positions / units.Bohr
+        epsilon = atoms.info['dielectric']
+        zeff = atoms.get_array('charges')
+        cell = atoms.cell.copy()
+        distances = positions[:, None, :] - positions[None, :, :]
+        prefactor = 4 * np.pi * e2 / np.linalg.det(cell)
+
+        # Convert cell to bohr, get scaled reciprocal cell
+        cell.array = cell.array / units.Bohr
+        reciprocal = cell.reciprocal()
+        rV = 2 * np.pi / np.abs(cell[:, 0] @ reciprocal[:, 0])
+        gcell = reciprocal * rV
+
+        # Ewald Parameter
+        alpha = ( 2 * np.pi / np.linalg.norm(cell[0, :]) ) ** 2
+
+        # Construct grid of reciprocal unit cells
+        geg_0 = gmax * 4 * alpha
+        g_replicas = np.sqrt(geg_0) / np.linalg.norm(gcell, axis=1)+1
+        g_grid = Grid( g_replicas.astype(int) * 2)
+        g_supercell_replicas = g_grid.grid(is_wrapping=True)
+        g_supercell_positions = g_supercell_replicas @ gcell
+
+        # geg = outerproduct of g-vectors * epsilon (aka g.T @ eps @ g )
+        gxg = g_supercell_positions[:,:,None] @ g_supercell_positions[:,None]
+        gxg *= epsilon
+        geg = gxg.sum(axis=(-2, -1)) / (4 * alpha)
+
+        # Ignore gcells that don't meet criteria
+        indices = (geg>0) & (geg<gmax)
+        geg = geg[indices]
+        g_supercell_replicas = g_supercell_replicas[indices]
+        g_supercell_positions = g_supercell_positions[indices]
+
+        # Calculate contributions
+        # Shapes:
+        # expg = (Ng, )
+        # gdotZ = (Na, Ng, 3, ) -- transpose --> (Ng, 3, Na, )
+        # grij = (Ng, Na, Na, )
+        # expgrij = (Ng, Na, Na, )
+        exp_g = np.exp(-1 * geg) / geg
+        gdotZ = g_supercell_positions @ zeff
+        gdotZ = np.transpose(gdotZ, axes=(1, 2, 0))
+        gdotZt = np.transpose(gdotZ, axes=(0, 2, 1))
+        grij = g_supercell_positions[:, None, None, None, :] @ distances[None, :, :, :, None]
+        egrij = np.exp(-1j * grij.squeeze())
+
+        # Matrix multiplication explanation
+        # gdotZ @ egrij (Ng, 3, Na) @ (Ng, Na, Na)
+        # This is treated like Ng stacks of (3, jat) @ (jat, iat) -> (3, iat)
+        coeffs = exp_g[:, None, None] * (gdotZ @ egrij)
+        coeffs = np.transpose(coeffs, axes=(0, 2, 1)) # (g, iat, 3, )
+
+        # Final Summation
+        # dyn_g = (Ng, Na, alpha, 1) @ (ng, na, 1, beta)
+        #                   -> (ng, na, alpha, beta)
+        dyn_g = -1 * np.sum( gdotZt[:, :, :, None] @ coeffs[:, :, None, :], axis=0, ) # sum over gvec
+
+        for iat in self.atoms.positions.shape[0]:
+            self.dynmat[:, iat, :, 0, iat, :] += np.sum(dyn_g[:, iat, :, :], axis=0)[None, :, :, :]
+        return dyn_g
+
+        # over k-vectors
+        # eTe = (beta, alpha) + (alpha, beta, )
+        # eTedotg = (Ng, alpha, ) . (alpha, beta, ) -> (Ng, alpha, )
+        # egkrij = (Nk, Ng, Na, Na, )
+        #k_grid =
+        gplusk = g_supercell_positions + kvec
+        gkxgk = gplusk[:, :, None] @ gplusk[:, None]
+        gkegk = (gkxgk * epsilon).sum(axis=(-2, -1))
+        exp_gk = np.exp(-1 * gkegk)
+        gkdotZ = gplusk @ zeff
+        gkdotZ = np.transpose(gkdotZ, axes=(1, 0, 2))
+        eTedotg = gplusk @ (epsilon + epsilon.T)
+        gkrij = gplusk[:, None, None, None, :] @ distances[None, :, :, :, None]
+        egkrij = np.exp(1j * gkrij.squeeze())
+
+        # Final Summation
+        # (Nk, Ng, ) * (Nk, Ng, Na, 3, None) @ (Nk, Ng, Na, None, 3,)
+        #       ----> (Nk, Ng, Na,  Na,  3,     3,  )
+        #       ----> (k,  g,  iat, jat, alpha, beta)
+        dyn_gk = exp_gk[:, None, None, None, None] *\
+                 ( gkdotZ[:, :, None, :, None] @ gkdotZ[:, None, :, None, :] ) *\
+                 egkrij[:, :, :, None, None]
+        dyn_gk = dyn_gk.sum(axis=0) # (Na, Na, 3, 3, )
+
+        ddyn_gk = exp_gk[:, None, None, None, None, None] * \
+                  ( gkdotZ )
+
+
+
+
+
+
+        # for gvec in gcells:
+        #     geg = gvec.T @ epsilon @ gvec
+        #     geg_normalized = geg/(4 * alpha)
+        #     if geg>0 and geg_normalized < gmax:
+        #         expg = np.exp( -geg_normalized ) / geg
+        #         for na in range(nunit):
+        #             zig = gvec @ zeff[na, :, :]
+        #             auxi = np.zeros(3)
+        #             for nb in range(nunit):
+        #                 gr = gvec @ distances[na, nb, :]
+        #                 zjg = gvec @ zeff[nb, :, :]
+        #                 auxi += zjg * np.exp(gr)
+                    # for alpha in range(3):
+                    #     for beta in range(3):
+                    #         dyn_g(:, alpha, beta) -= expg * zig(alpha) * auxi(beta)

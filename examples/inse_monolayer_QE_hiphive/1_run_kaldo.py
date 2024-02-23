@@ -82,6 +82,7 @@ forceconstant = ForceConstants.from_folder(
                        third_supercell=third_supercell,
                        is_acoustic_sum=True,
                        format='shengbte-qe')
+forceconstant.second.calculate_nonanalytical_corrections_gamma()
 phonons = Phonons(forceconstants=forceconstant,
               kpts=kpts,
               is_classic=False,
@@ -89,6 +90,17 @@ phonons = Phonons(forceconstants=forceconstant,
               folder=prefix,
               is_unfolding=unfold_bool,
               storage='numpy')
+# Notes:
+# Need k-point grid to calculate NAC @ every k-point
+# Therefore "compute_NAC" method needs to live in Phonons Class
+#
+#
+# phonons.calculate_nonanalytical_contribution()
+#       ---> references SecondOrder object (SO)
+#       ---> SO.nac_from_realspace()
+#       ---> SO.nac_at_finite_k()
+#
+#
 
 # Harmonic data along path
 # Although you need to specify the k-pt grid for the Phonons object, we don't

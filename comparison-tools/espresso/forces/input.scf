@@ -1,0 +1,45 @@
+&CONTROL
+  calculation = 'scf'
+  outdir = "tmp/"
+  prefix = "mono"
+  pseudo_dir = "./"
+  tprnfor = .true.
+  tstress = .true.
+  verbosity = "high"
+/
+
+&SYSTEM
+  ecutrho =   2.7000000000d+02
+  ecutwfc =   5.5000000000d+01
+  ibrav=4
+  A=4.01
+  C=50
+  nat = 4
+  nosym = .false.
+  ntyp = 2
+  input_dft="vdW-DF-CX"
+/
+
+&ELECTRONS
+  conv_thr =   1.2800000000d-14
+  electron_maxstep = 80
+  mixing_beta =   2.5000000000d-01
+/
+
+&IONS
+/
+
+ATOMIC_SPECIES
+In     114.818 In.pbe-dn-kjpaw_psl.1.0.0.UPF  
+Se     78.96 Se.pbe-dn-kjpaw_psl.1.0.0.UPF
+
+ATOMIC_POSITIONS (crystal)
+In            0.3333333333        0.6666666667        0.5278030342
+In            0.3333333333        0.6666666667        0.4721975302
+Se            0.6666666667        0.3333333333        0.4463112666
+Se            0.6666666667        0.3333333333        0.5536887334
+
+K_POINTS automatic
+8 8 1 0 0 0
+
+

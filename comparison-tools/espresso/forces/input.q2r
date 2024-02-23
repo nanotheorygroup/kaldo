@@ -1,0 +1,6 @@
+&input
+  flfrc = 'espresso.ifc2'
+  fildyn = 'DYN.mat'
+  zasr = 'simple'
+  loto_2d = .true.
+/

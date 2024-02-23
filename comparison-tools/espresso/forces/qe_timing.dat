@@ -1,0 +1,176 @@
+# This is just a print out of our parallelization information and timing for the ph.x routine
+# using the input scripts we provide here.
+
+     Program PHONON v.6.8 starts on  2Jun2023 at 16:55:33
+
+     This program is part of the open-source Quantum ESPRESSO suite
+     for quantum simulation of materials; please cite
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 21 395502 (2009);
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 29 465901 (2017);
+         "P. Giannozzi et al., J. Chem. Phys. 152 154105 (2020);
+          URL http://www.quantum-espresso.org",
+     in publications or presentations arising from this work. More details at
+     http://www.quantum-espresso.org/quote
+
+     Parallel version (MPI), running on    16 processors
+
+     MPI processes distributed on     1 nodes
+     K-points division:     npool     =       2
+     R & G space division:  proc/nbgrp/npool/nimage =       8
+     174839 MiB available memory on the printing compute node when the environment starts
+
+
+     init_run     :     13.25s CPU     14.35s WALL (      11 calls)
+     electrons    :    714.13s CPU    731.62s WALL (      11 calls)
+
+     Called by init_run:
+     wfcinit      :      0.00s CPU      0.00s WALL (      11 calls)
+     wfcinit:atom :      0.89s CPU      0.93s WALL (     550 calls)
+     wfcinit:wfcr :     55.23s CPU     57.17s WALL (     550 calls)
+     potinit      :      5.24s CPU      5.76s WALL (      11 calls)
+     hinit0       :      5.42s CPU      5.45s WALL (      11 calls)
+
+     Called by electrons:
+     c_bands      :    714.11s CPU    731.56s WALL (      11 calls)
+     v_of_rho     :     15.94s CPU     16.56s WALL (      12 calls)
+     v_h          :      0.03s CPU      0.04s WALL (      12 calls)
+     v_xc         :     20.05s CPU     21.13s WALL (      24 calls)
+     newd         :      1.72s CPU      2.37s WALL (      12 calls)
+     PAW_pot      :      0.93s CPU      0.96s WALL (      12 calls)
+     vdW_ffts     :    685.55s CPU    724.17s WALL (    4274 calls)
+     vdW_kernel   :     11.46s CPU     11.48s WALL (       1 calls)
+
+     Called by c_bands:
+     init_us_2    :     73.48s CPU     74.28s WALL (   51555 calls)
+     cegterg      :    559.92s CPU    574.82s WALL (     550 calls)
+
+     Called by sum_band:
+
+     Called by *egterg:
+     cdiaghg      :     17.98s CPU     18.03s WALL (    8548 calls)
+     cegterg:over :     80.26s CPU     80.70s WALL (    7998 calls)
+     cegterg:upda :     48.61s CPU     48.69s WALL (    7998 calls)
+     cegterg:last :     38.02s CPU     38.06s WALL (    1650 calls)
+     h_psi        :  51221.31s CPU  53339.09s WALL ( 1025843 calls)
+     s_psi        :   9287.10s CPU   9312.52s WALL ( 2089383 calls)
+     g_psi        :      1.96s CPU      1.96s WALL (    7998 calls)
+
+     Called by h_psi:
+     h_psi:calbec :   5573.15s CPU   5681.11s WALL ( 1025843 calls)
+     vloc_psi     :  40928.15s CPU  42921.20s WALL ( 1025843 calls)
+     add_vuspsi   :   4531.46s CPU   4548.28s WALL ( 1025843 calls)
+
+    General routines
+     calbec       :  12382.16s CPU  12531.58s WALL ( 2159758 calls)
+     fft          :   1099.69s CPU   1158.57s WALL (  237298 calls)
+     ffts         :     18.33s CPU     20.30s WALL (    9322 calls)
+     fftw         :  44069.42s CPU  46284.30s WALL (45698618 calls)
+     interpolate  :     21.74s CPU     23.55s WALL (    4078 calls)
+     davcio       :    127.17s CPU    207.88s WALL (  260090 calls)
+
+     Parallel routines
+
+     PAW routines
+     PAW_pot      :      0.93s CPU      0.96s WALL (      12 calls)
+
+     PHONON       :   1d 2h13m CPU   1d 3h 3m WALL
+
+     INITIALIZATION:
+     phq_setup    :      1.21s CPU      1.39s WALL (      12 calls)
+     phq_init     :    449.59s CPU    459.88s WALL (      12 calls)
+
+     phq_init     :    449.59s CPU    459.88s WALL (      12 calls)
+     set_drhoc    :     26.14s CPU     26.16s WALL (      36 calls)
+     init_vloc    :      1.82s CPU      1.82s WALL (      12 calls)
+     init_us_1    :      1.32s CPU      1.42s WALL (      12 calls)
+     newd         :      1.72s CPU      2.37s WALL (      12 calls)
+     dvanqq       :     71.61s CPU     71.68s WALL (      12 calls)
+     drho         :    311.83s CPU    320.90s WALL (      12 calls)
+
+     DYNAMICAL MATRIX:
+     dynmat0      :     41.42s CPU     42.17s WALL (      12 calls)
+     phqscf       :  92668.83s CPU  95624.18s WALL (      12 calls)
+     dynmatrix    :      0.02s CPU      0.03s WALL (      12 calls)
+
+     phqscf       :  92668.83s CPU  95624.18s WALL (      12 calls)
+     solve_linter :  92503.50s CPU  95454.59s WALL (     140 calls)
+     drhodv       :    133.89s CPU    137.01s WALL (     140 calls)
+
+     dynmat0      :     41.42s CPU     42.17s WALL (      12 calls)
+     dynmat_us    :     16.75s CPU     16.99s WALL (      12 calls)
+     d2ionq       :      0.65s CPU      0.65s WALL (      12 calls)
+     dynmatcc     :     21.91s CPU     22.41s WALL (      12 calls)
+
+     dynmat_us    :     16.75s CPU     16.99s WALL (      12 calls)
+     addusdynmat  :      0.00s CPU      0.00s WALL (      12 calls)
+
+     phqscf       :  92668.83s CPU  95624.18s WALL (      12 calls)
+     solve_linter :  92503.50s CPU  95454.59s WALL (     140 calls)
+     dvqpsi_us    :    271.62s CPU    284.17s WALL (    3420 calls)
+     ortho        :   1017.92s CPU   1024.01s WALL (   46780 calls)
+     cgsolve      :  76964.02s CPU  79164.19s WALL (   46780 calls)
+     incdrhoscf   :   3383.84s CPU   3578.14s WALL (   46780 calls)
+     addusddens   :    666.28s CPU    667.57s WALL (    2018 calls)
+     vpsifft      :   2612.04s CPU   2783.49s WALL (   43195 calls)
+     dv_of_drho   :   1719.30s CPU   1938.69s WALL (    1957 calls)
+     mix_pot      :     18.35s CPU     40.11s WALL (    1892 calls)
+     psymdvscf    :    167.21s CPU    184.21s WALL (    1878 calls)
+     newdq        :    660.71s CPU    662.39s WALL (    1892 calls)
+     adddvscf     :    298.48s CPU    301.57s WALL (   43390 calls)
+     drhodvus     :      0.53s CPU      1.23s WALL (     140 calls)
+
+     dvqpsi_us    :    271.62s CPU    284.17s WALL (    3420 calls)
+     dvqpsi_us_on :     62.21s CPU     62.60s WALL (    3420 calls)
+
+     cgsolve      :  76964.02s CPU  79164.19s WALL (   46780 calls)
+     ch_psi       :  73510.24s CPU  75690.62s WALL ( 1016745 calls)
+
+     ch_psi       :  73510.24s CPU  75690.62s WALL ( 1016745 calls)
+     h_psi        :  51221.31s CPU  53339.09s WALL ( 1025843 calls)
+     last         :  17504.39s CPU  17568.12s WALL ( 1016745 calls)
+
+     h_psi        :  51221.31s CPU  53339.09s WALL ( 1025843 calls)
+     add_vuspsi   :   4531.46s CPU   4548.28s WALL ( 1025843 calls)
+
+     incdrhoscf   :   3383.84s CPU   3578.14s WALL (   46780 calls)
+     addusdbec    :    386.83s CPU    392.73s WALL (   50140 calls)
+
+     drhodvus     :      0.53s CPU      1.23s WALL (     140 calls)
+
+      General routines
+     calbec       :  12382.16s CPU  12531.58s WALL ( 2159758 calls)
+     fft          :   1099.69s CPU   1158.57s WALL (  237298 calls)
+     ffts         :     18.33s CPU     20.30s WALL (    9322 calls)
+     fftw         :  44069.42s CPU  46284.30s WALL (45698618 calls)
+     davcio       :    127.17s CPU    207.88s WALL (  260090 calls)
+     write_rec    :      2.77s CPU      9.01s WALL (    2032 calls)
+
+
+     PHONON       :   1d 2h13m CPU   1d 3h 3m WALL
+
+# And information about the CPU it was run on
+
+    Architecture:                    x86_64
+    CPU op-mode(s):                  32-bit, 64-bit
+    Byte Order:                      Little Endian
+    Address sizes:                   43 bits physical, 48 bits virtual
+    CPU(s):                          64
+    On-line CPU(s) list:             0-63
+    Thread(s) per core:              2
+    Core(s) per socket:              32
+    Socket(s):                       1
+    NUMA node(s):                    1
+    Vendor ID:                       AuthenticAMD
+    CPU family:                      23
+    Model:                           49
+    Model name:                      AMD Ryzen Threadripper 3970X 32-Core Processor
+    Stepping:                        0
+    Frequency boost:                 enabled
+    CPU MHz:                         3611.075
+    CPU max MHz:                     3700.0000
+    CPU min MHz:                     2200.0000
+    BogoMIPS:                        7399.99
+    Virtualization:                  AMD-V
+    L1d cache:                       1 MiB
+    L1i cache:                       1 MiB
+    L2 cache:                        16 MiB
