@@ -185,12 +185,11 @@ class Conductivity:
         if (method == 'qhgk'):
             logging.error('Mean free path not available for ' + str(method))
         elif method == 'rta':
-            mfp = self._calculate_sc_mfp_with_length()
+            mfp = self._calculate_mfp_sc()
         elif method == 'sc':
             mfp = self._calculate_mfp_sc()
         elif (method == 'inverse'):
             mfp = self.calculate_mfp_inverse()
-            mfp_rta = self._calculate_sc_mfp_with_length(max_iterations=0)
         else:
             logging.error('Conductivity method not implemented')
 
@@ -498,13 +497,12 @@ class Conductivity:
         return lambd_n
 
 
-    def _calculate_sc_mfp_with_length(self, matthiessen_length=None, max_iterations=None):
-        if max_iterations is not None:
-            n_iterations = max_iterations
-        else:
-            n_iterations = self.n_iterations
+    def _calculate_sc_mfp_with_length(self, matthiessen_length=None, max_iterations_sc=50):
         tolerance = self.tolerance
+        n_iterations = self.n_iterations
         phonons = self.phonons
+        if n_iterations is None:
+            n_iterations = max_iterations_sc
         velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3))
         velocity = velocity.reshape((phonons.n_phonons, 3))
         physical_mode = phonons.physical_mode.reshape(phonons.n_phonons)
