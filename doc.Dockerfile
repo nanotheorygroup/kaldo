@@ -1,6 +1,6 @@
 # Use a multi-stage build to keep the final image size down
 # Builder stage for installing necessary packages
-FROM continuumio/miniconda3 AS builder
+FROM continuumio/miniconda3
 
 # Set working directory
 WORKDIR /app
@@ -13,9 +13,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update packages and install only the necessary LaTeX packages and cleanup in the same layer to save space
 RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \
-    texlive-base \
+    apt-get upgrade -y
+
+RUN apt-get install -y --no-install-recommends texlive-base \
     texlive-latex-base \
     texlive-fonts-recommended \
     texlive-fonts-extra \
@@ -26,17 +26,13 @@ RUN apt-get update && \
 
 # Install Python dependencies
 RUN conda install pip && \
+    conda install conda-forge::psutil && \
     pip install -r requirements.txt && \
     pip install -r docs/doc_requirements.txt
 
 # Install additional packages needed for your project
-RUN conda install conda-forge::pandoc conda-forge::psutil
-
-# Final stage to copy only the necessary files from the builder stage
-FROM continuumio/miniconda3
-
-# Copy the app directory from the builder stage to the final image
-COPY --from=builder /app /app
+RUN conda install conda-forge::pandoc && \
+    conda install anaconda::make
 
 # Set the working directory in the final image
 WORKDIR /app
