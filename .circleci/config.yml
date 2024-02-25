@@ -19,7 +19,7 @@ jobs:
           file: ./coverage.xml
   docs-build:
     docker:
-      - image: "jgoldfar/miniconda3-latex:full"
+      - image: "gbarbalinardo/kaldo_docs:amd"
     steps:
       - checkout
       - python/load-cache
