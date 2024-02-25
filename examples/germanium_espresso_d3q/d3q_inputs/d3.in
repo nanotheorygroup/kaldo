@@ -1,0 +1,12 @@
+d3 for silicon
+&inputd3q
+   mode='full'
+   prefix = 'silicon',
+   outdir='./tmp'
+   fildrho = 'auto:drho',
+   fildrho_dir = 'FILDRHO'
+   fild3dyn = 'FILD3DYN/anh',
+   ethr_ph = 1.d-9
+   restart=.true.
+ /
+ 5 5 5

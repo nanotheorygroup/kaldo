@@ -1,0 +1,12 @@
+Create 2nd- and 3rd- Interatomic Force Constants for Ge bulk using Quantum Espresso and d3q.
+###
+./run 
+###
+
+Uncommenting the second part of the "run" file, d3q also computes the thermal conductivity in the SMA approximation (equivalent to RTA in kaldo). Example in output.TK-sma.
+After FORCE_CONSTANTS_3RD, the phonon calculation can be rerun with a different supercell.
+
+For details refer to:
+d3q: https://anharmonic.github.io/d3q/
+QE: https://www.quantum-espresso.org/
+

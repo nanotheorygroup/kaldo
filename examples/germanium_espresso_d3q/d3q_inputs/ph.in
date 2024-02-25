@@ -1,0 +1,16 @@
+Ph
+ &inputph 
+    prefix='silicon'
+    outdir='./tmp/',
+    fildyn='dyn',
+    tr2_ph=1.0d-16
+    trans=.true.,
+    epsil=.false.,
+    ldisp=.true.,
+    nq1=10,
+    nq2=10,
+    nq3=10,
+    drho_star%open = .true.
+    drho_star%ext  = 'drho',
+    drho_star%dir  = 'FILDRHO'
+/

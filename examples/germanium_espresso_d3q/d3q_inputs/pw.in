@@ -1,0 +1,24 @@
+ &control
+    calculation = 'scf'
+    restart_mode='from_scratch',
+    prefix='silicon',
+    pseudo_dir = './UPF',
+    outdir='./tmp'
+    verbosity="high"
+ /
+ &system
+    ibrav=  2, celldm(1) =10.5969
+    ntyp= 1, nat=  2,
+    ecutwfc =24.0,
+ /
+ &electrons
+    conv_thr =  1.0d-12
+ /
+ATOMIC_SPECIES
+Ge  72.63 Ge.pz-bhs.UPF
+ATOMIC_POSITIONS alat
+ Ge 0.00 0.00 0.00
+ Ge 0.25 0.25 0.25
+K_POINTS automatic
+ 6 6 6  0 0 0
+
