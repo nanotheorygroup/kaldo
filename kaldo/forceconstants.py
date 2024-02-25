@@ -16,21 +16,7 @@ MAIN_FOLDER = 'displacement'
 class ForceConstants:
     """
     The ForceConstants class creates objects that store the system information and load (or calculate) force constant
-    matrices (IFCs) for use with a Phonons object. This is normally the first thing you should initialize when working
-    with kALDo.
-    It's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs however, it may be
-    tractable in kALDo for the following case-
-    1. small systems with short ranges of interactions
-    2. low symmetry systems
-    3. Users have a custom potential, particularly when it can be calculated within python.
-    To load precalcualted IFCs:
-        Use the `ForceConstants.from_folder` See the method's docstring for information on required input files.
-    To calculate IFCs:
-        Create a `ForceConstants` instance with the appropriate atoms and supercell information. Then use the
-        `SecondOrder.calculate` method
-        methods of the SecondOrder and ThirdOrder objects (accessed using ForceConstants.second) to generate the IFCs.
-        Note that this requires the atoms object to have an ASE calculator object set. See their documentation for
-        information on how to do this. https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
+    matrices (IFCs) to be used by an instance of the Phonon class.
 
     Parameters
     ----------
@@ -50,19 +36,14 @@ class ForceConstants:
         third order force constants are regularly calculated on smaller supercells to save computational cost.
         Default: self.supercell
     folder: str, optional
-        Name to be used for the displacement information folder, in the event you would like to save to a custom location.
-        Default: displacement
+        Name to be used for the displacement information folder, in the event you would like to save to a custom
+        location. You can adjust the default value on line 13 of this file.
+        Default: "displacement"
     distance_threshold: float, optional
-        If the distance between two atoms exceeds threshold, the interatomic
-        force is ignored.
+        If the distance between two atoms exceeds threshold, the forces will be ignored when calculating both harmonic
+        (e.g. frequency, velocity) and anharmonic (e.g. lifetimes) phonon properties. This is useful for systems with
+        coulomb forces or other long range interactions.
         Default: None
-
-    Methods
-    -------
-    from_folder
-        Initialize a ForceConstants object from data in the folder provided.
-    unfold_third_order
-        Extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.
     """
 
     def __init__(self,
@@ -105,50 +86,54 @@ class ForceConstants:
                     is_acoustic_sum=False, only_second=False, distance_threshold=None):
         """
         Initializes a ForceConstants object from data in the folder provided. The folder should contain a file with the
-        configuration of the atoms, a file with the second order force constants and a file with the third order force
-        constants.
-        The format of the files need to be consistent e.g. if you use a LAMMPS data file for the configuration, the
-        forces constants need to be in LAMMPS format as well.
-        Additionally, the files should be named following the `Inputs` section below. Where possible, we tried to set
-        these to the default filenames of the respective codes.
+        configuration of the atoms (e.g. xyz, cif, pdb) as well as the second and third order force constants.
+
+        Two requirements:
+
+        1. The format of all three files need to be consistent to use this method e.g. if you use a LAMMPS data file for
+        the dynamical matrix, the third order forces constants need to be in LAMMPS format as well.
+
+        2. Files should be named following the table in :ref:`input-files`.
 
         Parameters
         ----------
         folder : str
-            Chosen folder to load in system information.
-        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
-            Format of force constant information being loaded into ForceConstants object.
+            Path to the folder containing your configuration file, second and third order force constants.
+        format : {"numpy", "eskm", "lammps", "shengbte", "shengbte-qe", "hiphive"}
+            Format of force constant information being loaded into ForceConstants object. Numpy is the default format
+            because of it's memory-efficient storage and ability to load matrices into an array quickly. If possible,
+            we recommend converting your data to numpy arrays using kALDo's "save" functions found in the second and
+            third order classes.
             Default: 'numpy'
-        supercell : (int, int, int), optional
-            Number of unit cells in each cartesian direction replicated to form the input structure.
-            Default is (1, 1, 1)
+        supercell : (int, int, int)
+            Size of supercell given by the number of repetitions (l, m, n) of the unit cell in each direction. You
+            should be able to calculate this by dividing the size of the supercell by the size of the unit cell in
+            orthorhombic cells, but may be more complicated for other cell types.
+            Default: (1, 1, 1)
         third_supercell : (int, int, int), optional
-            Takes in the unit cell for the third order force constant matrix.
-            Default is self.supercell
+            This argument should be used if you are loading force constants from an external source in the event that the
+            second and third order forces were calculated on different supercells. If not provided, we assume those
+            supercells were equivalent. This argument is most likely to be used for those with ab initio calculations, where
+            third order force constants are regularly calculated on smaller supercells to save computational cost.
+            Default: self.supercell
         third_energy_threshold : float, optional
-            When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: ev/A^3
-            Default is `None`
+            Setting this argument to a number will filter out third order (anharmonic) force constants with energies
+            smaller than the threshold. This is useful for systems with long range interactions or cases where the third
+            order matrix is very large. This option is currently only available for matrices in the ESKM and LAMMPS
+            format.
+            Units: eV/A^3
+            Default: None
         distance_threshold : float, optional
-            When calculating force constants, contributions from atoms further than the
-            distance threshold will be ignored.
+            When calculating force constants, contributions from atoms further than the distance threshold will be
+            ignored. This has no effect when loading precalculated force constants.
+            Units: A
         is_acoustic_sum : Bool, optional
-            If true, the accoustic sum rule is applied to the dynamical matrix.
-            Default is False
-
-        Inputs
-        ------
-        numpy: replicated_atoms.xyz, second.npy, third.npz
-        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
-        lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
-        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
-
+            If true, the acoustic sum rule is applied to the dynamical matrix.
+            Default: False
 
         Returns
         -------
-        ForceConstants object
+        ForceConstants instance
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)
@@ -175,19 +160,31 @@ class ForceConstants:
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
-        This method extrapolates a third order force constant matrix from a unit
-        cell into a matrix for a larger supercell.
+        This method extrapolates a third order force constant matrix from a unit cell into a matrix for the full
+        supercell. You only need to set the reduced_third argument if you are using a different value than the one set
+        in the ForceConstants object.
+
+        Pass it back to the ForceConstants object to use it.
 
         Parameters
         ----------
 
         reduced_third : array, optional
-            The third order force constant matrix.
-            Default is `self.third`
+            The third order force constant matrix of the unit cell.
+            Default: `self.third`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than
             the distance threshold will be ignored.
-            Default is self.distance_threshold
+            Default: self.distance_threshold
+
+        Examples
+        --------
+
+        >>> unfolded_third = forceconstants.unfold_third_order()
+        >>> newthird = ThirdOrder(atoms=forceconstants.atoms,
+                                  supercell=forceconstants.supercell,
+                                  value=unfolded_third)
+
         """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
