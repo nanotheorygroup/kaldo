@@ -107,3 +107,14 @@ ENV/
 
 # mypy
 .mypy_cache/
+ALD_si_bulk/3_3_3/_eigensystem.npy
+ALD_si_bulk/3_3_3/frequency.dat
+ALD_si_bulk/3_3_3/physical_mode.dat
+ALD_si_bulk/3_3_3/velocity_0.dat
+ALD_si_bulk/3_3_3/velocity_1.dat
+ALD_si_bulk/3_3_3/velocity_2.dat
+ALD_si_bulk/3_3_3/300/quantum/_ps_and_gamma.npy
+ALD_si_bulk/3_3_3/300/quantum/_ps_gamma_and_gamma_tensor.npy
+ALD_si_bulk/3_3_3/300/quantum/bandwidth.dat
+ALD_si_bulk/3_3_3/300/quantum/heat_capacity.dat
+ALD_si_bulk/3_3_3/300/quantum/population.dat
