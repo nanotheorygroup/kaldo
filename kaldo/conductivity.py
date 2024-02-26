@@ -6,7 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
-from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
@@ -282,7 +282,7 @@ class Conductivity:
 
         for k_index in range(len(q_points)):
 
-            phonon = HarmonicWithQTemp(q_point=q_points[k_index],
+            phonon = hwqwt.HarmonicWithQTemp(q_point=q_points[k_index],
                                        second=self.phonons.forceconstants.second,
                                        distance_threshold=self.phonons.forceconstants.distance_threshold,
                                        folder=self.folder,
