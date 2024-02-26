@@ -1,10 +1,10 @@
-from kaldo.observables.harmonic_with_q import HarmonicWithQ
+import kaldo.observables.harmonic_with_q as hwq
 import numpy as np
 import ase.units as units
 from kaldo.helpers.storage import lazy_property
 
 
-class HarmonicWithQTemp(HarmonicWithQ):
+class HarmonicWithQTemp(hwq.HarmonicWithQ):
 
     def __init__(self, temperature, is_classic, *kargs, **kwargs):
         super().__init__(*kargs, **kwargs)
