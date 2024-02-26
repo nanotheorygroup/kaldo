@@ -735,12 +735,12 @@ div.rendered_html tbody tr:hover {
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span># Sudo apt-get softwares
 ! apt-get update
-! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.7-venv
+! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.10-venv
 ! echo "Sudo apt-get finishes!"
 
 # Upgrade python packages
 ! pip install --upgrade pip
-! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython sklearn
+! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython
 ! echo "Python packages installation finishes!"
 
 # Build lammps with cmake
@@ -950,7 +950,7 @@ div.rendered_html tbody tr:hover {
 <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span><span class="n">band_width_flatten</span><span class="p">[</span><span class="n">band_width_flatten</span><span class="o">!=</span><span class="mi">0</span><span class="p">]</span> <span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span> <span class="p">(</span><span class="sa">r</span><span class="s2">"$\Gamma$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (Thz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mf">0.95</span><span class="o">*</span><span class="n">band_width_flatten</span> <span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="mf">1.05</span><span class="o">*</span><span class="n">band_width_flatten</span> <span class="o">.</span><span class="n">max</span><span class="p">())</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 

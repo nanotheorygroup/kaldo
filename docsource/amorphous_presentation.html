@@ -726,12 +726,12 @@ div.rendered_html tbody tr:hover {
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span># Sudo apt-get softwares
 ! apt-get update
-! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.7-venv
+! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.10-venv
 ! echo "Sudo apt-get finishes!"
 
 # Upgrade python packages
 ! pip install --upgrade pip
-! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython sklearn
+! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython
 ! echo "Python packages installation finishes!"
 
 # Build lammps with cmake
@@ -895,7 +895,7 @@ div.rendered_html tbody tr:hover {
 <span class="c1"># Visualize the per mode conductivity vs frequency</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="n">kappa_qhgk_per_mode</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="s1">'.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'QHGK'</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (Thz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -905,7 +905,7 @@ div.rendered_html tbody tr:hover {
 <span class="c1"># Visualize the cumulative conductivity vs frequency</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="n">kappa_qhgk_cum_freq</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span><span class="s1">'.'</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">'QHGK'</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (Thz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa_</span><span class="si">{cum}</span><span class="s1">(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
