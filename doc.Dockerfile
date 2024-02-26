@@ -19,7 +19,8 @@ RUN apt-get install -y --no-install-recommends texlive-base \
     texlive-latex-base \
     texlive-fonts-recommended \
     texlive-fonts-extra \
-    texlive-latex-extra && \
+    texlive-latex-extra \
+    dvipng && \
     # Clean up to reduce layer size
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
