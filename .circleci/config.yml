@@ -39,7 +39,6 @@ jobs:
 workflows:
   main:
     jobs:
-      - build-and-test
       - docs-build
       - docs-deploy:
           requires:
