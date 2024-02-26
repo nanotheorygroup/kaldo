@@ -459,12 +459,12 @@ the small unit cell in each direction.
 Defaults to (1, 1, 1)</p></li>
 <li><p><strong>third_supercell</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Same as supercell, but for the third order force constant matrix.
 If not provided, it’s copied from supercell.
-Defaults to <span class="math">self.supercell</span></p></li>
+Defaults to <img alt="self.supercell" class="math" src="../_images/math/11c0006d15164d9da615ed3ccfd97139860f7f16.png"/></p></li>
 <li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder.
 Defaults to ‘displacement’</p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the interatomic
 force is ignored.
-Defaults to <span class="math">None</span></p></li>
+Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
 </ul>
 </dd>
 </dl>
@@ -494,7 +494,7 @@ Default is ‘numpy’</p></li>
 <li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <p>When importing sparse third order force constant matrices, energies below
 the threshold value in magnitude are ignored. Units: ev/A^3</p>
 <blockquote>
-<div><p>Default is <span class="math">None</span></p>
+<div><p>Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p>
 </div></blockquote>
 </p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than the
@@ -527,7 +527,7 @@ cell into a matrix for a larger supercell.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
-Default is <span class="math">self.third</span></p></li>
+Default is <img alt="self.third" class="math" src="../_images/math/15cfbf59c2e9dda1f84c7dff795b1b1d95ca9bc1.png"/></p></li>
 <li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than
 the distance threshold will be ignored.
 Default is self.distance_threshold</p></li>

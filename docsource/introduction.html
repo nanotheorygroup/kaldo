@@ -624,19 +624,19 @@ make<span class="w"> </span>mpi<span class="w"> </span><span class="nv">mode</sp
 <h2 id="Default-Storage">Default Storage<a class="headerlink" href="#Default-Storage" title="Permalink to this heading">¶</a></h2>
 <p>When using the storage <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, kALDo stores the following dense tensor as formatted, human readable, files:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">frequency</span></code> <span class="math">(n_{kpoints}, n_{modes})</span>. mode changes first k changes after</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;</span></code> <span class="math">(n_{kpoints}, n_{modes})</span> where the <code class="docutils literal notranslate"><span class="pre">&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;</span></code> folder is created only if those values are defined</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space</span></code> <span class="math">(n_{kpoints}, n_{modes})</span></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;flux_dense</span></code> <span class="math">(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})</span>, when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is not specified.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse</span></code> <span class="math">(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})</span>. Sparse only when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is specified.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frequency</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/>. mode changes first k changes after</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">velocity_alpha</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">physical_mode_&lt;min_freq&gt;_&lt;max_freq&gt;_&lt;is_nw&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/heat_capacity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/population</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;method&gt;/&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;/conductivity_&lt;alpha&gt;_&lt;beta&gt;</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/> where the <code class="docutils literal notranslate"><span class="pre">&lt;third_bandwidth&gt;/&lt;diffusivity_bandwidth&gt;</span></code> folder is created only if those values are defined</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;diffusivity_bandwidth&gt;/diffusivity</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;method&gt;/mean_free_path</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/lifetime</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/bandwidth</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/phase_space</span></code> <img alt="(n_{kpoints}, n_{modes})" class="math" src="../_images/math/e6effa16435f4377aa46fe02cde110a0d874966c.png"/></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;flux_dense</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>, when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is not specified.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/flux_sparse</span></code> <img alt="(n_{kpoints}, n_{modes}, n_{kpoints}, n_{modes})" class="math" src="../_images/math/b03c6f61ae04e67c0edb26d2bfaf5adb13aa603f.png"/>. Sparse only when <code class="docutils literal notranslate"><span class="pre">diffusivity_threshold</span></code> is specified.</p></li>
 </ul>
 <p>The folder structure depends on the input parameters to the Phonon Object and in parenthesis is the shape of the tensor. All of the above observables are stored in a dense format, except for <code class="docutils literal notranslate"><span class="pre">flux_alpha</span></code> which is stored as formatted file in a <code class="docutils literal notranslate"><span class="pre">index</span> <span class="pre">value</span></code> format.</p>
 <p>The following tensors are stored in raw binary format and help saving time when performing different simulations on the same sample.</p>
@@ -659,19 +659,19 @@ make<span class="w"> </span>mpi<span class="w"> </span><span class="nv">mode</sp
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Distances</p></td>
-<td><p><span class="math">A</span></p></td>
+<td><p><img alt="A" class="math" src="../_images/math/06aa34aab0dfa56eff4b2d179b459554df6f0726.png"/></p></td>
 </tr>
 <tr class="row-odd"><td><p>Masses</p></td>
-<td><p><span class="math">g/N_A</span></p></td>
+<td><p><img alt="g/N_A" class="math" src="../_images/math/909c442e716b6ffb0f496988e623ed801700cf77.png"/></p></td>
 </tr>
 <tr class="row-even"><td><p>Frequencies</p></td>
-<td><p><span class="math">THz</span></p></td>
+<td><p><img alt="THz" class="math" src="../_images/math/47569dc3dd27a62e0f220eb670cd81145d3bff43.png"/></p></td>
 </tr>
 <tr class="row-odd"><td><p>Potential Derivatives</p></td>
-<td><p><span class="math">eV/(A^2)</span> or <span class="math">eV/(A^3)</span></p></td>
+<td><p><img alt="eV/(A^2)" class="math" src="../_images/math/2cf0039f91ed360cffccde7898c23add1a3e7a08.png"/> or <img alt="eV/(A^3)" class="math" src="../_images/math/632884ea881305ca73c39e8149b8c4f54e53de78.png"/></p></td>
 </tr>
-<tr class="row-even"><td><p>Conductivity [<span class="math">\kappa</span>]</p></td>
-<td><p><span class="math">\frac{W}{m\ K}</span></p></td>
+<tr class="row-even"><td><p>Conductivity [<img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>]</p></td>
+<td><p><img alt="\frac{W}{m\ K}" class="math" src="../_images/math/32abdb97536404e33a889e321cbf942abf6bdc23.png"/></p></td>
 </tr>
 </tbody>
 </table>
@@ -679,12 +679,12 @@ make<span class="w"> </span>mpi<span class="w"> </span><span class="nv">mode</sp
 </section>
 <section id="Code-Architecture">
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this heading">¶</a></h1>
-<p><img alt="c7951fcdee834b6291834c0b7b7ce0b1" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="70d7c9bb923746f1915361a74bcef09d" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 </section>
 <section id="Main-Features">
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this heading">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="1aad67f8232741dca8277183732bd27a" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="7af2d086d5014d5f9aba13e09477f28b" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 </section>
 <section id="Examples">
 <h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this heading">¶</a></h1>
@@ -713,7 +713,7 @@ make<span class="w"> </span>mpi<span class="w"> </span><span class="nv">mode</sp
 </section>
 <section id="Acknowledgements">
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this heading">¶</a></h1>
-<p><img alt="cf85f6bcda33479194a8a27ea411d20d" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="c10d7eef9d824a348436ad53a8becebb" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 </section>
