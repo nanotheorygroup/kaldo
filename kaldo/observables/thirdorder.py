@@ -192,7 +192,6 @@ class ThirdOrder(ForceConstant):
                                   value=_third_order,
                                   folder=folder)
 
-        # Newly added by me!!!!
         elif format == 'sscha':
             filename = 'atom_prim.xyz'
             replicated_filename = 'replicated_atoms.xyz'

@@ -59,8 +59,9 @@ extensions = [
 # We do it like this to support multiple sphinx version without having warning.
 # Our buildbot consider warning as error.
 
-
 autosummary_generate = True
+autoclass_content = 'class'
+
 napoleon_google_docstring = False
 napoleon_use_param = True
 napoleon_use_ivar = True
@@ -72,7 +73,6 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 source_suffix = ['.rst', '.md', '.ipynb']
-# source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
@@ -157,6 +157,8 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
+# HTML favicon. Must point to a windows style .ico file.
+html_favicon = 'docsource/_resources/logo.ico'
 
 # -- Options for HTMLHelp output ---------------------------------------------
 

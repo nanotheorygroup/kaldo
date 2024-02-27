@@ -174,7 +174,6 @@ class SecondOrder(ForceConstant):
                                            value=_second_order,
                                            folder=folder)
 
-        # Newly added by me!!!!
         elif format == 'sscha':
             filename = 'atom_prim.xyz'
             replicated_filename = 'replicated_atoms.xyz'
