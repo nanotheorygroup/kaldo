@@ -182,8 +182,8 @@ class ForceConstants:
 
         >>> unfolded_third = forceconstants.unfold_third_order()
         >>> newthird = ThirdOrder(atoms=forceconstants.atoms,
-                                  supercell=forceconstants.supercell,
-                                  value=unfolded_third)
+        >>>                       supercell=forceconstants.supercell,
+        >>>                       value=unfolded_third)
 
         """
         logging.info('Unfolding third order matrix')
