@@ -342,6 +342,7 @@ class SecondOrder(ForceConstant):
             return np.zeros()
         positions = atoms.positions / units.Bohr
         epsilon = atoms.info['dielectric']
+        # We don't match up on Zeff tensor <---- issue1
         zeff = atoms.get_array('charges')
         cell = atoms.cell.copy()
         distances = positions[:, None, :] - positions[None, :, :]
@@ -396,9 +397,9 @@ class SecondOrder(ForceConstant):
         # Final Summation
         # dyn_g = (Ng, Na, alpha, 1) @ (ng, na, 1, beta)
         #                   -> (ng, na, alpha, beta)
-        dyn_g = -1 * np.sum( gdotZt[:, :, :, None] @ coeffs[:, :, None, :], axis=0, ) # sum over gvec
+        dyn_g = -1 * np.sum( gdotZt[:, :, :, None] @ coeffs[:, :, None, :], axis=0, ) # sum over gvecs
 
-        for iat in self.atoms.positions.shape[0]:
+        for iat in range(self.atoms.positions.shape[0]):
             self.dynmat[:, iat, :, 0, iat, :] += np.sum(dyn_g[:, iat, :, :], axis=0)[None, :, :, :]
         return dyn_g
 
