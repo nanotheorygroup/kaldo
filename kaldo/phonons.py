@@ -11,6 +11,7 @@ from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 import kaldo.controllers.anharmonic as aha
+import kaldo.controllers.isotopic as isotopic
 import numpy as np
 import ase.units as units
 from kaldo.helpers.logger import get_logger
@@ -63,6 +64,9 @@ class Phonons:
         Default 'C'
     is_balanced : Enforce detailed balance when calculating anharmonic properties,
         Default: False
+    g_factor : (n_atoms) array , optional
+        It contains the isotopic g factor for each atom of the unit cell
+        Default: None
 
     Returns
     -------
@@ -100,6 +104,7 @@ class Phonons:
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
+        self.g_factor = kwargs.pop('g_factor', None)
 
 
 
@@ -400,6 +405,21 @@ class Phonons:
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
+
+
+    @lazy_property(label='')
+    def isotopic_bw(self):
+        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
+        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
+        Returns
+        -------
+        isotopic_bw : np array
+            (n_k_points, n_modes) atomic participation
+        """
+        if self.g_factor is not None:
+            isotopic_bw=isotopic.compute_isotopic_bw(self)
+
+        return isotopic_bw
 # Helpers properties
 
     @property
