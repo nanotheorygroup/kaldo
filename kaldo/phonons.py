@@ -407,7 +407,7 @@ class Phonons:
 
 
 
-    @lazy_property(label='')
+    @lazy_property(label='<third_bandwidth>')
     def isotopic_bw(self):
         """ Calculate the isotopic bandwidth with Tamura perturbative formula.
         Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
@@ -416,8 +416,13 @@ class Phonons:
         isotopic_bw : np array
             (n_k_points, n_modes) atomic participation
         """
-        if self.g_factor is not None:
-            isotopic_bw=isotopic.compute_isotopic_bw(self)
+        if self._is_amorphous:
+            logging.warning('isotopic scattering not implemented for amorphous systems')
+        else:
+            if self.g_factor is not None:
+                isotopic_bw=isotopic.compute_isotopic_bw(self)
+            else:
+                logging.warning('isotopic gfactors are missing')
 
         return isotopic_bw
 # Helpers properties
