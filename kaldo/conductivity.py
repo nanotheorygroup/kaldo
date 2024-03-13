@@ -139,7 +139,7 @@ class Conductivity:
         self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>/<include_isotopes>')
     def conductivity(self):
         """Calculate the thermal conductivity per mode in W/m/K
 
@@ -174,7 +174,7 @@ class Conductivity:
         logging.info('Conductivity calculated')
         return cond.real
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>/<include_isotopes>')
     def mean_free_path(self):
         """Calculate the mean_free_path per mode in A
 

@@ -181,6 +181,9 @@ def get_folder_from_label(instance, label='', base_folder=None):
                     if '<finite_length_method>' in label:
                         if instance.finite_length_method is not None:
                             base_folder += '/fs' + str(instance.finite_length_method)
+        if '<include_isotopes>' in label:
+            if instance.include_isotopes:
+                base_folder +='/isotopes'
     return base_folder
 
 
