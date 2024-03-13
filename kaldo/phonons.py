@@ -11,6 +11,8 @@ from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 import kaldo.controllers.anharmonic as aha
+from sklearn import metrics
+from scipy import stats
 import numpy as np
 import ase.units as units
 from kaldo.helpers.logger import get_logger
@@ -430,6 +432,82 @@ class Phonons:
     def _is_amorphous(self):
         is_amorphous = (self.kpts == (1, 1, 1)).all()
         return is_amorphous
+
+
+    def pdos(self, p_atoms, direction=None, bandwidth=0.05, n_points=200):
+        # pdos routine
+        # Questions for Giuseppe:
+        #   1) Where to implement?
+        #   2) How to fail, hard or soft? Raise, Return None? dont want to return incorrect array
+
+        p_single = False
+        n_proj = len(p_atoms)
+
+        if n_proj == 0:
+            logging.info('No atoms provided for projection.')
+            return np.zeros((n_proj,n_points), dtype=float)
+
+        else:
+            try:
+                _ = iter(p_atoms[0])
+
+            except TypeError as e:
+                n_proj = 1
+                p_single = True
+                p_atoms = [p_atoms]
+
+        n_modes = self.n_modes
+        n_kpts = self.n_k_points
+        eigensystem = self._eigensystem
+        eigenvals = eigensystem[:,0,:]
+        normal_modes = eigensystem[:,1:,:]
+        frequency = np.real(np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.))
+
+        fmin,fmax = frequency.min(),frequency.max()
+        f_grid = np.linspace(fmin, fmax, n_points)
+
+        p_dos = np.zeros((n_proj,n_points), dtype=float)
+        for ip in range(n_proj):
+        
+            atom_mask = np.zeros((n_kpts,n_modes), dtype=bool)
+            for p in p_atoms[ip]:
+                i0 = 3 * p
+                atom_mask[i0:i0+3] = True
+
+            masked_modes = normal_modes[:,atom_mask,:]
+
+            if isinstance(direction, str):
+                logging.info('Direction type not implemented.')
+                raise NotImplementedError('Direction type not implemented.')
+
+            else:
+                ix = 3 * np.arange(n_atoms, dtype=int)
+                iy,iz = ix + 1, ix + 2
+
+                proj = None
+                if direction is None:
+                    proj = np.abs(masked_modes[:,ix,:]) ** 2
+                    proj += np.abs(masked_modes[:,iy,:]) ** 2
+                    proj += np.abs(masked_modes[:,iz,:]) ** 2
+
+                else:
+                    direction = np.array(direction, dtype=float)
+                    direction /= np.linalg.norm(direction)
+
+                    proj = masked_modes[:,ix,:] * direction[0]
+                    proj += masked_modes[:,iy,:] * direction[1]
+                    proj += masked_modes[:,iz,:] * direction[2]
+                    proj = np.abs(proj) ** 2
+
+            for i in range(n_points):
+                x = (frequency - f_grid[i]) / np.sqrt(bandwidth)
+                amp = stats.norm(x)
+                for j in range(proj.shape[1]):
+                    p_dos[ip,i] += np.sum(amp * proj[:,j,:])
+
+            p_dos[ip] *= 3 * len(p_atoms[ip]) / metrics.auc(f_grid, p_dos[ip])
+
+        return p_dos
 
 
     def _allowed_third_phonons_index(self, index_q, is_plus):
