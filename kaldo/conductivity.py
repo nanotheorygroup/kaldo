@@ -48,12 +48,12 @@ def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, phy
 
 def mfp_matthiessen(gamma, velocity, length, physical_mode,isotopic_bw=None):
     lambd_0 = np.zeros_like(velocity)
+    if isotopic_bw is not None:
+        gamma = gamma + isotopic_bw
     for alpha in range(3):
         if length is not None:
             if length[alpha] and length[alpha] != 0:
                 gamma = gamma + 2 * abs(velocity[:, alpha]) / length[alpha]
-        if isotopic_bw is not None:
-            gamma=gamma+isotopic_bw
         lambd_0[physical_mode, alpha] = 1 / gamma[physical_mode] * velocity[physical_mode, alpha]
     return lambd_0
 
@@ -353,6 +353,8 @@ class Conductivity:
                                                                  is_rescaling_omega=True,
                                                                  is_rescaling_population=False)
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
+            if self.include_isotopes:
+                gamma+=phonons.isotopic_bw.reshape(phonons.n_phonons)
             if finite_length_method == 'ms':
                 if length is not None:
                     if length[alpha]:
