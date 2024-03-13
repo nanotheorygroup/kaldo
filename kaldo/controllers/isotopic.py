@@ -80,20 +80,19 @@ def calculate_base_sigma(velocity, cellinv, k_size):
 
 def refine_sigma(base_sigma):
     #sigma: array (nk,nmodes)
-    #local adaptive broadening from Shengbte
+    #local adaptive broadening similar to Shengbte
     #avoid sigma too extreme ( e.g. zero)
     sigma=base_sigma.copy()
     sigma[base_sigma<=0]=np.min(sigma[base_sigma>0])
     logsigma=np.log(sigma)
     per25=np.percentile(logsigma, 25)
-    per50 = np.percentile(logsigma, 25)
+    per50 = np.percentile(logsigma, 50)
     per75 = np.percentile(logsigma, 75)
     # delta=per75-per25
     # lbound=np.exp(per25-1.5*delta)
-    lbound=np.exp(per50)
-    logging.info('per25,per75,lbound={} {} {}'.format(np.exp(per25),np.exp(per75),lbound))
-    # lbound=np.exp(np.percentile(logsigma, 50))
+    lbound=np.exp(per75)
     sigma=np.where(sigma>lbound,sigma,lbound)
-    # sigma=np.max(sigma)*np.ones_like(base_sigma)
+    logging.info('per25,per50,per75,mean sigma={} {} {} {}'.format(np.exp(per25),np.exp(per50),\
+                                                                np.exp(per75),np.mean(sigma)) )
 
     return sigma
