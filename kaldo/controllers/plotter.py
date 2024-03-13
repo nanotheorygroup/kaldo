@@ -163,6 +163,26 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
         plt.close()
 
 
+def plot_pdos(phonons, p_atoms, direction=None, bandwidth=.05, n_points=200, is_showing=True):
+
+    fig = plt.figure()
+    fgrid,pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
+    for p in pdos:
+        plt.plot(fgrid, p)
+    plt.xlabel("$\\nu$ (THz)", fontsize=16)
+    plt.ylabel('DOS',fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=16)
+    plt.tick_params(axis='both', which='minor', labelsize=16)
+    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    fig.savefig(folder + '/' + 'pdos.png')
+    if is_showing:
+        plt.show()
+    else:
+        plt.close()
+
+
 def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False, manually_defined_path=None):
     atoms = phonons.atoms
     if is_nw is None and phonons.is_nw:
