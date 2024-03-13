@@ -46,12 +46,14 @@ def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, phy
     return diffusivity
 
 
-def mfp_matthiessen(gamma, velocity, length, physical_mode):
+def mfp_matthiessen(gamma, velocity, length, physical_mode,isotopic_bw=None):
     lambd_0 = np.zeros_like(velocity)
     for alpha in range(3):
         if length is not None:
             if length[alpha] and length[alpha] != 0:
                 gamma = gamma + 2 * abs(velocity[:, alpha]) / length[alpha]
+        if isotopic_bw is not None:
+            gamma=gamma+isotopic_bw
         lambd_0[physical_mode, alpha] = 1 / gamma[physical_mode] * velocity[physical_mode, alpha]
     return lambd_0
 
@@ -134,6 +136,7 @@ class Conductivity:
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
+        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
 
 
     @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
@@ -276,6 +279,9 @@ class Conductivity:
             diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes))
         else:
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
+            if self.include_isotopes:
+                diffusivity_bandwidth += self.phonons.isotopic_bw.reshape((phonons.n_k_points, phonons.n_modes)).copy() / 2.
+
 
         # if self.diffusivity_threshold is None:
         logging.info('Start calculation diffusivity')
@@ -506,16 +512,20 @@ class Conductivity:
         velocity = phonons.velocity.real.reshape ((phonons.n_k_points, phonons.n_modes, 3))
         velocity = velocity.reshape((phonons.n_phonons, 3))
         physical_mode = phonons.physical_mode.reshape(phonons.n_phonons)
+        if self.include_isotopes:
+            isotopic_bw=self.phonons.isotopic_bw.reshape(phonons.n_phonons)
+        else:
+            isotopic_bw=None
         if n_iterations == 0:
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
-            lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
+            lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode,isotopic_bw=isotopic_bw)
             return lambd_0
         else:
             scattering_matrix = -1 * self.calculate_scattering_matrix(is_including_diagonal=False,
                                                                       is_rescaling_omega=True,
                                                                       is_rescaling_population=False)
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
-            lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode)
+            lambd_0 = mfp_matthiessen(gamma, velocity, matthiessen_length, physical_mode,isotopic_bw=isotopic_bw)
             lambd_n = np.zeros_like(lambd_0)
             avg_conductivity = None
             n_iteration = 0
