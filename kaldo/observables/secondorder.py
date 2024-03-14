@@ -312,8 +312,112 @@ class SecondOrder(ForceConstant):
                     ir = ir + 1
         return sc_r_pos
 
-    def calculate_nonanalytical_corrections_gamma(self, bec=None):
+    def calculate_nonanalytical_corrections(self, kpoints=None):
+        '''    Calculates the nonanalytical contributions to the dynamical matrix according to
+        the forumla developed by X. Gonze et. al. PRB 50. 13035 (1994).
+        The implementation here is a pythonic version of the loops in rigid.f90 found
+        in the Quantum Espresso source code. (/<your QE home>/PHonon/PH/rigid.f90)
+
+        Parameters
+        -------
+        BEC (optional) : np.array(n_unit, 3, 3, )
+            The 2-dimensional charge tensor on every atom
+
+        Returns
+        -------
+        dyn_g : np.array(n_unit, 3, 3, )
+            The ionic contribution to the dynamical matrix in
+            10 J / mol based on the Born effective charges found on the
+            atoms. Alternatively, users can specify arbitrary charges.
         '''
+        atoms = self.atoms
+        natoms = len(atoms)
+
+        # Prepare cell and position data
+        cell_a = atoms.cell.copy()  # in Angstrom
+        positions_n = atoms.positions.copy() / cell_a[0, 0]  # normalized
+        distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # normalized
+        reciprocal = cell_a.reciprocal()  # "gcell" in qe
+        reciprocal_n = reciprocal / reciprocal[0, 0]  # normalized!
+        omega_bohr = np.linalg.det(cell_a.array / units.Bohr)  # in Bohr^3
+
+        # Constants in Atomic Units
+        e2 = 2  # electron charge squared (atomic units)
+        gmax = 14  # maximum reciprocal vector
+        alpha = 1.0  # Ewald parameter
+        geg0 = 4 * alpha * gmax
+        prefactor = 4 * np.pi * e2 / omega_bohr  # "fac" in rigid.f90
+
+        # Charge information
+        epsilon = atoms.info['dielectric']
+        zeff = atoms.get_array('charges')  # in e
+
+        # Construct grid of reciprocal unit cells
+        # Find the number of replicas to make
+        n_greplicas = np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=1) + 1
+        # Generate the grid of replicas
+        g_grid = Grid(n_greplicas.astype(int) * 2)
+        g_replicas = g_grid.grid(is_wrapping=True)
+        # Transform the raw indices, to coordinates in reciprocal space
+        g_positions = np.einsum('ij,jk->ik', g_replicas, reciprocal_n, dtype=np.float128)
+        # Calculate GEG (outer product scaled by epsilon)
+        # g_supercell_norms = np.linalg.norm(g_positions, axis=1)
+        geg = np.einsum('ij,jl,il->i', g_positions, epsilon, g_positions, dtype=np.float128)
+        cells_to_include = (geg > 0) * (geg / (4 * alpha) < gmax)
+
+        # Filter
+        # g_replicas_gamma = g_replicas[cells_to_include]
+        geg_gamma = geg[cells_to_include]
+        g_positions_gamma = g_positions[cells_to_include]
+
+        # Exponential factor for the replicas
+        facgd = prefactor * np.exp(-1 * geg_gamma / (alpha * 4)) / geg_gamma
+        # Effective charge at each site
+        zag = np.einsum('abi,jb->jai', zeff, g_positions_gamma)
+        # Real part of the exponential distance factor (sine neglected since they're all real at gamma)
+        cosine = np.cos(2 * np.pi * np.einsum('ja,nma->jnm', g_positions_gamma, distances_n))
+
+        # Symmetrize the long range correction (Imposing Hermicity) which is the outer product of the effective charges
+        # scaled by the cosine term. Then take the average of M and M^T
+        long_range_vector = np.einsum('ijk,ika->ija', cosine, zag)
+        long_range_correction = np.einsum('ijk,ijl->ijkl', long_range_vector, zag) / 2
+        long_range_correction += np.transpose(long_range_correction, (0, 1, 3, 2))
+
+        # Apply exponential factor and sum over G-vectors
+        # Arange axes of correction tensor to be compatible with the diagonals of the dynamical matrix
+        long_range_correction = np.einsum('i,ijkl->klj', facgd, long_range_correction)
+
+        # Fake dynamical matrix
+        dynamical_matrix_nac = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
+        dynamical_matrix_nac = tf.linalg.set_diag(dynamical_matrix_nac,
+                                              tf.linalg.diag_part(dynamical_matrix_nac) - long_range_correction)
+
+        # Measure geg at q-points
+        scaled_kpoints = kpoints @ reciprocal_n
+        g_plus_k = g_positions[:, None, :] + scaled_kpoints[None, :, :]
+        g_plus_k = g_plus_k.reshape(-1, 3)  # List of G+K vectors
+        geg = np.einsum('ij,jl,il->i', g_plus_k, epsilon, g_plus_k)
+        cells_to_include = (geg > 0) * (geg / (4 * alpha) < gmax)
+
+        # Filter G+K vectors
+        geg = geg[cells_to_include]
+        g_plus_k = g_plus_k[cells_to_include]
+
+        # Prefactors for the GEG
+        facgd = prefactor * np.exp(-1 * geg / (alpha * 4)) / geg
+        zag = np.einsum('abi,jb->jai', zeff, g_plus_k)
+        exponential = np.exp(-1j * 2 * np.pi * np.einsum('ja,nma->jnm', g_plus_k, distances_n))
+
+        # Perform outer product on the effective charges at each G vector. Sum over the G-vectors (summing the first index)
+        # to get long range correction matrices for each atom pair. Finally, scale it by the exponential prefactor
+        long_range_correction = np.einsum('ija,ijk,ijb->ijkab', zag, exponential, zag)
+        long_range_correction = np.einsum('i,ijkab->abjk', facgd, long_range_correction)
+
+        dynamical_matrix_nac += long_range_correction
+        return dynamical_matrix_nac
+
+'''
+    def calculate_nonanalytical_corrections_Sheng(self, k_points, bec=None):
         Calculates the nonanalytical contributions to the dynamical matrix according to
         the forumla developed by X. Gonze et. al. PRB 50. 13035 (1994).
         The implementation here is a pythonic version of the loops in rigid.f90 found
@@ -322,8 +426,7 @@ class SecondOrder(ForceConstant):
         Parameters
         -------
         BEC (optional) : np.array(n_unit, 3, 3, )
-            The 2-dimensional charge tensor on every atom in units of
-            of
+            The 2-dimensional charge tensor on every atom
 
         Returns
         -------
@@ -332,7 +435,7 @@ class SecondOrder(ForceConstant):
             10 J / mol based on the Born effective charges found on the
             atoms. Alternatively, users can specify arbitrary charges.
 
-        '''
+        
         e2 = 2.
         gmax = self.gmax
         atoms = self.atoms
@@ -342,7 +445,7 @@ class SecondOrder(ForceConstant):
             return np.zeros()
         positions = atoms.positions / units.Bohr
         epsilon = atoms.info['dielectric']
-        # We don't match up on Zeff tensor <---- issue1
+
         zeff = atoms.get_array('charges')
         cell = atoms.cell.copy()
         distances = positions[:, None, :] - positions[None, :, :]
@@ -377,7 +480,7 @@ class SecondOrder(ForceConstant):
 
         # Calculate contributions
         # Shapes:
-        # expg = (Ng, )
+        # exp_g = (Ng, )
         # gdotZ = (Na, Ng, 3, ) -- transpose --> (Ng, 3, Na, )
         # grij = (Ng, Na, Na, )
         # expgrij = (Ng, Na, Na, )
@@ -386,7 +489,7 @@ class SecondOrder(ForceConstant):
         gdotZ = np.transpose(gdotZ, axes=(1, 2, 0))
         gdotZt = np.transpose(gdotZ, axes=(0, 2, 1))
         grij = g_supercell_positions[:, None, None, None, :] @ distances[None, :, :, :, None]
-        egrij = np.exp(-1j * grij.squeeze())
+        expgrij = np.exp(-1j * grij.squeeze())
 
         # Matrix multiplication explanation
         # gdotZ @ egrij (Ng, 3, Na) @ (Ng, Na, Na)
@@ -429,12 +532,6 @@ class SecondOrder(ForceConstant):
 
         ddyn_gk = exp_gk[:, None, None, None, None, None] * \
                   ( gkdotZ )
-
-
-
-
-
-
         # for gvec in gcells:
         #     geg = gvec.T @ epsilon @ gvec
         #     geg_normalized = geg/(4 * alpha)
@@ -450,3 +547,4 @@ class SecondOrder(ForceConstant):
                     # for alpha in range(3):
                     #     for beta in range(3):
                     #         dyn_g(:, alpha, beta) -= expg * zig(alpha) * auxi(beta)
+'''

@@ -29,11 +29,11 @@ import sys
 import numpy as np
 from ase.io import read
 # Replicas
-nrep = int(9)
-nrep_third = int(5)
+nrep = 9
+nrep_third = 5
 supercell = np.array([nrep, nrep, 1])
-kpts, kptfolder = [k, k, 1], '{}_{}_{}'.format(k,k,k)
-third_supercell = np.array([nrep_third, nrep_third, nrep_third])
+kpts, kptfolder = [k, k, 1], '{}_{}_{}'.format(k,k,1)
+third_supercell = np.array([nrep_third, nrep_third, 1])
 
 # Detect harmonic
 harmonic = False
@@ -53,7 +53,7 @@ if os.path.isdir(prefix):
 else:
     os.mkdir(prefix)
 # Control threading behavior
-os.environ['CUDA_VISIBLE_DEVICES']=" "
+os.environ['CUDA_VISIBLE_DEVICES']=""
 import tensorflow as tf
 tf.config.threading.set_inter_op_parallelism_threads(nthread)
 tf.config.threading.set_intra_op_parallelism_threads(nthread)
@@ -82,7 +82,6 @@ forceconstant = ForceConstants.from_folder(
                        third_supercell=third_supercell,
                        is_acoustic_sum=True,
                        format='shengbte-qe')
-forceconstant.second.calculate_nonanalytical_corrections_gamma()
 phonons = Phonons(forceconstants=forceconstant,
               kpts=kpts,
               is_classic=False,
@@ -90,6 +89,12 @@ phonons = Phonons(forceconstants=forceconstant,
               folder=prefix,
               is_unfolding=unfold_bool,
               storage='numpy')
+
+q1 = np.array([0.0, 0.0, 0.0])
+q2 = np.array([0.5, 0.0, 0.0])
+q3 = np.array([0.3, 0.3, 0.0])
+q4 = np.array([0.4, 0.15, 0.0])
+phonons.nonanalytical_correction(k_points=[q1, q2, q3, q4])
 # Notes:
 # Need k-point grid to calculate NAC @ every k-point
 # Therefore "compute_NAC" method needs to live in Phonons Class

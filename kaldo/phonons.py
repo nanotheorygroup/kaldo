@@ -124,20 +124,19 @@ class Phonons:
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
 
-    @lazy_property(label='')
-    def nonanalytical_contribution(self):
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
-        dyn_g = np.zeros((self.n_k_points, self.n_modes, self.n_modes))
-        ddyn_g = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3))
-        has_charge_information = False
+    #@lazy_property(label='')
+    def nonanalytical_correction(self, k_points):
+        #k_points = self._reciprocal_grid.unitary_grid(is_wrapping=True)
+        dyn_nac = np.zeros((self.n_k_points, self.n_modes, self.n_modes))
+        ddyn_nac = np.zeros((self.n_k_points, self.n_modes, self.n_modes, 3))
         try: # Try finding the dielectric tensor
              self.forceconstants.second.atoms.info['dielectric']
-             self.forceconstants.second.calculate_nonanalytical_contribution(q_points=q_points)
+             self.forceconstants.second.calculate_nonanalytical_corrections_gamma(k_points=k_points)
              return
         except KeyError: # Fail if Epsilon doesn't exist
             logging.info('Forceconstant object was created without charge information')
             logging.info('NACs will not be considered.')
-            return 0
+            return None
 
     @lazy_property(label='')
     def physical_mode(self):
