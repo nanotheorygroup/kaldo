@@ -445,7 +445,7 @@ class Phonons:
 
         if n_proj == 0:
             logging.info('No atoms provided for projection.')
-            return np.zeros((n_proj,n_points), dtype=float)
+            raise IndexError('Cannot project on an empty set of atoms.')
 
         else:
             try:
@@ -469,7 +469,8 @@ class Phonons:
         p_dos = np.zeros((n_proj,n_points), dtype=float)
         for ip in range(n_proj):
         
-            atom_mask = np.zeros((n_kpts,n_modes), dtype=bool)
+            n_atoms = len(p_atoms[ip])
+            atom_mask = np.zeros(n_modes, dtype=bool)
             for p in p_atoms[ip]:
                 i0 = 3 * p
                 atom_mask[i0:i0+3] = True
@@ -501,13 +502,13 @@ class Phonons:
 
             for i in range(n_points):
                 x = (frequency - f_grid[i]) / np.sqrt(bandwidth)
-                amp = stats.norm(x)
+                amp = stats.norm.pdf(x)
                 for j in range(proj.shape[1]):
                     p_dos[ip,i] += np.sum(amp * proj[:,j,:])
 
-            p_dos[ip] *= 3 * len(p_atoms[ip]) / metrics.auc(f_grid, p_dos[ip])
+            p_dos[ip] *= 3 * n_atoms / metrics.auc(f_grid, p_dos[ip])
 
-        return p_dos
+        return f_grid,p_dos
 
 
     def _allowed_third_phonons_index(self, index_q, is_plus):

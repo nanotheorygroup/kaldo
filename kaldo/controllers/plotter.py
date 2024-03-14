@@ -18,7 +18,10 @@ from sklearn.neighbors import KernelDensity
 from scipy import ndimage
 from kaldo.helpers.storage import get_folder_from_label
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.helpers.logger import get_logger
 import os
+
+logging = get_logger()
 
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots'
@@ -165,8 +168,13 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
 
 def plot_pdos(phonons, p_atoms, direction=None, bandwidth=.05, n_points=200, is_showing=True):
 
+    try:
+        fgrid,pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
+    except IndexError as e:
+        logging.info(f'Failed to calculate pdos.')
+        return
+      
     fig = plt.figure()
-    fgrid,pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
     for p in pdos:
         plt.plot(fgrid, p)
     plt.xlabel("$\\nu$ (THz)", fontsize=16)
