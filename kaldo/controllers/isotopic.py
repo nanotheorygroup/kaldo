@@ -8,6 +8,7 @@ from kaldo.helpers.tools import timeit
 from opt_einsum import contract
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
+from ase.data.isotopes import download_isotope_data
 logging = get_logger()
 
 @timeit
@@ -93,3 +94,19 @@ def refine_sigma(base_sigma):
                                                                 np.exp(per75),np.mean(sigma)) )
 
     return sigma
+
+def compute_gfactor(list_of_atomic_numbers):
+    isotopes = download_isotope_data()
+    g_factor=np.zeros(len(list_of_atomic_numbers))
+    minimal_list=np.unique(list_of_atomic_numbers)
+    for element in minimal_list:
+        masses = np.array([isotopes[element][iso]['mass'] for iso in isotopes[element].keys()])
+        conc = np.array([isotopes[element][iso]['composition'] for iso in isotopes[element].keys()])
+        m_avg=np.sum(masses*conc)
+        rel_masses=masses/m_avg
+        g_=np.sum(conc*(1-rel_masses)**2)
+        g_factor[list_of_atomic_numbers==element]=g_
+    return g_factor
+
+
+

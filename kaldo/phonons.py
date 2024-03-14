@@ -422,7 +422,11 @@ class Phonons:
             if self.g_factor is not None:
                 isotopic_bw=isotopic.compute_isotopic_bw(self)
             else:
-                logging.warning('isotopic gfactors are missing')
+                atoms=self.atoms
+                self.g_factor=isotopic.compute_gfactor(atoms.get_atomic_numbers() )
+                logging.warning('input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)')
+                logging.info('g factors='+str(self.g_factor))
+                isotopic_bw = isotopic.compute_isotopic_bw(self)
 
         return isotopic_bw
 # Helpers properties
