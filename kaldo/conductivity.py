@@ -94,6 +94,8 @@ class Conductivity:
     storage : 'formatted', 'hdf5', 'numpy', 'memory', optional
         Defines the type of storage used for the simulation.
         Default is `formatted`
+    include_isotopes: bool, optional.
+        Defines if you want to include isotopic scattering bandwidths. Default is False.
 
     Returns
     -------
@@ -238,6 +240,8 @@ class Conductivity:
             logging.info('Asymmetry of gamma_tensor: ' + str(np.abs(gamma_tensor - gamma_tensor.T).sum()))
         if is_including_diagonal:
             gamma = self.phonons.bandwidth.reshape((self.n_phonons))[physical_mode]
+            if self.include_isotopes:
+                gamma += self.phonons.isotopic_bw.reshape((self.n_phonons))[physical_mode]
             gamma_tensor = gamma_tensor + np.diag(gamma)
         if is_rescaling_omega:
             gamma_tensor = 1 / (frequency.reshape(-1, 1)) * gamma_tensor * (frequency.reshape(1, -1))

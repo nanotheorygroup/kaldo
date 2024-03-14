@@ -19,14 +19,12 @@ def compute_isotopic_bw(phonons):
     isotopic_bw = np.zeros((n_k_points, n_modes))
     g_factor = phonons.g_factor
     omegas = phonons.omega
+    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     eigvectors = phonons.eigenvectors
     eigvectors=eigvectors.reshape([n_k_points,n_atoms,3,n_modes])
     if phonons.third_bandwidth:
         sigmas = phonons.third_bandwidth*np.ones_like(omegas)
     else:
-        # TODO compare to anharmonic compute broad function
-        # sigma = 0.3*2*np.pi
-        # logging.info(' default sigma={}'.format(sigma))
         velocity=phonons.velocity
         cellinv = phonons.forceconstants.cell_inv
         k_size = phonons.kpts
@@ -49,10 +47,9 @@ def compute_isotopic_bw(phonons):
             logging.info('Calculating isotopic bandwidth  ' + str(nu_single) +  ', ' + \
                          str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+        if not physical_mode[index_k,mu]:
+            continue
         sigma=sigmas[index_k,mu]
-        # if phonons.third_bandwidth is None:
-        #     sigma = calculate_base_sigma(velocity, cellinv, k_size, index_k, mu)
-        #     sigma=np.mean(sigma)
         vec=eigvectors[index_k,:,:,mu]
 
         overlap=contract('kixn,ix->kin',eigvectors,np.conjugate(vec) )
@@ -61,7 +58,7 @@ def compute_isotopic_bw(phonons):
         delta_omega=omegas-omegas[index_k,mu]
         w2delta=omegas**2*curve(delta_omega,2*np.pi*sigma)
         bw=w2delta*g_per_mode/n_k_points
-        isotopic_bw[index_k,mu]=(np.pi/2)*np.sum(bw) #check prefactor
+        isotopic_bw[index_k,mu]=(np.pi/2)*np.sum(bw[physical_mode])
 
 
 
