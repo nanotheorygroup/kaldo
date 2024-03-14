@@ -173,7 +173,7 @@ def plot_pdos(phonons, p_atoms, direction=None, bandwidth=.05, n_points=200, is_
     except IndexError as e:
         logging.info(f'Failed to calculate pdos.')
         return
-      
+
     fig = plt.figure()
     for p in pdos:
         plt.plot(fgrid, p)
