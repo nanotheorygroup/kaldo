@@ -12,20 +12,19 @@ RUN apt-get update && \
     localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 && \
     apt-get install -y vim curl python3 python3-pip \
         libglib2.0-0 libgl1 libegl1 libxkbcommon0 dbus libopengl0 build-essential git \
-        ccache openmpi-bin libopenmpi-dev cmake libblas-dev liblapack-dev python3.11-venv && \
-    curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
-    apt install git-lfs && \
+        ccache openmpi-bin libopenmpi-dev cmake libblas-dev liblapack-dev python3.11-venv \
+        libfftw3-dev ffmpeg  && \
     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory to /mnt/work
 WORKDIR /mnt/work
 
-# Copy the Python requirements file
-COPY requirements.txt /mnt/work/
 
-# Install Python packages without caching
-RUN python3 -m pip install --no-cache-dir git+https://github.com/nanotheorygroup/kaldo && \
-    python3 -m pip install --no-cache-dir -r requirements.txt
+# Install Kaldo
+RUN python3 -m pip install --no-cache-dir git+https://github.com/nanotheorygroup/kaldo
+
+#Install additional packages for lammps
+RUN    python3 -m pip install calorine virtualenv psutil tabulate mpi4py Cython fitsnap3
 
 #Install lammps with packages and GPU config.
 RUN git clone https://github.com/lammps/lammps.git lammps && \
@@ -44,12 +43,19 @@ RUN git clone https://github.com/lammps/lammps.git lammps && \
         -DPKG_ML-PACE=yes \
         -DPKG_SPIN=yes \
         -DPYTHON_EXECUTABLE:FILEPATH=$(which python3) && \
-     make -j $(nproc)
+     make -j $(nproc) && \
+     make install-python
+
+
+# Currently a bug exists and will be fixed when the bug is gone.
+#RUN  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
+#    apt install git-lfs 
+#
 
 
 #Git kaldo so tests can be done
-RUN git-lfs clone https://github.com/nanotheorygroup/kaldo
+RUN git clone https://github.com/nanotheorygroup/kaldo
 
 # Set the working directory back to the root
-WORKDIR /root/
+WORKDIR /mnt/work/kaldo
 

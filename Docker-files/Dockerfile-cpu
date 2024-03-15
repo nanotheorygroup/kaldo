@@ -18,12 +18,9 @@ RUN apt-get update && \
 # Set the working directory to /mnt/work
 WORKDIR /mnt/work
 
-# Copy the Python requirements file
-COPY requirements.txt /mnt/work/
 
-# Install Python packages without caching
-RUN python3 -m pip install --no-cache-dir git+https://github.com/nanotheorygroup/kaldo && \
-    python3 -m pip install --no-cache-dir -r requirements.txt
+# Install KALDo without caching
+RUN python3 -m pip install --no-cache-dir git+https://github.com/nanotheorygroup/kaldo
 
 # Clone, build, and install LAMMPS
 RUN git clone https://github.com/lammps/lammps.git lammps && \

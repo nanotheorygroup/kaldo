@@ -1,78 +1,92 @@
+
 # KALDodocker
 
 ## Overview
-KALDodocker is a Docker container designed for computational simulations, integrating LAMMPS with Python support and KALDo software. This container is tailored for CPU environments but also includes instructions for adapting it for GPU usage.
+KALDodocker is a Docker container designed for computational simulations, integrating LAMMPS with Python support and KALDo software. Tailored for CPU environments, it also provides instructions for GPU usage adaptation.
 
 ## Getting Started
 
 ### CPU Build
 
-To prepare the Docker environment for CPU-based computations, rename the Dockerfile designated for CPU usage:
+To configure the Docker environment for CPU-based computations, rename the CPU-specific Dockerfile:
 
-```bash
+\```bash
 mv Dockerfile-cpu Dockerfile
-```
+\```
 
 #### Building the Container
 
-Build the Docker image using the following command:
+Build the Docker image with the following command:
 
-```bash
+\```bash
 docker build -t kaldo .
-```
+\```
 
 #### Running the Container
 
-To run KALDo in an interactive shell environment, execute:
+Execute the following to run KALDo in an interactive shell environment:
 
-```bash
+\```bash
 docker run -it --rm -u $(id -u):$(id -g) kaldo /bin/bash
-```
+\```
 
-This command grants you access to a full Ubuntu environment within the container.
+This grants access to a full Ubuntu environment within the container.
 
 ##### File Transfer Support
 
-To mount your current directory inside the container for easy file transfer, use the `-v` option:
+For easy file transfer, mount your current directory inside the container using the `-v` option:
 
-```bash
+\```bash
 docker run -it --rm -u $(id -u):$(id -g) -v $(pwd):/root/ kaldo /bin/bash
-```
+\```
 
-This mounts your present working directory to `/root` inside the Docker container.
+This command mounts your present working directory to `/root` inside the container.
 
 ### GPU Build
 
-For enabling GPU support, follow these instructions but ensure you have `nvidia-cuda-toolkit` and compatible drivers installed.
+To enable GPU support, follow these instructions, ensuring you have `nvidia-cuda-toolkit` and compatible drivers installed.
 
 #### Preparing the Dockerfile
 
-Switch to the Dockerfile intended for GPU use:
+Switch to the GPU-specific Dockerfile:
 
-```bash
+\```bash
 mv Dockerfile-gpu Dockerfile
-```
+\```
 
 #### Building the Container
 
-To build the GPU-enabled Docker image, use:
+Build the GPU-enabled Docker image with:
 
-```bash
+\```bash
 docker build -t kaldo-gpu .
-```
+\```
 
 #### Running the Container
 
-To run the container with GPU support:
+For container execution with GPU support:
 
-```bash
+\```bash
 docker run -it --rm -u $(id -u):$(id -g) --gpus all kaldo-gpu /bin/bash
-```
+\```
 
-The `--gpus all` flag enables all available GPUs. For specific GPUs, use `--gpus=0,1` to utilize GPU 0 and GPU 1, for example.
+Use the `--gpus all` flag to enable all GPUs or `--gpus=0,1` for specific GPUs.
 
-### Additional Information
+### Development and Testing
 
-- For comprehensive details on Docker and GPU support, refer to the [NVIDIA Container Toolkit documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and [TensorFlow Docker installation guide](https://www.tensorflow.org/install/docker).
-- The development version (`devel`) includes the entire KALDo package and is intended for debugging or when full access to KALDo is necessary.
+Set up KALDo for testing or contributions with the Docker-dev environment.
 
+To run development tests with pytest, execute:
+
+\```bash
+mv Dockerfile-dev Dockerfile
+docker build --tag kaldo-dev .
+docker run --rm --gpus all kaldo-dev pytest
+\```
+
+Post-execution, verify KALDo's GPU support and additional features. The container installs the main branch of KALDo, suitable for a test environment.
+
+### Additional Resources
+
+- For detailed Docker and GPU support information, consult the [NVIDIA Container Toolkit documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and the [TensorFlow Docker installation guide](https://www.tensorflow.org/install/docker).
+- The development version (`devel`) includes the full KALDo package, intended for debugging or full access to KALDo's features.
