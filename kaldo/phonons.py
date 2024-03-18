@@ -338,7 +338,7 @@ class Phonons:
         return population
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
@@ -347,7 +347,7 @@ class Phonons:
         bandwidth : np.array(n_k_points, n_modes)
             bandwidth for each k point and each mode
         """
-        gamma = self.scattering_bandwidth
+        gamma = self.anharmonic_bandwidth
         if self.include_isotopes:
             gamma += self.isotopic_bandwidth
         return gamma
@@ -379,7 +379,7 @@ class Phonons:
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
-    def scattering_bandwidth(self):
+    def anharmonic_bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
