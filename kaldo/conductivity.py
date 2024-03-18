@@ -134,9 +134,10 @@ class Conductivity:
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
+        self.include_isotopes=self.phonons.include_isotopes
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
         """Calculate the thermal conductivity per mode in W/m/K
 
@@ -171,7 +172,7 @@ class Conductivity:
         logging.info('Conductivity calculated')
         return cond.real
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def mean_free_path(self):
         """Calculate the mean_free_path per mode in A
 
