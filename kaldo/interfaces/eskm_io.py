@@ -97,7 +97,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_ener
     n_replicated_atoms = n_atoms * n_replicas
     n_rows = count_rows(filename)
     array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
-    coords = np.zeros((array_size, 6), dtype=np.int16)
+    coords = np.zeros((array_size, 6), dtype=int)
     values = np.zeros((array_size))
     index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
@@ -105,7 +105,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_ener
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
             coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
-            values_to_write = np.array(l_split[-3:], dtype=np.float)
+            values_to_write = np.array(l_split[-3:], dtype=float)
             #TODO: add 'if' third_energy_threshold before calculating the mask
             mask_to_write = np.abs(values_to_write) > third_energy_threshold
 
@@ -130,10 +130,10 @@ def import_dense_third(atoms, supercell, filename, is_reduced=True):
     n_atoms = atoms.get_positions().shape[0]
     if is_reduced:
         total_rows = (n_atoms *  3) * (n_atoms * n_replicas * 3) ** 2
-        third = np.fromfile(filename, dtype=np.float, count=total_rows)
+        third = np.fromfile(filename, dtype=float, count=total_rows)
         third = third.reshape((n_atoms, 3, n_atoms * n_replicas, 3, n_atoms * n_replicas, 3))
     else:
         total_rows = (n_atoms * n_replicas * 3) ** 3
-        third = np.fromfile(filename, dtype=np.float, count=total_rows)
+        third = np.fromfile(filename, dtype=float, count=total_rows)
         third = third.reshape((n_atoms * n_replicas, 3, n_atoms * n_replicas, 3, n_atoms * n_replicas, 3))
     return third

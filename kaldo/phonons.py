@@ -67,6 +67,8 @@ class Phonons:
     g_factor : (n_atoms) array , optional
         It contains the isotopic g factor for each atom of the unit cell
         Default: None
+    include_isotopes: bool, optional.
+        Defines if you want to include isotopic scattering bandwidths. Default is False.
 
     Returns
     -------
@@ -105,7 +107,7 @@ class Phonons:
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
         self.g_factor = kwargs.pop('g_factor', None)
-
+        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
 
 
     @lazy_property(label='')
@@ -118,7 +120,7 @@ class Phonons:
             (n_k_points, n_modes) bool
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
-        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=np.bool)
+        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -229,8 +231,8 @@ class Phonons:
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
-        log_size(shape, name='eigensystem', type=np.complex)
-        eigensystem = np.zeros(shape, dtype=np.complex)
+        log_size(shape, name='eigensystem', type=complex)
+        eigensystem = np.zeros(shape, dtype=complex)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -291,7 +293,7 @@ class Phonons:
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes, self.n_modes)
-        log_size(shape, name='heat_capacity_2d', type=np.float)
+        log_size(shape, name='heat_capacity_2d', type=float)
         heat_capacity_2d = np.zeros(shape)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -338,6 +340,46 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def bandwidth(self):
+        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+
+        Returns
+        -------
+        bandwidth : np.array(n_k_points, n_modes)
+            bandwidth for each k point and each mode
+        """
+        gamma = self.scattering_bandwidth
+        if self.include_isotopes:
+            gamma += self.isotopic_bandwidth
+        return gamma
+
+
+    @lazy_property(label='<third_bandwidth>')
+    def isotopic_bandwidth(self):
+        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
+        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
+        Returns
+        -------
+        isotopic_bw : np array
+            (n_k_points, n_modes) atomic participation
+        """
+        if self._is_amorphous:
+            logging.warning('isotopic scattering not implemented for amorphous systems')
+            return np.zeros(self.n_k_points, self.n_modes)
+        else:
+            if self.g_factor is not None:
+                isotopic_bw=isotopic.compute_isotopic_bw(self)
+            else:
+                atoms=self.atoms
+                self.g_factor=isotopic.compute_gfactor(atoms.get_atomic_numbers() )
+                logging.warning('input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)')
+                logging.info('g factors='+str(self.g_factor))
+                isotopic_bw = isotopic.compute_isotopic_bw(self)
+
+            return isotopic_bw
+
+
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    def scattering_bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
@@ -406,29 +448,6 @@ class Phonons:
         return ps_gamma_and_gamma_tensor
 
 
-
-    @lazy_property(label='<third_bandwidth>')
-    def isotopic_bw(self):
-        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
-        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
-        Returns
-        -------
-        isotopic_bw : np array
-            (n_k_points, n_modes) atomic participation
-        """
-        if self._is_amorphous:
-            logging.warning('isotopic scattering not implemented for amorphous systems')
-        else:
-            if self.g_factor is not None:
-                isotopic_bw=isotopic.compute_isotopic_bw(self)
-            else:
-                atoms=self.atoms
-                self.g_factor=isotopic.compute_gfactor(atoms.get_atomic_numbers() )
-                logging.warning('input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)')
-                logging.info('g factors='+str(self.g_factor))
-                isotopic_bw = isotopic.compute_isotopic_bw(self)
-
-        return isotopic_bw
 # Helpers properties
 
     @property
@@ -465,7 +484,7 @@ class Phonons:
         q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
         qp_vec = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(np.int)
+        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(int)
         rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
         index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise',
                                               order=self._grid_type)

@@ -25,7 +25,7 @@ class Grid:
     def id_to_grid_index(self, id):
         grid_shape = self.grid_shape
         index_grid = np.array(np.unravel_index(id, grid_shape, order=self.order)).T
-        return np.rint(index_grid).astype(np.int)
+        return np.rint(index_grid).astype(int)
 
 
     def id_to_unitary_grid_index(self, id):
@@ -51,5 +51,5 @@ class Grid:
             index_grid = self._grid
         if is_wrapping:
             index_grid = wrap_coordinates(index_grid, np.diag(self.grid_shape))
-        return np.rint(index_grid).astype(np.int)
+        return np.rint(index_grid).astype(int)
 
