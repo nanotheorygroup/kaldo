@@ -4,10 +4,14 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
+
 from kaldo.grid import wrap_coordinates
+from kaldo.helpers.logger import get_logger
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
-from kaldo.helpers.logger import get_logger
+from ase.io import read, write
+from ase.io.extxyz import read_extxyz
+
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -208,3 +212,84 @@ class ForceConstants:
         expanded_third = expanded_third.reshape(
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
+
+    def df(self, calculator, replicated_cell, delta_shift=1e-3, with_sigma2=True):
+        atoms = self.atoms
+        replicated_atoms = replicated_cell
+        n_unit_atoms = atoms.positions.shape[0]
+        n_replicas = np.prod(self.supercell)
+        atoms.set_calculator(calculator)
+        replicated_atoms.set_calculator(calculator)
+        new_super = replicated_atoms.copy()
+        new_atoms = atoms.copy()
+        R0 = replicated_atoms.get_positions()
+        sup_d = delta_shift*np.ones(new_super.get_positions().shape)
+        prim_d = delta_shift*np.ones(new_atoms.get_positions().shape)
+        new_atoms.set_calculator(calculator)
+        new_super.set_calculator(calculator)
+        forces = []
+        two_forces = []
+        three_forces = []
+        s2 = []
+        s3 = []
+        for s in [-2, -1, 1, 2]:
+            new_super.positions = replicated_atoms.get_positions() + s*sup_d
+            new_atoms.positions = atoms.get_positions() + s*prim_d
+            delta = np.array(new_super.get_positions() - R0).flatten()
+            forces.append(new_atoms.get_forces().flatten())
+            phi_2 = self.second.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            two_forces.append(np.dot(phi_2, delta))
+            phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            three_forces.append(np.dot(np.dot(phi_3, delta), delta))
+            forces = np.array(forces)
+            two_forces = np.array(two_forces)
+            three_forces = np.array(three_forces)
+            s2.append(np.sqrt(np.mean((forces - two_forces)**2))/forces.std())
+            s3.append(np.sqrt(np.mean((forces - two_forces - three_forces)**2))/forces.std())
+            atoms.positions = new_atoms.positions
+            replicated_atoms = new_super.positions
+        sigma2 = np.mean(s2)
+        sigma3 = np.mean(s3)
+        if with_sigma2:
+            return sigma2, sigma3
+        else:
+            return sigma3
+
+    def df_trajectory(self, replica_atoms, calculator, traj_file='dump.xyz', with_sigma2=True):
+        atom_list = []
+        with open(traj_file, 'r') as file:
+            lines = file.readlines()
+            length = len(lines)
+        for n in range(length):
+            traj_atoms = read_extxyz(traj_file, index=n)
+            atom_list.append(traj_atoms)
+        forces = []
+        two_forces = []
+        three_forces = []
+        R0 = replica_atoms.get_positions()
+        for a in range(len(atom_list)):
+            sup_atoms = atom_list[a]
+            sup_atoms.set_calculator(calculator)
+            delta = np.array(sup_atoms.get_positions() - R0).flatten()
+            forces.append(sup_atoms.get_forces().flatten())
+            phi_2 = self.second.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            two_forces.append(np.dot(phi_2, delta).flatten())
+            phi_3 = self.third.value.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+            three_forces.append(np.dot(np.dot(phi_3, delta), delta).flatten())
+            #forces = np.array(forces)
+            #two_forces = np.array(two_forces)
+            #three_forces = np.array(three_forces)
+            #s2.append(np.sqrt(np.mean((forces - two_forces)**2))/forces.std())
+            #s3.append(np.sqrt(np.mean((forces - two_forces - three_forces)**2))/forces.std())
+        forces = np.array(forces)
+        two_forces = np.array(two_forces)
+        three_forces = np.array(three_forces)
+        #sigma2 = np.mean(s2)
+        #sigma3 = np.mean(s3)
+        sigma2 = np.sqrt(np.mean((forces - two_forces)**2)/forces.std())
+        sigma3 = np.sqrt(np.mean((forces - two_forces - three_forces)**2)/forces.std())
+        if with_sigma2:
+            return sigma2, sigma3
+        else:
+            return sigma3
+
