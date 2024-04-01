@@ -52,7 +52,7 @@ class ForceConstant(Observable):
 
 
     @classmethod
-    def from_supercell(cls, atoms, supercell, grid_type, value=None, folder='kALDo'):
+    def from_supercell(cls, atoms, supercell, grid_type, is_acoustic_sum=True, value=None, folder='kALDo'):
         _direct_grid = Grid(supercell, grid_type)
         replicated_positions = _direct_grid.grid(is_wrapping=False).dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
                                                                                        np.newaxis, :, :]
