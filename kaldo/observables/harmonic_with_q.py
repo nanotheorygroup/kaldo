@@ -23,7 +23,7 @@ class HarmonicWithQ(Observable):
                  is_nw=False,
                  is_unfolding=False,
                  is_amorphous=False,
-                 is_nac=False,
+                 is_nac=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -37,7 +37,10 @@ class HarmonicWithQ(Observable):
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
         self.is_amorphous = is_amorphous
-        self.is_nac = True if 'dielectric' in self.atoms.info else False
+        if is_nac: # Try to detect if keyword argument is present
+            self.is_nac = is_nac
+        else:
+            self.is_nac = True if 'dielectric' in self.atoms.info else False
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
                 self.physical_mode[0, :4] = False
@@ -424,53 +427,12 @@ class HarmonicWithQ(Observable):
         dyn_s = dyn_s.sum(axis=2)
         dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
+        if self.is_nac:
+            dyn_s += self.nac_correction(qpoint=None)
+            dyn_s += self.nac_correction(qpoint=self.q_point)
+
         # Diagonalize
         omega2, eigenvect, info = zheev(dyn_s)
-        frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-        frequency = frequency[:] / np.pi / 2
-        if only_eigenvals:
-            esystem = (frequency[:] * np.pi * 2) ** 2
-        else:
-            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
-        return esystem
-
-    def calculate_eigensystem_unfolded_old(self, only_eigenvals=False):
-        # This algorithm should be the same as the ShengBTE version
-        q_point = self.q_point
-        supercell = self.supercell
-        atoms = self.atoms
-        cell = atoms.cell
-        n_unit_cell = atoms.positions.shape[0]
-        fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-        supercell_positions = self.second.supercell_positions
-        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-        dyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
-        supercell_replicas = self.second.supercell_replicas
-        for ind in range(supercell_replicas.shape[0]):
-            supercell_replica = supercell_replicas[ind]
-            replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
-            distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
-            projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
-            mask = (projection <= 1e-6).all(axis=-1)
-            neq = (np.abs(projection) <= 1e-6).sum(axis=-1)
-            weight = 1.0 / neq
-            coefficient = weight * mask
-            if coefficient.any():
-                supercell_index = supercell_replica%supercell
-                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
-                dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                 fc_s[:, :, supercell_index[0], supercell_index[1],
-                                                                 supercell_index[2], :, :], coefficient)
-        dyn = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-        if self.is_nac:
-            print('skipping NAC, uncomment line 433 harmonic_with_q.py')
-            # print('Using NAC')
-            # full = self.nac_correction(qpoint=None)
-            # full += self.nac_correction(qpoint=self.q_point)
-            # dyn = dyn + full
-        omega2, eigenvect, info = zheev(dyn)
-        # omega2, eigenvect = eigh(dyn)
         frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
         frequency = frequency[:] / np.pi / 2
         if only_eigenvals:
