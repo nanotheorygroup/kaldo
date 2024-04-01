@@ -5,6 +5,7 @@ import tensorflow as tf
 import ase.io
 import numpy as np
 from kaldo.interfaces.eskm_io import import_from_files
+from kaldo.grid import Grid
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
 import ase.units as units
@@ -43,9 +44,9 @@ class SecondOrder(ForceConstant):
 
     @classmethod
     def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder='kALDo'):
-        if value is not None and is_acoustic_sum is not None:
+        if value is not None and is_acoustic_sum:
             value = acoustic_sum_rule(value)
-        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
+        ifc = super(SecondOrder, cls).from_supercell(atoms=atoms, supercell=supercell, grid_type=grid_type, is_acoustic_sum=is_acoustic_sum, value=value, folder=folder)
         return ifc
 
     @classmethod
@@ -129,7 +130,9 @@ class SecondOrder(ForceConstant):
             n_unit_atoms = atoms.positions.shape[0]
             if is_qe_input:
                 filename = folder + '/espresso.ifc2'
-                second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
+                second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
+                atoms.info['dielectric'] = charges[0, :, :]
+                atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                 second_order = second_order.transpose(3, 4, 2, 0, 1)
                 grid_type = 'F'
@@ -141,7 +144,7 @@ class SecondOrder(ForceConstant):
                                                       grid_type=grid_type,
                                                       supercell=supercell,
                                                       value=second_order[np.newaxis, ...],
-                                                      is_acoustic_sum=True,
+                                                      is_acoustic_sum=is_acoustic_sum,
                                                       folder=folder)
 
         elif format == 'hiphive':
@@ -174,7 +177,6 @@ class SecondOrder(ForceConstant):
                                            value=_second_order,
                                            folder=folder)
 
-        # Newly added by me!!!!
         elif format == 'sscha':
             filename = 'atom_prim.xyz'
             replicated_filename = 'replicated_atoms.xyz'
@@ -257,12 +259,12 @@ class SecondOrder(ForceConstant):
             self.value = acoustic_sum_rule(self.value)
 
     def calculate_dynmat(self):
+        evtotenjovermol = units.mol / (10 * units.J)
         mass = self.atoms.get_masses()
         shape = self.value.shape
         log_size(shape, float, name='dynmat')
         dynmat = self.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-        evtotenjovermol = units.mol / (10 * units.J)
+        dynmat /= np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         return tf.convert_to_tensor(dynmat * evtotenjovermol)
 
     def calculate_super_replicas(self):
