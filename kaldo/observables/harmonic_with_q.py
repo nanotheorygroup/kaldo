@@ -396,8 +396,6 @@ class HarmonicWithQ(Observable):
         fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-
-        # Niks version
         cell_replicas = self.second.supercell_replicas
         cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
         cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
