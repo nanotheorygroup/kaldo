@@ -22,7 +22,6 @@ class HarmonicWithQ(Observable):
                  storage='numpy',
                  is_nw=False,
                  is_unfolding=False,
-                 is_amorphous=False,
                  is_nac=None,
                  *kargs,
                  **kwargs):
@@ -36,7 +35,7 @@ class HarmonicWithQ(Observable):
         self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
-        self.is_amorphous = is_amorphous
+        self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         if is_nac: # Try to detect if keyword argument is present
             self.is_nac = is_nac
         else:
