@@ -74,6 +74,7 @@ def read_second_order_matrix(folder, supercell):
 def read_second_order_qe_matrix(filename):
     file = open('%s' % filename, 'r')
     ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
+    charges = np.zeros((n_atoms+1, 3, 3))
     if (ibrav == 0):
         file.readline()
     for i in np.arange(ntype):
@@ -82,12 +83,12 @@ def read_second_order_qe_matrix(filename):
         file.readline()
     polar = file.readline()
     if ("T" in polar):
-        for i in np.arange(3):
+        for alpha in np.arange(3): # Dielectric constant tensor
+            charges[0, alpha, :] = file.readline().split()
+        for na in np.arange(n_atoms): # Born effective charges
             file.readline()
-        for i in np.arange(n_atoms):
-            file.readline()
-            for j in np.arange(3):
-                file.readline()
+            for alpha in np.arange(3):
+                charges[na+1, alpha, :] = file.readline().split()
     supercell = [int(x) for x in file.readline().split()]
     second = np.zeros((3, 3, n_atoms, n_atoms, supercell[0], supercell[1], supercell[2]))
     for i in np.arange(3 * 3 * n_atoms * n_atoms):
@@ -98,8 +99,7 @@ def read_second_order_qe_matrix(filename):
             second[alpha, beta, i_at, j_at, t1, t2, t3] = float(readline[3]) * (Rydberg / (
                                 Bohr ** 2))
     second = second.transpose(2,0,4,5,6,3,1)
-    return second, supercell
-
+    return second, supercell, charges
 
 
 
@@ -287,7 +287,7 @@ def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
     n_replicas = phonons.forceconstants.n_replicas
     n_atoms = int(phonons.n_modes / 3)
-    second_order = phonons.second.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
+    second_order = phonons.forceconstants.second.value.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
@@ -324,9 +324,9 @@ def save_third_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_3RD'
     filename = phonons.folder + '/' + filename
     file = open ('%s' % filename, 'w+')
-    n_in_unit_cell = len (phonons.atoms.numbers)
+    n_in_unit_cell = len(phonons.atoms.numbers)
     n_replicas = phonons.forceconstants.n_replicas
-    third_order = phonons.forceconstants.third\
+    third_order = phonons.forceconstants.third.value\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
 
