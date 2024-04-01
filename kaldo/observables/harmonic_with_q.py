@@ -1,7 +1,8 @@
-from kaldo.grid import wrap_coordinates
+from kaldo.grid import wrap_coordinates, Grid
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
+from ase import units
 from opt_einsum import contract
 from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
@@ -21,6 +22,8 @@ class HarmonicWithQ(Observable):
                  storage='numpy',
                  is_nw=False,
                  is_unfolding=False,
+                 is_amorphous=False,
+                 is_nac=False,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -28,12 +31,13 @@ class HarmonicWithQ(Observable):
         self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
         self.supercell = second.supercell
-        self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         self.second = second
         self.distance_threshold = distance_threshold
         self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
+        self.is_amorphous = is_amorphous
+        self.is_nac = True if 'dielectric' in self.atoms.info else False
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
                 self.physical_mode[0, :4] = False
@@ -122,7 +126,6 @@ class HarmonicWithQ(Observable):
 
     def calculate_dynmat_derivatives(self, direction):
         q_point = self.q_point
-        is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
         atoms = self.atoms
         list_of_replicas = self.second.list_of_replicas
@@ -135,13 +138,10 @@ class HarmonicWithQ(Observable):
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
         shape = (1, n_unit_cell * 3, n_unit_cell * 3)
-        if is_amorphous:
-            type = float
-        else:
-            type = complex
         dir = ['_x', '_y', '_z']
+        type = complex if (not self.is_amorphous) else float
         log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
-        if is_amorphous:
+        if self.is_amorphous:
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
             dynmat_derivatives = contract('ij,ibjc->ibjc',
@@ -170,7 +170,6 @@ class HarmonicWithQ(Observable):
                                                                      dynmat.numpy()[0, id_i, :, 0, id_j, :] *
                                                                      chi(q_point, list_of_replicas, cell_inv)[l])
             else:
-
                 dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
                                               tf.convert_to_tensor(distance.astype(complex)[..., direction]),
                                               tf.cast(dynmat[0], tf.complex128),
@@ -183,9 +182,8 @@ class HarmonicWithQ(Observable):
 
     def calculate_sij(self, direction):
         q_point = self.q_point
-        is_amorphous = self.is_amorphous
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
-        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+        if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             type = float
         else:
             type = complex
@@ -201,7 +199,7 @@ class HarmonicWithQ(Observable):
             logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
             dir = ['_x', '_y', '_z']
             log_size(shape, type, name='sij' + dir[direction])
-        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+        if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:
@@ -240,7 +238,6 @@ class HarmonicWithQ(Observable):
         cell_inv = self.second.cell_inv
         replicated_cell_inv = self.second._replicated_cell_inv
         is_at_gamma = (q_point == (0, 0, 0)).all()
-        is_amorphous = (n_replicas == 1)
         list_of_replicas = self.second.list_of_replicas
         log_size((self.n_modes, self.n_modes), complex, name='dynmat_fourier')
         if distance_threshold is not None:
@@ -261,7 +258,7 @@ class HarmonicWithQ(Observable):
                                            chi(q_point, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
-                if is_amorphous:
+                if self.is_amorphous:
                     dyn_s = dynmat[0]
                 else:
                     dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
@@ -272,6 +269,97 @@ class HarmonicWithQ(Observable):
                                  backend='tensorflow')
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
         return dyn_s
+
+    def nac_correction(self, qpoint=None, gmax=14, alpha=1.0):
+        # Constants, and system information
+        RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
+        eV_to_10Jmol = units.mol / (10 * units.J)
+        e2 = 2.  # square of electron charge in A.U.
+        gmax = 14  # maximum reciprocal vector
+        alpha = 1.0  # Ewald parameter
+        geg0 = 4 * alpha * gmax
+        atoms = self.second.atoms
+        natoms = len(atoms)
+        omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr)  # Vol. in Bohr^3
+        positions_n = atoms.positions.copy() / atoms.cell[0, 0]  # Normalized positions
+        distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crsytal coordinates
+        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
+        reciprocal_n /= reciprocal_n[0, 0]  # Normalized reciprocal cell
+        correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
+        prefactor = 4 * np.pi * e2 / omega_bohr
+
+        sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
+        mass_prefactor = np.reciprocal(np.einsum('i,j->ij', sqrt_mass, sqrt_mass))
+
+        # Charge information
+        epsilon = atoms.info['dielectric']  # in e^2/Bohr
+        zeff = atoms.get_array('charges')  # in e
+
+        # 1. Construct grid of reciprocal unit cells
+        # a. Find the number of replicas to make
+        n_greplicas = 2 + 2 * np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=1)
+        # b. If it's low-dimensional, don't replicate in reciprocal space along axes without replicas in real space
+        n_greplicas[self.second.supercell == 1] = 1
+        # c. Generate the grid of replicas
+        g_grid = Grid(n_greplicas.astype(int))
+        g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
+        # d. Transform the raw indices, to coordinates in reciprocal space
+        g_positions = np.einsum('ia,ab->ib', g_replicas, reciprocal_n)
+        if qpoint is not None:  # If we're measuring at finite q, shift the images' positions
+            g_positions = g_positions + (qpoint @ reciprocal_n)
+
+        # 2. Filter cells that don't meet our Ewald cutoff criteria
+        # a. setup mask
+        geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions, dtype=np.float128)
+        cells_to_include = (geg > 0) * (geg / (4 * alpha) < gmax)
+        # b. apply mask
+        geg = geg[cells_to_include]
+        g_positions = g_positions[cells_to_include]
+
+        # 3. Calculate for each cell
+        # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
+        decay = prefactor * np.exp(-1 * geg / (alpha * 4)) / geg
+        # b. effective charges at each G-vector
+        zag = np.einsum('nab,ia->inb', zeff, g_positions)
+
+        # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
+        # the phase factor is based on the distance of the G-vector and atomic positions
+        if qpoint is not None:
+            phase = np.exp(-1j * 2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+
+            # The long range forces are the outer product of the effective charges, scaled by the cosine term. We impose
+            # Hermicity on cartesian axes by taking the average of M and M^T
+            lr_correction = np.einsum('ina,inm,imb->inmab', zag, phase, zag)
+            lr_correction += np.transpose(lr_correction, (0, 1, 2, 4, 3))
+            lr_correction *= 0.5
+
+            # Scale by exponential decay term
+            lr_correction = np.einsum('i,inmab->abnm', decay, lr_correction)
+
+            # Apply the correction to each atom pair
+            correction_matrix += lr_correction
+
+        else:  # only the real part of the phase is taken at Gamma
+            phase = np.cos(2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+
+            # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
+            # The long range forces are an outer product of the effective charges, scaled by the exponential term.
+            # We impose Hermicity on cartesian axes by taking the average of M and M^T
+            lr_correction = np.einsum('ina,inm,imb->inab', zag, phase, zag)
+            lr_correction += np.transpose(lr_correction, (0, 1, 3, 2))
+            lr_correction *= 0.5
+
+            # Scale by exponential decay term
+            lr_correction = np.einsum('i,inab->abn', decay, lr_correction)
+
+            # Apply the correction to the diagonals of the dynamical matrix
+            correction_matrix = tf.linalg.set_diag(correction_matrix,
+                                                   tf.linalg.diag_part(correction_matrix) - lr_correction)
+        correction_matrix = tf.transpose(correction_matrix, perm=[2, 0, 3, 1])
+        correction_matrix = tf.reshape(correction_matrix, shape=(natoms * 3, natoms * 3))
+        correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
+        correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
+        return correction_matrix
 
     def calculate_eigensystem(self, only_eigenvals):
         dyn_s = self._dynmat_fourier
@@ -293,6 +381,60 @@ class HarmonicWithQ(Observable):
         return participation_ratio
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
+        q_point = self.q_point
+        supercell = self.second.supercell
+        atoms = self.second.atoms
+        cell = atoms.cell
+        n_unit_cell = len(atoms)
+        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
+
+        # Get Force constants
+        fc_s = self.second.dynmat.numpy()
+        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+        supercell_positions = self.second.supercell_positions
+        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
+
+        # Niks version
+        cell_replicas = self.second.supercell_replicas
+        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
+        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
+        supercell_positions = self.second.supercell_positions
+        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
+        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
+
+        # Filter + Weights
+        mask_distance = (projection <= 1e-6).all(axis=0)
+        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
+        weight = 1 / n_equivalent
+        coefficients = weight * mask_distance
+
+        # Calculate
+        mask_full = coefficients.any(axis=(-2, -1))
+        coefficients = coefficients[mask_full]
+        cell_replicas = cell_replicas[mask_full]
+        cell_indices = cell_replicas % supercell
+        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+        prefactors = np.einsum('i,inm->inm', phase, coefficients)
+        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
+        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
+
+        # Sum
+        dyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
+        dyn_s = np.transpose(dyn_s, axes=(3, 4, 2, 0, 1))
+        dyn_s = dyn_s.sum(axis=2)
+        dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
+
+        # Diagonalize
+        omega2, eigenvect, info = zheev(dyn_s)
+        frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+        frequency = frequency[:] / np.pi / 2
+        if only_eigenvals:
+            esystem = (frequency[:] * np.pi * 2) ** 2
+        else:
+            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
+        return esystem
+
+    def calculate_eigensystem_unfolded_old(self, only_eigenvals=False):
         # This algorithm should be the same as the ShengBTE version
         q_point = self.q_point
         supercell = self.supercell
@@ -315,11 +457,18 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
+                supercell_index = supercell_replica%supercell
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                 fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
-        dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
+                                                                 fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                                 supercell_index[2], :, :], coefficient)
+        dyn = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
+        if self.is_nac:
+            print('skipping NAC, uncomment line 433 harmonic_with_q.py')
+            # print('Using NAC')
+            # full = self.nac_correction(qpoint=None)
+            # full += self.nac_correction(qpoint=self.q_point)
+            # dyn = dyn + full
         omega2, eigenvect, info = zheev(dyn)
         # omega2, eigenvect = eigh(dyn)
         frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
@@ -346,7 +495,6 @@ class HarmonicWithQ(Observable):
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
             replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
-
             distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
             projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
             mask = (projection <= 1e-6).all(axis=-1)
@@ -354,8 +502,9 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
-                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
-                ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                  fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                supercell_index = supercell_replica % supercell
+                qr = 2. * np.pi * np.dot(q_point, supercell_replica)
+                ddyn_s[:, :, :, :] += replica_position[direction] * np.exp(-1j * qr) *\
+                                      contract('jbia,ij->iajb', fc_s[:, :, supercell_index[0],
+                                          supercell_index[1], supercell_index[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
