@@ -163,11 +163,9 @@ def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
         plt.close()
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False, manually_defined_path=None):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True, color='b', manually_defined_path=None):
     atoms = phonons.atoms
-    if is_nw is None and phonons.is_nw:
-        is_nw = phonons.is_nw
-    if is_nw:
+    if phonons.is_nw:
         q = np.linspace(0, 0.5, n_k_points)
         k_list = np.zeros((n_k_points, 3))
         k_list[:, 0] = q
@@ -193,8 +191,9 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         phonon = HarmonicWithQ(q_point, phonons.forceconstants.second,
                                distance_threshold=phonons.forceconstants.distance_threshold,
                                storage='memory',
-                               is_nw=is_nw,
-                               is_unfolding=is_unfolding)
+                               is_nw=phonons.is_nw,
+                               is_unfolding=phonons.is_unfolding,
+                               is_nac=phonons.is_nac,)
         freqs_plot.append(phonon.frequency.flatten())
         if with_velocity:
             val_value = phonon.velocity[0]
