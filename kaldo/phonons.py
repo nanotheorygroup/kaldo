@@ -85,6 +85,7 @@ class Phonons:
         self.max_frequency = kwargs.pop('max_frequency', None)
         self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
         self.is_nw = kwargs.pop('is_nw', False)
+        self.is_nac = kwargs.pop('is_nac', None) # This should be removed eventually
         self.third_bandwidth = kwargs.pop('third_bandwidth', None)
         self.storage = kwargs.pop('storage', 'formatted')
         self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
@@ -151,8 +152,8 @@ class Phonons:
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding)
-
+                                   is_unfolding=self.is_unfolding,
+                                   is_nac=self.is_nac)
             frequency[ik] = phonon.frequency
 
         return frequency
