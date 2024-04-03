@@ -301,7 +301,7 @@ class HarmonicWithQ(Observable):
         # a. Find the number of replicas to make
         n_greplicas = 2 + 2 * np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=1)
         # b. If it's low-dimensional, don't replicate in reciprocal space along axes without replicas in real space
-        n_greplicas[self.second.supercell == 1] = 1
+        n_greplicas[np.array(self.second.supercell) == 1] = 1
         # c. Generate the grid of replicas
         g_grid = Grid(n_greplicas.astype(int))
         g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
