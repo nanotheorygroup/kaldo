@@ -1,6 +1,6 @@
 # Publications using kALDo
 
-## Preprints (5)
+## Preprints (4)
 
 * Paolo Pegolo, Federico Grasselli,
 [Thermal transport of glasses via machine learning driven simulations](https://arxiv.org/abs/2402.06479)
@@ -11,16 +11,16 @@
 * Alfredo Fiorentino, Enrico Drigo, Stefano Baroni, Paolo Pegolo,
 [Unearthing the foundational role of anharmonicity in heat transport in glasses](https://arxiv.org/abs/2307.09370)
 
-* Angela F. Harper,  Kamil Iwanowski,  William C. Witt,  Mike C. Payne, Michele Simoncelli,
-[Vibrational and thermal properties of amorphous alumina from first principles](https://arxiv.org/abs/2303.08637)
-
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764)
 
 
-## 2024 (4)
+## 2024 (5)
 
 * Philip Yox, Frank T Cerasoli, Arka Sarkar, Genevieve Amobi, Gayatri Viswanathan, Jackson Voyles, Oleg l Lebedev, Davide Donadio, Kirill Kovnir[Organizing Chaos: Boosting Thermoelectric Properties by Ordering the Clathrate Framework of Ba8Cu16As30](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.4c00419)
+
+* Angela F. Harper,  Kamil Iwanowski,  William C. Witt,  Mike C. Payne, Michele Simoncelli,
+[Vibrational and thermal properties of amorphous alumina from first principles](https://journals.aps.org/prmaterials/references/10.1103/PhysRevMaterials.8.043601)
 
 * Zheyong Fan, Yang Xiao,Yanzhou Wang, Penghua Ying,Shunda Chen, Haikuan Dong,
 [Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials](https://iopscience.iop.org/article/10.1088/1361-648X/ad31c2/meta)
