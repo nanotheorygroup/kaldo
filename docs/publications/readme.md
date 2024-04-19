@@ -1,63 +1,65 @@
 # Publications using kALDo
 
-## Preprints (6)
+## Preprints (4)
 
-Paolo Pegolo, Federico Grasselli,
+* Paolo Pegolo, Federico Grasselli,
 [Thermal transport of glasses via machine learning driven simulations](https://arxiv.org/abs/2402.06479)
 
-Davide Tisi, Federico Grasselli,Lorenzo Gigli, Michele Ceriotti,
+* Davide Tisi, Federico Grasselli,Lorenzo Gigli, Michele Ceriotti,
 [Thermal transport of Li3PS4 solid electrolytes with ab initio accuracy](https://arxiv.org/abs/2401.12936)
 
-Zheyong Fan, Yang Xiao,Yanzhou Wang, Penghua Ying,Shunda Chen, Haikuan Dong,
-[Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials](https://arxiv.org/abs/2310.15314)
+* Alfredo Fiorentino, Enrico Drigo, Stefano Baroni, Paolo Pegolo,
+[Unearthing the foundational role of anharmonicity in heat transport in glasses](https://arxiv.org/abs/2307.09370)
 
-Alfredo Fiorentino, Enrico Drigo, Stefano Baroni, Paolo Pegolo,
-[https://arxiv.org/abs/2307.09370](Unearthing the foundational role of anharmonicity in heat transport in glasses)
-
-Angela F. Harper,  Kamil Iwanowski,  William C. Witt,  Mike C. Payne, Michele Simoncelli,
-[https://arxiv.org/abs/2303.08637](Vibrational and thermal properties of amorphous alumina from first principles)
-
-G Romano,
+* G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764)
 
 
-## 2024 (2)
+## 2024 (5)
 
-Guang Yang,  Yuan-Bin Liu,  Lei Yang,  Bing-Yang Cao,
+* Philip Yox, Frank T Cerasoli, Arka Sarkar, Genevieve Amobi, Gayatri Viswanathan, Jackson Voyles, Oleg l Lebedev, Davide Donadio, Kirill Kovnir[Organizing Chaos: Boosting Thermoelectric Properties by Ordering the Clathrate Framework of Ba8Cu16As30](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.4c00419)
+
+* Angela F. Harper,  Kamil Iwanowski,  William C. Witt,  Mike C. Payne, Michele Simoncelli,
+[Vibrational and thermal properties of amorphous alumina from first principles](https://journals.aps.org/prmaterials/references/10.1103/PhysRevMaterials.8.043601)
+
+* Zheyong Fan, Yang Xiao,Yanzhou Wang, Penghua Ying,Shunda Chen, Haikuan Dong,
+[Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials](https://iopscience.iop.org/article/10.1088/1361-648X/ad31c2/meta)
+
+* Guang Yang,  Yuan-Bin Liu,  Lei Yang,  Bing-Yang Cao,
 [Machine-learned atomic cluster expansion potentials for fast and quantum-accurate thermal simulations of wurtzite AlN](https://pubs.aip.org/aip/jap/article/135/8/085105/3266915/Machine-learned-atomic-cluster-expansion),
 J. Appl. Phys. **135**, 085105 (2024)
 
 
-Jonathan Hunt,
+* Jonathan Hunt,
 [First-principles calculations of anharmonic phonons in diamond and silicon at high temperature and pressure](https://era.ed.ac.uk/handle/1842/41444)
 
 
 ## 2023 (7)
 
-Vasyl Kuryliuk,Viktoria Shevchenko,
+* Vasyl Kuryliuk,Viktoria Shevchenko,
 [Computational Study of the Thermal Transport Properties of Hollow-Core Si Nanowires](https://ieeexplore.ieee.org/abstract/document/10310942),
 IEEE 13th International Conference, NAP (2023).
 
-Alfredo Fiorentino, Paolo Pegolo, Stefano Baroni, 
+* Alfredo Fiorentino, Paolo Pegolo, Stefano Baroni, 
 [Hydrodynamic finite-size scaling of the thermal conductivity in glasses](https://www.nature.com/articles/s41524-023-01116-2)	
 Npj Comput. Mater.  **9**, 157, (2023).
 
-Xing Xiang, Sylvain Patinet, Sebastian Volz, Yanguang Zhou,
+* Xing Xiang, Sylvain Patinet, Sebastian Volz, Yanguang Zhou,
 [Quasilocalized vibrational modes as efficient heat carriers in glasses](https://www.sciencedirect.com/science/article/pii/S0017931023003034),
 
-Alfredo Fiorentino, Stefano Baroni,
+* Alfredo Fiorentino, Stefano Baroni,
 [From Green-Kubo to the full Boltzmann kinetic approach to heat transport in crystals and glasses](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.107.054311),
 Phys. Rev. B **107**, 054311.
 
-Giuliano Benenti, Davide Donadio,  Stefano Lepri,  Roberto Livi,
+* Giuliano Benenti, Davide Donadio,  Stefano Lepri,  Roberto Livi,
 [Non-Fourier heat transport in nanosystems](https://link.springer.com/article/10.1007/s40766-023-00041-w),
 La Rivista del Nuovo Cimento, **46(3)**, 105-161.
 
-Vasyl Kuryliuk, Ostap Tyvonovych, Sviatoslav Semchuk,
+* Vasyl Kuryliuk, Ostap Tyvonovych, Sviatoslav Semchuk,
 [Impact of Ge clustering on the thermal conductivity of SiGe nanowires: atomistic simulation study](https://pubs.rsc.org/en/content/articlehtml/2023/cp/d2cp05185k),
 Phys. Chem. Chem. Phys. ***25(8)***, 6263-6269, (2023).
 
-Paolo Pegolo,
+* Paolo Pegolo,
 [Charge and heat transport in ionic conductors](https://iris.sissa.it/handle/20.500.11767/130672)
 
 ## 2022 (12)
