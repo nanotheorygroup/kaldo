@@ -14,7 +14,6 @@ A. Togo, I. Tanaka, "Spglib: a software library for crystal symmetry search", ar
 import matplotlib.pyplot as plt
 import seekpath
 import numpy as np
-from sklearn.neighbors import KernelDensity
 from scipy import ndimage
 from kaldo.helpers.storage import get_folder_from_label
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -141,50 +140,41 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
-    
-    fig = plt.figure()
-    physical_mode = phonons.physical_mode.flatten(order='C')
-    frequency = phonons.frequency.flatten(order='C')
-    frequency = frequency[physical_mode]
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(frequency.reshape(-1, 1))
-    x = np.linspace(frequency.min(), phonons.frequency.max(), n_points)
-    y = np.exp(kde.score_samples(x.reshape((-1, 1))))
-    plt.plot(x, y)
-    plt.fill_between(x, y, alpha=.2)
-    plt.xlabel("$\\nu$ (THz)", fontsize=16)
-    plt.ylabel('DOS',fontsize=16)
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    plt.tick_params(axis='both', which='minor', labelsize=16)
-    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    fig.savefig(folder + '/' + 'dos.png')
-    if is_showing:
-        plt.show()
-    else:
-        plt.close()
+def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos.png'):
+    """Produce a plot of phonon density of states (dos) or projected phonon dos (pdos).
+    bandwidth sets the gaussian smearing width
+    n_points indicates the number of frequencies on which the pdos is calculated
+    is_showing determines whether the matplotlib graph is displayed
+    filename selects the output filename for the dos graph
 
+    p_atoms input format is flexible:
+      Providing None indicates calculation of the total phonon density of states
+      Providing a list of atom indices will return the single pdos summed over those atoms
+      Providing a list of lists of atom indices will return one pdos for each set of indices
+    direction can be set to a 3-vector, upon which to project the phonon dos contribution
+        Leaving direction as None indicates default behavior of summing projections along each cartesian direction.
+    """
 
-def plot_pdos(phonons, p_atoms, direction=None, bandwidth=.05, n_points=200, is_showing=True):
+    if p_atoms is None:
+        p_atoms = list(range(phonons.n_atoms))
 
     try:
-        fgrid,pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
+        fgrid, pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
     except IndexError as e:
-        logging.info(f'Failed to calculate pdos.')
+        logging.error(f'Failed to calculate pdos.')
         return
 
     fig = plt.figure()
     for p in pdos:
         plt.plot(fgrid, p)
     plt.xlabel("$\\nu$ (THz)", fontsize=16)
-    plt.ylabel('DOS',fontsize=16)
+    plt.ylabel('DOS', fontsize=16)
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tick_params(axis='both', which='minor', labelsize=16)
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
-    fig.savefig(folder + '/' + 'pdos.png')
+    fig.savefig(folder + '/' + filename)
     if is_showing:
         plt.show()
     else:
