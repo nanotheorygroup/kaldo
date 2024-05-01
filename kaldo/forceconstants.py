@@ -4,10 +4,13 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
+import tensorflow as tf
 from kaldo.grid import wrap_coordinates
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
+import ase.units as units
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -212,20 +215,20 @@ class ForceConstants:
     def elastic_prop(self):
         q_point = np.array([0., 0., 0.])
         atoms = self.atoms
-        M = atoms.get_masses()[0]
+        M = atoms.get_masses()
         lat = np.array(atoms.cell[:])
         V = np.abs(np.linalg.det(lat))
         list_of_replicas = self.second.list_of_replicas
-        replicated_cell = self.second.replicated_atoms.cell
-        replicated_cell_inv = self.second._replicated_cell_inv
-        cell_inv = self.second.cell_inv
+        replicated_cell = self.second.replicated_atoms.cell # seems unnecessary
+        replicated_cell_inv = self.second._replicated_cell_inv # seems unnecessary
+        cell_inv = self.second.cell_inv # seems unnecessary
         h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
-        hp = HarmonicWithQ(np.array([1e-2, 1e-2, 1e-2]), self.second, storage='numpy')
+        hp = HarmonicWithQ(np.array([1e-2, 1e-2, 1e-2]), self.second, storage='numpy') # seems unnecessary
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
-        n_modes = n_unit * 3
-        n_replicas = np.prod(self.supercell)
+        n_modes = n_unit * 3 # seems unnecessary
+        n_replicas = np.prod(self.supercell) # seems unnecessary
         shape = (n_unit * 3, n_unit * 3)
         e_mu = np.array(h0._eigensystem[1:, :]).reshape(
             (n_unit, 3, 3 * (n_unit)))  # optical eigenvectors (units? no clue...)
@@ -261,8 +264,9 @@ class ForceConstants:
                             tf.convert_to_tensor(distance.astype(complex)),
                             tf.cast(dynmat, tf.complex128))  # THz^2*Ang^2
         G = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
-        b = (M / (2 * V)) * np.einsum('nimjkl->ijkl', d2)
-        r = -1 * (M / V) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1, G, d1)
+        b = (1/(2*V))*np.einsum('n,m,nimjkl->ijkl', M**(0.5), M**(0.5), d2)
+        d1r = np.einsum('nhmij,m->nhmij', d1, M**(0.5))
+        r = -1 * (1/V) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, G, d1r)
         C = np.zeros((3, 3, 3, 3))
         evtotenjovermol = units.mol / (10 * units.J)
         evperang3togpa = 160.21766208
