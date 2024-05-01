@@ -208,3 +208,67 @@ class ForceConstants:
         expanded_third = expanded_third.reshape(
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
+
+    def elastic_prop(self):
+        q_point = np.array([0., 0., 0.])
+        atoms = self.atoms
+        M = atoms.get_masses()[0]
+        lat = np.array(atoms.cell[:])
+        V = np.abs(np.linalg.det(lat))
+        list_of_replicas = self.second.list_of_replicas
+        replicated_cell = self.second.replicated_atoms.cell
+        replicated_cell_inv = self.second._replicated_cell_inv
+        cell_inv = self.second.cell_inv
+        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+        hp = HarmonicWithQ(np.array([1e-2, 1e-2, 1e-2]), self.second, storage='numpy')
+        dynmat = self.second.dynmat[0]  # units THz^2
+        positions = self.atoms.positions
+        n_unit = atoms.positions.shape[0]
+        n_modes = n_unit * 3
+        n_replicas = np.prod(self.supercell)
+        shape = (n_unit * 3, n_unit * 3)
+        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
+            (n_unit, 3, 3 * (n_unit)))  # optical eigenvectors (units? no clue...)
+        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
+        distance = positions[:, np.newaxis, np.newaxis, :] - (
+                    positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+        d1 = np.einsum('iljx,ibljc->ibjcx',
+                       tf.convert_to_tensor(distance.astype(complex)),
+                       tf.cast(dynmat, tf.complex128))  # THz^2*Ang (it should be multiplied by i?)
+        ####
+        # Not necessary, for troubleshooting
+        ####
+        v = np.einsum('vvx->vx', np.einsum('v,vkx->vkx', (1 / 2) * 1 / w_mu,
+                                           np.einsum('iav,iakx->vkx', tf.math.conj(e_mu),
+                                                     np.einsum('iajbx,jbv->iavx', d1, e_mu))))
+        sij0 = np.einsum('iav,iakx->vkx', e_mu, np.einsum('iajbx,jbv->iavx', d1, e_mu))
+        speed = np.linalg.norm(v, axis=1)
+        d1x0 = h0._dynmat_derivatives_x
+        d1y0 = h0._dynmat_derivatives_y
+        d1z0 = h0._dynmat_derivatives_z
+        d10 = np.einsum('xij->ijx', np.array([d1x0, d1y0, d1z0])).reshape((n_unit, 3, n_unit, 3, 3))
+        delta = d1 - d10
+        if np.any(delta >= 1e-10):
+            answer = 'Yes'
+        elif not np.any(delta >= 1e-10):
+            answer = 'No'
+        print('Are there any elements in the derivative tensors that are differen by > 10^(-10)? ' + answer)
+        ####
+        # Not necessary
+        ####
+        d2 = -1 * np.einsum('iljx,iljy,ibljc->ibjcxy',
+                            tf.convert_to_tensor(distance.astype(complex)),
+                            tf.convert_to_tensor(distance.astype(complex)),
+                            tf.cast(dynmat, tf.complex128))  # THz^2*Ang^2
+        G = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
+        b = (M / (2 * V)) * np.einsum('nimjkl->ijkl', d2)
+        r = -1 * (M / V) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1, G, d1)
+        C = np.zeros((3, 3, 3, 3))
+        evtotenjovermol = units.mol / (10 * units.J)
+        evperang3togpa = 160.21766208
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    for l in range(3):
+                        C[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
+        return evperang3togpa * C / evtotenjovermol
