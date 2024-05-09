@@ -7,6 +7,7 @@ from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
+# from numpy.linalg import eigh
 
 logging = get_logger()
 
@@ -320,6 +321,7 @@ class HarmonicWithQ(Observable):
                                                                  supercell_replica[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
         omega2, eigenvect, info = zheev(dyn)
+        # omega2, eigenvect = eigh(dyn)
         frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
         frequency = frequency[:] / np.pi / 2
         if only_eigenvals:

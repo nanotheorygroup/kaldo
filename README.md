@@ -26,6 +26,10 @@ operations on tensors, to take advantage of multithreading on GPU and CPU using 
 
 - **Open-Source**. Free for the community to use and contribute with edits and suggestion. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.
 
+## Using Git Large File Storage (LFS)
+
+This repository uses Git Large File Storage (LFS) to handle large files. To ensure you properly download all the content, you need to have Git LFS installed on your system. If you haven't installed it yet, you can do so by following the instructions on the [Git LFS website](https://git-lfs.github.com/). Once Git LFS is installed, you can clone this repository as usual with `git clone`. Git LFS is integrated into normal Git commands, so large files will be downloaded automatically when you checkout a commit that includes them. If you've already cloned the repository without Git LFS, you can download the large files with `git lfs pull`.
+
 ## How to cite
 Barbalinardo, G.; Chen, Z.; Lundgren, N. W.; Donadio, D. Efficient Anharmonic Lattice Dynamics Calculations of Thermal Transport in Crystalline and Disordered Solids. J Appl Phys 2020, 128 (13), 135104–135112. https://doi.org/10.1063/5.0020443
 
