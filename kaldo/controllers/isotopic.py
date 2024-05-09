@@ -11,65 +11,65 @@ from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lor
 from ase.data.isotopes import download_isotope_data
 logging = get_logger()
 
+# @timeit
+# def compute_isotopic_bw(phonons):
+#     n_atoms=phonons.n_atoms
+#     n_modes = phonons.n_modes
+#     n_k_points=phonons.n_k_points
+#     isotopic_bw = np.zeros((n_k_points, n_modes))
+#     g_factor = phonons.g_factor
+#     omegas = phonons.omega
+#     physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+#     eigvectors = phonons.eigenvectors
+#     eigvectors=eigvectors.reshape([n_k_points,n_atoms,3,n_modes])
+#     if phonons.third_bandwidth:
+#         sigmas = phonons.third_bandwidth*np.ones_like(omegas)
+#     else:
+#         velocity=phonons.velocity
+#         cellinv = phonons.forceconstants.cell_inv
+#         k_size = phonons.kpts
+#         sigmas = calculate_base_sigma(velocity, cellinv, k_size)
+#         sigmas=refine_sigma(base_sigma=sigmas)
+#     if phonons.broadening_shape == 'lorentz':
+#         logging.info('Using Lorentzian diffusivity_shape')
+#         curve = lorentz_delta
+#     elif phonons.broadening_shape == 'gauss':
+#         logging.info('Using Gaussian diffusivity_shape')
+#         curve = gaussian_delta
+#     elif phonons.broadening_shape == 'triangle':
+#         logging.info('Using triangular diffusivity_shape')
+#         curve = triangular_delta
+#     else:
+#         logging.error('broadening_shape not implemented')
+#
+#     for nu_single in range(phonons.n_phonons):
+#         if nu_single % 1000 == 0:
+#             logging.info('Calculating isotopic bandwidth  ' + str(nu_single) +  ', ' + \
+#                          str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
+#         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+#         if not physical_mode[index_k,mu]:
+#             continue
+#         sigma=sigmas[index_k,mu]
+#         vec=eigvectors[index_k,:,:,mu]
+#
+#         overlap=contract('kixn,ix->kin',eigvectors,np.conjugate(vec) )
+#         overlap=np.abs(overlap)**2
+#         g_per_mode=contract('kin,i->kn',overlap,g_factor)
+#         delta_omega=np.abs(omegas-omegas[index_k,mu])
+#         w2delta=omegas**2*curve(delta_omega,2*np.pi*sigma)
+#         bw=w2delta*g_per_mode/n_k_points
+#         isotopic_bw[index_k,mu]=(np.pi/2)*np.sum(bw[physical_mode])
+#
+#     return isotopic_bw
+
 @timeit
-def compute_isotopic_bw(phonons):
+def compute_isotopic_bw(phonons,default_delta_threshold=3): # truncation of the gaussian delta after n sigma
+    speed_up = phonons.iso_speed_up
     n_atoms=phonons.n_atoms
     n_modes = phonons.n_modes
     n_k_points=phonons.n_k_points
     isotopic_bw = np.zeros((n_k_points, n_modes))
     g_factor = phonons.g_factor
-    omegas = phonons.omega
-    physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
-    eigvectors = phonons.eigenvectors
-    eigvectors=eigvectors.reshape([n_k_points,n_atoms,3,n_modes])
-    if phonons.third_bandwidth:
-        sigmas = phonons.third_bandwidth*np.ones_like(omegas)
-    else:
-        velocity=phonons.velocity
-        cellinv = phonons.forceconstants.cell_inv
-        k_size = phonons.kpts
-        sigmas = calculate_base_sigma(velocity, cellinv, k_size)
-        sigmas=refine_sigma(base_sigma=sigmas)
-    if phonons.broadening_shape == 'lorentz':
-        logging.info('Using Lorentzian diffusivity_shape')
-        curve = lorentz_delta
-    elif phonons.broadening_shape == 'gauss':
-        logging.info('Using Gaussian diffusivity_shape')
-        curve = gaussian_delta
-    elif phonons.broadening_shape == 'triangle':
-        logging.info('Using triangular diffusivity_shape')
-        curve = triangular_delta
-    else:
-        logging.error('broadening_shape not implemented')
-
-    for nu_single in range(phonons.n_phonons):
-        if nu_single % 1000 == 0:
-            logging.info('Calculating isotopic bandwidth  ' + str(nu_single) +  ', ' + \
-                         str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
-        index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
-        if not physical_mode[index_k,mu]:
-            continue
-        sigma=sigmas[index_k,mu]
-        vec=eigvectors[index_k,:,:,mu]
-
-        overlap=contract('kixn,ix->kin',eigvectors,np.conjugate(vec) )
-        overlap=np.abs(overlap)**2
-        g_per_mode=contract('kin,i->kn',overlap,g_factor)
-        delta_omega=np.abs(omegas-omegas[index_k,mu])
-        w2delta=omegas**2*curve(delta_omega,2*np.pi*sigma)
-        bw=w2delta*g_per_mode/n_k_points
-        isotopic_bw[index_k,mu]=(np.pi/2)*np.sum(bw[physical_mode])
-
-    return isotopic_bw
-
-@timeit
-def compute_isotopic_bw_condition(phonons,default_delta_threshold=3): # truncation of the gaussian delta after n sigma
-    n_atoms=phonons.n_atoms
-    n_modes = phonons.n_modes
-    n_k_points=phonons.n_k_points
-    isotopic_bw = np.zeros((n_k_points, n_modes))
-    g_factor = phonons.g_factor
-    # g_factor = compute_gfactor(phonons.atoms.get_atomic_numbers() )
     omegas = phonons.omega
     physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     eigvectors = phonons.eigenvectors
@@ -109,8 +109,11 @@ def compute_isotopic_bw_condition(phonons,default_delta_threshold=3): # truncati
         sigma=sigmas[index_k,mu]
         vec=eigvectors[index_k,:,:,mu]
         delta_omega = np.abs(omegas - omegas[index_k, mu])
-        condition = (delta_omega < delta_threshold * 2 * np.pi * sigma) & (physical_mode)
-        eigvectors_=np.transpose(eigvectors,axes=(0,3,1,2))[condition,:,:]
+        if speed_up:
+            condition = (delta_omega < delta_threshold * 2 * np.pi * sigma) & (physical_mode)
+        else:
+            condition=physical_mode
+        eigvectors_=np.transpose(eigvectors, axes=(0, 3, 1, 2))[condition,:,:]
         overlap=contract('nix,ix->ni',eigvectors_,np.conjugate(vec) )
         overlap=np.abs(overlap)**2
         # print(eigvectors_.shape,overlap.shape,g_factor.shape)
@@ -118,9 +121,6 @@ def compute_isotopic_bw_condition(phonons,default_delta_threshold=3): # truncati
         w2delta=omegas[condition]**2*curve(delta_omega[condition],2*np.pi*sigma)
         bw=w2delta*g_per_mode/n_k_points
         isotopic_bw[index_k,mu]=(np.pi/2)*np.sum(bw)
-
-
-
 
     return isotopic_bw
 
