@@ -514,6 +514,14 @@ Default ‘C’</p></li>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.phonons.Phonons.pdos" title="kaldo.phonons.Phonons.pdos"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pdos</span></code></a>([p_atoms, direction, bandwidth, n_points])</p></td>
+<td><p>Calculate the atom projected phonon density of states. Total density of states can be computed by specifying all atom indices in p_atoms. p_atoms input format is flexible:     Providing a list of atom indices will return the single pdos summed over those atoms     Providing a list of lists of atom indices will return one pdos for each set of indices.</p></td>
+</tr>
+</tbody>
+</table>
 <dl class="py property">
 <dt class="sig sig-object py" id="kaldo.phonons.Phonons.bandwidth">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
@@ -615,6 +623,26 @@ represent the fraction of atoms that are displaced meaning a value of 1 correspo
 to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 :returns: <strong>participation_ratio</strong> – (n_k_points, n_modes) atomic participation
 :rtype: np array</p>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.pdos">
+<span class="sig-name descname"><span class="pre">pdos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p_atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandwidth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons.pdos"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.phonons.Phonons.pdos" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the atom projected phonon density of states.
+Total density of states can be computed by specifying all atom indices in p_atoms.
+p_atoms input format is flexible:</p>
+<blockquote>
+<div><p>Providing a list of atom indices will return the single pdos summed over those atoms
+Providing a list of lists of atom indices will return one pdos for each set of indices</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>freq, pdos</strong> (<em>np array, np array</em>)</p></li>
+<li><p>(n_points), (n_projections, n_points) Frequencies, pdos for each set of projected atoms`</p></li>
+</ul>
+</p>
+</dd>
+</dl>
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="kaldo.phonons.Phonons.phase_space">

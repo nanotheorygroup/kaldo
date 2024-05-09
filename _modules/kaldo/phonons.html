@@ -422,6 +422,7 @@
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="kn">import</span> <span class="n">HarmonicWithQTemp</span>
 <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
@@ -841,6 +842,90 @@
     <span class="k">def</span> <span class="nf">_is_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">is_amorphous</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">is_amorphous</span>
+
+
+<div class="viewcode-block" id="Phonons.pdos"><a class="viewcode-back" href="../../docsource/api_phonons.html#kaldo.phonons.Phonons.pdos">[docs]</a>    <span class="k">def</span> <span class="nf">pdos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p_atoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Calculate the atom projected phonon density of states.</span>
+<span class="sd">        Total density of states can be computed by specifying all atom indices in p_atoms.</span>
+<span class="sd">        p_atoms input format is flexible:</span>
+<span class="sd">            Providing a list of atom indices will return the single pdos summed over those atoms</span>
+<span class="sd">            Providing a list of lists of atom indices will return one pdos for each set of indices</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            freq, pdos : np array, np array</span>
+<span class="sd">            (n_points), (n_projections, n_points) Frequencies, pdos for each set of projected atoms`</span>
+<span class="sd">        """</span>
+
+        <span class="n">p_single</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">n_proj</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">p_atoms</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_proj</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'No atoms provided for projection.'</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s1">'Cannot project on an empty set of atoms.'</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">p_atoms</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">n_proj</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">p_single</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">p_atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">p_atoms</span><span class="p">]</span>
+
+        <span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
+        <span class="n">n_kpts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
+        <span class="n">eigensystem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eigensystem</span>
+        <span class="n">eigenvals</span> <span class="o">=</span> <span class="n">eigensystem</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">normal_modes</span> <span class="o">=</span> <span class="n">eigensystem</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:,</span> <span class="p">:]</span>
+        <span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">eigenvals</span><span class="p">)</span> <span class="o">**</span> <span class="mf">.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">eigenvals</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">2.</span><span class="p">))</span>
+
+        <span class="n">fmin</span><span class="p">,</span> <span class="n">fmax</span> <span class="o">=</span> <span class="n">frequency</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">frequency</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">f_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">fmin</span><span class="p">,</span> <span class="n">fmax</span><span class="p">,</span> <span class="n">n_points</span><span class="p">)</span>
+
+        <span class="n">p_dos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_proj</span><span class="p">,</span><span class="n">n_points</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ip</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_proj</span><span class="p">):</span>
+        
+            <span class="n">n_atoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">p_atoms</span><span class="p">[</span><span class="n">ip</span><span class="p">])</span>
+            <span class="n">atom_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_modes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">p_atoms</span><span class="p">[</span><span class="n">ip</span><span class="p">]:</span>
+                <span class="n">i0</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">p</span>
+                <span class="n">atom_mask</span><span class="p">[</span><span class="n">i0</span><span class="p">:</span><span class="n">i0</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="n">masked_modes</span> <span class="o">=</span> <span class="n">normal_modes</span><span class="p">[:,</span> <span class="n">atom_mask</span><span class="p">,</span> <span class="p">:]</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">direction</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Direction type not implemented.'</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">'Direction type not implemented.'</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ix</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_atoms</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">iy</span><span class="p">,</span><span class="n">iz</span> <span class="o">=</span> <span class="n">ix</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ix</span> <span class="o">+</span> <span class="mi">2</span>
+
+                <span class="n">proj</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">direction</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">masked_modes</span><span class="p">[:,</span> <span class="n">ix</span><span class="p">,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span>
+                    <span class="n">proj</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">masked_modes</span><span class="p">[:,</span> <span class="n">iy</span><span class="p">,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span>
+                    <span class="n">proj</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">masked_modes</span><span class="p">[:,</span> <span class="n">iz</span><span class="p">,</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">direction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">direction</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+                    <span class="n">direction</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span>
+
+                    <span class="n">proj</span> <span class="o">=</span> <span class="n">masked_modes</span><span class="p">[:,</span> <span class="n">ix</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">direction</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">proj</span> <span class="o">+=</span> <span class="n">masked_modes</span><span class="p">[:,</span> <span class="n">iy</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">direction</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">proj</span> <span class="o">+=</span> <span class="n">masked_modes</span><span class="p">[:,</span> <span class="n">iz</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">direction</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">proj</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_points</span><span class="p">):</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">frequency</span> <span class="o">-</span> <span class="n">f_grid</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">bandwidth</span><span class="p">)</span>
+                <span class="n">amp</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">proj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                    <span class="n">p_dos</span><span class="p">[</span><span class="n">ip</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">amp</span> <span class="o">*</span> <span class="n">proj</span><span class="p">[:,</span> <span class="n">j</span><span class="p">,</span> <span class="p">:])</span>
+
+            <span class="n">p_dos</span><span class="p">[</span><span class="n">ip</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">n_atoms</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">p_dos</span><span class="p">[</span><span class="n">ip</span><span class="p">],</span> <span class="n">f_grid</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">f_grid</span><span class="p">,</span> <span class="n">p_dos</span></div>
 
 
     <span class="k">def</span> <span class="nf">_allowed_third_phonons_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_q</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">):</span>
