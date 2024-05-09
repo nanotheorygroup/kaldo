@@ -49,7 +49,7 @@ class Phonons:
         Units: THz.
     broadening_shape : string, optional
         Defines the algorithm to use for the broadening of the conservation
-        of the energy for third irder interactions. Available broadenings
+        of the energy for third order interactions. Available broadenings
         are `gauss`, `lorentz` and `triangle`.
         Default is `gauss`.
     folder : string, optional
@@ -69,6 +69,9 @@ class Phonons:
         Default: None
     include_isotopes: bool, optional.
         Defines if you want to include isotopic scattering bandwidths. Default is False.
+    iso_speed_up: bool, optional.
+        Defines if you want to truncate the energy-conservation delta
+        in the isotopic scattering computation. Default is True.
 
     Returns
     -------
@@ -108,6 +111,8 @@ class Phonons:
             self.hbar = self.hbar * 1e-6
         self.g_factor = kwargs.pop('g_factor', None)
         self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
+        self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))
+
 
 
     @lazy_property(label='')
