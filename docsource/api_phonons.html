@@ -469,7 +469,7 @@ scattering calculation. If <img alt="None" class="math" src="../_images/math/66f
 dynamically. Otherwise the input value corresponds to the width.
 Units: THz.</p></li>
 <li><p><strong>broadening_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – Defines the algorithm to use for the broadening of the conservation
-of the energy for third irder interactions. Available broadenings
+of the energy for third order interactions. Available broadenings
 are <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced22748f70360a59603b6252.png"/>, <img alt="lorentz" class="math" src="../_images/math/0ecd3a42fba2ac4f9fc492ba29a99a8a670a5f8e.png"/> and <img alt="triangle" class="math" src="../_images/math/34b7c8af4374add3e6f9fb880161480a6ac7ea40.png"/>.
 Default is <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced22748f70360a59603b6252.png"/>.</p></li>
 <li><p><strong>folder</strong> (<em>string</em><em>, </em><em>optional</em>) – Specifies where to store the data files. Default is <img alt="output" class="math" src="../_images/math/6f5e880e661425b8c2cc343cf4c3e1b55654e810.png"/>.</p></li>
@@ -480,6 +480,11 @@ Default is <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced
 style ‘F’,
 Default ‘C’</p></li>
 <li><p><strong>is_balanced</strong> (<em>Enforce detailed balance when calculating anharmonic properties</em><em>,</em>) – Default: False</p></li>
+<li><p><strong>g_factor</strong> (<em>(</em><em>n_atoms</em><em>) </em><em>array</em><em> , </em><em>optional</em>) – It contains the isotopic g factor for each atom of the unit cell
+Default: None</p></li>
+<li><p><strong>include_isotopes</strong> (<em>bool</em><em>, </em><em>optional.</em>) – Defines if you want to include isotopic scattering bandwidths. Default is False.</p></li>
+<li><p><strong>iso_speed_up</strong> (<em>bool</em><em>, </em><em>optional.</em>) – Defines if you want to truncate the energy-conservation delta
+in the isotopic scattering computation. Default is True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -487,6 +492,8 @@ Default ‘C’</p></li>
 </dd>
 <dt class="field-odd">Attributes<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.anharmonic_bandwidth" title="kaldo.phonons.Phonons.anharmonic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">anharmonic_bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
+</dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvalues</span></code></a></dt><dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
@@ -498,6 +505,8 @@ Default ‘C’</p></li>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="kaldo.phonons.Phonons.heat_capacity_2d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity_2d</span></code></a></dt><dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</p>
+</dd>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.isotopic_bandwidth" title="kaldo.phonons.Phonons.isotopic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isotopic_bandwidth</span></code></a></dt><dd><p>Calculate the isotopic bandwidth with Tamura perturbative formula.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
 </dd>
@@ -522,6 +531,19 @@ Default ‘C’</p></li>
 </tr>
 </tbody>
 </table>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.anharmonic_bandwidth">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">anharmonic_bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.anharmonic_bandwidth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>bandwidth</strong> – bandwidth for each k point and each mode</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
+</dd>
+</dl>
+</dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="kaldo.phonons.Phonons.bandwidth">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
@@ -601,6 +623,14 @@ If classical, it returns the Boltzmann constant in W/m/K.</p>
 <dd class="field-even"><p>np.array(n_k_points, n_modes, n_modes)</p>
 </dd>
 </dl>
+</dd></dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.isotopic_bandwidth">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">isotopic_bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.isotopic_bandwidth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the isotopic bandwidth with Tamura perturbative formula.
+Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
+:returns: <strong>isotopic_bw</strong> – (n_k_points, n_modes) atomic participation
+:rtype: np array</p>
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="kaldo.phonons.Phonons.omega">

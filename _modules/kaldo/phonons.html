@@ -422,6 +422,7 @@
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="kn">import</span> <span class="n">HarmonicWithQTemp</span>
 <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
+<span class="kn">import</span> <span class="nn">kaldo.controllers.isotopic</span> <span class="k">as</span> <span class="nn">isotopic</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
@@ -460,7 +461,7 @@
 <span class="sd">        Units: THz.</span>
 <span class="sd">    broadening_shape : string, optional</span>
 <span class="sd">        Defines the algorithm to use for the broadening of the conservation</span>
-<span class="sd">        of the energy for third irder interactions. Available broadenings</span>
+<span class="sd">        of the energy for third order interactions. Available broadenings</span>
 <span class="sd">        are `gauss`, `lorentz` and `triangle`.</span>
 <span class="sd">        Default is `gauss`.</span>
 <span class="sd">    folder : string, optional</span>
@@ -475,6 +476,14 @@
 <span class="sd">        Default 'C'</span>
 <span class="sd">    is_balanced : Enforce detailed balance when calculating anharmonic properties,</span>
 <span class="sd">        Default: False</span>
+<span class="sd">    g_factor : (n_atoms) array , optional</span>
+<span class="sd">        It contains the isotopic g factor for each atom of the unit cell</span>
+<span class="sd">        Default: None</span>
+<span class="sd">    include_isotopes: bool, optional.</span>
+<span class="sd">        Defines if you want to include isotopic scattering bandwidths. Default is False.</span>
+<span class="sd">    iso_speed_up: bool, optional.</span>
+<span class="sd">        Defines if you want to truncate the energy-conservation delta</span>
+<span class="sd">        in the isotopic scattering computation. Default is True.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -512,6 +521,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">*</span> <span class="mf">1e-6</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'g_factor'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'include_isotopes'</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iso_speed_up</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'iso_speed_up'</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
 
 
 
@@ -743,8 +755,48 @@
         <span class="k">return</span> <span class="n">population</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bandwidth : np.array(n_k_points, n_modes)</span>
+<span class="sd">            bandwidth for each k point and each mode</span>
+<span class="sd">        """</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">anharmonic_bandwidth</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span><span class="p">:</span>
+            <span class="n">gamma</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isotopic_bandwidth</span>
+        <span class="k">return</span> <span class="n">gamma</span>
+
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;third_bandwidth&gt;'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">isotopic_bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">""" Calculate the isotopic bandwidth with Tamura perturbative formula.</span>
+<span class="sd">        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        isotopic_bw : np array</span>
+<span class="sd">            (n_k_points, n_modes) atomic participation</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'isotopic scattering not implemented for amorphous systems'</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">isotopic_bw</span><span class="o">=</span><span class="n">isotopic</span><span class="o">.</span><span class="n">compute_isotopic_bw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">atoms</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)'</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span><span class="o">=</span><span class="n">isotopic</span><span class="o">.</span><span class="n">compute_gfactor</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_atomic_numbers</span><span class="p">()</span> <span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'g factors='</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span><span class="p">))</span>
+                <span class="n">isotopic_bw</span> <span class="o">=</span> <span class="n">isotopic</span><span class="o">.</span><span class="n">compute_isotopic_bw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">isotopic_bw</span>
+
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">anharmonic_bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</span>
 
 <span class="sd">        Returns</span>
@@ -811,6 +863,7 @@
     <span class="k">def</span> <span class="nf">_ps_gamma_and_gamma_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_gamma_and_gamma_tensor</span>
+
 
 <span class="c1"># Helpers properties</span>
 
