@@ -11,6 +11,7 @@ from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 import kaldo.controllers.anharmonic as aha
+import kaldo.controllers.isotopic as isotopic
 from scipy import stats
 import numpy as np
 import ase.units as units
@@ -49,7 +50,7 @@ class Phonons:
         Units: THz.
     broadening_shape : string, optional
         Defines the algorithm to use for the broadening of the conservation
-        of the energy for third irder interactions. Available broadenings
+        of the energy for third order interactions. Available broadenings
         are `gauss`, `lorentz` and `triangle`.
         Default is `gauss`.
     folder : string, optional
@@ -64,6 +65,14 @@ class Phonons:
         Default 'C'
     is_balanced : Enforce detailed balance when calculating anharmonic properties,
         Default: False
+    g_factor : (n_atoms) array , optional
+        It contains the isotopic g factor for each atom of the unit cell
+        Default: None
+    include_isotopes: bool, optional.
+        Defines if you want to include isotopic scattering bandwidths. Default is False.
+    iso_speed_up: bool, optional.
+        Defines if you want to truncate the energy-conservation delta
+        in the isotopic scattering computation. Default is True.
 
     Returns
     -------
@@ -101,6 +110,9 @@ class Phonons:
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
+        self.g_factor = kwargs.pop('g_factor', None)
+        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
+        self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))
 
 
 
@@ -332,8 +344,48 @@ class Phonons:
         return population
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
+        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+
+        Returns
+        -------
+        bandwidth : np.array(n_k_points, n_modes)
+            bandwidth for each k point and each mode
+        """
+        gamma = self.anharmonic_bandwidth
+        if self.include_isotopes:
+            gamma += self.isotopic_bandwidth
+        return gamma
+
+
+    @lazy_property(label='<third_bandwidth>')
+    def isotopic_bandwidth(self):
+        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
+        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
+        Returns
+        -------
+        isotopic_bw : np array
+            (n_k_points, n_modes) atomic participation
+        """
+        if self._is_amorphous:
+            logging.warning('isotopic scattering not implemented for amorphous systems')
+            return np.zeros(self.n_k_points, self.n_modes)
+        else:
+            if self.g_factor is not None:
+                isotopic_bw=isotopic.compute_isotopic_bw(self)
+            else:
+                atoms=self.atoms
+                logging.warning('input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)')
+                self.g_factor=isotopic.compute_gfactor(atoms.get_atomic_numbers() )
+                logging.info('g factors='+str(self.g_factor))
+                isotopic_bw = isotopic.compute_isotopic_bw(self)
+
+            return isotopic_bw
+
+
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    def anharmonic_bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
@@ -400,6 +452,7 @@ class Phonons:
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
+
 
 # Helpers properties
 

@@ -102,19 +102,24 @@ class ThirdOrder(ForceConstant):
                                      folder=folder)
 
 
-        elif format == 'shengbte' or format == 'shengbte-qe':
+        #elif format == 'shengbte' or format == 'shengbte-qe':
+        elif format == 'shengbte' or format == 'shengbte-qe' or format=='shengbte-d3q':
             grid_type='F'
             config_file = folder + '/' + 'CONTROL'
             try:
-                atoms, supercell = shengbte_io.import_control_file(config_file)
+                atoms, _supercell = shengbte_io.import_control_file(config_file)
+                #atoms, supercell = shengbte_io.import_control_file(config_file) #this was fixing the second and third supercell as equal
             except FileNotFoundError as err:
                 config_file = folder + '/' + 'POSCAR'
                 logging.info('\nTrying to open POSCAR')
                 atoms = ase.io.read(config_file)
 
             third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
-
-            third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
+            if (format == 'shengbte' or format == 'shengbte-qe'  ):
+                third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
+            else:
+                third_order = shengbte_io.read_third_d3q(third_file, atoms, supercell, order='C')
+            #third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
             third_order = ThirdOrder.from_supercell(atoms=atoms,
                                                     grid_type=grid_type,
                                                     supercell=supercell,
