@@ -120,6 +120,8 @@ def compute_gfactor(list_of_atomic_numbers):
             g_ = np.sum(conc * (1 - rel_masses) ** 2)
             g_factor[list_of_atomic_numbers == element] = g_
     except:
+        ## Legacy gfactor database. The isotopic database was downloaded with ase.data.isotopes on 20/03/2024.
+        # unstable elements have None as gfactor. Mostly elements with Z>92
         with open('./legacy_dataset.json', 'r') as file:
             g_factor_dict = json.load(file)
         logging.info('online isotopic data not available, using legacy data.')
