@@ -56,7 +56,7 @@
   <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>ForceConstants API Reference &#8212; kALDo  documentation</title>
+    <title>ForceConstants &#8212; kALDo  documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/material.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -65,6 +65,7 @@
     <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <link rel="shortcut icon" href="../_static/logo.ico"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Phonons API Reference" href="api_phonons.html" />
@@ -105,7 +106,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> ForceConstants API Reference </span>
+          <span class="md-header-nav__topic"> ForceConstants </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -348,17 +349,27 @@
     
     
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> ForceConstants API Reference </label>
+    <label class="md-nav__link md-nav__link--active" for="__toc"> ForceConstants </label>
     
-      <a href="#" class="md-nav__link md-nav__link--active">ForceConstants API Reference</a>
+      <a href="#" class="md-nav__link md-nav__link--active">ForceConstants</a>
       
         
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants API Reference</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#attributes" class="md-nav__link">Attributes</a>
+        <li class="md-nav__item"><a href="#calculating-ifcs-in-kaldo" class="md-nav__link">Calculating IFCs in kALDo</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#should-i-use-kaldo-to-calculate-my-ifcs" class="md-nav__link">Should I use kALDo to calculate my IFCs?</a>
+        </li>
+        <li class="md-nav__item"><a href="#calculation-workflow" class="md-nav__link">Calculation Workflow</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#loading-precalculated-ifcs" class="md-nav__link">Loading Precalculated IFCs</a>
+        </li>
+        <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
         </li></ul>
             </nav>
         </li>
@@ -417,9 +428,19 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants API Reference</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#attributes" class="md-nav__link">Attributes</a>
+        <li class="md-nav__item"><a href="#calculating-ifcs-in-kaldo" class="md-nav__link">Calculating IFCs in kALDo</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#should-i-use-kaldo-to-calculate-my-ifcs" class="md-nav__link">Should I use kALDo to calculate my IFCs?</a>
+        </li>
+        <li class="md-nav__item"><a href="#calculation-workflow" class="md-nav__link">Calculation Workflow</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#loading-precalculated-ifcs" class="md-nav__link">Loading Precalculated IFCs</a>
+        </li>
+        <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
         </li></ul>
             </nav>
         </li>
@@ -437,104 +458,232 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  <section id="forceconstants-api-reference">
-<span id="forceconstants-api"></span><h1 id="docsource-api-forceconstants--page-root">ForceConstants API Reference<a class="headerlink" href="#docsource-api-forceconstants--page-root" title="Permalink to this heading">¶</a></h1>
-<p>The ForceConstants class is the basis for all of the kALDo
-calculations. It holds or calculates the interatomic force
-constants for the system.</p>
-<section id="attributes">
-<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading">¶</a></h2>
+  <section id="forceconstants">
+<span id="forceconstants-api"></span><h1 id="docsource-api-forceconstants--page-root">ForceConstants<a class="headerlink" href="#docsource-api-forceconstants--page-root" title="Permalink to this heading">¶</a></h1>
+<p>The ForceConstants class creates objects that store the system information and load (or calculate) force constant
+matrices (IFCs) to be used by an instance of the <a class="reference internal" href="api_phonons.html#phonons-api"><span class="std std-ref">Phonon</span></a> class. This is normally the first thing you
+should initialize when working with kALDo and we’ll walk you through how to do that in the following sections on this
+page. Initializing a ForceConstants object will also initialize SecondOrder and ThirdOrder containers that you can
+access as attributes. Refer to the section on <a class="reference internal" href="#loading-ifcs"><span class="std std-ref">Loading Precalculated IFCs</span></a>.</p>
+<section id="calculating-ifcs-in-kaldo">
+<span id="calculating-ifcs"></span><h2 id="calculating-ifcs-in-kaldo">Calculating IFCs in kALDo<a class="headerlink" href="#calculating-ifcs-in-kaldo" title="Permalink to this heading">¶</a></h2>
+<p>We use the finite difference approach, or sometimes called the frozen-phonon method. This method neglects temperature
+effects on phonon frequency and velocities, but it’s a good approximation if your system is far from melting (well-below
+the Debye Temperature).</p>
+<p>The basic idea is we explicitly calculate the change in forces on atoms when they are displaced from their equilibrium
+and use this to approximate the true derivative of the potential energy at equilibrium. You should keep aim to keep the
+displacements small, but not so small that the potential you’re using can’t resolve the change in forces. On empirical
+potentials like Tersoff, you can try pretty small displacements (1e-5 Angstroms) but on more complex potentials like
+machine learning potentials you may need to use larger displacements (1e-3 Angstroms).</p>
+<p>For a system with N atoms, the number of second order IFCs is <img alt="(3N)^2" class="math" src="../_images/math/943b51971dfc95a6b3301a233a3f32d107744154.png"/> but, because each frame returns <img alt="3N" class="math" src="../_images/math/72fc2a67dca9b9745c655b8c94b7ed0b128a3e76.png"/>
+forces, we only need to calculate <img alt="\frac{(3N)^2}{3N} = 3N" class="math" src="../_images/math/6fd4fb45b29b4d16d1c84080f868746cc3f48958.png"/> frames. However, the finite difference method uses 2
+displacements (+/-) to approximate the derivative so total number is actually <img alt="2\times 3N = 6N" class="math" src="../_images/math/0a8198ef7af907a622793e52ad3d15ff6efaa91f.png"/>.</p>
+<p>Each term of the third order FCs are calculated with 2 derivatives calculated with 2 displacements, so the total number
+of frames is <img alt="2 \times 2 \times 3N \times 3N = (6N)^2" class="math" src="../_images/math/23db063e872f4ae961f9f93691df661297505110.png"/>.</p>
+<section id="should-i-use-kaldo-to-calculate-my-ifcs">
+<h3 id="should-i-use-kaldo-to-calculate-my-ifcs">Should I use kALDo to calculate my IFCs?<a class="headerlink" href="#should-i-use-kaldo-to-calculate-my-ifcs" title="Permalink to this heading">¶</a></h3>
+<p>It’s faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs when possible. However, if
+your system is small ( hundreds to a few thousand atoms ), it may be tractable to calculate them here. The following are
+some general cases where you could calculate it all here without a significant performance hit:</p>
+<ul class="simple">
+<li><p>You want to explore the effect of different potentials on only harmonic phonon properties (so no third order needed).</p></li>
+<li><p>Small systems with short ranges of interactions</p></li>
+<li><p>Users have a custom potential (particularly when it can be calculated within python)</p></li>
+<li><p>Systems have no symmetry (which many of the compiled software packages exploit to greatly reduce total calculations)</p></li>
+</ul>
+<p>If you’re not sure, <code class="xref py py-meth docutils literal notranslate"><span class="pre">SecondOrder.calculate()</span></code> prints to stdout the atom its currently working on so run the
+calculation and stop it after it prints a few atoms. Take the average time per atom and divide by 6 to get the time per
+frame <img alt="t_{pf}" class="math" src="../_images/math/9f14a8e6da3ddfa543729eba3de6042255fa74e8.png"/> including overhead of I/O operations, launching tasks, etc. The total times are given by:</p>
+<div class="math">
+<p><img alt="t_{2nd Order} = t_{pf} \times {6N}" src="../_images/math/5c5c0709424518b8e9d8eef9841e7460f8dd32d4.png"/></p>
+</div><div class="math">
+<p><img alt="t_{3rd Order} = t_{pf} \times {6N}^2" src="../_images/math/8c813aba5341d33ab205ccb2c6f02d52d7827c29.png"/></p>
+</div></section>
+<section id="calculation-workflow">
+<h3 id="calculation-workflow">Calculation Workflow<a class="headerlink" href="#calculation-workflow" title="Permalink to this heading">¶</a></h3>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Be sure to minimize the potential energy of your atomic positions before calculating the IFCs. The steps here assume
+you have already done this.</p>
+</div>
+<ol class="arabic">
+<li><p>Import required packages which will be kALDo, the ASE calculator you want to use, and either a function to build
+atoms (like ase.build.bulk) or their read tool (ase.io.read):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">kaldo.forceconstants</span> <span class="kn">import</span> <span class="n">ForceConstants</span>
+<span class="kn">from</span> <span class="nn">ase.io</span> <span class="kn">import</span> <span class="n">read</span>
+<span class="kn">from</span> <span class="nn">ase.build</span> <span class="kn">import</span> <span class="n">bulk</span>
+<span class="kn">from</span> <span class="nn">ase.calculatos.lammpslib</span> <span class="kn">import</span> <span class="n">LAMMPSlib</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic">
+<li><p>Create your Atoms, Calculator and ForceConstants object. If you don’t set a “folder” argument for the ForceConstants
+object the default save location is “displacements”. See <a class="reference external" href="asecalc">the ASE docs</a> for information on their
+calculators:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create the Atoms object</span>
+<span class="n">atoms</span> <span class="o">=</span> <span class="n">bulk</span><span class="p">(</span><span class="s1">'C'</span><span class="p">,</span> <span class="s1">'diamond'</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mf">3.567</span><span class="p">)</span>
+<span class="c1"># Create the ASE calculator object</span>
+<span class="n">calc</span> <span class="o">=</span> <span class="n">LAMMPSlib</span><span class="p">(</span><span class="n">lmpcmds</span><span class="o">=</span><span class="p">[</span><span class="s1">'pair_style tersoff'</span><span class="p">,</span>
+                          <span class="s1">'pair_coeff * * SiC.tersoff C'</span><span class="p">],</span>
+                 <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s1">'control'</span><span class="p">:</span> <span class="s1">'energy'</span><span class="p">,</span>
+                                 <span class="s1">'log'</span><span class="p">:</span> <span class="s1">'none'</span><span class="p">,</span>
+                                <span class="s1">'pair'</span><span class="p">:</span> <span class="s1">'tersoff'</span><span class="p">,</span>
+                                <span class="s1">'mass'</span><span class="p">:</span> <span class="s1">'1 12.01'</span><span class="p">,</span>
+                            <span class="s1">'boundary'</span><span class="p">:</span> <span class="s1">'p p p'</span><span class="p">},</span>
+                 <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s1">'SiC.tersoff'</span><span class="p">]))</span>
+<span class="c1"># Create the ForceConstants object</span>
+<span class="n">fc</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="s1">'path_to_save_IFCS/'</span><span class="p">,)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Now use the “calculate” methods of the second and third order objects by passing in the calculator as an argument.
+The “delta_shift” argument is how far the atoms move.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Second Order (for harmonic properties - phonon frequencies, velocities, heat capacity, etc.)</span>
+<span class="n">fc</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">calc</span><span class="p">)</span>
+<span class="c1"># Third Order (for anharmonic properties - phonon lifetimes, thermal conductivity, etc.)</span>
+<span class="n">fc</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">calc</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p>Try referencing the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/blob/main/examples/carbon_diamond_Tersoff_ASE_LAMMPS/1_C_Tersoff_fc_and_harmonic_properties.py">carbon diamond example</a> to see an example where we use kALDo and ASE to control LAMMPS
+calculations.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Some libraries, like LAMMPS, can use either a python wrapper (LAMMPSlib) or a direct call to the binary
+executable (LAMMPSrun). We don’t notice a significant performance increase by using the direct call method, because
+the bottleneck is the I/O of data back to python. This is part of the reason our examples use the python wrapper,
+which offers more flexibility without losing access to the full LAMMPS functionality.</p>
+</div>
+</section>
+</section>
+<section id="loading-precalculated-ifcs">
+<span id="loading-ifcs"></span><h2 id="loading-precalculated-ifcs">Loading Precalculated IFCs<a class="headerlink" href="#loading-precalculated-ifcs" title="Permalink to this heading">¶</a></h2>
+<p>Construct your ForceConstants object by using the <code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code> method. The first step of
+the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/blob/main/examples/amorphous_silicon_Tersoff_LAMMPS/1_aSi512_Tersoff_thermal_conductivity.py">amorphous silicon example</a> can help you get started.
+If you’d like to load IFCs into the already-created instances without the <code class="xref py py-meth docutils literal notranslate"><span class="pre">from_folder()</span></code> generate the
+ForceConstants object and then use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">load()</span></code> method of the SecondOrder and ThirdOrder objects to pull data as
+needed.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>If you just want to check harmonic data first, use the “is_harmonic” argument when creating the ForceConstants object
+to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just need to
+generate a phonon dispersion along a new path.</p>
+</div>
+<span id="input-files"></span><table id="id4">
+<caption><span class="caption-text">Input Files</span><a class="headerlink" href="#id4" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col style="width: 20%"/>
+<col style="width: 20%"/>
+<col style="width: 20%"/>
+<col style="width: 20%"/>
+<col style="width: 20%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Format</p></th>
+<th class="head"><p>Config filename</p></th>
+<th class="head"><p>ASE format</p></th>
+<th class="head"><p>2nd Order FCs</p></th>
+<th class="head"><p>3rd Order FCs</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>numpy</p></td>
+<td><p>replicated_atoms.xyz</p></td>
+<td><p>xyz</p></td>
+<td><p>second.npy</p></td>
+<td><p>third.npz</p></td>
+</tr>
+<tr class="row-odd"><td><p>eskm</p></td>
+<td><p>CONFIG</p></td>
+<td><p>dlp4</p></td>
+<td><p>Dyn.form</p></td>
+<td><p>THIRD</p></td>
+</tr>
+<tr class="row-even"><td><p>lammps</p></td>
+<td><p>replicated_atoms.xyz</p></td>
+<td><p>xyz</p></td>
+<td><p>Dyn.form</p></td>
+<td><p>THIRD</p></td>
+</tr>
+<tr class="row-odd"><td><p>shengbte</p></td>
+<td><p>CONTROL <a class="footnote-reference brackets" href="#f1" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
+<td><p>None <a class="footnote-reference brackets" href="#f2" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
+<td><p>FORCE_CONSTANTS_2ND</p></td>
+<td><p>FORCE_CONSTANTS_3RD</p></td>
+</tr>
+<tr class="row-even"><td><p>shengbte-qe</p></td>
+<td><p>CONTROL <a class="footnote-reference brackets" href="#f1" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
+<td><p>None</p></td>
+<td><p>espresso.ifc2</p></td>
+<td><p>FORCE_CONSTANTS_3RD</p></td>
+</tr>
+<tr class="row-odd"><td><p>hiphive</p></td>
+<td><p>atom_prim.xyz + replicated_atoms.xyz</p></td>
+<td><p>xyz</p></td>
+<td><p>model2.fcs</p></td>
+<td><p>model3.fcs</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes on Formats</p>
+<aside class="footnote brackets" id="f1" role="note">
+<span class="label"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a href="#id1" role="doc-backlink">1</a>,<a href="#id3" role="doc-backlink">2</a>)</span>
+<p>The shengbte and shengbte-qe format will look for the “CONTROL” file first, however, if it is not found it will
+look for a “POSCAR” file (ASE format “vasp”). If neither are found, it will raise an error.</p>
+</aside>
+<aside class="footnote brackets" id="f2" role="note">
+<span class="label"><span class="fn-bracket">[</span><a href="#id2" role="doc-backlink">2</a><span class="fn-bracket">]</span></span>
+<p>The shengbte format does not have a direct equivalent in ASE. You can be create the atoms object manually or
+use the import_control_file method.</p>
+</aside>
+</section>
+<section id="api-reference">
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.forceconstants.</span></span><span class="sig-name descname"><span class="pre">ForceConstants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'displacement'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
-<dd><p>Class for constructing the finite difference object to calculate
-the second/third order force constant matrices after providing the
-unit cell geometry and calculator information.</p>
+<dd><p>The ForceConstants class creates objects that store the system information and load (or calculate) force constant
+matrices (IFCs) to be used by an instance of the Phonon class.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>atoms</strong> (<em>Tabulated xyz files</em><em> or </em><em>ASE Atoms object</em>) – The atoms to work on.</p></li>
-<li><p><strong>supercell</strong> – Size of supercell given by the number of repetitions (l, m, n) of
-the small unit cell in each direction.
-Defaults to (1, 1, 1)</p></li>
-<li><p><strong>third_supercell</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Same as supercell, but for the third order force constant matrix.
-If not provided, it’s copied from supercell.
-Defaults to <img alt="self.supercell" class="math" src="../_images/math/11c0006d15164d9da615ed3ccfd97139860f7f16.png"/></p></li>
-<li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder.
-Defaults to ‘displacement’</p></li>
-<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the interatomic
-force is ignored.
-Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
+<li><p><strong>atoms</strong> (<em>ase.Atoms</em>) – The atoms to study. This is required to be an ASE Atoms object, and if you would like to calculate the IFCs in
+kALDo, it should have a calculator object set.</p></li>
+<li><p><strong>supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em>) – Size of supercell given by the number of repetitions (l, m, n) of the unit cell in each direction. You should be
+able to calculate this by dividing the size of the supercell by the size of the unit cell in orthorhombic cells,
+but may be more complicated for other cell types.
+Default: (1, 1, 1)</p></li>
+<li><p><strong>third_supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – This argument should be used if you are loading force constants from an external source in the event that the
+second and third order forces were calculated on different supercells. If not provided, we assume those
+supercells were equivalent. This argument is most likely to be used for those with ab initio calculations, where
+third order force constants are regularly calculated on smaller supercells to save computational cost.
+Default: self.supercell</p></li>
+<li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder, in the event you would like to save to a custom
+location. You can adjust the default value on line 13 of this file.
+Default: “displacement”</p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the forces will be ignored when calculating both harmonic
+(e.g. frequency, velocity) and anharmonic (e.g. lifetimes) phonon properties. This is useful for systems with
+coulomb forces or other long range interactions.
+Default: None</p></li>
 </ul>
 </dd>
 </dl>
 <p class="rubric">Methods</p>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, ...])</p></td>
-<td><p>Create a finite difference object from a folder</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code>(folder[, supercell, format, ...])</p></td>
+<td><p>Initializes a ForceConstants object from data in the folder provided.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="kaldo.forceconstants.ForceConstants.unfold_third_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code></a>([reduced_third, ...])</p></td>
-<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code>([reduced_third, ...])</p></td>
+<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for the full supercell.</p></td>
 </tr>
 </tbody>
 </table>
-<dl class="py method">
-<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.from_folder">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'numpy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_energy_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_acoustic_sum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">only_second</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create a finite difference object from a folder</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>folder</strong> (<em>str</em>) – Chosen folder to load in system information.</p></li>
-<li><p><strong>supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Number of unit cells in each cartesian direction replicated to form the input structure.
-Default is (1, 1, 1)</p></li>
-<li><p><strong>format</strong> (<em>'numpy'</em><em>, </em><em>'eskm'</em><em>, </em><em>'lammps'</em><em>, </em><em>'shengbte'</em><em>, </em><em>'shengbte-qe'</em><em>,</em><em>'shengbte-d3q'</em><em>, </em><em>'hiphive'</em>) – Format of force constant information being loaded into ForceConstants object.
-Default is ‘numpy’</p></li>
-<li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – <p>When importing sparse third order force constant matrices, energies below
-the threshold value in magnitude are ignored. Units: ev/A^3</p>
-<blockquote>
-<div><p>Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p>
-</div></blockquote>
-</p></li>
-<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than the
-distance threshold will be ignored.</p></li>
-<li><p><strong>third_supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Takes in the unit cell for the third order force constant matrix.
-Default is self.supercell</p></li>
-<li><p><strong>is_acoustic_sum</strong> (<em>Bool</em><em>, </em><em>optional</em>) – If true, the accoustic sum rule is applied to the dynamical matrix.
-Default is False</p></li>
-<li><p><strong>Inputs</strong> – </p></li>
-<li><p><strong>------</strong> – </p></li>
-<li><p><strong>numpy</strong> (<em>replicated_atoms.xyz</em><em>, </em><em>second.npy</em><em>, </em><em>third.npz</em>) – </p></li>
-<li><p><strong>eskm</strong> (<em>CONFIG</em><em>, </em><em>replicated_atoms.xyz</em><em>, </em><em>Dyn.form</em><em>, </em><em>THIRD</em>) – </p></li>
-<li><p><strong>lammps</strong> (<em>replicated_atoms.xyz</em><em>, </em><em>Dyn.form</em><em>, </em><em>THIRD</em>) – </p></li>
-<li><p><strong>shengbte</strong> (<em>CONTROL</em><em>, </em><em>POSCAR</em><em>, </em><em>FORCE_CONSTANTS_2ND/FORCE_CONSTANTS</em><em>, </em><em>FORCE_CONSTANTS_3RD</em>) – </p></li>
-<li><p><strong>shengbte-qe</strong> (<em>CONTROL</em><em>, </em><em>POSCAR</em><em>, </em><em>espresso.ifc2</em><em>, </em><em>FORCE_CONSTANTS_3RD</em>) – </p></li>
-<li><p><strong>hiphive</strong> (<em>atom_prim.xyz</em><em>, </em><em>replicated_atoms.xyz</em><em>, </em><em>model2.fcs</em><em>, </em><em>model3.fcs</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>ForceConstants object</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.unfold_third_order">
-<span class="sig-name descname"><span class="pre">unfold_third_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduced_third</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.unfold_third_order"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="Permalink to this definition">¶</a></dt>
-<dd><p>This method extrapolates a third order force constant matrix from a unit
-cell into a matrix for a larger supercell.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
-Default is <img alt="self.third" class="math" src="../_images/math/15cfbf59c2e9dda1f84c7dff795b1b1d95ca9bc1.png"/></p></li>
-<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than
-the distance threshold will be ignored.
-Default is self.distance_threshold</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
 </dd></dl>
 </section>
 </section>
