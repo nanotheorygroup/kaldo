@@ -49,3 +49,7 @@ This example illustrates how to perform thermal transport simulation for a bulk 
 from reference force calculations computed with  [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html).
 - `silicon_clathrate_Tersoff_LAMMPS:`
 This example illustrates how to perform thermal transport simulation for a type I clathrate (46 atoms per cell) system using [LAMMPS USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
+
+## Using Git Large File Storage (LFS)
+
+This repository uses Git Large File Storage (LFS) to handle large files. To ensure you properly download all the content, you need to have Git LFS installed on your system. If you haven't installed it yet, you can do so by following the instructions on the [Git LFS website](https://git-lfs.github.com/). Once Git LFS is installed, you can clone this repository as usual with `git clone`. Git LFS is integrated into normal Git commands, so large files will be downloaded automatically when you checkout a commit that includes them. If you've already cloned the repository without Git LFS, you can download the large files with `git lfs pull`.

@@ -6,7 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
-from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
@@ -26,7 +26,7 @@ def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, phy
                           diffusivity_threshold=None):
     # TODO: cache this
     sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
-    physical_mode = physical_mode.astype(np.bool)
+    physical_mode = physical_mode.astype(bool)
     delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
     kernel = curve(delta_energy, sigma)
     if diffusivity_threshold is not None:
@@ -132,9 +132,10 @@ class Conductivity:
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
+        self.include_isotopes=self.phonons.include_isotopes
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
         """Calculate the thermal conductivity per mode in W/m/K
 
@@ -169,7 +170,7 @@ class Conductivity:
         logging.info('Conductivity calculated')
         return cond.real
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def mean_free_path(self):
         """Calculate the mean_free_path per mode in A
 
@@ -280,7 +281,7 @@ class Conductivity:
 
         for k_index in range(len(q_points)):
 
-            phonon = HarmonicWithQTemp(q_point=q_points[k_index],
+            phonon = hwqwt.HarmonicWithQTemp(q_point=q_points[k_index],
                                        second=self.phonons.forceconstants.second,
                                        distance_threshold=self.phonons.forceconstants.distance_threshold,
                                        folder=self.folder,
@@ -490,13 +491,13 @@ class Conductivity:
         finite_length_method = self.finite_length_method
 
         if finite_length_method == 'ms':
-            lambd_n = self._calculate_sc_mfp(matthiessen_length=self.length)
+            lambd_n = self._calculate_sc_mfp_with_length(matthiessen_length=self.length)
         else:
-            lambd_n = self._calculate_sc_mfp()
+            lambd_n = self._calculate_sc_mfp_with_length()
         return lambd_n
 
 
-    def _calculate_sc_mfp(self, matthiessen_length=None, max_iterations_sc=50):
+    def _calculate_sc_mfp_with_length(self, matthiessen_length=None, max_iterations_sc=50):
         tolerance = self.tolerance
         n_iterations = self.n_iterations
         phonons = self.phonons

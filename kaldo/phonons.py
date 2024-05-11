@@ -11,6 +11,8 @@ from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 import kaldo.controllers.anharmonic as aha
+import kaldo.controllers.isotopic as isotopic
+from scipy import stats
 import numpy as np
 import ase.units as units
 from kaldo.helpers.logger import get_logger
@@ -60,18 +62,18 @@ class Phonons:
         Units: THz
         Default: `None`
     broadening_shape : string
-        Defines the algorithm to use for the broadening of the conservation
-        of the energy for third irder interactions.
+        Defines the algorithm to use for line-broadening when enforcing
+        energy conservation rules for three-phonon scattering.
         Options: `gauss`, `lorentz` and `triangle`.
-        Default: `gauss`.
+        Default: `gauss`
     folder : string
         Specifies where to store the data files.
         Default: `output`.
     storage : string
-        Defines the storing strategy used to store the observables. The
-        `default` strategy stores formatted text files for most harmonic
-        properties but relies on numpy arrays for large arrays like the
-        gamma tensor. The `memory` option doesn't generate any output.
+        Defines the strategy used to store observables. The `default` strategy
+        stores formatted text files for most harmonic properties but relies on
+        numpy arrays for large arrays like the gamma tensor. The `memory` option 
+        doesn't generate any output except what is printed in your script.
         Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`
         Default: 'formatted'
     grid_type : string
@@ -88,6 +90,14 @@ class Phonons:
         If the second order force constants need to be unfolded like in P. B. Allen
         et al., Phys. Rev. B 87, 085322 (2013) set this to True.
         Default: False
+    g_factor : (n_atoms) array , optional
+        It contains the isotopic g factor for each atom of the unit cell
+        Default: None
+    include_isotopes: bool, optional.
+        Defines if you want to include isotopic scattering bandwidths. Default is False.
+    iso_speed_up: bool, optional.
+        Defines if you want to truncate the energy-conservation delta
+        in the isotopic scattering computation. Default is True.
 
     Returns
     -------
@@ -123,6 +133,9 @@ class Phonons:
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
+        self.g_factor = kwargs.pop('g_factor', None)
+        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
+        self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))
 
 
 
@@ -136,7 +149,7 @@ class Phonons:
             (n_k_points, n_modes) bool
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
-        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=np.bool)
+        physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -366,8 +379,48 @@ class Phonons:
         return population
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
+        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+
+        Returns
+        -------
+        bandwidth : np.array(n_k_points, n_modes)
+            bandwidth for each k point and each mode
+        """
+        gamma = self.anharmonic_bandwidth
+        if self.include_isotopes:
+            gamma += self.isotopic_bandwidth
+        return gamma
+
+
+    @lazy_property(label='<third_bandwidth>')
+    def isotopic_bandwidth(self):
+        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
+        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
+        Returns
+        -------
+        isotopic_bw : np array
+            (n_k_points, n_modes) atomic participation
+        """
+        if self._is_amorphous:
+            logging.warning('isotopic scattering not implemented for amorphous systems')
+            return np.zeros(self.n_k_points, self.n_modes)
+        else:
+            if self.g_factor is not None:
+                isotopic_bw=isotopic.compute_isotopic_bw(self)
+            else:
+                atoms=self.atoms
+                logging.warning('input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)')
+                self.g_factor=isotopic.compute_gfactor(atoms.get_atomic_numbers() )
+                logging.info('g factors='+str(self.g_factor))
+                isotopic_bw = isotopic.compute_isotopic_bw(self)
+
+            return isotopic_bw
+
+
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    def anharmonic_bandwidth(self):
         """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
@@ -435,6 +488,7 @@ class Phonons:
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
+
 # Helpers properties
 
     @property
@@ -465,6 +519,90 @@ class Phonons:
     def _is_amorphous(self):
         is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell == (1,1,1)).all()
         return is_amorphous
+
+
+    def pdos(self, p_atoms=None, direction=None, bandwidth=0.05, n_points=200):
+        """Calculate the atom projected phonon density of states.
+        Total density of states can be computed by specifying all atom indices in p_atoms.
+        p_atoms input format is flexible:
+            Providing a list of atom indices will return the single pdos summed over those atoms
+            Providing a list of lists of atom indices will return one pdos for each set of indices
+
+        Returns
+        -------
+            freq, pdos : np array, np array
+            (n_points), (n_projections, n_points) Frequencies, pdos for each set of projected atoms`
+        """
+
+        p_single = False
+        n_proj = len(p_atoms)
+
+        if n_proj == 0:
+            logging.error('No atoms provided for projection.')
+            raise IndexError('Cannot project on an empty set of atoms.')
+
+        else:
+            try:
+                _ = iter(p_atoms[0])
+
+            except TypeError as e:
+                n_proj = 1
+                p_single = True
+                p_atoms = [p_atoms]
+
+        n_modes = self.n_modes
+        n_kpts = self.n_k_points
+        eigensystem = self._eigensystem
+        eigenvals = eigensystem[:, 0, :]
+        normal_modes = eigensystem[:, 1:, :]
+        frequency = np.real(np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.))
+
+        fmin, fmax = frequency.min(), frequency.max()
+        f_grid = np.linspace(fmin, fmax, n_points)
+
+        p_dos = np.zeros((n_proj,n_points), dtype=float)
+        for ip in range(n_proj):
+        
+            n_atoms = len(p_atoms[ip])
+            atom_mask = np.zeros(n_modes, dtype=bool)
+            for p in p_atoms[ip]:
+                i0 = 3 * p
+                atom_mask[i0:i0+3] = True
+
+            masked_modes = normal_modes[:, atom_mask, :]
+
+            if isinstance(direction, str):
+                logging.error('Direction type not implemented.')
+                raise NotImplementedError('Direction type not implemented.')
+
+            else:
+                ix = 3 * np.arange(n_atoms, dtype=int)
+                iy,iz = ix + 1, ix + 2
+
+                proj = None
+                if direction is None:
+                    proj = np.abs(masked_modes[:, ix, :]) ** 2
+                    proj += np.abs(masked_modes[:, iy, :]) ** 2
+                    proj += np.abs(masked_modes[:, iz, :]) ** 2
+
+                else:
+                    direction = np.array(direction, dtype=float)
+                    direction /= np.linalg.norm(direction)
+
+                    proj = masked_modes[:, ix, :] * direction[0]
+                    proj += masked_modes[:, iy, :] * direction[1]
+                    proj += masked_modes[:, iz, :] * direction[2]
+                    proj = np.abs(proj) ** 2
+
+            for i in range(n_points):
+                x = (frequency - f_grid[i]) / np.sqrt(bandwidth)
+                amp = stats.norm.pdf(x)
+                for j in range(proj.shape[1]):
+                    p_dos[ip, i] += np.sum(amp * proj[:, j, :])
+
+            p_dos[ip] *= 3 * n_atoms / np.trapz(p_dos[ip], f_grid)
+
+        return f_grid, p_dos
 
 
     def _allowed_third_phonons_index(self, index_q, is_plus):

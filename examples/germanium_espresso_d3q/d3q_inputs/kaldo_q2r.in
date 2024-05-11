@@ -1,0 +1,5 @@
+&input
+fildyn='dyn', ! the dynamical matrix from phonon calculation
+zasr='simple',
+flfrc='espresso.ifc2' ! the interatomic force constants
+/

@@ -45,7 +45,7 @@ def load(property, folder, instance, format='formatted'):
     elif format == 'formatted':
         if property == 'physical_mode':
             loaded = np.loadtxt(name + '.dat', skiprows=1)
-            loaded = np.round(loaded, 0).astype(np.bool)
+            loaded = np.round(loaded, 0).astype(bool)
         elif property == 'velocity':
             loaded = []
             for alpha in range(3):
@@ -164,6 +164,9 @@ def get_folder_from_label(instance, label='', base_folder=None):
         if '<third_bandwidth>' in label:
             if instance.third_bandwidth is not None:
                 base_folder += '/tb_' + str(np.mean(instance.third_bandwidth))
+        if '<include_isotopes>' in label:
+            if instance.include_isotopes:
+                base_folder +='/isotopes'
 
         if '<method>' in label:
             base_folder += '/' + str(instance.method)

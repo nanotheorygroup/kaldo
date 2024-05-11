@@ -7,6 +7,7 @@ from kaldo.helpers.storage import lazy_property
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
+# from numpy.linalg import eigh
 
 logging = get_logger()
 
@@ -134,6 +135,10 @@ class HarmonicWithQ(Observable):
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
         shape = (1, n_unit_cell * 3, n_unit_cell * 3)
+        if is_amorphous:
+            type = float
+        else:
+            type = complex
         dir = ['_x', '_y', '_z']
         type = complex if (not self.is_amorphous) else float
         log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
@@ -179,7 +184,7 @@ class HarmonicWithQ(Observable):
     def calculate_sij(self, direction):
         q_point = self.q_point
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
-        if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             type = float
         else:
             type = complex
@@ -314,9 +319,10 @@ class HarmonicWithQ(Observable):
                                                                  fc_s[:, :, supercell_index[0], supercell_index[1],
                                                                  supercell_index[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        # omega2 = 2 * pi * frequency^2
-        # todo: performance check with zheev vs tf.linalg.eigh(dyn) (+ eigvalsh(dyn)
+        omega2, eigenvect, info = zheev(dyn)
+        # omega2, eigenvect = eigh(dyn)
+        frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+        frequency = frequency[:] / np.pi / 2
         if only_eigenvals:
             omega2, __, info = zheev(dyn, compute_v=0)
             return omega2
