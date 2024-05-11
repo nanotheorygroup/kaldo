@@ -99,7 +99,7 @@ class ForceConstants:
         ----------
         folder : str
             Path to the folder containing your configuration file, second and third order force constants.
-        format : {"numpy", "eskm", "lammps", "shengbte", "shengbte-qe", "hiphive"}
+        format : {"numpy", "eskm", "lammps", "shengbte", "shengbte-qe", "shengbte-d3q", "hiphive"}
             Format of force constant information being loaded into ForceConstants object. Numpy is the default format
             because of it's memory-efficient storage and ability to load matrices into an array quickly. If possible,
             we recommend converting your data to numpy arrays using kALDo's "save" functions found in the second and
@@ -133,7 +133,7 @@ class ForceConstants:
 
         Returns
         -------
-        ForceConstants instance
+        ForceConstants object
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)

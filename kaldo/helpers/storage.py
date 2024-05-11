@@ -164,6 +164,9 @@ def get_folder_from_label(instance, label='', base_folder=None):
         if '<third_bandwidth>' in label:
             if instance.third_bandwidth is not None:
                 base_folder += '/tb_' + str(np.mean(instance.third_bandwidth))
+        if '<include_isotopes>' in label:
+            if instance.include_isotopes:
+                base_folder +='/isotopes'
 
         if '<method>' in label:
             base_folder += '/' + str(instance.method)
