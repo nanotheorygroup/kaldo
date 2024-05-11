@@ -6,7 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
-from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
@@ -134,9 +134,10 @@ class Conductivity:
         self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
         self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
         self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
+        self.include_isotopes=self.phonons.include_isotopes
 
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
         """Calculate the thermal conductivity per mode in W/m/K
 
@@ -171,7 +172,7 @@ class Conductivity:
         logging.info('Conductivity calculated')
         return cond.real
 
-    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<method>/<length>/<finite_length_method>')
+    @lazy_property(label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def mean_free_path(self):
         """Calculate the mean_free_path per mode in A
 
@@ -282,7 +283,7 @@ class Conductivity:
 
         for k_index in range(len(q_points)):
 
-            phonon = HarmonicWithQTemp(q_point=q_points[k_index],
+            phonon = hwqwt.HarmonicWithQTemp(q_point=q_points[k_index],
                                        second=self.phonons.forceconstants.second,
                                        distance_threshold=self.phonons.forceconstants.distance_threshold,
                                        folder=self.folder,

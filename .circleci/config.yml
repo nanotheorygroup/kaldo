@@ -22,21 +22,6 @@ jobs:
       - image: "gbarbalinardo/kaldo_docs:amd"
     steps:
       - checkout
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
-      - run:
-          name: Add pandoc
-          command: conda install -c conda-forge pandoc
-      - run:
-          name: Add make
-          command: conda install make
-      - run:
-          name: Add psutil
-          command: conda install psutil>=5.7.2
-      - run:
-          name: Install docs dependencies
-          command: pip install -r docs/doc_requirements.txt
       - run:
           name: Build docs
           command: cd docs/ && make html

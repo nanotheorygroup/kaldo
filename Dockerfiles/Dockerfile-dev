@@ -1,0 +1,61 @@
+# Use Ubuntu 22.04 as the base image
+FROM ghcr.io/deepmodeling/deepmd-kit:devel_cu11
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    TZ=Etc/UTC \
+    LANG=en_US.utf8
+
+# Update and install system dependencies
+RUN apt-get update && \
+    apt-get install -y locales && \
+    localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 && \
+    apt-get install -y vim curl python3 python3-pip \
+        libglib2.0-0 libgl1 libegl1 libxkbcommon0 dbus libopengl0 build-essential git \
+        ccache openmpi-bin libopenmpi-dev cmake libblas-dev liblapack-dev python3.11-venv \
+        libfftw3-dev ffmpeg  && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set the working directory to /mnt/work
+WORKDIR /mnt/work
+
+
+# Install Kaldo
+RUN python3 -m pip install --no-cache-dir git+https://github.com/nanotheorygroup/kaldo
+
+#Install additional packages for lammps
+RUN    python3 -m pip install calorine virtualenv psutil tabulate mpi4py Cython fitsnap3
+
+#Install lammps with packages and GPU config.
+RUN git clone https://github.com/lammps/lammps.git lammps && \
+    cd lammps && \
+    mkdir build && \
+    cd build && \
+    cmake ../cmake \
+        -DBUILD_SHARED_LIBS=yes \
+        -DMLIAP_ENABLE_PYTHON=yes \
+        -DPKG_PYTHON=yes \
+        -DPKG_MANYBODY=yes \
+        -DPKG_KSPACE=yes \
+        -DPKG_PHONON=yes \
+	-DPKG_ML-SNAP=yes \
+        -DPKG_ML-IAP=yes \
+        -DPKG_ML-PACE=yes \
+        -DPKG_SPIN=yes \
+        -DPYTHON_EXECUTABLE:FILEPATH=$(which python3) && \
+     make -j $(nproc) && \
+     make install-python
+
+
+# Currently a bug exists and will be fixed when the bug is gone.
+#RUN  curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
+#    apt install git-lfs 
+#
+
+
+#Git kaldo so tests can be done
+RUN git clone https://github.com/nanotheorygroup/kaldo
+
+# Set the working directory back to the root
+WORKDIR /mnt/work/kaldo
+
