@@ -183,6 +183,7 @@ class HarmonicWithQ(Observable):
 
     def calculate_sij(self, direction):
         q_point = self.q_point
+        is_amorphous = self.is_amorphous
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
         if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             type = float
