@@ -24,7 +24,6 @@ Read the paper here_.
    docsource/theory.ipynb
 
 .. toctree::
-   :glob:
    :caption: API
    :maxdepth: 1
 
