@@ -135,10 +135,6 @@ class HarmonicWithQ(Observable):
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
         shape = (1, n_unit_cell * 3, n_unit_cell * 3)
-        if is_amorphous:
-            type = float
-        else:
-            type = complex
         dir = ['_x', '_y', '_z']
         type = complex if (not self.is_amorphous) else float
         log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
@@ -183,9 +179,8 @@ class HarmonicWithQ(Observable):
 
     def calculate_sij(self, direction):
         q_point = self.q_point
-        is_amorphous = self.is_amorphous
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
-        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+        if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             type = float
         else:
             type = complex
