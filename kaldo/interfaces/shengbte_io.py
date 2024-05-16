@@ -363,7 +363,7 @@ def save_second_order_qe_matrix(phonons):
     shenbte_folder = phonons.folder + '/'
     n_replicas = phonons.forceconstants.n_replicas
     n_atoms = int(phonons.n_modes / 3)
-    second_order = phonons.second.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
+    second_order = phonons.forceconstants.second.value.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
     filename = 'espresso.ifc2'
     filename = shenbte_folder + filename
     file = open ('%s' % filename, 'w+')
@@ -400,9 +400,9 @@ def save_third_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_3RD'
     filename = phonons.folder + '/' + filename
     file = open ('%s' % filename, 'w+')
-    n_in_unit_cell = len (phonons.atoms.numbers)
+    n_in_unit_cell = len(phonons.atoms.numbers)
     n_replicas = phonons.forceconstants.n_replicas
-    third_order = phonons.forceconstants.third\
+    third_order = phonons.forceconstants.third.value\
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
 

@@ -104,7 +104,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename='THIRD', third_ener
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = re.split('\s+', line.strip())
-            coords_to_write = np.array(l_split[0:-3], dtype=int) - 1
+            coords_to_write = np.array(l_split[0:-3], dtype=np.uint16) - 1
             values_to_write = np.array(l_split[-3:], dtype=float)
             #TODO: add 'if' third_energy_threshold before calculating the mask
             mask_to_write = np.abs(values_to_write) > third_energy_threshold
