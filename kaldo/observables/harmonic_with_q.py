@@ -21,6 +21,7 @@ class HarmonicWithQ(Observable):
                  storage='numpy',
                  is_nw=False,
                  is_unfolding=False,
+                 is_amorphous=False,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -28,12 +29,12 @@ class HarmonicWithQ(Observable):
         self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
         self.supercell = second.supercell
-        self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
         self.second = second
         self.distance_threshold = distance_threshold
         self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
+        self.is_amorphous = is_amorphous
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
                 self.physical_mode[0, :4] = False
@@ -122,7 +123,6 @@ class HarmonicWithQ(Observable):
 
     def calculate_dynmat_derivatives(self, direction):
         q_point = self.q_point
-        is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
         atoms = self.atoms
         list_of_replicas = self.second.list_of_replicas
@@ -135,13 +135,10 @@ class HarmonicWithQ(Observable):
         n_modes = n_unit_cell * 3
         n_replicas = np.prod(self.supercell)
         shape = (1, n_unit_cell * 3, n_unit_cell * 3)
-        if is_amorphous:
-            type = float
-        else:
-            type = complex
         dir = ['_x', '_y', '_z']
+        type = complex if (not self.is_amorphous) else float
         log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
-        if is_amorphous:
+        if self.is_amorphous:
             distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
             distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
             dynmat_derivatives = contract('ij,ibjc->ibjc',
@@ -170,7 +167,6 @@ class HarmonicWithQ(Observable):
                                                                      dynmat.numpy()[0, id_i, :, 0, id_j, :] *
                                                                      chi(q_point, list_of_replicas, cell_inv)[l])
             else:
-
                 dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
                                               tf.convert_to_tensor(distance.astype(complex)[..., direction]),
                                               tf.cast(dynmat[0], tf.complex128),
@@ -183,9 +179,8 @@ class HarmonicWithQ(Observable):
 
     def calculate_sij(self, direction):
         q_point = self.q_point
-        is_amorphous = self.is_amorphous
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
-        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+        if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             type = float
         else:
             type = complex
@@ -201,7 +196,7 @@ class HarmonicWithQ(Observable):
             logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
             dir = ['_x', '_y', '_z']
             log_size(shape, type, name='sij' + dir[direction])
-        if is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+        if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:
@@ -240,7 +235,6 @@ class HarmonicWithQ(Observable):
         cell_inv = self.second.cell_inv
         replicated_cell_inv = self.second._replicated_cell_inv
         is_at_gamma = (q_point == (0, 0, 0)).all()
-        is_amorphous = (n_replicas == 1)
         list_of_replicas = self.second.list_of_replicas
         log_size((self.n_modes, self.n_modes), complex, name='dynmat_fourier')
         if distance_threshold is not None:
@@ -261,7 +255,7 @@ class HarmonicWithQ(Observable):
                                            chi(q_point, list_of_replicas, cell_inv)[l]
         else:
             if is_at_gamma:
-                if is_amorphous:
+                if self.is_amorphous:
                     dyn_s = dynmat[0]
                 else:
                     dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
@@ -315,20 +309,23 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
+                supercell_index = supercell_replica%supercell
                 qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
                 dyn_s[:, :, :, :] += np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                 fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                                                                 fc_s[:, :, supercell_index[0], supercell_index[1],
+                                                                 supercell_index[2], :, :], coefficient)
         dyn = dyn_s[...].reshape((n_unit_cell * 3, n_unit_cell * 3))
         omega2, eigenvect, info = zheev(dyn)
         # omega2, eigenvect = eigh(dyn)
         frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
         frequency = frequency[:] / np.pi / 2
         if only_eigenvals:
-            esystem = (frequency[:] * np.pi * 2) ** 2
+            omega2, __, info = zheev(dyn, compute_v=0)
+            return omega2
         else:
-            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
-        return esystem
+            omega2, eigenvect, info = zheev(dyn, compute_v=1)
+            esystem = np.vstack((omega2, eigenvect))
+            return esystem
 
     def calculate_dynmat_derivatives_unfolded(self, direction=None):
         # This algorithm should be the same as the ShengBTE version
@@ -346,7 +343,6 @@ class HarmonicWithQ(Observable):
         for ind in range(supercell_replicas.shape[0]):
             supercell_replica = supercell_replicas[ind]
             replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
-
             distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
             projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
             mask = (projection <= 1e-6).all(axis=-1)
@@ -354,8 +350,9 @@ class HarmonicWithQ(Observable):
             weight = 1.0 / neq
             coefficient = weight * mask
             if coefficient.any():
-                qr = 2. * np.pi * np.dot(q_point[:], supercell_replica[:])
-                ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(-1j * qr) * contract('jbia,ij->iajb',
-                                                                  fc_s[:, :, supercell_replica[0], supercell_replica[1],
-                                                                 supercell_replica[2], :, :], coefficient)
+                supercell_index = supercell_replica % supercell
+                qr = 2. * np.pi * np.dot(q_point, supercell_replica)
+                ddyn_s[:, :, :, :] += replica_position[direction] * np.exp(-1j * qr) *\
+                                      contract('jbia,ij->iajb', fc_s[:, :, supercell_index[0],
+                                          supercell_index[1], supercell_index[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))

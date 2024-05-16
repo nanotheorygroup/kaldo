@@ -181,11 +181,9 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
         plt.close()
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_nw=None, with_velocity=True, color='b', is_unfolding=False, manually_defined_path=None):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True, color='b', manually_defined_path=None, folder=None):
     atoms = phonons.atoms
-    if is_nw is None and phonons.is_nw:
-        is_nw = phonons.is_nw
-    if is_nw:
+    if phonons.is_nw:
         q = np.linspace(0, 0.5, n_k_points)
         k_list = np.zeros((n_k_points, 3))
         k_list[:, 0] = q
@@ -211,8 +209,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         phonon = HarmonicWithQ(q_point, phonons.forceconstants.second,
                                distance_threshold=phonons.forceconstants.distance_threshold,
                                storage='memory',
-                               is_nw=is_nw,
-                               is_unfolding=is_unfolding)
+                               is_nw=phonons.is_nw,
+                               is_unfolding=phonons.is_unfolding)
         freqs_plot.append(phonon.frequency.flatten())
         if with_velocity:
             val_value = phonon.velocity[0]
@@ -235,7 +233,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, is_n
         plt.plot(q, freqs_plot, '.', linewidth=4, markersize=4)
     plt.grid()
     plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
-    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not folder:
+        folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
