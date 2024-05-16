@@ -36,7 +36,7 @@ class HarmonicWithQ(Observable):
         self.is_nw = is_nw
         self.is_unfolding = is_unfolding
         self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
-        if is_nac: # Try to detect if keyword argument is present
+        if is_nac is not None: # Try to detect if keyword argument is present
             self.is_nac = is_nac
         else:
             self.is_nac = True if 'dielectric' in self.atoms.info else False
@@ -273,6 +273,19 @@ class HarmonicWithQ(Observable):
         return dyn_s
 
     def nac_correction(self, qpoint=None, gmax=14, alpha=1.0):
+        '''
+        Calculate the non-analytic correction to the dynamical matrix.
+
+        Parameters
+        ----------
+        qpoint
+        gmax
+        alpha
+
+        Returns
+        -------
+        correction_matrix
+        '''
         # Constants, and system information
         RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
         eV_to_10Jmol = units.mol / (10 * units.J)
@@ -284,7 +297,7 @@ class HarmonicWithQ(Observable):
         natoms = len(atoms)
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr)  # Vol. in Bohr^3
         positions_n = atoms.positions.copy() / atoms.cell[0, 0]  # Normalized positions
-        distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crsytal coordinates
+        distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
         reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
         reciprocal_n /= reciprocal_n[0, 0]  # Normalized reciprocal cell
         correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
@@ -296,6 +309,11 @@ class HarmonicWithQ(Observable):
         # Charge information
         epsilon = atoms.info['dielectric']  # in e^2/Bohr
         zeff = atoms.get_array('charges')  # in e
+
+        # Charge sum rules
+        # if using the "simple" algorithm from QE, we enforce that the sum of
+        # charges for each polarization (e.g. xy, or yy) is zero
+        zeff -= zeff.mean(axis=0)
 
         # 1. Construct grid of reciprocal unit cells
         # a. Find the number of replicas to make
@@ -382,11 +400,14 @@ class HarmonicWithQ(Observable):
         participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1) * n_atoms)
         return participation_ratio
 
+
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms
         cell = atoms.cell
+        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
+        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
         n_unit_cell = len(atoms)
         distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
 
@@ -413,7 +434,7 @@ class HarmonicWithQ(Observable):
         coefficients = coefficients[mask_full]
         cell_replicas = cell_replicas[mask_full]
         cell_indices = cell_replicas % supercell
-        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+        phase = np.exp(2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
         prefactors = np.einsum('i,inm->inm', phase, coefficients)
         prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
         prefactors = prefactors.transpose((4, 2, 0, 3, 1))
@@ -424,17 +445,30 @@ class HarmonicWithQ(Observable):
         dyn_s = dyn_s.sum(axis=2)
         dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
+        # TODO: remove these since they are not used in the function
+        # For Debugging
+        # sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
+        # mass_prefactor = np.reciprocal(np.einsum('i,j->ij', sqrt_mass, sqrt_mass))
+        # RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
+        # eV_to_10Jmol = units.mol / (10 * units.J)
+        # unit_prefactor = RyBr_to_eVA * eV_to_10Jmol
+
+        # Apply correction for Born effective charges, if detected
         if self.is_nac:
             dyn_s += self.nac_correction(qpoint=None)
             dyn_s += self.nac_correction(qpoint=self.q_point)
 
         # Diagonalize
-        omega2, eigenvect, info = zheev(dyn_s)
-        frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-        frequency = frequency[:] / np.pi / 2
+        # TODO: clean this up
         if only_eigenvals:
+            omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
+            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+            frequency = frequency[:] / np.pi / 2
             esystem = (frequency[:] * np.pi * 2) ** 2
         else:
+            omega2, eigenvect, info = zheev(dyn_s)
+            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+            frequency = frequency[:] / np.pi / 2
             esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
         return esystem
 
