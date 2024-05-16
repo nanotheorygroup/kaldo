@@ -432,50 +432,75 @@
 
 
 <div class="viewcode-block" id="Phonons"><a class="viewcode-back" href="../../docsource/api_phonons.html#kaldo.phonons.Phonons">[docs]</a><span class="k">class</span> <span class="nc">Phonons</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""The Phonons object exposes all the phononic properties of a system.</span>
-<span class="sd">    It's can be fed into a Conductivity object and must be built with a</span>
-<span class="sd">    ForceConstant object.</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    The Phonons object exposes all the phononic properties of a system by manipulation</span>
+<span class="sd">    of the quantities passed into the ForceConstant object. The arguments passed in here</span>
+<span class="sd">    reflect assumptions to be made about the macroscopic system e.g. the temperature, or</span>
+<span class="sd">    whether the system is amorphous or a nanowire.</span>
+<span class="sd">    The ForceConstants, and temperature are the only two required parameters, though we</span>
+<span class="sd">    highly recommend the switch controlling whether to use quantum/classical statistics</span>
+<span class="sd">    (`is_classic`) and the number of k-points to consider (`kpts`).</span>
+<span class="sd">    For most users, you will not need to access any Phonon object functions directly</span>
+<span class="sd">    , but only reference an attribute (e.g. Phonons.frequency). Please check out the</span>
+<span class="sd">    examples for details on our recommendations for retrieving, and plotting data.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    forceconstants : ForceConstants</span>
-<span class="sd">        contains all the information about the system and the derivatives</span>
-<span class="sd">        of the potential.</span>
-<span class="sd">    is_classic : bool</span>
-<span class="sd">        specifies if the system is classic, `True` or quantum, `False`</span>
-<span class="sd">        Default is `False`</span>
-<span class="sd">    kpts : (3) tuple, optional</span>
-<span class="sd">        defines the number of k points to use to create the k mesh</span>
-<span class="sd">        Default is (1, 1, 1)</span>
+<span class="sd">        Contains all the information about the system and the derivatives</span>
+<span class="sd">        of the potential energy.</span>
 <span class="sd">    temperature : float</span>
-<span class="sd">        defines the temperature of the simulation. Units: K.</span>
-<span class="sd">    min_frequency : float, optional</span>
-<span class="sd">        ignores all phonons with frequency below `min_frequency` THz,</span>
-<span class="sd">        Default is `None`</span>
-<span class="sd">    max_frequency : float, optional</span>
-<span class="sd">        ignores all phonons with frequency above `max_frequency` THz</span>
-<span class="sd">        Default is `None`</span>
-<span class="sd">    third_bandwidth : float, optional</span>
+<span class="sd">        Defines the temperature of the simulation</span>
+<span class="sd">        Units: K</span>
+<span class="sd">    is_classic : bool</span>
+<span class="sd">        Specifies if the system is treated with classical or quantum</span>
+<span class="sd">        statistics.</span>
+<span class="sd">        Default: `False`</span>
+<span class="sd">    kpts : (int, int, int)</span>
+<span class="sd">        Defines the number of k points to use to create the k mesh</span>
+<span class="sd">        Default: (1, 1, 1)</span>
+<span class="sd">    min_frequency : float</span>
+<span class="sd">        Ignores all phonons with frequency below `min_frequency`</span>
+<span class="sd">        Units: Thz</span>
+<span class="sd">        Default: `None`</span>
+<span class="sd">    max_frequency : float</span>
+<span class="sd">        Ignores all phonons with frequency above `max_frequency`</span>
+<span class="sd">        Units: THz</span>
+<span class="sd">        Default: `None`</span>
+<span class="sd">    third_bandwidth : float</span>
 <span class="sd">        Defines the width of the energy conservation smearing in the phonons</span>
 <span class="sd">        scattering calculation. If `None` the width is calculated</span>
 <span class="sd">        dynamically. Otherwise the input value corresponds to the width.</span>
-<span class="sd">        Units: THz.</span>
-<span class="sd">    broadening_shape : string, optional</span>
-<span class="sd">        Defines the algorithm to use for the broadening of the conservation</span>
-<span class="sd">        of the energy for third order interactions. Available broadenings</span>
-<span class="sd">        are `gauss`, `lorentz` and `triangle`.</span>
-<span class="sd">        Default is `gauss`.</span>
-<span class="sd">    folder : string, optional</span>
-<span class="sd">        Specifies where to store the data files. Default is `output`.</span>
-<span class="sd">    storage : `default`, `formatted`, `numpy`, `memory`, `hdf5`, optional</span>
-<span class="sd">        Defines the storing strategy used to store the observables. The</span>
-<span class="sd">        `default` strategy stores formatted output and numpy arrays.</span>
-<span class="sd">        `memory` storage doesn't generate any output.</span>
-<span class="sd">    grid_type : 'F' or 'C, optional</span>
-<span class="sd">        Specify if to use 'C" style atoms replica grid of fortran</span>
-<span class="sd">        style 'F',</span>
-<span class="sd">        Default 'C'</span>
-<span class="sd">    is_balanced : Enforce detailed balance when calculating anharmonic properties,</span>
+<span class="sd">        Units: THz</span>
+<span class="sd">        Default: `None`</span>
+<span class="sd">    broadening_shape : string</span>
+<span class="sd">        Defines the algorithm to use for line-broadening when enforcing</span>
+<span class="sd">        energy conservation rules for three-phonon scattering.</span>
+<span class="sd">        Options: `gauss`, `lorentz` and `triangle`.</span>
+<span class="sd">        Default: `gauss`</span>
+<span class="sd">    folder : string</span>
+<span class="sd">        Specifies where to store the data files.</span>
+<span class="sd">        Default: `output`.</span>
+<span class="sd">    storage : string</span>
+<span class="sd">        Defines the strategy used to store observables. The `default` strategy</span>
+<span class="sd">        stores formatted text files for most harmonic properties but relies on</span>
+<span class="sd">        numpy arrays for large arrays like the gamma tensor. The `memory` option </span>
+<span class="sd">        doesn't generate any output except what is printed in your script.</span>
+<span class="sd">        Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`</span>
+<span class="sd">        Default: 'formatted'</span>
+<span class="sd">    grid_type : string</span>
+<span class="sd">        Specifies whether the atoms in the replicated system were repeated using</span>
+<span class="sd">        a C-like index ordering which changes the last axis the fastest or</span>
+<span class="sd">        FORTRAN-like index ordering which changes the first index fastest.</span>
+<span class="sd">        Options: 'C', 'F'</span>
+<span class="sd">        Default: 'C'</span>
+<span class="sd">    is_balanced : bool</span>
+<span class="sd">        Enforce detailed balance when calculating anharmonic properties. Useful for</span>
+<span class="sd">        simulations where it may be difficult to get a sufficiently dense k-point grid.</span>
+<span class="sd">        Default: False</span>
+<span class="sd">    is_unfolding : bool</span>
+<span class="sd">        If the second order force constants need to be unfolded like in P. B. Allen</span>
+<span class="sd">        et al., Phys. Rev. B 87, 085322 (2013) set this to True.</span>
 <span class="sd">        Default: False</span>
 <span class="sd">    g_factor : (n_atoms) array , optional</span>
 <span class="sd">        It contains the isotopic g factor for each atom of the unit cell</span>
@@ -496,13 +521,12 @@
         <span class="k">if</span> <span class="s1">'temperature'</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">'temperature'</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'folder'</span><span class="p">,</span> <span class="n">FOLDER_NAME</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'kpts'</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'kpts'</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'grid_type'</span><span class="p">,</span> <span class="s1">'C'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span> <span class="o">=</span> <span class="n">Grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_unfolding'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using unfolding.'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'min_frequency'</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'max_frequency'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'broadening_shape'</span><span class="p">,</span> <span class="s1">'gauss'</span><span class="p">)</span>
@@ -518,7 +542,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_atoms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_modes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_able_to_calculate</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">*</span> <span class="mf">1e-6</span>
@@ -548,7 +571,8 @@
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
                                    <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
                                    <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
 
             <span class="n">physical_mode</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">physical_mode</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -576,7 +600,8 @@
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
                                    <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
                                    <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
 
             <span class="n">frequency</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">frequency</span>
 
@@ -603,7 +628,8 @@
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
                                    <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
                                    <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
 
             <span class="n">participation_ratio</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">participation_ratio</span>
 
@@ -630,7 +656,9 @@
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
                                    <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
                                    <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+
             <span class="n">velocity</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">velocity</span>
         <span class="k">return</span> <span class="n">velocity</span>
 
@@ -647,10 +675,11 @@
 
 <span class="sd">            If the system is not amorphous, these values are stored as complex numbers.</span>
 <span class="sd">        """</span>
+        <span class="nb">type</span> <span class="o">=</span> <span class="nb">complex</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
-        <span class="n">log_size</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'eigensystem'</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
-        <span class="n">eigensystem</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">log_size</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'eigensystem'</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">)</span>
+        <span class="n">eigensystem</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">type</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
             <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
@@ -659,7 +688,8 @@
                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
                                    <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
                                    <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
 
             <span class="n">eigensystem</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_eigensystem</span>
 
@@ -694,7 +724,8 @@
                                        <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
                                        <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
                                        <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
             <span class="n">c_v</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity</span>
         <span class="k">return</span> <span class="n">c_v</span>
 
@@ -723,7 +754,9 @@
                                        <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
                                        <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
                                        <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+
             <span class="n">heat_capacity_2d</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
         <span class="k">return</span> <span class="n">heat_capacity_2d</span>
 
@@ -751,7 +784,9 @@
                                        <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
                                        <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
                                        <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">)</span>
+                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
+                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+
             <span class="n">population</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">population</span>
         <span class="k">return</span> <span class="n">population</span>
 
@@ -894,7 +929,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_is_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">is_amorphous</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="n">is_amorphous</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">is_amorphous</span>
 
 

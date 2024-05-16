@@ -3,8 +3,7 @@
   "nbformat_minor": 0,
   "metadata": {
     "colab": {
-      "provenance": [],
-      "collapsed_sections": []
+      "provenance": []
     },
     "kernelspec": {
       "name": "python3",
@@ -24,9 +23,9 @@
         "\n",
         "[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb)\n",
         "\n",
+        "In Colab, you can enable the GPU acceleration from `Edit` > `Notebook Settings` > `Accelerator` > `GPU`.\n",
         "\n",
-        "\n",
-        "In Colab, you can enable the GPU acceleration from `Edit` > `Notebook Settings` > `Accelerator` > `GPU`."
+        "In Colab, you can enable the TPU acceleration from `Edit` > `Notebook Settings` > `Accelerator` > `TPU`."
       ],
       "metadata": {
         "id": "XBeaBnL82NOM"
@@ -46,6 +45,7 @@
     {
       "cell_type": "code",
       "source": [
+        "%%capture\n",
         "# Sudo apt-get softwares\n",
         "! apt-get update\n",
         "! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.10-venv\n",
@@ -59,7 +59,9 @@
         "# Build lammps with cmake\n",
         "%cd /content\n",
         "!rm -rf lammps\n",
-        "! git clone https://github.com/lammps/lammps.git lammps\n",
+        "! wget https://download.lammps.org/tars/lammps-4May2022.tar.gz\n",
+        "! tar xzvf lammps-4May2022.tar.gz\n",
+        "! mv lammps-4May2022 lammps\n",
         "%cd /content/lammps\n",
         "! rm -rf build\n",
         "! mkdir build\n",
@@ -218,7 +220,7 @@
       "metadata": {
         "id": "UYwM7PVXCEa0"
       },
-      "execution_count": null,
+      "execution_count": 5,
       "outputs": []
     },
     {
@@ -368,7 +370,7 @@
       "metadata": {
         "id": "km6Vvh8lCTkt"
       },
-      "execution_count": null,
+      "execution_count": 9,
       "outputs": []
     },
     {

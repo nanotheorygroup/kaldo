@@ -581,6 +581,8 @@ git<span class="w"> </span>clone<span class="w"> </span>git+https://github.com/n
 </section>
 <section id="Interfacing-with-Other-Codes">
 <h1 id="Interfacing-with-Other-Codes">Interfacing with Other Codes<a class="headerlink" href="#Interfacing-with-Other-Codes" title="Permalink to this heading">¶</a></h1>
+<p>An important thing to point out about computational material science is that there are many ways to represent each individual atomic system. Force calculators like LAMMPS and ShengBTE occasionally transform the coordinates of your input files while calculating FC’s to match their internal convention. Please ensure all coordinate systems are consistent across your simulation. This especially applies when you calculate harmonic force constants at a high level of theory (e.g. using DFPT for
+second-order FC’s) but use a faster method with different code for third-order FC’s. An example would be if you used second-order FC’s from Quantum Espresso, and then use ShengBTE’s thirdorder package to calculate third-order FC’s by finite difference. The thirdorder package will silently transform unitcell’s with negative coordinate when possible.</p>
 <section id="LAMMPS-library-setup">
 <h2 id="LAMMPS-library-setup">LAMMPS library setup<a class="headerlink" href="#LAMMPS-library-setup" title="Permalink to this heading">¶</a></h2>
 <p>In order to use LAMMPS with ASE, it needs to be compiled a lib</p>
@@ -680,12 +682,12 @@ make<span class="w"> </span>mpi<span class="w"> </span><span class="nv">mode</sp
 </section>
 <section id="Code-Architecture">
 <h1 id="Code-Architecture">Code Architecture<a class="headerlink" href="#Code-Architecture" title="Permalink to this heading">¶</a></h1>
-<p><img alt="37fbe2b5ea084214bca09866e692f748" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
+<p><img alt="1f34a03d95d8472d80ef172e69ee8108" class="no-scaled-link" src="../_images/class_diagram.png" style="width: 650px;"/></p>
 </section>
 <section id="Main-Features">
 <h1 id="Main-Features">Main Features<a class="headerlink" href="#Main-Features" title="Permalink to this heading">¶</a></h1>
 <p>Below we illustrate the main features of the code</p>
-<p><img alt="ab33d618e6424674ad83145a6347e64e" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="e101770b53ba4218b1bdff68e2a933dc" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 </section>
 <section id="Examples">
 <h1 id="Examples">Examples<a class="headerlink" href="#Examples" title="Permalink to this heading">¶</a></h1>
@@ -714,7 +716,7 @@ make<span class="w"> </span>mpi<span class="w"> </span><span class="nv">mode</sp
 </section>
 <section id="Acknowledgements">
 <h1 id="Acknowledgements">Acknowledgements<a class="headerlink" href="#Acknowledgements" title="Permalink to this heading">¶</a></h1>
-<p><img alt="08ab69d3dbfa4e97a3a5cba167030a90" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
+<p><img alt="47084542a8354efbae68d83c73f3704f" class="no-scaled-link" src="../_images/funding.png" style="width: 650px;"/></p>
 <p>We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.</p>
 <p>MolSSI builds open source software and data which serves the computational molecular science community. <a class="reference external" href="https://molssi.org/software-projects/">Explore MolSSI’s software infrastructure projects.</a></p>
 </section>

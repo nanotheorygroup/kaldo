@@ -714,8 +714,9 @@ div.rendered_html tbody tr:hover {
 }
 </style>
 <p>This notebook can be run on Google Colab.</p>
-<p><a class="reference external" href="https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/amorphous_presentation.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
+<p><a class="reference external" href="https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
+<p>In Colab, you can enable the TPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">TPU</span></code>.</p>
 <section id="Amorphous-silicon-tutorial">
 <h1 id="docsource-amorphous-presentation--page-root">Amorphous silicon tutorial<a class="headerlink" href="#docsource-amorphous-presentation--page-root" title="Permalink to this heading">¶</a></h1>
 <section id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">
@@ -725,7 +726,8 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
-<span></span># Sudo apt-get softwares
+<span></span>%%capture
+# Sudo apt-get softwares
 ! apt-get update
 ! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.10-venv
 ! echo "Sudo apt-get finishes!"
@@ -738,7 +740,9 @@ div.rendered_html tbody tr:hover {
 # Build lammps with cmake
 %cd /content
 !rm -rf lammps
-! git clone https://github.com/lammps/lammps.git lammps
+! wget https://download.lammps.org/tars/lammps-4May2022.tar.gz
+! tar xzvf lammps-4May2022.tar.gz
+! mv lammps-4May2022 lammps
 %cd /content/lammps
 ! rm -rf build
 ! mkdir build
@@ -817,7 +821,7 @@ div.rendered_html tbody tr:hover {
 <section id="Create-phonons-object">
 <h3 id="Create-phonons-object">Create phonons object<a class="headerlink" href="#Create-phonons-object" title="Permalink to this heading">¶</a></h3>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
