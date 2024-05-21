@@ -9,6 +9,7 @@ from kaldo.grid import wrap_coordinates
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
+from kaldo.helpers.elastic import *
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
 logging = get_logger()
@@ -106,7 +107,7 @@ class ForceConstants:
             Takes in the unit cell for the third order force constant matrix.
             Default is self.supercell
         is_acoustic_sum : Bool, optional
-            If true, the accoustic sum rule is applied to the dynamical matrix.
+            If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
 
         Inputs
@@ -212,7 +213,10 @@ class ForceConstants:
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
 
+
     def elastic_prop(self):
+
+        # Intake key parameters
         atoms = self.atoms
         M = atoms.get_masses()
         lat = np.array(atoms.cell[:])
@@ -223,7 +227,7 @@ class ForceConstants:
         positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
         e_mu = np.array(h0._eigensystem[1:, :]).reshape(
-            (n_unit, 3, 3 * (n_unit)))  # optical eigenvectors (units? no clue...)
+            (n_unit, 3, 3 * (n_unit)))
         w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
         distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
@@ -235,9 +239,11 @@ class ForceConstants:
                             tf.convert_to_tensor(distance.astype(complex)),
                             tf.cast(dynmat, tf.complex128))  # THz^2*Ang^2
         Gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
-        b = (1/(2*V))*np.einsum('n,m,nimjkl->ijkl', M**(0.5), M**(0.5), d2)
+        
+        # Compute component b and r, keep the real component only
+        b = (1/(2*V))*np.einsum('n,m,nimjkl->ijkl', M**(0.5), M**(0.5), d2).real
         d1r = np.einsum('nhmij,m->nhmij', d1, M**(0.5))
-        r = -1 * (1/V) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, Gamma, d1r)
+        r = -1 * (1/V) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, Gamma, d1r).real
         Cijkl = np.zeros((3, 3, 3, 3))
         evtotenjovermol = units.mol / (10 * units.J)
         evperang3togpa = 160.21766208
@@ -246,4 +252,6 @@ class ForceConstants:
                 for k in range(3):
                     for l in range(3):
                         Cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
+        
+        # Denote parameter for irreducible Cij in the unit of GPa
         return evperang3togpa * Cijkl / evtotenjovermol
