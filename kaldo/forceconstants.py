@@ -9,7 +9,6 @@ from kaldo.grid import wrap_coordinates
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
-from kaldo.helpers.elastic import *
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
 logging = get_logger()
