@@ -217,9 +217,8 @@ class ForceConstants:
 
         # Intake key parameters
         atoms = self.atoms
-        M = atoms.get_masses()
-        lat = np.array(atoms.cell[:])
-        V = np.abs(np.linalg.det(lat))
+        masses = atoms.get_masses()
+        volume = atoms.get_volume()
         list_of_replicas = self.second.list_of_replicas
         h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
         dynmat = self.second.dynmat[0]  # units THz^2
@@ -237,20 +236,20 @@ class ForceConstants:
                             tf.convert_to_tensor(distance.astype(complex)),
                             tf.convert_to_tensor(distance.astype(complex)),
                             tf.cast(dynmat, tf.complex128))  # THz^2*Ang^2
-        Gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
+        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
         
         # Compute component b and r, keep the real component only
-        b = (1/(2*V))*np.einsum('n,m,nimjkl->ijkl', M**(0.5), M**(0.5), d2).real
-        d1r = np.einsum('nhmij,m->nhmij', d1, M**(0.5))
-        r = -1 * (1/V) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, Gamma, d1r).real
-        Cijkl = np.zeros((3, 3, 3, 3))
+        b = (1/(2*volume))*np.einsum('n,m,nimjkl->ijkl', masses**(0.5), masses**(0.5), d2).real
+        d1r = np.einsum('nhmij,m->nhmij', d1, masses**(0.5))
+        r = -1 * (1/volume) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, gamma, d1r).real
+        cijkl = np.zeros((3, 3, 3, 3))
         evtotenjovermol = units.mol / (10 * units.J)
         evperang3togpa = 160.21766208
         for i in range(3):
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
-                        Cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
+                        cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
         
         # Denote parameter for irreducible Cij in the unit of GPa
-        return evperang3togpa * Cijkl / evtotenjovermol
+        return evperang3togpa * cijkl / evtotenjovermol
