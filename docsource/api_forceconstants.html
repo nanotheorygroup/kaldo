@@ -647,29 +647,24 @@ use the import_control_file method.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.forceconstants.</span></span><span class="sig-name descname"><span class="pre">ForceConstants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'displacement'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
-<dd><p>The ForceConstants class creates objects that store the system information and load (or calculate) force constant
-matrices (IFCs) to be used by an instance of the Phonon class.</p>
+<dd><p>Class for constructing the finite difference object to calculate
+the second/third order force constant matrices after providing the
+unit cell geometry and calculator information.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>atoms</strong> (<em>ase.Atoms</em>) – The atoms to study. This is required to be an ASE Atoms object, and if you would like to calculate the IFCs in
-kALDo, it should have a calculator object set.</p></li>
-<li><p><strong>supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em>) – Size of supercell given by the number of repetitions (l, m, n) of the unit cell in each direction. You should be
-able to calculate this by dividing the size of the supercell by the size of the unit cell in orthorhombic cells,
-but may be more complicated for other cell types.
-Default: (1, 1, 1)</p></li>
-<li><p><strong>third_supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – This argument should be used if you are loading force constants from an external source in the event that the
-second and third order forces were calculated on different supercells. If not provided, we assume those
-supercells were equivalent. This argument is most likely to be used for those with ab initio calculations, where
-third order force constants are regularly calculated on smaller supercells to save computational cost.
-Default: self.supercell</p></li>
-<li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder, in the event you would like to save to a custom
-location. You can adjust the default value on line 13 of this file.
-Default: “displacement”</p></li>
-<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the forces will be ignored when calculating both harmonic
-(e.g. frequency, velocity) and anharmonic (e.g. lifetimes) phonon properties. This is useful for systems with
-coulomb forces or other long range interactions.
-Default: None</p></li>
+<li><p><strong>atoms</strong> (<em>Tabulated xyz files</em><em> or </em><em>ASE Atoms object</em>) – The atoms to work on.</p></li>
+<li><p><strong>supercell</strong> – Size of supercell given by the number of repetitions (l, m, n) of
+the small unit cell in each direction.
+Defaults to (1, 1, 1)</p></li>
+<li><p><strong>third_supercell</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Same as supercell, but for the third order force constant matrix.
+If not provided, it’s copied from supercell.
+Defaults to <img alt="self.supercell" class="math" src="../_images/math/11c0006d15164d9da615ed3ccfd97139860f7f16.png"/></p></li>
+<li><p><strong>folder</strong> (<em>str</em><em>, </em><em>optional</em>) – Name to be used for the displacement information folder.
+Defaults to ‘displacement’</p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – If the distance between two atoms exceeds threshold, the interatomic
+force is ignored.
+Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
 </ul>
 </dd>
 </dl>
@@ -677,10 +672,17 @@ Default: None</p></li>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code>(folder[, supercell, format, ...])</p></td>
-<td><p>Initializes a ForceConstants object from data in the folder provided.</p></td>
+<td><p>Create a finite difference object from a folder</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code>([reduced_third, ...])</p></td>
-<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for the full supercell.</p></td>
+<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.</p></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr class="row-odd"><td><p><strong>elastic_prop</strong></p></td>
+<td></td>
 </tr>
 </tbody>
 </table>

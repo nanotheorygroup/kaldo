@@ -416,10 +416,13 @@
 <span class="sd">"""</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">sparse</span> <span class="kn">import</span> <span class="n">COO</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">wrap_coordinates</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.secondorder</span> <span class="kn">import</span> <span class="n">SecondOrder</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.thirdorder</span> <span class="kn">import</span> <span class="n">ThirdOrder</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
+<span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
 <span class="n">MAIN_FOLDER</span> <span class="o">=</span> <span class="s1">'displacement'</span>
@@ -427,35 +430,30 @@
 
 <div class="viewcode-block" id="ForceConstants"><a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants">[docs]</a><span class="k">class</span> <span class="nc">ForceConstants</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    The ForceConstants class creates objects that store the system information and load (or calculate) force constant</span>
-<span class="sd">    matrices (IFCs) to be used by an instance of the Phonon class.</span>
+<span class="sd">    Class for constructing the finite difference object to calculate</span>
+<span class="sd">    the second/third order force constant matrices after providing the</span>
+<span class="sd">    unit cell geometry and calculator information.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 
-<span class="sd">    atoms: ase.Atoms</span>
-<span class="sd">        The atoms to study. This is required to be an ASE Atoms object, and if you would like to calculate the IFCs in</span>
-<span class="sd">        kALDo, it should have a calculator object set.</span>
-<span class="sd">    supercell: (int, int, int)</span>
-<span class="sd">        Size of supercell given by the number of repetitions (l, m, n) of the unit cell in each direction. You should be</span>
-<span class="sd">        able to calculate this by dividing the size of the supercell by the size of the unit cell in orthorhombic cells,</span>
-<span class="sd">        but may be more complicated for other cell types.</span>
-<span class="sd">        Default: (1, 1, 1)</span>
-<span class="sd">    third_supercell: (int, int, int), optional</span>
-<span class="sd">        This argument should be used if you are loading force constants from an external source in the event that the</span>
-<span class="sd">        second and third order forces were calculated on different supercells. If not provided, we assume those</span>
-<span class="sd">        supercells were equivalent. This argument is most likely to be used for those with ab initio calculations, where</span>
-<span class="sd">        third order force constants are regularly calculated on smaller supercells to save computational cost.</span>
-<span class="sd">        Default: self.supercell</span>
+<span class="sd">    atoms: Tabulated xyz files or ASE Atoms object</span>
+<span class="sd">        The atoms to work on.</span>
+<span class="sd">    supercell: (3) tuple, optional</span>
+<span class="sd">        Size of supercell given by the number of repetitions (l, m, n) of</span>
+<span class="sd">        the small unit cell in each direction.</span>
+<span class="sd">        Defaults to (1, 1, 1)</span>
+<span class="sd">    third_supercell: tuple, optional</span>
+<span class="sd">        Same as supercell, but for the third order force constant matrix.</span>
+<span class="sd">        If not provided, it's copied from supercell.</span>
+<span class="sd">        Defaults to `self.supercell`</span>
 <span class="sd">    folder: str, optional</span>
-<span class="sd">        Name to be used for the displacement information folder, in the event you would like to save to a custom</span>
-<span class="sd">        location. You can adjust the default value on line 13 of this file.</span>
-<span class="sd">        Default: "displacement"</span>
+<span class="sd">        Name to be used for the displacement information folder.</span>
+<span class="sd">        Defaults to 'displacement'</span>
 <span class="sd">    distance_threshold: float, optional</span>
-<span class="sd">        If the distance between two atoms exceeds threshold, the forces will be ignored when calculating both harmonic</span>
-<span class="sd">        (e.g. frequency, velocity) and anharmonic (e.g. lifetimes) phonon properties. This is useful for systems with</span>
-<span class="sd">        coulomb forces or other long range interactions.</span>
-<span class="sd">        Default: None</span>
+<span class="sd">        If the distance between two atoms exceeds threshold, the interatomic</span>
+<span class="sd">        force is ignored.</span>
+<span class="sd">        Defaults to `None`</span>
 <span class="sd">    """</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
@@ -497,51 +495,41 @@
     <span class="k">def</span> <span class="nf">from_folder</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">,</span> <span class="n">third_energy_threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">third_supercell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                     <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">only_second</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        Initializes a ForceConstants object from data in the folder provided. The folder should contain a file with the</span>
-<span class="sd">        configuration of the atoms (e.g. xyz, cif, pdb) as well as the second and third order force constants.</span>
-
-<span class="sd">        Two requirements:</span>
-
-<span class="sd">        1. The format of all three files need to be consistent to use this method e.g. if you use a LAMMPS data file for</span>
-<span class="sd">        the dynamical matrix, the third order forces constants need to be in LAMMPS format as well.</span>
-
-<span class="sd">        2. Files should be named following the table in :ref:`input-files`.</span>
+<span class="sd">        Create a finite difference object from a folder</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        folder : str</span>
-<span class="sd">            Path to the folder containing your configuration file, second and third order force constants.</span>
-<span class="sd">        format : {"numpy", "eskm", "lammps", "shengbte", "shengbte-qe", "shengbte-d3q", "hiphive"}</span>
-<span class="sd">            Format of force constant information being loaded into ForceConstants object. Numpy is the default format</span>
-<span class="sd">            because of it's memory-efficient storage and ability to load matrices into an array quickly. If possible,</span>
-<span class="sd">            we recommend converting your data to numpy arrays using kALDo's "save" functions found in the second and</span>
-<span class="sd">            third order classes.</span>
-<span class="sd">            Default: 'numpy'</span>
-<span class="sd">        supercell : (int, int, int)</span>
-<span class="sd">            Size of supercell given by the number of repetitions (l, m, n) of the unit cell in each direction. You</span>
-<span class="sd">            should be able to calculate this by dividing the size of the supercell by the size of the unit cell in</span>
-<span class="sd">            orthorhombic cells, but may be more complicated for other cell types.</span>
-<span class="sd">            Default: (1, 1, 1)</span>
-<span class="sd">        third_supercell : (int, int, int), optional</span>
-<span class="sd">            This argument should be used if you are loading force constants from an external source in the event that the</span>
-<span class="sd">            second and third order forces were calculated on different supercells. If not provided, we assume those</span>
-<span class="sd">            supercells were equivalent. This argument is most likely to be used for those with ab initio calculations, where</span>
-<span class="sd">            third order force constants are regularly calculated on smaller supercells to save computational cost.</span>
-<span class="sd">            Default: self.supercell</span>
+<span class="sd">            Chosen folder to load in system information.</span>
+<span class="sd">        supercell : (int, int, int), optional</span>
+<span class="sd">            Number of unit cells in each cartesian direction replicated to form the input structure.</span>
+<span class="sd">            Default is (1, 1, 1)</span>
+<span class="sd">        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'</span>
+<span class="sd">            Format of force constant information being loaded into ForceConstants object.</span>
+<span class="sd">            Default is 'numpy'</span>
 <span class="sd">        third_energy_threshold : float, optional</span>
-<span class="sd">            Setting this argument to a number will filter out third order (anharmonic) force constants with energies</span>
-<span class="sd">            smaller than the threshold. This is useful for systems with long range interactions or cases where the third</span>
-<span class="sd">            order matrix is very large. This option is currently only available for matrices in the ESKM and LAMMPS</span>
-<span class="sd">            format.</span>
-<span class="sd">            Units: eV/A^3</span>
-<span class="sd">            Default: None</span>
+<span class="sd">            When importing sparse third order force constant matrices, energies below</span>
+<span class="sd">            the threshold value in magnitude are ignored. Units: ev/A^3</span>
+<span class="sd">                Default is `None`</span>
 <span class="sd">        distance_threshold : float, optional</span>
-<span class="sd">            When calculating force constants, contributions from atoms further than the distance threshold will be</span>
-<span class="sd">            ignored. This has no effect when loading precalculated force constants.</span>
-<span class="sd">            Units: A</span>
+<span class="sd">            When calculating force constants, contributions from atoms further than the</span>
+<span class="sd">            distance threshold will be ignored.</span>
+<span class="sd">        third_supercell : (int, int, int), optional</span>
+<span class="sd">            Takes in the unit cell for the third order force constant matrix.</span>
+<span class="sd">            Default is self.supercell</span>
 <span class="sd">        is_acoustic_sum : Bool, optional</span>
 <span class="sd">            If true, the acoustic sum rule is applied to the dynamical matrix.</span>
-<span class="sd">            Default: False</span>
+<span class="sd">            Default is False</span>
+
+<span class="sd">        Inputs</span>
+<span class="sd">        ------</span>
+<span class="sd">        numpy: replicated_atoms.xyz, second.npy, third.npz</span>
+<span class="sd">        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD</span>
+<span class="sd">        lammps: replicated_atoms.xyz, Dyn.form, THIRD</span>
+<span class="sd">        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD</span>
+<span class="sd">        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD</span>
+<span class="sd">        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs</span>
+
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -572,31 +560,19 @@
 
     <span class="k">def</span> <span class="nf">unfold_third_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reduced_third</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        This method extrapolates a third order force constant matrix from a unit cell into a matrix for the full</span>
-<span class="sd">        supercell. You only need to set the reduced_third argument if you are using a different value than the one set</span>
-<span class="sd">        in the ForceConstants object.</span>
-
-<span class="sd">        Pass it back to the ForceConstants object to use it.</span>
+<span class="sd">        This method extrapolates a third order force constant matrix from a unit</span>
+<span class="sd">        cell into a matrix for a larger supercell.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 
 <span class="sd">        reduced_third : array, optional</span>
-<span class="sd">            The third order force constant matrix of the unit cell.</span>
-<span class="sd">            Default: `self.third`</span>
+<span class="sd">            The third order force constant matrix.</span>
+<span class="sd">            Default is `self.third`</span>
 <span class="sd">        distance_threshold : float, optional</span>
 <span class="sd">            When calculating force constants, contributions from atoms further than</span>
 <span class="sd">            the distance threshold will be ignored.</span>
-<span class="sd">            Default: self.distance_threshold</span>
-
-<span class="sd">        Examples</span>
-<span class="sd">        --------</span>
-
-<span class="sd">        &gt;&gt;&gt; unfolded_third = forceconstants.unfold_third_order()</span>
-<span class="sd">        &gt;&gt;&gt; newthird = ThirdOrder(atoms=forceconstants.atoms,</span>
-<span class="sd">        &gt;&gt;&gt;                       supercell=forceconstants.supercell,</span>
-<span class="sd">        &gt;&gt;&gt;                       value=unfolded_third)</span>
-
+<span class="sd">            Default is self.distance_threshold</span>
 <span class="sd">        """</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Unfolding third order matrix'</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">distance_threshold</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -646,7 +622,49 @@
         <span class="n">expanded_third</span> <span class="o">=</span> <span class="n">COO</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">shape</span><span class="p">)</span>
         <span class="n">expanded_third</span> <span class="o">=</span> <span class="n">expanded_third</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
             <span class="p">(</span><span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span> <span class="o">*</span> <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span> <span class="o">*</span> <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">expanded_third</span></div>
+        <span class="k">return</span> <span class="n">expanded_third</span>
+
+
+    <span class="k">def</span> <span class="nf">elastic_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># Intake key parameters</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">masses</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">get_masses</span><span class="p">()</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">get_volume</span><span class="p">()</span>
+        <span class="n">list_of_replicas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">list_of_replicas</span>
+        <span class="n">h0</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="p">,</span> <span class="n">storage</span><span class="o">=</span><span class="s1">'numpy'</span><span class="p">)</span>
+        <span class="n">dynmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">dynmat</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># units THz^2</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span>
+        <span class="n">n_unit</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">e_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h0</span><span class="o">.</span><span class="n">_eigensystem</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">n_unit</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_unit</span><span class="p">)))</span>
+        <span class="n">w_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h0</span><span class="o">.</span><span class="n">_eigensystem</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]))</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>  <span class="c1"># optical frequencies (w/(2*pi) = f) in THz</span>
+        <span class="n">distance</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="p">(</span>
+                    <span class="n">positions</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">list_of_replicas</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="n">d1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'iljx,ibljc-&gt;ibjcx'</span><span class="p">,</span>
+                       <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">distance</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)),</span>
+                       <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">dynmat</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">complex128</span><span class="p">))</span>  <span class="c1"># THz^2*Ang (it should be multiplied by i?)</span>
+        <span class="n">d2</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'iljx,iljy,ibljc-&gt;ibjcxy'</span><span class="p">,</span>
+                            <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">distance</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)),</span>
+                            <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">distance</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)),</span>
+                            <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">dynmat</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">complex128</span><span class="p">))</span>  <span class="c1"># THz^2*Ang^2</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'iav,jbv,v-&gt;iajb'</span><span class="p">,</span> <span class="n">e_mu</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">3</span><span class="p">:],</span> <span class="n">e_mu</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">3</span><span class="p">:],</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">w_mu</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># Gamma tensor from paper</span>
+        
+        <span class="c1"># Compute component b and r, keep the real component only</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">volume</span><span class="p">))</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'n,m,nimjkl-&gt;ijkl'</span><span class="p">,</span> <span class="n">masses</span><span class="o">**</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">masses</span><span class="o">**</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">d2</span><span class="p">)</span><span class="o">.</span><span class="n">real</span>
+        <span class="n">d1r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'nhmij,m-&gt;nhmij'</span><span class="p">,</span> <span class="n">d1</span><span class="p">,</span> <span class="n">masses</span><span class="o">**</span><span class="p">(</span><span class="mf">0.5</span><span class="p">))</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">volume</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'nhmij,nhrp,rpskl-&gt;ijkl'</span><span class="p">,</span> <span class="n">d1r</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">d1r</span><span class="p">)</span><span class="o">.</span><span class="n">real</span>
+        <span class="n">cijkl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">evtotenjovermol</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span> <span class="o">/</span> <span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span><span class="p">)</span>
+        <span class="n">evperang3togpa</span> <span class="o">=</span> <span class="mf">160.21766208</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                        <span class="n">cijkl</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">+</span> <span class="n">b</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">+</span> <span class="n">r</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span>
+        
+        <span class="c1"># Denote parameter for irreducible Cij in the unit of GPa</span>
+        <span class="k">return</span> <span class="n">evperang3togpa</span> <span class="o">*</span> <span class="n">cijkl</span> <span class="o">/</span> <span class="n">evtotenjovermol</span></div>
 </pre></div>
 
           </article>
