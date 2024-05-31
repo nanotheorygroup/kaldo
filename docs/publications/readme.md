@@ -15,7 +15,11 @@
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764)
 
 
-## 2024 (5)
+## 2024 (7)
+
+* Fredrik Eriksson, [Beyond Perturbation: Modeling Anharmonicity in Materials](https://research.chalmers.se/publication/540860/file/540860_Fulltext.pdf)
+
+* Haoyu Dong,  Zhiqiang Li,  Baole Sun,  Yanguang Zhou,  Linhua Liu, Jia-Yue Yang, [Thermal transport in disordered wurtzite ScAlN alloys using machine learning interatomic potentials](https://www.sciencedirect.com/science/article/pii/S2352492824011942?casa_token=c7LgMcZwdLsAAAAA:0d5iitbkKJ-Y0v90-K6ZjyiXrmk4yqyYMHmGhNuWzhChNFEPWyYODKaUbxkWKReY5dc6lss) 
 
 * Philip Yox, Frank T Cerasoli, Arka Sarkar, Genevieve Amobi, Gayatri Viswanathan, Jackson Voyles, Oleg l Lebedev, Davide Donadio, Kirill Kovnir[Organizing Chaos: Boosting Thermoelectric Properties by Ordering the Clathrate Framework of Ba8Cu16As30](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.4c00419)
 
