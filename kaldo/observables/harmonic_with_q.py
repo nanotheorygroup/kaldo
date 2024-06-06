@@ -400,7 +400,6 @@ class HarmonicWithQ(Observable):
         participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1) * n_atoms)
         return participation_ratio
 
-
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         q_point = self.q_point
         supercell = self.second.supercell
@@ -429,29 +428,24 @@ class HarmonicWithQ(Observable):
         weight = 1 / n_equivalent
         coefficients = weight * mask_distance
 
-        # Calculate
+        # Find contributing replicas
         mask_full = coefficients.any(axis=(-2, -1))
         coefficients = coefficients[mask_full]
         cell_replicas = cell_replicas[mask_full]
         cell_indices = cell_replicas % supercell
-        phase = np.exp(2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+
+        # Calculate phase and combine with coefficient to normalize contributions from replicas
+        # that may be represented more than once
+        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
         prefactors = np.einsum('i,inm->inm', phase, coefficients)
         prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
         prefactors = prefactors.transpose((4, 2, 0, 3, 1))
 
-        # Sum
+        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
         dyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
         dyn_s = np.transpose(dyn_s, axes=(3, 4, 2, 0, 1))
         dyn_s = dyn_s.sum(axis=2)
         dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        # TODO: remove these since they are not used in the function
-        # For Debugging
-        # sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
-        # mass_prefactor = np.reciprocal(np.einsum('i,j->ij', sqrt_mass, sqrt_mass))
-        # RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
-        # eV_to_10Jmol = units.mol / (10 * units.J)
-        # unit_prefactor = RyBr_to_eVA * eV_to_10Jmol
 
         # Apply correction for Born effective charges, if detected
         if self.is_nac:
@@ -459,7 +453,7 @@ class HarmonicWithQ(Observable):
             dyn_s += self.nac_correction(qpoint=self.q_point)
 
         # Diagonalize
-        # TODO: clean this up
+        # TODO: clean this up - no need to return eigenvectors if frequency requested
         if only_eigenvals:
             omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
             frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
@@ -496,8 +490,8 @@ class HarmonicWithQ(Observable):
             coefficient = weight * mask
             if coefficient.any():
                 supercell_index = supercell_replica % supercell
-                qr = 2. * np.pi * np.dot(q_point, supercell_replica)
-                ddyn_s[:, :, :, :] += replica_position[direction] * np.exp(-1j * qr) *\
+                qr = -2. * np.pi * np.dot(q_point, supercell_replica)
+                ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(1j * qr) *\
                                       contract('jbia,ij->iajb', fc_s[:, :, supercell_index[0],
                                           supercell_index[1], supercell_index[2], :, :], coefficient)
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
