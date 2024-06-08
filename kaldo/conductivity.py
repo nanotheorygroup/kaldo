@@ -8,6 +8,8 @@ from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triang
 from kaldo.helpers.storage import lazy_property
 import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
+import gc
+
 logging = get_logger()
 
 
@@ -216,27 +218,32 @@ class Conductivity:
             logging.info('You need to calculate the conductivity QHGK first.')
 
 
-    def calculate_scattering_matrix(self,
-                                    is_including_diagonal,
-                                    is_rescaling_omega,
-                                    is_rescaling_population):
-        physical_mode = self.phonons.physical_mode.reshape((self.n_phonons))
-        frequency = self.phonons.frequency.reshape((self.n_phonons))[physical_mode]
+    def calculate_scattering_matrix(self, is_including_diagonal, is_rescaling_omega, is_rescaling_population):
+        """Calculate the scattering matrix for phonons."""
+        physical_mode = self.phonons.physical_mode.reshape(self.n_phonons)
+        frequency = self.phonons.frequency.reshape(self.n_phonons)[physical_mode]
+
         gamma_tensor = -1 * self.phonons._ps_gamma_and_gamma_tensor[:, 2:]
-        index = np.outer(physical_mode, physical_mode)
+        gamma_tensor = gamma_tensor[np.ix_(physical_mode, physical_mode)]
+
         n_physical = physical_mode.sum()
         log_size((n_physical, n_physical), float, name='_scattering_matrix')
-        gamma_tensor = gamma_tensor[index].reshape((n_physical, n_physical))
+
         if is_rescaling_population:
-            n = self.phonons.population.reshape((self.n_phonons))[physical_mode]
-            gamma_tensor = np.einsum('a,ab,b->ab', ((n * (n + 1))) ** (1/2), gamma_tensor,
-                                         1 / ((n * (n + 1)) ** (1/2)))
+            n = self.phonons.population.reshape(self.n_phonons)[physical_mode]
+            n_sqrt = (n * (n + 1)) ** 0.5
+            np.einsum('a,ab,b->ab', n_sqrt, gamma_tensor, 1 / n_sqrt, out=gamma_tensor)
             logging.info('Asymmetry of gamma_tensor: ' + str(np.abs(gamma_tensor - gamma_tensor.T).sum()))
+
         if is_including_diagonal:
-            gamma = self.phonons.bandwidth.reshape((self.n_phonons))[physical_mode]
-            gamma_tensor = gamma_tensor + np.diag(gamma)
+            gamma = self.phonons.bandwidth.reshape(self.n_phonons)[physical_mode]
+            np.fill_diagonal(gamma_tensor, gamma_tensor.diagonal() + gamma)
+
         if is_rescaling_omega:
-            gamma_tensor = 1 / (frequency.reshape(-1, 1)) * gamma_tensor * (frequency.reshape(1, -1))
+            frequency_inv = 1 / frequency
+            np.multiply(frequency_inv[:, np.newaxis], gamma_tensor, out=gamma_tensor)
+            np.multiply(gamma_tensor, frequency[np.newaxis, :], out=gamma_tensor)
+
         return gamma_tensor
 
 
@@ -334,37 +341,43 @@ class Conductivity:
         -------
         lambda : np array
             (n_k_points, n_modes)
-
         """
         length = self.length
         phonons = self.phonons
         finite_length_method = self.finite_length_method
         physical_mode = phonons.physical_mode.reshape(phonons.n_phonons)
         velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
-        lambd = np.zeros_like(velocity)
-        for alpha in range (3):
-            scattering_matrix = self.calculate_scattering_matrix(is_including_diagonal=False,
-                                                                 is_rescaling_omega=True,
-                                                                 is_rescaling_population=False)
+        lambd = np.zeros_like(velocity, dtype=np.float32)  # Use float32 if precision allows
+
+        for alpha in range(3):
+            scattering_matrix = self.calculate_scattering_matrix(
+                is_including_diagonal=False,
+                is_rescaling_omega=True,
+                is_rescaling_population=False
+            )
+
             gamma = phonons.bandwidth.reshape(phonons.n_phonons)
-            if finite_length_method == 'ms':
-                if length is not None:
-                    if length[alpha]:
-                        gamma = gamma + 2 * np.abs(velocity[:, alpha]) / length[alpha]
 
+            if finite_length_method == 'ms' and length is not None and length[alpha]:
+                gamma += 2 * np.abs(velocity[:, alpha]) / length[alpha]
+            gc.collect()
 
-            scattering_matrix += np.diag(gamma[physical_mode])
+            np.add(scattering_matrix, np.diag(gamma[physical_mode]), out=scattering_matrix)
             scattering_inverse = np.linalg.inv(scattering_matrix)
             lambd[physical_mode, alpha] = scattering_inverse.dot(velocity[physical_mode, alpha])
-            if finite_length_method == 'ballistic':
-                if (self.length[alpha] is not None) and (self.length[alpha] != 0):
-                    velocity = velocity[physical_mode, alpha]
-                    gamma_inv = np.zeros_like(velocity)
-                    gamma_inv[velocity != 0] = length[alpha] / (2 * np.abs(velocity[velocity != 0]))
-                    lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity)
+            del scattering_matrix, scattering_inverse, gamma
+            gc.collect()
+
+            if finite_length_method == 'ballistic' and (self.length[alpha] is not None) and (self.length[alpha] != 0):
+                velocity_alpha = velocity[physical_mode, alpha]
+                gamma_inv = np.zeros_like(velocity_alpha)
+                nonzero_velocity = velocity_alpha != 0
+                gamma_inv[nonzero_velocity] = length[alpha] / (2 * np.abs(velocity_alpha[nonzero_velocity]))
+                lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity_alpha)
+                del gamma_inv, nonzero_velocity, velocity_alpha
+                gc.collect()
 
         return lambd
-
 
     def calculate_lambda_tensor(self, alpha, scattering_inverse):
         # TODO: replace with same caching strategy as rest of code
