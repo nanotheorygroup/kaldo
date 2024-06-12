@@ -2,6 +2,7 @@
 kaldo
 Anharmonic Lattice Dynamics
 """
+import scipy
 from opt_einsum import contract
 import numpy as np
 import logging
@@ -369,9 +370,11 @@ class Conductivity:
             gc.collect()
 
             np.add(scattering_matrix, np.diag(gamma[physical_mode]), out=scattering_matrix)
-            scattering_inverse = np.linalg.inv(scattering_matrix)
-            lambd[physical_mode, alpha] = scattering_inverse.dot(velocity[physical_mode, alpha])
-            del scattering_matrix, scattering_inverse, gamma
+
+            # Solve for the dot product between inverse of scattering matrix and velocity with linear-alegbra operation
+            # without initializing the inverse of scattering matrix
+            lambd[physical_mode, alpha] = scipy.linalg.solve(scattering_matrix, velocity[physical_mode, alpha], overwrite_a=True)
+            del scattering_matrix, gamma
             gc.collect()
 
             if finite_length_method == 'ballistic' and (self.length[alpha] is not None) and (self.length[alpha] != 0):
