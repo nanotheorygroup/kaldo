@@ -504,20 +504,20 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 <tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([...])</p></td>
 <td><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_qhgk</span></code></a>()</p></td>
-<td><p>Calculates the conductivity of each mode using the :ref:'Quasi-Harmonic-Green-Kubo Model'.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
 <td><p>This method calculates the inverse of the mean free path for each phonon.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="kaldo.conductivity.Conductivity.calculate_scattering_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_scattering_matrix</span></code></a>(...)</p></td>
+<td><p>Calculate the scattering matrix for phonons.</p></td>
 </tr>
 </tbody>
 </table>
 <table>
 <tbody>
-<tr class="row-odd"><td><p><strong>calculate_lambda_tensor</strong></p></td>
+<tr class="row-odd"><td><p><strong>calculate_conductivity_and_diffusivity_qhgk</strong></p></td>
 <td></td>
 </tr>
-<tr class="row-even"><td><p><strong>calculate_scattering_matrix</strong></p></td>
+<tr class="row-even"><td><p><strong>calculate_lambda_tensor</strong></p></td>
 <td></td>
 </tr>
 </tbody>
@@ -536,20 +536,6 @@ Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655c
 </dl>
 </dd></dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_conductivity_qhgk">
-<span class="sig-name descname"><span class="pre">calculate_conductivity_qhgk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_qhgk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_qhgk" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the conductivity of each mode using the :ref:’Quasi-Harmonic-Green-Kubo Model’.
-The tensor is returned individual modes along the first axis and has units of W/m/K.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>conductivity_per_mode</strong> – (n_phonons, 3, 3) W/m/K</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
 <dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_mfp_inverse">
 <span class="sig-name descname"><span class="pre">calculate_mfp_inverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_inverse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="Permalink to this definition">¶</a></dt>
 <dd><p>This method calculates the inverse of the mean free path for each phonon.
@@ -562,6 +548,11 @@ The matrix returns k vectors for each mode and has units of inverse Angstroms.</
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_scattering_matrix">
+<span class="sig-name descname"><span class="pre">calculate_scattering_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_including_diagonal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_rescaling_omega</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_rescaling_population</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_scattering_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the scattering matrix for phonons.</p>
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.conductivity">
