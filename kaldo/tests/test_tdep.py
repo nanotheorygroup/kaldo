@@ -8,7 +8,7 @@ import pytest
 
 @pytest.yield_fixture(scope="session")
 def phonons():
-    fcs = ForceConstants.from_folder(folder='./si-tdep', supercell=(3, 3, 3), format='tdep')
+    fcs = ForceConstants.from_folder(folder='si-tdep', supercell=(3, 3, 3), format='tdep')
     k = 6
     kpts = [k, k, k]
     temperature = 300
