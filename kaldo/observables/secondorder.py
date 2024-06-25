@@ -9,11 +9,190 @@ import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+from pathlib import Path # NEW !
+from ase.geometry import get_distances # NEW !
+import sys # NEW !
 
 logging = get_logger()
 
 SECOND_ORDER_FILE = 'second.npy'
 
+def parse_tdep_forceconstant(
+        fc_file="infile.forceconstants",
+        primitive="infile.ucposcar",
+        supercell="infile.ssposcar",
+        fortran=True,
+        two_dim=True,
+        symmetrize=False,
+        reduce_fc=True,
+        eps=1e-13,
+        tol=1e-5,
+        format="vasp", ):
+    
+    if isinstance(primitive, Atoms):
+        uc = primitive
+    elif Path(primitive).exists():
+        uc = ase.io.read(primitive, format=format)
+    else:
+        raise RuntimeError("primitive cell missing")
+
+    if isinstance(supercell, Atoms):
+        sc = supercell
+    elif Path(supercell).exists():
+        sc = ase.io.read(supercell, format=format)
+    else:
+        raise RuntimeError("supercell missing")
+
+    uc.wrap(eps=tol)
+    sc.wrap(eps=tol)
+    n_uc = len(uc)
+    n_sc = len(sc)
+
+    force_constants = np.zeros((len(uc), len(sc), 3, 3))
+
+    with open(fc_file) as fo:
+        n_atoms = int(next(fo).split()[0])
+        cutoff = float(next(fo).split()[0])
+
+        assert n_atoms == n_uc, f"n_atoms == {n_atoms}, should be {n_uc}"
+
+        #print(f".. Number of atoms:   {n_atoms}")
+        #print(rf".. Real space cutoff: {cutoff:.3f} \AA")
+
+        for i1 in range(n_atoms):
+            n_neighbors = int(next(fo).split()[0])
+            for _ in range(n_neighbors):
+                i2 = int(next(fo).split()[0]) - 1
+                lp = np.array(next(fo).split(), dtype=float)
+                phi = np.array([next(fo).split() for _ in range(3)], dtype=float)
+                r_target = uc.positions[i2] + np.dot(lp, uc.cell[:])
+                for ii, r1 in enumerate(sc.positions):
+                    r_diff = np.abs(r_target - r1)
+                    sc_temp = sc.get_cell(complete=True)
+                    r_diff = np.linalg.solve(sc_temp.T, r_diff.T).T % 1.0
+                    r_diff -= np.floor(r_diff + eps)
+                    if np.sum(r_diff) < tol:
+                        force_constants[i1, ii, :, :] += phi
+
+    if not reduce_fc or two_dim:
+        force_constants = remap_force_constants(
+            force_constants, uc, sc, symmetrize=symmetrize
+        )
+
+    if two_dim:
+        return force_constants.swapaxes(2, 1).reshape(2 * (3 * n_sc,))
+
+    return force_constants
+
+def remap_force_constants(
+        force_constants,
+        primitive,
+        supercell,
+        new_supercell=None,
+        reduce_fc=False,
+        two_dim=False,
+        symmetrize=True,
+        tol=1e-5,
+        eps=1e-13,):
+
+    if new_supercell is None:
+        new_supercell = supercell.copy()
+
+    primitive_cell = primitive.cell.copy()
+    primitive.cell = supercell.cell
+
+    primitive.wrap(eps=tol)
+    supercell.wrap(eps=tol)
+
+    n_sc_new = len(new_supercell)
+
+    sc_r = np.zeros((force_constants.shape[0], force_constants.shape[1], 3))
+    for aa, a1 in enumerate(primitive):
+        diff = supercell.positions - a1.position
+        p2s = np.where(np.linalg.norm(diff, axis=1) < tol)[0][0]
+        spos = supercell.positions
+        sc_r[aa], _ = get_distances([spos[p2s]], spos, cell=supercell.cell, pbc=True)
+
+    primitive.cell = primitive_cell
+    map2prim = _map2prim(primitive, new_supercell)
+
+    ref_struct_pos = new_supercell.get_scaled_positions(wrap=True)
+    sc_temp = new_supercell.get_cell(complete=True)
+
+    fc_out = np.zeros((n_sc_new, n_sc_new, 3, 3))
+    for a1, r0 in enumerate(new_supercell.positions):
+        uc_index = map2prim[a1]
+        for sc_a2, sc_r2 in enumerate(sc_r[uc_index]):
+            r_pair = r0 + sc_r2
+            r_pair = np.linalg.solve(sc_temp.T, r_pair.T).T % 1.0
+            for a2 in range(n_sc_new):
+                r_diff = np.abs(r_pair - ref_struct_pos[a2])
+                r_diff -= np.floor(r_diff + eps)
+                if np.linalg.norm(r_diff) < tol:
+                    fc_out[a1, a2, :, :] += force_constants[uc_index, sc_a2, :, :]
+
+    if two_dim:
+        fc_out = fc_out.swapaxes(1, 2).reshape(2 * (3 * fc_out.shape[1],))
+
+        violation = np.linalg.norm(fc_out - fc_out.T)
+        if violation > 1e-5:
+            msg = f"Force constants are not symmetric by {violation:.2e}."
+            warn(msg, level=1)
+            if symmetrize:
+                talk("Symmetrize force constants.")
+                fc_out = 0.5 * (fc_out + fc_out.T)
+
+        violation = abs(fc_out.sum(axis=0)).mean()
+        if violation > 1e-9:
+            msg = f"Sum rule violated by {violation:.2e} (axis 1)."
+            warn(msg, level=1)
+
+        violation = abs(fc_out.sum(axis=1)).mean()
+        if violation > 1e-9:
+            msg = f"Sum rule violated by {violation:.2e} (axis 2)."
+            warn(msg, level=1)
+
+        return fc_out
+
+    if reduce_fc:
+        p2s_map = np.zeros(len(primitive), dtype=int)
+
+        primitive.cell = new_supercell.cell
+
+        new_supercell.wrap(eps=tol)
+        primitive.wrap(eps=tol)
+
+        for aa, a1 in enumerate(primitive):
+            diff = new_supercell.positions - a1.position
+            p2s_map[aa] = np.where(np.linalg.norm(diff, axis=1) < tol)[0][0]
+
+        primitive.cell = primitive_cell
+        primitive.wrap(eps=tol)
+
+        return reduce_force_constants(fc_out, p2s_map)
+
+    return fc_out
+
+def _map2prim(primitive, supercell, tol=1e-5):
+    map2prim = []
+    primitive = primitive.copy()
+    supercell = supercell.copy()
+
+    supercell_with_prim_cell = supercell.copy()
+
+    supercell_with_prim_cell.cell = primitive.cell.copy()
+
+    primitive.wrap(eps=tol)
+    supercell_with_prim_cell.wrap(eps=tol)
+
+    for a1 in supercell_with_prim_cell:
+        diff = primitive.positions - a1.position
+        map2prim.append(np.where(np.linalg.norm(diff, axis=1) < tol)[0][0])
+
+    _, counts = np.unique(map2prim, return_counts=True)
+    assert counts.std() == 0, counts
+
+    return map2prim
 
 def acoustic_sum_rule(dynmat):
     n_unit = dynmat[0].shape[0]
@@ -204,8 +383,22 @@ class SecondOrder(ForceConstant):
                                           supercell=supercell,
                                           value=_second_order,
                                           folder=folder)
-
-
+        
+        elif format == 'tdep':
+            uc_filename = 'infile.ucposcar'
+            replicated_filename = 'infile.ssposcar'
+            atom_prime_file = str(folder) + '/' + uc_filename
+            replicated_atom_prime_file = str(folder) + '/' + replicated_filename
+            uc = ase.io.read(atom_prime_file, format='vasp')
+            sc = ase.io.read(replicated_atom_prime_file, format='vasp')
+            d2 = parse_tdep_forceconstant(fc_file=folder+"/infile.forceconstant", primitive=atom_prime_file, supercell=replicated_atom_prime_file, reduce_fc=False)
+            n_unit_atoms = uc.positions.shape[0]
+            n_replicas = np.prod(supercell)
+            d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+            d2 = d2[0, np.newaxis]
+            second_order = SecondOrder(atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2,
+                                       folder=folder)
+        
         else:
             raise ValueError
         return second_order
