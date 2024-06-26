@@ -289,7 +289,6 @@ class ThirdOrder(ForceConstant):
 
 
             coords = []
-            #frcs = []
             frcs = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
 
             for count1 in range(num1):

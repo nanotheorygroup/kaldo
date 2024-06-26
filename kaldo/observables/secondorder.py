@@ -9,9 +9,9 @@ import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
-from pathlib import Path # NEW !
-from ase.geometry import get_distances # NEW !
-import sys # NEW !
+from pathlib import Path
+from ase.geometry import get_distances
+import sys
 
 logging = get_logger()
 
@@ -55,9 +55,6 @@ def parse_tdep_forceconstant(
         cutoff = float(next(fo).split()[0])
 
         assert n_atoms == n_uc, f"n_atoms == {n_atoms}, should be {n_uc}"
-
-        #print(f".. Number of atoms:   {n_atoms}")
-        #print(rf".. Real space cutoff: {cutoff:.3f} \AA")
 
         for i1 in range(n_atoms):
             n_neighbors = int(next(fo).split()[0])
