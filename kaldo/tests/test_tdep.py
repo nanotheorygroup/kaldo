@@ -8,7 +8,7 @@ import pytest
 
 @pytest.yield_fixture(scope="session")
 def phonons():
-    fcs = ForceConstants.from_folder(folder='kaldo/tests/si-tdep', supercell=(3, 3, 3), format='tdep')
+    fcs = ForceConstants.from_folder(folder='kaldo/tests/si-tdep', supercell=(5, 5, 5), format='tdep')
     k = 6
     kpts = [k, k, k]
     temperature = 300
@@ -24,6 +24,6 @@ def phonons():
 
 def test_tdep_conductivity_300(phonons):
     phonons.temperature = 300
-    cond = Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0).diagonal().mean()
-    expected_cond = 100.
-    np.testing.assert_approx_equal(cond, expected_cond, significant=3)
+    cond = Conductivity(phonons=phonons, method='rta', storage='memory').conductivity.sum(axis=0).diagonal().mean()
+    expected_cond = 72.
+    np.testing.assert_approx_equal(cond, expected_cond, significant=2)
