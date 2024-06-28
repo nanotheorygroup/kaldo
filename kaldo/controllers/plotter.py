@@ -158,6 +158,9 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
     if p_atoms is None:
         p_atoms = list(range(phonons.n_atoms))
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     try:
         fgrid, pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
         np.save(folder + f'/{filename}_fgrid.npy', fgrid)
@@ -173,9 +176,8 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
     plt.ylabel('DOS', fontsize=16)
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tick_params(axis='both', which='minor', labelsize=16)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
     fig.savefig(folder + f'/{filename}.png')
+
     if is_showing:
         plt.show()
     else:
