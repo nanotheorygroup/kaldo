@@ -140,12 +140,12 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos.png', dos_filename='dos'):
+def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos'):
     """Produce a plot of phonon density of states (dos) or projected phonon dos (pdos).
     bandwidth sets the gaussian smearing width
     n_points indicates the number of frequencies on which the pdos is calculated
     is_showing determines whether the matplotlib graph is displayed
-    filename selects the output filename for the dos graph
+    filename selects the output filename for the dos data and figure files
 
     p_atoms input format is flexible:
       Providing None indicates calculation of the total phonon density of states
@@ -172,10 +172,10 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tick_params(axis='both', which='minor', labelsize=16)
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
-    np.savetxt(folder + '/' + dos_filename, np.vstack([fgrid, p]).T)
     if not os.path.exists(folder):
         os.makedirs(folder)
-    fig.savefig(folder + '/' + filename)
+    fig.savefig(folder + f'/{filename}.png')
+    np.savetxt(folder + f'/{filename}.dat', np.vstack([fgrid, p]).T)
     if is_showing:
         plt.show()
     else:
