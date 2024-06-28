@@ -157,14 +157,14 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
 
     if p_atoms is None:
         p_atoms = list(range(phonons.n_atoms))
+
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     try:
         fgrid, pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
-        np.save(folder + f'/{filename}_fgrid.npy', fgrid)
-        np.save(folder + f'/{filename}.npy', pdos)
+        np.save(folder + f'/{filename}.npy', np.vstack((fgrid,pdos))
     except IndexError as e:
         logging.error(f'Failed to calculate pdos.')
         return
