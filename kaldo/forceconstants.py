@@ -229,13 +229,11 @@ class ForceConstants:
         w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
         distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
-        d1 = np.einsum('iljx,ibljc->ibjcx',
-                       tf.convert_to_tensor(distance.astype(complex)),
-                       tf.cast(dynmat, tf.complex128))  # THz^2*Ang (it should be multiplied by i?)
+        d1 = np.einsum('iljx,ibljc->ibjcx', distance.astype(complex), dynmat.numpy().astype(complex))
         d2 = -1 * np.einsum('iljx,iljy,ibljc->ibjcxy',
-                            tf.convert_to_tensor(distance.astype(complex)),
-                            tf.convert_to_tensor(distance.astype(complex)),
-                            tf.cast(dynmat, tf.complex128))  # THz^2*Ang^2
+                distance.astype(complex), 
+                distance.astype(complex), 
+                dynmat.numpy().astype(complex)) 
         gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
         
         # Compute component b and r, keep the real component only
@@ -244,7 +242,11 @@ class ForceConstants:
         r = -1 * (1/volume) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, gamma, d1r).real
         cijkl = np.zeros((3, 3, 3, 3))
         evtotenjovermol = units.mol / (10 * units.J)
-        evperang3togpa = 160.21766208
+        # units._e = 1.602×10−19J
+        # units.Angstorm = 1.0 = 1e-10 m
+        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
+        # give raises to 1e-21
+        evperang3togpa = units._e /(units.Angstrom * 1e-21)
         for i in range(3):
             for j in range(3):
                 for k in range(3):
