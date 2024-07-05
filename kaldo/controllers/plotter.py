@@ -164,7 +164,7 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
 
     try:
         fgrid, pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
-        np.save(folder + f'/{filename}.npy', np.vstack((fgrid,pdos))
+        np.save(folder + f'/{filename}.npy', np.vstack((fgrid,pdos)))
     except IndexError as e:
         logging.error(f'Failed to calculate pdos.')
         return
