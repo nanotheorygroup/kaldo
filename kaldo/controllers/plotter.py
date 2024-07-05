@@ -140,12 +140,12 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos.png'):
+def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos'):
     """Produce a plot of phonon density of states (dos) or projected phonon dos (pdos).
     bandwidth sets the gaussian smearing width
     n_points indicates the number of frequencies on which the pdos is calculated
     is_showing determines whether the matplotlib graph is displayed
-    filename selects the output filename for the dos graph
+    filename selects the output filename for the dos data and figure files
 
     p_atoms input format is flexible:
       Providing None indicates calculation of the total phonon density of states
@@ -158,8 +158,13 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
     if p_atoms is None:
         p_atoms = list(range(phonons.n_atoms))
 
+    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     try:
         fgrid, pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
+        np.save(folder + f'/{filename}.npy', np.vstack((fgrid,pdos)))
     except IndexError as e:
         logging.error(f'Failed to calculate pdos.')
         return
@@ -171,10 +176,8 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
     plt.ylabel('DOS', fontsize=16)
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tick_params(axis='both', which='minor', labelsize=16)
-    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    fig.savefig(folder + '/' + filename)
+    fig.savefig(folder + f'/{filename}.png')
+
     if is_showing:
         plt.show()
     else:
