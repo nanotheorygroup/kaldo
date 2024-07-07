@@ -2,9 +2,9 @@
 
 .. currentmodule:: kaldo.forceconstants
 
-##############
-ForceConstants
-##############
+############################
+ForceConstants API Reference
+############################
 
 
 The ForceConstants class creates objects that store the system information and load (or calculate) force constant
