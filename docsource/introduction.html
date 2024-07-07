@@ -69,7 +69,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Quick Install" href="getting_started.html" />
-    <link rel="prev" title="kALDo: A Software to Predict Thermal Properties Using Lattice Dynamics." href="../index.html" />
+    <link rel="prev" title="A Software to Predict Thermal Properties Using Lattice Dynamics." href="../index.html" />
   
    
 
@@ -301,27 +301,34 @@
     </li>
     <li class="md-nav__item">
     
+    
+      <a href="user_guide.html#Units" class="md-nav__link">Units</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
       <span class="md-nav__link caption"><span class="caption-text">Reference</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
+      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="api_phonons.html" class="md-nav__link">Phonons API Reference</a>
+      <a href="api_phonons.html" class="md-nav__link">Phonons</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="api_conductivity.html" class="md-nav__link">Conductivity API Reference</a>
+      <a href="api_conductivity.html" class="md-nav__link">Conductivity</a>
       
     
     </li>
@@ -474,7 +481,7 @@
 <p><strong>Scalable</strong>. In a system of N atoms and N_k k points. kALDo uses (3N)^2 floating point numbers to save the state of the system when using QHGK, (Nk x 3N)^2 for the full solution of the BTE and Nk x 3N^2 when using BTE-RTA.</p>
 <p><strong>Performance</strong>. The bottleneck, and slow part of ALD simulations is the calculation of the phonons lifetimes and the scattering matrix. This step requires projecting the interatomic potential on 3N phonons modes and the algorithm scales like (Nk x 3N)^3, because of the 3 projections on phonons modes. In kALDo such algorithm is implemented as 2 Nk x 3N tensor multiplications of size Nk x (3N)^2 for BTE calculations while 3N^2 for QHGK.</p>
 <p><strong>Open-Source</strong>. Free for the community to use and contribute with edits and suggestion. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.</p>
-<p><img alt="91c4515f755f4ddf8f5cc1a8cf741739" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
+<p><img alt="fb963bf17d274c789b9802738577c808" class="no-scaled-link" src="../_images/features.png" style="width: 650px;"/></p>
 </section>
 
 
@@ -487,7 +494,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
           
-            <a href="../index.html" title="kALDo: A Software to Predict Thermal Properties Using Lattice Dynamics."
+            <a href="../index.html" title="A Software to Predict Thermal Properties Using Lattice Dynamics."
                class="md-flex md-footer-nav__link md-footer-nav__link--prev"
                rel="prev">
               <div class="md-flex__cell md-flex__cell--shrink">
@@ -496,7 +503,7 @@
               <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
                 <span class="md-flex__ellipsis">
                   <span
-                      class="md-footer-nav__direction"> Previous </span> kALDo: A Software to Predict Thermal Properties Using Lattice Dynamics. </span>
+                      class="md-footer-nav__direction"> Previous </span> A Software to Predict Thermal Properties Using Lattice Dynamics. </span>
               </div>
             </a>
           
