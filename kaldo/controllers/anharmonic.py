@@ -8,7 +8,6 @@ from opt_einsum import contract
 from kaldo.helpers.logger import get_logger
 from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
 import tensorflow as tf
-from memory_profiler import profile
 
 import numpy as np
 
