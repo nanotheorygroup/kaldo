@@ -56,7 +56,7 @@
   <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>ForceConstants &#8212; kALDo  documentation</title>
+    <title>ForceConstants API Reference &#8212; kALDo  documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/material.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -69,7 +69,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Phonons API Reference" href="api_phonons.html" />
-    <link rel="prev" title="Introduction" href="theory.html" />
+    <link rel="prev" title="Interfacing with Other Codes" href="user_guide.html" />
   
    
 
@@ -106,7 +106,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> ForceConstants </span>
+          <span class="md-header-nav__topic"> ForceConstants API Reference </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -220,144 +220,86 @@
   <ul class="md-nav__list">
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
+      <span class="md-nav__link caption"><span class="caption-text">Introduction</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html" class="md-nav__link">Introduction</a>
+      <a href="introduction.html" class="md-nav__link">Overview</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html#Quick-Install" class="md-nav__link">Quick Install</a>
+      <a href="introduction.html#Features" class="md-nav__link">Features</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Getting Started</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="getting_started.html" class="md-nav__link">Quick Install</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">User Guide</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="theory.html" class="md-nav__link">Basic Concepts</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
+      <a href="theory.html#Workflow" class="md-nav__link">Workflow</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html#Output-Storage" class="md-nav__link">Output Storage</a>
+      <a href="user_guide.html" class="md-nav__link">Interfacing with Other Codes</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
+      <a href="user_guide.html#Output-Storage" class="md-nav__link">Output Storage</a>
       
     
     </li>
     <li class="md-nav__item">
     
-    
-      <a href="introduction.html#Main-Features" class="md-nav__link">Main Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Examples" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#How-to-cite" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Other-codes" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Theory</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html" class="md-nav__link">Introduction</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Theory" class="md-nav__link">Theory</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">API</span></span>
+      <span class="md-nav__link caption"><span class="caption-text">Reference</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> ForceConstants </label>
+    <label class="md-nav__link md-nav__link--active" for="__toc"> ForceConstants API Reference </label>
     
-      <a href="#" class="md-nav__link md-nav__link--active">ForceConstants</a>
+      <a href="#" class="md-nav__link md-nav__link--active">ForceConstants API Reference</a>
       
         
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants API Reference</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#calculating-ifcs-in-kaldo" class="md-nav__link">Calculating IFCs in kALDo</a><nav class="md-nav">
               <ul class="md-nav__list">
@@ -397,7 +339,7 @@
     </li>
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
+      <span class="md-nav__link caption"><span class="caption-text">Tutorials and examples</span></span>
     
     </li>
     <li class="md-nav__item">
@@ -411,6 +353,89 @@
     
     
       <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="examples.html" class="md-nav__link">Examples</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Citations</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="citations.html" class="md-nav__link">How to cite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../publications/readme.html" class="md-nav__link">Publications using kALDo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="other_codes.html" class="md-nav__link">Other codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Developer Guide</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="code_architecture.html" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="contributing.html" class="md-nav__link">How to contribute changes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Acknowledgements</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="credits.html" class="md-nav__link">Acknowledgements</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">License</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="license.html" class="md-nav__link">License Information</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="license.html#copyright" class="md-nav__link">Copyright</a>
       
     
     </li>
@@ -428,7 +453,7 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-api-forceconstants--page-root" class="md-nav__link">ForceConstants API Reference</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#calculating-ifcs-in-kaldo" class="md-nav__link">Calculating IFCs in kALDo</a><nav class="md-nav">
               <ul class="md-nav__list">
@@ -458,8 +483,8 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  <section id="forceconstants">
-<span id="forceconstants-api"></span><h1 id="docsource-api-forceconstants--page-root">ForceConstants<a class="headerlink" href="#docsource-api-forceconstants--page-root" title="Permalink to this heading">¶</a></h1>
+  <section id="forceconstants-api-reference">
+<span id="forceconstants-api"></span><h1 id="docsource-api-forceconstants--page-root">ForceConstants API Reference<a class="headerlink" href="#docsource-api-forceconstants--page-root" title="Permalink to this heading">¶</a></h1>
 <p>The ForceConstants class creates objects that store the system information and load (or calculate) force constant
 matrices (IFCs) to be used by an instance of the <a class="reference internal" href="api_phonons.html#phonons-api"><span class="std std-ref">Phonon</span></a> class. This is normally the first thing you
 should initialize when working with kALDo and we’ll walk you through how to do that in the following sections on this
@@ -700,7 +725,7 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
           
-            <a href="theory.html" title="Introduction"
+            <a href="user_guide.html" title="Interfacing with Other Codes"
                class="md-flex md-footer-nav__link md-footer-nav__link--prev"
                rel="prev">
               <div class="md-flex__cell md-flex__cell--shrink">
@@ -709,7 +734,7 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
               <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
                 <span class="md-flex__ellipsis">
                   <span
-                      class="md-footer-nav__direction"> Previous </span> Introduction </span>
+                      class="md-footer-nav__direction"> Previous </span> Interfacing with Other Codes </span>
               </div>
             </a>
           

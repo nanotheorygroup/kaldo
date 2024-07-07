@@ -56,7 +56,7 @@
   <script async src='https://www.google-analytics.com/analytics.js'></script>
   
   
-    <title>Introduction &#8212; kALDo  documentation</title>
+    <title>Basic Concepts &#8212; kALDo  documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/material.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -68,8 +68,8 @@
     <link rel="shortcut icon" href="../_static/logo.ico"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="ForceConstants" href="api_forceconstants.html" />
-    <link rel="prev" title="Introduction" href="introduction.html" />
+    <link rel="next" title="Interfacing with Other Codes" href="user_guide.html" />
+    <link rel="prev" title="Quick Install" href="getting_started.html" />
   
    
 
@@ -106,7 +106,7 @@
       <div class="md-flex__cell md-flex__cell--stretch">
         <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
           <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Introduction </span>
+          <span class="md-header-nav__topic"> Basic Concepts </span>
         </div>
       </div>
       <div class="md-flex__cell md-flex__cell--shrink">
@@ -220,128 +220,63 @@
   <ul class="md-nav__list">
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">Documentation</span></span>
+      <span class="md-nav__link caption"><span class="caption-text">Introduction</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html" class="md-nav__link">Introduction</a>
+      <a href="introduction.html" class="md-nav__link">Overview</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html#Quick-Install" class="md-nav__link">Quick Install</a>
+      <a href="introduction.html#Features" class="md-nav__link">Features</a>
       
     
     </li>
     <li class="md-nav__item">
     
-    
-      <a href="introduction.html#Interfacing-with-Other-Codes" class="md-nav__link">Interfacing with Other Codes</a>
-      
+      <span class="md-nav__link caption"><span class="caption-text">Getting Started</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="introduction.html#Output-Storage" class="md-nav__link">Output Storage</a>
+      <a href="getting_started.html" class="md-nav__link">Quick Install</a>
       
     
     </li>
     <li class="md-nav__item">
     
-    
-      <a href="introduction.html#Code-Architecture" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Main-Features" class="md-nav__link">Main Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Examples" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#How-to-cite" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Acknowledgements" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Other-codes" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Project-template" class="md-nav__link">Project template</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#How-to-contribute-changes" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Theory</span></span>
+      <span class="md-nav__link caption"><span class="caption-text">User Guide</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> Introduction </label>
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Basic Concepts </label>
     
-      <a href="#" class="md-nav__link md-nav__link--active">Introduction</a>
+      <a href="#" class="md-nav__link md-nav__link--active">Basic Concepts</a>
       
         
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Introduction</a>
-        </li>
-        <li class="md-nav__item"><a href="#Theory" class="md-nav__link">Theory</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Basic Concepts</a><nav class="md-nav">
               <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Interatomic-potentials" class="md-nav__link">Interatomic potentials</a>
+        </li>
         <li class="md-nav__item"><a href="#Boltzman-Transport-Equation" class="md-nav__link">Boltzman Transport Equation</a>
         </li>
         <li class="md-nav__item"><a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">Quasi-Harmonic Green Kubo</a>
         </li></ul>
             </nav>
         </li>
-        <li class="md-nav__item"><a href="#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#Workflow" class="md-nav__link">Workflow</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#Ab-initio-silicon-diamond" class="md-nav__link"><em>Ab initio</em> silicon diamond</a>
         </li>
@@ -362,26 +297,33 @@
     <li class="md-nav__item">
     
     
-      <a href="#Theory" class="md-nav__link">Theory</a>
+      <a href="#Workflow" class="md-nav__link">Workflow</a>
       
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a>
+      <a href="user_guide.html" class="md-nav__link">Interfacing with Other Codes</a>
       
     
     </li>
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">API</span></span>
+    
+      <a href="user_guide.html#Output-Storage" class="md-nav__link">Output Storage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Reference</span></span>
     
     </li>
     <li class="md-nav__item">
     
     
-      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants</a>
+      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants API Reference</a>
       
     
     </li>
@@ -401,7 +343,7 @@
     </li>
     <li class="md-nav__item">
     
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials</span></span>
+      <span class="md-nav__link caption"><span class="caption-text">Tutorials and examples</span></span>
     
     </li>
     <li class="md-nav__item">
@@ -415,6 +357,89 @@
     
     
       <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="examples.html" class="md-nav__link">Examples</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Citations</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="citations.html" class="md-nav__link">How to cite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../publications/readme.html" class="md-nav__link">Publications using kALDo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="other_codes.html" class="md-nav__link">Other codes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Developer Guide</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="code_architecture.html" class="md-nav__link">Code Architecture</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="contributing.html" class="md-nav__link">How to contribute changes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Acknowledgements</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="credits.html" class="md-nav__link">Acknowledgements</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">License</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="license.html" class="md-nav__link">License Information</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="license.html#copyright" class="md-nav__link">Copyright</a>
       
     
     </li>
@@ -432,17 +457,17 @@
 <nav class="md-nav md-nav--secondary">
     <label class="md-nav__title" for="__toc">Contents</label>
   <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Introduction</a>
-        </li>
-        <li class="md-nav__item"><a href="#Theory" class="md-nav__link">Theory</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Basic Concepts</a><nav class="md-nav">
               <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#Interatomic-potentials" class="md-nav__link">Interatomic potentials</a>
+        </li>
         <li class="md-nav__item"><a href="#Boltzman-Transport-Equation" class="md-nav__link">Boltzman Transport Equation</a>
         </li>
         <li class="md-nav__item"><a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">Quasi-Harmonic Green Kubo</a>
         </li></ul>
             </nav>
         </li>
-        <li class="md-nav__item"><a href="#Benchmarks-applications" class="md-nav__link">Benchmarks applications</a><nav class="md-nav">
+        <li class="md-nav__item"><a href="#Workflow" class="md-nav__link">Workflow</a><nav class="md-nav">
               <ul class="md-nav__list">
         <li class="md-nav__item"><a href="#Ab-initio-silicon-diamond" class="md-nav__link"><em>Ab initio</em> silicon diamond</a>
         </li>
@@ -466,14 +491,13 @@
         <div class="md-content">
           <article class="md-content__inner md-typeset" role="main">
             
-  <!-- ![funding]({{ site.url }}{{ site.baseurl }}/assets/images/gbarbalinardo-poster/funding.png) --><section id="Introduction">
-<h1 id="docsource-theory--page-root">Introduction<a class="headerlink" href="#docsource-theory--page-root" title="Permalink to this heading">¶</a></h1>
+  <section id="Basic-Concepts">
+<h1 id="docsource-theory--page-root">Basic Concepts<a class="headerlink" href="#docsource-theory--page-root" title="Permalink to this heading">¶</a></h1>
 <p>Understanding heat transport in semiconductors and insulators is of fundamental importance because of its technological impact in electronics and renewable energy harvesting and conversion. Anharmonic Lattice Dynamics provides a powerful framework for the description of heat transport at the nanoscale. One of the advantages of this method is that it naturally includes quantum effects due to atoms vibrations, which are needed to compute thermal properties of semiconductors widely use in
 nanotechnology, like Silicon and Carbon, even at room temperature. While heat transport in amorphous and crystalline semiconductors has a different microscopic origin, a unified approach to simulate both crystals and glasses has been devised. Here we introduce a unified workflow, which implements both the Boltzmann Transport equation (BTE) and the Quasi Harmonic Green-Kubo (QHGK) methods. We discuss how the theory can be optimized to exploit modern parallel architectures, and how it is
 implemented in kALDo: a versatile and scalable open-source software to compute phonon transport in solids.</p>
-</section>
-<section id="Theory">
-<h1 id="Theory">Theory<a class="headerlink" href="#Theory" title="Permalink to this heading">¶</a></h1>
+<section id="Interatomic-potentials">
+<h2 id="Interatomic-potentials">Interatomic potentials<a class="headerlink" href="#Interatomic-potentials" title="Permalink to this heading">¶</a></h2>
 <p>In semiconductors, electronic and vibrational dynamics often occur over different time scales, and can thus be decoupled using the Born Oppenheimer approximation. Under this assumption, the potential <img alt="\phi" class="math" src="../_images/math/8d4b26ae65ca854986cf150c8fbef20db93a402b.png"/> of a system made of <img alt="N_{atoms}" class="math" src="../_images/math/bced6265a9a5ed6d8a3f63f71ce29b2851f0e468.png"/> atoms, is a function of all the <img alt="x_{i\alpha}" class="math" src="../_images/math/21dfd2fd9265de558f67909e229063930f6967b8.png"/> atomic positions, where <img alt="i" class="math" src="../_images/math/8216274682ad4c02b3821d303fe8a1c94b09b3bd.png"/> and <img alt="\alpha" class="math" src="../_images/math/04d011ebcba612844adea8dbc1d9c21e8bc7bc26.png"/> refer to the atomic and Cartesian indices, respectively. Near thermal equilibrium, the potential energy can be Taylor expanded in the atomic
 displacements, <img alt="\mathbf{u}=\mathbf x-\mathbf{x}_{\rm equilibrium}" class="math" src="../_images/math/3ace6a7dd6a4122a46b2a4e2e6e791358e426948.png"/>,</p>
 <div class="math">
@@ -504,6 +528,7 @@ also possible and often convenient to compute IFCs using perturbation theory.</p
 <div class="math">
 <p><img alt="\sum_{i'\alpha'} D_{i \alpha k i' \alpha'} \eta_{i' \alpha'k s}=\omega_{k m}^{2} \eta_{i \alpha k s }." src="../_images/math/31f639dfd1c1cbb270d1c4156b5c96009c43b5ee.png"/></p>
 </div><p>which now depends on the quasi-momentum index, <img alt="k" class="math" src="../_images/math/c3144087f4141b1a902ffbbca1128a22f5df8682.png"/>, and the phonons mode <img alt="s" class="math" src="../_images/math/66b7b213f6794acfd003d7b9471d389cfc120aa3.png"/>.</p>
+</section>
 <section id="Boltzman-Transport-Equation">
 <h2 id="Boltzman-Transport-Equation">Boltzman Transport Equation<a class="headerlink" href="#Boltzman-Transport-Equation" title="Permalink to this heading">¶</a></h2>
 <p>At finite temperature <img alt="T" class="math" src="../_images/math/1a99e57b148bd48c6519ff1158f1ce03a258c7ff.png"/>, the Bose Einstein statistic is the quantum distribution for atomic vibrations</p>
@@ -640,10 +665,10 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 </div><p>which conveniently provide a measure of the temperature-independent contribution of each mode to thermal transport.</p>
 </section>
 </section>
-<section id="Benchmarks-applications">
-<h1 id="Benchmarks-applications">Benchmarks applications<a class="headerlink" href="#Benchmarks-applications" title="Permalink to this heading">¶</a></h1>
+<section id="Workflow">
+<h1 id="Workflow">Workflow<a class="headerlink" href="#Workflow" title="Permalink to this heading">¶</a></h1>
 <p>The workflow for ALD calculations is illustrated below</p>
-<p><img alt="7a6ea9ab888d4f09aa92ea24f8b91a47" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
+<p><img alt="f963ea17b8a94b77b5dc9b56c68b582e" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
 <p>Here, we present two example simulations of both a periodic and an amorphous structure.</p>
 <section id="Ab-initio-silicon-diamond">
 <h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Permalink to this heading">¶</a></h2>
@@ -672,7 +697,7 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 </div>
 <p>We performed the simulation using the local density approximation for the exchange and correlation functional and a Bachelet-Hamann-Schluter norm-conserving pseudoptential. Kohn-Sham orbitals are represented on a plane-waves basis set with a cutoff of 20 Ry and (8, 8, 8) k-points mesh. The minimized lattice parameter is 5.398A. The third-order IFC is calculated using finite difference displacement on (5, 5, 5) replicas of the irreducible fcc-unit cell, including up to the 5th nearest neighbor.
 We obtained the following thermal properties</p>
-<p><img alt="9c2b3c96704441ae86339c7bad78ea4e" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
+<p><img alt="8e191491927540fdae5af4c40f86c409" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
 <p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <img alt="g" class="math" src="../_images/math/86b44067536d63fd1271ac76c4a35eb79a6aa5dd.png"/>, c) lifetime per mode <img alt="\tau" class="math" src="../_images/math/303b8f73dd9a98bea8df8d22419bc3436abe91a9.png"/>, d) mean free path <img alt="\lambda" class="math" src="../_images/math/b67363a3f3c2ddf224f82975c53b7004abc08d20.png"/>, and e) cumulative conductivity <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/>.</p>
 </section>
 <section id="Amorphous-silicon">
@@ -694,7 +719,7 @@ We obtained the following thermal properties</p>
 </pre></div>
 </div>
 <p>In a simliar treatment to the silicon crystal, a full battery of modal analysis can be calculated with both quantum and classical statistics on the amorphous systems re- turning the phonon DoS as well as the associated lifetimes, generalized diffusivities, normalized phase space and cumulative conductivity</p>
-<p><img alt="3d583116deaf4a98902c05ba296a555b" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
+<p><img alt="19100027efe1420f84bbb107d0bcead8" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
 <p>Classical and quantum properties for 4096 atom amorphous silicon system are shown above. a) density of states, b) lifetimes, c) diffusivities, and e) cumulative thermal conductivity. In spite of the increased quantum lifetimes, a decrease of 0.17W/m/K is seen in the quantum conductivity. The difference in conductivity is primarily a result of the overestimation of classical high frequency heat capacities.</p>
 </section>
 <section id="References">
@@ -762,7 +787,7 @@ Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Tho
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
           
-            <a href="introduction.html" title="Introduction"
+            <a href="getting_started.html" title="Quick Install"
                class="md-flex md-footer-nav__link md-footer-nav__link--prev"
                rel="prev">
               <div class="md-flex__cell md-flex__cell--shrink">
@@ -771,17 +796,17 @@ Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Tho
               <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
                 <span class="md-flex__ellipsis">
                   <span
-                      class="md-footer-nav__direction"> Previous </span> Introduction </span>
+                      class="md-footer-nav__direction"> Previous </span> Quick Install </span>
               </div>
             </a>
           
           
-            <a href="api_forceconstants.html" title="ForceConstants"
+            <a href="user_guide.html" title="Interfacing with Other Codes"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> ForceConstants </span>
+                class="md-footer-nav__direction"> Next </span> Interfacing with Other Codes </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
