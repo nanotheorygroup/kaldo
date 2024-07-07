@@ -476,8 +476,8 @@
             
   <section id="quick-install">
 <h1 id="docsource-getting-started--page-root">Quick Install<a class="headerlink" href="#docsource-getting-started--page-root" title="Permalink to this heading">¶</a></h1>
-<p>We recommend creating a new environment with Python 3.6, 3.7, or 3.8.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>kaldo<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
+<p>We recommend creating a new environment with Python 3.10.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>kaldo<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10
 </pre></div>
 </div>
 <p>and enable the environment</p>
@@ -503,9 +503,9 @@ pip3<span class="w"> </span>install<span class="w"> </span>git+https://github.co
 <h2 id="development-mode">Development mode<a class="headerlink" href="#development-mode" title="Permalink to this heading">¶</a></h2>
 <p>The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>uninstall<span class="w"> </span>kaldo
-make<span class="w"> </span>~/develoment
+mkdir<span class="w"> </span>~/develoment
 <span class="nb">cd</span><span class="w"> </span>~/development
-git<span class="w"> </span>clone<span class="w"> </span>git+https://github.com/nanotheorygroup/kaldo
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/nanotheorygroup/kaldo
 <span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONPATH</span><span class="o">=</span>~/development/kaldo:<span class="nv">$PYTHONPATH</span>
 </pre></div>
 </div>
