@@ -15,7 +15,6 @@ logging = get_logger()
 
 
 @timeit
-@profile
 def project_amorphous(phonons):
     is_balanced = phonons.is_balanced
     frequency = phonons.frequency
