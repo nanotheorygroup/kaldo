@@ -45,6 +45,9 @@ bibliography: literature.bib
 ---
 
 # Summary
+kALDo is versatile and scalable open-source software for predicting thermal properties using Lattice Dynamics. It simulates the properties of crystalline and non-crystalline solids using various numerical methods, such as the Boltzmann Transport Equation (BTE) and the Quasi-Harmonic Green-Kubo (QHGK) approach. kALDo incorporates simulation tools to simulate elastic properties, isotopic effects, finite-size effects, and non-analytical term corrections and integrates seamlessly with popular MLIP frameworks and ab-initio codes like LAMMPS and Quantum Espresso. 
+
+kALDo integrates modern theories of thermal transport with state-of-the-art software development practices to handle complex calculations efficiently. It leverages GPU acceleration and optimized tensor libraries built on TensorFlow to ensure computational efficiency across multicore and multiprocessor environments. It is designed to be user-friendly and provides extensive documentation, examples, and tutorials alongside several visualization tools to plot key physical properties. Its open-source nature encourages community contributions and continuous development, making it a reliable platform for researchers and developers in chemistry, material science, and physics.
 
 
 # Introduction
