@@ -1,8 +1,8 @@
 ### Quick Install
 
-We recommend creating a new environment with Python 3.6, 3.7, or 3.8.
+We recommend creating a new environment with Python 3.10.
 ```bash
-conda create -n kaldo python=3.7
+conda create -n kaldo python=3.10
 ```
 and enable the environment
 ```bash
@@ -29,9 +29,9 @@ pip3 install git+https://github.com/nanotheorygroup/kaldo
 The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.
 ```bash
 pip uninstall kaldo
-make ~/develoment
+mkdir ~/develoment
 cd ~/development
-git clone git+https://github.com/nanotheorygroup/kaldo
+git clone https://github.com/nanotheorygroup/kaldo
 export PYTHONPATH=~/development/kaldo:$PYTHONPATH
 ```
 If you followed the steps in the quickstart and then uninstall kaldo, you will have all the dependencies correctly installed.
