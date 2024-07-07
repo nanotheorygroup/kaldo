@@ -525,8 +525,8 @@ class Phonons:
         """Calculate the atom projected phonon density of states.
         Total density of states can be computed by specifying all atom indices in p_atoms.
         p_atoms input format is flexible:
-            Providing a list of atom indices will return the single pdos summed over those atoms
-            Providing a list of lists of atom indices will return one pdos for each set of indices
+        - Providing a list of atom indices will return the single pdos summed over those atoms
+        - Providing a list of lists of atom indices will return one pdos for each set of indices
 
         Returns
         -------
