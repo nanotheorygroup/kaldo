@@ -3,14 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. image:: docsource/_resources/logo.png
-   :width: 400
+kALDo: A Software to Predict Thermal Properties Using Lattice Dynamics.
+=======================================================================
 
-A Software to Predict Thermal Properties Using Lattice Dynamics.
-======================================================================
-Read the paper here_.
+Read the paper on Arxiv_.
 
-.. _here: https://aip.scitation.org/doi/abs/10.1063/5.0020443
+.. _Arxiv: https://arxiv.org/abs/2009.01967
+
 
 .. toctree::
    :glob:
@@ -89,10 +88,13 @@ Read the paper here_.
    docsource/license.md
 
 
-
 Index
 =====
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+
+.. image:: docsource/_resources/logo.png
+   :width: 400
