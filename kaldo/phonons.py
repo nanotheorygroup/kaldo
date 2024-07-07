@@ -558,7 +558,9 @@ class Phonons:
         frequency = np.real(np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.))
 
         fmin, fmax = frequency.min(), frequency.max()
-        f_grid = np.linspace(fmin, fmax, n_points)
+
+        # Extend the maximum and minimum of frequency to have the tail of pdos
+        f_grid = np.linspace(0.9 * fmin, 1.1 * fmax, n_points)
 
         p_dos = np.zeros((n_proj,n_points), dtype=float)
         for ip in range(n_proj):
