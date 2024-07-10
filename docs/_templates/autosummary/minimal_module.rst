@@ -3,6 +3,6 @@
 .. automodule:: {{ fullname }}
 
    {% block docstring %}
-   {% endblock %}
+   {% end block %}
 
 
