@@ -12,7 +12,8 @@
 /**
  * select a different prefix for underscore
  */
-$u = _.noConflict();
+/* $u = _.noConflict(); Experimentally commenting out this line to fix search function. This seems to set the underscore to a
+non standard function in javascript which breaks the search code. Unclear if this is a totally safe fix, needs testing! -N 7.9.2024 */
 
 /**
  * make the code below compatible with browsers without
