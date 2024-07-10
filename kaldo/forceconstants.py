@@ -18,9 +18,8 @@ MAIN_FOLDER = 'displacement'
 
 class ForceConstants:
     """
-    Class for constructing the finite difference object to calculate
-    the second/third order force constant matrices after providing the
-    unit cell geometry and calculator information.
+    A ForceConstants class object is used to create or load the second or third order force constant matrices as well as
+    store information related to the geometry of the system.
 
     Parameters
     ----------
@@ -42,6 +41,10 @@ class ForceConstants:
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
         Defaults to `None`
+
+    Attributes
+    ----------
+
     """
 
     def __init__(self,
@@ -85,6 +88,17 @@ class ForceConstants:
         """
         Create a finite difference object from a folder
 
+        The folder should contain the a set of files whose names and contents are dependent on the "format" parameter.
+        Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
+        to read it with nicer formatting and explanations).
+
+        numpy: replicated_atoms.xyz, second.npy, third.npz
+        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
+        lammps: replicated_atoms.xyz, Dyn.form, THIRD
+        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
+
         Parameters
         ----------
         folder : str
@@ -98,7 +112,7 @@ class ForceConstants:
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
             the threshold value in magnitude are ignored. Units: ev/A^3
-                Default is `None`
+            Default is `None`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
             distance threshold will be ignored.
@@ -108,15 +122,6 @@ class ForceConstants:
         is_acoustic_sum : Bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
-
-        Inputs
-        ------
-        numpy: replicated_atoms.xyz, second.npy, third.npz
-        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
-        lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
-        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
 
 
         Returns
@@ -214,7 +219,20 @@ class ForceConstants:
 
 
     def elastic_prop(self):
+        """
+        Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa. This describes the stress-strain
+        relationship of the material and can sometimes be used as a loose predictor for thermal conductivity. Requires
+        the dynamical matrix to be loaded or calculated.
 
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        C_ijkl : np.array(3, 3, 3, 3)
+            Elasticity tensor in GPa
+        """
         # Intake key parameters
         atoms = self.atoms
         masses = atoms.get_masses()
