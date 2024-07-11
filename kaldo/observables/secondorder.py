@@ -118,7 +118,10 @@ class SecondOrder(ForceConstant):
 
             config_file = folder + '/' + 'CONTROL'
             try:
-                atoms, supercell = shengbte_io.import_control_file(config_file)
+                atoms, supercell, charges = shengbte_io.import_control_file(config_file)
+                if charges.any():
+                    atoms.info['dielectric'] = charges[0, :, :]
+                    atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
             except FileNotFoundError as err:
                 config_file = folder + '/' + 'POSCAR'
                 logging.info('\nTrying to open POSCAR')
@@ -132,8 +135,9 @@ class SecondOrder(ForceConstant):
             if is_qe_input:
                 filename = folder + '/espresso.ifc2'
                 second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
-                atoms.info['dielectric'] = charges[0, :, :]
-                atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
+                if charges.any():
+                    atoms.info['dielectric'] = charges[0, :, :]
+                    atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                 second_order = second_order.transpose(3, 4, 2, 0, 1)
                 grid_type = 'F'

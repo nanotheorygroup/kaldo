@@ -74,21 +74,25 @@ def read_second_order_matrix(folder, supercell):
 def read_second_order_qe_matrix(filename):
     file = open('%s' % filename, 'r')
     ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
-    charges = np.zeros((n_atoms+1, 3, 3))
     if (ibrav == 0):
-        file.readline()
+        for i in range(3):
+            file.readline()
     for i in np.arange(ntype):
         file.readline()
     for i in np.arange(n_atoms):
         file.readline()
     polar = file.readline()
     if ("T" in polar):
+        logging.info('Charge data found in 2nd order QE file')
+        charges = np.zeros((n_atoms + 1, 3, 3))
         for alpha in np.arange(3): # Dielectric constant tensor
             charges[0, alpha, :] = file.readline().split()
         for na in np.arange(n_atoms): # Born effective charges
             file.readline()
             for alpha in np.arange(3):
                 charges[na+1, alpha, :] = file.readline().split()
+    else:
+        charges = None
     supercell = [int(x) for x in file.readline().split()]
     second = np.zeros((3, 3, n_atoms, n_atoms, supercell[0], supercell[1], supercell[2]))
     for i in np.arange(3 * 3 * n_atoms * n_atoms):
@@ -205,6 +209,8 @@ def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
 def import_control_file(control_file):
     positions = []
     latt_vecs = []
+    eps_vecs = []
+    bec_vecs = []
     lfactor = 1
     with open(control_file, "r") as fo:
         lines = fo.readlines()
@@ -222,10 +228,8 @@ def import_control_file(control_file):
             value = value.replace("''", '\t')
             value = value.replace("'", '')
             elements = value.split("\t")
-
         if 'types' in line:
             value = line.split('=')[1]
-
             types = np.fromstring(value, dtype=int, sep=' ')
         if 'positions' in line:
             value = line.split('=')[1]
@@ -235,6 +239,12 @@ def import_control_file(control_file):
         if 'scell' in line:
             value = line.split('=')[1]
             supercell = np.fromstring(value, dtype=int, sep=' ')
+        if 'epsilon' in line:
+            value = line.split('=')[1]
+            eps_vecs.append(np.fromstring(value, dtype=float, sep=' '))
+        if 'born' in line:
+            value = line.split('=')[1]
+            bec_vecs.append(np.fromstring(value, dtype=float, sep=' '))
     # l factor is in nanometer
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
@@ -246,9 +256,15 @@ def import_control_file(control_file):
                   positions=positions,
                   cell=cell,
                   pbc=[1, 1, 1])
-
     logging.info('Atoms object created.')
-    return atoms, supercell
+    if len(eps_vecs) == 0:
+        charges = None
+    else:
+        charges = np.zeros((len(atoms)+1, 3, 3))
+        charges[0, ...] = np.array(eps_vecs)
+        charges[1:, ...] = np.array(bec_vecs).reshape((len(atoms), 3, 3))
+        logging.info('Charge data found in CONTROL file.')
+    return atoms, supercell, charges
 
 
 def save_second_order_matrix(phonons):
