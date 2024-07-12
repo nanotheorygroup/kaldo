@@ -513,15 +513,17 @@ class HarmonicWithQ(Observable):
         eV_to_10Jmol = units.mol / (10 * units.J)
         e2 = 2.  # square of electron charge in A.U.
         gmax = 14  # maximum reciprocal vector
-        alpha = 1.0  # Ewald parameter
+        alpha = 0.67695  # Ewald parameter
         geg0 = 4 * alpha * gmax
         atoms = self.second.atoms
         natoms = len(atoms)
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr)  # Vol. in Bohr^3
-        positions_n = atoms.positions.copy() / atoms.cell[0, 0]  # Normalized positions
-        distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
+        lattice_constant = atoms.cell[0, :].max() / units.Bohr
+        positions_n = atoms.positions.copy() / units.Bohr  # Normalized positions
+        distances_n = positions_n[:, None, :] - positions_n[None, :, :]
         reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
-        reciprocal_n /= reciprocal_n[0, 0]  # Normalized reciprocal cell
+        reciprocal_n /= np.abs(reciprocal_n[0, 0])  # Normalized reciprocal cell
+        reciprocal_n *= np.pi / lattice_constant  # Consistent w/ ShengBTE units
         correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
         prefactor = 4 * np.pi * e2 / omega_bohr
 
@@ -556,6 +558,7 @@ class HarmonicWithQ(Observable):
         # b. apply mask
         geg = geg[cells_to_include]
         g_positions = g_positions[cells_to_include]
+        g_replicas = g_replicas[cells_to_include]
 
         # 3. Calculate for each cell
         # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
@@ -565,7 +568,7 @@ class HarmonicWithQ(Observable):
 
         # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
         # the phase factor is based on the distance of the G-vector and atomic positions
-        phase = np.exp(-1j * 2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+        phase = np.exp(1j * np.einsum('ia,nma->inm', g_positions, distances_n))
 
         '''
         # All directions at once code
@@ -587,24 +590,24 @@ class HarmonicWithQ(Observable):
         '''
 
         # Terms 1 + 2
-        zag_zeff = np.einsum('ina,mcb->inmabc', zag, zeff)
-        zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3, 5))
+        zag_zeff = np.einsum('ina,mb->inmab', zag, zeff[:, direction, :])
+        zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3))
         # Term 3 (imaginary)
-        zag_zbg_rij = 1j * np.einsum('ina,imb,nmc->inmabc', zag, zag, distances_n)
+        zag_zbg_rij = 1j * np.einsum('ina,imb,nm->inmab', zag, zag, distances_n[:, :, direction])
         # Term 4 (negative)
-        dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)
-        zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*alpha) + 1/geg))
+        dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)[:, direction]
+        zag_zbg_dgeg = -1 * np.einsum('ina,imb,i,i->inmab', zag, zag, dgeg, (1/(4*alpha) + 1/geg))
 
         # Combine terms!
         lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
 
 
         # Scale by exponential decay term
-        lr_correction = np.einsum('i,inmabc->nmabc', decay, lr_correction)
+        lr_correction = np.einsum('i,inmab->nmab', decay, lr_correction)
 
         # Rotate, reshape, rescale, and, finally, return correction value
-        correction_matrix = tf.transpose(lr_correction, perm=[2, 0, 3, 1])
-        correction_matrix = tf.reshape(correction_matrix, shape=(natoms * 3, natoms * 3))
+        correction_matrix = np.transpose(lr_correction, axes=(2, 0, 3, 1))
+        correction_matrix = np.reshape(correction_matrix, (natoms * 3, natoms * 3))
         correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
@@ -751,6 +754,6 @@ class HarmonicWithQ(Observable):
 
         # Apply correction for Born effective charges, if detected
         if self.is_nac:
-            ddyn_s += self.nac_velocities(qpoint=self.q_point, direction=direction)
+            ddyn_s += self.nac_velocities(qpoint=self.q_point, direction=direction) * 10
 
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))

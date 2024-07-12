@@ -17,7 +17,6 @@ for color, file in zip(colors, ['matdyn_reference/with_correction.gp',]):
     ax.plot(monolayer_data[:, 0]/xmax, monolayer_data[:, 1:]/thz_to_invcm, color=color, lw=2, zorder=1)
 
 
-
 kaldo_y = np.loadtxt('plots/7_7_1/dispersion')
 kaldo_x = np.linspace(0, 1, kaldo_y.shape[0])
 for column in range(kaldo_y.shape[1]):

@@ -115,7 +115,16 @@ colors = ['r', 'b',]
 kaldo_y = np.loadtxt('plots/7_7_1/dispersion')
 kaldo_x = np.linspace(0, 1, kaldo_y.shape[0])
 for column in range(kaldo_y.shape[1]):
-    ax.plot(kaldo_x/kaldo_x.max(), kaldo_y[:, column], color='b', lw=2, zorder=10)
+    ax.plot(kaldo_x/kaldo_x.max(), kaldo_y[:, column], color='b', lw=1.5, zorder=10)
+
+colors = ['r', 'b',]
+
+for color, file in zip(colors, ['matdyn_reference/with_correction.gp',]):
+    print('hey!')
+    monolayer_data = np.loadtxt(file)
+    xmax = monolayer_data[:, 0].max()
+    ax.plot(monolayer_data[:, 0]/xmax, monolayer_data[:, 1:]/thz_to_invcm, color='r', lw=3, zorder=1)
+
 plt.show()
 #plot_dispersion(phonons, is_showing=True,
 #           manually_defined_path=path,) #folder=prefix+'/dispersion')
