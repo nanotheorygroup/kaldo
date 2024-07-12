@@ -296,10 +296,10 @@ class HarmonicWithQ(Observable):
         atoms = self.second.atoms
         natoms = len(atoms)
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr)  # Vol. in Bohr^3
-        positions_n = atoms.positions.copy() / atoms.cell[0, 0]  # Normalized positions
+        positions_n = atoms.positions.copy() / atoms.cell[0, :].max()  # Normalized positions
         distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
         reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
-        reciprocal_n /= reciprocal_n[0, 0]  # Normalized reciprocal cell
+        reciprocal_n /= np.abs(reciprocal_n[0, 0])  # Normalized reciprocal cell
         correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
         prefactor = 4 * np.pi * e2 / omega_bohr
 
@@ -345,7 +345,7 @@ class HarmonicWithQ(Observable):
         # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
         # the phase factor is based on the distance of the G-vector and atomic positions
         if qpoint is not None:
-            phase = np.exp(-1j * 2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+            phase = np.exp(1j * 2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
 
             # The long range forces are the outer product of the effective charges, scaled by the cosine term. We impose
             # Hermicity on cartesian axes by taking the average of M and M^T
@@ -381,7 +381,120 @@ class HarmonicWithQ(Observable):
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
 
-    def nac_velocities(self, qpoint=None, gmax=14, alpha=1.0):
+    def nac_frequencies_shengbte(self, qpoint=None):
+        '''
+        Calculate the non-analytic correction to the dynamical matrix.
+
+        Parameters
+        ----------
+        qpoint
+        gmax
+        alpha
+
+        Returns
+        -------
+        correction_matrix
+        '''
+        # Constants, and system information
+        RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
+        eV_to_10Jmol = units.mol / (10 * units.J)
+        e2 = 2.  # square of electron charge in A.U.
+        gmax = 14  # maximum reciprocal vector
+        alpha = 0.67695  # Ewald parameter
+        geg0 = 4 * alpha * gmax
+        atoms = self.second.atoms
+        natoms = len(atoms)
+        omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr)  # Vol. in Bohr^3
+        lattice_constant = atoms.cell[0, :].max() / units.Bohr
+        positions_n = atoms.positions.copy() / lattice_constant  # Normalized positions
+        distances_n = positions_n[:, None, :] - positions_n[None, :, :]
+        distances_n *= lattice_constant/units.Bohr # Consistent w/ ShengBTE units
+        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
+        reciprocal_n /= np.abs(reciprocal_n[0, 0])  # Normalized reciprocal cell
+        reciprocal_n *= np.pi/lattice_constant # Consistent w/ ShengBTE units
+        correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
+        prefactor = 4 * np.pi * e2 / omega_bohr
+
+        sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
+        mass_prefactor = np.reciprocal(np.einsum('i,j->ij', sqrt_mass, sqrt_mass))
+
+        # Charge information
+        epsilon = atoms.info['dielectric']  # in e^2/Bohr
+        zeff = atoms.get_array('charges')  # in e
+
+        # Charge sum rules
+        # Using the "simple" algorithm from QE, we enforce that the sum of
+        # charges for each polarization (e.g. xy, or yy) is zero
+        zeff -= zeff.mean(axis=0)
+
+        # 1. Construct grid of reciprocal unit cells
+        # a. Find the number of replicas to make
+        n_greplicas = 1 + 1 * np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=1)
+        # b. If it's low-dimensional, don't replicate in reciprocal space along axes without replicas in real space
+        n_greplicas[np.array(self.second.supercell) == 1] = 1
+        # c. Generate the grid of replicas
+        g_grid = Grid(n_greplicas.astype(int))
+        g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
+        # d. Transform the raw indices, to coordinates in reciprocal space
+        g_positions = np.einsum('ia,ab->ib', g_replicas, reciprocal_n)
+        if qpoint is not None:  # If we're measuring at finite q, shift the images' positions
+            g_positions = g_positions + (qpoint @ reciprocal_n)
+
+        # 2. Filter cells that don't meet our Ewald cutoff criteria
+        # a. setup mask
+        geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions, dtype=np.float128)
+        cells_to_include = (geg > 0) * (geg / (4 * alpha) < gmax)
+        # b. apply mask
+        geg = geg[cells_to_include]
+        g_positions = g_positions[cells_to_include]
+
+        # 3. Calculate for each cell
+        # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
+        # decay = prefactor * np.exp(-1 * geg / (alpha * 4)) / geg
+        decay = np.exp(-1 * geg / (alpha * 4)) / geg
+        # b. effective charges at each G-vector
+        zag = np.einsum('nab,ia->inb', zeff, g_positions)
+
+        # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
+        # the phase factor is based on the distance of the G-vector and atomic positions
+        if qpoint is not None:
+            phase = np.exp(1j * np.einsum('ia,nma->inm', g_positions, distances_n))
+
+            # The long range forces are the outer product of the effective charges, scaled by the cosine term. We impose
+            # Hermicity on cartesian axes by taking the average of M and M^T
+            lr_correction = np.einsum('ina,inm,imb->inmab', zag, phase, zag)
+            lr_correction += np.transpose(lr_correction, (0, 1, 2, 4, 3))
+            lr_correction *= 0.5
+
+            # Scale by exponential decay term
+            lr_correction = np.einsum('i,inmab->abnm', decay, lr_correction)
+
+            # Apply the correction to each atom pair
+            correction_matrix += lr_correction
+
+        else:  # only the real part of the phase is taken at Gamma
+            phase = np.exp(1j * np.einsum('ia,nma->inm', g_positions, distances_n))
+
+            # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
+            # The long range forces are an outer product of the effective charges, scaled by the exponential term.
+            # We impose Hermicity on cartesian axes by taking the average of M and M^T
+            lr_correction = np.einsum('ina,inm,imb->inab', zag, phase, zag)
+            lr_correction += np.transpose(lr_correction, (0, 1, 3, 2))
+            lr_correction *= 0.5
+
+            # Scale by exponential decay term
+            lr_correction = np.einsum('i,inab->abn', decay, lr_correction)
+
+            # Apply the correction to the diagonals of the dynamical matrix
+            correction_matrix = tf.linalg.set_diag(correction_matrix,
+                                                   tf.linalg.diag_part(correction_matrix) - lr_correction)
+        correction_matrix = tf.transpose(correction_matrix, perm=[2, 0, 3, 1])
+        correction_matrix = tf.reshape(correction_matrix, shape=(natoms * 3, natoms * 3))
+        correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
+        correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
+        return correction_matrix
+
+    def nac_velocities(self, direction, qpoint=None, gmax=14, alpha=1.0,):
         '''
         Calculate the non-analytic correction to the dynamical matrix.
 
@@ -452,22 +565,45 @@ class HarmonicWithQ(Observable):
 
         # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
         # the phase factor is based on the distance of the G-vector and atomic positions
-        phase = np.cos(2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+        phase = np.exp(-1j * 2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
 
-        # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc.)
-        # The long range forces are an outer product of the effective charges, scaled by the exponential term.
-        # We impose Hermicity on cartesian axes by taking the average of M and M^T
-        lr_correction = np.einsum('ina,inm,imb->inab', zag, phase, zag)
-        lr_correction += np.transpose(lr_correction, (0, 1, 3, 2))
-        lr_correction *= 0.5
+        '''
+        # All directions at once code
+        # Terms 1 + 2
+        zag_zeff = np.einsum('ina,mcb->inmabc', zag, zeff)
+        zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3, 5))
+        # Term 3 (imaginary)
+        zag_zbg_rij = 1j * np.einsum('ina,imb,nmc->inmabc', zag, zag, distances_n)
+        # Term 4 (negative)
+        dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)
+        zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*alpha) + 1/geg))
+
+        # Combine terms!
+        lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
+
 
         # Scale by exponential decay term
-        lr_correction = np.einsum('i,inab->abn', decay, lr_correction)
+        lr_correction = np.einsum('i,inmabc->nmabc', decay, lr_correction)
+        '''
 
-        # Apply the correction to the diagonals of the dynamical matrix
-        correction_matrix = tf.linalg.set_diag(correction_matrix,
-                                               tf.linalg.diag_part(correction_matrix) - lr_correction)
-        correction_matrix = tf.transpose(correction_matrix, perm=[2, 0, 3, 1])
+        # Terms 1 + 2
+        zag_zeff = np.einsum('ina,mcb->inmabc', zag, zeff)
+        zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3, 5))
+        # Term 3 (imaginary)
+        zag_zbg_rij = 1j * np.einsum('ina,imb,nmc->inmabc', zag, zag, distances_n)
+        # Term 4 (negative)
+        dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)
+        zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*alpha) + 1/geg))
+
+        # Combine terms!
+        lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
+
+
+        # Scale by exponential decay term
+        lr_correction = np.einsum('i,inmabc->nmabc', decay, lr_correction)
+
+        # Rotate, reshape, rescale, and, finally, return correction value
+        correction_matrix = tf.transpose(lr_correction, perm=[2, 0, 3, 1])
         correction_matrix = tf.reshape(correction_matrix, shape=(natoms * 3, natoms * 3))
         correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
@@ -528,7 +664,7 @@ class HarmonicWithQ(Observable):
 
         # Calculate phase and combine with coefficient to normalize contributions from replicas
         # that may be represented more than once
-        phase = np.exp(2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
         prefactors = np.einsum('i,inm->inm', phase, coefficients)
         prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
         prefactors = prefactors.transpose((4, 2, 0, 3, 1))
@@ -540,9 +676,14 @@ class HarmonicWithQ(Observable):
         dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
         # Apply correction for Born effective charges, if detected
+        # if self.is_nac:
+        #     dyn_s += self.nac_frequencies(qpoint=None)
+        #     dyn_s += self.nac_frequencies(qpoint=self.q_point)
         if self.is_nac:
             dyn_s += self.nac_frequencies(qpoint=None)
             dyn_s += self.nac_frequencies(qpoint=self.q_point)
+            #dyn_s += self.nac_frequencies_shengbte(qpoint=None)
+            #dyn_s += self.nac_frequencies_shengbte(qpoint=self.q_point)
 
         # Diagonalize
         # TODO: clean this up - no need to return eigenvectors if frequency requested
@@ -558,32 +699,58 @@ class HarmonicWithQ(Observable):
             esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
         return esystem
 
-    def calculate_dynmat_derivatives_unfolded(self, direction=None):
-        # This algorithm should be the same as the ShengBTE version
+    def calculate_dynmat_derivatives_unfolded(self, direction):
         q_point = self.q_point
-        supercell = self.supercell
-        atoms = self.atoms
+        supercell = self.second.supercell
+        atoms = self.second.atoms
         cell = atoms.cell
-        n_unit_cell = atoms.positions.shape[0]
-        ddyn_s = np.zeros((n_unit_cell, 3, n_unit_cell, 3), dtype=complex)
+        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
+        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
+        n_unit_cell = len(atoms)
+        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
+
+        # Get Force constants
         fc_s = self.second.dynmat.numpy()
         fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-        supercell_replicas = self.second.supercell_replicas
-        for ind in range(supercell_replicas.shape[0]):
-            supercell_replica = supercell_replicas[ind]
-            replica_position = np.tensordot(supercell_replica, cell, (-1, 0))
-            distance = replica_position[None, None, :] + (atoms.positions[:, None, :] - atoms.positions[None, :, :])
-            projection = (contract('la,ija->ijl', supercell_positions, distance) - supercell_norms[None, None, :])
-            mask = (projection <= 1e-6).all(axis=-1)
-            neq = (np.abs(projection) <= 1e-6).sum(axis=-1)
-            weight = 1.0 / neq
-            coefficient = weight * mask
-            if coefficient.any():
-                supercell_index = supercell_replica % supercell
-                qr = -2. * np.pi * np.dot(q_point, supercell_replica)
-                ddyn_s[:, :, :, :] -= replica_position[direction] * np.exp(1j * qr) *\
-                                      contract('jbia,ij->iajb', fc_s[:, :, supercell_index[0],
-                                          supercell_index[1], supercell_index[2], :, :], coefficient)
+        cell_replicas = self.second.supercell_replicas
+        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
+        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
+        supercell_positions = self.second.supercell_positions
+        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
+        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
+
+        # Filter + Weights
+        mask_distance = (projection <= 1e-6).all(axis=0)
+        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
+        weight = 1 / n_equivalent
+        coefficients = weight * mask_distance
+
+        # Find contributing replicas
+        mask_full = coefficients.any(axis=(-2, -1))
+        coefficients = coefficients[mask_full]
+        cell_replicas = cell_replicas[mask_full]
+        cell_positions = cell_positions[mask_full]
+        cell_indices = cell_replicas % supercell
+
+        # Calculate phase and combine with coefficient to normalize contributions from replicas
+        # that may be represented more than once
+        # NOTE: If you wanted to redo this to calculate all the directions at the same time, the first
+        # prefactors line is the only place where direction is used.
+        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+        prefactors = np.einsum('i,i,inm->inm', cell_positions[:,direction], phase, coefficients)
+        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
+        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
+
+        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
+        ddyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
+        ddyn_s = np.transpose(ddyn_s, axes=(3, 4, 2, 0, 1))
+        ddyn_s = ddyn_s.sum(axis=2)
+        ddyn_s = ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
+
+        # Apply correction for Born effective charges, if detected
+        if self.is_nac:
+            ddyn_s += self.nac_velocities(qpoint=self.q_point, direction=direction)
+
         return ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
