@@ -143,10 +143,11 @@ class Phonons:
     def physical_mode(self):
         """Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
         modes outside the frequency range min_frequency and max_frequency.
+
         Returns
         -------
-        physical_mode : np array
-            (n_k_points, n_modes) bool
+        physical_mode : np array(n_k_points, n_modes)
+            bool
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
@@ -173,10 +174,11 @@ class Phonons:
     @lazy_property(label='')
     def frequency(self):
         """Calculate phonons frequency
+
         Returns
         -------
-        frequency : np array
-            (n_k_points, n_modes) frequency in THz
+        frequency : np array(n_k_points, n_modes)
+             frequency in THz
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
@@ -201,10 +203,11 @@ class Phonons:
         """Calculates the participation ratio of each normal mode. Participation ratio's
         represent the fraction of atoms that are displaced meaning a value of 1 corresponds
         to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
+
         Returns
         -------
-        participation_ratio : np array
-            (n_k_points, n_modes) atomic participation
+        participation_ratio : np array(n_k_points, n_modes)
+             atomic participation
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         participation_ratio = np.zeros((self.n_k_points, self.n_modes))
@@ -230,8 +233,8 @@ class Phonons:
 
         Returns
         -------
-        velocity : np array
-            (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps
+        velocity : np array(n_k_points, n_unit_cell * 3, 3)
+             velocity in 100m/s or A/ps
         """
 
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
@@ -257,9 +260,9 @@ class Phonons:
 
         Returns
         -------
-        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)
+        _eigensystem : np.array(n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)
             eigensystem is calculated for each k point, the three dimensional array
-            records the eigenvalues in the last column of the last dimension.
+            records the eigenvalues in the first column of the second dimension.
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
@@ -398,10 +401,11 @@ class Phonons:
     def isotopic_bandwidth(self):
         """ Calculate the isotopic bandwidth with Tamura perturbative formula.
         Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
+
         Returns
         -------
-        isotopic_bw : np array
-            (n_k_points, n_modes) atomic participation
+        isotopic_bw : np array(n_k_points, n_modes)
+             atomic participation
         """
         if self._is_amorphous:
             logging.warning('isotopic scattering not implemented for amorphous systems')
@@ -451,8 +455,8 @@ class Phonons:
 
         Returns
         -------
-        eigenvalues : np array
-            (n_phonons) Eigenvalues of the dynamical matrix
+        eigenvalues : np array(n_phonons)
+             Eigenvalues of the dynamical matrix
         """
         eigenvalues = self._eigensystem[:, 0, :]
         return eigenvalues
@@ -464,8 +468,8 @@ class Phonons:
 
         Returns
         -------
-        eigenvectors : np array
-            (n_phonons, n_phonons) Eigenvectors of the dynamical matrix
+        eigenvectors : np array(n_phonons, n_phonons)
+             Eigenvectors of the dynamical matrix
         """
         eigenvectors = self._eigensystem[:, 1:, :]
         return eigenvectors
@@ -497,8 +501,8 @@ class Phonons:
 
         Returns
         -------
-        frequency : np array
-            (n_k_points, n_modes) frequency in rad
+        frequency : np array(n_k_points, n_modes)
+            frequency in rad
         """
         return self.frequency * 2 * np.pi
 
@@ -530,8 +534,10 @@ class Phonons:
 
         Returns
         -------
-            freq, pdos : np array, np array
-            (n_points), (n_projections, n_points) Frequencies, pdos for each set of projected atoms`
+            frequency : np array(n_points)
+                Frequencies
+            pdos : np.array(n_projections, n_points)
+                pdos for each set of projected atoms and directions
         """
 
         p_single = False
