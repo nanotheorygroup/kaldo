@@ -68,7 +68,7 @@
     <link rel="shortcut icon" href="../_static/logo.ico"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Conductivity" href="api_conductivity.html" />
+    <link rel="next" title="kaldo.phonons.Phonons.pdos" href="API/Phonons/kaldo.phonons.Phonons.pdos.html" />
     <link rel="prev" title="ForceConstants" href="api_forceconstants.html" />
   
    
@@ -477,6 +477,61 @@ between finishing your Finite Difference object, and
 initializing the Conductivity object.</p>
 <section id="api-reference">
 <h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading">¶</a></h2>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.pdos.html#kaldo.phonons.Phonons.pdos" title="kaldo.phonons.Phonons.pdos"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.pdos</span></code></a></p></td>
+<td><p>Calculate the atom projected phonon density of states.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.physical_mode.html#kaldo.phonons.Phonons.physical_mode" title="kaldo.phonons.Phonons.physical_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.physical_mode</span></code></a></p></td>
+<td><p>Calculate physical modes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.participation_ratio.html#kaldo.phonons.Phonons.participation_ratio" title="kaldo.phonons.Phonons.participation_ratio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.participation_ratio</span></code></a></p></td>
+<td><p>Calculates the participation ratio of each normal mode.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.bandwidth.html#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.bandwidth</span></code></a></p></td>
+<td><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.isotopic_bandwidth.html#kaldo.phonons.Phonons.isotopic_bandwidth" title="kaldo.phonons.Phonons.isotopic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.isotopic_bandwidth</span></code></a></p></td>
+<td><p>Calculate the isotopic bandwidth with Tamura perturbative formula.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.anharmonic_bandwidth.html#kaldo.phonons.Phonons.anharmonic_bandwidth" title="kaldo.phonons.Phonons.anharmonic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.anharmonic_bandwidth</span></code></a></p></td>
+<td><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.frequency.html#kaldo.phonons.Phonons.frequency" title="kaldo.phonons.Phonons.frequency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.frequency</span></code></a></p></td>
+<td><p>Calculate phonons frequency</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.omega.html#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.omega</span></code></a></p></td>
+<td><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.velocity.html#kaldo.phonons.Phonons.velocity" title="kaldo.phonons.Phonons.velocity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.velocity</span></code></a></p></td>
+<td><p>Calculates the velocity using Hellmann-Feynman theorem.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.heat_capacity.html#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.heat_capacity</span></code></a></p></td>
+<td><p>Calculate the heat capacity for each k point in k_points and each mode. If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the Bose-Einstein weighted by each phonons energy. .. math::.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.heat_capacity_2d.html#kaldo.phonons.Phonons.heat_capacity_2d" title="kaldo.phonons.Phonons.heat_capacity_2d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.heat_capacity_2d</span></code></a></p></td>
+<td><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.population.html#kaldo.phonons.Phonons.population" title="kaldo.phonons.Phonons.population"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.population</span></code></a></p></td>
+<td><p>Calculate the phonons population for each k point in k_points and each mode.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.phase_space.html#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.phase_space</span></code></a></p></td>
+<td><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.eigenvalues.html#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.eigenvalues</span></code></a></p></td>
+<td><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.eigenvectors.html#kaldo.phonons.Phonons.eigenvectors" title="kaldo.phonons.Phonons.eigenvectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.eigenvectors</span></code></a></p></td>
+<td><p>Calculates the eigenvectors of the dynamical matrix.</p></td>
+</tr>
+</tbody>
+</table>
 <dl class="py class">
 <dt class="sig sig-object py" id="kaldo.phonons.Phonons">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.phonons.</span></span><span class="sig-name descname"><span class="pre">Phonons</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.phonons.Phonons" title="Permalink to this definition">¶</a></dt>
@@ -548,33 +603,33 @@ in the isotopic scattering computation. Default is True.</p></li>
 </dd>
 <dt class="field-odd">Attributes<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.anharmonic_bandwidth" title="kaldo.phonons.Phonons.anharmonic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">anharmonic_bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.anharmonic_bandwidth.html#kaldo.phonons.Phonons.anharmonic_bandwidth" title="kaldo.phonons.Phonons.anharmonic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">anharmonic_bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.bandwidth.html#kaldo.phonons.Phonons.bandwidth" title="kaldo.phonons.Phonons.bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bandwidth</span></code></a></dt><dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvalues</span></code></a></dt><dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.eigenvalues.html#kaldo.phonons.Phonons.eigenvalues" title="kaldo.phonons.Phonons.eigenvalues"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvalues</span></code></a></dt><dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvectors" title="kaldo.phonons.Phonons.eigenvectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvectors</span></code></a></dt><dd><p>Calculates the eigenvectors of the dynamical matrix.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.eigenvectors.html#kaldo.phonons.Phonons.eigenvectors" title="kaldo.phonons.Phonons.eigenvectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvectors</span></code></a></dt><dd><p>Calculates the eigenvectors of the dynamical matrix.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.frequency" title="kaldo.phonons.Phonons.frequency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">frequency</span></code></a></dt><dd><p>Calculate phonons frequency</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.frequency.html#kaldo.phonons.Phonons.frequency" title="kaldo.phonons.Phonons.frequency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">frequency</span></code></a></dt><dd><p>Calculate phonons frequency</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.heat_capacity.html#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="kaldo.phonons.Phonons.heat_capacity_2d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity_2d</span></code></a></dt><dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.heat_capacity_2d.html#kaldo.phonons.Phonons.heat_capacity_2d" title="kaldo.phonons.Phonons.heat_capacity_2d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity_2d</span></code></a></dt><dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.isotopic_bandwidth" title="kaldo.phonons.Phonons.isotopic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isotopic_bandwidth</span></code></a></dt><dd><p>Calculate the isotopic bandwidth with Tamura perturbative formula.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.isotopic_bandwidth.html#kaldo.phonons.Phonons.isotopic_bandwidth" title="kaldo.phonons.Phonons.isotopic_bandwidth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isotopic_bandwidth</span></code></a></dt><dd><p>Calculate the isotopic bandwidth with Tamura perturbative formula.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.omega.html#kaldo.phonons.Phonons.omega" title="kaldo.phonons.Phonons.omega"><code class="xref py py-obj docutils literal notranslate"><span class="pre">omega</span></code></a></dt><dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.participation_ratio" title="kaldo.phonons.Phonons.participation_ratio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">participation_ratio</span></code></a></dt><dd><p>Calculates the participation ratio of each normal mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.participation_ratio.html#kaldo.phonons.Phonons.participation_ratio" title="kaldo.phonons.Phonons.participation_ratio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">participation_ratio</span></code></a></dt><dd><p>Calculates the participation ratio of each normal mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_space</span></code></a></dt><dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.phase_space.html#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_space</span></code></a></dt><dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.physical_mode" title="kaldo.phonons.Phonons.physical_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">physical_mode</span></code></a></dt><dd><p>Calculate physical modes.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.physical_mode.html#kaldo.phonons.Phonons.physical_mode" title="kaldo.phonons.Phonons.physical_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">physical_mode</span></code></a></dt><dd><p>Calculate physical modes.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.population" title="kaldo.phonons.Phonons.population"><code class="xref py py-obj docutils literal notranslate"><span class="pre">population</span></code></a></dt><dd><p>Calculate the phonons population for each k point in k_points and each mode.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.population.html#kaldo.phonons.Phonons.population" title="kaldo.phonons.Phonons.population"><code class="xref py py-obj docutils literal notranslate"><span class="pre">population</span></code></a></dt><dd><p>Calculate the phonons population for each k point in k_points and each mode.</p>
 </dd>
-<dt><a class="reference internal" href="#kaldo.phonons.Phonons.velocity" title="kaldo.phonons.Phonons.velocity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">velocity</span></code></a></dt><dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
+<dt><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.velocity.html#kaldo.phonons.Phonons.velocity" title="kaldo.phonons.Phonons.velocity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">velocity</span></code></a></dt><dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
 </dd>
 </dl>
 </dd>
@@ -582,201 +637,11 @@ in the isotopic scattering computation. Default is True.</p></li>
 <p class="rubric">Methods</p>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.phonons.Phonons.pdos" title="kaldo.phonons.Phonons.pdos"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pdos</span></code></a>([p_atoms, direction, bandwidth, n_points])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="API/Phonons/kaldo.phonons.Phonons.pdos.html#kaldo.phonons.Phonons.pdos" title="kaldo.phonons.Phonons.pdos"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pdos</span></code></a>([p_atoms, direction, bandwidth, n_points])</p></td>
 <td><p>Calculate the atom projected phonon density of states.</p></td>
 </tr>
 </tbody>
 </table>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.anharmonic_bandwidth">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">anharmonic_bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.anharmonic_bandwidth" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>bandwidth</strong> – bandwidth for each k point and each mode</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.bandwidth">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.bandwidth" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>bandwidth</strong> – bandwidth for each k point and each mode</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.eigenvalues">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">eigenvalues</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvalues" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the eigenvalues of the dynamical matrix in Thz^2.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>eigenvalues</strong> – (n_phonons) Eigenvalues of the dynamical matrix</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np array</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.eigenvectors">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">eigenvectors</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.eigenvectors" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the eigenvectors of the dynamical matrix.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>eigenvectors</strong> – (n_phonons, n_phonons) Eigenvectors of the dynamical matrix</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np array</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.frequency">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frequency</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.frequency" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate phonons frequency
-:returns: <strong>frequency</strong> – (n_k_points, n_modes) frequency in THz
-:rtype: np array</p>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.heat_capacity">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">heat_capacity</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the heat capacity for each k point in k_points and each mode.
-If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
-Bose-Einstein weighted by each phonons energy.
-.. math:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">c_</span>\<span class="n">mu</span> <span class="o">=</span> <span class="n">k_B</span> \<span class="n">frac</span><span class="p">{</span>\<span class="n">nu_</span>\<span class="n">mu</span><span class="o">^</span><span class="mi">2</span><span class="p">}{</span> \<span class="n">tilde</span> <span class="n">T</span><span class="o">^</span><span class="mi">2</span><span class="p">}</span> <span class="n">n_</span>\<span class="n">mu</span> <span class="p">(</span><span class="n">n_</span>\<span class="n">mu</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>where the frequency <img alt="\nu" class="math" src="../_images/math/e382c4cba8e7739dc93434175665a506086e747d.png"/> and the temperature <img alt="\tilde T" class="math" src="../_images/math/a1973297dcd8ed1a36edc696aef0e150cf6bf502.png"/> are in THz.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>c_v</strong> – heat capacity in J/K for each k point and each mode</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.heat_capacity_2d">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">heat_capacity_2d</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
-If classical, it returns the Boltzmann constant in W/m/K.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>heat_capacity_2d</strong> – heat capacity in W/m/K for each k point and each modes couple.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.isotopic_bandwidth">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">isotopic_bandwidth</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.isotopic_bandwidth" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the isotopic bandwidth with Tamura perturbative formula.
-Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
-:returns: <strong>isotopic_bw</strong> – (n_k_points, n_modes) atomic participation
-:rtype: np array</p>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.omega">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">omega</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.omega" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the angular frequencies from the diagonalized dynamical matrix.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>frequency</strong> – (n_k_points, n_modes) frequency in rad</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np array</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.participation_ratio">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">participation_ratio</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.participation_ratio" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the participation ratio of each normal mode. Participation ratio’s
-represent the fraction of atoms that are displaced meaning a value of 1 corresponds
-to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
-:returns: <strong>participation_ratio</strong> – (n_k_points, n_modes) atomic participation
-:rtype: np array</p>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.pdos">
-<span class="sig-name descname"><span class="pre">pdos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p_atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandwidth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/phonons.html#Phonons.pdos"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.phonons.Phonons.pdos" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the atom projected phonon density of states.
-Total density of states can be computed by specifying all atom indices in p_atoms.
-p_atoms input format is flexible:
-- Providing a list of atom indices will return the single pdos summed over those atoms
-- Providing a list of lists of atom indices will return one pdos for each set of indices</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><ul class="simple">
-<li><p><strong>freq, pdos</strong> (<em>np array, np array</em>)</p></li>
-<li><p>(n_points), (n_projections, n_points) Frequencies, pdos for each set of projected atoms`</p></li>
-</ul>
-</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.phase_space">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">phase_space</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>phase_space</strong> – phase_space for each k point and each mode</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.physical_mode">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">physical_mode</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.physical_mode" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
-modes outside the frequency range min_frequency and max_frequency.
-:returns: <strong>physical_mode</strong> – (n_k_points, n_modes) bool
-:rtype: np array</p>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.population">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">population</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.population" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the phonons population for each k point in k_points and each mode.
-If classical, it returns the temperature divided by each frequency, using equipartition theorem.
-If quantum it returns the Bose-Einstein distribution</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>population</strong> – population for each k point and each mode</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.phonons.Phonons.velocity">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">velocity</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.velocity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>velocity</strong> – (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np array</p>
-</dd>
-</dl>
-</dd></dl>
 </dd></dl>
 </section>
 </section>
@@ -805,12 +670,12 @@ If quantum it returns the Bose-Einstein distribution</p>
             </a>
           
           
-            <a href="api_conductivity.html" title="Conductivity"
+            <a href="API/Phonons/kaldo.phonons.Phonons.pdos.html" title="kaldo.phonons.Phonons.pdos"
                class="md-flex md-footer-nav__link md-footer-nav__link--next"
                rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
                 class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Conductivity </span>
+                class="md-footer-nav__direction"> Next </span> kaldo.phonons.Phonons.pdos </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink"><i
                 class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>

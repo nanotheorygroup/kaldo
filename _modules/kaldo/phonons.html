@@ -587,10 +587,11 @@
     <span class="k">def</span> <span class="nf">physical_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the</span>
 <span class="sd">        modes outside the frequency range min_frequency and max_frequency.</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        physical_mode : np array</span>
-<span class="sd">            (n_k_points, n_modes) bool</span>
+<span class="sd">        physical_mode : np array(n_k_points, n_modes)</span>
+<span class="sd">            bool</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
@@ -617,10 +618,11 @@
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Calculate phonons frequency</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        frequency : np array</span>
-<span class="sd">            (n_k_points, n_modes) frequency in THz</span>
+<span class="sd">        frequency : np array(n_k_points, n_modes)</span>
+<span class="sd">             frequency in THz</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
@@ -645,10 +647,11 @@
 <span class="w">        </span><span class="sd">"""Calculates the participation ratio of each normal mode. Participation ratio's</span>
 <span class="sd">        represent the fraction of atoms that are displaced meaning a value of 1 corresponds</span>
 <span class="sd">        to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        participation_ratio : np array</span>
-<span class="sd">            (n_k_points, n_modes) atomic participation</span>
+<span class="sd">        participation_ratio : np array(n_k_points, n_modes)</span>
+<span class="sd">             atomic participation</span>
 <span class="sd">        """</span>
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">participation_ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
@@ -674,8 +677,8 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        velocity : np array</span>
-<span class="sd">            (n_k_points, n_unit_cell * 3, 3) velocity in 100m/s or A/ps</span>
+<span class="sd">        velocity : np array(n_k_points, n_unit_cell * 3, 3)</span>
+<span class="sd">             velocity in 100m/s or A/ps</span>
 <span class="sd">        """</span>
 
         <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -701,9 +704,9 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        _eigensystem : np.array(n_k_points, n_unit_cell * 3, n_unit_cell * 3 + 1)</span>
+<span class="sd">        _eigensystem : np.array(n_k_points, n_unit_cell * 3 + 1, n_unit_cell * 3)</span>
 <span class="sd">            eigensystem is calculated for each k point, the three dimensional array</span>
-<span class="sd">            records the eigenvalues in the last column of the last dimension.</span>
+<span class="sd">            records the eigenvalues in the first column of the second dimension.</span>
 
 <span class="sd">            If the system is not amorphous, these values are stored as complex numbers.</span>
 <span class="sd">        """</span>
@@ -842,10 +845,11 @@
     <span class="k">def</span> <span class="nf">isotopic_bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">""" Calculate the isotopic bandwidth with Tamura perturbative formula.</span>
 <span class="sd">        Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        isotopic_bw : np array</span>
-<span class="sd">            (n_k_points, n_modes) atomic participation</span>
+<span class="sd">        isotopic_bw : np array(n_k_points, n_modes)</span>
+<span class="sd">             atomic participation</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'isotopic scattering not implemented for amorphous systems'</span><span class="p">)</span>
@@ -895,8 +899,8 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        eigenvalues : np array</span>
-<span class="sd">            (n_phonons) Eigenvalues of the dynamical matrix</span>
+<span class="sd">        eigenvalues : np array(n_phonons)</span>
+<span class="sd">             Eigenvalues of the dynamical matrix</span>
 <span class="sd">        """</span>
         <span class="n">eigenvalues</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eigensystem</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
         <span class="k">return</span> <span class="n">eigenvalues</span>
@@ -908,8 +912,8 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        eigenvectors : np array</span>
-<span class="sd">            (n_phonons, n_phonons) Eigenvectors of the dynamical matrix</span>
+<span class="sd">        eigenvectors : np array(n_phonons, n_phonons)</span>
+<span class="sd">             Eigenvectors of the dynamical matrix</span>
 <span class="sd">        """</span>
         <span class="n">eigenvectors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eigensystem</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:,</span> <span class="p">:]</span>
         <span class="k">return</span> <span class="n">eigenvectors</span>
@@ -941,8 +945,8 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        frequency : np array</span>
-<span class="sd">            (n_k_points, n_modes) frequency in rad</span>
+<span class="sd">        frequency : np array(n_k_points, n_modes)</span>
+<span class="sd">            frequency in rad</span>
 <span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
 
@@ -965,7 +969,7 @@
         <span class="k">return</span> <span class="n">is_amorphous</span>
 
 
-<div class="viewcode-block" id="Phonons.pdos"><a class="viewcode-back" href="../../docsource/api_phonons.html#kaldo.phonons.Phonons.pdos">[docs]</a>    <span class="k">def</span> <span class="nf">pdos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p_atoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
+<div class="viewcode-block" id="Phonons.pdos"><a class="viewcode-back" href="../../docsource/API/Phonons/kaldo.phonons.Phonons.pdos.html#kaldo.phonons.Phonons.pdos">[docs]</a>    <span class="k">def</span> <span class="nf">pdos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p_atoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Calculate the atom projected phonon density of states.</span>
 <span class="sd">        Total density of states can be computed by specifying all atom indices in p_atoms.</span>
 <span class="sd">        p_atoms input format is flexible:</span>
@@ -974,8 +978,10 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">            freq, pdos : np array, np array</span>
-<span class="sd">            (n_points), (n_projections, n_points) Frequencies, pdos for each set of projected atoms`</span>
+<span class="sd">            frequency : np array(n_points)</span>
+<span class="sd">                Frequencies</span>
+<span class="sd">            pdos : np.array(n_projections, n_points)</span>
+<span class="sd">                pdos for each set of projected atoms and directions</span>
 <span class="sd">        """</span>
 
         <span class="n">p_single</span> <span class="o">=</span> <span class="kc">False</span>

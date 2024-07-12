@@ -316,7 +316,11 @@
         </li></ul>
             </nav>
         </li>
-        <li class="md-nav__item"><a href="#loading-precalculated-ifcs" class="md-nav__link">Loading Precalculated IFCs</a>
+        <li class="md-nav__item"><a href="#loading-precalculated-ifcs" class="md-nav__link">Loading Precalculated IFCs</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#input-files-and-formats" class="md-nav__link">Input Files and Formats</a>
+        </li></ul>
+            </nav>
         </li>
         <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
         </li></ul>
@@ -470,7 +474,11 @@
         </li></ul>
             </nav>
         </li>
-        <li class="md-nav__item"><a href="#loading-precalculated-ifcs" class="md-nav__link">Loading Precalculated IFCs</a>
+        <li class="md-nav__item"><a href="#loading-precalculated-ifcs" class="md-nav__link">Loading Precalculated IFCs</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#input-files-and-formats" class="md-nav__link">Input Files and Formats</a>
+        </li></ul>
+            </nav>
         </li>
         <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
         </li></ul>
@@ -605,7 +613,9 @@ needed.</p>
 to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just need to
 generate a phonon dispersion along a new path.</p>
 </div>
-<span id="input-files"></span><table id="id4">
+<section id="input-files-and-formats">
+<span id="input-files"></span><h3 id="input-files-and-formats">Input Files and Formats<a class="headerlink" href="#input-files-and-formats" title="Permalink to this heading">¶</a></h3>
+<table id="id4">
 <caption><span class="caption-text">Input Files</span><a class="headerlink" href="#id4" title="Permalink to this table">¶</a></caption>
 <colgroup>
 <col style="width: 20%"/>
@@ -674,14 +684,14 @@ look for a “POSCAR” file (ASE format “vasp”). If neither are found, it w
 use the import_control_file method.</p>
 </aside>
 </section>
+</section>
 <section id="api-reference">
 <h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.forceconstants.</span></span><span class="sig-name descname"><span class="pre">ForceConstants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'displacement'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Permalink to this definition">¶</a></dt>
-<dd><p>Class for constructing the finite difference object to calculate
-the second/third order force constant matrices after providing the
-unit cell geometry and calculator information.</p>
+<dd><p>A ForceConstants class object is used to create or load the second or third order force constant matrices as well as
+store information related to the geometry of the system.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -703,21 +713,48 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
 <p class="rubric">Methods</p>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code>(folder[, supercell, format, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, ...])</p></td>
 <td><p>Create a finite difference object from a folder</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code>([reduced_third, ...])</p></td>
-<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.</p></td>
-</tr>
 </tbody>
 </table>
-<table>
-<tbody>
-<tr class="row-odd"><td><p><strong>elastic_prop</strong></p></td>
-<td></td>
-</tr>
-</tbody>
-</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.from_folder">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'numpy'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_energy_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_supercell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_acoustic_sum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">only_second</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a finite difference object from a folder</p>
+<p>The folder should contain the a set of files whose names and contents are dependent on the “format” parameter.
+Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
+to read it with nicer formatting and explanations).</p>
+<p>numpy: replicated_atoms.xyz, second.npy, third.npz
+eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
+lammps: replicated_atoms.xyz, Dyn.form, THIRD
+shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> (<em>str</em>) – Chosen folder to load in system information.</p></li>
+<li><p><strong>supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Number of unit cells in each cartesian direction replicated to form the input structure.
+Default is (1, 1, 1)</p></li>
+<li><p><strong>format</strong> (<em>'numpy'</em><em>, </em><em>'eskm'</em><em>, </em><em>'lammps'</em><em>, </em><em>'shengbte'</em><em>, </em><em>'shengbte-qe'</em><em>, </em><em>'hiphive'</em>) – Format of force constant information being loaded into ForceConstants object.
+Default is ‘numpy’</p></li>
+<li><p><strong>third_energy_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When importing sparse third order force constant matrices, energies below
+the threshold value in magnitude are ignored. Units: ev/A^3
+Default is <img alt="None" class="math" src="../_images/math/66f3449a3b20a6309557813edf86759218d71d30.png"/></p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than the
+distance threshold will be ignored.</p></li>
+<li><p><strong>third_supercell</strong> (<em>(</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>)</em><em>, </em><em>optional</em>) – Takes in the unit cell for the third order force constant matrix.
+Default is self.supercell</p></li>
+<li><p><strong>is_acoustic_sum</strong> (<em>Bool</em><em>, </em><em>optional</em>) – If true, the acoustic sum rule is applied to the dynamical matrix.
+Default is False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>ForceConstants object</p>
+</dd>
+</dl>
+</dd></dl>
 </dd></dl>
 </section>
 </section>
