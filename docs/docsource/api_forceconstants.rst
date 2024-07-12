@@ -137,7 +137,7 @@ needed.
 .. _input-files:
 
 Input Files and Formats
------------------------
+=======================
 
 .. list-table:: Input Files
    :align: center
@@ -192,3 +192,5 @@ API Reference
 *************
 
 .. autoclass:: kaldo.forceconstants::ForceConstants
+    :members: from_folder
+

@@ -61,10 +61,12 @@ extensions = [
 
 autosummary_generate = True
 autoclass_content = 'class'
+autodoc_member_order = 'bysource'
 
 #napoleon_google_docstring = False
 #napoleon_use_param = True
 #napoleon_use_ivar = True
+numpydoc_member_order = 'bysource'
 numpydoc_show_class_members = True
 numpydoc_show_inherited_class_members = False
 numpydoc_class_members_toctree = False
