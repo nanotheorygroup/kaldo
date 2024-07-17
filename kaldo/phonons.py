@@ -540,7 +540,9 @@ class Phonons:
                 pdos for each set of projected atoms and directions
         """
 
-        p_single = False
+        if p_atoms is None:
+          p_atoms = list(range(self.n_atoms))
+
         n_proj = len(p_atoms)
 
         if n_proj == 0:
@@ -553,7 +555,6 @@ class Phonons:
 
             except TypeError as e:
                 n_proj = 1
-                p_single = True
                 p_atoms = [p_atoms]
 
         n_modes = self.n_modes
@@ -565,7 +566,6 @@ class Phonons:
 
         fmin, fmax = frequency.min(), frequency.max()
 
-        # Extend the maximum and minimum of frequency to have the tail of pdos
         f_grid = np.linspace(0.9 * fmin, 1.1 * fmax, n_points)
 
         p_dos = np.zeros((n_proj,n_points), dtype=float)
