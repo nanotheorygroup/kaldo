@@ -4,6 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 import ase
+from ase.io import read
 from ase.geometry import find_mic
 from sparse import COO
 import tensorflow as tf
@@ -278,12 +279,12 @@ class ForceConstants:
         return evperang3togpa * cijkl / evtotenjovermol
 
 
-    def sigma2_td_md(self,fc_file='infile.forceconstant', primitive='infile.ucposcar', supercell='infile.ssposcar', md_run='dump.xyz'):
+    def sigma2_td_md(self,fc_file='infile.forceconstant', primitive_file='infile.ucposcar', supercell_file='infile.ssposcar', md_run='dump.xyz'):
         initial_structure = read(sc_file, format="vasp")
         second_order_fc_in_full_dimension     =   parse_tdep_forceconstant(
                                   fc_file     =   fc_file,
-                                  primitive   =   primitive,
-                                  supercell   =   supercell,
+                                  primitive   =   primitive_file,
+                                  supercell   =   supercell_file,
                                   symmetrize  =   True,
                                   two_dim     =   True)
         full_MD_traj = read(md_run, index=":")
