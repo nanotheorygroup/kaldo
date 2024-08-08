@@ -4,6 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 import ase
+from ase.geometry import find_mic
 from sparse import COO
 import tensorflow as tf
 from kaldo.grid import wrap_coordinates
@@ -303,6 +304,7 @@ class ForceConstants:
             sigma_A.append(mean_squared_error(full_MD_traj[i].get_forces(), force_harmonic[i])**(0.5)/np.std(full_MD_traj[i].get_forces()))
         
         self.sigma_A = sigma_A
+        
 
 
 
