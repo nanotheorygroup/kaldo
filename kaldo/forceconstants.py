@@ -3,6 +3,7 @@ kaldo
 Anharmonic Lattice Dynamics
 """
 import numpy as np
+import ase
 from sparse import COO
 import tensorflow as tf
 from kaldo.grid import wrap_coordinates
@@ -10,6 +11,7 @@ from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.observables.secondorder import parse_tdep_forceconstant
 import ase.units as units
 logging = get_logger()
 
@@ -273,3 +275,34 @@ class ForceConstants:
         
         # Denote parameter for irreducible Cij in the unit of GPa
         return evperang3togpa * cijkl / evtotenjovermol
+
+
+    def sigma2_td_md(self,fc_file='infile.forceconstant', primitive='infile.ucposcar', supercell='infile.ssposcar', md_run='dump.xyz'):
+        initial_structure = read(sc_file, format="vasp")
+        second_order_fc_in_full_dimension     =   parse_tdep_forceconstant(
+                                  fc_file     =   fc_file,
+                                  primitive   =   primitive,
+                                  supercell   =   supercell,
+                                  symmetrize  =   True,
+                                  two_dim     =   True)
+        full_MD_traj = read(md_run, index=":")
+        displacements = []
+        for atoms in full_MD_traj:
+            disp = atoms.positions - initial_structure.positions
+            disp_with_mic = find_mic(disp.reshape(-1, 3), atoms.cell)[0]
+            displacements.append(np.reshape(disp_with_mic,[initial_structure.positions.shape[0], initial_structure.positions.shape[1]]))
+
+        force_harmonic = []
+        for i in range(len(displacements)):
+            disp = displacements[i]
+            force_harmonic_vec = -1 * second_order_fc_in_full_dimension @ disp.flatten()
+            force_harmonic.append(np.reshape(force_harmonic_vec, [initial_structure.positions.shape[0], initial_structure.positions.shape[1]]))
+
+        sigma_A = []
+        for i in range(len(full_MD_traj)):
+            sigma_A.append(mean_squared_error(full_MD_traj[i].get_forces(), force_harmonic[i])**(0.5)/np.std(full_MD_traj[i].get_forces()))
+        
+        self.sigma_A = sigma_A
+
+
+
