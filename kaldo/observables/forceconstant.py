@@ -2,6 +2,8 @@ import numpy as np
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.observable import Observable
+from ase.io import read
+from kaldo.observables.secondorder import parse_tdep_forceconstant
 logging = get_logger()
 
 
@@ -116,4 +118,8 @@ class ForceConstant(Observable):
             cell_inv = self.cell_inv
             ch[index_q] = chi(k_point, list_of_replicas, cell_inv)
         return ch
+
+
+
+
 
