@@ -1,4 +1,4 @@
-<img src="docs/docsource/_resources/logo.png" width="450">
+<img src="https://raw.githubusercontent.com/nanotheorygroup/kaldo/main/docs/docsource/_resources/logo.png" width="450">
 
 [//]: # (Badges)
 [![CircleCI](https://img.shields.io/circleci/build/github/nanotheorygroup/kaldo/main)](https://app.circleci.com/pipelines/github/nanotheorygroup/kaldo)
@@ -44,8 +44,8 @@ Copyright (c) 2022, Giuseppe Barbalinardo, Zekun Chen, Dylan Folkner, Nicholas W
 We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech. 
 
 <a href="https://molssi.org">
-<img src="docs/docsource/_resources/molssi-logo.png" height="120">  
-<img src="docs/docsource/_resources/nsf_logo.png" height="120">    
+<img src="https://raw.githubusercontent.com/nanotheorygroup/kaldo/main/docs/docsource/_resources/molssi-logo.png" height="120">  
+<img src="https://raw.githubusercontent.com/nanotheorygroup/kaldo/main/docs/docsource/_resources/nsf_logo.png" height="120">    
 </a>
  
 MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](https://molssi.org/software-projects/)
