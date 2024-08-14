@@ -12,7 +12,7 @@ conda install pip
 
 kALDo installation can be done using `pip`
 ```bash
-pip install git+https://github.com/nanotheorygroup/kaldo
+pip install kaldo
 ```
 
 #### Using `pip` and `virtualenv`
