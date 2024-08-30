@@ -31,7 +31,7 @@
 * Haoyu Dong,  Zhiqiang Li,  Baole Sun,  Yanguang Zhou,  Linhua Liu, Jia-Yue Yang, [Thermal transport in disordered wurtzite ScAlN alloys using machine learning interatomic potentials](https://www.sciencedirect.com/science/article/pii/S2352492824011942?casa_token=c7LgMcZwdLsAAAAA:0d5iitbkKJ-Y0v90-K6ZjyiXrmk4yqyYMHmGhNuWzhChNFEPWyYODKaUbxkWKReY5dc6lss), Mater. Today Commun. **39**  109213 (2024). 
 
 
-* Philip Yox, Frank T Cerasoli, Arka Sarkar, Genevieve Amobi, Gayatri Viswanathan, Jackson Voyles, Oleg l Lebedev, Davide Donadio, Kirill Kovnir[Organizing Chaos: Boosting Thermoelectric Properties by Ordering the Clathrate Framework of Ba8Cu16As30](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.4c00419), Chem. Mater., ***36(8)***, 3925-3932 (2024).
+* Philip Yox, Frank T Cerasoli, Arka Sarkar, Genevieve Amobi, Gayatri Viswanathan, Jackson Voyles, Oleg l Lebedev, Davide Donadio, Kirill Kovnir, [Organizing Chaos: Boosting Thermoelectric Properties by Ordering the Clathrate Framework of Ba8Cu16As30](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.4c00419), Chem. Mater., ***36(8)***, 3925-3932 (2024).
 
 
 * Angela F. Harper,  Kamil Iwanowski,  William C. Witt,  Mike C. Payne, Michele Simoncelli,
