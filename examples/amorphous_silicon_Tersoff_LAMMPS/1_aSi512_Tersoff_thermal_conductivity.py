@@ -27,11 +27,12 @@ forceconstants = ForceConstants.from_folder(folder='fc_aSi512',supercell=superce
 # 'folder': name of folder containing phonon property and thermal conductivity calculations
 # 'storage': Format to storage phonon properties ('formatted' for ASCII format data, 'numpy' 
 #            for python numpy array and 'memory' for quick calculations, no data stored)
+THz_to_meV = 4.136
 
 phonons_config = {'is_classic': False, 
                   'temperature': 300, #'temperature'=300K
                   'folder': 'ALD_aSi512',
-                   'third_bandwidth':0.5/4.135, # 0.5 eV is used here.
+                   'third_bandwidth':0.5/THz_to_meV, # 0.5 meV is used here.
                    'broadening_shape':'triangle',
 		   'storage': 'numpy'}
 
