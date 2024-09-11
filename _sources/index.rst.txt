@@ -6,8 +6,8 @@
 .. image:: docsource/_resources/logo.png
    :width: 400
 
-A Software to Predict Thermal Properties Using Lattice Dynamics.
-=======================================================================
+kALDo: Advanced Thermal Property Predictions via Lattice Dynamics and Machine Learning for Nanoscale Materials.
+===============================================================================================================
 
 Read the paper on Arxiv_.
 
