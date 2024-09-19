@@ -27,8 +27,9 @@ def project_amorphous(phonons):
 
     coords = phonons.forceconstants.third.value.coords
     coords = np.vstack([coords[1], coords[2], coords[0]])
+    coords = tf.cast(coords.T, dtype=tf.int64)
     data = phonons.forceconstants.third.value.data
-    third_tf = tf.SparseTensor(coords.T, data, (
+    third_tf = tf.SparseTensor(coords, data, (
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
@@ -86,8 +87,8 @@ def project_crystal(phonons):
 
     try:
         sparse_third = phonons.forceconstants.third.value.reshape((phonons.n_modes, -1))
-        # transpose
         sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
+        sparse_coords = tf.cast(sparse_coords, dtype=tf.int64)
         third_tf = tf.SparseTensor(sparse_coords,
                                    sparse_third.data,
                                    ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
