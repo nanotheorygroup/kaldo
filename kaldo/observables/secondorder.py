@@ -135,7 +135,7 @@ class SecondOrder(ForceConstant):
             if is_qe_input:
                 filename = folder + '/espresso.ifc2'
                 second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
-                if charges.any():
+                if (not charges is None) and charges.any():
                     atoms.info['dielectric'] = charges[0, :, :]
                     atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
