@@ -106,7 +106,7 @@ class ThirdOrder(ForceConstant):
             grid_type='F'
             config_file = folder + '/' + 'CONTROL'
             try:
-                atoms, supercell = shengbte_io.import_control_file(config_file)
+                atoms, supercell, charges = shengbte_io.import_control_file(config_file)
             except FileNotFoundError as err:
                 config_file = folder + '/' + 'POSCAR'
                 logging.info('\nTrying to open POSCAR')
