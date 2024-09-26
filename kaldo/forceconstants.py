@@ -11,6 +11,9 @@ from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
+from ase.geometry import find_mic
+from ase.io import read
+from sklearn.metrics import mean_squared_error
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -302,4 +305,4 @@ class ForceConstants:
         for i in range(len(full_MD_traj)):
             sigma_A.append(mean_squared_error(full_MD_traj[i].get_forces(), force_harmonic[i])**(0.5)/np.std(full_MD_traj[i].get_forces()))
         
-        return sigma_A
+        return np.mean(sigma_A)
