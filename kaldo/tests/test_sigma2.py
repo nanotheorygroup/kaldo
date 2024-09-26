@@ -15,7 +15,7 @@ import pytest
 
 def sigma2():
     home=os.getcwd()
-    os.chdir(f"{home}/sigma2")
+    os.chdir(f"/tests/sigma2")
     result =  ForceConstants.sigma2_td_md(md_run='tdep_fit_configurations.xyz')
     yield result
     os.chdir(home)
