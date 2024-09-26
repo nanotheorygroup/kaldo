@@ -16,7 +16,7 @@ import pytest
 def sigma2():
     home=os.getcwd()
     os.chdir(f"kaldo/tests/sigma2")
-    result =  ForceConstants.sigma2_td_md(md_run='tdep_fit_configurations.xyz')
+    result =  ForceConstants.sigma2_tdep_MD(md_run='tdep_fit_configurations.xyz')
     yield result
     os.chdir(home)
 
