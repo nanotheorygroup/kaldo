@@ -1,6 +1,6 @@
 # Example: carbon diamond, Tersoff potential
 # Computes: 2nd, 3rd order force constants and harmonic properties for carbon diamond (2 atoms per cell)
-# Uses: ASE, LAMMPS
+# Uses: ASE, LAMMPS, LAMMPSlib
 # External files: forcefields/C.tersoff
 
 # Import necessary packages

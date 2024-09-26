@@ -22,10 +22,11 @@ class HarmonicWithQ(Observable):
                  storage='numpy',
                  is_nw=False,
                  is_unfolding=False,
-                 is_nac=None,
+                 is_amorphous=False,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
+        # Input arguments
         self.q_point = q_point
         self.atoms = second.atoms
         self.n_modes = self.atoms.positions.shape[0] * 3
@@ -33,13 +34,11 @@ class HarmonicWithQ(Observable):
         self.second = second
         self.distance_threshold = distance_threshold
         self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
-        self.is_nw = is_nw
+        # Arguments for specific physical assumptions
+        self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
-        self.is_amorphous = (np.array(self.supercell) == [1, 1, 1]).all()
-        if is_nac is not None: # Try to detect if keyword argument is present
-            self.is_nac = is_nac
-        else:
-            self.is_nac = True if 'dielectric' in self.atoms.info else False
+        self.is_nac = True if 'dielectric' in self.atoms.info else False
+        self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
                 self.physical_mode[0, :4] = False
@@ -128,6 +127,7 @@ class HarmonicWithQ(Observable):
 
     def calculate_dynmat_derivatives(self, direction):
         q_point = self.q_point
+        is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
         atoms = self.atoms
         list_of_replicas = self.second.list_of_replicas
@@ -271,6 +271,160 @@ class HarmonicWithQ(Observable):
                                  backend='tensorflow')
         dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
         return dyn_s
+
+    def calculate_eigensystem(self, only_eigenvals):
+        dyn_s = self._dynmat_fourier
+        if self.is_nac:
+            dyn_lr = self.nac_frequencies(qpoint=None)
+            dyn_lr += self.nac_frequencies(qpoint=self.q_point)
+            if (self.q_point == np.array([0, 0, 0])).all():
+                dyn_lr = tf.cast(dyn_lr, tf.float64)
+            else:
+                dyn_lr = tf.cast(dyn_lr, tf.complex128)
+            dyn_s += dyn_lr
+        if only_eigenvals:
+            esystem = tf.linalg.eigvalsh(dyn_s)
+        else:
+            log_size(self._dynmat_fourier.shape, type=complex, name='eigensystem')
+            esystem = tf.linalg.eigh(dyn_s)
+            esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
+        return esystem
+
+    def calculate_participation_ratio(self):
+        n_atoms = self.n_modes // 3
+        eigensystem = self._eigensystem[1:, :]
+        eigenvectors = tf.transpose(eigensystem)
+        eigenvectors = np.reshape(eigenvectors, (self.n_modes, n_atoms, 3))
+        conjugate = tf.math.conj(eigenvectors)
+        participation_ratio = tf.math.reduce_sum(eigenvectors*conjugate, axis=2)
+        participation_ratio = tf.math.square(participation_ratio)
+        participation_ratio = tf.math.reciprocal(tf.math.reduce_sum(participation_ratio, axis=1) * n_atoms)
+        return participation_ratio
+
+    def calculate_eigensystem_unfolded(self, only_eigenvals=False):
+        # This algorithm should be the same as the ShengBTE version
+        q_point = self.q_point
+        supercell = self.second.supercell
+        atoms = self.second.atoms
+        cell = atoms.cell
+        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
+        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
+        n_unit_cell = len(atoms)
+        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
+
+        # Get Force constants
+        fc_s = self.second.dynmat.numpy()
+        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+        supercell_positions = self.second.supercell_positions
+        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
+        cell_replicas = self.second.supercell_replicas
+        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
+        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
+        supercell_positions = self.second.supercell_positions
+        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
+        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
+
+        # Filter + Weights
+        mask_distance = (projection <= 1e-6).all(axis=0)
+        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
+        weight = 1 / n_equivalent
+        coefficients = weight * mask_distance
+
+        # Find contributing replicas
+        mask_full = coefficients.any(axis=(-2, -1))
+        coefficients = coefficients[mask_full]
+        cell_replicas = cell_replicas[mask_full]
+        cell_indices = cell_replicas % supercell
+
+        # Calculate phase and combine with coefficient to normalize contributions from replicas
+        # that may be represented more than once
+        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+        prefactors = np.einsum('i,inm->inm', phase, coefficients)
+        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
+        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
+
+        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
+        dyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
+        dyn_s = np.transpose(dyn_s, axes=(3, 4, 2, 0, 1))
+        dyn_s = dyn_s.sum(axis=2)
+        dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
+
+        # Apply correction for Born effective charges, if detected
+        # if self.is_nac:
+        #     dyn_s += self.nac_frequencies(qpoint=None)
+        #     dyn_s += self.nac_frequencies(qpoint=self.q_point)
+        if self.is_nac:
+            dyn_s += self.nac_frequencies(qpoint=None)
+            dyn_s += self.nac_frequencies(qpoint=self.q_point)
+
+        # Diagonalize
+        if only_eigenvals:
+            omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
+            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+            frequency = frequency[:] / np.pi / 2
+            esystem = (frequency[:] * np.pi * 2) ** 2
+        else:
+            omega2, eigenvect, info = zheev(dyn_s)
+            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
+            frequency = frequency[:] / np.pi / 2
+            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
+        return esystem
+
+    def calculate_dynmat_derivatives_unfolded(self, direction):
+        # This algorithm should be the same as the ShengBTE version
+        q_point = self.q_point
+        supercell = self.second.supercell
+        atoms = self.second.atoms
+        cell = atoms.cell
+        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
+        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
+        n_unit_cell = len(atoms)
+        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
+
+        # Get Force constants
+        fc_s = self.second.dynmat.numpy()
+        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
+        supercell_positions = self.second.supercell_positions
+        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
+        cell_replicas = self.second.supercell_replicas
+        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
+        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
+        supercell_positions = self.second.supercell_positions
+        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
+        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
+
+        # Filter + Weights
+        mask_distance = (projection <= 1e-6).all(axis=0)
+        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
+        weight = 1 / n_equivalent
+        coefficients = weight * mask_distance
+
+        # Find contributing replicas
+        mask_full = coefficients.any(axis=(-2, -1))
+        coefficients = coefficients[mask_full]
+        cell_replicas = cell_replicas[mask_full]
+        cell_positions = cell_positions[mask_full]
+        cell_indices = cell_replicas % supercell
+
+        # Calculate phase and combine with coefficient to normalize contributions from replicas
+        # that may be represented more than once
+        # NOTE: If you wanted to redo this to calculate all the directions at the same time, the first
+        # prefactors line is the only place where direction is used.
+        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
+        prefactors = np.einsum('i,i,inm->inm', cell_positions[:,direction], phase, coefficients)
+        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
+        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
+
+        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
+        ddyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
+        ddyn_s = np.transpose(ddyn_s, axes=(3, 4, 2, 0, 1))
+        ddyn_s = ddyn_s.sum(axis=2)
+        ddyn_s = ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
+
+        # Apply correction for Born effective charges, if detected
+        if self.is_nac:
+            ddyn_s += self.nac_velocities(direction=direction)
+        return ddyn_s
 
     def nac_frequencies(self, qpoint=None, gmax=14, alpha=1.0):
         '''
@@ -499,153 +653,3 @@ class HarmonicWithQ(Observable):
         correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
-
-    def calculate_eigensystem(self, only_eigenvals):
-        dyn_s = self._dynmat_fourier
-        if self.is_nac:
-            dyn_lr = self.nac_frequencies(qpoint=None)
-            dyn_lr += self.nac_frequencies(qpoint=self.q_point)
-            if (self.q_point == np.array([0, 0, 0])).all():
-                dyn_lr = tf.cast(dyn_lr, tf.float64)
-            else:
-                dyn_lr = tf.cast(dyn_lr, tf.complex128)
-            dyn_s += dyn_lr
-        if only_eigenvals:
-            esystem = tf.linalg.eigvalsh(dyn_s)
-        else:
-            log_size(self._dynmat_fourier.shape, type=complex, name='eigensystem')
-            esystem = tf.linalg.eigh(dyn_s)
-            esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
-        return esystem
-
-    def calculate_participation_ratio(self):
-        n_atoms = self.n_modes // 3
-        esystem = self._eigensystem[1:, :]
-        eigenvects = tf.transpose(esystem)
-        eigenvects = np.reshape(eigenvects, (self.n_modes, n_atoms, 3))
-        participation_ratio = np.power(np.linalg.norm(eigenvects, axis=2), 4)
-        participation_ratio = np.reciprocal(np.sum(participation_ratio, axis=1) * n_atoms)
-        return participation_ratio
-
-    def calculate_eigensystem_unfolded(self, only_eigenvals=False):
-        q_point = self.q_point
-        supercell = self.second.supercell
-        atoms = self.second.atoms
-        cell = atoms.cell
-        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
-        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
-        n_unit_cell = len(atoms)
-        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
-
-        # Get Force constants
-        fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-        supercell_positions = self.second.supercell_positions
-        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-        cell_replicas = self.second.supercell_replicas
-        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
-        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
-        supercell_positions = self.second.supercell_positions
-        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
-        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
-
-        # Filter + Weights
-        mask_distance = (projection <= 1e-6).all(axis=0)
-        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
-        weight = 1 / n_equivalent
-        coefficients = weight * mask_distance
-
-        # Find contributing replicas
-        mask_full = coefficients.any(axis=(-2, -1))
-        coefficients = coefficients[mask_full]
-        cell_replicas = cell_replicas[mask_full]
-        cell_indices = cell_replicas % supercell
-
-        # Calculate phase and combine with coefficient to normalize contributions from replicas
-        # that may be represented more than once
-        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
-        prefactors = np.einsum('i,inm->inm', phase, coefficients)
-        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
-        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
-
-        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
-        dyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
-        dyn_s = np.transpose(dyn_s, axes=(3, 4, 2, 0, 1))
-        dyn_s = dyn_s.sum(axis=2)
-        dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        # Apply correction for Born effective charges, if detected
-        # if self.is_nac:
-        #     dyn_s += self.nac_frequencies(qpoint=None)
-        #     dyn_s += self.nac_frequencies(qpoint=self.q_point)
-        if self.is_nac:
-            dyn_s += self.nac_frequencies(qpoint=None)
-            dyn_s += self.nac_frequencies(qpoint=self.q_point)
-
-        # Diagonalize
-        if only_eigenvals:
-            omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
-            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-            frequency = frequency[:] / np.pi / 2
-            esystem = (frequency[:] * np.pi * 2) ** 2
-        else:
-            omega2, eigenvect, info = zheev(dyn_s)
-            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-            frequency = frequency[:] / np.pi / 2
-            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
-        return esystem
-
-    def calculate_dynmat_derivatives_unfolded(self, direction):
-        q_point = self.q_point
-        supercell = self.second.supercell
-        atoms = self.second.atoms
-        cell = atoms.cell
-        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
-        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
-        n_unit_cell = len(atoms)
-        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
-
-        # Get Force constants
-        fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-        supercell_positions = self.second.supercell_positions
-        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-        cell_replicas = self.second.supercell_replicas
-        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
-        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
-        supercell_positions = self.second.supercell_positions
-        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
-        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
-
-        # Filter + Weights
-        mask_distance = (projection <= 1e-6).all(axis=0)
-        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
-        weight = 1 / n_equivalent
-        coefficients = weight * mask_distance
-
-        # Find contributing replicas
-        mask_full = coefficients.any(axis=(-2, -1))
-        coefficients = coefficients[mask_full]
-        cell_replicas = cell_replicas[mask_full]
-        cell_positions = cell_positions[mask_full]
-        cell_indices = cell_replicas % supercell
-
-        # Calculate phase and combine with coefficient to normalize contributions from replicas
-        # that may be represented more than once
-        # NOTE: If you wanted to redo this to calculate all the directions at the same time, the first
-        # prefactors line is the only place where direction is used.
-        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
-        prefactors = np.einsum('i,i,inm->inm', cell_positions[:,direction], phase, coefficients)
-        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
-        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
-
-        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
-        ddyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
-        ddyn_s = np.transpose(ddyn_s, axes=(3, 4, 2, 0, 1))
-        ddyn_s = ddyn_s.sum(axis=2)
-        ddyn_s = ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        # Apply correction for Born effective charges, if detected
-        if self.is_nac:
-            ddyn_s += self.nac_velocities(direction=direction)
-        return ddyn_s

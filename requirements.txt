@@ -1,5 +1,4 @@
 numpy==1.25.1
-protobuf==4.23.4
 scipy==1.11.1
 ase==3.22.1
 sparse>=0.11.2
@@ -14,4 +13,3 @@ pytest-cov>=2.10.0
 pytest>=5.2.1
 psutil>=5.7.2
 hiphive>=1.1
-

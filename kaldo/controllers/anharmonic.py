@@ -20,14 +20,16 @@ def project_amorphous(phonons):
     population = phonons.population
     n_replicas = phonons.forceconstants.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
+
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
     coords = phonons.forceconstants.third.value.coords
-    data = phonons.forceconstants.third.value.data
     coords = np.vstack([coords[1], coords[2], coords[0]])
-    third_tf = tf.SparseTensor(coords.T, data, (
+    coords = tf.cast(coords.T, dtype=tf.int64)
+    data = phonons.forceconstants.third.value.data
+    third_tf = tf.SparseTensor(coords, data, (
         phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes))
 
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
@@ -85,8 +87,8 @@ def project_crystal(phonons):
 
     try:
         sparse_third = phonons.forceconstants.third.value.reshape((phonons.n_modes, -1))
-        # transpose
         sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
+        sparse_coords = tf.cast(sparse_coords, dtype=tf.int64)
         third_tf = tf.SparseTensor(sparse_coords,
                                    sparse_third.data,
                                    ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
@@ -101,6 +103,7 @@ def project_crystal(phonons):
     _chi_k = tf.cast(_chi_k, dtype=tf.complex128)
     evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
     evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
+
     # The ps and gamma matrix stores ps, gamma and then the scattering matrix
     if is_gamma_tensor_enabled:
         shape = (phonons.n_phonons, 2 + phonons.n_phonons)
