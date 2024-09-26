@@ -4,10 +4,13 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
+import tensorflow as tf
 from kaldo.grid import wrap_coordinates
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
+import ase.units as units
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -15,9 +18,8 @@ MAIN_FOLDER = 'displacement'
 
 class ForceConstants:
     """
-    Class for constructing the finite difference object to calculate
-    the second/third order force constant matrices after providing the
-    unit cell geometry and calculator information.
+    A ForceConstants class object is used to create or load the second or third order force constant matrices as well as
+    store information related to the geometry of the system.
 
     Parameters
     ----------
@@ -39,6 +41,10 @@ class ForceConstants:
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
         Defaults to `None`
+
+    Attributes
+    ----------
+
     """
 
     def __init__(self,
@@ -82,6 +88,17 @@ class ForceConstants:
         """
         Create a finite difference object from a folder
 
+        The folder should contain the a set of files whose names and contents are dependent on the "format" parameter.
+        Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
+        to read it with nicer formatting and explanations).
+
+        numpy: replicated_atoms.xyz, second.npy, third.npz
+        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
+        lammps: replicated_atoms.xyz, Dyn.form, THIRD
+        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
+
         Parameters
         ----------
         folder : str
@@ -95,7 +112,7 @@ class ForceConstants:
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
             the threshold value in magnitude are ignored. Units: ev/A^3
-                Default is `None`
+            Default is `None`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
             distance threshold will be ignored.
@@ -103,17 +120,8 @@ class ForceConstants:
             Takes in the unit cell for the third order force constant matrix.
             Default is self.supercell
         is_acoustic_sum : Bool, optional
-            If true, the accoustic sum rule is applied to the dynamical matrix.
+            If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
-
-        Inputs
-        ------
-        numpy: replicated_atoms.xyz, second.npy, third.npz
-        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
-        lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
-        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
 
 
         Returns
@@ -208,3 +216,60 @@ class ForceConstants:
         expanded_third = expanded_third.reshape(
             (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
         return expanded_third
+
+
+    def elastic_prop(self):
+        """
+        Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa. This describes the stress-strain
+        relationship of the material and can sometimes be used as a loose predictor for thermal conductivity. Requires
+        the dynamical matrix to be loaded or calculated.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        C_ijkl : np.array(3, 3, 3, 3)
+            Elasticity tensor in GPa
+        """
+        # Intake key parameters
+        atoms = self.atoms
+        masses = atoms.get_masses()
+        volume = atoms.get_volume()
+        list_of_replicas = self.second.list_of_replicas
+        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+        dynmat = self.second.dynmat[0]  # units THz^2
+        positions = self.atoms.positions
+        n_unit = atoms.positions.shape[0]
+        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
+            (n_unit, 3, 3 * (n_unit)))
+        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
+        distance = positions[:, np.newaxis, np.newaxis, :] - (
+                    positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+        d1 = np.einsum('iljx,ibljc->ibjcx', distance.astype(complex), dynmat.numpy().astype(complex))
+        d2 = -1 * np.einsum('iljx,iljy,ibljc->ibjcxy',
+                distance.astype(complex), 
+                distance.astype(complex), 
+                dynmat.numpy().astype(complex)) 
+        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
+        
+        # Compute component b and r, keep the real component only
+        b = (1/(2*volume))*np.einsum('n,m,nimjkl->ijkl', masses**(0.5), masses**(0.5), d2).real
+        d1r = np.einsum('nhmij,m->nhmij', d1, masses**(0.5))
+        r = -1 * (1/volume) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, gamma, d1r).real
+        cijkl = np.zeros((3, 3, 3, 3))
+        evtotenjovermol = units.mol / (10 * units.J)
+        # units._e = 1.602×10−19J
+        # units.Angstorm = 1.0 = 1e-10 m
+        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
+        # give raises to 1e-21
+        evperang3togpa = units._e /(units.Angstrom * 1e-21)
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    for l in range(3):
+                        cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
+        
+        # Denote parameter for irreducible Cij in the unit of GPa
+        return evperang3togpa * cijkl / evtotenjovermol

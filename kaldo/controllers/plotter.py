@@ -14,11 +14,13 @@ A. Togo, I. Tanaka, "Spglib: a software library for crystal symmetry search", ar
 import matplotlib.pyplot as plt
 import seekpath
 import numpy as np
-from sklearn.neighbors import KernelDensity
 from scipy import ndimage
 from kaldo.helpers.storage import get_folder_from_label
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.helpers.logger import get_logger
 import os
+
+logging = get_logger()
 
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots'
@@ -138,32 +140,51 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
         plt.close()
 
 
-def plot_dos(phonons, bandwidth=.05,n_points=200, is_showing=True):
-    
-    fig = plt.figure()
-    physical_mode = phonons.physical_mode.flatten(order='C')
-    frequency = phonons.frequency.flatten(order='C')
-    frequency = frequency[physical_mode]
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(frequency.reshape(-1, 1))
-    x = np.linspace(frequency.min(), phonons.frequency.max(), n_points)
-    y = np.exp(kde.score_samples(x.reshape((-1, 1))))
-    plt.plot(x, y)
-    plt.fill_between(x, y, alpha=.2)
-    plt.xlabel("$\\nu$ (THz)", fontsize=16)
-    plt.ylabel('DOS',fontsize=16)
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    plt.tick_params(axis='both', which='minor', labelsize=16)
+def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos'):
+    """Produce a plot of phonon density of states (dos) or projected phonon dos (pdos).
+    bandwidth sets the gaussian smearing width
+    n_points indicates the number of frequencies on which the pdos is calculated
+    is_showing determines whether the matplotlib graph is displayed
+    filename selects the output filename for the dos data and figure files
+
+    p_atoms input format is flexible:
+      Providing None indicates calculation of the total phonon density of states
+      Providing a list of atom indices will return the single pdos summed over those atoms
+      Providing a list of lists of atom indices will return one pdos for each set of indices
+    direction can be set to a 3-vector, upon which to project the phonon dos contribution
+        Leaving direction as None indicates default behavior of summing projections along each cartesian direction.
+    """
+
+    if p_atoms is None:
+        p_atoms = list(range(phonons.n_atoms))
+
     folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
-    fig.savefig(folder + '/' + 'dos.png')
+
+    try:
+        fgrid, pdos = phonons.pdos(p_atoms, direction=direction, bandwidth=bandwidth, n_points=n_points)
+        np.save(folder + f'/{filename}.npy', np.vstack((fgrid,pdos)))
+    except IndexError as e:
+        logging.error(f'Failed to calculate pdos.')
+        return
+
+    fig = plt.figure()
+    for p in pdos:
+        plt.plot(fgrid, p)
+    plt.xlabel("$\\nu$ (THz)", fontsize=16)
+    plt.ylabel('DOS', fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=16)
+    plt.tick_params(axis='both', which='minor', labelsize=16)
+    fig.savefig(folder + f'/{filename}.png')
+
     if is_showing:
         plt.show()
     else:
         plt.close()
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True, color='b', manually_defined_path=None):
+def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True, color='b', manually_defined_path=None, folder=None):
     atoms = phonons.atoms
     if phonons.is_nw:
         q = np.linspace(0, 0.5, n_k_points)
@@ -192,8 +213,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with
                                distance_threshold=phonons.forceconstants.distance_threshold,
                                storage='memory',
                                is_nw=phonons.is_nw,
-                               is_unfolding=phonons.is_unfolding,
-                               is_nac=phonons.is_nac,)
+                               is_unfolding=phonons.is_unfolding)
         freqs_plot.append(phonon.frequency.flatten())
         if with_velocity:
             val_value = phonon.velocity[0]
@@ -216,7 +236,8 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with
         plt.plot(q, freqs_plot, '.', linewidth=4, markersize=4)
     plt.grid()
     plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
-    folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
+    if not folder:
+        folder = get_folder_from_label(phonons, base_folder=DEFAULT_FOLDER)
     if not os.path.exists(folder):
         os.makedirs(folder)
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
