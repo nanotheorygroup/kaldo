@@ -501,7 +501,7 @@ class Phonons:
 
         Returns
         -------
-        frequency : np array(n_k_points, n_modes)
+        frequency : np.array(n_k_points, n_modes)
             frequency in rad
         """
         return self.frequency * 2 * np.pi
