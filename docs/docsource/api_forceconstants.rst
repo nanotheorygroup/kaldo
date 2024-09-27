@@ -192,5 +192,5 @@ API Reference
 *************
 
 .. autoclass:: kaldo.forceconstants::ForceConstants
-    :members: from_folder
+    :members: from_folder, unfold_third_order, elastic_prop
 
