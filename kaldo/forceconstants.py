@@ -30,21 +30,34 @@ class ForceConstants:
     supercell: (3) tuple, optional
         Size of supercell given by the number of repetitions (l, m, n) of
         the small unit cell in each direction.
-        Defaults to (1, 1, 1)
+        Default: (1, 1, 1)
     third_supercell: tuple, optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
-        Defaults to `self.supercell`
     folder: str, optional
         Name to be used for the displacement information folder.
-        Defaults to 'displacement'
+        Default: 'displacement'
     distance_threshold: float, optional
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
-        Defaults to `None`
+        Default: `None`
 
     Attributes
     ----------
+
+    n_atoms: int
+        Number of atoms in the unit cell
+    n_modes: int
+        The number of possible vibrational modes in the system from a lattice dynamics perspective. Equivalent to
+        3*n_atoms where the factor of 3 comes from the 3 Cartesian directions.
+    n_replicas: int
+        The number of repeated unit cells represented in the system. Equivalent to np.prod(supercell).
+    n_replicated_atoms: int
+        The number of atoms represented in the system. Equivalent to n_atoms * np.prod(supercell)
+    cell_inv: np.array(3, 3)
+        A 3x3 matrix which satisfies AB=I where A is the matrix of cell vectors, I is the identity matrix, and B is the
+        cell_inv matrix.
+
     """
     def __init__(self,
                  atoms,
@@ -124,7 +137,9 @@ class ForceConstants:
 
         Returns
         -------
-        ForceConstants object
+
+        forceconstants: ForceConstants object
+            A new instance of the ForceConstants class
         """
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)
