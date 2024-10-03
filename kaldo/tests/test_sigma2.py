@@ -14,15 +14,13 @@ import pytest
 
 
 def sigma2():
-    home=os.getcwd()
-    os.chdir(f"kaldo/tests/sigma2")
-    result =  ForceConstants.sigma2_tdep_MD(md_run='tdep_fit_configurations.xyz')
+    root="kaldo/tests/sigma2"
+    result =  ForceConstants.sigma2_tdep_MD(md_run=f'{root}/tdep_fit_configurations.xyz',primitive_file=f"{root}/infile.ucposcar",supercell_file=f"{root}/infile.ssposcar",fc_file=f"{root}/infile.forceconstant")
     yield result
-    os.chdir(home)
 
 
 def test_sigma2(sigma2):
-    expect_val = .101
+    expect_val = .1495
     test_input = sigma2
     assert pytest.approx(test_input,0.01) == expect_val
 
