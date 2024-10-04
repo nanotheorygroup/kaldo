@@ -278,31 +278,58 @@ class ForceConstants:
         return evperang3togpa * cijkl / evtotenjovermol
 
 
+    @staticmethod
+    def _calculate_displacement(atoms, initial_structure):
+        disp = atoms.positions - initial_structure.positions
+        return find_mic(disp.reshape(-1, 3), atoms.cell)[0].reshape(initial_structure.positions.shape)
 
-    def sigma2_tdep_MD(fc_file='infile.forceconstant', primitive_file='infile.ucposcar', supercell_file='infile.ssposcar', md_run='dump.xyz'):
+
+    @staticmethod
+    def _calculate_harmonic_force(disp, second_order_fc):
+        force_harmonic_vec = -np.dot(second_order_fc, disp.flatten())
+        return force_harmonic_vec.reshape(disp.shape)
+
+
+    @staticmethod
+    def _calculate_sigma(md_forces, harmonic_forces):
+        return np.sqrt(mean_squared_error(md_forces, harmonic_forces)) / np.std(md_forces)
+
+
+    @staticmethod
+    def sigma2_tdep_MD(fc_file='infile.forceconstant', primitive_file='infile.ucposcar',
+                       supercell_file='infile.ssposcar', md_run='dump.xyz'):
+        """
+        Calculate the sigma2 value using TDEP and MD data.
+
+        Parameters
+        ----------
+        fc_file : str, optional
+            Path to the force constant file. Default is 'infile.forceconstant'.
+        primitive_file : str, optional
+            Path to the primitive cell file. Default is 'infile.ucposcar'.
+        supercell_file : str, optional
+            Path to the supercell file. Default is 'infile.ssposcar'.
+        md_run : str, optional
+            Path to the MD trajectory file. Default is 'dump.xyz'.
+
+        Returns
+        -------
+        float
+            The average sigma2 value.
+        """
         initial_structure = read(supercell_file, format="vasp")
-        second_order_fc_in_full_dimension=parse_tdep_forceconstant(
-                                  fc_file=fc_file,
-                                  primitive=primitive_file,
-                                  supercell=supercell_file,
-                                  symmetrize=True,
-                                  two_dim=True
-                                  )
+        second_order_fc = parse_tdep_forceconstant(
+            fc_file=fc_file,
+            primitive=primitive_file,
+            supercell=supercell_file,
+            symmetrize=True,
+            two_dim=True
+        )
         full_MD_traj = read(md_run, index=":")
-        displacements = []
-        for atoms in full_MD_traj:
-            disp = atoms.positions - initial_structure.positions
-            disp_with_mic = find_mic(disp.reshape(-1, 3), atoms.cell)[0]
-            displacements.append(np.reshape(disp_with_mic,[initial_structure.positions.shape[0], initial_structure.positions.shape[1]]))
-
-        force_harmonic = []
-        for i in range(len(displacements)):
-            disp = displacements[i]
-            force_harmonic_vec = -1 * second_order_fc_in_full_dimension @ disp.flatten()
-            force_harmonic.append(np.reshape(force_harmonic_vec, [initial_structure.positions.shape[0], initial_structure.positions.shape[1]]))
-
-        sigma_A = []
-        for i in range(len(full_MD_traj)):
-            sigma_A.append(mean_squared_error(full_MD_traj[i].get_forces(), force_harmonic[i])**(0.5)/np.std(full_MD_traj[i].get_forces()))
+        displacements = [ForceConstants._calculate_displacement(atoms, initial_structure) for atoms in full_MD_traj]
+        force_harmonic = [ForceConstants._calculate_harmonic_force(disp, second_order_fc) for disp in displacements]
+        sigma_values = [ForceConstants._calculate_sigma(atoms.get_forces(), harm_force)
+                        for atoms, harm_force in zip(full_MD_traj, force_harmonic)]
         
-        return np.mean(sigma_A)
+        return np.mean(sigma_values)
+
