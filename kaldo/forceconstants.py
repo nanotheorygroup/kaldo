@@ -4,7 +4,6 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-import tensorflow as tf
 from kaldo.grid import wrap_coordinates
 from kaldo.observables.secondorder import SecondOrder,parse_tdep_forceconstant
 from kaldo.observables.thirdorder import ThirdOrder
