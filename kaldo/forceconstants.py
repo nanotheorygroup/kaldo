@@ -4,13 +4,15 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-import tensorflow as tf
 from kaldo.grid import wrap_coordinates
-from kaldo.observables.secondorder import SecondOrder
+from kaldo.observables.secondorder import SecondOrder,parse_tdep_forceconstant
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
+from ase.geometry import find_mic
+from ase.io import read
+from sklearn.metrics import mean_squared_error
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -273,3 +275,60 @@ class ForceConstants:
         
         # Denote parameter for irreducible Cij in the unit of GPa
         return evperang3togpa * cijkl / evtotenjovermol
+
+
+    @staticmethod
+    def _calculate_displacement(atoms, initial_structure):
+        disp = atoms.positions - initial_structure.positions
+        return find_mic(disp.reshape(-1, 3), atoms.cell)[0].reshape(initial_structure.positions.shape)
+
+
+    @staticmethod
+    def _calculate_harmonic_force(disp, second_order_fc):
+        force_harmonic_vec = -np.dot(second_order_fc, disp.flatten())
+        return force_harmonic_vec.reshape(disp.shape)
+
+
+    @staticmethod
+    def _calculate_sigma(md_forces, harmonic_forces):
+        return np.sqrt(mean_squared_error(md_forces, harmonic_forces)) / np.std(md_forces)
+
+
+    @staticmethod
+    def sigma2_tdep_MD(fc_file='infile.forceconstant', primitive_file='infile.ucposcar',
+                       supercell_file='infile.ssposcar', md_run='dump.xyz'):
+        """
+        Calculate the sigma2 value using TDEP and MD data.
+
+        Parameters
+        ----------
+        fc_file : str, optional
+            Path to the force constant file. Default is 'infile.forceconstant'.
+        primitive_file : str, optional
+            Path to the primitive cell file. Default is 'infile.ucposcar'.
+        supercell_file : str, optional
+            Path to the supercell file. Default is 'infile.ssposcar'.
+        md_run : str, optional
+            Path to the MD trajectory file. Default is 'dump.xyz'.
+
+        Returns
+        -------
+        float
+            The average sigma2 value.
+        """
+        initial_structure = read(supercell_file, format="vasp")
+        second_order_fc = parse_tdep_forceconstant(
+            fc_file=fc_file,
+            primitive=primitive_file,
+            supercell=supercell_file,
+            symmetrize=True,
+            two_dim=True
+        )
+        full_MD_traj = read(md_run, index=":")
+        displacements = [ForceConstants._calculate_displacement(atoms, initial_structure) for atoms in full_MD_traj]
+        force_harmonic = [ForceConstants._calculate_harmonic_force(disp, second_order_fc) for disp in displacements]
+        sigma_values = [ForceConstants._calculate_sigma(atoms.get_forces(), harm_force)
+                        for atoms, harm_force in zip(full_MD_traj, force_harmonic)]
+        
+        return np.mean(sigma_values)
+
