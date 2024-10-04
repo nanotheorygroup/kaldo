@@ -448,13 +448,15 @@
 <span class="sd">"""</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">sparse</span> <span class="kn">import</span> <span class="n">COO</span>
-<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">wrap_coordinates</span>
-<span class="kn">from</span> <span class="nn">kaldo.observables.secondorder</span> <span class="kn">import</span> <span class="n">SecondOrder</span>
+<span class="kn">from</span> <span class="nn">kaldo.observables.secondorder</span> <span class="kn">import</span> <span class="n">SecondOrder</span><span class="p">,</span><span class="n">parse_tdep_forceconstant</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.thirdorder</span> <span class="kn">import</span> <span class="n">ThirdOrder</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
+<span class="kn">from</span> <span class="nn">ase.geometry</span> <span class="kn">import</span> <span class="n">find_mic</span>
+<span class="kn">from</span> <span class="nn">ase.io</span> <span class="kn">import</span> <span class="n">read</span>
+<span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="kn">import</span> <span class="n">mean_squared_error</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
 <span class="n">MAIN_FOLDER</span> <span class="o">=</span> <span class="s1">'displacement'</span>
@@ -716,7 +718,64 @@
                         <span class="n">cijkl</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">+</span> <span class="n">b</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span> <span class="o">+</span> <span class="n">r</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">]</span>
         
         <span class="c1"># Denote parameter for irreducible Cij in the unit of GPa</span>
-        <span class="k">return</span> <span class="n">evperang3togpa</span> <span class="o">*</span> <span class="n">cijkl</span> <span class="o">/</span> <span class="n">evtotenjovermol</span></div>
+        <span class="k">return</span> <span class="n">evperang3togpa</span> <span class="o">*</span> <span class="n">cijkl</span> <span class="o">/</span> <span class="n">evtotenjovermol</span>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_calculate_displacement</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">initial_structure</span><span class="p">):</span>
+        <span class="n">disp</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">positions</span> <span class="o">-</span> <span class="n">initial_structure</span><span class="o">.</span><span class="n">positions</span>
+        <span class="k">return</span> <span class="n">find_mic</span><span class="p">(</span><span class="n">disp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">initial_structure</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_calculate_harmonic_force</span><span class="p">(</span><span class="n">disp</span><span class="p">,</span> <span class="n">second_order_fc</span><span class="p">):</span>
+        <span class="n">force_harmonic_vec</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">second_order_fc</span><span class="p">,</span> <span class="n">disp</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">force_harmonic_vec</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">disp</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_calculate_sigma</span><span class="p">(</span><span class="n">md_forces</span><span class="p">,</span> <span class="n">harmonic_forces</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">md_forces</span><span class="p">,</span> <span class="n">harmonic_forces</span><span class="p">))</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">md_forces</span><span class="p">)</span>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">sigma2_tdep_MD</span><span class="p">(</span><span class="n">fc_file</span><span class="o">=</span><span class="s1">'infile.forceconstant'</span><span class="p">,</span> <span class="n">primitive_file</span><span class="o">=</span><span class="s1">'infile.ucposcar'</span><span class="p">,</span>
+                       <span class="n">supercell_file</span><span class="o">=</span><span class="s1">'infile.ssposcar'</span><span class="p">,</span> <span class="n">md_run</span><span class="o">=</span><span class="s1">'dump.xyz'</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Calculate the sigma2 value using TDEP and MD data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        fc_file : str, optional</span>
+<span class="sd">            Path to the force constant file. Default is 'infile.forceconstant'.</span>
+<span class="sd">        primitive_file : str, optional</span>
+<span class="sd">            Path to the primitive cell file. Default is 'infile.ucposcar'.</span>
+<span class="sd">        supercell_file : str, optional</span>
+<span class="sd">            Path to the supercell file. Default is 'infile.ssposcar'.</span>
+<span class="sd">        md_run : str, optional</span>
+<span class="sd">            Path to the MD trajectory file. Default is 'dump.xyz'.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            The average sigma2 value.</span>
+<span class="sd">        """</span>
+        <span class="n">initial_structure</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">supercell_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"vasp"</span><span class="p">)</span>
+        <span class="n">second_order_fc</span> <span class="o">=</span> <span class="n">parse_tdep_forceconstant</span><span class="p">(</span>
+            <span class="n">fc_file</span><span class="o">=</span><span class="n">fc_file</span><span class="p">,</span>
+            <span class="n">primitive</span><span class="o">=</span><span class="n">primitive_file</span><span class="p">,</span>
+            <span class="n">supercell</span><span class="o">=</span><span class="n">supercell_file</span><span class="p">,</span>
+            <span class="n">symmetrize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">two_dim</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="n">full_MD_traj</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">md_run</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="s2">":"</span><span class="p">)</span>
+        <span class="n">displacements</span> <span class="o">=</span> <span class="p">[</span><span class="n">ForceConstants</span><span class="o">.</span><span class="n">_calculate_displacement</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">initial_structure</span><span class="p">)</span> <span class="k">for</span> <span class="n">atoms</span> <span class="ow">in</span> <span class="n">full_MD_traj</span><span class="p">]</span>
+        <span class="n">force_harmonic</span> <span class="o">=</span> <span class="p">[</span><span class="n">ForceConstants</span><span class="o">.</span><span class="n">_calculate_harmonic_force</span><span class="p">(</span><span class="n">disp</span><span class="p">,</span> <span class="n">second_order_fc</span><span class="p">)</span> <span class="k">for</span> <span class="n">disp</span> <span class="ow">in</span> <span class="n">displacements</span><span class="p">]</span>
+        <span class="n">sigma_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">ForceConstants</span><span class="o">.</span><span class="n">_calculate_sigma</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_forces</span><span class="p">(),</span> <span class="n">harm_force</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">harm_force</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">full_MD_traj</span><span class="p">,</span> <span class="n">force_harmonic</span><span class="p">)]</span>
+        
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sigma_values</span><span class="p">)</span></div>
+
 </pre></div>
 
           </article>
