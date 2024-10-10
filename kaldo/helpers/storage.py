@@ -2,30 +2,31 @@ import numpy as np
 import os
 import h5py
 from kaldo.helpers.logger import get_logger
-logging = get_logger()
 
+logging = get_logger()
 
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
 
-# TODO: move this into single observables
-DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
-                         'frequency': 'formatted',
-                         'participation_ratio':'formatted',
-                         'velocity': 'formatted',
-                         'heat_capacity': 'formatted',
-                         'population': 'formatted',
-                         'bandwidth': 'formatted',
-                         'phase_space': 'formatted',
-                         'conductivity': 'formatted',
-                         'mean_free_path': 'formatted',
-                         'diffusivity': 'numpy',
-                         'flux': 'numpy',
-                         '_dynmat_derivatives': 'numpy',
-                         '_eigensystem': 'numpy',
-                         '_ps_and_gamma': 'numpy',
-                         '_ps_gamma_and_gamma_tensor': 'numpy',
-                         '_generalized_diffusivity': 'numpy'}
+DEFAULT_STORE_FORMATS = {
+    'physical_mode': 'formatted',
+    'frequency': 'formatted',
+    'participation_ratio': 'formatted',
+    'velocity': 'formatted',
+    'heat_capacity': 'formatted',
+    'population': 'formatted',
+    'bandwidth': 'formatted',
+    'phase_space': 'formatted',
+    'conductivity': 'formatted',
+    'mean_free_path': 'formatted',
+    'diffusivity': 'numpy',
+    'flux': 'numpy',
+    '_dynmat_derivatives': 'numpy',
+    '_eigensystem': 'numpy',
+    '_ps_and_gamma': 'numpy',
+    '_ps_gamma_and_gamma_tensor': 'numpy',
+    '_generalized_diffusivity': 'numpy',
+}
 
 
 def parse_pair(txt):
@@ -33,157 +34,131 @@ def parse_pair(txt):
 
 
 def load(property, folder, instance, format='formatted'):
-    # TODO: move this into single observables
-    name = folder + '/' + property
+    name = f"{folder}/{property}"
     if format == 'numpy':
-        loaded = np.load(name + '.npy', allow_pickle=True)
-        return loaded
+        return np.load(f"{name}.npy", allow_pickle=True)
     elif format == 'hdf5':
-        with h5py.File(name.split('/')[0] + '.hdf5', 'r') as storage:
-            loaded = storage[name]
-            return loaded[()]
+        with h5py.File(f"{name.split('/')[0]}.hdf5", 'r') as storage:
+            return storage[name][()]
     elif format == 'formatted':
         if property == 'physical_mode':
-            loaded = np.loadtxt(name + '.dat', skiprows=1)
-            loaded = np.round(loaded, 0).astype(bool)
-        elif property == 'velocity':
-            loaded = []
-            for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
-            loaded = np.array(loaded).transpose(1, 2, 0)
-        elif property == 'mean_free_path':
-            loaded = []
-            for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
-            loaded = np.array(loaded).transpose(1, 2, 0)
+            loaded = np.loadtxt(f"{name}.dat", skiprows=1)
+            return np.round(loaded, 0).astype(bool)
+        elif property in ['velocity', 'mean_free_path']:
+            loaded = [np.loadtxt(f"{name}_{alpha}.dat", skiprows=1) for alpha in range(3)]
+            return np.array(loaded).transpose(1, 2, 0)
         elif property == 'conductivity':
-            loaded = []
-            for alpha in range(3):
-                for beta in range(3):
-                    loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
-            loaded = np.array(loaded).reshape((3, 3, instance.n_phonons)).transpose(2, 0, 1)
+            loaded = [
+                np.loadtxt(f"{name}_{alpha}_{beta}.dat", skiprows=1)
+                for alpha in range(3) for beta in range(3)
+            ]
+            return np.array(loaded).reshape(3, 3, instance.n_phonons).transpose(2, 0, 1)
         elif '_sij' in property:
-            loaded = []
-            for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=complex))
-            loaded = np.array(loaded).transpose(1, 0)
+            loaded = [
+                np.loadtxt(f"{name}_{alpha}.dat", skiprows=1, dtype=complex)
+                for alpha in range(3)
+            ]
+            return np.array(loaded).transpose(1, 0)
         else:
-            if property == 'diffusivity':
-                dt = complex
-            else:
-                dt = float
-            loaded = np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
-        return loaded
+            dt = complex if property == 'diffusivity' else float
+            return np.loadtxt(f"{name}.dat", skiprows=1, dtype=dt)
     elif format == 'memory':
-        if hasattr(instance, LAZY_PREFIX + property):
-            logging.info('Loading from memory ' + str(property) + ' property.')
-            return getattr(instance, LAZY_PREFIX + property)
+        attr = getattr(instance, f"{LAZY_PREFIX}{property}", None)
+        if attr is not None:
+            logging.info(f"Loading from memory {property} property.")
+            return attr
         else:
-            logging.info(str(property) + ' not found.')
+            logging.info(f"{property} not found.")
             raise KeyError('Property not found')
     else:
         raise ValueError('Storing format not implemented')
 
 
 def save(property, folder, loaded_attr, format='formatted'):
-    # TODO: move this into single observables
-    name = folder + '/' + property
+    name = f"{folder}/{property}"
     if format == 'numpy':
         if not os.path.exists(folder):
             os.makedirs(folder)
-        np.save(name + '.npy', loaded_attr)
-        logging.info(name + ' stored')
+        np.save(f"{name}.npy", loaded_attr)
     elif format == 'hdf5':
-        with h5py.File(name.split('/')[0] + '.hdf5', 'a') as storage:
-            if not name in storage:
-                storage.create_dataset(name, data=loaded_attr, chunks=True, compression='gzip', compression_opts=9)
-        logging.info(name + ' stored')
+        with h5py.File(f"{name.split('/')[0]}.hdf5", 'a') as storage:
+            if name not in storage:
+                storage.create_dataset(
+                    name, data=loaded_attr, chunks=True,
+                    compression='gzip', compression_opts=9
+                )
     elif format == 'formatted':
-        # loaded_attr = np.nan_to_num(loaded_attr)
         if not os.path.exists(folder):
             os.makedirs(folder)
-        if property == 'physical_mode':
-            fmt = '%d'
-        else:
-            fmt = '%.18e'
-        if property == 'velocity':
+        fmt = '%d' if property == 'physical_mode' else '%.18e'
+        if property in ['velocity', 'mean_free_path']:
             for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
-        elif property == 'mean_free_path':
-            for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,
-                           header=str(loaded_attr[..., 0].shape))
+                np.savetxt(
+                    f"{name}_{alpha}.dat",
+                    loaded_attr[..., alpha],
+                    fmt=fmt,
+                    header=str(loaded_attr[..., 0].shape)
+                )
         elif '_sij' in property:
             for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
+                np.savetxt(
+                    f"{name}_{alpha}.dat",
+                    loaded_attr[..., alpha].flatten(),
+                    fmt=fmt,
+                    header=str(loaded_attr[..., 0].shape)
+                )
         elif 'conductivity' in property:
             for alpha in range(3):
                 for beta in range(3):
-                    np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', loaded_attr[..., alpha, beta], fmt=fmt,
-                           header=str(loaded_attr[..., 0, 0].shape))
+                    np.savetxt(
+                        f"{name}_{alpha}_{beta}.dat",
+                        loaded_attr[..., alpha, beta],
+                        fmt=fmt,
+                        header=str(loaded_attr[..., 0, 0].shape)
+                    )
         else:
-            np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
-    elif format=='memory':
-        logging.warning('Property ' + str(property) + ' will be lost when calculation is over.')
+            np.savetxt(f"{name}.dat", loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
+    elif format == 'memory':
+        pass
     else:
         raise ValueError('Storing format not implemented')
+    logging.info(f"{name} stored")
 
 
 def get_folder_from_label(instance, label='', base_folder=None):
-    # TODO: move this into single observables
-    if base_folder is None:
-        if instance.folder:
-            base_folder = instance.folder
-        else:
-            base_folder = FOLDER_NAME
+    base_folder = base_folder or instance.folder or FOLDER_NAME
     try:
         if np.prod(instance.kpts) > 1:
-            kpts = instance.kpts
-            base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+            base_folder += f"/{'_'.join(map(str, instance.kpts))}"
     except AttributeError:
         try:
             q_point = instance.q_point
-            base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+            base_folder += f"/single_q/{'_'.join(map(str, q_point))}"
         except AttributeError:
             pass
-    if label != '':
-        if '<diffusivity_bandwidth>' in label:
-            if instance.diffusivity_bandwidth is not None:
-                base_folder += '/db_' + str(np.mean(instance.diffusivity_bandwidth))
-        if '<diffusivity_threshold>' in label:
-            if instance.diffusivity_threshold is not None:
-                base_folder += '/dt_' + str(instance.diffusivity_threshold)
-
+    if label:
+        if '<diffusivity_bandwidth>' in label and instance.diffusivity_bandwidth is not None:
+            base_folder += f"/db_{np.mean(instance.diffusivity_bandwidth)}"
+        if '<diffusivity_threshold>' in label and instance.diffusivity_threshold is not None:
+            base_folder += f"/dt_{instance.diffusivity_threshold}"
         if '<temperature>' in label:
-            base_folder += '/' + str(int(instance.temperature))
+            base_folder += f"/{int(instance.temperature)}"
         if '<statistics>' in label:
-            if instance.is_classic:
-                base_folder += '/classic'
-            else:
-                base_folder += '/quantum'
-        if '<third_bandwidth>' in label:
-            if instance.third_bandwidth is not None:
-                base_folder += '/tb_' + str(np.mean(instance.third_bandwidth))
-        if '<include_isotopes>' in label:
-            if instance.include_isotopes:
-                base_folder +='/isotopes'
-
+            base_folder += '/classic' if instance.is_classic else '/quantum'
+        if '<third_bandwidth>' in label and instance.third_bandwidth is not None:
+            base_folder += f"/tb_{np.mean(instance.third_bandwidth)}"
+        if '<include_isotopes>' in label and instance.include_isotopes:
+            base_folder += '/isotopes'
         if '<method>' in label:
-            base_folder += '/' + str(instance.method)
-            if (instance.method == 'rta' or instance.method == 'sc' or instance.method == 'inverse') \
-                    and (instance.length is not None):
-                if not (np.array(instance.length) == np.array([None, None, None])).all()\
-                    and not (np.array(instance.length) == np.array([0, 0, 0])).all():
+            base_folder += f"/{instance.method}"
+            if instance.method in ['rta', 'sc', 'inverse'] and instance.length:
+                length_array = np.array(instance.length)
+                if not np.all(length_array == [None, None, None]) and not np.all(length_array == [0, 0, 0]):
                     if '<length>' in label:
-                        base_folder += '/l'
-                        for alpha in range(3):
-                            if instance.length[alpha] is not None:
-                                base_folder += '_' + str(instance.length[alpha])
-                            else:
-                                base_folder += '_0'
-                    if '<finite_length_method>' in label:
-                        if instance.finite_length_method is not None:
-                            base_folder += '/fs' + str(instance.finite_length_method)
+                        lengths = [str(l) if l is not None else '0' for l in instance.length]
+                        base_folder += f"/l_{'_'.join(lengths)}"
+                    if '<finite_length_method>' in label and instance.finite_length_method is not None:
+                        base_folder += f"/fs{instance.finite_length_method}"
     return base_folder
 
 
@@ -191,50 +166,35 @@ def lazy_property(label=''):
     def _lazy_property(fn):
         @property
         def __lazy_property(self):
-            try:
-                if self.storage == 'formatted':
-                    format = DEFAULT_STORE_FORMATS[fn.__name__]
-                else:
-                    format = self.storage
-            except KeyError:
-                format = 'memory'
-            if (format != 'memory'):
+            format = self.storage if self.storage != 'formatted' else DEFAULT_STORE_FORMATS.get(fn.__name__, 'memory')
+            if format != 'memory':
                 folder = get_folder_from_label(self, label)
                 property = fn.__name__
                 try:
                     loaded_attr = load(property, folder, self, format=format)
+                    logging.info(f"Loading {folder}/{property}")
                 except (FileNotFoundError, OSError, KeyError):
-                    logging.info(folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(fn.__name__))
+                    logging.info(f"{folder}/{property} not found in {format} format, calculating {property}")
                     loaded_attr = fn(self)
                     save(property, folder, loaded_attr, format=format)
-                else:
-                    logging.info('Loading ' + folder + '/' + str(property))
+                return loaded_attr
             else:
-                attr = LAZY_PREFIX + fn.__name__
+                attr = f"{LAZY_PREFIX}{fn.__name__}"
                 if not hasattr(self, attr):
-                    loaded_attr = fn(self)
-                    setattr(self, attr, loaded_attr)
-                else:
-                    loaded_attr = getattr(self, attr)
-            return loaded_attr
-        __lazy_property.__doc__ = fn.__doc__
+                    setattr(self, attr, fn(self))
+                return getattr(self, attr)
         return __lazy_property
     return _lazy_property
 
 
 def is_calculated(property, self, label='', format='formatted'):
-    # TODO: remove this function
-    attr = LAZY_PREFIX + property
+    attr = f"{LAZY_PREFIX}{property}"
+    if getattr(self, attr, None) is not None:
+        return True
     try:
-        is_calculated = not getattr(self, attr) is None
-    except AttributeError:
-        is_calculated = False
-    if not is_calculated:
-        try:
-            folder = get_folder_from_label(self, label)
-            loaded_attr = load(property, folder, self, format=format)
-            setattr(self, attr, loaded_attr)
-            return not loaded_attr is None
-        except (FileNotFoundError, OSError, KeyError):
-            return False
-    return is_calculated
+        folder = get_folder_from_label(self, label)
+        loaded_attr = load(property, folder, self, format=format)
+        setattr(self, attr, loaded_attr)
+        return loaded_attr is not None
+    except (FileNotFoundError, OSError, KeyError):
+        return False
