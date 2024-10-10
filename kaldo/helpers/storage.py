@@ -2,8 +2,8 @@ import numpy as np
 import os
 import h5py
 from kaldo.helpers.logger import get_logger
-logging = get_logger()
 
+logging = get_logger()
 
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
@@ -11,7 +11,7 @@ FOLDER_NAME = 'data'
 # TODO: move this into single observables
 DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
                          'frequency': 'formatted',
-                         'participation_ratio':'formatted',
+                         'participation_ratio': 'formatted',
                          'velocity': 'formatted',
                          'heat_capacity': 'formatted',
                          'population': 'formatted',
@@ -108,22 +108,25 @@ def save(property, folder, loaded_attr, format='formatted'):
             fmt = '%.18e'
         if property == 'velocity':
             for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt, header=str(loaded_attr[..., 0].shape))
+                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,
+                           header=str(loaded_attr[..., 0].shape))
         elif property == 'mean_free_path':
             for alpha in range(3):
                 np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha], fmt=fmt,
                            header=str(loaded_attr[..., 0].shape))
         elif '_sij' in property:
             for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt, header=str(loaded_attr[..., 0].shape))
+                np.savetxt(name + '_' + str(alpha) + '.dat', loaded_attr[..., alpha].flatten(), fmt=fmt,
+                           header=str(loaded_attr[..., 0].shape))
         elif 'conductivity' in property:
             for alpha in range(3):
                 for beta in range(3):
-                    np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', loaded_attr[..., alpha, beta], fmt=fmt,
-                           header=str(loaded_attr[..., 0, 0].shape))
+                    np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', loaded_attr[..., alpha, beta],
+                               fmt=fmt,
+                               header=str(loaded_attr[..., 0, 0].shape))
         else:
             np.savetxt(name + '.dat', loaded_attr, fmt=fmt, header=str(loaded_attr.shape))
-    elif format=='memory':
+    elif format == 'memory':
         logging.warning('Property ' + str(property) + ' will be lost when calculation is over.')
     else:
         raise ValueError('Storing format not implemented')
@@ -166,14 +169,14 @@ def get_folder_from_label(instance, label='', base_folder=None):
                 base_folder += '/tb_' + str(np.mean(instance.third_bandwidth))
         if '<include_isotopes>' in label:
             if instance.include_isotopes:
-                base_folder +='/isotopes'
+                base_folder += '/isotopes'
 
         if '<method>' in label:
             base_folder += '/' + str(instance.method)
             if (instance.method == 'rta' or instance.method == 'sc' or instance.method == 'inverse') \
                     and (instance.length is not None):
-                if not (np.array(instance.length) == np.array([None, None, None])).all()\
-                    and not (np.array(instance.length) == np.array([0, 0, 0])).all():
+                if not (np.array(instance.length) == np.array([None, None, None])).all() \
+                        and not (np.array(instance.length) == np.array([0, 0, 0])).all():
                     if '<length>' in label:
                         base_folder += '/l'
                         for alpha in range(3):
@@ -204,7 +207,9 @@ def lazy_property(label=''):
                 try:
                     loaded_attr = load(property, folder, self, format=format)
                 except (FileNotFoundError, OSError, KeyError):
-                    logging.info(folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(fn.__name__))
+                    logging.info(
+                        folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(
+                            fn.__name__))
                     loaded_attr = fn(self)
                     save(property, folder, loaded_attr, format=format)
                 else:
@@ -217,8 +222,10 @@ def lazy_property(label=''):
                 else:
                     loaded_attr = getattr(self, attr)
             return loaded_attr
+
         __lazy_property.__doc__ = fn.__doc__
         return __lazy_property
+
     return _lazy_property
 
 
