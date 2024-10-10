@@ -40,6 +40,7 @@ def project_amorphous(phonons):
     physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     logging.info('Projection started')
     for nu_single in range(phonons.n_phonons):
+
         sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
 
         out = calculate_dirac_delta_amorphous(omega,
@@ -51,20 +52,10 @@ def project_amorphous(phonons):
                                               is_balanced)
         if not out:
             continue
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
-                                                    tf.reshape(evect_tf[:, nu_single], ((phonons.n_modes, 1))))
-        third_nu_tf = tf.reshape(third_nu_tf,
-                                 (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas))
-
         dirac_delta_tf, mup_vec, mupp_vec = out
-        scaled_potential_tf = tf.einsum('ij,in,jm->nm', third_nu_tf, evect_tf, evect_tf)
-        coords = tf.stack((mup_vec, mupp_vec), axis=-1)
-        pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
-        pot_times_dirac = pot_times_dirac / tf.gather(omega[0], mup_vec) / tf.gather(omega[0], mupp_vec)
-        pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
-        pot_times_dirac = np.pi * phonons.hbar / 4. * pot_times_dirac / phonons.n_k_points * GAMMA_TO_THZ
-
         dirac_delta = tf.reduce_sum(dirac_delta_tf)
+        pot_times_dirac = project_amorphous_mu(dirac_delta_tf, omega, third_tf, evect_tf, phonons.n_modes, n_replicas,
+                                                  mup_vec, mupp_vec, phonons.n_k_points, nu_single)
 
         ps_and_gamma[nu_single, 0] = dirac_delta.numpy()
         ps_and_gamma[nu_single, 1] = pot_times_dirac.numpy()
@@ -77,6 +68,20 @@ def project_amorphous(phonons):
 
     return ps_and_gamma
 
+def project_amorphous_mu(dirac_delta_tf, omega, third_tf, evect_tf, n_modes, n_replicas, mup_vec, mupp_vec, n_k_points, nu_single):
+    third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf,
+                                                tf.reshape(evect_tf[:, nu_single], ((n_modes, 1))))
+    third_nu_tf = tf.reshape(third_nu_tf,
+                             (n_modes * n_replicas, n_modes * n_replicas))
+
+    scaled_potential_tf = tf.einsum('ij,in,jm->nm', third_nu_tf, evect_tf, evect_tf)
+    coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+    pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
+    pot_times_dirac = pot_times_dirac / tf.gather(omega[0], mup_vec) / tf.gather(omega[0], mupp_vec)
+    pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
+    pot_times_dirac = np.pi * HBAR / 4. * pot_times_dirac / n_k_points * GAMMA_TO_THZ
+
+    return pot_times_dirac
 
 @timeit
 def project_crystal(phonons):
@@ -123,13 +128,19 @@ def project_crystal(phonons):
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
         index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
-
-        ps_and_gamma[nu_single] = project_crystal_mu(evect_tf, velocity_tf, third_tf, omega, population, _chi_k, index_kpp_full_plus, index_kpp_full_minus, second_minus,second_minus_chi, physical_mode, nu_single, index_k, mu, n_k_points, phonons.n_modes, n_replicas, is_sparse, broadening_shape, is_balanced, is_gamma_tensor_enabled, phonons.kpts, phonons.n_phonons, phonons.third_bandwidth, cell_inv)
+        ps_and_gamma[nu_single] = project_crystal_mu(evect_tf, velocity_tf, third_tf, omega, population, _chi_k,
+                                                     index_kpp_full_plus, index_kpp_full_minus, second_minus,
+                                                     second_minus_chi, physical_mode, nu_single, index_k, mu,
+                                                     n_k_points, phonons.n_modes, n_replicas, is_sparse,
+                                                     broadening_shape, is_balanced, is_gamma_tensor_enabled,
+                                                     phonons.kpts, phonons.n_phonons, phonons.third_bandwidth, cell_inv)
     return ps_and_gamma
 
 
-def project_crystal_mu(evect_tf, velocity_tf, third_tf, omega, population, _chi_k, index_kpp_full_plus, index_kpp_full_minus, second_minus,
-                       second_minus_chi, physical_mode, nu_single, index_k, mu, n_k_points, n_modes, n_replicas, is_sparse, broadening_shape,
+def project_crystal_mu(evect_tf, velocity_tf, third_tf, omega, population, _chi_k, index_kpp_full_plus,
+                       index_kpp_full_minus, second_minus,
+                       second_minus_chi, physical_mode, nu_single, index_k, mu, n_k_points, n_modes, n_replicas,
+                       is_sparse, broadening_shape,
                        is_balanced, is_gamma_tensor_enabled, kpts, n_phonons, third_bandwidth, cell_inv):
     if is_gamma_tensor_enabled:
         shape = (n_phonons, 2 + n_phonons)
