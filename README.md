@@ -18,7 +18,7 @@ You can run kALDO on Google Colab:
 
 ## Software features
 Below we illustrate the main features of the code.
-- **Forcefields**. Using the Atomic Simulation Environment, kALDo can calculate the interatomic force constants using several _ab-initio_ and molecular dynamics codes. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through a seamless integration with the Hiphive package, the IFC calculation can take advantage of compressingsensing machine learning algorithms.
+- **Forcefields**. Using the Atomic Simulation Environment, kALDo can calculate the interatomic force constants using several _ab-initio_ and molecular dynamics codes. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through a seamless integration with the Hiphive package, the IFC calculation can take advantage of compressing sensing machine learning algorithms.
 - **CPUs** and **GPUs**. Multithread implementation on CPUs and GPUs. The algorithms are implemented using linear algebra
 operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.
 - **Scalable**. In a system of N atoms and N_k k points. kALDo uses (3N)^2 floating point numbers to save the state of the system when using QHGK, (Nk x 3N)^2 for the full solution of the BTE and Nk x 3N^2 when using BTE-RTA.
