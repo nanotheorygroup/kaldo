@@ -73,16 +73,30 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         c_v = c_v * physical_mode[:, np.newaxis] * physical_mode[np.newaxis, :]
         return c_v
 
-
     def _calculate_population(self):
         frequency = self.frequency
         kelvintothz = units.kB / units.J / (2 * np.pi * self.hbar) * 1e-12
         temp = self.temperature * kelvintothz
         population = np.zeros_like(frequency)
         physical_mode = self.physical_mode.reshape(frequency.shape)
-        population[physical_mode] = 1. / (np.exp(frequency[physical_mode] / temp) - 1.)
-        return population
 
+        if self.is_classic:
+            # Classical statistics: n = k_B * T / (ħ * ω)
+            # Handle division by zero for zero frequencies
+            with np.errstate(divide='ignore', invalid='ignore'):
+                population[physical_mode] = temp / frequency[physical_mode]
+                population[np.isnan(population)] = 0.0  # Set NaNs resulting from division by zero to zero
+                population[np.isinf(population)] = 0.0  # Set infinities to zero
+        else:
+            # Quantum statistics (Bose-Einstein distribution)
+            exp_term = np.exp(frequency[physical_mode] / temp)
+            # Avoid division by zero in the exponential term
+            with np.errstate(divide='ignore', invalid='ignore'):
+                population[physical_mode] = 1.0 / (exp_term - 1.0)
+                population[np.isnan(population)] = 0.0  # Set NaNs to zero
+                population[np.isinf(population)] = 0.0  # Set infinities to zero
+
+        return population
 
     def _calculate_heat_capacity(self):
         frequency = self.frequency
@@ -92,6 +106,15 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         physical_mode = self.physical_mode.reshape(frequency.shape)
         kelvintojoule = units.kB / units.J
         f_be = self.population
-        c_v[physical_mode] = kelvintojoule * f_be[physical_mode] * (f_be[physical_mode] + 1) * self.frequency[
-            physical_mode] ** 2 / (temperature ** 2)
+
+        if self.is_classic:
+            # Classical statistics: c_v = k_B per mode
+            c_v[physical_mode] = kelvintojoule
+        else:
+            # Quantum statistics (from Bose-Einstein distribution)
+            freq_squared = frequency[physical_mode] ** 2
+            c_v[physical_mode] = kelvintojoule * f_be[physical_mode] * (f_be[physical_mode] + 1) * freq_squared / (
+                        temperature ** 2)
+
         return c_v
+
