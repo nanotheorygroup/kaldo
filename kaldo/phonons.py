@@ -131,8 +131,6 @@ class Phonons:
         self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
         self.hbar = units._hbar
-        if self.is_classic:
-            self.hbar = self.hbar * 1e-6
         self.g_factor = kwargs.pop('g_factor', None)
         self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
         self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))

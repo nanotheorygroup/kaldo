@@ -11,8 +11,6 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         self.temperature = temperature
         self.is_classic = is_classic
         self.hbar = units._hbar
-        if self.is_classic:
-            self.hbar = self.hbar * 1e-6
 
 
     @lazy_property(label='<temperature>/<statistics>/<q_point>')
