@@ -75,9 +75,9 @@ Calculation Workflow
 
     ```python
     atoms = bulk('C', 'diamond', a=3.567)
-    calc = LAMMPSlib(lmpcmds=['pair_style tersoff', 'pair_coeff * * SiC.tersoff C'],
-                     parameters={'control': 'energy', 'log': 'none', 'pair': 'tersoff',
-                                 'mass': '1 12.01', 'boundary': 'p p p'},
+    calc = LAMMPSlib(lmpcmds=['pair_style tersoff', 'pair_coeff * * SiC.tersoff C'],\
+                     parameters={'control': 'energy', 'log': 'none', 'pair': 'tersoff',\
+                                 'mass': '1 12.01', 'boundary': 'p p p'},\
                      files=['SiC.tersoff'])
     fc = ForceConstants(atoms, supercell=[3, 3, 3], folder='path_to_save_IFCS/')
     ```
@@ -118,8 +118,4 @@ API Reference
 *************
 
  .. autoclass:: ForceConstants
-    :members:
-
-    .. automethod:: from_folder
-    .. automethod:: unfold_third_order
-
+        :members:
