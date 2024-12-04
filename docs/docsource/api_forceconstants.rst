@@ -191,6 +191,6 @@ Input Files and Formats
 API Reference
 *************
 
-.. autoclass:: kaldo.forceconstants::ForceConstants
-    :members: from_folder
 
+.. autoclass:: ForceConstants
+        :members:
