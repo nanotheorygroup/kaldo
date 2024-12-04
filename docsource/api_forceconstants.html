@@ -713,8 +713,17 @@ Defaults to <img alt="None" class="math" src="../_images/math/66f3449a3b20a63095
 <p class="rubric">Methods</p>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.elastic_prop" title="kaldo.forceconstants.ForceConstants.elastic_prop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">elastic_prop</span></code></a>()</p></td>
+<td><p>Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code></a>(folder[, supercell, format, ...])</p></td>
 <td><p>Create a finite difference object from a folder</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.sigma2_tdep_MD" title="kaldo.forceconstants.ForceConstants.sigma2_tdep_MD"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sigma2_tdep_MD</span></code></a>([fc_file, primitive_file, ...])</p></td>
+<td><p>Calculate the sigma2 value using TDEP and MD data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="kaldo.forceconstants.ForceConstants.unfold_third_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unfold_third_order</span></code></a>([reduced_third, ...])</p></td>
+<td><p>This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell.</p></td>
 </tr>
 </tbody>
 </table>
@@ -752,6 +761,62 @@ Default is False</p></li>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>ForceConstants object</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.unfold_third_order">
+<span class="sig-name descname"><span class="pre">unfold_third_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduced_third</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.unfold_third_order"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method extrapolates a third order force constant matrix from a unit
+cell into a matrix for a larger supercell.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reduced_third</strong> (<em>array</em><em>, </em><em>optional</em>) – The third order force constant matrix.
+Default is <img alt="self.third" class="math" src="../_images/math/15cfbf59c2e9dda1f84c7dff795b1b1d95ca9bc1.png"/></p></li>
+<li><p><strong>distance_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – When calculating force constants, contributions from atoms further than
+the distance threshold will be ignored.
+Default is self.distance_threshold</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.elastic_prop">
+<span class="sig-name descname"><span class="pre">elastic_prop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.elastic_prop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.elastic_prop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa. This describes the stress-strain
+relationship of the material and can sometimes be used as a loose predictor for thermal conductivity. Requires
+the dynamical matrix to be loaded or calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>C_ijkl</strong> – Elasticity tensor in GPa</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array(3, 3, 3, 3)</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="kaldo.forceconstants.ForceConstants.sigma2_tdep_MD">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sigma2_tdep_MD</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fc_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'infile.forceconstant'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">primitive_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'infile.ucposcar'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supercell_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'infile.ssposcar'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">md_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dump.xyz'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.sigma2_tdep_MD"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.sigma2_tdep_MD" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the sigma2 value using TDEP and MD data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fc_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the force constant file. Default is ‘infile.forceconstant’.</p></li>
+<li><p><strong>primitive_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the primitive cell file. Default is ‘infile.ucposcar’.</p></li>
+<li><p><strong>supercell_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the supercell file. Default is ‘infile.ssposcar’.</p></li>
+<li><p><strong>md_run</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the MD trajectory file. Default is ‘dump.xyz’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The average sigma2 value.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
 </dd>
 </dl>
 </dd></dl>

@@ -553,7 +553,6 @@
 <span class="sd">    Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))</span>
 <span class="sd">    ```</span>
 <span class="sd">    """</span>
-
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'phonons'</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'method'</span><span class="p">,</span> <span class="s1">'rta'</span><span class="p">)</span>
@@ -584,7 +583,8 @@
     <span class="nd">@lazy_property</span><span class="p">(</span>
         <span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">conductivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Calculate the thermal conductivity per mode in W/m/K</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Calculate the thermal conductivity per mode in W/m/K</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -622,7 +622,8 @@
     <span class="nd">@lazy_property</span><span class="p">(</span>
         <span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">mean_free_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Calculate the mean_free_path per mode in A</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Calculate the mean_free_path per mode in A</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -652,7 +653,8 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Calculate the diffusivity, for each k point in k_points and each mode.</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Calculate the diffusivity, for each k point in k_points and each mode.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -784,7 +786,8 @@
         <span class="k">return</span> <span class="n">conductivity_per_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span> <span class="o">*</span> <span class="mf">1e22</span><span class="p">,</span> <span class="n">diffusivity</span>
 
 <div class="viewcode-block" id="Conductivity.calculate_mfp_inverse"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_mfp_inverse">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_mfp_inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""This method calculates the inverse of the mean free path for each phonon.</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        This method calculates the inverse of the mean free path for each phonon.</span>
 <span class="sd">        The matrix returns k vectors for each mode and has units of inverse Angstroms.</span>
 
 <span class="sd">        Returns</span>
@@ -879,7 +882,8 @@
             <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">psi_inv_filename</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_psi_inv</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Conductivity.calculate_conductivity_full"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_conductivity_full">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_conductivity_full</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_using_gamma_tensor_evects</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
