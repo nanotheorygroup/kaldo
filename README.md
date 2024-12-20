@@ -28,12 +28,12 @@ operations on tensors, to take advantage of multithreading on GPU and CPU using 
 
 ## Citations
 
-| Reference             | cite for what?                    |
+| Reference             | Cite for what?                    |
 | --------------------- | --------------------------------- |
 | [1]                   | fundamental theory on Quasi-Harmonic Green Kubo (QHGK) |
 | [2]                   | for any work that used `kALDo`    |
 | [3]                   | participation ratio               |
-| [4]                   | PIMD + TDEP + kALDo work flow and elastic moduli calculations based on Born and Huang long wave method |
+| [4]                   | PIMD + TDEP + kALDo work flow and elastic moduli calculations|
 
 ## References
 
