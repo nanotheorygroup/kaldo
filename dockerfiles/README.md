@@ -86,7 +86,7 @@ mv Dockerfile-dev Dockerfile
 docker build --tag kaldo-dev .
 ```
 
-\```bash
+```bash
 docker run --rm --gpus all kaldo-dev pytest
 ```
 
