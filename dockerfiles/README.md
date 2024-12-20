@@ -80,13 +80,7 @@ To run development tests with pytest, execute:
 
 ```bash
 mv Dockerfile-dev Dockerfile
-```
-
-```bash
 docker build --tag kaldo-dev .
-```
-
-```bash
 docker run --rm --gpus all kaldo-dev pytest
 ```
 
@@ -94,6 +88,6 @@ Post-execution, verify KALDo's GPU support and additional features. The containe
 
 ### Additional Resources
 
-- For detailed Docker and GPU support information, consult the [NVIDIA Container Toolkit documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and the [TensorFlow Docker installation guide](https://www.tensorflow.org/install/docker).
+- For detailed Docker and GPU support information, consult [here](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and [here](https://www.tensorflow.org/install/docker).
 - The development version (`devel`) includes the full KALDo package, intended for debugging or full access to KALDo's features.
 - DeepMD base kit can be found at https://hub.docker.com/r/deepmodeling/deepmd-kit/tags
