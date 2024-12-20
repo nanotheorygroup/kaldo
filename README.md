@@ -33,7 +33,7 @@ operations on tensors, to take advantage of multithreading on GPU and CPU using 
 | [1]                   | for any work that used `kALDo`    |
 | [2]                   | fundamental theory and implementations on Quasi-Harmonic Green Kubo (QHGK) |
 | [3]                   | participation ratio               |
-| [4]                   | Finite size thermal conductivity calculations with ALD-BTE|
+| [4]                   | finite size thermal conductivity calculations with ALD-BTE|
 | [5]                   | PIMD (from GPUMD) + TDEP + kALDo work flow and elastic moduli calculations|
 
 ## References

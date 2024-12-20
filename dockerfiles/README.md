@@ -2,7 +2,7 @@
 # Dockerfiles
 
 ## Overview
-These Docker container are designed for computational simulations, integrating LAMMPS with Python support and KALDo software. Tailored for CPU environments, it also provides instructions for GPU usage adaptation.
+These Docker container are designed for computational simulations, integrating LAMMPS with Python support and kALDo software. Tailored for CPU environments, it also provides instructions for GPU usage adaptation.
 
 ## Getting Started
 
@@ -74,7 +74,7 @@ Use the `--gpus all` flag to enable all GPUs or `--gpus=0,1` for specific GPUs.
 
 ### Development and Testing
 
-Set up KALDo for testing or contributions with the Docker-dev environment.
+Set up kALDo for testing or contributions with the Docker-dev environment.
 
 To run development tests with pytest, execute:
 
@@ -84,10 +84,10 @@ docker build --tag kaldo-dev .
 docker run --rm --gpus all kaldo-dev pytest
 ```
 
-Post-execution, verify KALDo's GPU support and additional features. The container installs the main branch of KALDo, suitable for a test environment.
+Post-execution, verify kALDo's GPU support and additional features. The container installs the main branch of kALDo, suitable for a test environment.
 
 ### Additional Resources
 
 - For detailed Docker and GPU support information, consult [here](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and [here](https://www.tensorflow.org/install/docker).
-- The development version (`devel`) includes the full KALDo package, intended for debugging or full access to KALDo's features.
+- The development version (`devel`) includes the full kALDo package, intended for debugging or full access to kALDo's features.
 - DeepMD base kit can be found at https://hub.docker.com/r/deepmodeling/deepmd-kit/tags
