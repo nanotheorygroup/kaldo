@@ -2,24 +2,28 @@
 
 ## Preprints (8)
 
-* M. Yazdani-Kachoei, B. Rabihavi, I. E. Brumboiu, S. Mehdi Vaez Allaei, I. Di Marco, [Understanding the role of defects in the lattice transport properties of half-Heusler compounds: a machine learning analysis](https://arxiv.org/abs/2412.10794)
+* M. Yazdani-Kachoei, B. Rabihavi, I. E. Brumboiu, S. Mehdi Vaez Allaei, I. Di Marco, [Understanding the role of defects in the lattice transport properties of half-Heusler compounds: a machine learning analysis](https://arxiv.org/abs/2412.10794).
 
-* Aloïs Castellano, J.P. Alvarinhas Batista, Olle Hellman, and Matthieu J. Verstraete, [Mode-coupling formulation of heat transport in anharmonic materials](https://arxiv.org/abs/2411.14949)
+* Aloïs Castellano, J.P. Alvarinhas Batista, Olle Hellman, and Matthieu J. Verstraete, [Mode-coupling formulation of heat transport in anharmonic materials](https://arxiv.org/abs/2411.14949).
 
-* B Pota, P Ahlawat, G Csanyi, M Simoncelli, [Thermal Conductivity Predictions with Foundation Atomistic Models](https://arxiv.org/abs/2408.00755)
+* B Pota, P Ahlawat, G Csanyi, M Simoncelli, [Thermal Conductivity Predictions with Foundation Atomistic Models](https://arxiv.org/abs/2408.00755).
 
-* Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430)
+* Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430).
 
-* Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A Caro, Tapio Ala-Nissila, [Density dependence of thermal conductivity in nanoporous and amorphous carbon with machine-learned molecular dynamics](https://arxiv.org/abs/2408.12390)
+* Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A Caro, Tapio Ala-Nissila, [Density dependence of thermal conductivity in nanoporous and amorphous carbon with machine-learned molecular dynamics](https://arxiv.org/abs/2408.12390).
 
-* Alfredo Fiorentino, Paolo Pegolo, Stefano Baroni, Davide Donadio,[Effects of colored disorder on the heat conductivity of SiGe alloys from first principles](https://arxiv.org/abs/2408.05155)
+* Alfredo Fiorentino, Paolo Pegolo, Stefano Baroni, Davide Donadio,[Effects of colored disorder on the heat conductivity of SiGe alloys from first principles](https://arxiv.org/abs/2408.05155).
 
-* Zezhu Zeng, Zheyong Fan, Chen Chen, Ting Liang, Yue Chen, Geoff Thornton, Bingqing Cheng,[Lattice distortion leads to glassy thermal transport in crystalline Cs3Bi2I6Cl3](https://arxiv.org/abs/2407.18510)
+* Zezhu Zeng, Zheyong Fan, Chen Chen, Ting Liang, Yue Chen, Geoff Thornton, Bingqing Cheng,[Lattice distortion leads to glassy thermal transport in crystalline Cs3Bi2I6Cl3](https://arxiv.org/abs/2407.18510).
 
 * G Romano,
-[Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764)
+[Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2024 (13)
+## 2024 (15)
+
+* Enrico Drigo, [Thermoelectric effects in polar liquids and ionic conductors](https://iris.sissa.it/handle/20.500.11767/144650).
+
+* Alfredo Fiorentino, [Advances in lattice thermal transport in crystals and glasses](https://iris.sissa.it/handle/20.500.11767/144630).
 
 * Dylan A. Folkner, Zekun Chen, Giuseppe Barbalinardo, Florian Knoop, Davide Donadio, [Elastic moduli and thermal conductivity of quantum materials at finite temperature](https://pubs.aip.org/aip/jap/article/136/22/221101/3325173), J. Appl. Phys. **136**,  221101 (2024).
 
@@ -109,7 +113,7 @@ ACS omega **7.32** 28030-28040 (2022).
 Mater. Today Commun. **32**  104160 (2022).
 
 * Fredrik Eriksson, 
-[Development and application of techniques for predicting and analysing phonon-derived materials properties](https://research.chalmers.se/publication/531514/file/531514_Fulltext.pdf)
+[Development and application of techniques for predicting and analysing phonon-derived materials properties](https://research.chalmers.se/publication/531514/file/531514_Fulltext.pdf).
  
 
 * Giuseppe Barbalinardo, Zekun Chen, Haikuan Dong, Zheyong Fan, Davide Donadio,
@@ -117,7 +121,7 @@ Mater. Today Commun. **32**  104160 (2022).
 Phys. Rev. Lett. **128**, 259602 (2022).
 
 * Daniel Bruns,
-[Theory and molecular simulation of lattice vibrational heat transport in carbon nanotubes](https://open.library.ubc.ca/soa/cIRcle/collections/ubctheses/24/items/1.0416244)
+[Theory and molecular simulation of lattice vibrational heat transport in carbon nanotubes](https://open.library.ubc.ca/soa/cIRcle/collections/ubctheses/24/items/1.0416244).
 
 * Daniel Bruns, Alireza Nojeh, A. Srikantha Phani, and Jörg Rottler, 
 [Comment on “Ultrahigh Convergent Thermal Conductivity of Carbon Nanotubes from Comprehensive Atomistic Modeling”](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.128.259601),
@@ -161,4 +165,4 @@ Phys. Rev. B **103**, 024204 (2021).
 J. Appl. Phys. **128**,240402 (2020).
 
 * Giuseppe Barbalinardo,
-[Unraveling Heat Transport in Complex Materials: From Glasses to Nanostructures](https://www.proquest.com/docview/2540546522?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations%20&%20Theses) 
+[Unraveling Heat Transport in Complex Materials: From Glasses to Nanostructures](https://www.proquest.com/docview/2540546522?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations%20&%20Theses). 
