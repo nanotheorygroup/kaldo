@@ -120,16 +120,20 @@ def remap_force_constants(
 
     fc_out = np.zeros((n_sc_new, n_sc_new, 3, 3))
 
-    for a1, r0 in enumerate(new_supercell.positions):
-        uc_index = map2prim[a1]
+    for a1, (r0, uc_index) in enumerate(zip(new_supercell.positions, map2prim)):
+
         for sc_a2, sc_r2 in enumerate(sc_r[uc_index]):
+
             r_pair = r0 + sc_r2
             r_pair = np.linalg.solve(sc_temp.T, r_pair.T).T % 1.0
-            for a2 in range(n_sc_new):
-                r_diff = np.abs(r_pair - ref_struct_pos[a2])
-                r_diff -= np.floor(r_diff + eps)
-                if np.linalg.norm(r_diff) < tol:
-                    fc_out[a1, a2, :, :] += force_constants[uc_index, sc_a2, :, :]
+
+            r_diff = np.abs(r_pair - ref_struct_pos)
+            r_diff -= np.floor(r_diff + eps)
+
+            norms = np.linalg.norm(r_diff, axis=1)
+            below_tolerance = np.where(norms < tol)
+
+            fc_out[a1, below_tolerance, :, :] += force_constants[uc_index, sc_a2, :, :]
 
     if two_dim:
         fc_out = fc_out.swapaxes(1, 2).reshape(2 * (3 * fc_out.shape[1],))
