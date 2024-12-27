@@ -458,6 +458,7 @@ def calculate_dirac_delta_amorphous(
     else:
         delta_threshold = default_delta_threshold
     for is_plus in (1, 0):
+
         second_sign = int(is_plus) * 2 - 1
         omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] - omega[0, np.newaxis, :])
         condition = (
@@ -466,66 +467,58 @@ def calculate_dirac_delta_amorphous(
             & (physical_mode[0, np.newaxis, :])
         )
         interactions = tf.where(condition)
-        if interactions.shape[0] > 0:
-            # Create sparse index
-            mup_vec = interactions[:, 0]
-            mupp_vec = interactions[:, 1]
-            if is_plus:
-                dirac_delta_tf = tf.gather(population[0], mup_vec) - tf.gather(population[0], mupp_vec)
-                if is_balanced:
-                    # Detailed balance
-                    # n0 * n1 * (n2 + 2) = (n0 + 1) * (n1 + 1) * n2
-                    dirac_delta_tf = (
-                        0.5
-                        * (tf.gather(population[0], mup_vec) + 1)
-                        * (tf.gather(population[0], mupp_vec))
-                        / (population[0, mu])
-                    )
-                    dirac_delta_tf += (
-                        0.5
-                        * (tf.gather(population[0], mup_vec))
-                        * (tf.gather(population[0], mupp_vec) + 1)
-                        / (1 + population[0, mu])
-                    )
-            else:
-                dirac_delta_tf = 0.5 * (1 + tf.gather(population[0], mup_vec) + tf.gather(population[0], mupp_vec))
-                if is_balanced:
-                    # Detailed balance
-                    # n0 * (n1 + 1) * (n2 + 2) = (n0 + 1) * n1 * n2
-                    dirac_delta_tf = (
-                        0.25
-                        * (tf.gather(population[0], mup_vec))
-                        * (tf.gather(population[0], mupp_vec))
-                        / (population[0, mu])
-                    )
-                    dirac_delta_tf += (
-                        0.25
-                        * (tf.gather(population[0], mup_vec) + 1)
-                        * (tf.gather(population[0], mupp_vec) + 1)
-                        / (1 + population[0, mu])
-                    )
 
-            omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
+        if interactions.shape[0] <= 0:
+            continue
 
-            if broadening_shape == "gauss":
-                broadening_function = gaussian_delta
-            elif broadening_shape == "triangle":
-                broadening_function = triangular_delta
-            elif broadening_shape == "lorentz":
-                broadening_function = lorentz_delta
-            else:
-                raise ValueError("Broadening function not implemented")
+        # Create sparse index
 
-            dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+        mup_vec = interactions[:, 0]
+        mupp_vec = interactions[:, 1]
 
-            try:
-                mup = tf.concat([mup, mup_vec], 0)
-                mupp = tf.concat([mupp, mupp_vec], 0)
-                current_delta = tf.concat([current_delta, dirac_delta_tf], 0)
-            except NameError:
-                mup = mup_vec
-                mupp = mupp_vec
-                current_delta = dirac_delta_tf
+        if is_plus:
+            mup_mapped = tf.gather(population[0], mup_vec)
+            mupp_mapped = tf.gather(population[0], mupp_vec)
+            dirac_delta_tf = mup_mapped - mupp_mapped
+
+            if is_balanced:
+                # Detailed balance
+                # n0 * n1 * (n2 + 2) = (n0 + 1) * (n1 + 1) * n2
+                dirac_delta_tf = 0.5 * (mup_mapped + 1) * (mupp_mapped) / (population[0, mu])
+                dirac_delta_tf += 0.5 * (mup_mapped) * (mupp_mapped + 1) / (1 + population[0, mu])
+        else:
+            mup_mapped = tf.gather(population[0], mup_vec)
+            mupp_mapped = tf.gather(population[0], mupp_vec)
+            dirac_delta_tf = 0.5 * (1 + mup_mapped + mupp_mapped)
+
+            if is_balanced:
+                # Detailed balance
+                # n0 * (n1 + 1) * (n2 + 2) = (n0 + 1) * n1 * n2
+                dirac_delta_tf = 0.25 * (mup_mapped) * (mupp_mapped) / (population[0, mu])
+                dirac_delta_tf += 0.25 * (mup_mapped + 1) * (mupp_mapped + 1) / (1 + population[0, mu])
+
+        omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
+
+        if broadening_shape == "gauss":
+            broadening_function = gaussian_delta
+        elif broadening_shape == "triangle":
+            broadening_function = triangular_delta
+        elif broadening_shape == "lorentz":
+            broadening_function = lorentz_delta
+        else:
+            raise ValueError("Broadening function not implemented")
+
+        dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+
+        try:
+            mup = tf.concat([mup, mup_vec], 0)
+            mupp = tf.concat([mupp, mupp_vec], 0)
+            current_delta = tf.concat([current_delta, dirac_delta_tf], 0)
+        except NameError:
+            mup = mup_vec
+            mupp = mupp_vec
+            current_delta = dirac_delta_tf
+
     try:
         return current_delta, mup, mupp
     except:
