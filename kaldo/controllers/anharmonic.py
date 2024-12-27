@@ -453,10 +453,21 @@ def calculate_dirac_delta_amorphous(
     """
     if not physical_mode[0, mu]:
         return None
+
     if broadening_shape == "triangle":
         delta_threshold = 1
     else:
         delta_threshold = default_delta_threshold
+
+    if broadening_shape == "gauss":
+        broadening_function = gaussian_delta
+    elif broadening_shape == "triangle":
+        broadening_function = triangular_delta
+    elif broadening_shape == "lorentz":
+        broadening_function = lorentz_delta
+    else:
+        raise ValueError("Broadening function not implemented")
+
     for is_plus in (1, 0):
 
         second_sign = int(is_plus) * 2 - 1
@@ -475,10 +486,10 @@ def calculate_dirac_delta_amorphous(
 
         mup_vec = interactions[:, 0]
         mupp_vec = interactions[:, 1]
+        mup_mapped = tf.gather(population[0], mup_vec)
+        mupp_mapped = tf.gather(population[0], mupp_vec)
 
         if is_plus:
-            mup_mapped = tf.gather(population[0], mup_vec)
-            mupp_mapped = tf.gather(population[0], mupp_vec)
             dirac_delta_tf = mup_mapped - mupp_mapped
 
             if is_balanced:
@@ -487,8 +498,6 @@ def calculate_dirac_delta_amorphous(
                 dirac_delta_tf = 0.5 * (mup_mapped + 1) * (mupp_mapped) / (population[0, mu])
                 dirac_delta_tf += 0.5 * (mup_mapped) * (mupp_mapped + 1) / (1 + population[0, mu])
         else:
-            mup_mapped = tf.gather(population[0], mup_vec)
-            mupp_mapped = tf.gather(population[0], mupp_vec)
             dirac_delta_tf = 0.5 * (1 + mup_mapped + mupp_mapped)
 
             if is_balanced:
@@ -498,17 +507,7 @@ def calculate_dirac_delta_amorphous(
                 dirac_delta_tf += 0.25 * (mup_mapped + 1) * (mupp_mapped + 1) / (1 + population[0, mu])
 
         omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
-
-        if broadening_shape == "gauss":
-            broadening_function = gaussian_delta
-        elif broadening_shape == "triangle":
-            broadening_function = triangular_delta
-        elif broadening_shape == "lorentz":
-            broadening_function = lorentz_delta
-        else:
-            raise ValueError("Broadening function not implemented")
-
-        dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+        dirac_delta_tf *= broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
         try:
             mup = tf.concat([mup, mup_vec], 0)
