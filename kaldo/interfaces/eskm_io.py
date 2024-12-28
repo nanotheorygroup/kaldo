@@ -72,7 +72,7 @@ def import_second(atoms, replicas=(1, 1, 1), filename="Dyn.form"):
 
 def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename="Dyn.form"):
     supercell = np.array(supercell)
-    dynamical_matrix_frame = pd.read_csv(filename, header=None, sep="\s+")
+    dynamical_matrix_frame = pd.read_csv(filename, header=None, sep=r"\s+")
     dynamical_matrix = dynamical_matrix_frame.values
     n_replicas = np.prod(supercell)
     if dynamical_matrix.size == n_replicas * (n_atoms * 3) ** 2:
