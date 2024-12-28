@@ -96,30 +96,38 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
     coords = np.zeros((array_size, 6), dtype=int)
     values = np.zeros((array_size))
+    alphas = range(3)
     index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
 
-    for i, line in enumerate(np.loadtxt(filename)):
-        coords_to_write = line[:-3]
+    # Load file contents, then filter by energy threshold and n-atoms
 
-        if coords_to_write[0] >= n_atoms:
-            continue
+    lines = np.loadtxt(filename)
 
-        values_to_write = line[-3:]
-        # TODO: add 'if' third_energy_threshold before calculating the mask
-        mask_to_write = np.abs(values_to_write) > third_energy_threshold
+    above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
+    to_write = np.where((lines[:, 0] < n_atoms) & (above_threshold.any(axis=1)))
+    parsed_coords = lines[to_write][:, :-3] - 1
+    parsed_values = lines[to_write][:, -3:]
 
-        if not mask_to_write.any():
-            continue
+    for i, (write, coords_to_write, values_to_write) in enumerate(
+        zip(above_threshold[to_write], parsed_coords, parsed_values)
+    ):
+        if i % 1000000 == 0:
+            logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
 
-        for alpha in np.arange(3)[mask_to_write]:
+        for alpha in alphas[write]:
             coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
             coords[index_in_unit_cell, -1] = alpha
             values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
             index_in_unit_cell += 1
 
-        if i % 1000000 == 0:
-            logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
+        # This approach is vectorized but slower
+        # alphas_to_write = alphas[write]
+        # indices = range(index_in_unit_cell, index_in_unit_cell + len(alphas_to_write))
+        # coords[indices, :-1] = coords_to_write[np.newaxis, :]
+        # coords[indices, -1] = alphas_to_write
+        # values[indices] = values_to_write[alphas_to_write] * tenjovermoltoev
+        # index_in_unit_cell += len(alphas_to_write)
 
     logging.info("read " + str(3 * i) + " interactions")
 
