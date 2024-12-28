@@ -105,7 +105,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     lines = np.loadtxt(filename)
 
     above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
-    to_write = np.where((lines[:, 0] < n_atoms) & (above_threshold.any(axis=1)))
+    to_write = np.where((lines[:, 0] - 1 < n_atoms) & (above_threshold.any(axis=1)))
     parsed_coords = lines[to_write][:, :-3] - 1
     parsed_values = lines[to_write][:, -3:]
 
