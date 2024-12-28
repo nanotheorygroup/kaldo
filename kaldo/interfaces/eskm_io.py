@@ -99,25 +99,27 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
 
-    with open(filename) as f:
-        for i, line in enumerate(f):
-            l_split = line.split()
-            coords_to_write = np.array(l_split[0:-3], dtype=np.uint16) - 1
-            values_to_write = np.array(l_split[-3:], dtype=float)
-            # TODO: add 'if' third_energy_threshold before calculating the mask
-            mask_to_write = np.abs(values_to_write) > third_energy_threshold
+    for i, line in enumerate(np.loadtxt(filename)):
+        coords_to_write = line[:-3]
 
-            if not mask_to_write.any() or coords_to_write[0] >= n_atoms:
-                continue
+        if coords_to_write[0] >= n_atoms:
+            continue
 
-            for alpha in np.arange(3)[mask_to_write]:
-                coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
-                coords[index_in_unit_cell, -1] = alpha
-                values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
-                index_in_unit_cell += 1
+        values_to_write = line[-3:]
+        # TODO: add 'if' third_energy_threshold before calculating the mask
+        mask_to_write = np.abs(values_to_write) > third_energy_threshold
 
-            if i % 1000000 == 0:
-                logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
+        if not mask_to_write.any():
+            continue
+
+        for alpha in np.arange(3)[mask_to_write]:
+            coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+            coords[index_in_unit_cell, -1] = alpha
+            values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
+            index_in_unit_cell += 1
+
+        if i % 1000000 == 0:
+            logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
 
     logging.info("read " + str(3 * i) + " interactions")
 
