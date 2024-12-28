@@ -183,6 +183,7 @@ def project_crystal(phonons):
     cell_inv = phonons.forceconstants.cell_inv
 
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
+
     for nu_single in range(phonons.n_phonons):
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
@@ -255,6 +256,7 @@ def project_crystal_mu(
     Returns:
         np.ndarray: Projected properties for the single mode
     """
+
     if not physical_mode[index_k, mu]:
         return np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
 
@@ -363,6 +365,7 @@ def calculate_dirac_delta_crystal(
     """
     if not physical_mode[index_k, mu]:
         return None
+
     if broadening_shape == "gauss":
         broadening_function = gaussian_delta
     elif broadening_shape == "triangle":
@@ -371,6 +374,7 @@ def calculate_dirac_delta_crystal(
         broadening_function = lorentz_delta
     else:
         raise ValueError("Broadening function not implemented")
+
     second_sign = int(is_plus) * 2 - 1
     omegas_difference = tf.abs(
         omega[index_k, mu] + second_sign * omega[:, :, tf.newaxis] - tf.gather(omega, index_kpp_full)[:, tf.newaxis, :]
@@ -382,65 +386,59 @@ def calculate_dirac_delta_crystal(
         & (physical_mode[index_kpp_full, np.newaxis, :])
     )
     interactions = tf.where(condition)
-    if interactions.shape[0] > 0:
-        index_kp_vec = tf.cast(interactions[:, 0], dtype=tf.int32)
-        index_kpp_vec = tf.gather(index_kpp_full, index_kp_vec)
-        mup_vec = tf.cast(interactions[:, 1], dtype=tf.int32)
-        mupp_vec = tf.cast(interactions[:, 2], dtype=tf.int32)
-        coords_1 = tf.stack((index_kp_vec, mup_vec), axis=-1)
-        coords_2 = tf.stack((index_kpp_vec, mupp_vec), axis=-1)
-        if sigma_tf.shape != []:
-            coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
-            sigma_tf = tf.gather_nd(sigma_tf, coords_3)
-        if is_plus:
-            dirac_delta_tf = tf.gather_nd(population, coords_1) - tf.gather_nd(population, coords_2)
-            if is_balanced:
-                # Detail balance
-                # (n0) * (n1) * (n2 + 2) - (n0 + 1) * (n1 + 1) * (n2) = 0
-                dirac_delta_tf = (
-                    0.5
-                    * (tf.gather_nd(population, coords_1) + 1)
-                    * (tf.gather_nd(population, coords_2))
-                    / (population[index_k, mu])
-                )
-                dirac_delta_tf += (
-                    0.5
-                    * (tf.gather_nd(population, coords_1))
-                    * (tf.gather_nd(population, coords_2) + 1)
-                    / (1 + population[index_k, mu])
-                )
-        else:
-            dirac_delta_tf = 0.5 * (1 + tf.gather_nd(population, coords_1) + tf.gather_nd(population, coords_2))
-            if is_balanced:
-                # Detail balance
-                # (n0) * (n1 + 1) * (n2 + 2) - (n0 + 1) * (n1) * (n2) = 0
-                dirac_delta_tf = (
-                    0.25
-                    * (tf.gather_nd(population, coords_1))
-                    * (tf.gather_nd(population, coords_2))
-                    / (population[index_k, mu])
-                )
-                dirac_delta_tf += (
-                    0.25
-                    * (tf.gather_nd(population, coords_1) + 1)
-                    * (tf.gather_nd(population, coords_2) + 1)
-                    / (1 + population[index_k, mu])
-                )
-        omegas_difference_tf = (
-            omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(omega, coords_2)
-        )
 
-        dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+    if interactions.shape[0] <= 0:
+        return None
 
-        index_kp = index_kp_vec
-        mup = mup_vec
-        index_kpp = index_kpp_vec
-        mupp = mupp_vec
-        return tf.cast(dirac_delta_tf, dtype=tf.float64), index_kp, mup, index_kpp, mupp
+    index_kp_vec = tf.cast(interactions[:, 0], dtype=tf.int32)
+    index_kpp_vec = tf.gather(index_kpp_full, index_kp_vec)
+    mup_vec = tf.cast(interactions[:, 1], dtype=tf.int32)
+    mupp_vec = tf.cast(interactions[:, 2], dtype=tf.int32)
+    coords_1 = tf.stack((index_kp_vec, mup_vec), axis=-1)
+    coords_2 = tf.stack((index_kpp_vec, mupp_vec), axis=-1)
+    coords_1_mapped = tf.gather_nd(population, coords_1)
+    coords_2_mapped = tf.gather_nd(population, coords_2)
+
+    if sigma_tf.shape != []:
+        coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
+        sigma_tf = tf.gather_nd(sigma_tf, coords_3)
+    if is_plus:
+        dirac_delta_tf = coords_1_mapped - coords_2_mapped
+        if is_balanced:
+            # Detail balance
+            # (n0) * (n1) * (n2 + 2) - (n0 + 1) * (n1 + 1) * (n2) = 0
+            dirac_delta_tf = 0.5 * (coords_1_mapped + 1) * (coords_2_mapped) / (population[index_k, mu])
+            dirac_delta_tf += 0.5 * (coords_1_mapped) * (coords_2_mapped + 1) / (1 + population[index_k, mu])
+    else:
+        dirac_delta_tf = 0.5 * (1 + coords_1_mapped + coords_2_mapped)
+        if is_balanced:
+            # Detail balance
+            # (n0) * (n1 + 1) * (n2 + 2) - (n0 + 1) * (n1) * (n2) = 0
+            dirac_delta_tf = 0.25 * (coords_1_mapped) * (coords_2_mapped) / (population[index_k, mu])
+            dirac_delta_tf += 0.25 * (coords_1_mapped + 1) * (coords_2_mapped + 1) / (1 + population[index_k, mu])
+    omegas_difference_tf = (
+        omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(omega, coords_2)
+    )
+
+    dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+
+    index_kp = index_kp_vec
+    mup = mup_vec
+    index_kpp = index_kpp_vec
+    mupp = mupp_vec
+
+    return tf.cast(dirac_delta_tf, dtype=tf.float64), index_kp, mup, index_kpp, mupp
 
 
 def calculate_dirac_delta_amorphous(
-    omega, population, physical_mode, sigma_tf, broadening_shape, mu, is_balanced, default_delta_threshold=2
+    omega,
+    population,
+    physical_mode,
+    sigma_tf,
+    broadening_shape,
+    mu,
+    is_balanced,
+    default_delta_threshold=2,
 ):
     """
     Calculate the Dirac delta function for amorphous materials.
