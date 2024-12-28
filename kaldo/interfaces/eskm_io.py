@@ -72,7 +72,7 @@ def import_second(atoms, replicas=(1, 1, 1), filename="Dyn.form"):
 
 def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename="Dyn.form"):
     supercell = np.array(supercell)
-    dynamical_matrix_frame = pd.read_csv(filename, header=None, delim_whitespace=True)
+    dynamical_matrix_frame = pd.read_csv(filename, header=None, sep="\s+")
     dynamical_matrix = dynamical_matrix_frame.values
     n_replicas = np.prod(supercell)
     if dynamical_matrix.size == n_replicas * (n_atoms * 3) ** 2:
@@ -98,6 +98,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     values = np.zeros((array_size))
     index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
+
     with open(filename) as f:
         for i, line in enumerate(f):
             l_split = line.split()
@@ -106,18 +107,24 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             # TODO: add 'if' third_energy_threshold before calculating the mask
             mask_to_write = np.abs(values_to_write) > third_energy_threshold
 
-            if mask_to_write.any() and coords_to_write[0] < n_atoms:
-                for alpha in np.arange(3)[mask_to_write]:
-                    coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
-                    coords[index_in_unit_cell, -1] = alpha
-                    values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
-                    index_in_unit_cell = index_in_unit_cell + 1
+            if not mask_to_write.any() or coords_to_write[0] >= n_atoms:
+                continue
+
+            for alpha in np.arange(3)[mask_to_write]:
+                coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+                coords[index_in_unit_cell, -1] = alpha
+                values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
+                index_in_unit_cell += 1
+
             if i % 1000000 == 0:
                 logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
+
     logging.info("read " + str(3 * i) + " interactions")
+
     coords = coords[:index_in_unit_cell].T
     values = values[:index_in_unit_cell]
     sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+
     return sparse_third
 
 
