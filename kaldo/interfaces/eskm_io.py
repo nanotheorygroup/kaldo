@@ -121,15 +121,9 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
             index_in_unit_cell += 1
 
-        # This approach is vectorized but slower
-        # alphas_to_write = alphas[write]
-        # indices = range(index_in_unit_cell, index_in_unit_cell + len(alphas_to_write))
-        # coords[indices, :-1] = coords_to_write[np.newaxis, :]
-        # coords[indices, -1] = alphas_to_write
-        # values[indices] = values_to_write[alphas_to_write] * tenjovermoltoev
-        # index_in_unit_cell += len(alphas_to_write)
-
     logging.info("read " + str(3 * i) + " interactions")
+
+    # Create sparse matrix from file contents
 
     coords = coords[:index_in_unit_cell].T
     values = values[:index_in_unit_cell]
