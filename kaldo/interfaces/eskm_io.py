@@ -107,7 +107,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
     to_write = np.where((lines[:, 0] - 1 < n_atoms) & (above_threshold.any(axis=1)))
     parsed_coords = lines[to_write][:, :-3] - 1
-    parsed_values = lines[to_write][:, -3:]
+    parsed_values = tenjovermoltoev * lines[to_write][:, -3:]
 
     for i, (write, coords_to_write, values_to_write) in enumerate(
         zip(above_threshold[to_write], parsed_coords, parsed_values)
@@ -118,7 +118,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
         for alpha in alphas[write]:
             coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
             coords[index_in_unit_cell, -1] = alpha
-            values[index_in_unit_cell] = values_to_write[alpha] * tenjovermoltoev
+            values[index_in_unit_cell] = values_to_write[alpha]
             index_in_unit_cell += 1
 
     logging.info("read " + str(3 * i) + " interactions")
