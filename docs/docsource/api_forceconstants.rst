@@ -1,4 +1,4 @@
-.. _forceconstants-api:
+.. _phonons_frontmatter
 
 .. currentmodule:: kaldo.forceconstants
 
@@ -141,7 +141,7 @@ Input Files and Formats
 
 .. list-table:: Input Files
    :align: center
-   :widths: 20 20 20 20 20
+   :widths: auto
    :header-rows: 1
 
    * - Format
@@ -186,6 +186,8 @@ Input Files and Formats
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
 .. [#f2] The shengbte format does not have a direct equivalent in ASE. You can be create the atoms object manually or
          use the import_control_file method.
+
+.. _forceconstants-api:
 
 *************
 API Reference
