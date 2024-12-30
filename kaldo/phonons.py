@@ -98,6 +98,8 @@ class Phonons:
     iso_speed_up: bool, optional.
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
+    is_nw: bool, optional
+        Defines if you would like to assume the system is a nanowire. Default is False
 
     Returns
     -------
