@@ -1,4 +1,4 @@
-.. _phonons_frontmatter
+.. _phonons-frontmatter
 
 .. currentmodule:: kaldo.phonons
 
