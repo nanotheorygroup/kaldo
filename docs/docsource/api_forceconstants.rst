@@ -1,4 +1,4 @@
-.. _phonons_frontmatter
+.. _forceconstants-frontmatter:
 
 .. currentmodule:: kaldo.forceconstants
 
@@ -193,6 +193,6 @@ Input Files and Formats
 API Reference
 *************
 
-.. autoclass:: kaldo.forceconstants::ForceConstants
-    :members: from_folder, unfold_third_order, elastic_prop
 
+.. autoclass:: ForceConstants
+        :members:

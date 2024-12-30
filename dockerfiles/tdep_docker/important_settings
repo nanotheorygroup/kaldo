@@ -1,0 +1,57 @@
+#!/bin/bash
+# A central place to put all the important paths. You probably have to modify this to make things work.
+
+# the fortran compiler
+FORTRAN_COMPILER="mpifort"
+# or
+# FORTRAN_COMPILER="gfortran"
+
+# required compiler flags
+FCFLAGS="-ffree-line-length-none -std=f2008 -cpp -fallow-argument-mismatch"
+
+# extra flags, for debugging and such
+FCFLAGS_EXTRA=""
+# FCFLAGS_EXTRA="-fbacktrace -fcheck=all -finit-real=nan -finit-derived -fmax-errors=10 --pedantic --warn-all"
+# FCFLAGS_EXTRA="-g -fbacktrace -fcheck=all -finit-real=nan -finit-derived -fmax-errors=10 --pedantic -Wall -Wextra -pedantic -Wcast-align -Wdisabled-optimization -Wmissing-include-dirs -Wshadow -Wunused -fdiagnostics-show-option -fcheck=all -Wstrict-overflow=0 -Wrealloc-lhs"
+
+# optimization stuff. Go all in, sometimes
+OPTIMIZATION_SENSITIVE="-O0"
+OPTIMIZATION_LEVEL="-O0"
+# later you want
+# OPTIMIZATION_LEVEL="-O3"
+
+# CHECK THESE:
+# the flag that sets the default real to a double.
+DOUBLE_FLAG="-fdefault-real-8"
+# The flag that tells the compiler where to put .o and .mod files.
+MODULE_FLAG="-J"
+
+# Which gnuplot terminal to use by default.
+# Choices: aqua, qt, wxt
+GNUPLOTTERMINAL="qt"
+
+# Precompiler flags. Selecting default gnuplot terminal, and make the progressbars work.
+PRECOMPILER_FLAGS="-DGP${GNUPLOTTERMINAL} -Dclusterprogressbar -DAGRESSIVE_SANITY"
+PRECOMPILER_FLAGS="-DGP${GNUPLOTTERMINAL} -Dclusterprogressbar"
+
+# These are the BLAS/LAPACK libraries.
+PATH_TO_BLASLAPACK_LIB="-L/usr/lib"
+PATH_TO_BLASLAPACK_INC="-I/usr/include"
+BLASLAPACK_LIBS="-llapack -lblas"
+
+# I use fftw for Fourier transforms.
+PATH_TO_FFTW_LIB="-L/usr/lib"
+PATH_TO_FFTW_INC="-I/usr/include"
+FFTW_LIBS="-lfftw3"
+
+# Also need MPI
+PATH_TO_MPI_LIB="-L/usr/lib"
+PATH_TO_MPI_INC="-I/usr/include"
+MPI_LIBS="-lmpi_mpifh -lmpi"
+
+# I also use HDF5 every now and then
+PATH_TO_HDF5_LIB="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/"
+PATH_TO_HDF5_INC="-I/usr/include/hdf5/openmpi/"
+HDF5_LIBS="-lhdf5 -lhdf5_fortran"
+
+

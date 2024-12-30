@@ -129,6 +129,7 @@ API Reference
    Phonons.eigenvectors
 
 .. autoclass:: Phonons
+   :members:
 
 
    
