@@ -143,7 +143,8 @@ class Phonons:
 
     @lazy_property(label='')
     def physical_mode(self):
-        """Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
+        """
+        Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
         modes outside the frequency range min_frequency and max_frequency.
 
         Returns
@@ -202,7 +203,8 @@ class Phonons:
 
     @lazy_property(label='')
     def participation_ratio(self):
-        """Calculates the participation ratio of each normal mode. Participation ratio's
+        """
+        Calculates the participation ratio of each normal mode. Participation ratio's
         represent the fraction of atoms that are displaced meaning a value of 1 corresponds
         to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 
@@ -231,7 +233,8 @@ class Phonons:
 
     @lazy_property(label='')
     def velocity(self):
-        """Calculates the velocity using Hellmann-Feynman theorem.
+        """
+        Calculates the velocity using Hellmann-Feynman theorem.
 
         Returns
         -------
@@ -258,7 +261,8 @@ class Phonons:
 
     @lazy_property(label='')
     def _eigensystem(self):
-        """Calculate the eigensystems, for each k point in k_points.
+        """
+        Calculate the eigensystems, for each k point in k_points.
 
         Returns
         -------
@@ -291,7 +295,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity(self):
-        """Calculate the heat capacity for each k point in k_points and each mode.
+        """
+        Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
         Bose-Einstein weighted by each phonons energy.
         .. math::
@@ -325,7 +330,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity_2d(self):
-        """Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
+        """
+        Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K.
 
         Returns
@@ -356,7 +362,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>')
     def population(self):
-        """Calculate the phonons population for each k point in k_points and each mode.
+        """
+        Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
         If quantum it returns the Bose-Einstein distribution
 
@@ -386,7 +393,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
-        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+        """
+        Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -401,7 +409,8 @@ class Phonons:
 
     @lazy_property(label='<third_bandwidth>')
     def isotopic_bandwidth(self):
-        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
+        """ 
+        Calculate the isotopic bandwidth with Tamura perturbative formula.
         Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
 
         Returns
@@ -427,7 +436,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def anharmonic_bandwidth(self):
-        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+        """
+        Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -440,7 +450,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def phase_space(self):
-        """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
+        """
+        Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -453,7 +464,8 @@ class Phonons:
 
     @lazy_property(label='')
     def eigenvalues(self):
-        """Calculates the eigenvalues of the dynamical matrix in Thz^2.
+        """
+        Calculates the eigenvalues of the dynamical matrix in Thz^2.
 
         Returns
         -------
@@ -466,7 +478,8 @@ class Phonons:
 
     @property
     def eigenvectors(self):
-        """Calculates the eigenvectors of the dynamical matrix.
+        """
+        Calculates the eigenvectors of the dynamical matrix.
 
         Returns
         -------
@@ -499,7 +512,8 @@ class Phonons:
 
     @property
     def omega(self):
-        """Calculates the angular frequencies from the diagonalized dynamical matrix.
+        """
+        Calculates the angular frequencies from the diagonalized dynamical matrix.
 
         Returns
         -------
@@ -541,7 +555,6 @@ class Phonons:
             pdos : np.array(n_projections, n_points)
                 pdos for each set of projected atoms and directions
         """
-
         if p_atoms is None:
           p_atoms = list(range(self.n_atoms))
 
