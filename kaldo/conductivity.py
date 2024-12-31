@@ -109,7 +109,6 @@ class Conductivity:
     Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
     ```
     """
-
     def __init__(self, **kwargs):
         self.phonons = kwargs.pop('phonons')
         self.method = kwargs.pop('method', 'rta')
@@ -140,7 +139,8 @@ class Conductivity:
     @lazy_property(
         label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def conductivity(self):
-        """Calculate the thermal conductivity per mode in W/m/K
+        """
+        Calculate the thermal conductivity per mode in W/m/K
 
         Returns
         -------
@@ -178,7 +178,8 @@ class Conductivity:
     @lazy_property(
         label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def mean_free_path(self):
-        """Calculate the mean_free_path per mode in A
+        """
+        Calculate the mean_free_path per mode in A
 
         Returns
         -------
@@ -208,7 +209,8 @@ class Conductivity:
 
     @property
     def diffusivity(self):
-        """Calculate the diffusivity, for each k point in k_points and each mode.
+        """
+        Calculate the diffusivity, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -340,7 +342,8 @@ class Conductivity:
         return conductivity_per_mode.reshape((self.n_phonons, 3, 3)) * 1e22, diffusivity
 
     def calculate_mfp_inverse(self):
-        """This method calculates the inverse of the mean free path for each phonon.
+        """
+        This method calculates the inverse of the mean free path for each phonon.
         The matrix returns k vectors for each mode and has units of inverse Angstroms.
 
         Returns
@@ -435,7 +438,8 @@ class Conductivity:
             np.save(psi_inv_filename, self._psi_inv)
 
     def calculate_conductivity_full(self, is_using_gamma_tensor_evects=False):
-        """This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.
+        """
+        This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.
 
         Returns
         -------

@@ -25,7 +25,6 @@ class ForceConstants:
 
     Parameters
     ----------
-
     atoms: Tabulated xyz files or ASE Atoms object
         The atoms to work on.
     supercell: (3) tuple, optional
@@ -46,9 +45,7 @@ class ForceConstants:
 
     Attributes
     ----------
-
     """
-
     def __init__(self,
                  atoms,
                  supercell=(1, 1, 1),
@@ -125,7 +122,6 @@ class ForceConstants:
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
 
-
         Returns
         -------
         ForceConstants object
@@ -160,7 +156,6 @@ class ForceConstants:
 
         Parameters
         ----------
-
         reduced_third : array, optional
             The third order force constant matrix.
             Default is `self.third`
@@ -234,6 +229,7 @@ class ForceConstants:
         -------
         C_ijkl : np.array(3, 3, 3, 3)
             Elasticity tensor in GPa
+
         """
         # Intake key parameters
         atoms = self.atoms
@@ -315,6 +311,7 @@ class ForceConstants:
         -------
         float
             The average sigma2 value.
+
         """
         initial_structure = read(supercell_file, format="vasp")
         second_order_fc = parse_tdep_forceconstant(
