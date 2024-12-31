@@ -1,5 +1,6 @@
 import numpy as np
 from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
 
@@ -16,32 +17,27 @@ def wrap_coordinates(dxij, cell=None, cell_inv=None):
 
 
 class Grid:
-    def __init__(self, grid_shape, order='C'):
+    def __init__(self, grid_shape, order="C"):
         self.grid_shape = grid_shape
         self.grid_size = grid_shape[0] * grid_shape[1] * grid_shape[2]
         self.order = order
-
 
     def id_to_grid_index(self, id):
         grid_shape = self.grid_shape
         index_grid = np.array(np.unravel_index(id, grid_shape, order=self.order)).T
         return np.rint(index_grid).astype(int)
 
-
     def id_to_unitary_grid_index(self, id):
         q_vec = self.id_to_grid_index(id) / self.grid_shape
         return q_vec
-
 
     def generate_index_grid(self):
         ids = np.arange(self.grid_size)
         grid = self.id_to_grid_index(ids)
         return grid
 
-
     def unitary_grid(self, is_wrapping):
         return self.grid(is_wrapping) / self.grid_shape
-
 
     def grid(self, is_wrapping):
         try:
@@ -52,4 +48,3 @@ class Grid:
         if is_wrapping:
             index_grid = wrap_coordinates(index_grid, np.diag(self.grid_shape))
         return np.rint(index_grid).astype(int)
-

@@ -3,6 +3,7 @@ kaldo
 Anharmonic Lattice Dynamics
 
 """
+
 from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
 from kaldo.helpers.logger import log_size
@@ -16,6 +17,7 @@ from scipy import stats
 import numpy as np
 import ase.units as units
 from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
 
@@ -72,7 +74,7 @@ class Phonons:
     storage : string
         Defines the strategy used to store observables. The `default` strategy
         stores formatted text files for most harmonic properties but relies on
-        numpy arrays for large arrays like the gamma tensor. The `memory` option 
+        numpy arrays for large arrays like the gamma tensor. The `memory` option
         doesn't generate any output except what is printed in your script.
         Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`
         Default: 'formatted'
@@ -98,32 +100,37 @@ class Phonons:
     iso_speed_up: bool, optional.
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
+    is_nw: bool, optional
+        Defines if you would like to assume the system is a nanowire. Default is False
 
     Returns
     -------
     Phonons Object
     """
+
     def __init__(self, **kwargs):
-        self.forceconstants = kwargs.pop('forceconstants')
-        self.is_classic = bool(kwargs.pop('is_classic', False))
-        if 'temperature' in kwargs:
-            self.temperature = float(kwargs['temperature'])
-        self.folder = kwargs.pop('folder', FOLDER_NAME)
-        self.kpts = np.array(kwargs.pop('kpts', (1, 1, 1)))
-        self._grid_type = kwargs.pop('grid_type', 'C')
+        self.forceconstants = kwargs.pop("forceconstants")
+        self.is_classic = bool(kwargs.pop("is_classic", False))
+        if "temperature" in kwargs:
+            self.temperature = float(kwargs["temperature"])
+        self.folder = kwargs.pop("folder", FOLDER_NAME)
+        self.kpts = np.array(kwargs.pop("kpts", (1, 1, 1)))
+        self._grid_type = kwargs.pop("grid_type", "C")
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
-        self.is_unfolding = kwargs.pop('is_unfolding', False)
+        self.is_unfolding = kwargs.pop("is_unfolding", False)
         if self.is_unfolding:
-            logging.info('Using unfolding.')
-        self.min_frequency = kwargs.pop('min_frequency', 0)
-        self.max_frequency = kwargs.pop('max_frequency', None)
-        self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
-        self.is_nw = kwargs.pop('is_nw', False)
-        self.third_bandwidth = kwargs.pop('third_bandwidth', None)
-        self.storage = kwargs.pop('storage', 'formatted')
-        self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
-        self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
-        self.is_balanced = kwargs.pop('is_balanced', False)
+            logging.info("Using unfolding.")
+        self.min_frequency = kwargs.pop("min_frequency", 0)
+        self.max_frequency = kwargs.pop("max_frequency", None)
+        self.broadening_shape = kwargs.pop("broadening_shape", "gauss")
+        self.is_nw = kwargs.pop("is_nw", False)
+        self.third_bandwidth = kwargs.pop("third_bandwidth", None)
+        self.storage = kwargs.pop("storage", "formatted")
+        self.is_symmetrizing_frequency = kwargs.pop("is_symmetrizing_frequency", False)
+        self.is_antisymmetrizing_velocity = kwargs.pop(
+            "is_antisymmetrizing_velocity", False
+        )
+        self.is_balanced = kwargs.pop("is_balanced", False)
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -133,13 +140,11 @@ class Phonons:
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
-        self.g_factor = kwargs.pop('g_factor', None)
-        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
-        self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))
+        self.g_factor = kwargs.pop("g_factor", None)
+        self.include_isotopes = bool(kwargs.pop("include_isotopes", False))
+        self.iso_speed_up = bool(kwargs.pop("iso_speed_up", True))
 
-
-
-    @lazy_property(label='')
+    @lazy_property(label="")
     def physical_mode(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
@@ -155,14 +160,16 @@ class Phonons:
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage,
-                                   is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQ(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -171,8 +178,7 @@ class Phonons:
             physical_mode[self.frequency > self.max_frequency] = False
         return physical_mode
 
-
-    @lazy_property(label='')
+    @lazy_property(label="")
     def frequency(self):
         """Calculate phonons frequency
 
@@ -185,21 +191,22 @@ class Phonons:
         frequency = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage,
-                                   is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQ(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             frequency[ik] = phonon.frequency
 
         return frequency
 
-
-    @lazy_property(label='')
+    @lazy_property(label="")
     def participation_ratio(self):
         """
         Calculates the participation ratio of each normal mode. Participation ratio's
@@ -215,21 +222,22 @@ class Phonons:
         participation_ratio = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage,
-                                   is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQ(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             participation_ratio[ik] = phonon.participation_ratio
 
         return participation_ratio
 
-
-    @lazy_property(label='')
+    @lazy_property(label="")
     def velocity(self):
         """
         Calculates the velocity using Hellmann-Feynman theorem.
@@ -244,20 +252,21 @@ class Phonons:
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage,
-                                   is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQ(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             velocity[ik] = phonon.velocity
         return velocity
 
-
-    @lazy_property(label='')
+    @lazy_property(label="")
     def _eigensystem(self):
         """
         Calculate the eigensystems, for each k point in k_points.
@@ -273,25 +282,26 @@ class Phonons:
         type = complex if (not self._is_amorphous) else float
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
-        log_size(shape, name='eigensystem', type=type)
+        log_size(shape, name="eigensystem", type=type)
         eigensystem = np.zeros(shape, dtype=type)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQ(q_point=q_point,
-                                   second=self.forceconstants.second,
-                                   distance_threshold=self.forceconstants.distance_threshold,
-                                   folder=self.folder,
-                                   storage=self.storage,
-                                   is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQ(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             eigensystem[ik] = phonon._eigensystem
 
         return eigensystem
 
-
-    @lazy_property(label='<temperature>/<statistics>')
+    @lazy_property(label="<temperature>/<statistics>")
     def heat_capacity(self):
         """
         Calculate the heat capacity for each k point in k_points and each mode.
@@ -312,21 +322,22 @@ class Phonons:
         c_v = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQTemp(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                temperature=self.temperature,
+                is_classic=self.is_classic,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
             c_v[ik] = phonon.heat_capacity
         return c_v
 
-
-    @lazy_property(label='<temperature>/<statistics>')
+    @lazy_property(label="<temperature>/<statistics>")
     def heat_capacity_2d(self):
         """
         Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
@@ -339,26 +350,27 @@ class Phonons:
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         shape = (self.n_k_points, self.n_modes, self.n_modes)
-        log_size(shape, name='heat_capacity_2d', type=float)
+        log_size(shape, name="heat_capacity_2d", type=float)
         heat_capacity_2d = np.zeros(shape)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQTemp(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                temperature=self.temperature,
+                is_classic=self.is_classic,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
 
-
-    @lazy_property(label='<temperature>/<statistics>')
+    @lazy_property(label="<temperature>/<statistics>")
     def population(self):
         """
         Calculate the phonons population for each k point in k_points and each mode.
@@ -374,22 +386,25 @@ class Phonons:
         population = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQTemp(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                temperature=self.temperature,
+                is_classic=self.is_classic,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+            )
 
             population[ik] = phonon.population
         return population
 
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
+    @lazy_property(
+        label="<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>"
+    )
     def bandwidth(self):
         """
         Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
@@ -404,10 +419,9 @@ class Phonons:
             gamma += self.isotopic_bandwidth
         return gamma
 
-
-    @lazy_property(label='<third_bandwidth>')
+    @lazy_property(label="<third_bandwidth>")
     def isotopic_bandwidth(self):
-        """ 
+        """
         Calculate the isotopic bandwidth with Tamura perturbative formula.
         Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
 
@@ -417,22 +431,23 @@ class Phonons:
              atomic participation
         """
         if self._is_amorphous:
-            logging.warning('isotopic scattering not implemented for amorphous systems')
+            logging.warning("isotopic scattering not implemented for amorphous systems")
             return np.zeros(self.n_k_points, self.n_modes)
         else:
             if self.g_factor is not None:
-                isotopic_bw=isotopic.compute_isotopic_bw(self)
+                isotopic_bw = isotopic.compute_isotopic_bw(self)
             else:
-                atoms=self.atoms
-                logging.warning('input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)')
-                self.g_factor=isotopic.compute_gfactor(atoms.get_atomic_numbers() )
-                logging.info('g factors='+str(self.g_factor))
+                atoms = self.atoms
+                logging.warning(
+                    "input isotopic gfactors are missing, using isotopic concentrations from ase database (NIST)"
+                )
+                self.g_factor = isotopic.compute_gfactor(atoms.get_atomic_numbers())
+                logging.info("g factors=" + str(self.g_factor))
                 isotopic_bw = isotopic.compute_isotopic_bw(self)
 
             return isotopic_bw
 
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label="<temperature>/<statistics>/<third_bandwidth>")
     def anharmonic_bandwidth(self):
         """
         Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
@@ -445,8 +460,7 @@ class Phonons:
         gamma = self._ps_and_gamma[:, 1].reshape(self.n_k_points, self.n_modes)
         return gamma
 
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label="<temperature>/<statistics>/<third_bandwidth>")
     def phase_space(self):
         """
         Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
@@ -459,8 +473,7 @@ class Phonons:
         ps = self._ps_and_gamma[:, 0].reshape(self.n_k_points, self.n_modes)
         return ps
 
-
-    @lazy_property(label='')
+    @lazy_property(label="")
     def eigenvalues(self):
         """
         Calculates the eigenvalues of the dynamical matrix in Thz^2.
@@ -472,7 +485,6 @@ class Phonons:
         """
         eigenvalues = self._eigensystem[:, 0, :]
         return eigenvalues
-
 
     @property
     def eigenvectors(self):
@@ -487,26 +499,34 @@ class Phonons:
         eigenvectors = self._eigensystem[:, 1:, :]
         return eigenvectors
 
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label="<temperature>/<statistics>/<third_bandwidth>")
     def _ps_and_gamma(self):
-        store_format = DEFAULT_STORE_FORMATS['_ps_gamma_and_gamma_tensor'] \
-            if self.storage == 'formatted' else self.storage
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
-                         format=store_format):
+        store_format = (
+            DEFAULT_STORE_FORMATS["_ps_gamma_and_gamma_tensor"]
+            if self.storage == "formatted"
+            else self.storage
+        )
+        if is_calculated(
+            "_ps_gamma_and_gamma_tensor",
+            self,
+            "<temperature>/<statistics>/<third_bandwidth>",
+            format=store_format,
+        ):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
+            ps_and_gamma = self._select_algorithm_for_phase_space_and_gamma(
+                is_gamma_tensor_enabled=False
+            )
         return ps_and_gamma
 
-
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label="<temperature>/<statistics>/<third_bandwidth>")
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(
+            is_gamma_tensor_enabled=True
+        )
         return ps_gamma_and_gamma_tensor
 
-
-# Helpers properties
+    # Helpers properties
 
     @property
     def omega(self):
@@ -515,11 +535,10 @@ class Phonons:
 
         Returns
         -------
-        frequency : np array(n_k_points, n_modes)
+        frequency : np.array(n_k_points, n_modes)
             frequency in rad
         """
         return self.frequency * 2 * np.pi
-
 
     @property
     def _rescaled_eigenvectors(self):
@@ -527,17 +546,19 @@ class Phonons:
         n_modes = self.n_modes
         masses = self.atoms.get_masses()
         rescaled_eigenvectors = self.eigenvectors[:, :, :].reshape(
-            (self.n_k_points, n_atoms, 3, n_modes)) / np.sqrt(
-            masses[np.newaxis, :, np.newaxis, np.newaxis])
-        rescaled_eigenvectors = rescaled_eigenvectors.reshape((self.n_k_points, n_modes, n_modes))
+            (self.n_k_points, n_atoms, 3, n_modes)
+        ) / np.sqrt(masses[np.newaxis, :, np.newaxis, np.newaxis])
+        rescaled_eigenvectors = rescaled_eigenvectors.reshape(
+            (self.n_k_points, n_modes, n_modes)
+        )
         return rescaled_eigenvectors
-
 
     @property
     def _is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell == (1,1,1)).all()
+        is_amorphous = (self.kpts == (1, 1, 1)).all() and (
+            self.supercell == (1, 1, 1)
+        ).all()
         return is_amorphous
-
 
     def pdos(self, p_atoms=None, direction=None, bandwidth=0.05, n_points=200):
         """Calculate the atom projected phonon density of states.
@@ -554,13 +575,13 @@ class Phonons:
                 pdos for each set of projected atoms and directions
         """
         if p_atoms is None:
-          p_atoms = list(range(self.n_atoms))
+            p_atoms = list(range(self.n_atoms))
 
         n_proj = len(p_atoms)
 
         if n_proj == 0:
-            logging.error('No atoms provided for projection.')
-            raise IndexError('Cannot project on an empty set of atoms.')
+            logging.error("No atoms provided for projection.")
+            raise IndexError("Cannot project on an empty set of atoms.")
 
         else:
             try:
@@ -575,30 +596,32 @@ class Phonons:
         eigensystem = self._eigensystem
         eigenvals = eigensystem[:, 0, :]
         normal_modes = eigensystem[:, 1:, :]
-        frequency = np.real(np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.))
+        frequency = np.real(
+            np.abs(eigenvals) ** 0.5 * np.sign(eigenvals) / (np.pi * 2.0)
+        )
 
         fmin, fmax = frequency.min(), frequency.max()
 
         f_grid = np.linspace(0.9 * fmin, 1.1 * fmax, n_points)
 
-        p_dos = np.zeros((n_proj,n_points), dtype=float)
+        p_dos = np.zeros((n_proj, n_points), dtype=float)
         for ip in range(n_proj):
-        
+
             n_atoms = len(p_atoms[ip])
             atom_mask = np.zeros(n_modes, dtype=bool)
             for p in p_atoms[ip]:
                 i0 = 3 * p
-                atom_mask[i0:i0+3] = True
+                atom_mask[i0 : i0 + 3] = True
 
             masked_modes = normal_modes[:, atom_mask, :]
 
             if isinstance(direction, str):
-                logging.error('Direction type not implemented.')
-                raise NotImplementedError('Direction type not implemented.')
+                logging.error("Direction type not implemented.")
+                raise NotImplementedError("Direction type not implemented.")
 
             else:
                 ix = 3 * np.arange(n_atoms, dtype=int)
-                iy,iz = ix + 1, ix + 2
+                iy, iz = ix + 1, ix + 2
 
                 proj = None
                 if direction is None:
@@ -625,17 +648,21 @@ class Phonons:
 
         return f_grid, p_dos
 
-
     def _allowed_third_phonons_index(self, index_q, is_plus):
         q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
         qp_vec = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(int)
+        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(
+            int
+        )
         rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
-        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise',
-                                              order=self._grid_type)
+        index_qpp_full = np.ravel_multi_index(
+            rescaled_qpp.T,
+            self._reciprocal_grid.grid_shape,
+            mode="raise",
+            order=self._grid_type,
+        )
         return index_qpp_full
-
 
     def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         self.n_k_points = np.prod(self.kpts)
@@ -646,4 +673,3 @@ class Phonons:
         else:
             ps_and_gamma = aha.project_crystal(self)
         return ps_and_gamma
-
