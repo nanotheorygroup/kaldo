@@ -28,7 +28,6 @@ RUN apt-get install -y --no-install-recommends texlive-base \
 # Install Python dependencies
 RUN conda install pip && \
     conda install conda-forge::psutil && \
-    pip install -r requirements.txt && \
     pip install -r docs/doc_requirements.txt
 
 # Install additional packages needed for your project
