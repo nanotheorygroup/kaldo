@@ -51,18 +51,18 @@ def parse_tdep_forceconstant(
 
     force_constants = np.zeros((len(uc), len(sc), 3, 3))
 
-    with open(fc_file) as fo:
-        n_atoms = int(next(fo).split()[0])
-        cutoff = float(next(fo).split()[0])
+    with open(fc_file) as file:
+        n_atoms = int(file.readline().split()[0])
+        cutoff = float(file.readline().split()[0])
 
         assert n_atoms == n_uc, f"n_atoms == {n_atoms}, should be {n_uc}"
 
         for i1 in range(n_atoms):
-            n_neighbors = int(next(fo).split()[0])
+            n_neighbors = int(file.readline().split()[0])
             for _ in range(n_neighbors):
-                i2 = int(next(fo).split()[0]) - 1
-                lp = np.array(next(fo).split(), dtype=float)
-                phi = np.array([next(fo).split() for _ in range(3)], dtype=float)
+                i2 = int(file.readline().split()[0]) - 1
+                lp = np.array(file.readline().split(), dtype=float)
+                phi = np.array([file.readline().split() for _ in range(3)], dtype=float)
                 r_target = uc.positions[i2] + np.dot(lp, uc.cell[:])
                 for ii, r1 in enumerate(sc.positions):
                     r_diff = np.abs(r_target - r1)
