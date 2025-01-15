@@ -440,7 +440,7 @@ class SecondOrder(ForceConstant):
                 _second_order = _second_order[0, np.newaxis]
                 second_order = SecondOrder(
                     atoms=atoms,
-                    replicated_positions=replicated_positions,
+                    replicated_positions=replicated_atoms.positions,
                     supercell=supercell,
                     value=_second_order,
                     folder=folder,
