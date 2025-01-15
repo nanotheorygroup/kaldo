@@ -228,7 +228,7 @@ class SecondOrder(ForceConstant):
 
     @classmethod
     def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder="kALDo"):
-        if value is not None and is_acoustic_sum is not None:
+        if (value is not None) and (is_acoustic_sum):
             value = acoustic_sum_rule(value)
         ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
         return ifc
