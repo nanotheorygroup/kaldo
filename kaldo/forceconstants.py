@@ -240,6 +240,11 @@ class ForceConstants:
         volume = atoms.get_volume()
         list_of_replicas = self.second.list_of_replicas
 
+        # rest of the code for elastic tensor assumes C-type grid
+        # temp fix: flip the array from F grid to C grid if the grid type is F
+        if self.second._direct_grid.order == 'F':
+            list_of_replicas = np.flip(list_of_replicas, axis=1)
+
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
