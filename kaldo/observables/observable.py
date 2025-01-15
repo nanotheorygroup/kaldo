@@ -32,7 +32,7 @@ class Observable:
             logging.info(name + ' stored')
         elif format == 'hdf5':
             with h5py.File(name.split('/')[0] + '.hdf5', 'a') as storage:
-                if not name in storage:
+                if name not in storage:
                     storage.create_dataset(name, data=loaded_attr, chunks=True, compression='gzip',
                                            compression_opts=9)
             logging.info(name + ' stored')
