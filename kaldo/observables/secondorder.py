@@ -309,7 +309,7 @@ class SecondOrder(ForceConstant):
             # Create a finite difference object
             # TODO: we need to read the grid type here
             # is_qe_input = (format == 'shengbte-qe')
-            is_qe_input = format == "shengbte-qe" or "shengbte-d3q"
+            is_qe_input = (format == "shengbte-qe" or format == "shengbte-d3q")
             n_replicas = np.prod(supercell)
             n_unit_atoms = atoms.positions.shape[0]
             if is_qe_input:
