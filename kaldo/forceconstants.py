@@ -231,44 +231,67 @@ class ForceConstants:
             Elasticity tensor in GPa
 
         """
+        # Notation of the variable comes from this paper:
+        # Theory of the elastic constants of graphite and graphene, DOI 10.1002/pssb.200879604
+
         # Intake key parameters
         atoms = self.atoms
         masses = atoms.get_masses()
         volume = atoms.get_volume()
         list_of_replicas = self.second.list_of_replicas
-        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
-        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
-            (n_unit, 3, 3 * (n_unit)))
-        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
+
         distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+
+        # first order term of the expansion of dynamical matrix
         d1 = np.einsum('iljx,ibljc->ibjcx', distance.astype(complex), dynmat.numpy().astype(complex))
-        d2 = -1 * np.einsum('iljx,iljy,ibljc->ibjcxy',
-                distance.astype(complex), 
-                distance.astype(complex), 
-                dynmat.numpy().astype(complex)) 
-        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
-        
-        # Compute component b and r, keep the real component only
+
+        # second order term of the expansion of dynamical matrix
+        d2 = -1 * np.einsum(
+            'iljx,iljy,ibljc->ibjcxy',
+            distance.astype(complex),
+            distance.astype(complex),
+            dynmat.numpy().astype(complex))
+
+        # Compute Gamma tensor as eq.6
+        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+        # optical eigenvectors
+        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
+            (n_unit, 3, 3 * (n_unit)))
+        # optical eigenfrequencies
+        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
+        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)
+
+        # Compute component square braket (`b`) and round bracket (`r`) terms, keep the real component only
+
+        # square braket term, eq.4, $[ij, kl] = b_{ijkl} = 1/(2 v_c) \sum_{n,m} \sqrt{M_n} \sqrt{M_m} D^{nm}_{ij,kl}^{(2)}$
         b = (1/(2*volume))*np.einsum('n,m,nimjkl->ijkl', masses**(0.5), masses**(0.5), d2).real
+
+        # include mass in first order term
         d1r = np.einsum('nhmij,m->nhmij', d1, masses**(0.5))
+
+        # round bracket term, eq.5, mass is included in d1r
         r = -1 * (1/volume) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, gamma, d1r).real
+
+        # Compute elastic constants C_{ij,kl} as eq.3
         cijkl = np.zeros((3, 3, 3, 3))
-        evtotenjovermol = units.mol / (10 * units.J)
-        # units._e = 1.602×10−19J
-        # units.Angstorm = 1.0 = 1e-10 m
-        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
-        # give raises to 1e-21
-        evperang3togpa = units._e /(units.Angstrom * 1e-21)
         for i in range(3):
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
                         cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
-        
+
+        evtotenjovermol = units.mol / (10 * units.J)
+        # units._e = 1.602×10−19J
+        # units.Angstorm = 1.0 = 1e-10 m
+        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
+        # give raises to 1e-21
+        evperang3togpa = units._e / (units.Angstrom * 1e-21)
+
         # Denote parameter for irreducible Cij in the unit of GPa
         return evperang3togpa * cijkl / evtotenjovermol
 
