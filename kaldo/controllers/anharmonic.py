@@ -79,7 +79,7 @@ def project_amorphous(phonons):
             logging.info("calculating third " + f"{nu_single}" + ": " + \
                                                         f"{100*nu_single/phonons.n_phonons:.2f}%")
             logging.info(f"{frequency.reshape(phonons.n_phonons)[nu_single]}: " + \
-                                        f"{ps_and_gamma[nu_single, 1] * thztomev / (2 * np.pi)}")
+                                        f"{ps_and_gamma[nu_single, 1] * THZ_TO_MEV / (2 * np.pi)}")
 
     return ps_and_gamma
 
