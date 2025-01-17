@@ -191,6 +191,9 @@ def project_crystal(phonons):
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
 
     for nu_single in range(phonons.n_phonons):
+        if nu_single % 200 == 0:
+            logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
+
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
         index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
