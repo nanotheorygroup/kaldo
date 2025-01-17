@@ -192,7 +192,7 @@ def project_crystal(phonons):
 
     for nu_single in range(phonons.n_phonons):
         if nu_single % 200 == 0:
-            logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / phonons.n_phonons, 2) * 100) + '%')
+            logging.info(f"calculating third {nu_single}: {100 * nu_single / phonons.n_phonons:.2f}%")
 
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
