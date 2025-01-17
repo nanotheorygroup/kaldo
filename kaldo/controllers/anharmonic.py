@@ -75,6 +75,11 @@ def project_amorphous(phonons):
             hbar,
         )
 
+        logging.info('calculating third ' + str(nu_single) + ': ' + str(np.round(nu_single / \
+                                                                phonons.n_phonons, 2) * 100) + '%')
+        logging.info(str(frequency.reshape(phonons.n_phonons)[nu_single]) + ': ' + \
+                                          str(ps_and_gamma[nu_single, 1] * thztomev / (2 * np.pi)))
+
     return ps_and_gamma
 
 
