@@ -5,7 +5,7 @@
 &end
 &crystal
         lfactor=0.5607637985,
-	lattvec(:,1)=-0.5 0.0 0.5,
+	    lattvec(:,1)=-0.5 0.0 0.5,
         lattvec(:,2)=0.0 0.5 0.5,
         lattvec(:,3)=-0.5 0.5 0.0,
         elements="Ge"
@@ -20,7 +20,7 @@
         scalebroad=1
 &end
 &flags
-        nonanalytic=.TRUE.
+    nonanalytic=.TRUE.
 	espresso=.TRUE.
 	isotopes=.FALSE.
 &end
