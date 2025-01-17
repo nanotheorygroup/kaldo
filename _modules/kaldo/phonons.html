@@ -542,6 +542,8 @@
 <span class="sd">    iso_speed_up: bool, optional.</span>
 <span class="sd">        Defines if you want to truncate the energy-conservation delta</span>
 <span class="sd">        in the isotopic scattering computation. Default is True.</span>
+<span class="sd">    is_nw: bool, optional</span>
+<span class="sd">        Defines if you would like to assume the system is a nanowire. Default is False</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -959,7 +961,7 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        frequency : np array(n_k_points, n_modes)</span>
+<span class="sd">        frequency : np.array(n_k_points, n_modes)</span>
 <span class="sd">            frequency in rad</span>
 <span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>

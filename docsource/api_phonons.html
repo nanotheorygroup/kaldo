@@ -315,6 +315,12 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-api-phonons--page-root" class="md-nav__link">Phonons</a><nav class="md-nav">
               <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#periodicity-and-k-points" class="md-nav__link">Periodicity and k-points</a>
+        </li>
+        <li class="md-nav__item"><a href="#classical-limit" class="md-nav__link">Classical Limit</a>
+        </li>
+        <li class="md-nav__item"><a href="#general-vs-case-specific-arguments" class="md-nav__link">General vs. Case-Specific Arguments</a>
+        </li>
         <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
         </li></ul>
             </nav>
@@ -452,6 +458,12 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-api-phonons--page-root" class="md-nav__link">Phonons</a><nav class="md-nav">
               <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#periodicity-and-k-points" class="md-nav__link">Periodicity and k-points</a>
+        </li>
+        <li class="md-nav__item"><a href="#classical-limit" class="md-nav__link">Classical Limit</a>
+        </li>
+        <li class="md-nav__item"><a href="#general-vs-case-specific-arguments" class="md-nav__link">General vs. Case-Specific Arguments</a>
+        </li>
         <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
         </li></ul>
             </nav>
@@ -471,12 +483,58 @@
           <article class="md-content__inner md-typeset" role="main">
             
   <section id="phonons">
-<span id="phonons-api"></span><h1 id="docsource-api-phonons--page-root">Phonons<a class="headerlink" href="#docsource-api-phonons--page-root" title="Permalink to this heading">¶</a></h1>
-<p>Building the phonons object is the intermediate step
-between finishing your Finite Difference object, and
-initializing the Conductivity object.</p>
+<h1 id="docsource-api-phonons--page-root">Phonons<a class="headerlink" href="#docsource-api-phonons--page-root" title="Permalink to this heading">¶</a></h1>
+<p>Building the Phonons class object is the intermediate step between finishing your ForceConstants object, and
+initializing the Conductivity object. The keyword arguments given to this class help kALDo make the correct
+approximations regarding the periodicity of your system and the conditions of your material when calculating the
+thermal conductivity (e.g. temperature of the material).</p>
+<section id="periodicity-and-k-points">
+<h2 id="periodicity-and-k-points">Periodicity and k-points<a class="headerlink" href="#periodicity-and-k-points" title="Permalink to this heading">¶</a></h2>
+<p>The primary way that kALDo handles low-symmetry systems is through the grid of points to sample in reciprocal space,
+adjusted through the <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> argument. The argument here should be an array or list of three natural numbers,
+such as (2, 2, 2). You will need to converge the final thermal conductivity of the material against increasingly
+dense k-grids to ensure the reliability of your calculation. Increasing the number of <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> along a lattice vector
+is the equivalent to increasing the wavelength of a vibrational normal mode along that axis. See our
+ref:<img alt="Basic Concepts" class="math" src="../_images/math/4fec1606e29dd51755478070bd0a6b7df7bffaaf.png"/> section for more details.</p>
+<p>Your choice of <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> should strive to sample each direction in reciprocal space equally by scaling the number of
+points in that direction according to the magnitude of the reciprocal lattice vector. A quick way to do this is by
+taking the inverse of the magnitude of the real space lattice vector. For a concrete example, imagine a cubic lattice
+with lengths <img alt="a_{1} &lt; a_{2} &lt; a_{3}" class="math" src="../_images/math/01b106d244c59874e4d347125af4b9779f6064f0.png"/>. We know our <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> should roughly follow <img alt="n_{1} &gt; n_{2} &gt; n_{3}" class="math" src="../_images/math/5aff669afc385dfacaba8ebebe665e07b29ec5a9.png"/>.
+More specifically, we want to minimize the differences of the following terms:</p>
+<dl class="simple">
+<dt>..math::</dt><dd><p>frac{n_{1}}{a_{1}} approx frac{n_{2}}{a_{2}} approx frac{n_{1}}{a_{1}}</p>
+</dd>
+</dl>
+<p>Which leads to us solving a series of inequalities. We will demonstrate the idea here by solving for the bounds on
+<img alt="n_{2}" class="math" src="../_images/math/453d451e177db5e5bc802bb7f1f3fc9d5c8e9a56.png"/>, and then using the known relationship between the magnitudes of the lattice vectors to setup an
+inequality. The result yields:</p>
+<dl class="simple">
+<dt>..math::</dt><dd><p>frac{n_{3} cdot a_{2}}{a_{3}} leq n_{2} leq frac{n_{1} cdot a_{2}}{a_{1}}</p>
+</dd>
+</dl>
+<p>The example was given for a sample that’s periodic in each direction, however it will be true for less symmetric
+samples as well with the modification that you can ignore any direction lacking symmetry. The non-periodic direction
+should be set to 1, so for amorphous samples the <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> argument should be (1,1,1). For 2D materials, set the
+out-of-plane direction to 1, and for nanowires use a value greater than 1 for direction along the wire.</p>
+</section>
+<section id="classical-limit">
+<h2 id="classical-limit">Classical Limit<a class="headerlink" href="#classical-limit" title="Permalink to this heading">¶</a></h2>
+<p>Probably the second most important setting is the <img alt="is_classic" class="math" src="../_images/math/3c67f39ce25c35d91973e655196d9fa7e247c9d7.png"/> argument. By defaut, kALDo uses the Bose-Einstein
+distribution to describe the phonon population at a given temperature which assumes quantized energy.
+The <span class="xref std std-ref">Basic Concepts</span> section will provide more details, however because of this population choice the heat capacity
+also becomes affected. Close to, or above the Debye Temperature you should switch the <img alt="is_classic" class="math" src="../_images/math/3c67f39ce25c35d91973e655196d9fa7e247c9d7.png"/> Boolean to True which
+changes the calculation of mode population to the classical limit as described in the theory section. In general, the
+heat capacities and scattering will both increase, shortening the lifetimes and increasing the energy per mode</p>
+</section>
+<section id="general-vs-case-specific-arguments">
+<h2 id="general-vs-case-specific-arguments">General vs. Case-Specific Arguments<a class="headerlink" href="#general-vs-case-specific-arguments" title="Permalink to this heading">¶</a></h2>
+<p>This section is intended to clarify which arguments need to be set for all users, and which should be used in
+more specific situations. If you are a beginner to intermediate user, avoid the case-specific arguemnts. Advanced users
+can read more on the details of each case-specific argument in <a class="reference internal" href="#phonons-api"><span class="std std-ref">the phonons api</span></a> section, and in some
+cases the <span class="xref std std-ref">Basic Concepts</span> section.</p>
+</section>
 <section id="api-reference">
-<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading">¶</a></h2>
+<span id="phonons-api"></span><h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading">¶</a></h2>
 <p class="rubric">Methods</p>
 <table class="autosummary longtable docutils align-default">
 <tbody>
@@ -596,6 +654,7 @@ Default: None</p></li>
 <li><p><strong>include_isotopes</strong> (<em>bool</em><em>, </em><em>optional.</em>) – Defines if you want to include isotopic scattering bandwidths. Default is False.</p></li>
 <li><p><strong>iso_speed_up</strong> (<em>bool</em><em>, </em><em>optional.</em>) – Defines if you want to truncate the energy-conservation delta
 in the isotopic scattering computation. Default is True.</p></li>
+<li><p><strong>is_nw</strong> (<em>bool</em><em>, </em><em>optional</em>) – Defines if you would like to assume the system is a nanowire. Default is False</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -834,7 +893,7 @@ Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858</p>
 <dd class="field-odd"><p><strong>frequency</strong> – frequency in rad</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>np array(n_k_points, n_modes)</p>
+<dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
 </dd></dl>
