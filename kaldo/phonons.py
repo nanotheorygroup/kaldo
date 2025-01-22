@@ -556,7 +556,7 @@ class Phonons:
                 pdos for each set of projected atoms and directions
         """
         if p_atoms is None:
-          p_atoms = list(range(self.n_atoms))
+            p_atoms = list(range(self.n_atoms))
 
         n_proj = len(p_atoms)
 

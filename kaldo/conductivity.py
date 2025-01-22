@@ -4,7 +4,6 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import numpy as np
-import logging
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
 import kaldo.observables.harmonic_with_q_temp as hwqwt
