@@ -75,6 +75,12 @@ def project_amorphous(phonons):
             hbar,
         )
 
+        if nu_single % 200 == 0:
+            logging.info("calculating third " + f"{nu_single}" + ": " + \
+                                                        f"{100*nu_single/phonons.n_phonons:.2f}%")
+            logging.info(f"{frequency.reshape(phonons.n_phonons)[nu_single]}: " + \
+                                        f"{ps_and_gamma[nu_single, 1] * THZ_TO_MEV / (2 * np.pi)}")
+
     return ps_and_gamma
 
 
@@ -185,6 +191,9 @@ def project_crystal(phonons):
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
 
     for nu_single in range(phonons.n_phonons):
+        if nu_single % 200 == 0:
+            logging.info(f"calculating third {nu_single}: {100 * nu_single / phonons.n_phonons:.2f}%")
+
         index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
         index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
         index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
