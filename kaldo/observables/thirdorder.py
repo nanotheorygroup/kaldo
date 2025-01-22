@@ -184,9 +184,9 @@ class ThirdOrder(ForceConstant):
                 dim = len(pbc_conditions[pbc_conditions == True])
                 third_hiphive_file = str(folder) + '/THIRD'
                 supercell = np.array(supercell)
-                replicated_atoms = read(str(folder) + '/replicated_atoms.xyz')
+                replicated_atoms = ase.io.read(str(folder) + '/replicated_atoms.xyz')
                 # Derive constants used for third-order reshape
-                fcs3 = hFC.read_shengBTE(supercell=supercell, fname=third_hiphive_file, prim=prim)
+                fcs3 = hFC.read_shengBTE(supercell=supercell, fname=third_hiphive_file, prim=atoms)
                 _third_order = fcs3.get_fc_array(3).transpose(0, 3, 1, 4, 2, 5).reshape(n_sc, n_prim, dim,
                                                                                         n_sc, n_prim, dim, n_sc, n_prim,
                                                                                         dim)
