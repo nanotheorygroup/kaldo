@@ -11,7 +11,6 @@ import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 from pathlib import Path
 from ase.geometry import get_distances
-import sys
 
 logging = get_logger()
 
@@ -52,18 +51,18 @@ def parse_tdep_forceconstant(
 
     force_constants = np.zeros((len(uc), len(sc), 3, 3))
 
-    with open(fc_file) as fo:
-        n_atoms = int(next(fo).split()[0])
-        cutoff = float(next(fo).split()[0])
+    with open(fc_file) as file:
+        n_atoms = int(file.readline().split()[0])
+        cutoff = float(file.readline().split()[0])
 
         assert n_atoms == n_uc, f"n_atoms == {n_atoms}, should be {n_uc}"
 
         for i1 in range(n_atoms):
-            n_neighbors = int(next(fo).split()[0])
+            n_neighbors = int(file.readline().split()[0])
             for _ in range(n_neighbors):
-                i2 = int(next(fo).split()[0]) - 1
-                lp = np.array(next(fo).split(), dtype=float)
-                phi = np.array([next(fo).split() for _ in range(3)], dtype=float)
+                i2 = int(file.readline().split()[0]) - 1
+                lp = np.array(file.readline().split(), dtype=float)
+                phi = np.array([file.readline().split() for _ in range(3)], dtype=float)
                 r_target = uc.positions[i2] + np.dot(lp, uc.cell[:])
                 for ii, r1 in enumerate(sc.positions):
                     r_diff = np.abs(r_target - r1)
@@ -83,16 +82,37 @@ def parse_tdep_forceconstant(
 
 
 def remap_force_constants(
-    force_constants,
-    primitive,
-    supercell,
-    new_supercell=None,
-    reduce_fc=False,
-    two_dim=False,
-    symmetrize=True,
-    tol=1e-5,
-    eps=1e-13,
-):
+    force_constants: np.ndarray,
+    primitive: Atoms,
+    supercell: Atoms,
+    new_supercell: Atoms = None,
+    reduce_fc: bool = False,
+    two_dim: bool = False,
+    symmetrize: bool = True,
+    tol: float = 1e-5,
+    eps: float = 1e-13,
+) -> np.ndarray:
+    """
+    remap force constants [N_prim, N_sc, 3, 3] to [N_sc, N_sc, 3, 3]
+    Note: This function mostly follows vibes.force_constants.py from Vibes library.
+
+    Args:
+    ----
+        force_constants: force constants in [N_prim, N_sc, 3, 3] shape
+        primitive: primitive cell for reference
+        supercell: supercell for reference
+        new_supercell: supercell to map to
+        reduce_fc: return in [N_prim, N_sc, 3, 3]  shape
+        two_dim: return in [3*N_sc, 3*N_sc] shape
+        symmetrize: make force constants symmetric
+        tol: tolerance to discern pairs
+        eps: finite zero
+
+    Returns:
+    -------
+        The remapped force constants
+
+    """
 
     if new_supercell is None:
         new_supercell = supercell.copy()
@@ -140,21 +160,18 @@ def remap_force_constants(
 
         violation = np.linalg.norm(fc_out - fc_out.T)
         if violation > 1e-5:
-            msg = f"Force constants are not symmetric by {violation:.2e}."
-            warn(msg, level=1)
+            logging.warning(f"Force constants are not symmetric by {violation:.2e}.")
             if symmetrize:
-                talk("Symmetrize force constants.")
+                logging.info("Symmetrize force constants.")
                 fc_out = 0.5 * (fc_out + fc_out.T)
 
         violation = abs(fc_out.sum(axis=0)).mean()
         if violation > 1e-9:
-            msg = f"Sum rule violated by {violation:.2e} (axis 1)."
-            warn(msg, level=1)
+            logging.warning(f"Sum rule violated by {violation:.2e} (axis 1).")
 
         violation = abs(fc_out.sum(axis=1)).mean()
         if violation > 1e-9:
-            msg = f"Sum rule violated by {violation:.2e} (axis 2)."
-            warn(msg, level=1)
+            logging.warning(f"Sum rule violated by {violation:.2e} (axis 2).")
 
         return fc_out
 
@@ -174,6 +191,28 @@ def remap_force_constants(
         primitive.wrap(eps=tol)
 
         return reduce_force_constants(fc_out, p2s_map)
+
+    return fc_out
+
+
+def reduce_force_constants(fc_full: np.ndarray, map2prim: np.ndarray):
+    """
+    reduce force constants from [N_sc, N_sc, 3, 3] to [N_prim, N_sc, 3, 3]
+
+    Args:
+    ----
+        fc_full: The non-reduced force constant matrix
+        map2prim: map from supercell to unitcell index
+
+    Returns:
+    -------
+        The reduced force constants
+
+    """
+    _, uc_index = np.unique(map2prim, return_index=True)
+    fc_out = np.zeros((len(uc_index), fc_full.shape[1], 3, 3))
+    for ii, uc_ind in enumerate(uc_index):
+        fc_out[ii, :, :, :] = fc_full[uc_ind, :, :, :]
 
     return fc_out
 
@@ -228,7 +267,7 @@ class SecondOrder(ForceConstant):
 
     @classmethod
     def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder="kALDo"):
-        if value is not None and is_acoustic_sum is not None:
+        if (value is not None) and (is_acoustic_sum):
             value = acoustic_sum_rule(value)
         ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
         return ifc
@@ -309,7 +348,7 @@ class SecondOrder(ForceConstant):
             # Create a finite difference object
             # TODO: we need to read the grid type here
             # is_qe_input = (format == 'shengbte-qe')
-            is_qe_input = format == "shengbte-qe" or "shengbte-d3q"
+            is_qe_input = (format == "shengbte-qe" or format == "shengbte-d3q")
             n_replicas = np.prod(supercell)
             n_unit_atoms = atoms.positions.shape[0]
             if is_qe_input:
@@ -401,7 +440,7 @@ class SecondOrder(ForceConstant):
                 _second_order = _second_order[0, np.newaxis]
                 second_order = SecondOrder(
                     atoms=atoms,
-                    replicated_positions=replicated_positions,
+                    replicated_positions=replicated_atoms.positions,
                     supercell=supercell,
                     value=_second_order,
                     folder=folder,
