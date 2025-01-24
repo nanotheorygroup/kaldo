@@ -10,10 +10,6 @@ from sparse import COO
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
-BUFFER_PLOT = .2
-SHENG_FOLDER_NAME = 'sheng_bte'
-SHENGBTE_SCRIPT = 'ShengBTE.x'
-
 
 def _split_index(index, nx, ny, nz):
     #TODO: Remove this method
@@ -24,7 +20,7 @@ def _split_index(index, nx, ny, nz):
     iy = iy + 1
     iz = iz + 1
     iatom = iatom + 1
-    return int(ix), int(iy), int(iz), int(iatom)
+    return ix, iy, iz, iatom
 
 
 def read_second_order_matrix(filename, supercell):
