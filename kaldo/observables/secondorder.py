@@ -367,7 +367,7 @@ class SecondOrder(ForceConstant):
                     raise FileNotFoundError(f"File {filename} not found.")
                 second_order = shengbte_io.read_second_order_matrix(folder, supercell)
                 second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                grid_type = "C"
+                grid_type = "F"
             second_order = SecondOrder.from_supercell(
                 atoms=atoms,
                 grid_type=grid_type,
