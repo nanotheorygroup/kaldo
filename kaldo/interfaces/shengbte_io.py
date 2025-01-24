@@ -29,6 +29,20 @@ def _split_index(index, nx, ny, nz):
 
 def read_second_order_matrix(filename, supercell):
     """Read second order force constants from a file in VASP format.
+
+    Parameters
+    ----------
+    filename : str
+        The path to file of second order force constants in VASP format.
+
+    supercell : [t1, t2, t3]
+        The size of the supercell as t1 * t2 * t3.
+
+    Returns
+    -------
+        second_order : np.array(i_at, alpha, t1, t2, t3, j_at, beta)
+            The array contains second order force constants. alpha and beta are directional indexes in x,y,z.
+            t1, t2, t3 is the index to the supercell for j-th atom. i_at and j_at are the indexes to the atoms as in unit cell. 
     """
     with open(filename, 'r') as file:
         first_row = file.readline()
@@ -64,12 +78,13 @@ def read_second_order_qe_matrix(filename):
     Parameters
     ----------
     filename : str
-        The path to file of second order force constants.
+        The path to file of second order force constants in Quantum Espresso format.
 
     Returns
     -------
         second : np.array(i_at, alpha, t1, t2, t3, j_at, beta)
-            The array contains second order force constants. alpha and beta are directional indexes in x,y,z. t1, t2, t3 are the size of the supercell. i_at and j_at are the indexes to the atoms as in unit cell. 
+            The array contains second order force constants. alpha and beta are directional indexes in x,y,z. 
+            t1, t2, t3 is the index to the supercell for j-th atom. i_at and j_at are the indexes to the atoms as in unit cell. 
 
         supercell : [t1, t2, t3]
             The size of the supercell as t1 * t2 * t3. 
