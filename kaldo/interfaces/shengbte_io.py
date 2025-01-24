@@ -16,16 +16,9 @@ SHENG_FOLDER_NAME = 'sheng_bte'
 SHENGBTE_SCRIPT = 'ShengBTE.x'
 
 
-def divmod(a, b):
+def _split_index(index, nx, ny, nz):
     #TODO: Remove this method
-    q = a / b
-    r = a % b
-    return q, r
-
-
-def split_index(index, nx, ny, nz):
-    #TODO: Remove this method
-    tmp1, ix = divmod(index - 1, nx, )
+    tmp1, ix = divmod(index - 1, nx)
     tmp2, iy = divmod(tmp1, ny)
     iatom, iz = divmod(tmp2, nz)
     ix = ix + 1
@@ -56,8 +49,8 @@ def read_second_order_matrix(folder, supercell):
                 i, j = np.fromstring(line, dtype=int, sep=' ')
             except ValueError as err:
                 print(err)
-            i_ix, i_iy, i_iz, i_iatom = split_index(i, supercell[0], supercell[1], supercell[2])
-            j_ix, j_iy, j_iz, j_iatom = split_index(j, supercell[0], supercell[1], supercell[2])
+            i_ix, i_iy, i_iz, i_iatom = _split_index(i, supercell[0], supercell[1], supercell[2])
+            j_ix, j_iy, j_iz, j_iatom = _split_index(j, supercell[0], supercell[1], supercell[2])
             for alpha in range(3):
                 if (i_ix == 1) and (i_iy == 1) and (i_iz == 1):
                     line = file.readline()
