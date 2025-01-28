@@ -12,14 +12,11 @@ logging = get_logger()
 
 
 def _split_index(index, nx, ny, nz):
-    #TODO: Remove this method
-    tmp1, ix = divmod(index - 1, nx)
+    """Split index into ix, iy, iz, iatom. A helper function for read_second_order_matrix.
+    index = (((iatom * nz + iz) * ny + iy) * nx + ix), assuming index is zero-indexing. """
+    tmp1, ix = divmod(index, nx)
     tmp2, iy = divmod(tmp1, ny)
     iatom, iz = divmod(tmp2, nz)
-    ix = ix + 1
-    iy = iy + 1
-    iz = iz + 1
-    iatom = iatom + 1
     return ix, iy, iz, iatom
 
 
@@ -52,15 +49,21 @@ def read_second_order_matrix(filename, supercell):
         line = file.readline()
         while line:
             try:
+                # VASP uses one-indexing
                 i, j = np.fromstring(line, dtype=int, sep=' ')
+                # convert to zero-indexing
+                i -= 1
+                j -= 1
             except ValueError as err:
                 print(err)
+            
+            # i_ix, i_iy, i_iz, i_iatom, j_ix, j_iy, j_iz, j_iatom, alpha are zero-indexing
             i_ix, i_iy, i_iz, i_iatom = _split_index(i, supercell[0], supercell[1], supercell[2])
             j_ix, j_iy, j_iz, j_iatom = _split_index(j, supercell[0], supercell[1], supercell[2])
             for alpha in range(3):
-                if (i_ix == 1) and (i_iy == 1) and (i_iz == 1):
+                if (i_ix == 0) and (i_iy == 0) and (i_iz == 0):
                     line = file.readline()
-                    second_order[i_iatom - 1, alpha, j_ix - 1, j_iy - 1, j_iz - 1, j_iatom - 1, :] = \
+                    second_order[i_iatom, alpha, j_ix, j_iy, j_iz, j_iatom, :] = \
                         np.fromstring(line, dtype=float, sep=' ')
                 else:
                     file.readline()
@@ -152,8 +155,12 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
         first_line = file.readline()
         n_third = int(first_line.strip())
         for i in range(n_third):
+            # skip two lines
             file.readline()
             file.readline()
+            
+            # next two lines are the positions of the second and third cell; find their index in `list_of_index`
+            
             second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
             second_cell_list.append(second_cell_index)
@@ -170,7 +177,10 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
             third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
             third_cell_id = np.argwhere(third_cell_id).flatten()
 
+            # index to atom
             atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
+            
+            # for x,y,z directions with 3 atoms
             for _ in range(27):
                 values = np.fromstring(file.readline(), dtype=float, sep=' ')
                 alpha, beta, gamma = values[:3].round(0).astype(int) - 1
@@ -183,6 +193,7 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
 
 
 def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
+    # TODO: is this a legacy method?
     supercell = third_supercell
     n_unit_atoms = atoms.positions.shape[0]
     n_replicas = np.prod(supercell)
