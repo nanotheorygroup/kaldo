@@ -1,6 +1,8 @@
 # Publications using kALDo
 
-## Preprints (8)
+## Preprints (9)
+
+* Wenjie Zhou, Shi Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://arxiv.org/abs/2501.09990)
 
 * M. Yazdani-Kachoei, B. Rabihavi, I. E. Brumboiu, S. Mehdi Vaez Allaei, I. Di Marco, [Understanding the role of defects in the lattice transport properties of half-Heusler compounds: a machine learning analysis](https://arxiv.org/abs/2412.10794).
 
@@ -19,6 +21,10 @@
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
+## 2025 (1)
+
+* Shun Li, Lantao Fang, Tao Liu, Xuping Wang, Bing Liu, Yuanyuan Zhang, Xianshun Lv, Lei Wei, [Machine learning-accelerated molecular dynamics calculations for investigating the thermal modulation by ferroelectric domain wall in KTN single crystals](https://www.sciencedirect.com/science/article/pii/S0927025625000175), Comput. Mater. Sci. ***249***, 113674 (2025). 
+
 ## 2024 (15)
 
 * Enrico Drigo, [Thermoelectric effects in polar liquids and ionic conductors](https://iris.sissa.it/handle/20.500.11767/144650).
@@ -27,13 +33,19 @@
 
 * Dylan A. Folkner, Zekun Chen, Giuseppe Barbalinardo, Florian Knoop, Davide Donadio, [Elastic moduli and thermal conductivity of quantum materials at finite temperature](https://pubs.aip.org/aip/jap/article/136/22/221101/3325173), J. Appl. Phys. **136**,  221101 (2024).
 
-* Cai, Zhuangli, Shangchao Lin, and Changying Zhao, [Anomalous Diffuson and Locon-Dominated Wigner Multi-Channel Thermal Transport in Disordered and Shear-Aligned Polymers](https://pubs.acs.org/doi/epdf/10.1021/acs.macromol.4c00230), Macromolecules (2024).
+* Zhuangli Cai, Shangchao Lin, and Changying Zhao, [Anomalous Diffuson and Locon-Dominated Wigner Multi-Channel Thermal Transport in Disordered and Shear-Aligned Polymers](https://pubs.acs.org/doi/epdf/10.1021/acs.macromol.4c00230), Macromolecules (2024).
 
 
 * Davide Tisi, Federico Grasselli,Lorenzo Gigli, Michele Ceriotti, [Thermal transport of Li3PS4 solid electrolytes with ab initio accuracy](https://journals.aps.org/prmaterials/abstract/10.1103/PhysRevMaterials.8.065403), Phys. Rev. Mater. ***8***, 065403 (2024).
 
 
 * Alfredo Fiorentino, Enrico Drigo, Stefano Baroni, Paolo Pegolo, [Unearthing the foundational role of anharmonicity in heat transport in glasses](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.109.224202), Phys. Rev. B ***109***, 224202 (2024).
+
+
+* Fredrik Eriksson, [Beyond Perturbation: Modeling Anharmonicity in Materials](https://research.chalmers.se/publication/540860/file/540860_Fulltext.pdf)
+
+
+* Haoyu Dong,  Zhiqiang Li,  Baole Sun,  Yanguang Zhou,  Linhua Liu, Jia-Yue Yang, [Thermal transport in disordered wurtzite ScAlN alloys using machine learning interatomic potentials](https://www.sciencedirect.com/science/article/pii/S2352492824011942?casa_token=c7LgMcZwdLsAAAAA:0d5iitbkKJ-Y0v90-K6ZjyiXrmk4yqyYMHmGhNuWzhChNFEPWyYODKaUbxkWKReY5dc6lss), Mater. Today Commun. **39**  109213 (2024). 
 
 
 * Fredrik Eriksson, [Beyond Perturbation: Modeling Anharmonicity in Materials](https://research.chalmers.se/publication/540860/file/540860_Fulltext.pdf)
@@ -160,9 +172,3 @@ Phys. Rev. B **103**, 024204 (2021).
 
 ## 2020 (2)
 
-* Roman Anufriev, Christ Glorieux,  Gerald Diebold,
- [Advances in photothermal and photoacoustic metrology](https://pubs.aip.org/aip/jap/article/128/24/240402/1027028),
-J. Appl. Phys. **128**,240402 (2020).
-
-* Giuseppe Barbalinardo,
-[Unraveling Heat Transport in Complex Materials: From Glasses to Nanostructures](https://www.proquest.com/docview/2540546522?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations%20&%20Theses). 
