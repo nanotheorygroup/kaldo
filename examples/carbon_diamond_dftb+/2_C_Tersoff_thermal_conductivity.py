@@ -37,7 +37,7 @@ DFTB_calc = Dftb(Hamiltonian_MaxAngularMomentum_='',
             Hamiltonian_MaxAngularMomentum_H='s',
             Hamiltonian_KPointsAndWeights="{0 0 0 1}",
             Hamiltonian_Filling='Fermi {Temperature [K] = 300}',
-            Hamiltonian_Dispersion='SimpleDFTD3 { \n s6 = 1 \n s8 = 0.5883 \n a1 = 0.4289 \n a2=4.4407}',
+            Hamiltonian_Dispersion='SimpleDFTD3 { \n s6 = 1 \n s8 = 0.5883 \n a1 = 0.5719 \n a2=3.6017}',
             Hamiltonian_SCC="yes",
             Hamiltonian_SCCTolerance = 1e-8,
             Hamiltonian_SCCIterations=10000
