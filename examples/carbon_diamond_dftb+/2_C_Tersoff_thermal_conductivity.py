@@ -18,8 +18,8 @@ import os
 
 # Setup os environment needed for ase to run DFTB+. Give in absolute path.
 
-os.environ["ASE_DFTB_COMMAND"] = #put path to your dftb+ path.
-os.environ["DFTB_PREFIX"] = #Put the path to your slator kostive files
+os.environ["ASE_DFTB_COMMAND"] = "/opt/bin/dftb+" #put path to your dftb+ path.
+os.environ["DFTB_PREFIX"] = "/opt/bin/slater-kostiv/" #Put the path to your slator kostive files
 
 # -- Set up the coordinates of the system and the force constant calculations -- #
 
