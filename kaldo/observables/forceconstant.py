@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import NDArray, ArrayLike
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.observable import Observable
@@ -19,20 +19,24 @@ class ForceConstant(Observable):
                  replicated_positions: NDArray,
                  supercell: tuple[int, int, int],
                  folder: str,
-                 value=None,
+                 value: ArrayLike | None = None,
                  **kwargs):
-        super().__init__(self, folder=folder, **kwargs)
+        super().__init__(folder=folder, **kwargs)
         self.atoms = atoms
         self.supercell = supercell
         self.value = value
 
         self._replicated_atoms = None
+        # TODO: why replicated_positions needs a reshape?
         self.replicated_positions = replicated_positions.reshape(
             (-1, self.atoms.positions.shape[0], self.atoms.positions.shape[1]))
         self.n_replicas = np.prod(self.supercell)
         self._cell_inv = None
         self._replicated_cell_inv = None
         self._list_of_replicas = None
+
+        # * `replicated_atoms` and `list_of_replicas` are two main variables that are widely used in other places
+        # Grid type directly impact on these two variables
 
         # TODO: following code should not be triggered if it was loaded from folder, Grid info should be saved
 
@@ -63,7 +67,7 @@ class ForceConstant(Observable):
                        atoms: Atoms,
                        supercell: tuple[int, int, int],
                        grid_type: str,
-                       value=None,
+                       value: ArrayLike | None = None,
                        folder: str = 'kALDo'):
         _direct_grid = Grid(supercell, grid_type)
         _grid_arr = _direct_grid.grid(is_wrapping=False)
@@ -94,6 +98,7 @@ class ForceConstant(Observable):
     @property
     def replicated_atoms(self):
         # TODO: remove this method
+        # forceconstant.replicated_atoms is used
         if self._replicated_atoms is None:
             supercell = self.supercell
             atoms = self.atoms
