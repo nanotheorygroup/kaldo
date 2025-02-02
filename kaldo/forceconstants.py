@@ -79,17 +79,25 @@ class ForceConstants:
         self._list_of_replicas = None
 
         # TODO: we should probably remove the following initialization
-        self.second = SecondOrder.from_supercell(atoms,
-                                                 supercell=self.supercell,
-                                                 grid_type='C',
-                                                 is_acoustic_sum=False,
-                                                 folder=folder)
-        if third_supercell is None:
-            third_supercell = supercell
-        self.third = ThirdOrder.from_supercell(atoms,
-                                               supercell=third_supercell,
-                                               grid_type='C',
-                                               folder=folder)
+        # * by default do not initialize second order 
+        # * two options here:
+        # * 1. allow user to use this function
+        # * 2. directly remove this part
+        # * 3. now allow user to use supercell and third_supercell, but warn that it is not encouraged
+        if (supercell is not None) and (folder is not None):
+            logging.warning("Directly use ForceConstants to load data from folder is discouraged with limit \
+                            functionalities. Please use ForceConstants.from_folder for more options.")
+            self.second = SecondOrder.from_supercell(atoms,
+                                                     supercell=self.supercell,
+                                                     grid_type='C',
+                                                     is_acoustic_sum=False,
+                                                     folder=folder)
+            if third_supercell is None:
+                third_supercell = supercell
+            self.third = ThirdOrder.from_supercell(atoms,
+                                                   supercell=third_supercell,
+                                                   grid_type='C',
+                                                   folder=folder)
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
@@ -144,12 +152,14 @@ class ForceConstants:
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
-        # Create a finite difference object
-        forceconstants = {'atoms': atoms,
-                          'supercell': supercell,
-                          'folder': folder}
-        forceconstants = cls(**forceconstants)
+
+        # initialize forceconstants object
+        forceconstants = cls(atoms=atoms, folder=None)
+
+        # initialize second order force
         forceconstants.second = second_order
+
+        # initialize third order force
         if not only_second:
             if format == 'numpy':
                 third_format = 'sparse'
