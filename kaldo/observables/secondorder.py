@@ -15,8 +15,6 @@ from ase.geometry import get_distances
 
 logging = get_logger()
 
-SECOND_ORDER_FILE = "second.npy"
-
 
 def parse_tdep_forceconstant(
     fc_file="infile.forceconstants",
@@ -302,7 +300,7 @@ class SecondOrder(ForceConstant):
 
                 atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
 
-                _second_order = np.load(os.path.join(folder, SECOND_ORDER_FILE), allow_pickle=True)
+                _second_order = np.load(os.path.join(folder, "second.npy"), allow_pickle=True)
                 second_order = SecondOrder(
                     atoms=atoms,
                     replicated_positions=replicated_atoms.positions,
@@ -362,9 +360,9 @@ class SecondOrder(ForceConstant):
                     filename = os.path.join(folder, "espresso.ifc2")
                     if not os.path.isfile(filename):
                         raise FileNotFoundError(f"File {filename} not found.")
-                    second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
-                    second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                    second_order = second_order.transpose(3, 4, 2, 0, 1)
+                    _second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
+                    _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                    _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                     grid_type = "F"
                 else:
                     filename = os.path.join(folder, "FORCE_CONSTANTS_2ND")
@@ -372,14 +370,14 @@ class SecondOrder(ForceConstant):
                         filename = os.path.join(folder, "FORCE_CONSTANTS")
                     if not os.path.isfile(filename):
                         raise FileNotFoundError(f"File {filename} not found.")
-                    second_order = shengbte_io.read_second_order_matrix(filename, supercell)
-                    second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                    _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
+                    _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                     grid_type = "F"
                 second_order = SecondOrder.from_supercell(
                     atoms=atoms,
                     grid_type=grid_type,
                     supercell=supercell,
-                    value=second_order[np.newaxis, ...],
+                    value=_second_order[np.newaxis, ...],
                     is_acoustic_sum=True,
                     folder=folder,
                 )
