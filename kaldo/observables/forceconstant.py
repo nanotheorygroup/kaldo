@@ -1,7 +1,9 @@
 import numpy as np
+from numpy.typing import NDArray
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.observable import Observable
+from ase import Atoms
 logging = get_logger()
 
 
@@ -12,15 +14,17 @@ def chi(qvec, list_of_replicas, cell_inv):
 
 class ForceConstant(Observable):
 
-    def __init__(self, *kargs, **kwargs):
-        Observable.__init__(self, *kargs, **kwargs)
-        self.atoms = kwargs['atoms']
-        replicated_positions = kwargs['replicated_positions']
-        self.supercell = kwargs['supercell']
-        try:
-            self.value = kwargs['value']
-        except KeyError:
-            self.value = None
+    def __init__(self,
+                 atoms: Atoms,
+                 replicated_positions: NDArray,
+                 supercell: tuple[int, int, int],
+                 folder: str,
+                 value=None,
+                 **kwargs):
+        super().__init__(self, folder=folder, **kwargs)
+        self.atoms = atoms
+        self.supercell = supercell
+        self.value = value
 
         self._replicated_atoms = None
         self.replicated_positions = replicated_positions.reshape(
@@ -29,6 +33,9 @@ class ForceConstant(Observable):
         self._cell_inv = None
         self._replicated_cell_inv = None
         self._list_of_replicas = None
+
+        # TODO: following code should not be triggered if it was loaded from folder, Grid info should be saved
+
         n_replicas, n_unit_atoms, _ = self.replicated_positions.shape
         atoms_positions = self.atoms.positions
         detected_grid = np.round(
@@ -52,7 +59,12 @@ class ForceConstant(Observable):
 
 
     @classmethod
-    def from_supercell(cls, atoms, supercell, grid_type, value=None, folder='kALDo'):
+    def from_supercell(cls,
+                       atoms: Atoms,
+                       supercell: tuple[int, int, int],
+                       grid_type: str,
+                       value=None,
+                       folder: str = 'kALDo'):
         _direct_grid = Grid(supercell, grid_type)
         _grid_arr = _direct_grid.grid(is_wrapping=False)
         # supercell grid * cell paramemter => supercell positions
