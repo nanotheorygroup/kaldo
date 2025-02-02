@@ -273,202 +273,208 @@ class SecondOrder(ForceConstant):
         return ifc
 
     @classmethod
-    def load(cls, folder, supercell=(1, 1, 1), format="numpy", is_acoustic_sum=False):
-        if format == "numpy":
-            if folder[-1] != "/":
-                folder = folder + "/"
-            replicated_atoms_file = "replicated_atoms.xyz"
-            config_file = folder + replicated_atoms_file
-            replicated_atoms = ase.io.read(config_file, format="extxyz")
+    def load(cls,
+             folder: str,
+             supercell: tuple[int, int, int] = (1, 1, 1),
+             format: str = "numpy",
+             is_acoustic_sum: bool = False):
 
-            n_replicas = np.prod(supercell)
-            n_total_atoms = replicated_atoms.positions.shape[0]
-            n_unit_atoms = int(n_total_atoms / n_replicas)
-            unit_symbols = []
-            unit_positions = []
-            for i in range(n_unit_atoms):
-                unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
-                unit_positions.append(replicated_atoms.positions[i])
-            unit_cell = replicated_atoms.cell / supercell
-
-            atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
-
-            _second_order = np.load(folder + SECOND_ORDER_FILE, allow_pickle=True)
-            second_order = SecondOrder(
-                atoms=atoms,
-                replicated_positions=replicated_atoms.positions,
-                supercell=supercell,
-                value=_second_order,
-                is_acoustic_sum=is_acoustic_sum,
-                folder=folder,
-            )
-
-        elif format == "eskm" or format == "lammps":
-            dynmat_file = str(folder) + "/Dyn.form"
-            if format == "eskm":
-                config_file = str(folder) + "/CONFIG"
-                replicated_atoms = ase.io.read(config_file, format="dlp4")
-            elif format == "lammps":
-                config_file = str(folder) + "/replicated_atoms.xyz"
+        match format:
+            case "numpy":
+                if folder[-1] != "/":
+                    folder = folder + "/"
+                replicated_atoms_file = "replicated_atoms.xyz"
+                config_file = folder + replicated_atoms_file
                 replicated_atoms = ase.io.read(config_file, format="extxyz")
-            n_replicas = np.prod(supercell)
-            n_total_atoms = replicated_atoms.positions.shape[0]
-            n_unit_atoms = int(n_total_atoms / n_replicas)
-            unit_symbols = []
-            unit_positions = []
-            for i in range(n_unit_atoms):
-                unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
-                unit_positions.append(replicated_atoms.positions[i])
-            unit_cell = replicated_atoms.cell / supercell
 
-            atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
-
-            _second_order, _ = import_from_files(
-                replicated_atoms=replicated_atoms, dynmat_file=dynmat_file, supercell=supercell
-            )
-            second_order = SecondOrder(
-                atoms=atoms,
-                replicated_positions=replicated_atoms.positions,
-                supercell=supercell,
-                value=_second_order,
-                is_acoustic_sum=is_acoustic_sum,
-                folder=folder,
-            )
-        # elif format == 'shengbte' or format == 'shengbte-qe':
-        elif format == "shengbte" or format == "shengbte-qe" or format == "shengbte-d3q":
-
-            config_file = folder + "/" + "CONTROL"
-            try:
-                atoms, supercell = shengbte_io.import_control_file(config_file)
-            except FileNotFoundError as err:
-                config_file = folder + "/" + "POSCAR"
-                logging.info("\nTrying to open POSCAR")
-                atoms = ase.io.read(config_file)
-
-            # Create a finite difference object
-            # TODO: we need to read the grid type here
-            # is_qe_input = (format == 'shengbte-qe')
-            is_qe_input = (format == "shengbte-qe" or format == "shengbte-d3q")
-            n_replicas = np.prod(supercell)
-            n_unit_atoms = atoms.positions.shape[0]
-            if is_qe_input:
-                filename = folder + "/espresso.ifc2"
-                if not os.path.isfile(filename):
-                    raise FileNotFoundError(f"File {filename} not found.")
-                second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
-                second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                second_order = second_order.transpose(3, 4, 2, 0, 1)
-                grid_type = "F"
-            else:
-                filename = folder + "/FORCE_CONSTANTS_2ND"
-                if not os.path.isfile(filename):
-                    filename = folder + "/FORCE_CONSTANTS"
-                if not os.path.isfile(filename):
-                    raise FileNotFoundError(f"File {filename} not found.")
-                second_order = shengbte_io.read_second_order_matrix(filename, supercell)
-                second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                grid_type = "F"
-            second_order = SecondOrder.from_supercell(
-                atoms=atoms,
-                grid_type=grid_type,
-                supercell=supercell,
-                value=second_order[np.newaxis, ...],
-                is_acoustic_sum=True,
-                folder=folder,
-            )
-
-        elif format == "hiphive":
-            filename = "atom_prim.xyz"
-            # TODO: add replicated filename in example
-            replicated_filename = "replicated_atoms.xyz"
-            try:
-                import kaldo.interfaces.hiphive_io as hiphive_io
-            except ImportError:
-                logging.error(
-                    "In order to use hiphive along with kaldo, hiphive is required. \
-                      Please consider installing hihphive. More info can be found at: \
-                      https://hiphive.materialsmodeling.org/"
-                )
-
-            atom_prime_file = str(folder) + "/" + filename
-            replicated_atom_prime_file = str(folder) + "/" + replicated_filename
-            # TODO: Make this independent of replicated file
-            atoms = ase.io.read(atom_prime_file)
-            try:
-                replicated_atoms = ase.io.read(replicated_atom_prime_file)
-            except FileNotFoundError:
-                logging.warning(
-                    "Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead."
-                )
-                replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
-            # Create a finite difference object
-            if "model2.fcs" in os.listdir(str(folder)):
-                _second_order = hiphive_io.import_second_from_hiphive(
-                    folder, np.prod(supercell), atoms.positions.shape[0]
-                )
-                second_order = SecondOrder(
-                    atoms=atoms,
-                    replicated_positions=replicated_atoms.positions,
-                    supercell=supercell,
-                    value=_second_order,
-                    folder=folder,
-                )
-
-        elif format == "sscha":
-            filename = "atom_prim.xyz"
-            replicated_filename = "replicated_atoms.xyz"
-            try:
-                from hiphive import ForceConstants as HFC
-            except ImportError:
-                logging.error(
-                    "In order to use hiphive along with kaldo, hiphive is required. \
-                      Please consider installing hihphive. More info can be found at: \
-                      https://hiphive.materialsmodeling.org/"
-                )
-                return None
-            atom_prime_file = str(folder) + "/" + filename
-            replicated_atom_prime_file = str(folder) + "/" + replicated_filename
-            atoms = ase.io.read(atom_prime_file)
-            replicated_atoms = ase.io.read(replicated_atom_prime_file)
-            if "second.npy" in os.listdir(str(folder)):
-                second_hiphive_file = str(folder) + "/second.npy"
-                fcs2 = HFC.from_arrays(supercell=supercell, fc2_array=np.load(second_hiphive_file))
                 n_replicas = np.prod(supercell)
-                n_atoms = atoms.positions.shape[0]
-                _second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
-                _second_order = _second_order.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))
-                _second_order = _second_order[0, np.newaxis]
+                n_total_atoms = replicated_atoms.positions.shape[0]
+                n_unit_atoms = int(n_total_atoms / n_replicas)
+                unit_symbols = []
+                unit_positions = []
+                for i in range(n_unit_atoms):
+                    unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
+                    unit_positions.append(replicated_atoms.positions[i])
+                unit_cell = replicated_atoms.cell / supercell
+
+                atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
+
+                _second_order = np.load(folder + SECOND_ORDER_FILE, allow_pickle=True)
                 second_order = SecondOrder(
                     atoms=atoms,
                     replicated_positions=replicated_atoms.positions,
                     supercell=supercell,
                     value=_second_order,
+                    is_acoustic_sum=is_acoustic_sum,
                     folder=folder,
                 )
 
-        elif format == "tdep":
-            uc_filename = "infile.ucposcar"
-            replicated_filename = "infile.ssposcar"
-            atom_prime_file = str(folder) + "/" + uc_filename
-            replicated_atom_prime_file = str(folder) + "/" + replicated_filename
-            uc = ase.io.read(atom_prime_file, format="vasp")
-            sc = ase.io.read(replicated_atom_prime_file, format="vasp")
-            d2 = parse_tdep_forceconstant(
-                fc_file=folder + "/infile.forceconstant",
-                primitive=atom_prime_file,
-                supercell=replicated_atom_prime_file,
-                reduce_fc=False,
-            )
-            n_unit_atoms = uc.positions.shape[0]
-            n_replicas = np.prod(supercell)
-            d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-            d2 = d2[0, np.newaxis]
-            second_order = SecondOrder(
-                atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
-            )
+            case "eskm" | "lammps":
+                dynmat_file = str(folder) + "/Dyn.form"
+                if format == "eskm":
+                    config_file = str(folder) + "/CONFIG"
+                    replicated_atoms = ase.io.read(config_file, format="dlp4")
+                elif format == "lammps":
+                    config_file = str(folder) + "/replicated_atoms.xyz"
+                    replicated_atoms = ase.io.read(config_file, format="extxyz")
+                n_replicas = np.prod(supercell)
+                n_total_atoms = replicated_atoms.positions.shape[0]
+                n_unit_atoms = int(n_total_atoms / n_replicas)
+                unit_symbols = []
+                unit_positions = []
+                for i in range(n_unit_atoms):
+                    unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
+                    unit_positions.append(replicated_atoms.positions[i])
+                unit_cell = replicated_atoms.cell / supercell
 
-        else:
-            raise ValueError
+                atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
+
+                _second_order, _ = import_from_files(
+                    replicated_atoms=replicated_atoms, dynmat_file=dynmat_file, supercell=supercell
+                )
+                second_order = SecondOrder(
+                    atoms=atoms,
+                    replicated_positions=replicated_atoms.positions,
+                    supercell=supercell,
+                    value=_second_order,
+                    is_acoustic_sum=is_acoustic_sum,
+                    folder=folder,
+                )
+            
+            case "shengbte" | "shengbte-qe" | "shengbte-d3q":
+                config_file = folder + "/" + "CONTROL"
+                try:
+                    atoms, supercell = shengbte_io.import_control_file(config_file)
+                except FileNotFoundError as err:
+                    config_file = folder + "/" + "POSCAR"
+                    logging.info("\nTrying to open POSCAR")
+                    atoms = ase.io.read(config_file)
+
+                # Create a finite difference object
+                # TODO: we need to read the grid type here
+                # is_qe_input = (format == 'shengbte-qe')
+                is_qe_input = (format == "shengbte-qe" or format == "shengbte-d3q")
+                n_replicas = np.prod(supercell)
+                n_unit_atoms = atoms.positions.shape[0]
+                if is_qe_input:
+                    filename = folder + "/espresso.ifc2"
+                    if not os.path.isfile(filename):
+                        raise FileNotFoundError(f"File {filename} not found.")
+                    second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
+                    second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                    second_order = second_order.transpose(3, 4, 2, 0, 1)
+                    grid_type = "F"
+                else:
+                    filename = folder + "/FORCE_CONSTANTS_2ND"
+                    if not os.path.isfile(filename):
+                        filename = folder + "/FORCE_CONSTANTS"
+                    if not os.path.isfile(filename):
+                        raise FileNotFoundError(f"File {filename} not found.")
+                    second_order = shengbte_io.read_second_order_matrix(filename, supercell)
+                    second_order = second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                    grid_type = "F"
+                second_order = SecondOrder.from_supercell(
+                    atoms=atoms,
+                    grid_type=grid_type,
+                    supercell=supercell,
+                    value=second_order[np.newaxis, ...],
+                    is_acoustic_sum=True,
+                    folder=folder,
+                )
+
+            case "hiphive":
+                filename = "atom_prim.xyz"
+                # TODO: add replicated filename in example
+                replicated_filename = "replicated_atoms.xyz"
+                try:
+                    import kaldo.interfaces.hiphive_io as hiphive_io
+                except ImportError:
+                    logging.error(
+                        "In order to use hiphive along with kaldo, hiphive is required. \
+                        Please consider installing hihphive. More info can be found at: \
+                        https://hiphive.materialsmodeling.org/"
+                    )
+
+                atom_prime_file = str(folder) + "/" + filename
+                replicated_atom_prime_file = str(folder) + "/" + replicated_filename
+                # TODO: Make this independent of replicated file
+                atoms = ase.io.read(atom_prime_file)
+                try:
+                    replicated_atoms = ase.io.read(replicated_atom_prime_file)
+                except FileNotFoundError:
+                    logging.warning(
+                        "Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead."
+                    )
+                    replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
+                # Create a finite difference object
+                if "model2.fcs" in os.listdir(str(folder)):
+                    _second_order = hiphive_io.import_second_from_hiphive(
+                        folder, np.prod(supercell), atoms.positions.shape[0]
+                    )
+                    second_order = SecondOrder(
+                        atoms=atoms,
+                        replicated_positions=replicated_atoms.positions,
+                        supercell=supercell,
+                        value=_second_order,
+                        folder=folder,
+                    )
+            
+            case "sscha":
+                filename = "atom_prim.xyz"
+                replicated_filename = "replicated_atoms.xyz"
+                try:
+                    from hiphive import ForceConstants as HFC
+                except ImportError:
+                    logging.error(
+                        "In order to use hiphive along with kaldo, hiphive is required. \
+                        Please consider installing hihphive. More info can be found at: \
+                        https://hiphive.materialsmodeling.org/"
+                    )
+                    return None
+                atom_prime_file = str(folder) + "/" + filename
+                replicated_atom_prime_file = str(folder) + "/" + replicated_filename
+                atoms = ase.io.read(atom_prime_file)
+                replicated_atoms = ase.io.read(replicated_atom_prime_file)
+                if "second.npy" in os.listdir(str(folder)):
+                    second_hiphive_file = str(folder) + "/second.npy"
+                    fcs2 = HFC.from_arrays(supercell=supercell, fc2_array=np.load(second_hiphive_file))
+                    n_replicas = np.prod(supercell)
+                    n_atoms = atoms.positions.shape[0]
+                    _second_order = fcs2.get_fc_array(2).transpose(0, 2, 1, 3)
+                    _second_order = _second_order.reshape((n_replicas, n_atoms, 3, n_replicas, n_atoms, 3))
+                    _second_order = _second_order[0, np.newaxis]
+                    second_order = SecondOrder(
+                        atoms=atoms,
+                        replicated_positions=replicated_atoms.positions,
+                        supercell=supercell,
+                        value=_second_order,
+                        folder=folder,
+                    )
+
+            case "tdep":
+                uc_filename = "infile.ucposcar"
+                replicated_filename = "infile.ssposcar"
+                atom_prime_file = str(folder) + "/" + uc_filename
+                replicated_atom_prime_file = str(folder) + "/" + replicated_filename
+                uc = ase.io.read(atom_prime_file, format="vasp")
+                sc = ase.io.read(replicated_atom_prime_file, format="vasp")
+                d2 = parse_tdep_forceconstant(
+                    fc_file=folder + "/infile.forceconstant",
+                    primitive=atom_prime_file,
+                    supercell=replicated_atom_prime_file,
+                    reduce_fc=False,
+                )
+                n_unit_atoms = uc.positions.shape[0]
+                n_replicas = np.prod(supercell)
+                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                d2 = d2[0, np.newaxis]
+                second_order = SecondOrder(
+                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
+                )
+            
+            case _:
+                raise ValueError(f"{format} is not a valid format")
+
         return second_order
 
     @property
