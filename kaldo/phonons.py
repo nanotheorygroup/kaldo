@@ -10,10 +10,12 @@ from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 import kaldo.controllers.isotopic as isotopic
 from scipy import stats
 import numpy as np
+import numpy.typing as npt
 import ase.units as units
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
@@ -105,27 +107,48 @@ class Phonons:
     -------
     Phonons Object
     """
-    def __init__(self, **kwargs):
-        self.forceconstants = kwargs.pop('forceconstants')
-        self.is_classic = bool(kwargs.pop('is_classic', False))
-        if 'temperature' in kwargs:
-            self.temperature = float(kwargs['temperature'])
-        self.folder = kwargs.pop('folder', FOLDER_NAME)
-        self.kpts = np.array(kwargs.pop('kpts', (1, 1, 1)))
-        self._grid_type = kwargs.pop('grid_type', 'C')
+    def __init__(self,
+                 forceconstants: ForceConstants,
+                 temperature: float | None = None,
+                 *,
+                 is_classic: bool = False,
+                 kpts: tuple[int, int, int] = (1, 1, 1),
+                 min_frequency: float = 0.,
+                 max_frequency: float | None = None,
+                 third_bandwidth: float | None = None,
+                 broadening_shape: str = "gauss",
+                 folder: str = FOLDER_NAME,
+                 storage: str = "formatted",
+                 grid_type: str = "C",
+                 is_balanced: bool = False,
+                 is_unfolding: bool = False,
+                 g_factor: npt.ArrayLike = None, # TODO: don't quite understand the documentation
+                 is_symmetrizing_frequency: bool = False, # TODO: what is this flag doing? undocumented
+                 is_antisymmetrizing_velocity: bool = False, # TODO: what is this flag doing? undocumented
+                 include_isotopes: bool = False,
+                 iso_speed_up: bool = True,
+                 is_nw: bool = False,
+                 **kwargs):
+        self.forceconstants = forceconstants
+        self.is_classic = is_classic
+        if temperature is not None:
+            self.temperature = float(temperature)
+        self.folder = folder
+        self.kpts = kpts
+        self._grid_type = grid_type
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
-        self.is_unfolding = kwargs.pop('is_unfolding', False)
+        self.is_unfolding = is_unfolding
         if self.is_unfolding:
             logging.info('Using unfolding.')
-        self.min_frequency = kwargs.pop('min_frequency', 0)
-        self.max_frequency = kwargs.pop('max_frequency', None)
-        self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
-        self.is_nw = kwargs.pop('is_nw', False)
-        self.third_bandwidth = kwargs.pop('third_bandwidth', None)
-        self.storage = kwargs.pop('storage', 'formatted')
-        self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
-        self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
-        self.is_balanced = kwargs.pop('is_balanced', False)
+        self.min_frequency = min_frequency
+        self.max_frequency = max_frequency
+        self.broadening_shape = broadening_shape
+        self.is_nw = is_nw
+        self.third_bandwidth = third_bandwidth
+        self.storage = storage
+        self.is_symmetrizing_frequency = is_symmetrizing_frequency
+        self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
+        self.is_balanced = is_balanced
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -135,9 +158,9 @@ class Phonons:
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
-        self.g_factor = kwargs.pop('g_factor', None)
-        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
-        self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))
+        self.g_factor = g_factor
+        self.include_isotopes = include_isotopes
+        self.iso_speed_up = iso_speed_up
 
 
 
