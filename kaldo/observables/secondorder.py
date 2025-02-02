@@ -251,25 +251,22 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant):
-    def __init__(self, *kargs, **kwargs):
-        ForceConstant.__init__(self, *kargs, **kwargs)
-        try:
-            self.is_acoustic_sum = kwargs["is_acoustic_sum"]
-        except KeyError:
-            self.is_acoustic_sum = False
+    def __init__(self, value, is_acoustic_sum=False, *kargs, **kwargs):
+        self.is_acoustic_sum = is_acoustic_sum
+        if is_acoustic_sum:
+            value = acoustic_sum_rule(value)
 
-        self.value = kwargs["value"]
-        if self.is_acoustic_sum:
-            self.value = acoustic_sum_rule(self.value)
+        super().__init__(value=value, *kargs, **kwargs)
+
         self.n_modes = self.atoms.positions.shape[0] * 3
-        self._list_of_replicas = None
+        self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
         self.storage = "numpy"
 
     @classmethod
     def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder="kALDo"):
         if (value is not None) and (is_acoustic_sum):
             value = acoustic_sum_rule(value)
-        ifc = super(SecondOrder, cls).from_supercell(atoms, supercell, grid_type, value, folder)
+        ifc = super().from_supercell(atoms=atoms, supercell=supercell, grid_type=grid_type, value=value, folder=folder)
         return ifc
 
     @classmethod
