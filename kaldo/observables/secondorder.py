@@ -82,6 +82,7 @@ def parse_tdep_forceconstant(
     return force_constants
 
 
+# TODO: remap_force_constants and reduce_force_constants functions are mainly from vibes. needs to check original code
 def remap_force_constants(
     force_constants: np.ndarray,
     primitive: Atoms,
@@ -285,10 +286,8 @@ class SecondOrder(ForceConstant):
 
         match format:
             case "numpy":
-                if folder[-1] != "/":
-                    folder = folder + "/"
                 replicated_atoms_file = "replicated_atoms.xyz"
-                config_file = folder + replicated_atoms_file
+                config_file = os.path.join(folder, replicated_atoms_file)
                 replicated_atoms = ase.io.read(config_file, format="extxyz")
 
                 n_replicas = np.prod(supercell)
@@ -303,7 +302,7 @@ class SecondOrder(ForceConstant):
 
                 atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
 
-                _second_order = np.load(folder + SECOND_ORDER_FILE, allow_pickle=True)
+                _second_order = np.load(os.path.join(folder, SECOND_ORDER_FILE), allow_pickle=True)
                 second_order = SecondOrder(
                     atoms=atoms,
                     replicated_positions=replicated_atoms.positions,
@@ -314,12 +313,12 @@ class SecondOrder(ForceConstant):
                 )
 
             case "eskm" | "lammps":
-                dynmat_file = str(folder) + "/Dyn.form"
+                dynmat_file = os.path.join(folder, "Dyn.form")
                 if format == "eskm":
-                    config_file = str(folder) + "/CONFIG"
+                    config_file = os.path.join(folder, "CONFIG")
                     replicated_atoms = ase.io.read(config_file, format="dlp4")
                 elif format == "lammps":
-                    config_file = str(folder) + "/replicated_atoms.xyz"
+                    config_file = os.path.join(folder, "replicated_atoms.xyz")
                     replicated_atoms = ase.io.read(config_file, format="extxyz")
                 n_replicas = np.prod(supercell)
                 n_total_atoms = replicated_atoms.positions.shape[0]
@@ -344,24 +343,23 @@ class SecondOrder(ForceConstant):
                     is_acoustic_sum=is_acoustic_sum,
                     folder=folder,
                 )
-            
+
             case "shengbte" | "shengbte-qe" | "shengbte-d3q":
-                config_file = folder + "/" + "CONTROL"
+                config_file = os.path.join(folder, "CONTROL")
                 try:
                     atoms, supercell = shengbte_io.import_control_file(config_file)
-                except FileNotFoundError as err:
-                    config_file = folder + "/" + "POSCAR"
-                    logging.info("\nTrying to open POSCAR")
+                except FileNotFoundError:
+                    config_file = os.path.join(folder, "POSCAR")
+                    logging.info("Trying to open POSCAR")
                     atoms = ase.io.read(config_file)
 
                 # Create a finite difference object
                 # TODO: we need to read the grid type here
-                # is_qe_input = (format == 'shengbte-qe')
                 is_qe_input = (format == "shengbte-qe" or format == "shengbte-d3q")
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
                 if is_qe_input:
-                    filename = folder + "/espresso.ifc2"
+                    filename = os.path.join(folder, "espresso.ifc2")
                     if not os.path.isfile(filename):
                         raise FileNotFoundError(f"File {filename} not found.")
                     second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
@@ -369,9 +367,9 @@ class SecondOrder(ForceConstant):
                     second_order = second_order.transpose(3, 4, 2, 0, 1)
                     grid_type = "F"
                 else:
-                    filename = folder + "/FORCE_CONSTANTS_2ND"
+                    filename = os.path.join(folder, "FORCE_CONSTANTS_2ND")
                     if not os.path.isfile(filename):
-                        filename = folder + "/FORCE_CONSTANTS"
+                        filename = os.path.join(folder, "FORCE_CONSTANTS")
                     if not os.path.isfile(filename):
                         raise FileNotFoundError(f"File {filename} not found.")
                     second_order = shengbte_io.read_second_order_matrix(filename, supercell)
@@ -399,8 +397,8 @@ class SecondOrder(ForceConstant):
                         https://hiphive.materialsmodeling.org/"
                     )
 
-                atom_prime_file = str(folder) + "/" + filename
-                replicated_atom_prime_file = str(folder) + "/" + replicated_filename
+                atom_prime_file = os.path.join(folder, filename)
+                replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 # TODO: Make this independent of replicated file
                 atoms = ase.io.read(atom_prime_file)
                 try:
@@ -411,7 +409,7 @@ class SecondOrder(ForceConstant):
                     )
                     replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
                 # Create a finite difference object
-                if "model2.fcs" in os.listdir(str(folder)):
+                if "model2.fcs" in os.listdir(folder):
                     _second_order = hiphive_io.import_second_from_hiphive(
                         folder, np.prod(supercell), atoms.positions.shape[0]
                     )
@@ -422,7 +420,7 @@ class SecondOrder(ForceConstant):
                         value=_second_order,
                         folder=folder,
                     )
-            
+
             case "sscha":
                 filename = "atom_prim.xyz"
                 replicated_filename = "replicated_atoms.xyz"
@@ -435,8 +433,8 @@ class SecondOrder(ForceConstant):
                         https://hiphive.materialsmodeling.org/"
                     )
                     return None
-                atom_prime_file = str(folder) + "/" + filename
-                replicated_atom_prime_file = str(folder) + "/" + replicated_filename
+                atom_prime_file = os.path.join(folder, filename)
+                replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 atoms = ase.io.read(atom_prime_file)
                 replicated_atoms = ase.io.read(replicated_atom_prime_file)
                 if "second.npy" in os.listdir(str(folder)):
@@ -458,12 +456,12 @@ class SecondOrder(ForceConstant):
             case "tdep":
                 uc_filename = "infile.ucposcar"
                 replicated_filename = "infile.ssposcar"
-                atom_prime_file = str(folder) + "/" + uc_filename
-                replicated_atom_prime_file = str(folder) + "/" + replicated_filename
+                atom_prime_file = os.path.join(folder, uc_filename)
+                replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 uc = ase.io.read(atom_prime_file, format="vasp")
                 sc = ase.io.read(replicated_atom_prime_file, format="vasp")
                 d2 = parse_tdep_forceconstant(
-                    fc_file=folder + "/infile.forceconstant",
+                    fc_file=os.path.join(folder, "infile.forceconstant"),
                     primitive=atom_prime_file,
                     supercell=replicated_atom_prime_file,
                     reduce_fc=False,
@@ -475,7 +473,7 @@ class SecondOrder(ForceConstant):
                 second_order = SecondOrder(
                     atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
                 )
-            
+
             case _:
                 raise ValueError(f"{format} is not a valid format")
 
