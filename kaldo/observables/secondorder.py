@@ -4,6 +4,7 @@ import os
 import tensorflow as tf
 import ase.io
 import numpy as np
+from numpy.typing import ArrayLike
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.controllers.displacement import calculate_second
@@ -251,7 +252,7 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant):
-    def __init__(self, value, is_acoustic_sum=False, *kargs, **kwargs):
+    def __init__(self, value: ArrayLike, is_acoustic_sum: bool = False, *kargs, **kwargs):
         self.is_acoustic_sum = is_acoustic_sum
         if is_acoustic_sum:
             value = acoustic_sum_rule(value)
@@ -263,7 +264,13 @@ class SecondOrder(ForceConstant):
         self.storage = "numpy"
 
     @classmethod
-    def from_supercell(cls, atoms, grid_type, supercell=None, value=None, is_acoustic_sum=False, folder="kALDo"):
+    def from_supercell(cls,
+                       atoms: Atoms,
+                       grid_type: str,
+                       supercell: tuple[int, int, int] = None,
+                       value: ArrayLike | None = None,
+                       is_acoustic_sum: bool = False,
+                       folder: str = "kALDo"):
         if (value is not None) and (is_acoustic_sum):
             value = acoustic_sum_rule(value)
         ifc = super().from_supercell(atoms=atoms, supercell=supercell, grid_type=grid_type, value=value, folder=folder)
