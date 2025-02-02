@@ -1,17 +1,14 @@
 import numpy as np
 import os
+import h5py
 from kaldo.helpers.storage import FOLDER_NAME
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
-import h5py
 
 
 class Observable:
-    def __init__(self, *kargs, **kwargs):
-        try:
-            self.folder = kwargs['folder']
-        except KeyError:
-            self.folder = FOLDER_NAME
+    def __init__(self, folder: str = FOLDER_NAME, *kargs, **kwargs):
+        self.folder = folder
 
 
     @classmethod
@@ -19,7 +16,7 @@ class Observable:
         pass
 
 
-    def save(self, property_name=None, format='numpy'):
+    def save(self, property_name: str | None = None, format: str = 'numpy'):
         folder = self.folder
         loaded_attr = self.value
         if property_name is None:
