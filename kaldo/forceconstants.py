@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 from sparse import COO
 from kaldo.grid import wrap_coordinates
-from kaldo.observables.secondorder import SecondOrder,parse_tdep_forceconstant
+from kaldo.observables.secondorder import SecondOrder, parse_tdep_forceconstant
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -13,6 +13,7 @@ import ase.units as units
 from ase.geometry import find_mic
 from ase.io import read
 from sklearn.metrics import mean_squared_error
+from os import PathLike
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -61,10 +62,10 @@ class ForceConstants:
     """
     def __init__(self,
                  atoms,
-                 supercell=(1, 1, 1),
-                 third_supercell=None,
-                 folder=MAIN_FOLDER,
-                 distance_threshold=None):
+                 supercell: tuple[int, int, int] | None = None,
+                 third_supercell: tuple[int, int, int] | None = None,
+                 folder: str | None = MAIN_FOLDER,
+                 distance_threshold: float | None = None):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -103,8 +104,15 @@ class ForceConstants:
             logging.info('Using folded IFC matrices.')
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
-                    is_acoustic_sum=False, only_second=False, distance_threshold=None):
+    def from_folder(cls,
+                    folder: PathLike,
+                    supercell: tuple[int, int, int] = (1, 1, 1),
+                    format: str = 'numpy',
+                    third_energy_threshold: float = 0.,
+                    third_supercell: tuple[int, int, int] | None = None,
+                    is_acoustic_sum: bool = False,
+                    only_second: bool = False,
+                    distance_threshold: float | None = None):
         """
         Create a finite difference object from a folder
 
@@ -187,7 +195,7 @@ class ForceConstants:
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than
             the distance threshold will be ignored.
-            Default is self.distance_threshold
+            Default is `self.distance_threshold`
         """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
@@ -344,8 +352,10 @@ class ForceConstants:
 
 
     @staticmethod
-    def sigma2_tdep_MD(fc_file='infile.forceconstant', primitive_file='infile.ucposcar',
-                       supercell_file='infile.ssposcar', md_run='dump.xyz'):
+    def sigma2_tdep_MD(fc_file: str = 'infile.forceconstant',
+                       primitive_file: str = 'infile.ucposcar',
+                       supercell_file: str = 'infile.ssposcar',
+                       md_run: str = 'dump.xyz') -> float:
         """
         Calculate the sigma2 value using TDEP and MD data.
 
