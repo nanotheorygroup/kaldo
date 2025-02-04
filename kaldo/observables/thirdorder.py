@@ -22,15 +22,13 @@ THIRD_ORDER_FILE = 'third.npy'
 class ThirdOrder(ForceConstant):
 
     @classmethod
-    def load(cls, folder, supercell=(1, 1, 1), format='sparse', third_energy_threshold=0.):
+    def load(cls,
+             folder: str,
+             supercell: tuple[int, int, int] = (1, 1, 1),
+             format: str = 'sparse',
+             third_energy_threshold: float = 0.):
         """
-        Create a finite difference object from a folder
-        :param folder:
-        :param supercell:
-        :param format:
-        :param third_energy_threshold:
-        :param is_acoustic_sum:
-        :return:
+        Load thrid order force constants from a folder in the given format.
         """
 
         if format == 'sparse':
