@@ -32,19 +32,19 @@ class ThirdOrder(ForceConstant):
         """
 
         if format == 'sparse':
-
-            if folder[-1] != '/':
-                folder = folder + '/'
-            try:
-                config_file = folder + REPLICATED_ATOMS_THIRD_FILE
+            config_file = os.path.join(folder, REPLICATED_ATOMS_THIRD_FILE)
+            if os.path.isfile(config_file):
                 replicated_atoms = ase.io.read(config_file, format='extxyz')
-            except FileNotFoundError:
-                config_file = folder + REPLICATED_ATOMS_FILE
-                replicated_atoms = ase.io.read(config_file, format='extxyz')
+            else:
+                config_file = os.path.join(folder, REPLICATED_ATOMS_FILE)
+                if os.path.isfile(config_file):
+                    replicated_atoms = ase.io.read(config_file, format='extxyz')
+                else:
+                    raise ValueError(f"{config_file} and {REPLICATED_ATOMS_THIRD_FILE} are not found.")
 
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
-            n_unit_atoms = int(n_total_atoms / n_replicas)
+            n_unit_atoms = n_total_atoms // n_replicas
             unit_symbols = []
             unit_positions = []
             for i in range(n_unit_atoms):
@@ -57,7 +57,7 @@ class ThirdOrder(ForceConstant):
                           cell=unit_cell,
                           pbc=[1, 1, 1])
 
-            _third_order = COO.from_scipy_sparse(load_npz(folder + THIRD_ORDER_FILE_SPARSE)) \
+            _third_order = COO.from_scipy_sparse(load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))) \
                 .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
             third_order = ThirdOrder(atoms=atoms,
                                      replicated_positions=replicated_atoms.positions,
@@ -67,16 +67,16 @@ class ThirdOrder(ForceConstant):
 
         elif format == 'eskm' or format == 'lammps':
             if format == 'eskm':
-                config_file = str(folder) + "/CONFIG"
+                config_file = os.path.join(folder, "CONFIG")
                 replicated_atoms = ase.io.read(config_file, format='dlp4')
             elif format == 'lammps':
-                config_file = str(folder) + "/replicated_atoms.xyz"
+                config_file = os.path.join(folder, "replicated_atoms.xyz")
                 replicated_atoms = ase.io.read(config_file, format='extxyz')
 
-            third_file = str(folder) + "/THIRD"
+            third_file = os.path.join(folder, "THIRD")
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
-            n_unit_atoms = int(n_total_atoms / n_replicas)
+            n_unit_atoms = n_total_atoms // n_replicas
             unit_symbols = []
             unit_positions = []
             for i in range(n_unit_atoms):
@@ -89,32 +89,29 @@ class ThirdOrder(ForceConstant):
                           cell=unit_cell,
                           pbc=[1, 1, 1])
 
-
             out = import_from_files(replicated_atoms=replicated_atoms,
-                                                third_file=third_file,
-                                                supercell=supercell,
-                                                third_energy_threshold=third_energy_threshold)
+                                    third_file=third_file,
+                                    supercell=supercell,
+                                    third_energy_threshold=third_energy_threshold)
             third_order = ThirdOrder(atoms=atoms,
                                      replicated_positions=replicated_atoms.positions,
                                      supercell=supercell,
                                      value=out[1],
                                      folder=folder)
 
-
-        #elif format == 'shengbte' or format == 'shengbte-qe':
-        elif format == 'shengbte' or format == 'shengbte-qe' or format=='shengbte-d3q':
-            grid_type='F'
-            config_file = folder + '/' + 'CONTROL'
+        elif format == 'shengbte' or format == 'shengbte-qe' or format == 'shengbte-d3q':
+            grid_type = 'F'
+            config_file = os.path.join(folder, 'CONTROL')
             try:
                 atoms, _supercell = shengbte_io.import_control_file(config_file)
                 #atoms, supercell = shengbte_io.import_control_file(config_file) #this was fixing the second and third supercell as equal
-            except FileNotFoundError as err:
-                config_file = folder + '/' + 'POSCAR'
+            except FileNotFoundError:
+                config_file = os.path.join(folder, 'POSCAR')
                 logging.info('\nTrying to open POSCAR')
                 atoms = ase.io.read(config_file)
 
-            third_file = folder + '/' + 'FORCE_CONSTANTS_3RD'
-            if (format == 'shengbte' or format == 'shengbte-qe'  ):
+            third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD')
+            if (format == 'shengbte' or format == 'shengbte-qe'):
                 third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
             else:
                 third_order = shengbte_io.read_third_d3q(third_file, atoms, supercell, order='C')
@@ -136,8 +133,8 @@ class ThirdOrder(ForceConstant):
                       Please consider installing hihphive. More info can be found at: \
                       https://hiphive.materialsmodeling.org/')
 
-            atom_prime_file = str(folder) + '/' + filename
-            replicated_atom_prime_file = str(folder) + '/' + replicated_filename
+            atom_prime_file = os.path.join(folder, filename)
+            replicated_atom_prime_file = os.path.join(folder, replicated_filename)
             # TODO: Make this independent of replicated file
             atoms = ase.io.read(atom_prime_file)
             try:
@@ -251,9 +248,9 @@ class ThirdOrder(ForceConstant):
                                   folder=folder)
 
         elif format == 'tdep':
-            uc = ase.io.read(folder+'/infile.ucposcar', format='vasp')
-            sc = ase.io.read(folder+'/infile.ssposcar', format='vasp')
-            fc_filename = folder+'/infile.forceconstant_thirdorder'
+            uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
+            sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
+            fc_filename = os.path.join(folder, 'infile.forceconstant_thirdorder')
             n_unit_atoms = uc.positions.shape[0]
             n_replicas = np.prod(supercell)
             order = 'C'
@@ -265,12 +262,12 @@ class ThirdOrder(ForceConstant):
             list_of_index = current_grid
             list_of_replicas = list_of_index.dot(uc.cell)
 
+            # TODO: move these reading into a seperate file and function
             with open(fc_filename, 'r') as file:
                 line = file.readline()
                 num1 = int(line.split()[0])
                 line = file.readline()
                 lines = file.readlines()
-                file.close()
 
             num_triplets = []
             new_ind = 0
