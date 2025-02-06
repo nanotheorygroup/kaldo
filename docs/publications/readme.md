@@ -41,13 +41,6 @@
 
 * Alfredo Fiorentino, Enrico Drigo, Stefano Baroni, Paolo Pegolo, [Unearthing the foundational role of anharmonicity in heat transport in glasses](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.109.224202), Phys. Rev. B ***109***, 224202 (2024).
 
-
-* Fredrik Eriksson, [Beyond Perturbation: Modeling Anharmonicity in Materials](https://research.chalmers.se/publication/540860/file/540860_Fulltext.pdf)
-
-
-* Haoyu Dong,  Zhiqiang Li,  Baole Sun,  Yanguang Zhou,  Linhua Liu, Jia-Yue Yang, [Thermal transport in disordered wurtzite ScAlN alloys using machine learning interatomic potentials](https://www.sciencedirect.com/science/article/pii/S2352492824011942?casa_token=c7LgMcZwdLsAAAAA:0d5iitbkKJ-Y0v90-K6ZjyiXrmk4yqyYMHmGhNuWzhChNFEPWyYODKaUbxkWKReY5dc6lss), Mater. Today Commun. **39**  109213 (2024). 
-
-
 * Fredrik Eriksson, [Beyond Perturbation: Modeling Anharmonicity in Materials](https://research.chalmers.se/publication/540860/file/540860_Fulltext.pdf)
 
 
