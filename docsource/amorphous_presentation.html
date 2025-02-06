@@ -341,9 +341,7 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-amorphous-presentation--page-root" class="md-nav__link">Amorphous silicon tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
-        </li>
-        <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
+        <li class="md-nav__item"><a href="#pip-install-\kappaALDo" class="md-nav__link">pip install <img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>ALDo</a>
         </li>
         <li class="md-nav__item"><a href="#Fetch-supplyment-data-remotely" class="md-nav__link">Fetch supplyment data remotely</a>
         </li>
@@ -466,9 +464,7 @@
   <ul class="md-nav__list" data-md-scrollfix="">
         <li class="md-nav__item"><a href="#docsource-amorphous-presentation--page-root" class="md-nav__link">Amorphous silicon tutorial</a><nav class="md-nav">
               <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" class="md-nav__link">Complie LAMMPS as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)</a>
-        </li>
-        <li class="md-nav__item"><a href="#Remote-fetch-and-install-source-code-from-Github" class="md-nav__link">Remote fetch and install source code from Github</a>
+        <li class="md-nav__item"><a href="#pip-install-\kappaALDo" class="md-nav__link">pip install <img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>ALDo</a>
         </li>
         <li class="md-nav__item"><a href="#Fetch-supplyment-data-remotely" class="md-nav__link">Fetch supplyment data remotely</a>
         </li>
@@ -749,66 +745,17 @@ div.rendered_html tbody tr:hover {
 <p>This notebook can be run on Google Colab.</p>
 <p><a class="reference external" href="https://colab.research.google.com/github/nanotheorygroup/kaldo/blob/master/docs/docsource/crystal_presentation.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
 <p>In Colab, you can enable the GPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">GPU</span></code>.</p>
-<p>In Colab, you can enable the TPU acceleration from <code class="docutils literal notranslate"><span class="pre">Edit</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Notebook</span> <span class="pre">Settings</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Accelerator</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">TPU</span></code>.</p>
 <section id="Amorphous-silicon-tutorial">
 <h1 id="docsource-amorphous-presentation--page-root">Amorphous silicon tutorial<a class="headerlink" href="#docsource-amorphous-presentation--page-root" title="Permalink to this heading">¶</a></h1>
-<section id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">
-<h2 id="Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)">Complie <a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a> as shared-library of python (<img alt="\sim" class="math" src="../_images/math/2c70233cfc8db6ad7002aee1b49b32393df9d4b2.png"/> 8 min)<a class="headerlink" href="#Complie-LAMMPS-as-shared-library-of-python-(\sim-8-min)" title="Permalink to this heading">¶</a></h2>
+<section id="pip-install-\kappaALDo">
+<h2 id="pip-install-\kappaALDo">pip install <img alt="\kappa" class="math" src="../_images/math/07d6bad35531ba2e9bfac6ecba47386af8cd8f72.png"/>ALDo<a class="headerlink" href="#pip-install-\kappaALDo" title="Permalink to this heading">¶</a></h2>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span>%%capture
-# Sudo apt-get softwares
-! apt-get update
-! apt install -y cmake build-essential git ccache openmpi-bin libopenmpi-dev python3.10-venv
-! echo "Sudo apt-get finishes!"
-
-# Upgrade python packages
-! pip install --upgrade pip
-! pip install numpy torch scipy virtualenv psutil pandas tabulate mpi4py Cython
-! echo "Python packages installation finishes!"
-
-# Build lammps with cmake
-%cd /content
-!rm -rf lammps
-! wget https://download.lammps.org/tars/lammps-4May2022.tar.gz
-! tar xzvf lammps-4May2022.tar.gz
-! mv lammps-4May2022 lammps
-%cd /content/lammps
-! rm -rf build
-! mkdir build
-%cd build
-! cmake ../cmake -DLAMMPS_EXCEPTIONS=yes \
-               -DBUILD_SHARED_LIBS=yes \
-               -DMLIAP_ENABLE_PYTHON=yes \
-               -DPKG_PYTHON=yes \
-               -DPKG_MANYBODY=yes \
-               -DPKG_KSPACE=yes \
-               -DPKG_PHONON=yes \
-               -DPYTHON_EXECUTABLE:FILEPATH=`which python`
-
-# Complie lammps as share-libary of python
-! make -j 2
-! make install-python
-! echo "LAMMPS compilation done!"
-
-# Redirect back to main folder
-%cd /content/
-</pre></div>
-</div>
-</div>
-</section>
-<section id="Remote-fetch-and-install-source-code-from-Github">
-<h2 id="Remote-fetch-and-install-source-code-from-Github">Remote fetch and install source code from Github<a class="headerlink" href="#Remote-fetch-and-install-source-code-from-Github" title="Permalink to this heading">¶</a></h2>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-python notranslate"><div class="highlight"><pre>
-<span></span>! git lfs install --skip-repo --skip-smudge
-! pip install git+https://github.com/nanotheorygroup/kaldo
+! pip install kaldo
 </pre></div>
 </div>
 </div>
@@ -820,19 +767,16 @@ div.rendered_html tbody tr:hover {
 </pre></div>
 </div>
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
-<span></span># Remote fetch kaldo resources from drop box
-! wget https://www.dropbox.com/s/bvw0qcxy397g25q/kaldo_resources.zip?dl=0
-! mv kaldo_resources.zip?dl=0 kaldo_resources.zip
-! unzip kaldo_resources.zip
+<span></span>%%capture
+# Activate large file transfer in github
+! git lfs install --skip-repo --skip-smudge
 
-# Unzip files
-! unzip forcefields.zip
-! unzip structure_a_si_512.zip
+# Git clone kALDo
+! git clone https://github.com/nanotheorygroup/kaldo.git
 
-# Clean workspace
-! rm -r forcefields.zip
-! rm -r structure_a_si_512.zip
-! rm -r kaldo_resources.zip
+# Copy si-amorphous structure and force constant files
+! cp -r /content/kaldo/kaldo/tests/si-amorphous ./
+! rm -rf kaldo sample_data
 </pre></div>
 </div>
 </div>
@@ -847,7 +791,7 @@ div.rendered_html tbody tr:hover {
 <span></span><span class="kn">from</span> <span class="nn">kaldo.forceconstants</span> <span class="kn">import</span> <span class="n">ForceConstants</span>
 
 <span class="c1"># Read amporphous silicon with eskm format</span>
-<span class="n">forceconstants</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s1">'structure_a_si_512'</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'eskm'</span><span class="p">)</span>
+<span class="n">forceconstants</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s1">'si-amorphous'</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">'eskm'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -882,7 +826,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <div class="input_area highlight-python notranslate"><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">'seaborn-poster'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">'seaborn-v0_8'</span><span class="p">)</span>
 
 <span class="c1"># Direct access to properties</span>
 <span class="c1"># calculated during the simulation</span>
@@ -896,6 +840,7 @@ div.rendered_html tbody tr:hover {
 <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">bandwidth</span><span class="o">.</span><span class="n">max</span><span class="p">()])</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">frameon</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
 <span class="n">phase_space</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">phase_space</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span>
@@ -906,6 +851,7 @@ div.rendered_html tbody tr:hover {
 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span> <span class="n">phase_space</span><span class="p">[</span><span class="mi">3</span><span class="p">:],</span> <span class="s1">'.'</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span> <span class="p">(</span><span class="s2">"Phase space"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
 </pre></div>
@@ -937,6 +883,7 @@ div.rendered_html tbody tr:hover {
 <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span> <span class="p">(</span><span class="s2">"$</span><span class="se">\\</span><span class="s2">nu$ (THz)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'$\kappa(W/m/K)$'</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">fontweight</span><span class="o">=</span><span class="s1">'bold'</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
