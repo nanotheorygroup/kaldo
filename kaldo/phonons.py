@@ -15,7 +15,7 @@ import kaldo.controllers.anharmonic as aha
 import kaldo.controllers.isotopic as isotopic
 from scipy import stats
 import numpy as np
-import numpy.typing as npt
+from numpy.typing import ArrayLike
 import ase.units as units
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
@@ -122,7 +122,7 @@ class Phonons:
                  grid_type: str = "C",
                  is_balanced: bool = False,
                  is_unfolding: bool = False,
-                 g_factor: npt.ArrayLike = None, # TODO: don't quite understand the documentation
+                 g_factor: ArrayLike = None, # TODO: don't quite understand the documentation
                  is_symmetrizing_frequency: bool = False, # TODO: what is this flag doing? undocumented
                  is_antisymmetrizing_velocity: bool = False, # TODO: what is this flag doing? undocumented
                  include_isotopes: bool = False,
@@ -134,7 +134,7 @@ class Phonons:
         if temperature is not None:
             self.temperature = float(temperature)
         self.folder = folder
-        self.kpts = kpts
+        self.kpts = np.array(kpts)
         self._grid_type = grid_type
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
         self.is_unfolding = is_unfolding
@@ -560,7 +560,7 @@ class Phonons:
 
     @property
     def _is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell == (1,1,1)).all()
+        is_amorphous = np.array_equal(self.kpts, (1, 1, 1)) and np.array_equal(self.supercell, (1, 1, 1))
         return is_amorphous
 
 
