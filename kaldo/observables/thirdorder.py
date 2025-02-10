@@ -19,6 +19,19 @@ REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
+
+def choose_first_existed_file(files: list[str], folder: str = ""):
+    """return the path and the filename of the first existed file in the `files` list in `folder`.
+    Raise an error if none of the files in the list is found in `folder`.
+    """
+    # file_list = list(map(lambda f: os.path.join(folder, f), files))
+    results = list(filter(lambda f: os.path.isfile(os.path.join(folder, f)), files))
+    if results:
+        return os.path.join(folder, results[0]), results[0]
+    else:
+        raise ValueError(f"{' or '.join(files)} are not found.")
+
+
 class ThirdOrder(ForceConstant):
 
     @classmethod
@@ -32,15 +45,8 @@ class ThirdOrder(ForceConstant):
         """
 
         if format == 'sparse':
-            config_file = os.path.join(folder, REPLICATED_ATOMS_THIRD_FILE)
-            if os.path.isfile(config_file):
-                replicated_atoms = ase.io.read(config_file, format='extxyz')
-            else:
-                config_file = os.path.join(folder, REPLICATED_ATOMS_FILE)
-                if os.path.isfile(config_file):
-                    replicated_atoms = ase.io.read(config_file, format='extxyz')
-                else:
-                    raise ValueError(f"{config_file} and {REPLICATED_ATOMS_THIRD_FILE} are not found.")
+            config_path, _ = choose_first_existed_file([REPLICATED_ATOMS_THIRD_FILE, REPLICATED_ATOMS_FILE], folder)
+            replicated_atoms = ase.io.read(config_path, format='extxyz')
 
             n_replicas = np.prod(supercell)
             n_total_atoms = replicated_atoms.positions.shape[0]
@@ -101,14 +107,13 @@ class ThirdOrder(ForceConstant):
 
         elif format == 'shengbte' or format == 'shengbte-qe' or format == 'shengbte-d3q':
             grid_type = 'F'
-            config_file = os.path.join(folder, 'CONTROL')
-            try:
-                atoms, _supercell = shengbte_io.import_control_file(config_file)
-                #atoms, supercell = shengbte_io.import_control_file(config_file) #this was fixing the second and third supercell as equal
-            except FileNotFoundError:
-                config_file = os.path.join(folder, 'POSCAR')
-                logging.info('\nTrying to open POSCAR')
-                atoms = ase.io.read(config_file)
+            config_path, config_file = choose_first_existed_file(['CONTROL', 'POSCAR'], folder)
+            match config_file:
+                case 'CONTROL':
+                    atoms, _supercell = shengbte_io.import_control_file(config_path)
+                case 'POSCAR':
+                    logging.info('Trying to open POSCAR')
+                    atoms = ase.io.read(config_path)
 
             third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD')
             if (format == 'shengbte' or format == 'shengbte-qe'):
