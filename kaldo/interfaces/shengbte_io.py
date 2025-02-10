@@ -349,7 +349,7 @@ def import_control_file(control_file):
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
     list_of_elem = []
-    if masses==None:
+    if masses is None:
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
     
@@ -358,7 +358,7 @@ def import_control_file(control_file):
                       cell=cell,
                       pbc=[1, 1, 1])
     else:
-        list_of_masses=[]
+        list_of_masses = []
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
             list_of_masses.append(masses[types[i] - 1])
