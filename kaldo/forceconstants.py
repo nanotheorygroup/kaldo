@@ -13,7 +13,6 @@ import ase.units as units
 from ase.geometry import find_mic
 from ase.io import read
 from sklearn.metrics import mean_squared_error
-from os import PathLike
 logging = get_logger()
 
 MAIN_FOLDER = 'displacement'
@@ -82,7 +81,7 @@ class ForceConstants:
 
         # TODO: we should probably remove the following initialization
         # * by default do not initialize second order 
-        # * two options here:
+        # * some options here:
         # * 1. allow user to use this function
         # * 2. directly remove this part
         # * 3. now allow user to use supercell and third_supercell, but warn that it is not encouraged
@@ -106,7 +105,7 @@ class ForceConstants:
 
     @classmethod
     def from_folder(cls,
-                    folder: PathLike,
+                    folder: str,
                     supercell: tuple[int, int, int] = (1, 1, 1),
                     format: str = 'numpy',
                     third_energy_threshold: float = 0.,
@@ -161,8 +160,14 @@ class ForceConstants:
                                         is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
 
-        # initialize forceconstants object
-        forceconstants = cls(atoms=atoms, folder=None)
+        # initialize forceconstants object, without initializing second and third
+        forceconstants = cls(atoms=atoms,
+                             supercell=supercell,
+                             third_supercell=third_supercell,
+                             folder=None,
+                             distance_threshold=distance_threshold)
+        # overwrite folder
+        forceconstants.folder = folder
 
         # initialize second order force
         forceconstants.second = second_order
@@ -179,7 +184,7 @@ class ForceConstants:
                                           third_energy_threshold=third_energy_threshold)
 
             forceconstants.third = third_order
-        forceconstants.distance_threshold = distance_threshold
+
         return forceconstants
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
