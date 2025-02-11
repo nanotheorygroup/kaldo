@@ -69,7 +69,7 @@ class Conductivity:
         Contains all the information about the calculated phononic properties of the system
     method : 'rta', 'sc', 'qhgk', 'inverse'
         Specifies the method used to calculate the conductivity.
-        `rta` is relaxation time approximation; `sc` is self-consistent; `qhgk` is Quasi-Harmonic Green Kubo; `inverse` is inversion method.
+        `rta` is relaxation time approximation; `sc` is self-consistent; `qhgk` is Quasi-Harmonic Green Kubo; `inverse` is inversion of the scattering matrix for mean free path.
     diffusivity_bandwidth : float, optional
         (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
         thermal conductivity in amorphous systems. Units: rad/ps
@@ -129,7 +129,7 @@ class Conductivity:
         self.storage = storage
 
         # force n_iterations to 0 if method is `rta`
-        if self.n_iterations != 0 and self.method == 'rta':
+        if n_iterations != 0 and self.method == 'rta':
             logging.warning("rta method is specified, but n_iterations is not specified to be 0. Please check your setup. Now, n_iterations is reset to 0.")
         self.n_iterations = 0 if self.method == 'rta' else n_iterations
 
@@ -206,17 +206,13 @@ class Conductivity:
             (n_k_points, n_modes) float
         """
         method = self.method
-
-        if (method == 'qhgk'):
-            logging.error('Mean free path not available for ' + str(method))
-        elif method == 'rta':
-            mfp = self._calculate_mfp_sc()
-        elif method == 'sc':
-            mfp = self._calculate_mfp_sc()
-        elif (method == 'inverse'):
-            mfp = self.calculate_mfp_inverse()
-        else:
-            logging.error('Conductivity method not implemented')
+        match method:
+            case 'rta' | 'sc':
+                mfp = self._calculate_mfp_sc()
+            case 'inverse':
+                mfp = self.calculate_mfp_inverse()
+            case _:
+                logging.error('Mean free path not available for ' + method)
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
@@ -279,18 +275,19 @@ class Conductivity:
         conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.float32)
         diffusivity_with_axis = np.zeros_like(conductivity_per_mode)
 
-        if self.diffusivity_shape == 'lorentz':
-            logging.info('Using Lorentzian diffusivity_shape')
-            curve = lorentz_delta
-        elif self.diffusivity_shape == 'gauss':
-            logging.info('Using Gaussian diffusivity_shape')
-            curve = gaussian_delta
-        elif self.diffusivity_shape == 'triangle':
-            logging.info('Using triangular diffusivity_shape')
-            curve = triangular_delta
-        else:
-            logging.error('Diffusivity shape not implemented')
-            return None, None
+        match self.diffusivity_shape:
+            case 'lorentz':
+                logging.info('Using Lorentzian diffusivity_shape')
+                curve = lorentz_delta
+            case 'gauss':
+                logging.info('Using Gaussian diffusivity_shape')
+                curve = gaussian_delta
+            case 'triangle':
+                logging.info('Using triangular diffusivity_shape')
+                curve = triangular_delta
+            case _:
+                logging.error('Diffusivity shape not implemented')
+                return None, None
 
         is_diffusivity_including_antiresonant = self.is_diffusivity_including_antiresonant
 
