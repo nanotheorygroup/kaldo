@@ -7,11 +7,11 @@ examples/germanium_espresso_d3q/fc/espresso.ifc2 filter=lfs diff=lfs merge=lfs -
 # cannot automatically merge, must be treated as a whole
 # do not generate textual diff
 # keep EOL char of text file consistant for human-readable data file, turn it off for binary file
-kaldo/tests/si-crystal/* -diff -merge
-kaldo/tests/si-amorphous/* -diff -merge
-kaldo/tests/si-tdep/* -diff -merge
-kaldo/tests/sigma2/* -diff -merge
-kaldo/tests/ge-crystal/* -diff -merge
+kaldo/tests/si-crystal/** -diff -merge
+kaldo/tests/si-amorphous/** -diff -merge
+kaldo/tests/si-tdep/** -diff -merge
+kaldo/tests/sigma2/** -diff -merge
+kaldo/tests/ge-crystal/** -diff -merge
 
 # binary file
 kaldo/tests/si-crystal/hiphive/model2.fcs binary
