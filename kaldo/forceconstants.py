@@ -27,11 +27,11 @@ class ForceConstants:
     ----------
     atoms: Tabulated xyz files or ASE Atoms object
         The atoms to work on.
-    supercell: (3) tuple, optional
+    supercell: tuple[int, int, int], optional
         Size of supercell given by the number of repetitions (l, m, n) of
         the small unit cell in each direction.
         Default: (1, 1, 1)
-    third_supercell: tuple, optional
+    third_supercell: tuple[int, int, int], optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
         Default: `self.supercell`
@@ -139,7 +139,7 @@ class ForceConstants:
             Default is 'numpy'
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: ev/A^3
+            the threshold value in magnitude are ignored. Units: eV/Angstrom^3
             Default is `None`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
