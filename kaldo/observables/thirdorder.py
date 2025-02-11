@@ -20,7 +20,7 @@ THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
 
-def choose_first_existed_file(files: list[str], folder: str = ""):
+def detect_path(files: list[str], folder: str = ""):
     """return the path and the filename of the first existed file in the `files` list in `folder`.
     Raise an error if none of the files in the list is found in `folder`.
     """
@@ -45,7 +45,7 @@ class ThirdOrder(ForceConstant):
         """
 
         if format == 'sparse':
-            config_path, _ = choose_first_existed_file([REPLICATED_ATOMS_THIRD_FILE, REPLICATED_ATOMS_FILE], folder)
+            config_path, _ = detect_path([REPLICATED_ATOMS_THIRD_FILE, REPLICATED_ATOMS_FILE], folder)
             replicated_atoms = ase.io.read(config_path, format='extxyz')
 
             n_replicas = np.prod(supercell)
@@ -107,7 +107,7 @@ class ThirdOrder(ForceConstant):
 
         elif format == 'shengbte' or format == 'shengbte-qe' or format == 'shengbte-d3q':
             grid_type = 'F'
-            config_path, config_file = choose_first_existed_file(['CONTROL', 'POSCAR'], folder)
+            config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
             match config_file:
                 case 'CONTROL':
                     atoms, _supercell = shengbte_io.import_control_file(config_path)
