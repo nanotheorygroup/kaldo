@@ -42,6 +42,26 @@ class ThirdOrder(ForceConstant):
              third_energy_threshold: float = 0.):
         """
         Load thrid order force constants from a folder in the given format.
+        
+        Parameters
+        ----------
+        folder : str
+            Specifies where to load the data files.
+        supercell : tuple[int, int, int]
+            The supercell for the third order force constant matrix.
+            Default: (1, 1, 1)
+        format : str
+            Format of the third order force constant information being loaded into ForceConstant object.
+            Default: 'sparse'
+        third_energy_threshold : float, optional
+            When importing sparse third order force constant matrices, energies below
+            the threshold value in magnitude are ignored. Units: eV/A^3
+            Default: `None`
+
+        Returns
+        -------        
+        third_order : ThirdOrder object
+            A new instance of the ThirdOrder class
         """
         
         match format:
