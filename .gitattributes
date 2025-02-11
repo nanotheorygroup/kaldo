@@ -1,2 +1,18 @@
+# large data file
 examples/germanium_espresso_d3q/fc/FORCE_CONSTANTS_3RD filter=lfs diff=lfs merge=lfs -text
 examples/germanium_espresso_d3q/fc/espresso.ifc2 filter=lfs diff=lfs merge=lfs -text
+
+# data file in tests
+# Note: To make CI easier to work with, data file in tests should stay in the git repo. 
+# cannot automatically merge, must be treated as a whole
+# do not generate textual diff
+# keep EOL char of text file consistant for human-readable data file, turn it off for binary file
+kaldo/tests/si-crystal/* -diff -merge
+kaldo/tests/si-amorphous/* -diff -merge
+kaldo/tests/si-tdep/* -diff -merge
+kaldo/tests/sigma2/* -diff -merge
+kaldo/tests/ge-crystal/* -diff -merge
+
+# binary file
+kaldo/tests/si-crystal/hiphive/model2.fcs binary
+kaldo/tests/si-crystal/hiphive/model3.fcs binary
