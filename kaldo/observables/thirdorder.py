@@ -41,8 +41,10 @@ class ThirdOrder(ForceConstant):
              format: str = 'sparse',
              third_energy_threshold: float = 0.):
         """
-        Load thrid order force constants from a folder in the given format.
-        
+        Load thrid order force constants from a folder in the given format, used for library internally.
+
+        To load force constants data, `ForceConstants.from_folder` is recommended.
+
         Parameters
         ----------
         folder : str
