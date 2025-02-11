@@ -34,9 +34,11 @@ def read_second_order_matrix(filename, supercell):
 
     Returns
     -------
-        second_order : np.array(i_at, alpha, t1, t2, t3, j_at, beta)
-            The array contains second order force constants. alpha and beta are directional indexes in x,y,z.
-            t1, t2, t3 is the index to the supercell for j-th atom. i_at and j_at are the indexes to the atoms as in unit cell. 
+        second_order : np.ndarray(i_at, alpha, t1, t2, t3, j_at, beta)
+            The array contains second order force constants.
+            alpha and beta are directional indexes in x,y,z.
+            t1, t2, t3 is the index to the supercell for j-th atom.
+            i_at and j_at are the indexes to the atoms as in unit cell.
     """
     with open(filename, 'r') as file:
         first_row = file.readline()
@@ -82,12 +84,14 @@ def read_second_order_qe_matrix(filename):
 
     Returns
     -------
-        second : np.array(i_at, alpha, t1, t2, t3, j_at, beta)
-            The array contains second order force constants. alpha and beta are directional indexes in x,y,z. 
-            t1, t2, t3 is the index to the supercell for j-th atom. i_at and j_at are the indexes to the atoms as in unit cell. 
+        second : np.ndarray(i_at, alpha, t1, t2, t3, j_at, beta)
+            The array contains second order force constants.
+            alpha and beta are directional indexes in x,y,z.
+            t1, t2, t3 is the index to the supercell for j-th atom.
+            i_at and j_at are the indexes to the atoms as in unit cell.
 
         supercell : [t1, t2, t3]
-            The size of the supercell as t1 * t2 * t3. 
+            The size of the supercell as t1 * t2 * t3.
     """
     with open(filename, 'r') as file:
         # skip all the prelude info, jump to second order force constants
