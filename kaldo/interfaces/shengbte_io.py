@@ -192,61 +192,6 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
     return third_order
 
 
-def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
-    # TODO: is this a legacy method?
-    supercell = third_supercell
-    n_unit_atoms = atoms.positions.shape[0]
-    n_replicas = np.prod(supercell)
-    current_grid = Grid(third_supercell, order=order).grid(is_wrapping=True)
-    list_of_index = current_grid
-    list_of_replicas = list_of_index.dot(atoms.cell)
-    replicated_cell = atoms.cell * supercell
-    # replicated_cell_inv = np.linalg.inv(replicated_cell)
-
-    coords = []
-    data = []
-    second_cell_positions = []
-    third_cell_positions = []
-    atoms_coords = []
-    sparse_data = []
-    with open(third_file, 'r') as file:
-        line = file.readline()
-        n_third = int(line)
-        for i in range(n_third):
-            file.readline()
-            file.readline()
-
-            second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            second_cell_positions.append(second_cell_position)
-            d_1 = list_of_replicas[:, :] - second_cell_position[np.newaxis, :]
-            # d_1 = wrap_coordinates(d_1,  replicated_cell, replicated_cell_inv)
-
-            mask_second = np.linalg.norm(d_1, axis=1) < 1e-5
-            second_cell_id = np.argwhere(mask_second).flatten()
-
-            third_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            third_cell_positions.append(third_cell_position)
-            d_2 = list_of_replicas[:, :] - third_cell_position[np.newaxis, :]
-            # d_2 = wrap_coordinates(d_2,  replicated_cell, replicated_cell_inv)
-            mask_third = np.linalg.norm(d_2, axis=1) < 1e-5
-            third_cell_id = np.argwhere(mask_third).flatten()
-
-            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
-            atoms_coords.append([atom_i, atom_j, atom_k])
-            small_data = []
-            for _ in range(27):
-
-                values = np.fromstring(file.readline(), dtype=float, sep=' ')
-                alpha, beta, gamma = values[:3].round(0).astype(int) - 1
-                coords.append([atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma])
-                data.append(values[3])
-                small_data.append(values[3])
-            sparse_data.append(small_data)
-
-    third_order = COO(np.array(coords).T, np.array(data), shape=(n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-    return third_order, np.array(sparse_data), np.array(second_cell_positions), np.array(third_cell_positions), np.array(atoms_coords)
-
 def read_third_d3q(filename,atoms,supercell,order='C'):
     file = open('%s' % filename, 'r')
     n_unit_atoms = atoms.positions.shape[0]
