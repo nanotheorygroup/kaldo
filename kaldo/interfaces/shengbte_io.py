@@ -165,6 +165,7 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
             file.readline()
             
             # next two lines are the positions of the second and third cell; find their index in `list_of_index`
+            # TODO: abstract these code into a function in Grid
             
             second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
