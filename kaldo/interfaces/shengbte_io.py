@@ -197,8 +197,7 @@ def read_third_d3q(filename,atoms,supercell,order='C'):
     n_unit_atoms = atoms.positions.shape[0]
     n_replicas = np.prod(supercell)
     current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
-    if isinstance(supercell,list):
-        supercell=np.array(supercell)
+    supercell = np.array(supercell)
     list_of_index = current_grid
     third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
     ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
