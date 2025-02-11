@@ -166,23 +166,24 @@ class Conductivity:
             (n_k_points, n_modes, 3, 3) float
         """
         method = self.method
-        other_avail_methods = ['rta', 'sc', 'inverse']
-        if (method == 'qhgk'):
-            cond, diff = self.calculate_conductivity_and_diffusivity_qhgk()
-            self._diffusivity = diff
-        elif (method == 'full'):
-            cond = self.calculate_conductivity_full()
-        elif method in other_avail_methods:
-            lambd = self.mean_free_path
-            conductivity_per_mode = calculate_conductivity_per_mode(
-                self.phonons.heat_capacity.reshape((self.n_phonons)),
-                self.phonons.velocity, lambd, self.phonons.physical_mode,
-                self.n_phonons)
+        match method:
+            case 'qhgk':
+                cond, diff = self.calculate_conductivity_and_diffusivity_qhgk()
+                self._diffusivity = diff
+            case 'full':
+                cond = self.calculate_conductivity_full()
+            case 'rta' | 'sc' | 'inverse':
+                lambd = self.mean_free_path
+                conductivity_per_mode = calculate_conductivity_per_mode(
+                    self.phonons.heat_capacity.reshape((self.n_phonons)),
+                    self.phonons.velocity, lambd, self.phonons.physical_mode,
+                    self.n_phonons)
 
-            volume = np.abs(np.linalg.det(self.phonons.atoms.cell))
-            cond = conductivity_per_mode / (volume * self.n_k_points)
-        else:
-            logging.error('Conductivity method not implemented')
+                volume = np.abs(np.linalg.det(self.phonons.atoms.cell))
+                cond = conductivity_per_mode / (volume * self.n_k_points)
+
+            case _:
+                logging.error(f'Conductivity method "{method}" not implemented')
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
