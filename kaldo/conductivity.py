@@ -4,6 +4,7 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import numpy as np
+from kaldo.phonons import Phonons
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
 import kaldo.observables.harmonic_with_q_temp as hwqwt
@@ -68,6 +69,7 @@ class Conductivity:
         Contains all the information about the calculated phononic properties of the system
     method : 'rta', 'sc', 'qhgk', 'inverse'
         Specifies the method used to calculate the conductivity.
+        `rta` is relaxation time approximation; `sc` is self-consistent; `qhgk` is Quasi-Harmonic Green Kubo; `inverse` is inversion method.
     diffusivity_bandwidth : float, optional
         (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
         thermal conductivity in amorphous systems. Units: rad/ps
@@ -108,18 +110,34 @@ class Conductivity:
     Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
     ```
     """
-    def __init__(self, **kwargs):
-        self.phonons = kwargs.pop('phonons')
-        self.method = kwargs.pop('method', 'rta')
-        self.storage = kwargs.pop('storage', 'formatted')
+    def __init__(self,
+                 phonons: Phonons,
+                 *,
+                 method: str = 'rta',
+                 diffusivity_bandwidth: float | None = None,
+                 diffusivity_threshold: float | None = None,
+                 diffusivity_shape: str = 'lorentz',
+                 is_diffusivity_including_antiresonant: bool = False,
+                 tolerance: int | None = None,
+                 n_iterations: int | None = None,
+                 length: tuple[int, int, int] = (None, None, None),
+                 finite_length_method: str = 'ms',
+                 storage: str = 'formatted',
+                 **kwargs):
+        self.phonons = phonons
+        self.method = method
+        self.storage = storage
 
-        if self.method == 'rta':
-            self.n_iterations = 0
-        else:
-            self.n_iterations = kwargs.pop('n_iterations', None)
-        self.length = kwargs.pop('length', np.array([None, None, None]))
-        self.finite_length_method = kwargs.pop('finite_length_method', 'ms')
-        self.tolerance = kwargs.pop('tolerance', None)
+        # force n_iterations to 0 if method is `rta`
+        if self.n_iterations != 0 and self.method == 'rta':
+            logging.warning("rta method is specified, but n_iterations is not specified to be 0. Please check your setup. Now, n_iterations is reset to 0.")
+        self.n_iterations = 0 if self.method == 'rta' else n_iterations
+
+        self.length = length
+        self.finite_length_method = finite_length_method
+        self.tolerance = tolerance
+
+        # initalize info from phonons object
         self.folder = self.phonons.folder
         self.kpts = self.phonons.kpts
         self.n_k_points = self.phonons.n_k_points
@@ -128,12 +146,13 @@ class Conductivity:
         self.temperature = self.phonons.temperature
         self.is_classic = self.phonons.is_classic
         self.third_bandwidth = self.phonons.third_bandwidth
-
-        self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
-        self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
-        self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
-        self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
         self.include_isotopes = self.phonons.include_isotopes
+
+        # initalize QHGK method
+        self.diffusivity_bandwidth = diffusivity_bandwidth
+        self.diffusivity_threshold = diffusivity_threshold
+        self.is_diffusivity_including_antiresonant = is_diffusivity_including_antiresonant
+        self.diffusivity_shape = diffusivity_shape
 
     @lazy_property(
         label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
