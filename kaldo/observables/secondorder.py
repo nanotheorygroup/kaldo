@@ -282,6 +282,30 @@ class SecondOrder(ForceConstant):
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = "numpy",
              is_acoustic_sum: bool = False):
+        """
+        Load second order force constants from a folder in the given format, used for library internally.
+
+        To load force constants data, `ForceConstants.from_folder` is recommended.
+
+        Parameters
+        ----------
+        folder : str
+            Specifies where to load the data files.
+        supercell : tuple[int, int, int]
+            The supercell for the third order force constant matrix.
+            Default: (1, 1, 1)
+        format : str
+            Format of the second order force constant information being loaded into SecondOrder object.
+            Default: 'sparse'
+        is_acoustic_sum : bool, optional
+            If true, the acoustic sum rule is applied to the dynamical matrix.
+            Default: `False`
+
+        Returns
+        -------
+        second_order : SecondOrder object
+            A new instance of the SecondOrder class
+        """
 
         match format:
             case "numpy":
