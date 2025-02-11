@@ -350,6 +350,7 @@ class ThirdOrder(ForceConstant):
                                 [[phi7[0], phi7[1], phi7[2]], [phi8[0], phi8[1], phi8[2]], [phi9[0], phi9[1], phi9[2]]]],
                                 dtype=float)
                             second_cell_list.append(R2)
+                            # TODO: abstract these code into a function in Grid
                             second_cell_id = (list_of_index[:] == R2).prod(axis=1)
                             second_cell_id = np.argwhere(second_cell_id).flatten()
                             third_cell_list.append(R3)

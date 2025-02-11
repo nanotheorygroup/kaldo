@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import ArrayLike
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
@@ -14,6 +15,9 @@ def wrap_coordinates(dxij, cell=None, cell_inv=None):
         dxij = dxij.dot(cell)
     return dxij
 
+# TODO: guess which type is this grid
+def guess_type_of_grid():
+    pass
 
 class Grid:
     def __init__(self, grid_shape: tuple[int, int, int], order: str = 'C'):
@@ -52,4 +56,16 @@ class Grid:
         if is_wrapping:
             index_grid = wrap_coordinates(index_grid, np.diag(self.grid_shape))
         return np.rint(index_grid).astype(int)
+
+    # TODO: add a function to search index in Grid. value to index. use dictonary to solve it, no more mask
+    def grid_index_to_id(self, grid_index: ArrayLike, is_wrapping: bool):
+        """Find the id of grid index in the grid array. is_wrapping indicats if the given grid_index is wrapped or not.
+
+        """
+        pass
+    
+    # TODO: Grid constructor: build a Grid from given grid array, and guess which type is it and recover the Grid object
+    @classmethod
+    def recover_grid_from_array(cls, array):
+        pass
 
