@@ -14,16 +14,16 @@ logging = get_logger()
 # Second order force constant method
 
 def parse_tdep_forceconstant(
-    fc_file="infile.forceconstants",
-    primitive="infile.ucposcar",
-    supercell="infile.ssposcar",
-    fortran=True,
-    two_dim=True,
-    symmetrize=False,
-    reduce_fc=True,
-    eps=1e-13,
-    tol=1e-5,
-    format="vasp",
+    fc_file: str = "infile.forceconstants",
+    primitive: str = "infile.ucposcar",
+    supercell: str = "infile.ssposcar",
+    fortran: bool = True,
+    two_dim: bool = True,
+    symmetrize: bool = False,
+    reduce_fc: bool = True,
+    eps: float = 1e-13,
+    tol: float = 1e-5,
+    format: str = "vasp",
 ):
     """Parse tdep second order force constant.
     """
@@ -240,11 +240,14 @@ def _map2prim(primitive, supercell, tol=1e-5):
 
 # --------------------------------
 # Third order force constant method
+
 def parse_tdep_third_forceconstant(
     fc_filename: str,
     primitive: str,
     supercell: tuple[int, int, int],
 ):
+    """Parse tdep third order force constant.
+    """
     uc = ase.io.read(primitive, format='vasp')
     n_unit_atoms = uc.positions.shape[0]
     n_replicas = np.prod(supercell)

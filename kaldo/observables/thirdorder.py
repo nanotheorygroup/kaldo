@@ -220,7 +220,7 @@ class ThirdOrder(ForceConstant):
                                       supercell=supercell,
                                       value=_third_order,
                                       folder=folder)
-            
+
             case 'sscha':
                 filename = 'atom_prim.xyz'
                 replicated_filename = 'replicated_atoms.xyz'
@@ -278,13 +278,13 @@ class ThirdOrder(ForceConstant):
             case 'tdep':
                 uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
                 sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
-                
+
                 third_ifcs = parse_tdep_third_forceconstant(
                     fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
                     primitive=os.path.join(folder, 'infile.ucposcar'),
                     supercell=supercell,
                 )
-                
+
                 third_order = cls(atoms=uc,
                                   replicated_positions=sc.positions,
                                   supercell=supercell,
