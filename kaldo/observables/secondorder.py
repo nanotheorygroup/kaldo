@@ -28,6 +28,7 @@ def acoustic_sum_rule(dynmat):
 
 class SecondOrder(ForceConstant):
     def __init__(self, value: ArrayLike, is_acoustic_sum: bool = False, *kargs, **kwargs):
+        # apply acoustic sum rule before initialize in forceconstnat
         self.is_acoustic_sum = is_acoustic_sum
         if is_acoustic_sum:
             value = acoustic_sum_rule(value)
@@ -46,9 +47,14 @@ class SecondOrder(ForceConstant):
                        value: ArrayLike | None = None,
                        is_acoustic_sum: bool = False,
                        folder: str = "kALDo"):
-        if (value is not None) and (is_acoustic_sum):
-            value = acoustic_sum_rule(value)
-        ifc = super().from_supercell(atoms=atoms, supercell=supercell, grid_type=grid_type, value=value, folder=folder)
+        # acoustic sum rule will be applied later in SecondOrder.__init__ if applicable
+        ifc = super().from_supercell(
+            atoms=atoms,
+            supercell=supercell,
+            grid_type=grid_type,
+            value=value,
+            is_acoustic_sum=is_acoustic_sum,
+            folder=folder)
         return ifc
 
     @classmethod
