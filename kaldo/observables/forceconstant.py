@@ -39,8 +39,6 @@ class ForceConstant(Observable):
         # * `replicated_atoms` and `list_of_replicas` are two main variables that are widely used in other places
         # Grid type directly impact on these two variables
 
-        # TODO: following code should not be triggered if it was loaded from folder, Grid info should be saved
-
         if grid is not None:
             self._direct_grid = grid
         else:
@@ -87,8 +85,8 @@ class ForceConstant(Observable):
                    supercell=supercell,
                    value=value,
                    folder=folder,
+                   grid=_direct_grid,
                    **kwargs)
-        inst._direct_grid = _direct_grid
         return inst
 
 
