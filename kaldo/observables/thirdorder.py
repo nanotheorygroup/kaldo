@@ -61,11 +61,11 @@ class ThirdOrder(ForceConstant):
             Default: `None`
 
         Returns
-        -------        
+        -------
         third_order : ThirdOrder object
             A new instance of the ThirdOrder class
         """
-        
+
         match format:
             case 'sparse':
                 config_path, _ = detect_path([REPLICATED_ATOMS_THIRD_FILE, REPLICATED_ATOMS_FILE], folder)
@@ -127,7 +127,7 @@ class ThirdOrder(ForceConstant):
                                          supercell=supercell,
                                          value=out[1],
                                          folder=folder)
-            
+
             case 'shengbte' | 'shengbte-qe' | 'shengbte-d3q':
                 grid_type = 'F'
                 config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
@@ -143,7 +143,6 @@ class ThirdOrder(ForceConstant):
                     third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
                 else:
                     third_order = shengbte_io.read_third_d3q(third_file, atoms, supercell, order='C')
-                #third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
                 third_order = ThirdOrder.from_supercell(atoms=atoms,
                                                         grid_type=grid_type,
                                                         supercell=supercell,
@@ -165,10 +164,10 @@ class ThirdOrder(ForceConstant):
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 # TODO: Make this independent of replicated file
                 atoms = ase.io.read(atom_prime_file)
-                try:
+                if os.path.isfile(replicated_atom_prime_file):
                     replicated_atoms = ase.io.read(replicated_atom_prime_file)
-                except FileNotFoundError:
-                    logging.warning('Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.')
+                else:
+                    logging.warning('Replicated atoms file not found. Please check if the file exists. Use the unit cell atoms instead.')
                     replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
 
                 if 'model3.fcs' in os.listdir(str(folder)):
