@@ -1,5 +1,7 @@
 {
     "python.testing.pytestArgs": [
+        "-n",
+        "4",
         "kaldo/tests"
     ],
     "python.testing.unittestEnabled": false,
