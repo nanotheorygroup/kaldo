@@ -156,6 +156,7 @@ class ForceConstants:
         forceconstants: ForceConstants object
             A new instance of the ForceConstants class
         """
+        # get atoms first before initialize forceconstants
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
