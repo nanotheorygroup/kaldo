@@ -11,6 +11,7 @@ RUN conda install pip \
     && pip install -r /app/requirements.txt \
     && pip install pytest \
     && pip install pytest-cov \
+    && pip install 'pytest-xdist[psutil]' \
     && pip install -r requirements.txt
     
 CMD ["/bin/bash"]
