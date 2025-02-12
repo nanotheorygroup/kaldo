@@ -1,6 +1,7 @@
 from ase import Atoms
 import ase.io
 import numpy as np
+from numpy.typing import NDArray
 from pathlib import Path
 from ase.geometry import get_distances
 from kaldo.helpers.logger import get_logger
@@ -81,7 +82,7 @@ def parse_tdep_forceconstant(
 
 # TODO: remap_force_constants and reduce_force_constants functions are mainly from vibes. needs to check original code
 def remap_force_constants(
-    force_constants: np.ndarray,
+    force_constants: NDArray,
     primitive: Atoms,
     supercell: Atoms,
     new_supercell: Atoms = None,
@@ -90,7 +91,7 @@ def remap_force_constants(
     symmetrize: bool = True,
     tol: float = 1e-5,
     eps: float = 1e-13,
-) -> np.ndarray:
+) -> NDArray:
     """
     remap force constants [N_prim, N_sc, 3, 3] to [N_sc, N_sc, 3, 3]
     Note: This function mostly follows vibes.force_constants.py from Vibes library.
@@ -194,7 +195,7 @@ def remap_force_constants(
     return fc_out
 
 
-def reduce_force_constants(fc_full: np.ndarray, map2prim: np.ndarray):
+def reduce_force_constants(fc_full: NDArray, map2prim: NDArray):
     """
     reduce force constants from [N_sc, N_sc, 3, 3] to [N_prim, N_sc, 3, 3]
 
