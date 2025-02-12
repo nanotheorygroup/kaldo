@@ -75,7 +75,8 @@ class ForceConstant(Observable):
                        supercell: tuple[int, int, int],
                        grid_type: str,
                        value: ArrayLike | None = None,
-                       folder: str = 'kALDo'):
+                       folder: str = 'kALDo',
+                       **kwargs):
         _direct_grid = Grid(supercell, grid_type)
         _grid_arr = _direct_grid.grid(is_wrapping=False)
         # supercell grid * cell paramemter => supercell positions
@@ -85,7 +86,8 @@ class ForceConstant(Observable):
                    replicated_positions=replicated_positions,
                    supercell=supercell,
                    value=value,
-                   folder=folder)
+                   folder=folder,
+                   **kwargs)
         inst._direct_grid = _direct_grid
         return inst
 
