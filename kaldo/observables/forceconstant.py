@@ -46,7 +46,7 @@ class ForceConstant(Observable):
         else:
             # grid info is not given, so recover it from the grid type from the supercell matrix
             # TODO: move this into grid.py
-            
+
             n_replicas, n_unit_atoms, _ = self.replicated_positions.shape
             atoms_positions = self.atoms.positions
             detected_grid = np.round(
@@ -64,7 +64,7 @@ class ForceConstant(Observable):
             else:
                 err_msg = "Unable to detect grid type"
                 logging.error(err_msg)
-                raise TypeError(err_msg)
+                raise ValueError(err_msg)
 
             self._direct_grid = Grid(self.supercell, grid_type)
 
