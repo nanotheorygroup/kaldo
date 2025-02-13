@@ -13,7 +13,7 @@ jobs:
     steps:
       - checkout
       - run:
-          command: python -m pytest -n auto -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
+          command: python -m pytest -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
       - codecov/upload:
           file: ./coverage.xml
