@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.typing import ArrayLike
 from kaldo.helpers.logger import get_logger
+from ase import Atoms
 logging = get_logger()
 
 
@@ -57,15 +58,34 @@ class Grid:
             index_grid = wrap_coordinates(index_grid, np.diag(self.grid_shape))
         return np.rint(index_grid).astype(int)
 
-    # TODO: add a function to search index in Grid. value to index. use dictonary to solve it, no more mask
-    def grid_index_to_id(self, grid_index: ArrayLike, is_wrapping: bool):
-        """Find the id of grid index in the grid array. is_wrapping indicats if the given grid_index is wrapped or not.
+    def grid_index_to_id(self, cell_idx: ArrayLike, is_wrapping: bool = True):
+        """Find the id of cell_idx (grid index) in the grid array. is_wrapping indicats if the given grid_index is wrapped or not.
 
+        TODO: use dictonary to solve it, no more mask
         """
-        pass
-    
+        # create mask to find the index
+        list_of_index = self.grid(is_wrapping=is_wrapping)
+        cell_id_mask = (list_of_index == cell_idx).prod(axis=1)
+        cell_id = np.argwhere(cell_id_mask).flatten()
+
+        return cell_id
+
+    def cell_position_to_id(self, cell_position, cell: ArrayLike | Atoms, is_wrapping: bool = True):
+        """Find which id of grid index in the grid array that the cell position of real space (x, y, z) belongs to.         
+        """
+
+        if isinstance(cell, Atoms):
+            cell = cell.cell
+        
+        cell_index = cell_position.dot(np.linalg.inv(cell)).round(0).astype(int)
+        cell_id = self.grid_index_to_id(cell_index, is_wrapping=is_wrapping)
+        
+        return cell_id
+
+
     # TODO: Grid constructor: build a Grid from given grid array, and guess which type is it and recover the Grid object
     @classmethod
     def recover_grid_from_array(cls, array):
         pass
+    
 
