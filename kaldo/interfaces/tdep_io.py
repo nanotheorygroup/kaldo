@@ -254,12 +254,7 @@ def parse_tdep_third_forceconstant(
     n_replicas = np.prod(supercell)
     order = 'C'
 
-    second_cell_list = []
-    third_cell_list = []
-
-    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
-    list_of_index = current_grid
-    list_of_replicas = list_of_index.dot(uc.cell)
+    current_grid = Grid(supercell, order=order)
 
     with open(fc_filename, 'r') as file:
         line = file.readline()
@@ -317,13 +312,8 @@ def parse_tdep_third_forceconstant(
                     [[phi4[0], phi4[1], phi4[2]], [phi5[0], phi5[1], phi5[2]], [phi6[0], phi6[1], phi6[2]]],
                     [[phi7[0], phi7[1], phi7[2]], [phi8[0], phi8[1], phi8[2]], [phi9[0], phi9[1], phi9[2]]]],
                     dtype=float)
-                second_cell_list.append(R2)
-                # TODO: abstract these code into a function in Grid
-                second_cell_id = (list_of_index[:] == R2).prod(axis=1)
-                second_cell_id = np.argwhere(second_cell_id).flatten()
-                third_cell_list.append(R3)
-                third_cell_id = (list_of_index[:] == R3).prod(axis=1)
-                third_cell_id = np.argwhere(third_cell_id).flatten()
+                second_cell_id = current_grid.grid_index_to_id(R2, is_wrapping=True)
+                third_cell_id = current_grid.grid_index_to_id(R3, is_wrapping=True)
                 for alpha in range(3):
                     for beta in range(3):
                         for gamma in range(3):
