@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 from kaldo.helpers.logger import get_logger
 from ase import Atoms
 logging = get_logger()
@@ -15,10 +15,6 @@ def wrap_coordinates(dxij, cell=None, cell_inv=None):
     if cell is not None:
         dxij = dxij.dot(cell)
     return dxij
-
-# TODO: guess which type is this grid
-def guess_type_of_grid():
-    pass
 
 class Grid:
     def __init__(self, grid_shape: tuple[int, int, int], order: str = 'C'):
@@ -70,7 +66,7 @@ class Grid:
 
         return cell_id
 
-    def cell_position_to_id(self, cell_position, cell: ArrayLike | Atoms, is_wrapping: bool = True):
+    def cell_position_to_id(self, cell_position: NDArray, cell: ArrayLike | Atoms, is_wrapping: bool = True):
         """Find which id of grid index in the grid array that the cell position of real space (x, y, z) belongs to.         
         """
 
@@ -83,9 +79,29 @@ class Grid:
         return cell_id
 
 
-    # TODO: Grid constructor: build a Grid from given grid array, and guess which type is it and recover the Grid object
     @classmethod
-    def recover_grid_from_array(cls, array):
-        pass
-    
+    def recover_grid_from_array(cls,
+                                replicated_positions: NDArray,
+                                supercell: tuple[int, int, int],
+                                atoms: Atoms):
+        """Build a Grid from given grid array by guessing which type is it and recovering the Grid object. 
+
+        """
+        n_replicas, n_unit_atoms, _ = replicated_positions.shape
+        detected_grid = np.round(
+            (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms.positions[np.newaxis, :, :]).dot(
+                np.linalg.inv(atoms.cell))[:, 0, :], 0).astype(int)
+
+        grid_c = Grid(grid_shape=supercell, order='C')
+        grid_fortran = Grid(grid_shape=supercell, order='F')
+        if (grid_c.grid(is_wrapping=False) == detected_grid).all():
+            logging.debug("Using C-style position grid")
+            return grid_c
+        elif (grid_fortran.grid(is_wrapping=False) == detected_grid).all():
+            logging.debug("Using fortran-style position grid")
+            return grid_fortran
+        else:
+            err_msg = "Unable to detect grid type"
+            logging.error(err_msg)
+            raise ValueError(err_msg)
 
