@@ -144,18 +144,17 @@ def read_second_order_qe_matrix(filename):
 
 
 
-def read_third_order_matrix(third_file, atoms, supercell, order='C'):
+def read_third_order_matrix(third_file: str,
+                            atoms: Atoms,
+                            supercell: tuple[int, int, int],
+                            order: str = 'C'):
     """Read third order force constants from a file in VASP format.
     """
     n_unit_atoms = atoms.positions.shape[0]
     n_replicas = np.prod(supercell)
     third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    second_cell_list = []
-    third_cell_list = []
+    current_grid = Grid(supercell, order=order)
 
-    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
-    list_of_index = current_grid
-    list_of_replicas = list_of_index.dot(atoms.cell)
     with open(third_file, 'r') as file:
         first_line = file.readline()
         n_third = int(first_line.strip())
@@ -164,24 +163,12 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
             file.readline()
             file.readline()
             
-            # next two lines are the positions of the second and third cell; find their index in `list_of_index`
-            # TODO: abstract these code into a function in Grid
-            
+            # next two lines are the positions of the second and third cell
             second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
-            second_cell_list.append(second_cell_index)
-
-            # create mask to find the index
-            second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
-            second_cell_id = np.argwhere(second_cell_id).flatten()
+            second_cell_id = current_grid.cell_position_to_id(second_cell_position, atoms.cell, is_wrapping=True)
 
             third_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            third_cell_index = third_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
-            third_cell_list.append(third_cell_index)
-
-            # create mask to find the index
-            third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
-            third_cell_id = np.argwhere(third_cell_id).flatten()
+            third_cell_id = current_grid.cell_position_to_id(third_cell_position, atoms.cell, is_wrapping=True)
 
             # index to atom
             atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
@@ -227,9 +214,8 @@ def read_third_d3q(filename: str,
     with open(filename, 'r') as file:
         n_unit_atoms = atoms.positions.shape[0]
         n_replicas = np.prod(supercell)
-        current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
+        current_grid = Grid(supercell, order=order)
         supercell = np.array(supercell)
-        list_of_index = current_grid
 
         # initalize third order force constant
         third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
@@ -278,16 +264,12 @@ def read_third_d3q(filename: str,
                 second_cell_index = [int(x) for x in readline[:3]]
                 third_cell_index = [int(x) for x in readline[3:6]]
 
-                # TODO: abstract these code into a function in Grid
                 # wrap cell index
                 second_cell_index -= supercell*np.rint(second_cell_index/supercell)
                 third_cell_index -= supercell*np.rint(third_cell_index/supercell)
 
-                # create mask to find the index in list_of_index
-                second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
-                second_cell_id = np.argwhere(second_cell_id).flatten()
-                third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
-                third_cell_id = np.argwhere(third_cell_id).flatten()
+                second_cell_id = current_grid.grid_index_to_id(second_cell_index, is_wrapping=True)
+                third_cell_id =  current_grid.grid_index_to_id(third_cell_index, is_wrapping=True)
 
                 if readline[6][-4] == 'E':
                     # it has two digits for exp part
