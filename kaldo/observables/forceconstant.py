@@ -43,28 +43,7 @@ class ForceConstant(Observable):
             self._direct_grid = grid
         else:
             # grid info is not given, so recover it from the grid type from the supercell matrix
-            # TODO: move this into grid.py
-
-            n_replicas, n_unit_atoms, _ = self.replicated_positions.shape
-            atoms_positions = self.atoms.positions
-            detected_grid = np.round(
-                (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
-                    np.linalg.inv(self.atoms.cell))[:, 0, :], 0).astype(int)
-
-            grid_c = Grid(grid_shape=self.supercell, order='C')
-            grid_fortran = Grid(grid_shape=self.supercell, order='F')
-            if (grid_c.grid(is_wrapping=False) == detected_grid).all():
-                grid_type = 'C'
-                logging.debug("Using C-style position grid")
-            elif (grid_fortran.grid(is_wrapping=False) == detected_grid).all():
-                grid_type = 'F'
-                logging.debug("Using fortran-style position grid")
-            else:
-                err_msg = "Unable to detect grid type"
-                logging.error(err_msg)
-                raise ValueError(err_msg)
-
-            self._direct_grid = Grid(self.supercell, grid_type)
+            self._direct_grid = Grid.recover_grid_from_array(self.replicated_positions, self.supercell, self.atoms)
 
 
     @classmethod
