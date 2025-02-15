@@ -93,15 +93,25 @@ class Phonons:
         et al., Phys. Rev. B 87, 085322 (2013) set this to True.
         Default: False
     g_factor : (n_atoms) array , optional
-        It contains the isotopic g factor for each atom of the unit cell
+        It contains the isotopic g factor for each atom of the unit cell. 
+        g factor is the natural isotopic distributions of each element. 
+        More reference can be found: M. Berglund, M.E. Wieser, Isotopic compositions of the elements 2009 (IUPAC technical report), Pure Appl. Chem. 83 (2011) 397–410.
         Default: None
+    is_symmetrizing_frequency : bool, optional
+        TODO: add more doc here
+        Default: False
+    is_antisymmetrizing_velocity : bool, optional
+        TODO: add more doc here
+        Default: False
     include_isotopes: bool, optional.
-        Defines if you want to include isotopic scattering bandwidths. Default is False.
+        Defines if you want to include isotopic scattering bandwidths.
+        Default: False.
     iso_speed_up: bool, optional.
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
     is_nw: bool, optional
-        Defines if you would like to assume the system is a nanowire. Default is False
+        Defines if you would like to assume the system is a nanowire. 
+        Default: False
 
     Returns
     -------
@@ -122,9 +132,9 @@ class Phonons:
                  grid_type: str = "C",
                  is_balanced: bool = False,
                  is_unfolding: bool = False,
-                 g_factor: ArrayLike = None, # TODO: don't quite understand the documentation
-                 is_symmetrizing_frequency: bool = False, # TODO: what is this flag doing? undocumented
-                 is_antisymmetrizing_velocity: bool = False, # TODO: what is this flag doing? undocumented
+                 g_factor: ArrayLike = None,
+                 is_symmetrizing_frequency: bool = False, 
+                 is_antisymmetrizing_velocity: bool = False,
                  include_isotopes: bool = False,
                  iso_speed_up: bool = True,
                  is_nw: bool = False,
