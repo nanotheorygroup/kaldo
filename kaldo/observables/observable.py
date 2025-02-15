@@ -19,7 +19,7 @@ class Observable:
         loaded_attr = self.value
         if property_name is None:
             property_name = str(self)
-        name = folder + '/' + property_name
+        name = os.path.join(folder, property_name)
 
         match format:
             case 'numpy':
