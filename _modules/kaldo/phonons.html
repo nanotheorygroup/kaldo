@@ -454,10 +454,12 @@
 <span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">Grid</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q</span> <span class="kn">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="kn">import</span> <span class="n">HarmonicWithQTemp</span>
+<span class="kn">from</span> <span class="nn">kaldo.forceconstants</span> <span class="kn">import</span> <span class="n">ForceConstants</span>
 <span class="kn">import</span> <span class="nn">kaldo.controllers.anharmonic</span> <span class="k">as</span> <span class="nn">aha</span>
 <span class="kn">import</span> <span class="nn">kaldo.controllers.isotopic</span> <span class="k">as</span> <span class="nn">isotopic</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy.typing</span> <span class="kn">import</span> <span class="n">ArrayLike</span>
 <span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
@@ -535,41 +537,72 @@
 <span class="sd">        et al., Phys. Rev. B 87, 085322 (2013) set this to True.</span>
 <span class="sd">        Default: False</span>
 <span class="sd">    g_factor : (n_atoms) array , optional</span>
-<span class="sd">        It contains the isotopic g factor for each atom of the unit cell</span>
+<span class="sd">        It contains the isotopic g factor for each atom of the unit cell. </span>
+<span class="sd">        g factor is the natural isotopic distributions of each element. </span>
+<span class="sd">        More reference can be found: M. Berglund, M.E. Wieser, Isotopic compositions of the elements 2009 (IUPAC technical report), Pure Appl. Chem. 83 (2011) 397–410.</span>
 <span class="sd">        Default: None</span>
+<span class="sd">    is_symmetrizing_frequency : bool, optional</span>
+<span class="sd">        TODO: add more doc here</span>
+<span class="sd">        Default: False</span>
+<span class="sd">    is_antisymmetrizing_velocity : bool, optional</span>
+<span class="sd">        TODO: add more doc here</span>
+<span class="sd">        Default: False</span>
 <span class="sd">    include_isotopes: bool, optional.</span>
-<span class="sd">        Defines if you want to include isotopic scattering bandwidths. Default is False.</span>
+<span class="sd">        Defines if you want to include isotopic scattering bandwidths.</span>
+<span class="sd">        Default: False.</span>
 <span class="sd">    iso_speed_up: bool, optional.</span>
 <span class="sd">        Defines if you want to truncate the energy-conservation delta</span>
 <span class="sd">        in the isotopic scattering computation. Default is True.</span>
 <span class="sd">    is_nw: bool, optional</span>
-<span class="sd">        Defines if you would like to assume the system is a nanowire. Default is False</span>
+<span class="sd">        Defines if you would like to assume the system is a nanowire. </span>
+<span class="sd">        Default: False</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    Phonons Object</span>
 <span class="sd">    """</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'forceconstants'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_classic'</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
-        <span class="k">if</span> <span class="s1">'temperature'</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">'temperature'</span><span class="p">])</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'folder'</span><span class="p">,</span> <span class="n">FOLDER_NAME</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'kpts'</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'grid_type'</span><span class="p">,</span> <span class="s1">'C'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">forceconstants</span><span class="p">:</span> <span class="n">ForceConstants</span><span class="p">,</span>
+                 <span class="n">temperature</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="o">*</span><span class="p">,</span>
+                 <span class="n">is_classic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">kpts</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                 <span class="n">min_frequency</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.</span><span class="p">,</span>
+                 <span class="n">max_frequency</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">third_bandwidth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">broadening_shape</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gauss"</span><span class="p">,</span>
+                 <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">FOLDER_NAME</span><span class="p">,</span>
+                 <span class="n">storage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"formatted"</span><span class="p">,</span>
+                 <span class="n">grid_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"C"</span><span class="p">,</span>
+                 <span class="n">is_balanced</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">is_unfolding</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">g_factor</span><span class="p">:</span> <span class="n">ArrayLike</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">is_symmetrizing_frequency</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> 
+                 <span class="n">is_antisymmetrizing_velocity</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">include_isotopes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">iso_speed_up</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">is_nw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span> <span class="o">=</span> <span class="n">forceconstants</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="o">=</span> <span class="n">is_classic</span>
+        <span class="k">if</span> <span class="n">temperature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temperature</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">folder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kpts</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span> <span class="o">=</span> <span class="n">grid_type</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span> <span class="o">=</span> <span class="n">Grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_unfolding'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span> <span class="o">=</span> <span class="n">is_unfolding</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using unfolding.'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'min_frequency'</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'max_frequency'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'broadening_shape'</span><span class="p">,</span> <span class="s1">'gauss'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_nw'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'third_bandwidth'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'storage'</span><span class="p">,</span> <span class="s1">'formatted'</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_symmetrizing_frequency</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_symmetrizing_frequency'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_antisymmetrizing_velocity</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_antisymmetrizing_velocity'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_balanced</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'is_balanced'</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">min_frequency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="o">=</span> <span class="n">max_frequency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">=</span> <span class="n">broadening_shape</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span> <span class="o">=</span> <span class="n">is_nw</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span> <span class="o">=</span> <span class="n">third_bandwidth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">storage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_symmetrizing_frequency</span> <span class="o">=</span> <span class="n">is_symmetrizing_frequency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_antisymmetrizing_velocity</span> <span class="o">=</span> <span class="n">is_antisymmetrizing_velocity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_balanced</span> <span class="o">=</span> <span class="n">is_balanced</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">atoms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">))</span>
@@ -579,9 +612,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">*</span> <span class="mf">1e-6</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'g_factor'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'include_isotopes'</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">iso_speed_up</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'iso_speed_up'</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span> <span class="o">=</span> <span class="n">g_factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span> <span class="o">=</span> <span class="n">include_isotopes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iso_speed_up</span> <span class="o">=</span> <span class="n">iso_speed_up</span>
 
 
 
@@ -981,7 +1014,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_is_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">is_amorphous</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="n">is_amorphous</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">is_amorphous</span>
 
 
