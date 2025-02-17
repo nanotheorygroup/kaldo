@@ -4,6 +4,7 @@ Anharmonic Lattice Dynamics
 """
 from opt_einsum import contract
 import numpy as np
+from kaldo.phonons import Phonons
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
 from kaldo.helpers.storage import lazy_property
 import kaldo.observables.harmonic_with_q_temp as hwqwt
@@ -68,6 +69,7 @@ class Conductivity:
         Contains all the information about the calculated phononic properties of the system
     method : 'rta', 'sc', 'qhgk', 'inverse'
         Specifies the method used to calculate the conductivity.
+        `rta` is relaxation time approximation; `sc` is self-consistent; `qhgk` is Quasi-Harmonic Green Kubo; `inverse` is inversion of the scattering matrix for mean free path.
     diffusivity_bandwidth : float, optional
         (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
         thermal conductivity in amorphous systems. Units: rad/ps
@@ -108,18 +110,34 @@ class Conductivity:
     Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
     ```
     """
-    def __init__(self, **kwargs):
-        self.phonons = kwargs.pop('phonons')
-        self.method = kwargs.pop('method', 'rta')
-        self.storage = kwargs.pop('storage', 'formatted')
+    def __init__(self,
+                 phonons: Phonons,
+                 *,
+                 method: str = 'rta',
+                 diffusivity_bandwidth: float | None = None,
+                 diffusivity_threshold: float | None = None,
+                 diffusivity_shape: str = 'lorentz',
+                 is_diffusivity_including_antiresonant: bool = False,
+                 tolerance: int | None = None,
+                 n_iterations: int | None = None,
+                 length: tuple[int, int, int] = (None, None, None),
+                 finite_length_method: str = 'ms',
+                 storage: str = 'formatted',
+                 **kwargs):
+        self.phonons = phonons
+        self.method = method
+        self.storage = storage
 
-        if self.method == 'rta':
-            self.n_iterations = 0
-        else:
-            self.n_iterations = kwargs.pop('n_iterations', None)
-        self.length = kwargs.pop('length', np.array([None, None, None]))
-        self.finite_length_method = kwargs.pop('finite_length_method', 'ms')
-        self.tolerance = kwargs.pop('tolerance', None)
+        # force n_iterations to 0 if method is `rta`
+        if n_iterations != 0 and self.method == 'rta':
+            logging.warning("rta method is specified, but n_iterations is not specified to be 0. Please check your setup. Now, n_iterations is reset to 0.")
+        self.n_iterations = 0 if self.method == 'rta' else n_iterations
+
+        self.length = length
+        self.finite_length_method = finite_length_method
+        self.tolerance = tolerance
+
+        # initalize info from phonons object
         self.folder = self.phonons.folder
         self.kpts = self.phonons.kpts
         self.n_k_points = self.phonons.n_k_points
@@ -128,12 +146,13 @@ class Conductivity:
         self.temperature = self.phonons.temperature
         self.is_classic = self.phonons.is_classic
         self.third_bandwidth = self.phonons.third_bandwidth
-
-        self.diffusivity_bandwidth = kwargs.pop('diffusivity_bandwidth', None)
-        self.diffusivity_threshold = kwargs.pop('diffusivity_threshold', None)
-        self.is_diffusivity_including_antiresonant = kwargs.pop('is_diffusivity_including_antiresonant', False)
-        self.diffusivity_shape = kwargs.pop('diffusivity_shape', 'lorentz')
         self.include_isotopes = self.phonons.include_isotopes
+
+        # initalize QHGK method
+        self.diffusivity_bandwidth = diffusivity_bandwidth
+        self.diffusivity_threshold = diffusivity_threshold
+        self.is_diffusivity_including_antiresonant = is_diffusivity_including_antiresonant
+        self.diffusivity_shape = diffusivity_shape
 
     @lazy_property(
         label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
@@ -147,23 +166,24 @@ class Conductivity:
             (n_k_points, n_modes, 3, 3) float
         """
         method = self.method
-        other_avail_methods = ['rta', 'sc', 'inverse']
-        if (method == 'qhgk'):
-            cond, diff = self.calculate_conductivity_and_diffusivity_qhgk()
-            self._diffusivity = diff
-        elif (method == 'full'):
-            cond = self.calculate_conductivity_full()
-        elif method in other_avail_methods:
-            lambd = self.mean_free_path
-            conductivity_per_mode = calculate_conductivity_per_mode(
-                self.phonons.heat_capacity.reshape((self.n_phonons)),
-                self.phonons.velocity, lambd, self.phonons.physical_mode,
-                self.n_phonons)
+        match method:
+            case 'qhgk':
+                cond, diff = self.calculate_conductivity_and_diffusivity_qhgk()
+                self._diffusivity = diff
+            case 'full':
+                cond = self.calculate_conductivity_full()
+            case 'rta' | 'sc' | 'inverse':
+                lambd = self.mean_free_path
+                conductivity_per_mode = calculate_conductivity_per_mode(
+                    self.phonons.heat_capacity.reshape((self.n_phonons)),
+                    self.phonons.velocity, lambd, self.phonons.physical_mode,
+                    self.n_phonons)
 
-            volume = np.abs(np.linalg.det(self.phonons.atoms.cell))
-            cond = conductivity_per_mode / (volume * self.n_k_points)
-        else:
-            logging.error('Conductivity method not implemented')
+                volume = np.abs(np.linalg.det(self.phonons.atoms.cell))
+                cond = conductivity_per_mode / (volume * self.n_k_points)
+
+            case _:
+                logging.error(f'Conductivity method "{method}" not implemented')
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
@@ -186,17 +206,13 @@ class Conductivity:
             (n_k_points, n_modes) float
         """
         method = self.method
-
-        if (method == 'qhgk'):
-            logging.error('Mean free path not available for ' + str(method))
-        elif method == 'rta':
-            mfp = self._calculate_mfp_sc()
-        elif method == 'sc':
-            mfp = self._calculate_mfp_sc()
-        elif (method == 'inverse'):
-            mfp = self.calculate_mfp_inverse()
-        else:
-            logging.error('Conductivity method not implemented')
+        match method:
+            case 'rta' | 'sc':
+                mfp = self._calculate_mfp_sc()
+            case 'inverse':
+                mfp = self.calculate_mfp_inverse()
+            case _:
+                logging.error('Mean free path not available for ' + method)
 
         # folder = get_folder_from_label(phonons, '<temperature>/<statistics>/<third_bandwidth>')
         # save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \
@@ -259,18 +275,19 @@ class Conductivity:
         conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.float32)
         diffusivity_with_axis = np.zeros_like(conductivity_per_mode)
 
-        if self.diffusivity_shape == 'lorentz':
-            logging.info('Using Lorentzian diffusivity_shape')
-            curve = lorentz_delta
-        elif self.diffusivity_shape == 'gauss':
-            logging.info('Using Gaussian diffusivity_shape')
-            curve = gaussian_delta
-        elif self.diffusivity_shape == 'triangle':
-            logging.info('Using triangular diffusivity_shape')
-            curve = triangular_delta
-        else:
-            logging.error('Diffusivity shape not implemented')
-            return None, None
+        match self.diffusivity_shape:
+            case 'lorentz':
+                logging.info('Using Lorentzian diffusivity_shape')
+                curve = lorentz_delta
+            case 'gauss':
+                logging.info('Using Gaussian diffusivity_shape')
+                curve = gaussian_delta
+            case 'triangle':
+                logging.info('Using triangular diffusivity_shape')
+                curve = triangular_delta
+            case _:
+                logging.error('Diffusivity shape not implemented')
+                return None, None
 
         is_diffusivity_including_antiresonant = self.is_diffusivity_including_antiresonant
 

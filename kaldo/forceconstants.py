@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 from sparse import COO
 from kaldo.grid import wrap_coordinates
-from kaldo.observables.secondorder import SecondOrder,parse_tdep_forceconstant
+from kaldo.observables.secondorder import SecondOrder, parse_tdep_forceconstant
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -27,11 +27,11 @@ class ForceConstants:
     ----------
     atoms: Tabulated xyz files or ASE Atoms object
         The atoms to work on.
-    supercell: (3) tuple, optional
+    supercell: tuple[int, int, int], optional
         Size of supercell given by the number of repetitions (l, m, n) of
         the small unit cell in each direction.
         Default: (1, 1, 1)
-    third_supercell: tuple, optional
+    third_supercell: tuple[int, int, int], optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
         Default: `self.supercell`
@@ -62,10 +62,10 @@ class ForceConstants:
     """
     def __init__(self,
                  atoms,
-                 supercell=(1, 1, 1),
-                 third_supercell=None,
-                 folder=MAIN_FOLDER,
-                 distance_threshold=None):
+                 supercell: tuple[int, int, int] | None = None,
+                 third_supercell: tuple[int, int, int] | None = None,
+                 folder: str | None = MAIN_FOLDER,
+                 distance_threshold: float | None = None):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -80,24 +80,39 @@ class ForceConstants:
         self._list_of_replicas = None
 
         # TODO: we should probably remove the following initialization
-        self.second = SecondOrder.from_supercell(atoms,
-                                                 supercell=self.supercell,
-                                                 grid_type='C',
-                                                 is_acoustic_sum=False,
-                                                 folder=folder)
-        if third_supercell is None:
-            third_supercell = supercell
-        self.third = ThirdOrder.from_supercell(atoms,
-                                               supercell=third_supercell,
-                                               grid_type='C',
-                                               folder=folder)
+        # * by default do not initialize second order 
+        # * some options here:
+        # * 1. allow user to use this function
+        # * 2. directly remove this part
+        # * 3. now allow user to use supercell and third_supercell, but warn that it is not encouraged
+        if (supercell is not None) and (folder is not None):
+            logging.warning("Directly use ForceConstants to load data from folder is discouraged with limit \
+                            functionalities. Please use ForceConstants.from_folder for more options.")
+            self.second = SecondOrder.from_supercell(atoms,
+                                                     supercell=self.supercell,
+                                                     grid_type='C',
+                                                     is_acoustic_sum=False,
+                                                     folder=folder)
+            if third_supercell is None:
+                third_supercell = supercell
+            self.third = ThirdOrder.from_supercell(atoms,
+                                                   supercell=third_supercell,
+                                                   grid_type='C',
+                                                   folder=folder)
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
-                    is_acoustic_sum=False, only_second=False, distance_threshold=None):
+    def from_folder(cls,
+                    folder: str,
+                    supercell: tuple[int, int, int] = (1, 1, 1),
+                    format: str = 'numpy',
+                    third_energy_threshold: float = 0.,
+                    third_supercell: tuple[int, int, int] | None = None,
+                    is_acoustic_sum: bool = False,
+                    only_second: bool = False,
+                    distance_threshold: float | None = None):
         """
         Create a finite difference object from a folder
 
@@ -124,7 +139,7 @@ class ForceConstants:
             Default is 'numpy'
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: ev/A^3
+            the threshold value in magnitude are ignored. Units: eV/Angstrom^3
             Default is `None`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
@@ -141,15 +156,24 @@ class ForceConstants:
         forceconstants: ForceConstants object
             A new instance of the ForceConstants class
         """
+        # get atoms first before initialize forceconstants
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
-        # Create a finite difference object
-        forceconstants = {'atoms': atoms,
-                          'supercell': supercell,
-                          'folder': folder}
-        forceconstants = cls(**forceconstants)
+
+        # initialize forceconstants object, without initializing second and third
+        forceconstants = cls(atoms=atoms,
+                             supercell=supercell,
+                             third_supercell=third_supercell,
+                             folder=None,
+                             distance_threshold=distance_threshold)
+        # overwrite folder
+        forceconstants.folder = folder
+
+        # initialize second order force
         forceconstants.second = second_order
+
+        # initialize third order force
         if not only_second:
             if format == 'numpy':
                 third_format = 'sparse'
@@ -161,7 +185,7 @@ class ForceConstants:
                                           third_energy_threshold=third_energy_threshold)
 
             forceconstants.third = third_order
-        forceconstants.distance_threshold = distance_threshold
+
         return forceconstants
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
@@ -177,7 +201,7 @@ class ForceConstants:
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than
             the distance threshold will be ignored.
-            Default is self.distance_threshold
+            Default is `self.distance_threshold`
         """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
@@ -333,8 +357,10 @@ class ForceConstants:
 
 
     @staticmethod
-    def sigma2_tdep_MD(fc_file='infile.forceconstant', primitive_file='infile.ucposcar',
-                       supercell_file='infile.ssposcar', md_run='dump.xyz'):
+    def sigma2_tdep_MD(fc_file: str = 'infile.forceconstant',
+                       primitive_file: str = 'infile.ucposcar',
+                       supercell_file: str = 'infile.ssposcar',
+                       md_run: str = 'dump.xyz') -> float:
         """
         Calculate the sigma2 value using TDEP and MD data.
 
