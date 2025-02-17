@@ -8,6 +8,7 @@ from ase import Atoms
 from kaldo.grid import Grid
 from sparse import COO
 from kaldo.helpers.logger import get_logger
+from numpy.typing import ArrayLike
 logging = get_logger()
 
 
@@ -33,9 +34,11 @@ def read_second_order_matrix(filename, supercell):
 
     Returns
     -------
-        second_order : np.array(i_at, alpha, t1, t2, t3, j_at, beta)
-            The array contains second order force constants. alpha and beta are directional indexes in x,y,z.
-            t1, t2, t3 is the index to the supercell for j-th atom. i_at and j_at are the indexes to the atoms as in unit cell. 
+        second_order : np.ndarray(i_at, alpha, t1, t2, t3, j_at, beta)
+            The array contains second order force constants.
+            alpha and beta are directional indexes in x,y,z.
+            t1, t2, t3 is the index to the supercell for j-th atom.
+            i_at and j_at are the indexes to the atoms as in unit cell.
     """
     with open(filename, 'r') as file:
         first_row = file.readline()
@@ -81,12 +84,14 @@ def read_second_order_qe_matrix(filename):
 
     Returns
     -------
-        second : np.array(i_at, alpha, t1, t2, t3, j_at, beta)
-            The array contains second order force constants. alpha and beta are directional indexes in x,y,z. 
-            t1, t2, t3 is the index to the supercell for j-th atom. i_at and j_at are the indexes to the atoms as in unit cell. 
+        second : np.ndarray(i_at, alpha, t1, t2, t3, j_at, beta)
+            The array contains second order force constants.
+            alpha and beta are directional indexes in x,y,z.
+            t1, t2, t3 is the index to the supercell for j-th atom.
+            i_at and j_at are the indexes to the atoms as in unit cell.
 
         supercell : [t1, t2, t3]
-            The size of the supercell as t1 * t2 * t3. 
+            The size of the supercell as t1 * t2 * t3.
     """
     with open(filename, 'r') as file:
         # skip all the prelude info, jump to second order force constants
@@ -139,18 +144,17 @@ def read_second_order_qe_matrix(filename):
 
 
 
-def read_third_order_matrix(third_file, atoms, supercell, order='C'):
+def read_third_order_matrix(third_file: str,
+                            atoms: Atoms,
+                            supercell: tuple[int, int, int],
+                            order: str = 'C'):
     """Read third order force constants from a file in VASP format.
     """
     n_unit_atoms = atoms.positions.shape[0]
     n_replicas = np.prod(supercell)
     third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    second_cell_list = []
-    third_cell_list = []
+    current_grid = Grid(supercell, order=order)
 
-    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
-    list_of_index = current_grid
-    list_of_replicas = list_of_index.dot(atoms.cell)
     with open(third_file, 'r') as file:
         first_line = file.readline()
         n_third = int(first_line.strip())
@@ -159,23 +163,12 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
             file.readline()
             file.readline()
             
-            # next two lines are the positions of the second and third cell; find their index in `list_of_index`
-            
+            # next two lines are the positions of the second and third cell
             second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            second_cell_index = second_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
-            second_cell_list.append(second_cell_index)
-
-            # create mask to find the index
-            second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
-            second_cell_id = np.argwhere(second_cell_id).flatten()
+            second_cell_id = current_grid.cell_position_to_id(second_cell_position, atoms.cell, is_wrapping=True)
 
             third_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            third_cell_index = third_cell_position.dot(np.linalg.inv(atoms.cell)).round(0).astype(int)
-            third_cell_list.append(third_cell_index)
-
-            # create mask to find the index
-            third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
-            third_cell_id = np.argwhere(third_cell_id).flatten()
+            third_cell_id = current_grid.cell_position_to_id(third_cell_position, atoms.cell, is_wrapping=True)
 
             # index to atom
             atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
@@ -192,118 +185,107 @@ def read_third_order_matrix(third_file, atoms, supercell, order='C'):
     return third_order
 
 
-def read_third_order_matrix_2(third_file, atoms, third_supercell, order='C'):
-    # TODO: is this a legacy method?
-    supercell = third_supercell
-    n_unit_atoms = atoms.positions.shape[0]
-    n_replicas = np.prod(supercell)
-    current_grid = Grid(third_supercell, order=order).grid(is_wrapping=True)
-    list_of_index = current_grid
-    list_of_replicas = list_of_index.dot(atoms.cell)
-    replicated_cell = atoms.cell * supercell
-    # replicated_cell_inv = np.linalg.inv(replicated_cell)
+def read_third_d3q(filename: str,
+                   atoms: Atoms,
+                   supercell: tuple[int, int, int] | ArrayLike,
+                   order: str = 'C') -> np.ndarray[tuple[int, int, int, int, int, int, int, int],
+                                                   np.dtype[np.float64]]:
+    """Read third order d3q format.
 
-    coords = []
-    data = []
-    second_cell_positions = []
-    third_cell_positions = []
-    atoms_coords = []
-    sparse_data = []
-    with open(third_file, 'r') as file:
-        line = file.readline()
-        n_third = int(line)
-        for i in range(n_third):
-            file.readline()
-            file.readline()
+    Parameters
+    ----------
+    filename : str
+        The path to file of third order force constants in d3q format.
 
-            second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            second_cell_positions.append(second_cell_position)
-            d_1 = list_of_replicas[:, :] - second_cell_position[np.newaxis, :]
-            # d_1 = wrap_coordinates(d_1,  replicated_cell, replicated_cell_inv)
+    supercell : tuple[int, int, int], shape as [t1, t2, t3]
+        The size of the supercell as t1 * t2 * t3.
 
-            mask_second = np.linalg.norm(d_1, axis=1) < 1e-5
-            second_cell_id = np.argwhere(mask_second).flatten()
+    Returns
+    -------
+        third_order : np.ndarray[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma]
+            The array contains third order force constants.
+            alpha, beta, and gamma are directional indexes in x,y,z.
+            second_cell_id is the index to the supercell for j-th atom.
+            third_cell_id is the index to the supercell for k-th atom.
+            atom_i, atom_j and atom_k are the indexes to the atoms as in unit cell.
+    """
+    # Note: d3q is similar to second order qe format.
 
-            third_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
-            third_cell_positions.append(third_cell_position)
-            d_2 = list_of_replicas[:, :] - third_cell_position[np.newaxis, :]
-            # d_2 = wrap_coordinates(d_2,  replicated_cell, replicated_cell_inv)
-            mask_third = np.linalg.norm(d_2, axis=1) < 1e-5
-            third_cell_id = np.argwhere(mask_third).flatten()
+    with open(filename, 'r') as file:
+        n_unit_atoms = atoms.positions.shape[0]
+        n_replicas = np.prod(supercell)
+        current_grid = Grid(supercell, order=order)
+        supercell = np.array(supercell)
 
-            atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
-            atoms_coords.append([atom_i, atom_j, atom_k])
-            small_data = []
-            for _ in range(27):
+        # initalize third order force constant
+        third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
 
-                values = np.fromstring(file.readline(), dtype=float, sep=' ')
-                alpha, beta, gamma = values[:3].round(0).astype(int) - 1
-                coords.append([atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma])
-                data.append(values[3])
-                small_data.append(values[3])
-            sparse_data.append(small_data)
+        # read first line
+        ntype, n_atoms, ibrav = np.fromstring(file.readline(), dtype=int, sep=' ', count=3)
 
-    third_order = COO(np.array(coords).T, np.array(data), shape=(n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-    return third_order, np.array(sparse_data), np.array(second_cell_positions), np.array(third_cell_positions), np.array(atoms_coords)
-
-def read_third_d3q(filename,atoms,supercell,order='C'):
-    file = open('%s' % filename, 'r')
-    n_unit_atoms = atoms.positions.shape[0]
-    n_replicas = np.prod(supercell)
-    current_grid = Grid(supercell, order=order).grid(is_wrapping=True)
-    if isinstance(supercell,list):
-        supercell=np.array(supercell)
-    list_of_index = current_grid
-    third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    ntype, n_atoms, ibrav = [int(x) for x in file.readline().split()[:3]]
-    if (ibrav == 0):
-        for i in np.arange(3):
-            file.readline()
-    for i in np.arange(ntype):
-        file.readline()
-    for i in np.arange(n_atoms):
-        file.readline()
-    polar = file.readline()
-    if ("T" in polar):
-        for i in np.arange(3):
-            file.readline()
-        for i in np.arange(n_atoms):
-            file.readline()
-            for j in np.arange(3):
+        if (ibrav == 0):
+            # skip 3 lines of cell parameters
+            for _ in np.arange(3):
                 file.readline()
-    test_supercell = [int(x) for x in file.readline().split()] #the third supercell can be different to the second one
-    logging.info('Important: FORCECONSTANTS_3RD must be generated by d3q without recentering. Cell indeces must be from 0 to nrep, not [-nrep/2,nrep/2]')
-    if not (test_supercell[0]==supercell[0] and test_supercell[1]==supercell[1] and test_supercell[2]==supercell[2]):
-        print('third supercell not consistent with 3rd Forces file',test_supercell,supercell)
 
-    error_notation = 0
-    for i in range((3*n_unit_atoms)**3):
-        alpha,beta,gamma,atom_i,atom_j,atom_k=[int(x)-1 for x in file.readline().split()]
-        file.readline()
-        for j in range(n_replicas**2):
-            readline = file.readline().split()
-            second_cell_index=[int(x)  for x in readline[:3]]
-            third_cell_index=[int(x)  for x in readline[3:6]]
-            #wrap cell index
-            second_cell_index=second_cell_index-supercell*np.round(second_cell_index/supercell)
-            third_cell_index=third_cell_index-supercell*np.round(third_cell_index/supercell)
-            # create mask to find the index
-            second_cell_id = (list_of_index[:] == second_cell_index).prod(axis=1)
-            second_cell_id = np.argwhere(second_cell_id).flatten()
-            third_cell_id = (list_of_index[:] == third_cell_index).prod(axis=1)
-            third_cell_id = np.argwhere(third_cell_id).flatten()
-            if str(str(readline[6])[-4])=='E':
-                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = float(readline[6]) \
-                                                                                                         * (Rydberg/ (Bohr ** 3))
-            else:
-                third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] =0.0
-                error_notation+=1
-    logging.info('error with notation number <e-100, used default value=0.0. It happened {} times'.format(error_notation))
+        # skip lines of types of atoms
+        for _ in np.arange(ntype):
+            file.readline()
+        # skip lists of atom positions
+        for _ in np.arange(n_atoms):
+            file.readline()
 
-    third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
-                                       n_unit_atoms * 3))
-    return third_order
+        # skip Dielectric constant tensor if it has
+        polar = file.readline()
+        if ("T" in polar):
+            for _ in np.arange(3):
+                file.readline()
+            for _ in np.arange(n_atoms):
+                file.readline()
+                for _ in np.arange(3):
+                    file.readline()
+
+        # next line is 3rd order supercell
+        test_supercell = np.fromstring(file.readline(), dtype=int, sep=' ')
+        # the third supercell can be different to the second one
+        logging.info('Important: FORCECONSTANTS_3RD must be generated by d3q without recentering. Cell indeces must be from 0 to nrep, not [-nrep/2,nrep/2]')
+        if not np.array_equal(supercell, test_supercell):
+            logging.error(f'third supercell not consistent with 3rd Forces file: {test_supercell} != {supercell}')
+
+        error_notation = 0
+        for i in range((3*n_unit_atoms)**3):
+            alpha, beta, gamma, atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
+
+            # skip a line
+            file.readline()
+            for j in range(n_replicas**2):
+                readline = file.readline().split()
+
+                second_cell_index = [int(x) for x in readline[:3]]
+                third_cell_index = [int(x) for x in readline[3:6]]
+
+                # wrap cell index
+                second_cell_index -= supercell*np.rint(second_cell_index/supercell)
+                third_cell_index -= supercell*np.rint(third_cell_index/supercell)
+
+                second_cell_id = current_grid.grid_index_to_id(second_cell_index, is_wrapping=True)
+                third_cell_id =  current_grid.grid_index_to_id(third_cell_index, is_wrapping=True)
+
+                if readline[6][-4] == 'E':
+                    # it has two digits for exp part
+                    third_order[atom_i, alpha, second_cell_id,
+                                atom_j, beta, third_cell_id,
+                                atom_k, gamma] = float(readline[6]) * (Rydberg / (Bohr ** 3))
+                else:
+                    third_order[atom_i, alpha, second_cell_id, atom_j, beta, third_cell_id, atom_k, gamma] = 0.0
+                    error_notation += 1
+
+        logging.info('error with notation number < e-100, used default value=0.0. It happened {} times'.format(error_notation))
+
+        third_order = third_order.reshape((n_unit_atoms * 3,
+                                           n_replicas * n_unit_atoms * 3,
+                                           n_replicas * n_unit_atoms * 3))
+        return third_order
 
 
 def import_control_file(control_file):
@@ -349,7 +331,7 @@ def import_control_file(control_file):
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
     list_of_elem = []
-    if masses==None:
+    if masses is None:
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
     
@@ -358,7 +340,7 @@ def import_control_file(control_file):
                       cell=cell,
                       pbc=[1, 1, 1])
     else:
-        list_of_masses=[]
+        list_of_masses = []
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
             list_of_masses.append(masses[types[i] - 1])
