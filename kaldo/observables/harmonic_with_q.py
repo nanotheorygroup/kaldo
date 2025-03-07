@@ -282,6 +282,7 @@ class HarmonicWithQ(Observable):
             else:
                 dyn_lr = tf.cast(dyn_lr, tf.complex128)
             dyn_s += dyn_lr
+
         if only_eigenvals:
             esystem = tf.linalg.eigvalsh(dyn_s)
         else:
@@ -350,9 +351,6 @@ class HarmonicWithQ(Observable):
         dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
         # Apply correction for Born effective charges, if detected
-        # if self.is_nac:
-        #     dyn_s += self.nac_frequencies(qpoint=None)
-        #     dyn_s += self.nac_frequencies(qpoint=self.q_point)
         if self.is_nac:
             dyn_s += self.nac_frequencies(qpoint=None)
             dyn_s += self.nac_frequencies(qpoint=self.q_point)
@@ -411,7 +409,7 @@ class HarmonicWithQ(Observable):
         # NOTE: If you wanted to redo this to calculate all the directions at the same time, the first
         # prefactors line is the only place where direction is used.
         phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
-        prefactors = np.einsum('i,i,inm->inm', cell_positions[:,direction], phase, coefficients)
+        prefactors = np.einsum('i,i,inm->inm', cell_positions[:, direction], phase, coefficients)
         prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
         prefactors = prefactors.transpose((4, 2, 0, 3, 1))
 

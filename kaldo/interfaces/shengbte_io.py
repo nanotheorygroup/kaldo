@@ -270,7 +270,7 @@ def import_control_file(control_file):
     eps_vecs = []
     bec_vecs = []
     lfactor = 1
-    masses=None
+    masses = None
     with open(control_file, "r") as fo:
         lines = fo.readlines()
     for line in lines:
@@ -295,7 +295,7 @@ def import_control_file(control_file):
             positions.append(np.fromstring(value, dtype=float, sep=' '))
         if 'lfactor' in line:
             lfactor = float(line.split('=')[1].split(',')[0])
-        #TODO: only one species/mass at the moment
+        # TODO: only one species/mass at the moment
         if 'masses' in line:
             value = line.split('=')[1]
             masses=np.fromstring(value, dtype=float, sep=' ')
@@ -313,7 +313,7 @@ def import_control_file(control_file):
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
     list_of_elem = []
-    if masses==None:
+    if masses == None:
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
 
@@ -322,7 +322,7 @@ def import_control_file(control_file):
                       cell=cell,
                       pbc=[1, 1, 1])
     else:
-        list_of_masses=[]
+        list_of_masses = []
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
             list_of_masses.append(masses[types[i] - 1])

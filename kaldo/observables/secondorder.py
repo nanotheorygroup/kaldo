@@ -293,7 +293,7 @@ class SecondOrder(ForceConstant):
             config_file = folder + '/' + 'CONTROL'
             try:
                 atoms, supercell, charges = shengbte_io.import_control_file(config_file)
-                if charges.any():
+                if charges is not None:
                     atoms.info['dielectric'] = charges[0, :, :]
                     atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
             except FileNotFoundError as err:
