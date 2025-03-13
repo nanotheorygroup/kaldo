@@ -1,6 +1,6 @@
 # Publications using kALDo
 
-## Preprints (9)
+## Preprints (8)
 
 * Wenjie Zhou, Shi Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://arxiv.org/abs/2501.09990)
 
@@ -9,8 +9,6 @@
 * Aloïs Castellano, J.P. Alvarinhas Batista, Olle Hellman, and Matthieu J. Verstraete, [Mode-coupling formulation of heat transport in anharmonic materials](https://arxiv.org/abs/2411.14949).
 
 * B Pota, P Ahlawat, G Csanyi, M Simoncelli, [Thermal Conductivity Predictions with Foundation Atomistic Models](https://arxiv.org/abs/2408.00755).
-
-* Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://arxiv.org/abs/2409.04430).
 
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A Caro, Tapio Ala-Nissila, [Density dependence of thermal conductivity in nanoporous and amorphous carbon with machine-learned molecular dynamics](https://arxiv.org/abs/2408.12390).
 
@@ -21,7 +19,11 @@
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (1)
+## 2025 (3)
+
+* Liben Guo, Yuanbin Liu, Lei Yang, Bingyang Cao, [Lattice dynamics modeling of thermal transport in solids using machine-learned atomic cluster expansion potentials: A tutorial](https://pubs.aip.org/aip/jap/article/137/8/081101/3337045/Lattice-dynamics-modeling-of-thermal-transport-in), J. Appl. Phys. ***137***, 081101 (2025).
+
+* Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://pubs.aip.org/aip/jcp/article/162/6/064109/3335667), J. Chem. Phys. ***162***, 064109 (2025).
 
 * Shun Li, Lantao Fang, Tao Liu, Xuping Wang, Bing Liu, Yuanyuan Zhang, Xianshun Lv, Lei Wei, [Machine learning-accelerated molecular dynamics calculations for investigating the thermal modulation by ferroelectric domain wall in KTN single crystals](https://www.sciencedirect.com/science/article/pii/S0927025625000175), Comput. Mater. Sci. ***249***, 113674 (2025). 
 
@@ -164,4 +166,9 @@ Phys. Rev. B **103**, 024204 (2021).
 
 
 ## 2020 (2)
+* Roman Anufriev, Christ Glorieux,  Gerald Diebold,
+ [Advances in photothermal and photoacoustic metrology](https://pubs.aip.org/aip/jap/article/128/24/240402/1027028),
+J. Appl. Phys. **128**,240402 (2020).
 
+* Giuseppe Barbalinardo,
+[Unraveling Heat Transport in Complex Materials: From Glasses to Nanostructures](https://www.proquest.com/docview/2540546522?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations%20&%20Theses). 
