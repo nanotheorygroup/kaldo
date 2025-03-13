@@ -28,20 +28,23 @@ taking the inverse of the magnitude of the real space lattice vector. For a conc
 with lengths :math:`a_{1} < a_{2} < a_{3}`. We know our `kpts` should roughly follow :math:`n_{1} > n_{2} > n_{3}`.
 More specifically, we want to minimize the differences of the following terms:
 
-..math::
+.. math::
     \frac{n_{1}}{a_{1}} \approx \frac{n_{2}}{a_{2}} \approx \frac{n_{1}}{a_{1}}
 
 Which leads to us solving a series of inequalities. We will demonstrate the idea here by solving for the bounds on
 :math:`n_{2}`, and then using the known relationship between the magnitudes of the lattice vectors to setup an
 inequality. The result yields:
 
-..math::
+.. math::
     \frac{n_{3} \cdot a_{2}}{a_{3}} \leq n_{2} \leq \frac{n_{1} \cdot a_{2}}{a_{1}}
 
 The example was given for a sample that's periodic in each direction, however it will be true for less symmetric
 samples as well with the modification that you can ignore any direction lacking symmetry. The non-periodic direction
 should be set to 1, so for amorphous samples the `kpts` argument should be (1,1,1). For 2D materials, set the
 out-of-plane direction to 1, and for nanowires use a value greater than 1 for direction along the wire.
+
+.. hint::
+   Kaldo assumes a q-grid that goes from 0 to 2*pi/a and will output with that convention.
 
 ***************
 Classical Limit
