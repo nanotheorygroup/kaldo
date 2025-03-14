@@ -501,21 +501,21 @@ points in that direction according to the magnitude of the reciprocal lattice ve
 taking the inverse of the magnitude of the real space lattice vector. For a concrete example, imagine a cubic lattice
 with lengths <img alt="a_{1} &lt; a_{2} &lt; a_{3}" class="math" src="../_images/math/01b106d244c59874e4d347125af4b9779f6064f0.png"/>. We know our <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> should roughly follow <img alt="n_{1} &gt; n_{2} &gt; n_{3}" class="math" src="../_images/math/5aff669afc385dfacaba8ebebe665e07b29ec5a9.png"/>.
 More specifically, we want to minimize the differences of the following terms:</p>
-<dl class="simple">
-<dt>..math::</dt><dd><p>frac{n_{1}}{a_{1}} approx frac{n_{2}}{a_{2}} approx frac{n_{1}}{a_{1}}</p>
-</dd>
-</dl>
-<p>Which leads to us solving a series of inequalities. We will demonstrate the idea here by solving for the bounds on
+<div class="math">
+<p><img alt="\frac{n_{1}}{a_{1}} \approx \frac{n_{2}}{a_{2}} \approx \frac{n_{1}}{a_{1}}" src="../_images/math/4ca144fa2682223d4dfbf8f1b67c8c91a034cd31.png"/></p>
+</div><p>Which leads to us solving a series of inequalities. We will demonstrate the idea here by solving for the bounds on
 <img alt="n_{2}" class="math" src="../_images/math/453d451e177db5e5bc802bb7f1f3fc9d5c8e9a56.png"/>, and then using the known relationship between the magnitudes of the lattice vectors to setup an
 inequality. The result yields:</p>
-<dl class="simple">
-<dt>..math::</dt><dd><p>frac{n_{3} cdot a_{2}}{a_{3}} leq n_{2} leq frac{n_{1} cdot a_{2}}{a_{1}}</p>
-</dd>
-</dl>
-<p>The example was given for a sample that’s periodic in each direction, however it will be true for less symmetric
+<div class="math">
+<p><img alt="\frac{n_{3} \cdot a_{2}}{a_{3}} \leq n_{2} \leq \frac{n_{1} \cdot a_{2}}{a_{1}}" src="../_images/math/c5104ead4619ff8f482a3c230c943c99663e23f5.png"/></p>
+</div><p>The example was given for a sample that’s periodic in each direction, however it will be true for less symmetric
 samples as well with the modification that you can ignore any direction lacking symmetry. The non-periodic direction
 should be set to 1, so for amorphous samples the <img alt="kpts" class="math" src="../_images/math/fa512e3a74c9e79f9f9ca2e470efb223ac619958.png"/> argument should be (1,1,1). For 2D materials, set the
 out-of-plane direction to 1, and for nanowires use a value greater than 1 for direction along the wire.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Kaldo assumes a q-grid that goes from 0 to 2*pi/a and will output with that convention.</p>
+</div>
 </section>
 <section id="classical-limit">
 <h2 id="classical-limit">Classical Limit<a class="headerlink" href="#classical-limit" title="Permalink to this heading">¶</a></h2>
