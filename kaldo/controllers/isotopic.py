@@ -6,6 +6,7 @@ import numpy as np
 import ase.units as units
 from kaldo.helpers.tools import timeit
 from opt_einsum import contract
+import urllib
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
 from ase.data.isotopes import download_isotope_data
@@ -119,11 +120,15 @@ def compute_gfactor(list_of_atomic_numbers):
             rel_masses = masses / m_avg
             g_ = np.sum(conc * (1 - rel_masses) ** 2)
             g_factor[list_of_atomic_numbers == element] = g_
-    except:
+    except urllib.error.HTTPError:
         ## Legacy gfactor database. The isotopic database was downloaded with ase.data.isotopes on 20/03/2024.
         # unstable elements have None as gfactor. Mostly elements with Z>92
-        with open('./legacy_dataset.json', 'r') as file:
-            g_factor_dict = json.load(file)
+        try:
+            with open('./legacy_dataset.json', 'r') as file:
+                g_factor_dict = json.load(file)
+        except FileNotFoundError:
+            with open('kaldo/controllers/legacy_dataset.json', 'r') as file:
+                g_factor_dict = json.load(file)
         logging.info('online isotopic data not available, using legacy data.')
         for element in minimal_list:
             g_factor[list_of_atomic_numbers == element] = g_factor_dict[str(element)]
