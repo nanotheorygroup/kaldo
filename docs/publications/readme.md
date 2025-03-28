@@ -1,6 +1,8 @@
 # Publications using kALDo
 
-## Preprints (7)
+## Preprints (8)
+
+* Yao Luo, Dhruv Mangtani, Shiyu Peng, Jia Yao, Sergei Kliavinek, Marco Bernardi, [Tensor Learning and Compression of N-phonon Interactions](https://arxiv.org/pdf/2503.05913)
 
 * Jielan Li, Zekun Chen, Qian Wang, Han Yang, Ziheng Lu, Guanzhi Li, Shuizhou Chen, Yu Zhu, Xixian Liu, Junfu Tan, Mingfa Tang, Yichi Zhou, Claudio Zeni, Andrew Fowler, Daniel Zügner, Robert Pinsler, Matthew Horton, Tian Xie, Tie-Yan Liu, Haiguang Liu, Tao Qin, Bing Lv, Davide Donadio, Hongxia Hao, [Probing the Limit of Heat Transfer in Inorganic Crystals with Deep Learning](https://arxiv.org/pdf/2503.11568).
 
@@ -17,13 +19,18 @@
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (5)
+## 2025 (7)
+
+* Junsoo Park, Alex M. Ganose, Yi Xia, [Advances in Theory and Computational Methods for Next-Generation
+Thermoelectric Materials](https://pubs.aip.org/aip/apr/article/12/1/011339/3340889/Advances-in-theory-and-computational-methods-for), Appl. Phys. Rev, ***12***, 011339 (2025)
 
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A Caro, Tapio Ala-Nissila, [Density dependence of thermal conductivity in nanoporous and amorphous carbon with machine-learned molecular dynamics](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.094205), Phys. Rev. B ***111***, 094205 (2025).
 
 * Aloïs Castellano, J.P. Alvarinhas Batista, Olle Hellman, and Matthieu J. Verstraete, [Mode-coupling formulation of heat transport in anharmonic materials](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.094306), Phys. Rev. B ***111***, 094306 (2025).
 
 * Liben Guo, Yuanbin Liu, Lei Yang, Bingyang Cao, [Lattice dynamics modeling of thermal transport in solids using machine-learned atomic cluster expansion potentials: A tutorial](https://pubs.aip.org/aip/jap/article/137/8/081101/3337045/Lattice-dynamics-modeling-of-thermal-transport-in), J. Appl. Phys. ***137***, 081101 (2025).
+
+* Hisao Nakamura, Naoyuki Karasawa, [Anharmonicity-induced thermal rectification of a single diblock molecular junction inspired by the Aviram–Ratner diode](https://pubs.rsc.org/en/content/articlepdf/2025/nr/d4nr04716h), Nanoscale, ***17***, 7402 (2025)
 
 * Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://pubs.aip.org/aip/jcp/article/162/6/064109/3335667), J. Chem. Phys. ***162***, 064109 (2025).
 
