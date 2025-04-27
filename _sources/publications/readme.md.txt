@@ -2,6 +2,8 @@
 
 ## Preprints (8)
 
+* Lorenzo Manunza, Riccardo Dettori, Antonio Cappai, Claudio Melis, [Investigating Thermal Conductivity in Graphene Moiré Superlattices Through Approach-to-Equilibrium Molecular Dynamics](https://www.preprints.org/manuscript/202504.1413)
+
 * Yao Luo, Dhruv Mangtani, Shiyu Peng, Jia Yao, Sergei Kliavinek, Marco Bernardi, [Tensor Learning and Compression of N-phonon Interactions](https://arxiv.org/pdf/2503.05913)
 
 * Jielan Li, Zekun Chen, Qian Wang, Han Yang, Ziheng Lu, Guanzhi Li, Shuizhou Chen, Yu Zhu, Xixian Liu, Junfu Tan, Mingfa Tang, Yichi Zhou, Claudio Zeni, Andrew Fowler, Daniel Zügner, Robert Pinsler, Matthew Horton, Tian Xie, Tie-Yan Liu, Haiguang Liu, Tao Qin, Bing Lv, Davide Donadio, Hongxia Hao, [Probing the Limit of Heat Transfer in Inorganic Crystals with Deep Learning](https://arxiv.org/pdf/2503.11568).
@@ -12,16 +14,16 @@
 
 * B Pota, P Ahlawat, G Csanyi, M Simoncelli, [Thermal Conductivity Predictions with Foundation Atomistic Models](https://arxiv.org/abs/2408.00755).
 
-* Alfredo Fiorentino, Paolo Pegolo, Stefano Baroni, Davide Donadio,[Effects of colored disorder on the heat conductivity of SiGe alloys from first principles](https://arxiv.org/abs/2408.05155).
-
 * Zezhu Zeng, Zheyong Fan, Chen Chen, Ting Liang, Yue Chen, Geoff Thornton, Bingqing Cheng,[Lattice distortion leads to glassy thermal transport in crystalline Cs3Bi2I6Cl3](https://arxiv.org/abs/2407.18510).
 
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (9)
+## 2025 (10)
 
-* Liben Guo, Yuanbin Liu, Zekun Chen, Hongao Yang, Davide Donadio,  Bingyang Cao, [Generative deep learning for predicting ultrahigh lattice thermal conductivity materials](https://www.nature.com/articles/s41524-025-01592-8) Npj Comput. Mater. ***11.1***, 97 (2025).
+* Alfredo Fiorentino,  Paolo Pegolo,  Stefano Baroni,  Davide Donadio, [Effects of colored disorder on the heat conductivity of SiGe alloys from first principles](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.134205), Phys. Rev. B. ***111***, 134205 (2025).
+
+* Liben Guo, Yuanbin Liu, Zekun Chen, Hongao Yang, Davide Donadio,  Bingyang Cao, [Generative deep learning for predicting ultrahigh lattice thermal conductivity materials](https://www.nature.com/articles/s41524-025-01592-8), Npj Comput. Mater. ***11.1***, 97 (2025).
 
 * Ecem Akirmak-Yamac, Søren S. Sørensen, Rebecca S. Welch, Morten M. Smedskjaer, Collin J. Wilkinson, [Comparing the vibrational properties of common glass interatomic potentials](https://ceramics.onlinelibrary.wiley.com/doi/full/10.1111/jace.20517), J. Am. Ceram. Soc. ***e20517*** (2025).
 
@@ -40,30 +42,27 @@ Thermoelectric Materials](https://pubs.aip.org/aip/apr/article/12/1/011339/33408
 
 * Shun Li, Lantao Fang, Tao Liu, Xuping Wang, Bing Liu, Yuanyuan Zhang, Xianshun Lv, Lei Wei, [Machine learning-accelerated molecular dynamics calculations for investigating the thermal modulation by ferroelectric domain wall in KTN single crystals](https://www.sciencedirect.com/science/article/pii/S0927025625000175), Comput. Mater. Sci. ***249***, 113674 (2025). 
 
-## 2024 (15)
+## 2024 (16)
 
 * Enrico Drigo, [Thermoelectric effects in polar liquids and ionic conductors](https://iris.sissa.it/handle/20.500.11767/144650).
 
 * Alfredo Fiorentino, [Advances in lattice thermal transport in crystals and glasses](https://iris.sissa.it/handle/20.500.11767/144630).
 
+* P Rasmussen, SS Sørensen, [Thermal conductivity in modified sodium silicate glasses is governed by modal phase changes](https://pubs.aip.org/aip/jcp/article-abstract/161/15/154506/3317016/Thermal-conductivity-in-modified-sodium-silicate?redirectedFrom=fulltext), J. Chem. Phys. ***161***, 154506 (2024).
+
 * Dylan A. Folkner, Zekun Chen, Giuseppe Barbalinardo, Florian Knoop, Davide Donadio, [Elastic moduli and thermal conductivity of quantum materials at finite temperature](https://pubs.aip.org/aip/jap/article/136/22/221101/3325173), J. Appl. Phys. ***136***,  221101 (2024).
 
 * Zhuangli Cai, Shangchao Lin, and Changying Zhao, [Anomalous Diffuson and Locon-Dominated Wigner Multi-Channel Thermal Transport in Disordered and Shear-Aligned Polymers](https://pubs.acs.org/doi/epdf/10.1021/acs.macromol.4c00230), Macromolecules. (2024).
 
-
 * Davide Tisi, Federico Grasselli,Lorenzo Gigli, Michele Ceriotti, [Thermal transport of Li3PS4 solid electrolytes with ab initio accuracy](https://journals.aps.org/prmaterials/abstract/10.1103/PhysRevMaterials.8.065403), Phys. Rev. Mater. ***8***, 065403 (2024).
-
 
 * Alfredo Fiorentino, Enrico Drigo, Stefano Baroni, Paolo Pegolo, [Unearthing the foundational role of anharmonicity in heat transport in glasses](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.109.224202), Phys. Rev. B. ***109***, 224202 (2024).
 
 * Fredrik Eriksson, [Beyond Perturbation: Modeling Anharmonicity in Materials](https://research.chalmers.se/publication/540860/file/540860_Fulltext.pdf)
 
-
 * Haoyu Dong,  Zhiqiang Li,  Baole Sun,  Yanguang Zhou,  Linhua Liu, Jia-Yue Yang, [Thermal transport in disordered wurtzite ScAlN alloys using machine learning interatomic potentials](https://www.sciencedirect.com/science/article/pii/S2352492824011942?casa_token=c7LgMcZwdLsAAAAA:0d5iitbkKJ-Y0v90-K6ZjyiXrmk4yqyYMHmGhNuWzhChNFEPWyYODKaUbxkWKReY5dc6lss), Mater. Today Commun. ***39***  109213 (2024). 
 
-
 * Philip Yox, Frank T Cerasoli, Arka Sarkar, Genevieve Amobi, Gayatri Viswanathan, Jackson Voyles, Oleg l Lebedev, Davide Donadio, Kirill Kovnir, [Organizing Chaos: Boosting Thermoelectric Properties by Ordering the Clathrate Framework of Ba8Cu16As30](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.4c00419), Chem. Mater., ***36(8)***, 3925-3932 (2024).
-
 
 * Angela F. Harper,  Kamil Iwanowski,  William C. Witt,  Mike C. Payne, Michele Simoncelli,
 [Vibrational and thermal properties of amorphous alumina from first principles](https://journals.aps.org/prmaterials/abstract/10.1103/PhysRevMaterials.8.043601),Phys. Rev. Mater. ***8***, 043601 (2024).
@@ -77,12 +76,10 @@ Thermoelectric Materials](https://pubs.aip.org/aip/apr/article/12/1/011339/33408
 [Machine-learned atomic cluster expansion potentials for fast and quantum-accurate thermal simulations of wurtzite AlN](https://pubs.aip.org/aip/jap/article/135/8/085105/3266915/Machine-learned-atomic-cluster-expansion),
 J. Appl. Phys. ***135***, 085105 (2024).
 
-
 *  Paolo Pegolo, Federico Grasselli,                                                                                                                         [Thermal transport of glasses via machine learning driven simulations](https://www.frontiersin.org/journals/materials/articles/10.3389/fmats.2024.1369034/full), Front. Mater. ***11***, 1369034 (2024).
 
 * Jonathan Hunt,
 [First-principles calculations of anharmonic phonons in diamond and silicon at high temperature and pressure](https://era.ed.ac.uk/handle/1842/41444)
-
 
 ## 2023 (8)
 
@@ -134,7 +131,6 @@ Mater. Today Commun. ***32***  104160 (2022).
 
 * Fredrik Eriksson, 
 [Development and application of techniques for predicting and analysing phonon-derived materials properties](https://research.chalmers.se/publication/531514/file/531514_Fulltext.pdf).
- 
 
 * Giuseppe Barbalinardo, Zekun Chen, Haikuan Dong, Zheyong Fan, Davide Donadio,
 [Barbalinardo et al. Reply](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.128.259602),
@@ -176,7 +172,6 @@ Phys. Rev. Lett. ***127***, 025902 (2021).
 * Nicholas W. Lundgren, Giuseppe Barbalinardo, Davide Donadio,
 [Mode Localization and Suppressed Heat Transport in Amorphous Alloys](https://doi.org/10.1103/PhysRevB.103.024204),
 Phys. Rev. B. ***103***, 024204 (2021).
-
 
 ## 2020 (2)
 * Roman Anufriev, Christ Glorieux,  Gerald Diebold,
