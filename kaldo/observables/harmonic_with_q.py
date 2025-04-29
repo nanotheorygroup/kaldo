@@ -424,16 +424,18 @@ class HarmonicWithQ(Observable):
             ddyn_s += self.nac_velocities(direction=direction)
         return ddyn_s
 
-    def nac_frequencies(self, qpoint=None, gmax=14, alpha=1.0):
+    def nac_frequencies(self, qpoint=None, gmax=14, Lambda=1.0):
         '''
         Calculate the non-analytic correction to the dynamical matrix.
 
         Parameters
         ----------
         qpoint
-        gmax
-        alpha
 
+        gmax : float
+            Maximum g-vector to consider
+        Lambda : float
+            Parameter for Ewald summation. 1/(4*Lambda) is the cutoff for the
         Returns
         -------
         correction_matrix
@@ -442,9 +444,7 @@ class HarmonicWithQ(Observable):
         RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
         eV_to_10Jmol = units.mol / (10 * units.J)
         e2 = 2.  # square of electron charge in A.U.
-        gmax = 14  # maximum reciprocal vector
-        alpha = 1.0  # Ewald parameter
-        geg0 = 4 * alpha * gmax
+        geg0 = 4 * Lambda * gmax
         atoms = self.second.atoms
         natoms = len(atoms)
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
@@ -483,7 +483,7 @@ class HarmonicWithQ(Observable):
         # 2. Filter cells that don't meet our Ewald cutoff criteria
         # a. setup mask
         geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions, dtype=np.float128)
-        cells_to_include = (geg > 0) * (geg / (4 * alpha) < gmax)
+        cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
         # b. apply mask
         geg = geg[cells_to_include]
         g_positions = g_positions[cells_to_include]
@@ -491,7 +491,7 @@ class HarmonicWithQ(Observable):
 
         # 3. Calculate for each cell
         # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
-        decay = prefactor * np.exp(-1 * geg / (alpha * 4)) / geg
+        decay = prefactor * np.exp(-1 * geg / (Lambda * 4)) / geg
         # b. effective charges at each G-vector
         zag = np.einsum('nab,ia->inb', zeff, g_positions)
 
@@ -534,7 +534,7 @@ class HarmonicWithQ(Observable):
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
 
-    def nac_velocities(self, direction, alpha=None, gmax=14):
+    def nac_velocities(self, direction, Lambda=None, gmax=14):
         '''
         Calculate the non-analytic correction to the dynamical matrix.
 
@@ -557,9 +557,9 @@ class HarmonicWithQ(Observable):
         # Begin calculated values
         if gmax==None:
             gmax = 14  # maximum reciprocal vector (same default value in ShengBTE/QE)
-        if alpha==None:
-            alpha = (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2  # Ewald parameter
-        geg0 = 4 * alpha * gmax
+        if Lambda==None:
+            Lambda = (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2  # Ewald parameter
+        geg0 = 4 * Lambda * gmax
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
         positions_n = atoms.positions.copy() / atoms.cell[0, :].max()  # Normalized positions
         distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
@@ -594,14 +594,14 @@ class HarmonicWithQ(Observable):
         # 2. Filter cells that don't meet our Ewald cutoff criteria
         # a. setup mask
         geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions, dtype=np.float128)
-        cells_to_include = (geg > 0) * (geg / (4 * alpha) < gmax)
+        cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
         # b. apply mask
         geg = geg[cells_to_include]
         g_positions = g_positions[cells_to_include]
 
         # 3. Calculate for each cell
         # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
-        decay = prefactor * np.exp(-1 * geg / (alpha * 4)) / geg
+        decay = prefactor * np.exp(-1 * geg / (Lambda * 4)) / geg
         # b. effective charges at each G-vector
         zag = np.einsum('nab,ia->inb', zeff, g_positions)
 
@@ -618,7 +618,7 @@ class HarmonicWithQ(Observable):
         zag_zbg_rij = 1j * np.einsum('ina,imb,nmc->inmabc', zag, zag, distances_n)
         # Term 4 (negative)
         dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)
-        zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*alpha) + 1/geg))
+        zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))
 
         # Combine terms!
         lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
@@ -636,8 +636,8 @@ class HarmonicWithQ(Observable):
         #zag_zbg_rij = 1j * np.einsum('ina,imb,nm->inmab', zag, zag, distances_n[:, :, direction])
         # Term 4 (negative)
         dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)[:, direction]
-        #zag_zbg_dgeg = -1 * np.einsum('ina,imb,i,i->inmab', zag, zag, dgeg, (1/(4*alpha) + 1/geg))
-        zag_zbg_dgeg = -1 * np.pi * np.einsum('ina,imb,i,i->inmab', zag, zag, dgeg, (1 / (4 * alpha) + 1 / geg))
+        #zag_zbg_dgeg = -1 * np.einsum('ina,imb,i,i->inmab', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))
+        zag_zbg_dgeg = -1 * np.pi * np.einsum('ina,imb,i,i->inmab', zag, zag, dgeg, (1 / (4 * Lambda) + 1 / geg))
 
         # Combine derivative terms!
         lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
