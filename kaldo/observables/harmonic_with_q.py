@@ -430,12 +430,14 @@ class HarmonicWithQ(Observable):
 
         Parameters
         ----------
-        qpoint
-
+        qpoint : (float, float, float)
+            Vector in reciprocal space to measure at. If none, the correction is simpler, using only the second half of
+            the second if block here.
         gmax : float
             Maximum g-vector to consider
         Lambda : float
             Parameter for Ewald summation. 1/(4*Lambda) is the cutoff for the
+
         Returns
         -------
         correction_matrix
@@ -534,14 +536,17 @@ class HarmonicWithQ(Observable):
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
 
-    def nac_velocities(self, direction, Lambda=None, gmax=14):
+    def nac_velocities(self, direction, Lambda=None, gmax=None):
         '''
         Calculate the non-analytic correction to the dynamical matrix.
 
-        Parameters
-        ----------
-        gmax
-
+        qpoint : (float, float, float)
+            Vector in reciprocal space to measure at. If none, the correction is simpler, using only the second half of
+            the second if block here.
+        gmax : float
+            Maximum g-vector to consider
+        Lambda : float
+            Parameter for Ewald summation. 1/(4*Lambda) is the cutoff for the
         Returns
         -------
         correction_matrix
