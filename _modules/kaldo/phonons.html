@@ -518,7 +518,7 @@
 <span class="sd">    storage : string</span>
 <span class="sd">        Defines the strategy used to store observables. The `default` strategy</span>
 <span class="sd">        stores formatted text files for most harmonic properties but relies on</span>
-<span class="sd">        numpy arrays for large arrays like the gamma tensor. The `memory` option </span>
+<span class="sd">        numpy arrays for large arrays like the gamma tensor. The `memory` option</span>
 <span class="sd">        doesn't generate any output except what is printed in your script.</span>
 <span class="sd">        Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`</span>
 <span class="sd">        Default: 'formatted'</span>
@@ -1062,7 +1062,7 @@
 
         <span class="n">p_dos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_proj</span><span class="p">,</span><span class="n">n_points</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ip</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_proj</span><span class="p">):</span>
-        
+
             <span class="n">n_atoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">p_atoms</span><span class="p">[</span><span class="n">ip</span><span class="p">])</span>
             <span class="n">atom_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_modes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">p_atoms</span><span class="p">[</span><span class="n">ip</span><span class="p">]:</span>
