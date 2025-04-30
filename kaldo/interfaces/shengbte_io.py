@@ -59,7 +59,7 @@ def read_second_order_matrix(filename, supercell):
                 j -= 1
             except ValueError as err:
                 print(err)
-            
+
             # i_ix, i_iy, i_iz, i_iatom, j_ix, j_iy, j_iz, j_iatom, alpha are zero-indexing
             i_ix, i_iy, i_iz, i_iatom = _split_index(i, supercell[0], supercell[1], supercell[2])
             j_ix, j_iy, j_iz, j_iatom = _split_index(j, supercell[0], supercell[1], supercell[2])
@@ -110,18 +110,21 @@ def read_second_order_qe_matrix(filename):
         for _ in range(n_atoms):
             file.readline()
 
-        # skip Dielectric constant tensor if it has
+        # Read Dielectric constant tensor if it has it
         polar = file.readline()
         if ("T" in polar):
-            for _ in range(3):
+            logging.info('Charge data found in 2nd order QE file')
+            charges = np.zeros((n_atoms + 1, 3, 3))
+            for alpha in np.arange(3):  # Dielectric constant tensor
+                charges[0, alpha, :] = file.readline().split()
+            for na in np.arange(n_atoms):  # Born effective charges
                 file.readline()
-            for _ in range(n_atoms):
-                file.readline()
-                for _ in range(3):
-                    file.readline()
+                for alpha in np.arange(3):
+                    charges[na + 1, alpha, :] = file.readline().split()
+        else:
+            charges = None
 
         # Read second order force constants
-
         # read t1*t2*t3 supercell
         supercell = [int(x) for x in file.readline().split()]
         # dimension of supercell info should be 3 as t1*t2*t3
@@ -140,7 +143,7 @@ def read_second_order_qe_matrix(filename):
                 t1, t2, t3 = [int(x) - 1 for x in line[:3]]
                 second[alpha, beta, i_at, j_at, t1, t2, t3] = float(line[3]) * (Rydberg / (Bohr ** 2))
         second = second.transpose(2, 0, 4, 5, 6, 3, 1)
-        return second, supercell
+        return second, supercell, charges
 
 
 
@@ -162,7 +165,7 @@ def read_third_order_matrix(third_file: str,
             # skip two lines
             file.readline()
             file.readline()
-            
+
             # next two lines are the positions of the second and third cell
             second_cell_position = np.fromstring(file.readline(), dtype=float, sep=' ')
             second_cell_id = current_grid.cell_position_to_id(second_cell_position, atoms.cell, is_wrapping=True)
@@ -172,7 +175,7 @@ def read_third_order_matrix(third_file: str,
 
             # index to atom
             atom_i, atom_j, atom_k = np.fromstring(file.readline(), dtype=int, sep=' ') - 1
-            
+
             # for x,y,z directions with 3 atoms
             for _ in range(27):
                 values = np.fromstring(file.readline(), dtype=float, sep=' ')
@@ -291,8 +294,10 @@ def read_third_d3q(filename: str,
 def import_control_file(control_file):
     positions = []
     latt_vecs = []
+    eps_vecs = []
+    bec_vecs = []
     lfactor = 1
-    masses=None
+    masses = None
     with open(control_file, "r") as fo:
         lines = fo.readlines()
     for line in lines:
@@ -309,17 +314,15 @@ def import_control_file(control_file):
             value = value.replace("''", '\t')
             value = value.replace("'", '')
             elements = value.split("\t")
-
         if 'types' in line:
             value = line.split('=')[1]
-
             types = np.fromstring(value, dtype=int, sep=' ')
         if 'positions' in line:
             value = line.split('=')[1]
             positions.append(np.fromstring(value, dtype=float, sep=' '))
         if 'lfactor' in line:
             lfactor = float(line.split('=')[1].split(',')[0])
-        #TODO: only one species/mass at the moment
+        # TODO: only one species/mass at the moment
         if 'masses' in line:
             value = line.split('=')[1]
             masses=np.fromstring(value, dtype=float, sep=' ')
@@ -327,6 +330,12 @@ def import_control_file(control_file):
         if 'scell' in line:
             value = line.split('=')[1]
             supercell = np.fromstring(value, dtype=int, sep=' ')
+        if 'epsilon' in line:
+            value = line.split('=')[1]
+            eps_vecs.append(np.fromstring(value, dtype=float, sep=' '))
+        if 'born' in line:
+            value = line.split('=')[1]
+            bec_vecs.append(np.fromstring(value, dtype=float, sep=' '))
     # l factor is in nanometer
     cell = np.array(latt_vecs) * lfactor * 10
     positions = np.array(positions).dot(cell)
@@ -334,7 +343,7 @@ def import_control_file(control_file):
     if masses is None:
         for i in range(len(types)):
             list_of_elem.append(elements[types[i] - 1])
-    
+
         atoms = Atoms(list_of_elem,
                       positions=positions,
                       cell=cell,
@@ -351,7 +360,14 @@ def import_control_file(control_file):
                       pbc=[1, 1, 1])
 
     logging.info('Atoms object created.')
-    return atoms, supercell
+    if len(eps_vecs) == 0:
+        charges = None
+    else:
+        charges = np.zeros((len(atoms)+1, 3, 3))
+        charges[0, ...] = np.array(eps_vecs)
+        charges[1:, ...] = np.array(bec_vecs).reshape((len(atoms), 3, 3))
+        logging.info('Charge data found in CONTROL file.')
+    return atoms, supercell, charges
 
 
 def save_second_order_matrix(phonons):

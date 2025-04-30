@@ -151,7 +151,10 @@ class SecondOrder(ForceConstant):
             case "shengbte" | "shengbte-qe" | "shengbte-d3q":
                 config_file = os.path.join(folder, "CONTROL")
                 try:
-                    atoms, supercell = shengbte_io.import_control_file(config_file)
+                    atoms, supercell, charges = shengbte_io.import_control_file(config_file)
+                    if charges is not None:
+                        atoms.info['dielectric'] = charges[0, :, :]
+                        atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                 except FileNotFoundError:
                     config_file = os.path.join(folder, "POSCAR")
                     logging.info("Trying to open POSCAR")
@@ -166,7 +169,10 @@ class SecondOrder(ForceConstant):
                     filename = os.path.join(folder, "espresso.ifc2")
                     if not os.path.isfile(filename):
                         raise FileNotFoundError(f"File {filename} not found.")
-                    _second_order, supercell = shengbte_io.read_second_order_qe_matrix(filename)
+                    _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
+                    if (not charges is None) and charges.any():
+                        atoms.info['dielectric'] = charges[0, :, :]
+                        atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                     _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                     _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                     grid_type = "F"
@@ -301,12 +307,12 @@ class SecondOrder(ForceConstant):
             self.value = acoustic_sum_rule(self.value)
 
     def calculate_dynmat(self):
+        evtotenjovermol = units.mol / (10 * units.J)
         mass = self.atoms.get_masses()
         shape = self.value.shape
         log_size(shape, float, name="dynmat")
         dynmat = self.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        dynmat = dynmat * 1 / np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
-        evtotenjovermol = units.mol / (10 * units.J)
+        dynmat /= np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
         return tf.convert_to_tensor(dynmat * evtotenjovermol)
 
     def calculate_super_replicas(self):

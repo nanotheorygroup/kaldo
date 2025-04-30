@@ -74,7 +74,7 @@ class Phonons:
     storage : string
         Defines the strategy used to store observables. The `default` strategy
         stores formatted text files for most harmonic properties but relies on
-        numpy arrays for large arrays like the gamma tensor. The `memory` option 
+        numpy arrays for large arrays like the gamma tensor. The `memory` option
         doesn't generate any output except what is printed in your script.
         Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`
         Default: 'formatted'
@@ -618,7 +618,7 @@ class Phonons:
 
         p_dos = np.zeros((n_proj,n_points), dtype=float)
         for ip in range(n_proj):
-        
+
             n_atoms = len(p_atoms[ip])
             atom_mask = np.zeros(n_modes, dtype=bool)
             for p in p_atoms[ip]:

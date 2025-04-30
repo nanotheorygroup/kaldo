@@ -133,7 +133,7 @@ class ThirdOrder(ForceConstant):
                 config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
                 match config_file:
                     case 'CONTROL':
-                        atoms, _supercell = shengbte_io.import_control_file(config_path)
+                        atoms, _supercell, charges = shengbte_io.import_control_file(config_path)
                     case 'POSCAR':
                         logging.info('Trying to open POSCAR')
                         atoms = ase.io.read(config_path)
@@ -148,7 +148,7 @@ class ThirdOrder(ForceConstant):
                                                         supercell=supercell,
                                                         value=third_order,
                                                         folder=folder)
-            
+
             case 'hiphive':
                 filename = 'atom_prim.xyz'
                 # TODO: add replicated filename in example
