@@ -10,10 +10,12 @@ from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 import kaldo.controllers.isotopic as isotopic
 from scipy import stats
 import numpy as np
+from numpy.typing import ArrayLike
 import ase.units as units
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
@@ -91,39 +93,72 @@ class Phonons:
         et al., Phys. Rev. B 87, 085322 (2013) set this to True.
         Default: False
     g_factor : (n_atoms) array , optional
-        It contains the isotopic g factor for each atom of the unit cell
+        It contains the isotopic g factor for each atom of the unit cell. 
+        g factor is the natural isotopic distributions of each element. 
+        More reference can be found: M. Berglund, M.E. Wieser, Isotopic compositions of the elements 2009 (IUPAC technical report), Pure Appl. Chem. 83 (2011) 397–410.
         Default: None
+    is_symmetrizing_frequency : bool, optional
+        TODO: add more doc here
+        Default: False
+    is_antisymmetrizing_velocity : bool, optional
+        TODO: add more doc here
+        Default: False
     include_isotopes: bool, optional.
-        Defines if you want to include isotopic scattering bandwidths. Default is False.
+        Defines if you want to include isotopic scattering bandwidths.
+        Default: False.
     iso_speed_up: bool, optional.
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
+    is_nw: bool, optional
+        Defines if you would like to assume the system is a nanowire. 
+        Default: False
 
     Returns
     -------
     Phonons Object
     """
-    def __init__(self, **kwargs):
-        self.forceconstants = kwargs.pop('forceconstants')
-        self.is_classic = bool(kwargs.pop('is_classic', False))
-        if 'temperature' in kwargs:
-            self.temperature = float(kwargs['temperature'])
-        self.folder = kwargs.pop('folder', FOLDER_NAME)
-        self.kpts = np.array(kwargs.pop('kpts', (1, 1, 1)))
-        self._grid_type = kwargs.pop('grid_type', 'C')
+    def __init__(self,
+                 forceconstants: ForceConstants,
+                 temperature: float | None = None,
+                 *,
+                 is_classic: bool = False,
+                 kpts: tuple[int, int, int] = (1, 1, 1),
+                 min_frequency: float = 0.,
+                 max_frequency: float | None = None,
+                 third_bandwidth: float | None = None,
+                 broadening_shape: str = "gauss",
+                 folder: str = FOLDER_NAME,
+                 storage: str = "formatted",
+                 grid_type: str = "C",
+                 is_balanced: bool = False,
+                 is_unfolding: bool = False,
+                 g_factor: ArrayLike = None,
+                 is_symmetrizing_frequency: bool = False, 
+                 is_antisymmetrizing_velocity: bool = False,
+                 include_isotopes: bool = False,
+                 iso_speed_up: bool = True,
+                 is_nw: bool = False,
+                 **kwargs):
+        self.forceconstants = forceconstants
+        self.is_classic = is_classic
+        if temperature is not None:
+            self.temperature = float(temperature)
+        self.folder = folder
+        self.kpts = np.array(kpts)
+        self._grid_type = grid_type
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
-        self.is_unfolding = kwargs.pop('is_unfolding', False)
+        self.is_unfolding = is_unfolding
         if self.is_unfolding:
             logging.info('Using unfolding.')
-        self.min_frequency = kwargs.pop('min_frequency', 0)
-        self.max_frequency = kwargs.pop('max_frequency', None)
-        self.broadening_shape = kwargs.pop('broadening_shape', 'gauss')
-        self.is_nw = kwargs.pop('is_nw', False)
-        self.third_bandwidth = kwargs.pop('third_bandwidth', None)
-        self.storage = kwargs.pop('storage', 'formatted')
-        self.is_symmetrizing_frequency = kwargs.pop('is_symmetrizing_frequency', False)
-        self.is_antisymmetrizing_velocity = kwargs.pop('is_antisymmetrizing_velocity', False)
-        self.is_balanced = kwargs.pop('is_balanced', False)
+        self.min_frequency = min_frequency
+        self.max_frequency = max_frequency
+        self.broadening_shape = broadening_shape
+        self.is_nw = is_nw
+        self.third_bandwidth = third_bandwidth
+        self.storage = storage
+        self.is_symmetrizing_frequency = is_symmetrizing_frequency
+        self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
+        self.is_balanced = is_balanced
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -133,15 +168,16 @@ class Phonons:
         self.hbar = units._hbar
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
-        self.g_factor = kwargs.pop('g_factor', None)
-        self.include_isotopes = bool(kwargs.pop('include_isotopes', False))
-        self.iso_speed_up = bool(kwargs.pop('iso_speed_up', True))
+        self.g_factor = g_factor
+        self.include_isotopes = include_isotopes
+        self.iso_speed_up = iso_speed_up
 
 
 
     @lazy_property(label='')
     def physical_mode(self):
-        """Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
+        """
+        Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
         modes outside the frequency range min_frequency and max_frequency.
 
         Returns
@@ -200,7 +236,8 @@ class Phonons:
 
     @lazy_property(label='')
     def participation_ratio(self):
-        """Calculates the participation ratio of each normal mode. Participation ratio's
+        """
+        Calculates the participation ratio of each normal mode. Participation ratio's
         represent the fraction of atoms that are displaced meaning a value of 1 corresponds
         to translation. Defined by equations in DOI: 10.1103/PhysRevB.53.11469
 
@@ -229,7 +266,8 @@ class Phonons:
 
     @lazy_property(label='')
     def velocity(self):
-        """Calculates the velocity using Hellmann-Feynman theorem.
+        """
+        Calculates the velocity using Hellmann-Feynman theorem.
 
         Returns
         -------
@@ -256,7 +294,8 @@ class Phonons:
 
     @lazy_property(label='')
     def _eigensystem(self):
-        """Calculate the eigensystems, for each k point in k_points.
+        """
+        Calculate the eigensystems, for each k point in k_points.
 
         Returns
         -------
@@ -289,7 +328,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity(self):
-        """Calculate the heat capacity for each k point in k_points and each mode.
+        """
+        Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
         Bose-Einstein weighted by each phonons energy.
         .. math::
@@ -323,7 +363,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>')
     def heat_capacity_2d(self):
-        """Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
+        """
+        Calculate the generalized 2d heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in W/m/K.
 
         Returns
@@ -354,7 +395,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>')
     def population(self):
-        """Calculate the phonons population for each k point in k_points and each mode.
+        """
+        Calculate the phonons population for each k point in k_points and each mode.
         If classical, it returns the temperature divided by each frequency, using equipartition theorem.
         If quantum it returns the Bose-Einstein distribution
 
@@ -384,7 +426,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
-        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+        """
+        Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -399,7 +442,8 @@ class Phonons:
 
     @lazy_property(label='<third_bandwidth>')
     def isotopic_bandwidth(self):
-        """ Calculate the isotopic bandwidth with Tamura perturbative formula.
+        """ 
+        Calculate the isotopic bandwidth with Tamura perturbative formula.
         Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858
 
         Returns
@@ -425,7 +469,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def anharmonic_bandwidth(self):
-        """Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
+        """
+        Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -438,7 +483,8 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def phase_space(self):
-        """Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
+        """
+        Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
 
         Returns
         -------
@@ -451,7 +497,8 @@ class Phonons:
 
     @lazy_property(label='')
     def eigenvalues(self):
-        """Calculates the eigenvalues of the dynamical matrix in Thz^2.
+        """
+        Calculates the eigenvalues of the dynamical matrix in Thz^2.
 
         Returns
         -------
@@ -464,7 +511,8 @@ class Phonons:
 
     @property
     def eigenvectors(self):
-        """Calculates the eigenvectors of the dynamical matrix.
+        """
+        Calculates the eigenvectors of the dynamical matrix.
 
         Returns
         -------
@@ -497,11 +545,12 @@ class Phonons:
 
     @property
     def omega(self):
-        """Calculates the angular frequencies from the diagonalized dynamical matrix.
+        """
+        Calculates the angular frequencies from the diagonalized dynamical matrix.
 
         Returns
         -------
-        frequency : np array(n_k_points, n_modes)
+        frequency : np.array(n_k_points, n_modes)
             frequency in rad
         """
         return self.frequency * 2 * np.pi
@@ -521,7 +570,7 @@ class Phonons:
 
     @property
     def _is_amorphous(self):
-        is_amorphous = (self.kpts == (1, 1, 1)).all() and (self.supercell == (1,1,1)).all()
+        is_amorphous = np.array_equal(self.kpts, (1, 1, 1)) and np.array_equal(self.supercell, (1, 1, 1))
         return is_amorphous
 
 
@@ -539,9 +588,8 @@ class Phonons:
             pdos : np.array(n_projections, n_points)
                 pdos for each set of projected atoms and directions
         """
-
         if p_atoms is None:
-          p_atoms = list(range(self.n_atoms))
+            p_atoms = list(range(self.n_atoms))
 
         n_proj = len(p_atoms)
 

@@ -10,19 +10,23 @@ from kaldo.conductivity import Conductivity
 import pytest
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def phonons():
     print("Preparing phonons object.")
-    forceconstants = ForceConstants.from_folder(folder='kaldo/tests/ge-crystal',
-                                                supercell=[10, 10, 10],
-                                                format='shengbte-d3q',
-                                                only_second=True)
-    phonons = Phonons(forceconstants=forceconstants,
-                      kpts=[7, 7, 7],
-                      is_classic=False,
-                      temperature=300,
-                      include_isotopes=True,
-                      storage='memory')
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/ge-crystal",
+        supercell=[10, 10, 10],
+        format="shengbte-d3q",
+        only_second=True,
+    )
+    phonons = Phonons(
+        forceconstants=forceconstants,
+        kpts=[7, 7, 7],
+        is_classic=False,
+        temperature=300,
+        include_isotopes=True,
+        storage="memory",
+    )
     return phonons
 
 
