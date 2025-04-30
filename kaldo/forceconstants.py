@@ -5,7 +5,7 @@ Anharmonic Lattice Dynamics
 import numpy as np
 from sparse import COO
 from kaldo.grid import wrap_coordinates
-from kaldo.observables.secondorder import SecondOrder,parse_tdep_forceconstant
+from kaldo.observables.secondorder import SecondOrder, parse_tdep_forceconstant
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -25,36 +25,47 @@ class ForceConstants:
 
     Parameters
     ----------
-
     atoms: Tabulated xyz files or ASE Atoms object
         The atoms to work on.
-    supercell: (3) tuple, optional
+    supercell: tuple[int, int, int], optional
         Size of supercell given by the number of repetitions (l, m, n) of
         the small unit cell in each direction.
-        Defaults to (1, 1, 1)
-    third_supercell: tuple, optional
+        Default: (1, 1, 1)
+    third_supercell: tuple[int, int, int], optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
-        Defaults to `self.supercell`
+        Default: `self.supercell`
     folder: str, optional
         Name to be used for the displacement information folder.
-        Defaults to 'displacement'
+        Default: 'displacement'
     distance_threshold: float, optional
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
-        Defaults to `None`
+        Default: `None`
 
     Attributes
     ----------
+    n_atoms: int
+        Number of atoms in the unit cell
+    n_modes: int
+        The number of possible vibrational modes in the system from a lattice dynamics perspective. Equivalent to
+        3*n_atoms where the factor of 3 comes from the 3 Cartesian directions.
+    n_replicas: int
+        The number of repeated unit cells represented in the system. Equivalent to np.prod(supercell).
+    n_replicated_atoms: int
+        The number of atoms represented in the system. Equivalent to n_atoms * np.prod(supercell)
+    cell_inv: np.array(3, 3)
+        A 3x3 matrix which satisfies AB=I where A is the matrix of cell vectors, I is the identity matrix, and B is the
+        cell_inv matrix.
+
 
     """
-
     def __init__(self,
                  atoms,
-                 supercell=(1, 1, 1),
-                 third_supercell=None,
-                 folder=MAIN_FOLDER,
-                 distance_threshold=None):
+                 supercell: tuple[int, int, int] | None = None,
+                 third_supercell: tuple[int, int, int] | None = None,
+                 folder: str | None = MAIN_FOLDER,
+                 distance_threshold: float | None = None):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -69,24 +80,39 @@ class ForceConstants:
         self._list_of_replicas = None
 
         # TODO: we should probably remove the following initialization
-        self.second = SecondOrder.from_supercell(atoms,
-                                                 supercell=self.supercell,
-                                                 grid_type='C',
-                                                 is_acoustic_sum=False,
-                                                 folder=folder)
-        if third_supercell is None:
-            third_supercell = supercell
-        self.third = ThirdOrder.from_supercell(atoms,
-                                               supercell=third_supercell,
-                                               grid_type='C',
-                                               folder=folder)
+        # * by default do not initialize second order 
+        # * some options here:
+        # * 1. allow user to use this function
+        # * 2. directly remove this part
+        # * 3. now allow user to use supercell and third_supercell, but warn that it is not encouraged
+        if (supercell is not None) and (folder is not None):
+            logging.warning("Directly use ForceConstants to load data from folder is discouraged with limit \
+                            functionalities. Please use ForceConstants.from_folder for more options.")
+            self.second = SecondOrder.from_supercell(atoms,
+                                                     supercell=self.supercell,
+                                                     grid_type='C',
+                                                     is_acoustic_sum=False,
+                                                     folder=folder)
+            if third_supercell is None:
+                third_supercell = supercell
+            self.third = ThirdOrder.from_supercell(atoms,
+                                                   supercell=third_supercell,
+                                                   grid_type='C',
+                                                   folder=folder)
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
 
     @classmethod
-    def from_folder(cls, folder, supercell=(1, 1, 1), format='numpy', third_energy_threshold=0., third_supercell=None,
-                    is_acoustic_sum=False, only_second=False, distance_threshold=None):
+    def from_folder(cls,
+                    folder: str,
+                    supercell: tuple[int, int, int] = (1, 1, 1),
+                    format: str = 'numpy',
+                    third_energy_threshold: float = 0.,
+                    third_supercell: tuple[int, int, int] | None = None,
+                    is_acoustic_sum: bool = False,
+                    only_second: bool = False,
+                    distance_threshold: float | None = None):
         """
         Create a finite difference object from a folder
 
@@ -113,7 +139,7 @@ class ForceConstants:
             Default is 'numpy'
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: ev/A^3
+            the threshold value in magnitude are ignored. Units: eV/Angstrom^3
             Default is `None`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
@@ -125,20 +151,29 @@ class ForceConstants:
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
 
-
         Returns
         -------
-        ForceConstants object
+        forceconstants: ForceConstants object
+            A new instance of the ForceConstants class
         """
+        # get atoms first before initialize forceconstants
         second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
                                         is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
-        # Create a finite difference object
-        forceconstants = {'atoms': atoms,
-                          'supercell': supercell,
-                          'folder': folder}
-        forceconstants = cls(**forceconstants)
+
+        # initialize forceconstants object, without initializing second and third
+        forceconstants = cls(atoms=atoms,
+                             supercell=supercell,
+                             third_supercell=third_supercell,
+                             folder=None,
+                             distance_threshold=distance_threshold)
+        # overwrite folder
+        forceconstants.folder = folder
+
+        # initialize second order force
         forceconstants.second = second_order
+
+        # initialize third order force
         if not only_second:
             if format == 'numpy':
                 third_format = 'sparse'
@@ -150,7 +185,7 @@ class ForceConstants:
                                           third_energy_threshold=third_energy_threshold)
 
             forceconstants.third = third_order
-        forceconstants.distance_threshold = distance_threshold
+
         return forceconstants
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
@@ -160,14 +195,13 @@ class ForceConstants:
 
         Parameters
         ----------
-
         reduced_third : array, optional
             The third order force constant matrix.
             Default is `self.third`
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than
             the distance threshold will be ignored.
-            Default is self.distance_threshold
+            Default is `self.distance_threshold`
         """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
@@ -235,44 +269,72 @@ class ForceConstants:
         C_ijkl : np.array(3, 3, 3, 3)
             Elasticity tensor in GPa
         """
+        # Notation of the variable comes from this paper:
+        # Theory of the elastic constants of graphite and graphene, DOI 10.1002/pssb.200879604
+
         # Intake key parameters
         atoms = self.atoms
         masses = atoms.get_masses()
         volume = atoms.get_volume()
         list_of_replicas = self.second.list_of_replicas
-        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+
+        # rest of the code for elastic tensor assumes C-type grid
+        # temp fix: flip the array from F grid to C grid if the grid type is F
+        if self.second._direct_grid.order == 'F':
+            list_of_replicas = np.flip(list_of_replicas, axis=1)
+
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
-        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
-            (n_unit, 3, 3 * (n_unit)))
-        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
+
         distance = positions[:, np.newaxis, np.newaxis, :] - (
                     positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+
+        # first order term of the expansion of dynamical matrix
         d1 = np.einsum('iljx,ibljc->ibjcx', distance.astype(complex), dynmat.numpy().astype(complex))
-        d2 = -1 * np.einsum('iljx,iljy,ibljc->ibjcxy',
-                distance.astype(complex), 
-                distance.astype(complex), 
-                dynmat.numpy().astype(complex)) 
-        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)  # Gamma tensor from paper
-        
-        # Compute component b and r, keep the real component only
+
+        # second order term of the expansion of dynamical matrix
+        d2 = -1 * np.einsum(
+            'iljx,iljy,ibljc->ibjcxy',
+            distance.astype(complex),
+            distance.astype(complex),
+            dynmat.numpy().astype(complex))
+
+        # Compute Gamma tensor as eq.6
+        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+        # optical eigenvectors
+        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
+            (n_unit, 3, 3 * (n_unit)))
+        # optical eigenfrequencies
+        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
+        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)
+
+        # Compute component square braket (`b`) and round bracket (`r`) terms, keep the real component only
+
+        # square braket term, eq.4, $[ij, kl] = b_{ijkl} = 1/(2 v_c) \sum_{n,m} \sqrt{M_n} \sqrt{M_m} D^{nm}_{ij,kl}^{(2)}$
         b = (1/(2*volume))*np.einsum('n,m,nimjkl->ijkl', masses**(0.5), masses**(0.5), d2).real
+
+        # include mass in first order term
         d1r = np.einsum('nhmij,m->nhmij', d1, masses**(0.5))
+
+        # round bracket term, eq.5, mass is included in d1r
         r = -1 * (1/volume) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, gamma, d1r).real
+
+        # Compute elastic constants C_{ij,kl} as eq.3
         cijkl = np.zeros((3, 3, 3, 3))
-        evtotenjovermol = units.mol / (10 * units.J)
-        # units._e = 1.602×10−19J
-        # units.Angstorm = 1.0 = 1e-10 m
-        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
-        # give raises to 1e-21
-        evperang3togpa = units._e /(units.Angstrom * 1e-21)
         for i in range(3):
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
                         cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
-        
+
+        evtotenjovermol = units.mol / (10 * units.J)
+        # units._e = 1.602×10−19J
+        # units.Angstorm = 1.0 = 1e-10 m
+        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
+        # give raises to 1e-21
+        evperang3togpa = units._e / (units.Angstrom * 1e-21)
+
         # Denote parameter for irreducible Cij in the unit of GPa
         return evperang3togpa * cijkl / evtotenjovermol
 
@@ -295,8 +357,10 @@ class ForceConstants:
 
 
     @staticmethod
-    def sigma2_tdep_MD(fc_file='infile.forceconstant', primitive_file='infile.ucposcar',
-                       supercell_file='infile.ssposcar', md_run='dump.xyz'):
+    def sigma2_tdep_MD(fc_file: str = 'infile.forceconstant',
+                       primitive_file: str = 'infile.ucposcar',
+                       supercell_file: str = 'infile.ssposcar',
+                       md_run: str = 'dump.xyz') -> float:
         """
         Calculate the sigma2 value using TDEP and MD data.
 
@@ -315,6 +379,7 @@ class ForceConstants:
         -------
         float
             The average sigma2 value.
+
         """
         initial_structure = read(supercell_file, format="vasp")
         second_order_fc = parse_tdep_forceconstant(
@@ -329,6 +394,6 @@ class ForceConstants:
         force_harmonic = [ForceConstants._calculate_harmonic_force(disp, second_order_fc) for disp in displacements]
         sigma_values = [ForceConstants._calculate_sigma(atoms.get_forces(), harm_force)
                         for atoms, harm_force in zip(full_MD_traj, force_harmonic)]
-        
+
         return np.mean(sigma_values)
 

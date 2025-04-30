@@ -1,7 +1,9 @@
 import numpy as np
+from numpy.typing import NDArray, ArrayLike
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.observable import Observable
+from ase import Atoms
 logging = get_logger()
 
 
@@ -12,56 +14,58 @@ def chi(qvec, list_of_replicas, cell_inv):
 
 class ForceConstant(Observable):
 
-    def __init__(self, *kargs, **kwargs):
-        Observable.__init__(self, *kargs, **kwargs)
-        self.atoms = kwargs['atoms']
-        replicated_positions = kwargs['replicated_positions']
-        self.supercell = kwargs['supercell']
-        try:
-            self.value = kwargs['value']
-        except KeyError:
-            self.value = None
+    def __init__(self,
+                 atoms: Atoms,
+                 replicated_positions: NDArray,
+                 supercell: tuple[int, int, int],
+                 folder: str,
+                 value: ArrayLike | None = None,
+                 grid: Grid | None = None,
+                 **kwargs):
+        super().__init__(folder=folder, **kwargs)
+        self.atoms = atoms
+        self.supercell = supercell
+        self.value = value
 
         self._replicated_atoms = None
+        # TODO: why replicated_positions needs a reshape?
         self.replicated_positions = replicated_positions.reshape(
             (-1, self.atoms.positions.shape[0], self.atoms.positions.shape[1]))
         self.n_replicas = np.prod(self.supercell)
         self._cell_inv = None
         self._replicated_cell_inv = None
         self._list_of_replicas = None
-        n_replicas, n_unit_atoms, _ = self.replicated_positions.shape
-        atoms_positions = self.atoms.positions
-        detected_grid = np.round(
-            (replicated_positions.reshape((n_replicas, n_unit_atoms, 3)) - atoms_positions[np.newaxis, :, :]).dot(
-                np.linalg.inv(self.atoms.cell))[:, 0, :], 0).astype(int)
 
-        grid_c = Grid(grid_shape=self.supercell, order='C')
-        grid_fortran = Grid(grid_shape=self.supercell, order='F')
-        if (grid_c.grid(is_wrapping=False) == detected_grid).all():
-            grid_type = 'C'
-            logging.debug("Using C-style position grid")
-        elif (grid_fortran.grid(is_wrapping=False) == detected_grid).all():
-            grid_type = 'F'
-            logging.debug("Using fortran-style position grid")
+        # * `replicated_atoms` and `list_of_replicas` are two main variables that are widely used in other places
+        # Grid type directly impact on these two variables
+
+        if grid is not None:
+            self._direct_grid = grid
         else:
-            err_msg = "Unable to detect grid type"
-            logging.error(err_msg)
-            raise TypeError(err_msg)
-
-        self._direct_grid = Grid(self.supercell, grid_type)
+            # grid info is not given, so recover it from the grid type from the supercell matrix
+            self._direct_grid = Grid.recover_grid_from_array(self.replicated_positions, self.supercell, self.atoms)
 
 
     @classmethod
-    def from_supercell(cls, atoms, supercell, grid_type, is_acoustic_sum=True, value=None, folder='kALDo'):
+    def from_supercell(cls,
+                       atoms: Atoms,
+                       supercell: tuple[int, int, int],
+                       grid_type: str,
+                       value: ArrayLike | None = None,
+                       folder: str = 'kALDo',
+                       **kwargs):
         _direct_grid = Grid(supercell, grid_type)
-        replicated_positions = _direct_grid.grid(is_wrapping=False).dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
-                                                                                       np.newaxis, :, :]
+        _grid_arr = _direct_grid.grid(is_wrapping=False)
+        # supercell grid * cell paramemter => supercell positions
+        # supercell positions + atoms in unit cell positions => atoms in supercell positions
+        replicated_positions = _grid_arr.dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
         inst = cls(atoms=atoms,
                    replicated_positions=replicated_positions,
                    supercell=supercell,
                    value=value,
-                   folder=folder)
-        inst._direct_grid = _direct_grid
+                   folder=folder,
+                   grid=_direct_grid,
+                   **kwargs)
         return inst
 
 
@@ -80,6 +84,7 @@ class ForceConstant(Observable):
     @property
     def replicated_atoms(self):
         # TODO: remove this method
+        # forceconstant.replicated_atoms is used
         if self._replicated_atoms is None:
             supercell = self.supercell
             atoms = self.atoms

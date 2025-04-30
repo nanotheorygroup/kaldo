@@ -1,0 +1,10 @@
+{
+    "python.testing.pytestArgs": [
+        "-n",
+        "8",
+        "kaldo/tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.terminal.activateEnvironment": true,
+}
