@@ -180,6 +180,8 @@ class HarmonicWithQ(Observable):
                                                       complex)),
                                               backend='tensorflow')
         dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
+        if self.is_nac:
+            dynmat_derivatives += self.nac_derivatives(direction=direction)
         return dynmat_derivatives
 
     def calculate_sij(self, direction):
@@ -275,8 +277,8 @@ class HarmonicWithQ(Observable):
     def calculate_eigensystem(self, only_eigenvals):
         dyn_s = self._dynmat_fourier
         if self.is_nac:
-            dyn_lr = self.nac_frequencies(qpoint=None)
-            dyn_lr += self.nac_frequencies(qpoint=self.q_point)
+            dyn_lr = self.nac_dynmat(qpoint=None)
+            dyn_lr += self.nac_dynmat(qpoint=self.q_point)
             if (self.q_point == np.array([0, 0, 0])).all():
                 dyn_lr = tf.cast(dyn_lr, tf.float64)
             else:
@@ -352,8 +354,8 @@ class HarmonicWithQ(Observable):
 
         # Apply correction for Born effective charges, if detected
         if self.is_nac:
-            dyn_s += self.nac_frequencies(qpoint=None)
-            dyn_s += self.nac_frequencies(qpoint=self.q_point)
+            dyn_s += self.nac_dynmat(qpoint=None)
+            dyn_s += self.nac_dynmat(qpoint=self.q_point)
 
         # Diagonalize
         if only_eigenvals:
@@ -421,10 +423,10 @@ class HarmonicWithQ(Observable):
 
         # Apply correction for Born effective charges, if detected
         if self.is_nac:
-            ddyn_s += self.nac_velocities(direction=direction)
+            ddyn_s += self.nac_derivatives(direction=direction)
         return ddyn_s
 
-    def nac_frequencies(self, qpoint=None, gmax=14, Lambda=1.0):
+    def nac_dynmat(self, qpoint=None, gmax=14, Lambda=1.0):
         '''
         Calculate the non-analytic correction to the dynamical matrix.
 
@@ -536,7 +538,7 @@ class HarmonicWithQ(Observable):
         correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
 
-    def nac_velocities(self, direction, Lambda=None, gmax=None):
+    def nac_derivatives(self, direction, Lambda=None, gmax=None):
         '''
         Calculate the non-analytic correction to the dynamical matrix.
 
