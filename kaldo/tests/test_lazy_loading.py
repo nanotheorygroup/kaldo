@@ -318,3 +318,7 @@ def test_is_calculated_property_not_available(monkeypatch):
     monkeypatch.setattr('kaldo.helpers.storage.load', mock_load)
     result = is_calculated('test_property', instance)
     assert result == False
+
+
+#TDEP is missing.
+#
