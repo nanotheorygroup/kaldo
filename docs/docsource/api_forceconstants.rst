@@ -134,6 +134,11 @@ needed.
    to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just need to
    generate a phonon dispersion along a new path.
 
+
+.. hint::
+   TDEP with kaldo will only work for bulk materials (3D) materials
+
+
 .. _input-files:
 
 Input Files and Formats
@@ -179,6 +184,12 @@ Input Files and Formats
      - xyz
      - model2.fcs
      - model3.fcs
+   * - tdep
+     - POSCAR/UCPOSCAR/SSPOSCAR
+     - xyz
+     - second.npy
+     - third.npz
+      
 
 .. rubric:: Notes on Formats
 
