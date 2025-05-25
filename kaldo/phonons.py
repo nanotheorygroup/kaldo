@@ -423,6 +423,44 @@ class Phonons:
             population[ik] = phonon.population
         return population
 
+    # @lazy_property(label="<temperature>/<statistics>")
+    @lazy_property(label='<temperature>')
+    def free_energy(self):  # type: ignore
+        """Return F(T) (meV pephonons.free_energyr H₂O) from an explicit list of mode frequencies.
+
+        Parameters
+        ----------
+        freqs_thz : 1-D ndarray
+            Flattened array of **physical-mode** frequencies (THz) for *all*
+            q-points.
+        t_kelvin : float
+            Temperature in kelvin.
+        n_qpoints : int
+            Number of distinct q-points in the mesh.
+        n_atoms_cell : int
+            Atoms in the primitive cell (12 for ice-Ih).
+        include_zpe : bool, optional
+            Add the zero-point contribution (default: ``False``).
+
+        Returns
+        -------
+        float
+            Harmonic free energy in meV per atom/molecule.
+        """
+        freqs = self.frequency
+        t_kelvin = self.temperature
+        hbar_omega = units._hbar * freqs * 2.0 * np.pi * 1.0e12
+        x_vals = hbar_omega / (units._k * t_kelvin)
+
+        ln_term = np.log1p(-np.exp(-x_vals))  # ln(1 − e^{-x})
+
+        f_cell = 1000.0 / units._e * units._k * t_kelvin * ln_term
+        include_zpe = True
+        if include_zpe:
+            zpe_cell_J = 0.5 * hbar_omega  # J / cell
+            F0_offset_mev_zpe = zpe_cell_J * 1000 / units._e
+            f_cell += F0_offset_mev_zpe
+        return f_cell
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
