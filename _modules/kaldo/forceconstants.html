@@ -448,7 +448,7 @@
 <span class="sd">"""</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">sparse</span> <span class="kn">import</span> <span class="n">COO</span>
-<span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">wrap_coordinates</span>
+<span class="kn">from</span> <span class="nn">kaldo.grid</span> <span class="kn">import</span> <span class="n">wrap_coordinates</span><span class="p">,</span> <span class="n">Grid</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.secondorder</span> <span class="kn">import</span> <span class="n">SecondOrder</span><span class="p">,</span> <span class="n">parse_tdep_forceconstant</span>
 <span class="kn">from</span> <span class="nn">kaldo.observables.thirdorder</span> <span class="kn">import</span> <span class="n">ThirdOrder</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span>
@@ -723,9 +723,10 @@
         <span class="n">list_of_replicas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">list_of_replicas</span>
 
         <span class="c1"># rest of the code for elastic tensor assumes C-type grid</span>
-        <span class="c1"># temp fix: flip the array from F grid to C grid if the grid type is F</span>
+        <span class="c1"># generate C-type grid from start</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">_direct_grid</span><span class="o">.</span><span class="n">order</span> <span class="o">==</span> <span class="s1">'F'</span><span class="p">:</span>
-            <span class="n">list_of_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">list_of_replicas</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># list_of_replicas property</span>
+            <span class="n">list_of_replicas</span> <span class="o">=</span> <span class="n">Grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">'C'</span><span class="p">)</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">)</span>
 
         <span class="n">dynmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">dynmat</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># units THz^2</span>
         <span class="n">positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span>
