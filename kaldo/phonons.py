@@ -424,6 +424,38 @@ class Phonons:
         return population
 
 
+    @lazy_property(label='<temperature>/<statistics>')
+    def free_energy(self):
+        """Calculate the phonons population for each k point in k_points and each mode.
+        If classical, it returns the temperature divided by each frequency, using equipartition theorem.
+        If quantum it returns the Bose-Einstein distribution
+
+        Returns
+        -------
+        population : np.array(n_k_points, n_modes)
+            population for each k point and each mode
+        """
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        free_energy_per_mode = np.zeros((self.n_k_points, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQTemp(q_point=q_point,
+                                       second=self.forceconstants.second,
+                                       distance_threshold=self.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage,
+                                       temperature=self.temperature,
+                                       is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
+                                       is_unfolding=self.is_unfolding,
+                                       is_amorphous=self._is_amorphous)
+
+            free_energy_per_mode[ik] = phonon.free_energy
+
+
+        return free_energy_per_mode
+
+
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
         """
