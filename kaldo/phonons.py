@@ -424,6 +424,56 @@ class Phonons:
         return population
 
 
+    @lazy_property(label='<temperature>/<statistics>')
+    def free_energy(self):
+        """
+        Calculate the phonon free energy for each k-point and each mode.
+
+        The free energy is computed using quantum harmonic oscillator statistics,
+        which includes both the zero-point energy and the thermal contribution
+        from the Bose-Einstein distribution at the specified temperature.
+
+        Notes
+        -----
+        - The returned values are expressed in units of THz.
+        - To convert to physical energy units, use the following:
+
+        Example
+        -------
+        >>> from ase import units
+        >>> physical_mode = phonons.physical_mode.reshape(phonons.frequency.shape)
+        >>> free_energy_thz = phonons.free_energy[physical_mode]
+        >>> total_energy_thz = np.sum(free_energy_thz) / phonons.n_k_points
+        >>> total_energy_joules = total_energy_thz * units._hplanck * 1e12
+        >>> energy_per_atom_eV = (total_energy_joules / phonons.n_atoms) / units._e
+        >>> energy_per_mol_joules = (total_energy_joules / phonons.n_atoms) * units.mol
+
+        Returns
+        -------
+        free_energy_per_mode : np.ndarray of shape (n_k_points, n_modes)
+            Phonon free energy for each k-point and mode, in THz.
+        """
+        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        free_energy_per_mode = np.zeros((self.n_k_points, self.n_modes))
+        for ik in range(len(q_points)):
+            q_point = q_points[ik]
+            phonon = HarmonicWithQTemp(q_point=q_point,
+                                       second=self.forceconstants.second,
+                                       distance_threshold=self.forceconstants.distance_threshold,
+                                       folder=self.folder,
+                                       storage=self.storage,
+                                       temperature=self.temperature,
+                                       is_classic=self.is_classic,
+                                       is_nw=self.is_nw,
+                                       is_unfolding=self.is_unfolding,
+                                       is_amorphous=self._is_amorphous)
+
+            free_energy_per_mode[ik] = phonon.free_energy
+
+
+        return free_energy_per_mode
+
+
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
         """
