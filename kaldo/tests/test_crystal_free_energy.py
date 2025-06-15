@@ -10,7 +10,7 @@ from ase import units
 import pytest
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def phonons():
     print ("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder(folder='kaldo/tests/si-crystal',
