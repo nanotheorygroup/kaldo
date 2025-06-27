@@ -34,7 +34,8 @@ operations on tensors, to take advantage of multithreading on GPU and CPU using 
 | [2]                   | fundamental theory and implementations on Quasi-Harmonic Green Kubo (QHGK) |
 | [3]                   | participation ratio               |
 | [4]                   | finite size thermal conductivity calculations with ALD-BTE|
-| [5]                   | PIMD (from GPUMD) + TDEP + kALDo work flow and elastic moduli calculations|
+| [5]                   | path-integral MD (from GPUMD) + TDEP + kALDo work flow and elastic moduli calculations|
+| [6]                   | isotopic scattering based on Tamura formula hydrodynamic extrapolation
 
 ## References
 
@@ -48,6 +49,9 @@ operations on tensors, to take advantage of multithreading on GPU and CPU using 
 [Ultrahigh convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling](https://doi.org/10.1103/PhysRevLett.127.025902), Phys. Rev. Lett. **127**, 025902 (2021).
 
 [5] Dylan A. Folkner, Zekun Chen, Giuseppe Barbalinardo, Florian Knoop, Davide Donadio, [Elastic moduli and thermal conductivity of quantum materials at finite temperature](https://pubs.aip.org/aip/jap/article/136/22/221101/3325173), J. Appl. Phys. **136**,  221101 (2024).
+
+[6] Alfredo Fiorentino,  Paolo Pegolo,  Stefano Baroni,  Davide Donadio, [Effects of colored disorder on the heat conductivity of SiGe alloys from first principles](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.134205), Phys. Rev. B. ***111***, 134205 (2025).
+
 
 ## Publications using kALDo
 

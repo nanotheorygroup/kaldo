@@ -19,7 +19,9 @@
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (10)
+## 2025 (11)
+
+* Xiongfei Zhu,  Jianshi Sun, Yucheng Xiong,  Shouhang Li,  Xiangjun Liu, [Research on thermal transport mechanism of amorphous hafnia based on quasi-harmonic Green-Kubo theory combined with hydrodynamic extrapolation method](https://www.cpsjournals.cn/article/doi/10.7498/aps.74.20250350), Acta. Phys. Sin. ***74(11)***, 116302-1 (2025).
 
 * Alfredo Fiorentino,  Paolo Pegolo,  Stefano Baroni,  Davide Donadio, [Effects of colored disorder on the heat conductivity of SiGe alloys from first principles](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.134205), Phys. Rev. B. ***111***, 134205 (2025).
 
