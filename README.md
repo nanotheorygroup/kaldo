@@ -70,4 +70,4 @@ We gratefully acknowledge support by the Investment Software Fellowships (grant 
 <img src="https://raw.githubusercontent.com/nanotheorygroup/kaldo/main/docs/docsource/_resources/nsf_logo.png" height="120">    
 </a>
  
-MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](https://molssi.org/software-projects/)
+MolSSI builds open source software and data which serves the computational molecular science community. [Explore MolSSI’s software infrastructure projects.](https://molssi.org/software/)
