@@ -35,7 +35,7 @@ operations on tensors, to take advantage of multithreading on GPU and CPU using 
 | [3]                   | participation ratio               |
 | [4]                   | finite size thermal conductivity calculations with ALD-BTE|
 | [5]                   | path-integral MD (from GPUMD) + TDEP + kALDo work flow and elastic moduli calculations|
-| [6]                   | isotopic scattering based on Tamura formula hydrodynamic extrapolation
+| [6]                   | isotopic scattering based on Tamura formula and hydrodynamic extrapolation
 
 ## References
 
