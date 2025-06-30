@@ -22,12 +22,6 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
 
 
     @lazy_property(label='<temperature>/<statistics>/<q_point>')
-    def free_energy(self):
-        free_energy = self._calculate_free_energy()
-        return free_energy
-
-
-    @lazy_property(label='<temperature>/<statistics>/<q_point>')
     def heat_capacity(self):
         heat_capacity = self._calculate_heat_capacity()
         return heat_capacity
@@ -88,24 +82,6 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         physical_mode = self.physical_mode.reshape(frequency.shape)
         population[physical_mode] = 1. / (np.exp(frequency[physical_mode] / temp) - 1.)
         return population
-
-
-    def _calculate_free_energy(self):
-        frequency = self.frequency
-        kelvintothz = units.kB / units.J / (2 * np.pi * self.hbar) * 1e-12
-        temperature_thz = self.temperature * kelvintothz
-        free_energy = np.zeros_like(frequency)
-        physical_mode = self.physical_mode.reshape(frequency.shape)
-        omega = frequency[physical_mode]
-        x = omega / temperature_thz
-
-        # Use log1p(-exp(-x)) for better numerical stability
-        with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
-            thermal_term = temperature_thz * np.log1p(-np.exp(-x))
-
-        fe_values = 0.5 * omega + thermal_term
-        free_energy[physical_mode] = fe_values
-        return free_energy
 
 
     def _calculate_heat_capacity(self):

@@ -423,56 +423,44 @@ class Phonons:
             population[ik] = phonon.population
         return population
 
+    # @lazy_property(label="<temperature>/<statistics>")
+    @lazy_property(label='<temperature>')
+    def free_energy(self):  # type: ignore
+        """Return F(T) (meV pephonons.free_energyr H₂O) from an explicit list of mode frequencies.
 
-    @lazy_property(label='<temperature>/<statistics>')
-    def free_energy(self):
-        """
-        Calculate the phonon free energy for each k-point and each mode.
-
-        The free energy is computed using quantum harmonic oscillator statistics,
-        which includes both the zero-point energy and the thermal contribution
-        from the Bose-Einstein distribution at the specified temperature.
-
-        Notes
-        -----
-        - The returned values are expressed in units of THz.
-        - To convert to physical energy units, use the following:
-
-        Example
-        -------
-        >>> from ase import units
-        >>> physical_mode = phonons.physical_mode.reshape(phonons.frequency.shape)
-        >>> free_energy_thz = phonons.free_energy[physical_mode]
-        >>> total_energy_thz = np.sum(free_energy_thz) / phonons.n_k_points
-        >>> total_energy_joules = total_energy_thz * units._hplanck * 1e12
-        >>> energy_per_atom_eV = (total_energy_joules / phonons.n_atoms) / units._e
-        >>> energy_per_mol_joules = (total_energy_joules / phonons.n_atoms) * units.mol
+        Parameters
+        ----------
+        freqs_thz : 1-D ndarray
+            Flattened array of **physical-mode** frequencies (THz) for *all*
+            q-points.
+        t_kelvin : float
+            Temperature in kelvin.
+        n_qpoints : int
+            Number of distinct q-points in the mesh.
+        n_atoms_cell : int
+            Atoms in the primitive cell (12 for ice-Ih).
+        include_zpe : bool, optional
+            Add the zero-point contribution (default: ``False``).
 
         Returns
         -------
-        free_energy_per_mode : np.ndarray of shape (n_k_points, n_modes)
-            Phonon free energy for each k-point and mode, in THz.
+        float
+            Harmonic free energy in meV per atom/molecule.
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
-        free_energy_per_mode = np.zeros((self.n_k_points, self.n_modes))
-        for ik in range(len(q_points)):
-            q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+        freqs = self.frequency
+        t_kelvin = self.temperature
+        hbar_omega = units._hbar * freqs * 2.0 * np.pi * 1.0e12
+        x_vals = hbar_omega / (units._k * t_kelvin)
 
-            free_energy_per_mode[ik] = phonon.free_energy
+        ln_term = np.log1p(-np.exp(-x_vals))  # ln(1 − e^{-x})
 
-
-        return free_energy_per_mode
-
+        f_cell = 1000.0 / units._e * units._k * t_kelvin * ln_term
+        include_zpe = True
+        if include_zpe:
+            zpe_cell_J = 0.5 * hbar_omega  # J / cell
+            F0_offset_mev_zpe = zpe_cell_J * 1000 / units._e
+            f_cell += F0_offset_mev_zpe
+        return f_cell
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
