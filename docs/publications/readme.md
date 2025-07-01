@@ -2,7 +2,7 @@
 
 ## Preprints (8)
 
-* Lorenzo Manunza, Riccardo Dettori, Antonio Cappai, Claudio Melis, [Investigating Thermal Conductivity in Graphene Moiré Superlattices Through Approach-to-Equilibrium Molecular Dynamics](https://www.preprints.org/manuscript/202504.1413)
+* Ting Liang, Wenwu Jiang, Ke Xu, Hekai Bu, Zheyong Fan, Wengen Ouyang, Jianbin Xu, [PYSED: A tool for extracting kinetic-energy-weighted phonon dispersion and lifetime from molecular dynamics simulations](https://arxiv.org/abs/2505.00353)
 
 * Yao Luo, Dhruv Mangtani, Shiyu Peng, Jia Yao, Sergei Kliavinek, Marco Bernardi, [Tensor Learning and Compression of N-phonon Interactions](https://arxiv.org/pdf/2503.05913)
 
@@ -19,7 +19,11 @@
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (11)
+## 2025 (13)
+
+* Lorenzo Manunza, Riccardo Dettori, Antonio Cappai, Claudio Melis,  [Investigating Thermal Conductivity in Graphene Moiré Superlattices Through Approach-to-Equilibrium Molecular Dynamics](https://www.mdpi.com/2311-5629/11/3/46), C. ***11(3)***, 46 (2025)
+
+* Fachen Liu, Ruilin Mao, Zhiqiang Liu, Jinlong Du, Peng Gao, [Probing phonon transport dynamics across an interface by electron microscopy](https://www.nature.com/articles/s41586-025-09108-6), Natrue, ***1-6*** (2025).
 
 * Xiongfei Zhu,  Jianshi Sun, Yucheng Xiong,  Shouhang Li,  Xiangjun Liu, [Research on thermal transport mechanism of amorphous hafnia based on quasi-harmonic Green-Kubo theory combined with hydrodynamic extrapolation method](https://www.cpsjournals.cn/article/doi/10.7498/aps.74.20250350), Acta. Phys. Sin. ***74(11)***, 116302-1 (2025).
 
