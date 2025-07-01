@@ -12,15 +12,6 @@
 
 [6] isotopic scattering based on Tamura formula and hydrodynamic extrapolation 	
 
-| Reference             | Cite for what?                    |
-| --------------------- | --------------------------------- |
-| [1]                   | for any work that used `kALDo`    |
-| [2]                   | fundamental theory and implementations on Quasi-Harmonic Green Kubo (QHGK) |
-| [3]                   | participation ratio               |
-| [4]                   | finite size thermal conductivity calculations with ALD-BTE|
-| [5]                   | path-integral MD (from GPUMD) + TDEP + kALDo work flow and elastic moduli calculations|
-| [6]                   | isotopic scattering based on Tamura formula and hydrodynamic extrapolation
-
 ## References
 
 [1] Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio, [Efficient anharmonic lattice dynamics calculations of thermal transport in crystalline and disordered solids](https://aip.scitation.org/doi/10.1063/5.0020443), J. Appl. Phys. **128**, 135104 (2020).
