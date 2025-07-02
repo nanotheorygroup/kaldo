@@ -423,6 +423,26 @@ class Phonons:
             population[ik] = phonon.population
         return population
 
+    @lazy_property(label='<temperature>')
+    def free_energy(self):
+        """
+        Harmonic **thermal** free energy, already Brillouin-zone averaged,
+        returned in eV per mode (ZPE not included).
+        """
+        x_vals = units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / (units._k * self.temperature)
+        ln_term = np.log1p(-np.exp(-x_vals))  # ln(1 − e^{-x})
+        f_cell = 1000.0 / units._e * units._k * self.temperature * ln_term
+        return f_cell / self.n_k_points
+
+    @lazy_property(label='')
+    def zero_point_harmonic_energy(self):
+        """
+        Harmonic zero-point energy, Brillouin-zone averaged,
+        returned in eV per mode.
+        """
+        zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e15 / units._e
+        return zpe_cell / self.n_k_points
+
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
     def bandwidth(self):
