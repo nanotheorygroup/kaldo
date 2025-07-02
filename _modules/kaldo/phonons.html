@@ -874,6 +874,26 @@
             <span class="n">population</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">population</span>
         <span class="k">return</span> <span class="n">population</span>
 
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;'</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">free_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Harmonic **thermal** free energy, already Brillouin-zone averaged,</span>
+<span class="sd">        returned in eV per mode (ZPE not included).</span>
+<span class="sd">        """</span>
+        <span class="n">x_vals</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e12</span> <span class="o">/</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">)</span>
+        <span class="n">ln_term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x_vals</span><span class="p">))</span>  <span class="c1"># ln(1 − e^{-x})</span>
+        <span class="n">f_cell</span> <span class="o">=</span> <span class="mf">1000.0</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">ln_term</span>
+        <span class="k">return</span> <span class="n">f_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">zero_point_harmonic_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Harmonic zero-point energy, Brillouin-zone averaged,</span>
+<span class="sd">        returned in eV per mode.</span>
+<span class="sd">        """</span>
+        <span class="n">zpe_cell</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e15</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span>
+        <span class="k">return</span> <span class="n">zpe_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
+
 
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">'&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;'</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

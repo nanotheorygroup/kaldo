@@ -685,6 +685,8 @@ Default: False</p></li>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.eigenvectors" title="kaldo.phonons.Phonons.eigenvectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eigenvectors</span></code></a></dt><dd><p>Calculates the eigenvectors of the dynamical matrix.</p>
 </dd>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.free_energy" title="kaldo.phonons.Phonons.free_energy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">free_energy</span></code></a></dt><dd><p>Harmonic <strong>thermal</strong> free energy, already Brillouin-zone averaged, returned in eV per mode (ZPE not included).</p>
+</dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.frequency" title="kaldo.phonons.Phonons.frequency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">frequency</span></code></a></dt><dd><p>Calculate phonons frequency</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity" title="kaldo.phonons.Phonons.heat_capacity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">heat_capacity</span></code></a></dt><dd><p>Calculate the heat capacity for each k point in k_points and each mode.</p>
@@ -704,6 +706,8 @@ Default: False</p></li>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.population" title="kaldo.phonons.Phonons.population"><code class="xref py py-obj docutils literal notranslate"><span class="pre">population</span></code></a></dt><dd><p>Calculate the phonons population for each k point in k_points and each mode.</p>
 </dd>
 <dt><a class="reference internal" href="#kaldo.phonons.Phonons.velocity" title="kaldo.phonons.Phonons.velocity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">velocity</span></code></a></dt><dd><p>Calculates the velocity using Hellmann-Feynman theorem.</p>
+</dd>
+<dt><a class="reference internal" href="#kaldo.phonons.Phonons.zero_point_harmonic_energy" title="kaldo.phonons.Phonons.zero_point_harmonic_energy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">zero_point_harmonic_energy</span></code></a></dt><dd><p>Harmonic zero-point energy, Brillouin-zone averaged, returned in eV per mode.</p>
 </dd>
 </dl>
 </dd>
@@ -819,6 +823,18 @@ If quantum it returns the Bose-Einstein distribution</p>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
+</dd></dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.free_energy">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_energy</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Harmonic <strong>thermal</strong> free energy, already Brillouin-zone averaged,
+returned in eV per mode (ZPE not included).</p>
+</dd></dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="kaldo.phonons.Phonons.zero_point_harmonic_energy">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">zero_point_harmonic_energy</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.zero_point_harmonic_energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Harmonic zero-point energy, Brillouin-zone averaged,
+returned in eV per mode.</p>
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="kaldo.phonons.Phonons.bandwidth">
