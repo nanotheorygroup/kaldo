@@ -24,7 +24,7 @@ nthread = 2
 cond_method = 'inverse'
 # K-pt grid (technically harmonic, but the dispersion is the only property we really deal
 # with here, and it isn't relevant to that)
-k = 2 # cubed
+k = 5 # cubed
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # You shouldn't need to edit below this line, but it should be well commented
@@ -37,7 +37,7 @@ from ase.io import read
 from scipy import constants
 # Replicas
 nrep = int(9)
-nrep_third = int(2)
+nrep_third = int(5)
 supercell = np.array([nrep, nrep, nrep])
 kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k, k, k)
 third_supercell = np.array([nrep_third, nrep_third, nrep_third])
@@ -78,12 +78,18 @@ phonons = Phonons(forceconstants=forceconstant,
               temperature=300,
               folder='./',
               is_unfolding=unfold_bool,
-              storage='memory',)
+              storage='numpy',)
 
+print((phonons.frequency<0).sum())
+from kaldo.controllers.plotter import plot_dos
+plot_dos(phonons, is_showing=False)
+
+print('dos done!')
 atoms = forceconstant.atoms
 cell = atoms.cell
 lat = cell.get_bravais_lattice()
 path = cell.bandpath(pathstring, npoints=npoints)
+np.save()
 print('Unit cell detected: {} '.format(atoms))
 print('Special points on cell: ')
 print(lat.get_special_points())

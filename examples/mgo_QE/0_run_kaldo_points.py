@@ -20,6 +20,9 @@ cond_method = 'inverse'
 import numpy as np
 from scipy import constants
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+import kaldo
+
+print(kaldo.__file__)
 # Replicas
 nrep = int(9)
 nrep_third = int(2)
@@ -29,13 +32,14 @@ third_supercell = np.array([nrep_third, nrep_third, nrep_third])
 
 # Import target frequencies
 thz_to_invcm = constants.value('hertz-inverse meter relationship')*1e12/100
-qe_data = 'espresso_fcs'
 # Sheng
 radps_to_THz = 1/(2*np.pi)
-sheng_data=np.loadtxt('sheng/BTE.omega')*radps_to_THz
+sheng_freqs=np.loadtxt('sheng/BTE.omega')*radps_to_THz
+sheng_vels=np.loadtxt('sheng/BTE.v').reshape((-1, 6, 3))
 # Matdyn
 cm_to_THz = constants.value('hertz-inverse meter relationship')*1e12/100
-matdyn_data = np.loadtxt('matdyn/FREQ.gp')[:, 1:]/cm_to_THz
+matdyn_freqs = np.loadtxt('matdyn/dynamics/FREQ.gp')[:, 1:]/cm_to_THz
+
 
 ### Begin simulation
 # Import kALDo
@@ -71,17 +75,33 @@ points = np.array([
 freqs = []
 vels = np.zeros((points.shape[0], 3*2, 3), dtype=float)
 for i,kpoint in enumerate(points):
-    print("kpoint: ", kpoint)
+    print("\n\nkpoint: ", kpoint)
     phonon = HarmonicWithQ(kpoint,
                            phonons.forceconstants.second,
                            distance_threshold=phonons.forceconstants.distance_threshold,
                            storage='memory',
                            is_nw=phonons.is_nw,
-                           is_unfolding=phonons.is_unfolding,
+                           is_unfolding=True,
                            is_nac=True,)
     freqs.append(phonon.frequency.squeeze())
     vels[i, ...] = phonon.velocity
-    print("kaldo", freqs[-1])
-    #print("matdyn", matdyn_data[i,:])
-    print("sheng", sheng_data[i,:])
-print(freqs)
+    print('\tFrequencies:')
+    print("\tkaldo", np.round(freqs[i],5))
+    print("\tmatdyn", matdyn_freqs[i,:])
+    print("\tsheng", sheng_freqs[i,:])
+    print('\tVelocities:')
+    for mode in range(6):
+        print(f"\tkaldo m{mode} {np.round(vels[i, mode, :], 6)}")
+        print(f"\tsheng m{mode} {sheng_vels[i, mode, :]}")
+
+with open('point-compare.txt', 'w') as f:
+    for i, kpoint in enumerate(points):
+        print("\n\nkpoint: ", kpoint, file=f)
+        print('\tFrequencies:', file=f)
+        print(f"kaldo {np.round(freqs[i], 4)}", file=f)
+        print(f"matdyn {matdyn_freqs[i, :]}", file=f)
+        print(f"sheng {sheng_freqs[i,:]}", file=f)
+        print('\tVelocities:', file=f)
+        for mode in range(6):
+            print(f"{mode} {np.round(vels[i, mode, :],5)}", file=f)
+            print(f"{mode} {sheng_vels[i, mode, :]}", file=f)
