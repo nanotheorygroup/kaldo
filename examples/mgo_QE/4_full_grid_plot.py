@@ -50,11 +50,12 @@ phonons = Phonons(forceconstants=forceconstant,
                   is_classic=False,
                   temperature=300,
                   folder='./',
-                  is_unfolding=False,
+                  is_unfolding=True,
                   storage='numpy', )
 
 phonons.frequency
 phonons.velocity
+print("negs - ", (phonons.frequency<0).sum())
 
 nrep = int(9)
 supercell = np.array([nrep, nrep, nrep])
@@ -95,9 +96,9 @@ phonopy_x = phonopy_data['frequency'][:,:]
 sheng_y = np.linalg.norm(np.load(f'{kptfolder}/velocity.npy'), axis=-1)
 none_y = np.linalg.norm(np.load(f'nocharges/{kptfolder}/velocity.npy'), axis=-1)
 phonopy_y = np.linalg.norm(phonopy_data['group_velocity'], axis=-1)
-ax0.scatter(sheng_x, sheng_y/10, color=set1[1], s=15, marker='o', zorder=0, alpha=0.35)
-ax0.scatter(none_x, none_y/10, color=set1[0], s=15, marker='s', zorder=3, alpha=0.35)
-ax0.scatter(phonopy_x, phonopy_y/10, color=set1[2], s=100, marker='d', zorder=2, alpha=0.35)
+ax0.scatter(sheng_x, sheng_y/10, color=set1[1], s=15, marker='o', zorder=5, alpha=0.35)
+ax0.scatter(none_x, none_y/10, color=set1[0], s=15, marker='s', zorder=10, alpha=0.35)
+ax0.scatter(phonopy_x, phonopy_y/10, color=set1[2], s=100, marker='d', zorder=8, alpha=0.35)
 ax0.set_ylabel(r'$V_{g}$ (km/s)', rotation=70, ha='right', color='k')
 # note0 = ax0.annotate('Acoustic Modes', xy=(0.7, 0.92),
 #                      xycoords='axes fraction', fontsize=18, )
@@ -112,9 +113,9 @@ phonopy_kernel = KernelDensity(kernel='gaussian', bandwidth=1/4.135).fit(phonopy
 sheng_y = np.exp(sheng_kernel.score_samples(sheng_x.reshape(-1, 1)))
 none_y = np.exp(none_kernel.score_samples(none_x.reshape(-1, 1)))
 phonopy_y = np.exp(phonopy_kernel.score_samples(phonopy_x.reshape(-1, 1)))
-ax1.scatter(sheng_x, sheng_y, color=set1[1], s=15, marker='o', zorder=0, alpha=0.35)
-ax1.scatter(none_x, none_y, color=set1[0], s=15, marker='s', zorder=2, alpha=0.35)
-ax1.scatter(phonopy_x, phonopy_y, color=set1[2], s=100, marker='d', zorder=1, alpha=0.35)
+ax1.scatter(sheng_x, sheng_y, color=set1[1], s=15, marker='o', zorder=5, alpha=0.35)
+ax1.scatter(none_x, none_y, color=set1[0], s=15, marker='s', zorder=7, alpha=0.35)
+ax1.scatter(phonopy_x, phonopy_y, color=set1[2], s=100, marker='d', zorder=8, alpha=0.35)
 ax1.set_ylabel(r'$DoS$', rotation=70, ha='right', color='k')
 # note0 = ax0.annotate('Acoustic Modes', xy=(0.7, 0.92),
 #                      xycoords='axes fraction', fontsize=18, )
