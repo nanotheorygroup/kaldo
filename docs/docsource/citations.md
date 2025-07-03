@@ -1,4 +1,4 @@
-## How to cite ?
+## How to cite
 
 [1] for any work that used `kALDo` 
 
