@@ -500,7 +500,7 @@ class HarmonicWithQ(Observable):
         # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
         # the phase factor is based on the distance of the G-vector and atomic positions
         if qpoint is not None:
-            phase = np.exp(2j * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+            phase = np.exp(1j * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
 
             # The long range forces are the outer product of the effective charges, scaled by the phase term. We impose
             # Hermicity on cartesian axes by taking the average of M and M^T
@@ -515,7 +515,7 @@ class HarmonicWithQ(Observable):
             correction_matrix += lr_correction
 
         else:  # only the real part of the phase is taken at Gamma
-            phase = np.cos(2 * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+            phase = np.cos(np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
 
             # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
             # The long range forces are an outer product of the effective charges, scaled by the exponential term.
