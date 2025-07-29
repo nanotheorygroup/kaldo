@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-from kaldo.grid import wrap_coordinates
+from kaldo.grid import wrap_coordinates, Grid
 from kaldo.observables.secondorder import SecondOrder, parse_tdep_forceconstant
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
@@ -279,9 +279,10 @@ class ForceConstants:
         list_of_replicas = self.second.list_of_replicas
 
         # rest of the code for elastic tensor assumes C-type grid
-        # temp fix: flip the array from F grid to C grid if the grid type is F
+        # generate C-type grid from start
         if self.second._direct_grid.order == 'F':
-            list_of_replicas = np.flip(list_of_replicas, axis=1)
+            # list_of_replicas property
+            list_of_replicas = Grid(self.second.supercell, order='C').grid(is_wrapping=True).dot(self.atoms.cell)
 
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
