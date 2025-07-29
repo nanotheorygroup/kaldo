@@ -1,0 +1,26 @@
+&allocations
+        nelements=2,
+        natoms=2,
+        ngrid(:)=2 2 2
+&end
+&crystal
+        lfactor=0.4254791787058055
+        lattvec(:,1)=-0.5 0.0  0.5,
+        lattvec(:,2)=0.0  0.5  0.5,
+        lattvec(:,3)=-0.5  0.5  0.0,
+        elements="Mg" "O"
+        types=1 2,
+        positions(:,1)=0.00  0.00  0.00,
+        positions(:,2)=0.5  0.5  0.5
+        scell(:)=9 9 9
+&end
+&parameters
+        T=300
+        scalebroad=1.0
+&end
+&flags
+        espresso=.true.
+        nonanalytic=.false.
+        isotopes=.false.
+        onlyharmonic=.true.
+&end
