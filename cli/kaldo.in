@@ -1,0 +1,46 @@
+{
+  "description": "Example kALDo configuration using silicon crystal test data",
+  "forceconstants": {
+    "folder": "kaldo/tests/si-crystal",
+    "format": "eskm",
+    "supercell": [3, 3, 3]
+  },
+  "phonons": {
+    "temperature": 300.0,
+    "kpts": [5, 5, 5],
+    "is_classic": false,
+    "storage": "memory"
+  },
+  "conductivity": {
+    "method": "rta",
+    "storage": "memory"
+  },
+  "plotter": {
+    "plot_dispersion": {
+      "n_k_points": 300,
+      "is_showing": false,
+      "symprec": 1e-3,
+      "with_velocity": true,
+      "color": "b",
+      "folder": "plots"
+    },
+    "plot_dos": {
+      "p_atoms": null,
+      "direction": null,
+      "bandwidth": 0.05,
+      "n_points": 200,
+      "is_showing": false,
+      "filename": "dos"
+    },
+    "plot_vs_frequency": [
+      {
+        "observable": "heat_capacity",
+        "is_showing": false
+      },
+      {
+        "observable": "conductivity",
+        "is_showing": false
+      }
+    ]
+  }
+}
