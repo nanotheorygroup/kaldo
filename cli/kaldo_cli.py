@@ -185,12 +185,6 @@ def run_kaldo_calculation(config: Dict[str, Any], logger: logging.Logger) -> Dic
                 kappa = cond.conductivity.sum(axis=0)
                 logger.info("Thermal conductivity (W/mK):")
                 logger.info(f"{kappa}")
-                
-                # Log diagonal components
-                if hasattr(kappa, 'diagonal'):
-                    diag = kappa.diagonal()
-                    logger.info(f"Diagonal components (xx, yy, zz): {diag}")
-                    logger.info(f"Average conductivity: {np.mean(diag):.2f} W/mK")
                     
             except Exception as e:
                 logger.error(f"Failed to calculate conductivity: {e}")
