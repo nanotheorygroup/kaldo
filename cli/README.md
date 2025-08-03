@@ -27,7 +27,7 @@ kaldo -v config.json
 ```
 
 ## Configuration
-The CLI tool uses JSON configuration files. Use `kaldo --example` to see a complete example configuration with all available options.
+The CLI tool uses JSON configuration files. See the examples below for a complete configuration with all available options.
 ### Required Sections
 - **forceconstants**: Settings for force constants calculation
   - `folder`: Path to force constants files (required)
