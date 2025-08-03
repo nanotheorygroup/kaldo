@@ -84,7 +84,11 @@ def load_input(input_file: Optional[str] = None) -> Dict[str, Any]:
         return config
         
     except json.JSONDecodeError as e:
-        raise json.JSONDecodeError("Invalid JSON in input", e.doc, e.pos) from None
+        raise json.JSONDecodeError(
+            "Invalid JSON in input",
+            getattr(e, "doc", "") if getattr(e, "doc", None) is not None else "",
+            getattr(e, "pos", 0) if getattr(e, "pos", None) is not None else 0
+        ) from None
 
 
 def validate_config_section(config: Dict[str, Any], section: str, required_keys: List[str] = None) -> None:
