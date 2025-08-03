@@ -76,9 +76,11 @@ cat > plot_config.json << EOF
     "kpts": [10, 10, 10]
   },
   "plotter": {
-    "output": "phonon_dispersion.png",
-    "path": "GXWKG",
-    "npoints": 200
+    "plot_dispersion": {
+      "output": "phonon_dispersion.png",
+      "path": "GXWKG",
+      "npoints": 200
+    }
   }
 }
 EOF
