@@ -53,8 +53,7 @@ cat > basic_config.json << EOF
     "kpts": [5, 5, 5]
   },
   "conductivity": {
-    "method": "rta",
-    "temperatures": [200, 250, 300, 350, 400]
+    "method": "rta"
   }
 }
 EOF
