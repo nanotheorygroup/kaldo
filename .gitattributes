@@ -1,6 +1,7 @@
 # large data file
 examples/germanium_espresso_d3q/fc/FORCE_CONSTANTS_3RD filter=lfs diff=lfs merge=lfs -text
 examples/germanium_espresso_d3q/fc/espresso.ifc2 filter=lfs diff=lfs merge=lfs -text
+examples/mgo_espresso_d3q/tools/mgo-qe-d3q.tgz filter=lfs diff=lfs merge=lfs -text
 
 # data file in tests
 # Note: To make CI easier to work with, data file in tests should stay in the git repo. 
