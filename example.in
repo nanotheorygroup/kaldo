@@ -1,0 +1,14 @@
+{
+  "forceconstants": {
+    "folder": "kaldo/tests/si-crystal",
+    "format": "eskm"
+  },
+  "phonons": {
+    "folder": "cli-test",
+    "temperature": 300,
+    "kpts": [5, 5, 5]
+  },
+  "conductivity": {
+    "method": "inverse"
+  }
+}

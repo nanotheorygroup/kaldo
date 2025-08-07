@@ -17,7 +17,7 @@ pip install kaldo
 
 #### Using `pip` and `virtualenv`
 
-You can also install kALDO without using `conda`
+You can also install kALDo without using `conda`
 ```bash
 pip3 install virtualenv
 virtualenv --system-site-packages -p python3 ~/kaldo
