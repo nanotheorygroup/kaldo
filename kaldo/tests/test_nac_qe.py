@@ -17,10 +17,10 @@ import pytest
 def phonons():
     print("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder(
-        folder="kaldo/tests/nacl",
-        supercell=[4, 4, 4],
-        format="shengbte-qe",
-        third_supercell=[2, 2, 2],
+        folder="kaldo/tests/mgo",
+        supercell=[5, 5, 5],
+        only_second=True,
+        format="shengbte-d3q",
     )
     phonons = Phonons(
         forceconstants=forceconstants,
@@ -35,7 +35,14 @@ def phonons():
 
 def test_unfolding_dispersion(phonons):
     q_point = np.array([0.3, 0, 0.3])  # chosen to check we get a degenerate pair for both acoustic and optical
-    frequency_expected = np.array([4.11380807, 4.11380825, 8.44285067, 14.00947531, 14.00947536, 14.37330857])
+    frequency_expected = np.array([7.18794357,  7.18794363, 11.02311516, 12.67918914, 12.67918918, 17.46740768])
     frequency_actual = HarmonicWithQ(q_point=q_point, second=phonons.forceconstants.second, is_unfolding=True).frequency
     frequency_actual = frequency_actual.flatten()  # HWQ outputs a 2d array
     np.testing.assert_array_almost_equal(frequency_expected, frequency_actual, decimal=2)
+
+def test_unfolding_velocity(phonons):
+    q_point = np.array([0.3, 0, 0.3])
+    velocity_expected = np.array([34.07224116, 34.07937398, 33.27836869, 8.60374418, 8.59466092, 21.86970226])
+    velocity = HarmonicWithQ(q_point=q_point, second=phonons.forceconstants.second, is_unfolding=True).velocity
+    velocity_actual = np.linalg.norm(velocity, axis=-1).flatten()
+    np.testing.assert_array_almost_equal(velocity_expected, velocity_actual, decimal=2)
