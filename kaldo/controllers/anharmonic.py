@@ -358,7 +358,7 @@ def project_crystal_mu(
             result = tf.math.bincount(nupp_vec, pot_times_dirac, n_k_points * n_modes)
             ps_and_gamma[2:] += result
 
-        ps_and_gamma[0] += tf.reduce_sum(dirac_delta)
+        ps_and_gamma[0] += tf.reduce_sum(dirac_delta * population_delta)
         ps_and_gamma[1] += tf.reduce_sum(pot_times_dirac)
 
     # Finalize ps_and_gamma
