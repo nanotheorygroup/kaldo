@@ -29,6 +29,10 @@ def phonons():
     return phonons
 
 
+def test_phase_space(phonons):
+    phase_space = phonons.phase_space.sum()
+    np.testing.assert_approx_equal(phase_space, 1752052, significant=7)
+
 def test_first_gamma(phonons):
     thztomev = units.J * units._hbar * 2 * np.pi * 1e15
     np.testing.assert_approx_equal(phonons.bandwidth[0, 3] * thztomev / (2 * np.pi), 22.216, significant=3)
