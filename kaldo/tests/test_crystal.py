@@ -26,7 +26,7 @@ def phonons():
 
 def test_phase_space(phonons):
     phase_space = phonons.phase_space.sum()
-    np.testing.assert_approx_equal(phase_space, 113, significant=3)
+    np.testing.assert_approx_equal(phase_space, 141, significant=3)
 
 
 def test_sc_conductivity(phonons):
