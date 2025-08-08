@@ -294,7 +294,6 @@ def project_crystal_mu(
 
         dirac_delta_result = calculate_dirac_delta_crystal(
             omega,
-            population,
             physical_mode,
             sigma_tf,
             broadening_shape,
@@ -302,7 +301,6 @@ def project_crystal_mu(
             index_k,
             mu,
             is_plus,
-            is_balanced,
         )
 
         if not dirac_delta_result:
@@ -323,9 +321,29 @@ def project_crystal_mu(
         scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
 
         pot_times_dirac = tf.abs(scaled_potential) ** 2 * dirac_delta
+        # TODO: do not use manual indexing here
         nup_vec = index_kp_vec * omega.shape[1] + mup_vec
         nupp_vec = index_kpp_vec * omega.shape[1] + mupp_vec
-        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64)
+
+        population_1 = population[index_kp_vec, mup_vec]
+        population_2 = population[index_kpp_vec, mupp_vec]
+        population_0 = population[index_k, mu]
+        if is_plus:
+            population_delta = population_1 - population_2
+            if is_balanced:
+                # Detail balance
+                # (n0) * (n1) * (n2 + 1) - (n0 + 1) * (n1 + 1) * (n2) = 0
+                population_delta = 0.5 * (population_1 + 1) * population_2 / population_0
+                population_delta += 0.5 * population_1 * (population_2 + 1) / (1 + population_0)
+        else:
+            population_delta = 0.5 * (1 + population_1 + population_2)
+            if is_balanced:
+                # Detail balance
+                # (n0) * (n1 + 1) * (n2 + 1) - (n0 + 1) * (n1) * (n2) = 0
+                population_delta = 0.25 * population_1 * population_2 / population_0
+                population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
+
+        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * population_delta
         pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
 
         # Update ps_and_gamma
@@ -352,7 +370,6 @@ def project_crystal_mu(
 
 def calculate_dirac_delta_crystal(
     omega,
-    population,
     physical_mode,
     sigma_tf,
     broadening_shape,
@@ -360,7 +377,6 @@ def calculate_dirac_delta_crystal(
     index_k,
     mu,
     is_plus,
-    is_balanced,
     default_delta_threshold=2,
 ):
     """
@@ -405,31 +421,14 @@ def calculate_dirac_delta_crystal(
     mupp_vec = tf.cast(interactions[:, 2], dtype=tf.int32)
     coords_1 = tf.stack((index_kp_vec, mup_vec), axis=-1)
     coords_2 = tf.stack((index_kpp_vec, mupp_vec), axis=-1)
-    coords_1_mapped = tf.gather_nd(population, coords_1)
-    coords_2_mapped = tf.gather_nd(population, coords_2)
-
-    if sigma_tf.shape != []:
-        coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
-        sigma_tf = tf.gather_nd(sigma_tf, coords_3)
-    if is_plus:
-        dirac_delta_tf = coords_1_mapped - coords_2_mapped
-        if is_balanced:
-            # Detail balance
-            # (n0) * (n1) * (n2 + 2) - (n0 + 1) * (n1 + 1) * (n2) = 0
-            dirac_delta_tf = 0.5 * (coords_1_mapped + 1) * (coords_2_mapped) / (population[index_k, mu])
-            dirac_delta_tf += 0.5 * (coords_1_mapped) * (coords_2_mapped + 1) / (1 + population[index_k, mu])
-    else:
-        dirac_delta_tf = 0.5 * (1 + coords_1_mapped + coords_2_mapped)
-        if is_balanced:
-            # Detail balance
-            # (n0) * (n1 + 1) * (n2 + 2) - (n0 + 1) * (n1) * (n2) = 0
-            dirac_delta_tf = 0.25 * (coords_1_mapped) * (coords_2_mapped) / (population[index_k, mu])
-            dirac_delta_tf += 0.25 * (coords_1_mapped + 1) * (coords_2_mapped + 1) / (1 + population[index_k, mu])
     omegas_difference_tf = (
         omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(omega, coords_2)
     )
 
-    dirac_delta_tf = dirac_delta_tf * broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+    if sigma_tf.shape != []:
+        coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
+        sigma_tf = tf.gather_nd(sigma_tf, coords_3)
+    dirac_delta_tf = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
     index_kp = index_kp_vec
     mup = mup_vec
