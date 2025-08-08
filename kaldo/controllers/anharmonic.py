@@ -343,7 +343,7 @@ def project_crystal_mu(
                 population_delta = 0.25 * population_1 * population_2 / population_0
                 population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
 
-        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * population_delta
+        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64)
         pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
 
         # Update ps_and_gamma
@@ -358,8 +358,8 @@ def project_crystal_mu(
             result = tf.math.bincount(nupp_vec, pot_times_dirac, n_k_points * n_modes)
             ps_and_gamma[2:] += result
 
-        ps_and_gamma[0] += tf.reduce_sum(dirac_delta) / n_k_points
-        ps_and_gamma[1] += tf.reduce_sum(pot_times_dirac)
+        ps_and_gamma[0] += tf.reduce_sum(dirac_delta * population_delta) / n_k_points
+        ps_and_gamma[1] += tf.reduce_sum(pot_times_dirac * population_delta)
 
     # Finalize ps_and_gamma
     ps_and_gamma[1:] /= omega.flatten()[nu_single]
