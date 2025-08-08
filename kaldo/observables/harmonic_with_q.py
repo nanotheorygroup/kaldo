@@ -312,7 +312,8 @@ class HarmonicWithQ(Observable):
         reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
         reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
         n_unit_cell = len(atoms)
-        distances = atoms.positions[:, None, :] - atoms.positions[None, :, :]
+        distances = -1 * atoms.get_all_distances(vector=True, mic=True)
+        # -1 in distance calc is to maintain our sign convention
 
         # Get Force constants
         fc_s = self.second.dynmat.numpy()
@@ -376,7 +377,8 @@ class HarmonicWithQ(Observable):
         reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
         reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
         n_unit_cell = len(atoms)
-        distances = atoms.get_all_distances(vector=True, mic=True)
+        distances = -1 * atoms.get_all_distances(vector=True, mic=True)
+        # -1 in distance calc is to maintain our sign convention
 
         # Get Force constants
         fc_s = self.second.dynmat.numpy()
