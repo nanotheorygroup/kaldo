@@ -211,7 +211,6 @@ def project_crystal(phonons):
             phonons.n_modes,
             n_replicas,
             is_sparse,
-            is_gamma_tensor_enabled,
             phonons.third_bandwidth,
             hbar,
             velocity_tf,
@@ -226,26 +225,26 @@ def project_crystal(phonons):
             cell_inv,
         )
 
+        # skip non-physical or forbidden
+        if sparse_potential is None or (sparse_potential[0] is None and sparse_potential[1] is None):
+            continue
+
         ps_and_gamma[nu_single] = np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
         for is_plus in (0, 1):
-            if sparse_potential is None or sparse_potential[is_plus] is None:
+            if sparse_potential[is_plus] is None:
                 continue
 
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(
                 sparse_phase[is_plus].values * sparse_population[is_plus].values
             ) / n_k_points
 
-            ps_and_gamma[nu_single, 1] += tf.reduce_sum(
-                sparse_potential[is_plus].values * sparse_population[is_plus].values
-            )
+            contrib = sparse_potential[is_plus].values * sparse_population[is_plus].values
+            ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
 
             if is_gamma_tensor_enabled:
                 indices = sparse_potential[is_plus].indices
-                values = sparse_potential[is_plus].values * sparse_population[is_plus].values
-
-                result_nup = tf.math.bincount(indices[:, 0], values, n_k_points * n_modes)
-                result_nupp = tf.math.bincount(indices[:, 1], values, n_k_points * n_modes)
-
+                result_nup = tf.math.bincount(indices[:, 0], contrib, n_k_points * n_modes)
+                result_nupp = tf.math.bincount(indices[:, 1], contrib, n_k_points * n_modes)
                 if is_plus:
                     ps_and_gamma[nu_single, 2:] -= result_nup
                 else:
@@ -267,7 +266,6 @@ def project_crystal_mu(
     n_modes,
     n_replicas,
     is_sparse,
-    is_gamma_tensor_enabled,
     third_bandwidth,
     hbar,
     velocity_tf,
@@ -292,7 +290,7 @@ def project_crystal_mu(
     """
 
     if not physical_mode[index_k, mu]:
-        return [None, None, None]
+        return None, None, None
 
     # Calculate third_nu_tf
     if is_sparse:
@@ -385,11 +383,14 @@ def project_crystal_mu(
                 population_delta = 0.25 * population_1 * population_2 / population_0
                 population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
 
-        sparse_population.append(tf.sparse.SparseTensor(
-            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-            population_delta,
-            (n_k_points * n_modes, n_k_points * n_modes),
-        ))
+        sparse_population.append(
+            tf.sparse.SparseTensor(
+                tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+                population_delta,
+                (n_k_points * n_modes, n_k_points * n_modes),
+            )
+        )
+
     return sparse_potential, sparse_phase, sparse_population
 
 
