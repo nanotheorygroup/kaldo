@@ -269,8 +269,6 @@ def project_crystal_mu(
     if not physical_mode[index_k, mu]:
         return np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
 
-    ps_and_gamma = np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
-
     # Calculate third_nu_tf
     if is_sparse:
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
@@ -281,7 +279,9 @@ def project_crystal_mu(
     third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_replicas, n_modes, n_replicas, n_modes)), dtype=tf.complex128)
     third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
     third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
-
+    sparse_population = []
+    sparse_potential = []
+    sparse_phase = []
     for is_plus in (0, 1):
         index_kpp_full = index_kpp_full_plus if is_plus else index_kpp_full_minus
         index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
@@ -304,9 +304,12 @@ def project_crystal_mu(
         )
 
         if not dirac_delta_result:
+            sparse_potential.append(None)
+            sparse_population.append(None)
+            sparse_phase.append(None)
             continue
 
-        dirac_delta, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = dirac_delta_result
+        phase_space, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = dirac_delta_result
 
         second, second_chi = (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
         third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))
@@ -320,10 +323,24 @@ def project_crystal_mu(
         scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
         scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
 
-        pot_times_dirac = tf.abs(scaled_potential) ** 2 * dirac_delta
+        pot_times_dirac = tf.abs(scaled_potential) ** 2 * phase_space
         # TODO: do not use manual indexing here
         nup_vec = index_kp_vec * omega.shape[1] + mup_vec
         nupp_vec = index_kpp_vec * omega.shape[1] + mupp_vec
+
+        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar / 4 * GAMMA_TO_THZ / omega.flatten()[nu_single] / n_k_points
+        pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
+
+        sparse_potential.append(tf.sparse.SparseTensor(
+            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+            pot_times_dirac,
+            (n_k_points * n_modes, n_k_points * n_modes),
+        ))
+        sparse_phase.append(tf.sparse.SparseTensor(
+            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+            phase_space,
+            (n_k_points * n_modes, n_k_points * n_modes),
+        ))
 
         population_1 = population[index_kp_vec, mup_vec]
         population_2 = population[index_kpp_vec, mupp_vec]
@@ -343,29 +360,31 @@ def project_crystal_mu(
                 population_delta = 0.25 * population_1 * population_2 / population_0
                 population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
 
-        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * population_delta
-        pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
+        sparse_population.append(tf.sparse.SparseTensor(
+            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+            population_delta,
+            (n_k_points * n_modes, n_k_points * n_modes),
+        ))
+    ps_and_gamma = np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
+    for is_plus in [0, 1]:
+        if sparse_potential[is_plus] is None:
+            continue
+        ps_and_gamma[0] += tf.reduce_sum(sparse_phase[is_plus].values * sparse_population[is_plus].values) / n_k_points
+        ps_and_gamma[1] += tf.reduce_sum(
+            sparse_potential[is_plus].values * sparse_population[is_plus].values
+        )
 
-        # Update ps_and_gamma
         if is_gamma_tensor_enabled:
-            nup_vec = index_kp_vec * n_modes + mup_vec
-            nupp_vec = index_kpp_vec * n_modes + mupp_vec
-            result = tf.math.bincount(nup_vec, pot_times_dirac, n_k_points * n_modes)
-            if is_plus:
+            indices = sparse_potential[is_plus].indices  # (nnz, 2) → [nup, nupp]
+            values = sparse_potential[is_plus].values * sparse_population[is_plus].values
+
+            # 1. contribution that sits on nup
+            result = tf.math.bincount(indices[:, 0], values, n_k_points * n_modes)
+            if is_plus:  # + processes are subtracted
                 ps_and_gamma[2:] -= result
             else:
                 ps_and_gamma[2:] += result
-            result = tf.math.bincount(nupp_vec, pot_times_dirac, n_k_points * n_modes)
-            ps_and_gamma[2:] += result
-
-        ps_and_gamma[0] += tf.reduce_sum(dirac_delta * population_delta)
-        ps_and_gamma[1] += tf.reduce_sum(pot_times_dirac)
-
-    # Finalize ps_and_gamma
-    ps_and_gamma[0] /= n_k_points
-    ps_and_gamma[1:] /= omega.flatten()[nu_single]
-    ps_and_gamma[1:] *= np.pi * hbar / 4 / n_k_points * GAMMA_TO_THZ
-
+            ps_and_gamma[2:] += tf.math.bincount(indices[:, 1], values, n_k_points * n_modes)
     return ps_and_gamma
 
 
