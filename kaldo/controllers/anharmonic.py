@@ -203,7 +203,7 @@ def project_crystal(phonons):
             index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
             index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
 
-            sparse_potential, sparse_phase, sparse_population = project_crystal_mu(
+            results = project_crystal_mu(
                 is_plus,
                 omega,
                 population,
@@ -230,9 +230,9 @@ def project_crystal(phonons):
                 phonons.kpts,
                 cell_inv,
             )
-
-            if sparse_potential is None:
+            if not results:
                 continue
+            sparse_potential, sparse_phase, sparse_population = results
 
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(
                 sparse_phase.values * sparse_population.values
@@ -309,7 +309,7 @@ def project_crystal_mu(
     else:
         sigma_tf = calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
 
-    dirac_delta_result = calculate_dirac_delta_crystal(
+    sparse_phase = calculate_dirac_delta_crystal(
         omega,
         physical_mode,
         sigma_tf,
@@ -318,12 +318,17 @@ def project_crystal_mu(
         index_k,
         mu,
         is_plus,
+        n_k_points,
+        n_modes
     )
 
-    if not dirac_delta_result:
-        return None, None, None
+    if not sparse_phase:
+        return None
 
-    phase_space, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = dirac_delta_result
+
+    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase.indices, axis=1)
+    nup_vec = np.ravel_multi_index((index_kp_vec,  mup_vec),  (n_k_points,  n_modes))
+    nupp_vec = np.ravel_multi_index((index_kpp_vec,  mupp_vec),  (n_k_points,  n_modes))
 
     second, second_chi = (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
     third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))
@@ -337,10 +342,7 @@ def project_crystal_mu(
     scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
     scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
 
-    pot_times_dirac = tf.abs(scaled_potential) ** 2 * phase_space
-    # TODO: do not use manual indexing here
-    nup_vec = index_kp_vec * omega.shape[1] + mup_vec
-    nupp_vec = index_kpp_vec * omega.shape[1] + mupp_vec
+    pot_times_dirac = tf.abs(scaled_potential) ** 2 * sparse_phase.values
 
     pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar / 4 * GAMMA_TO_THZ / omega.flatten()[nu_single] / n_k_points
     pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
@@ -350,11 +352,21 @@ def project_crystal_mu(
         pot_times_dirac,
         (n_k_points * n_modes, n_k_points * n_modes),
     )
-    sparse_phase = tf.sparse.SparseTensor(
-        tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-        phase_space,
-        (n_k_points * n_modes, n_k_points * n_modes),
+    sparse_population = sparse_population_mu(
+        mu,
+        index_k,
+        sparse_phase,
+        population,
+        n_k_points,
+        n_modes,
+        is_plus,
+        is_balanced
     )
+    return sparse_potential, sparse_phase, sparse_population
+
+def sparse_population_mu(mu, index_k, sparse_phase, population, n_k_points, n_modes, is_plus, is_balanced):
+
+    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase.indices, axis=1)
 
     population_1 = population[index_kp_vec, mup_vec]
     population_2 = population[index_kpp_vec, mupp_vec]
@@ -374,14 +386,15 @@ def project_crystal_mu(
             population_delta = 0.25 * population_1 * population_2 / population_0
             population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
 
+    # TODO: avoid unnecessary ravel_multi_index calls
+    nup_vec = np.ravel_multi_index((index_kp_vec,  mup_vec),  (n_k_points,  n_modes))
+    nupp_vec = np.ravel_multi_index((index_kpp_vec,  mupp_vec),  (n_k_points,  n_modes))
     sparse_population = tf.sparse.SparseTensor(
             tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
             population_delta,
             (n_k_points * n_modes, n_k_points * n_modes),
         )
-
-
-    return sparse_potential, sparse_phase, sparse_population
+    return sparse_population
 
 
 def calculate_dirac_delta_crystal(
@@ -393,7 +406,9 @@ def calculate_dirac_delta_crystal(
     index_k,
     mu,
     is_plus,
-    default_delta_threshold=2,
+    n_k_points,
+    n_modes,
+    default_delta_threshold=2
 ):
     """
     Calculate the Dirac delta function for crystalline materials.
@@ -445,13 +460,15 @@ def calculate_dirac_delta_crystal(
         coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
         sigma_tf = tf.gather_nd(sigma_tf, coords_3)
     dirac_delta_tf = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+    sparse_phase = tf.sparse.SparseTensor(tf.stack([
+        tf.cast(index_kp_vec, tf.int64),
+        tf.cast(mup_vec, tf.int64),
+        tf.cast(index_kpp_vec, tf.int64),
+        tf.cast(mupp_vec, tf.int64),
+    ], axis=-1), dirac_delta_tf,
+        [n_k_points, n_modes, n_k_points, n_modes])
 
-    index_kp = index_kp_vec
-    mup = mup_vec
-    index_kpp = index_kpp_vec
-    mupp = mupp_vec
-
-    return tf.cast(dirac_delta_tf, dtype=tf.float64), index_kp, mup, index_kpp, mupp
+    return sparse_phase
 
 
 def calculate_dirac_delta_amorphous(
