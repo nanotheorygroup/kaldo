@@ -139,8 +139,7 @@ def project_amorphous_mu(
 
 @timeit
 def project_crystal(phonons):
-    is_balanced = phonons.is_balanced
-    is_gamma_tensor_enabled = phonons.is_gamma_tensor_enabled
+
     n_replicas = phonons.forceconstants.third.n_replicas
 
     try:
@@ -163,12 +162,6 @@ def project_crystal(phonons):
     evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
     evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
 
-    if is_gamma_tensor_enabled:
-        shape = (phonons.n_phonons, 2 + phonons.n_phonons)
-        log_size(shape, name="scattering_tensor")
-        ps_and_gamma = np.zeros((phonons.n_phonons, 2 + phonons.n_phonons))
-    else:
-        ps_and_gamma = np.zeros((phonons.n_phonons, 2))
 
     second_minus = tf.math.conj(evect_tf)
     second_minus_chi = tf.math.conj(_chi_k)
@@ -184,11 +177,12 @@ def project_crystal(phonons):
 
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
     n_modes = phonons.n_modes
+    n_phonons = phonons.n_phonons
 
     sparse_phase = []
     sparse_potential = []
 
-    for nu_single in range(phonons.n_phonons):
+    for nu_single in range(n_phonons):
         if nu_single % 200 == 0:
             logging.info(f"calculating third {nu_single}: {100 * nu_single / phonons.n_phonons:.2f}%")
 
@@ -250,9 +244,27 @@ def project_crystal(phonons):
                     hbar,
                 )
             )
+    return calculate_ps_and_gamma(
+        sparse_phase,
+        sparse_potential,
+        population,
+        phonons.is_balanced,
+        n_k_points,
+        n_modes,
+        n_phonons,
+        phonons.is_gamma_tensor_enabled
+    )
 
-    for nu_single in range(phonons.n_phonons):
-        index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_k_points, n_modes, n_phonons, is_gamma_tensor_enabled):
+    if is_gamma_tensor_enabled:
+        shape = (n_phonons, 2 + n_phonons)
+        log_size(shape, name="scattering_tensor")
+        ps_and_gamma = np.zeros((n_phonons, 2 + n_phonons))
+    else:
+        ps_and_gamma = np.zeros((n_phonons, 2))
+
+    for nu_single in range(n_phonons):
+        index_k, mu = np.unravel_index(nu_single, (n_k_points, n_modes))
         for is_plus in (0, 1):
             if sparse_phase[nu_single][is_plus] is None:
                 continue
@@ -285,8 +297,8 @@ def project_crystal(phonons):
                 else:
                     ps_and_gamma[nu_single, 2:] += result_nup
                 ps_and_gamma[nu_single, 2:] += result_nupp
-
     return ps_and_gamma
+
 def sparse_potential_mu(
     nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
     index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf, n_replicas, omega, hbar
