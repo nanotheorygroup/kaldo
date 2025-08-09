@@ -232,17 +232,30 @@ def project_crystal(phonons):
             )
             if not results:
                 continue
-            sparse_potential, sparse_phase, sparse_population = results
+            sparse_potential, sparse_phase = results
+            sparse_population = sparse_population_mu(
+                mu,
+                index_k,
+                sparse_phase.indices,
+                population,
+                n_k_points,
+                n_modes,
+                is_plus,
+                is_balanced
+            )
 
+            indices = tf.sparse.reshape(
+                                            sparse_phase,
+                                            tf.cast([n_k_points * n_modes, n_k_points * n_modes], tf.int64)
+                                        ).indices
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(
-                sparse_phase.values * sparse_population.values
+                sparse_phase.values * sparse_population
             ) / n_k_points
 
-            contrib = sparse_potential.values * sparse_population.values
+            contrib = sparse_potential * sparse_population
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
 
             if is_gamma_tensor_enabled:
-                indices = sparse_potential.indices
                 result_nup = tf.math.bincount(indices[:, 0], contrib, n_k_points * n_modes)
                 result_nupp = tf.math.bincount(indices[:, 1], contrib, n_k_points * n_modes)
                 if is_plus:
@@ -290,16 +303,6 @@ def project_crystal_mu(
         np.ndarray: Projected properties for the single mode
     """
 
-    # Calculate third_nu_tf
-    if is_sparse:
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
-    else:
-        third_nu_tf = contract("ijk,i->jk", third_tf, evect_tf[index_k, :, mu], backend="tensorflow")
-        third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
-
-    third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_replicas, n_modes, n_replicas, n_modes)), dtype=tf.complex128)
-    third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
-    third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
     index_kpp_full = index_kpp_full_plus if is_plus else index_kpp_full_minus
     index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
 
@@ -325,6 +328,31 @@ def project_crystal_mu(
     if not sparse_phase:
         return None
 
+    sparse_potential = sparse_potential_mu(
+        nu_single,
+        evect_tf,
+        sparse_phase,
+        index_k,
+        mu,
+        n_k_points,
+        n_modes,
+        is_plus,
+        is_sparse,
+        index_kpp_full,
+        _chi_k,
+        second_minus,
+        second_minus_chi,
+        third_tf,
+        n_replicas,
+        omega,
+        hbar
+    )
+
+    return sparse_potential, sparse_phase
+
+
+def sparse_potential_mu(nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
+                        index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf, n_replicas, omega, hbar):
 
     index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase.indices, axis=1)
     nup_vec = np.ravel_multi_index((index_kp_vec,  mup_vec),  (n_k_points,  n_modes))
@@ -337,6 +365,17 @@ def project_crystal_mu(
     # Calculate pot_times_dirac
     chi_prod = tf.einsum("kt,kl->ktl", second_chi, third_chi)
     chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas**2))
+
+    # Calculate third_nu_tf
+    if is_sparse:
+        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
+    else:
+        third_nu_tf = contract("ijk,i->jk", third_tf, evect_tf[index_k, :, mu], backend="tensorflow")
+        third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
+
+    third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_replicas, n_modes, n_replicas, n_modes)), dtype=tf.complex128)
+    third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
+    third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
     scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
     scaled_potential = tf.einsum("kij,kim->kjm", scaled_potential, second)
     scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
@@ -347,26 +386,13 @@ def project_crystal_mu(
     pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar / 4 * GAMMA_TO_THZ / omega.flatten()[nu_single] / n_k_points
     pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
 
-    sparse_potential = tf.sparse.SparseTensor(
-        tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-        pot_times_dirac,
-        (n_k_points * n_modes, n_k_points * n_modes),
-    )
-    sparse_population = sparse_population_mu(
-        mu,
-        index_k,
-        sparse_phase,
-        population,
-        n_k_points,
-        n_modes,
-        is_plus,
-        is_balanced
-    )
-    return sparse_potential, sparse_phase, sparse_population
+    return pot_times_dirac
 
-def sparse_population_mu(mu, index_k, sparse_phase, population, n_k_points, n_modes, is_plus, is_balanced):
 
-    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase.indices, axis=1)
+def sparse_population_mu(mu, index_k, indices, population, n_k_points, n_modes, is_plus, is_balanced):
+    indices = tf.unstack(indices, axis=1)
+
+    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = indices
 
     population_1 = population[index_kp_vec, mup_vec]
     population_2 = population[index_kpp_vec, mupp_vec]
@@ -385,17 +411,7 @@ def sparse_population_mu(mu, index_k, sparse_phase, population, n_k_points, n_mo
             # (n0) * (n1 + 1) * (n2 + 1) - (n0 + 1) * (n1) * (n2) = 0
             population_delta = 0.25 * population_1 * population_2 / population_0
             population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
-
-    # TODO: avoid unnecessary ravel_multi_index calls
-    nup_vec = np.ravel_multi_index((index_kp_vec,  mup_vec),  (n_k_points,  n_modes))
-    nupp_vec = np.ravel_multi_index((index_kpp_vec,  mupp_vec),  (n_k_points,  n_modes))
-    sparse_population = tf.sparse.SparseTensor(
-            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-            population_delta,
-            (n_k_points * n_modes, n_k_points * n_modes),
-        )
-    return sparse_population
-
+    return population_delta
 
 def calculate_dirac_delta_crystal(
     omega,
