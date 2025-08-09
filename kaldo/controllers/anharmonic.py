@@ -190,59 +190,59 @@ def project_crystal(phonons):
 
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
     n_modes = phonons.n_modes
-    for nu_single in range(phonons.n_phonons):
-        if nu_single % 200 == 0:
-            logging.info(f"calculating third {nu_single}: {100 * nu_single / phonons.n_phonons:.2f}%")
+    # ps_and_gamma[nu_single] = np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
+    for is_plus in (0, 1):
 
-        index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
-        index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
-        index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
+        for nu_single in range(phonons.n_phonons):
+            if nu_single % 200 == 0:
+                logging.info(f"calculating third {nu_single}: {100 * nu_single / phonons.n_phonons:.2f}%")
 
-        sparse_potential, sparse_phase, sparse_population = project_crystal_mu(
-            omega,
-            population,
-            physical_mode,
-            broadening_shape,
-            nu_single,
-            is_balanced,
-            third_tf,
-            evect_tf,
-            n_k_points,
-            phonons.n_modes,
-            n_replicas,
-            is_sparse,
-            phonons.third_bandwidth,
-            hbar,
-            velocity_tf,
-            _chi_k,
-            index_kpp_full_plus,
-            index_kpp_full_minus,
-            second_minus,
-            second_minus_chi,
-            index_k,
-            mu,
-            phonons.kpts,
-            cell_inv,
-        )
+            index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+            if not physical_mode[index_k, mu]:
+                continue
+            index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
+            index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
 
-        # skip non-physical or forbidden
-        if sparse_potential is None or (sparse_potential[0] is None and sparse_potential[1] is None):
-            continue
+            sparse_potential, sparse_phase, sparse_population = project_crystal_mu(
+                is_plus,
+                omega,
+                population,
+                physical_mode,
+                broadening_shape,
+                nu_single,
+                is_balanced,
+                third_tf,
+                evect_tf,
+                n_k_points,
+                phonons.n_modes,
+                n_replicas,
+                is_sparse,
+                phonons.third_bandwidth,
+                hbar,
+                velocity_tf,
+                _chi_k,
+                index_kpp_full_plus,
+                index_kpp_full_minus,
+                second_minus,
+                second_minus_chi,
+                index_k,
+                mu,
+                phonons.kpts,
+                cell_inv,
+            )
 
-        ps_and_gamma[nu_single] = np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
-        for is_plus in (0, 1):
-            if sparse_potential[is_plus] is None:
+            if sparse_potential is None:
                 continue
 
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(
-                sparse_phase[is_plus].values * sparse_population[is_plus].values
+                sparse_phase.values * sparse_population.values
             ) / n_k_points
 
-            contrib = sparse_potential[is_plus].values * sparse_population[is_plus].values
+            contrib = sparse_potential.values * sparse_population.values
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
 
             if is_gamma_tensor_enabled:
-                indices = sparse_potential[is_plus].indices
+                indices = sparse_potential.indices
                 result_nup = tf.math.bincount(indices[:, 0], contrib, n_k_points * n_modes)
                 result_nupp = tf.math.bincount(indices[:, 1], contrib, n_k_points * n_modes)
                 if is_plus:
@@ -254,6 +254,7 @@ def project_crystal(phonons):
 
 
 def project_crystal_mu(
+    is_plus,
     omega,
     population,
     physical_mode,
@@ -289,9 +290,6 @@ def project_crystal_mu(
         np.ndarray: Projected properties for the single mode
     """
 
-    if not physical_mode[index_k, mu]:
-        return None, None, None
-
     # Calculate third_nu_tf
     if is_sparse:
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
@@ -302,94 +300,86 @@ def project_crystal_mu(
     third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_replicas, n_modes, n_replicas, n_modes)), dtype=tf.complex128)
     third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
     third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
-    sparse_population = []
-    sparse_potential = []
-    sparse_phase = []
-    for is_plus in (0, 1):
-        index_kpp_full = index_kpp_full_plus if is_plus else index_kpp_full_minus
-        index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
+    index_kpp_full = index_kpp_full_plus if is_plus else index_kpp_full_minus
+    index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
 
-        # Calculate sigma
-        if third_bandwidth:
-            sigma_tf = tf.constant(third_bandwidth, dtype=tf.float64)
-        else:
-            sigma_tf = calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+    # Calculate sigma
+    if third_bandwidth:
+        sigma_tf = tf.constant(third_bandwidth, dtype=tf.float64)
+    else:
+        sigma_tf = calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
 
-        dirac_delta_result = calculate_dirac_delta_crystal(
-            omega,
-            physical_mode,
-            sigma_tf,
-            broadening_shape,
-            index_kpp_full,
-            index_k,
-            mu,
-            is_plus,
+    dirac_delta_result = calculate_dirac_delta_crystal(
+        omega,
+        physical_mode,
+        sigma_tf,
+        broadening_shape,
+        index_kpp_full,
+        index_k,
+        mu,
+        is_plus,
+    )
+
+    if not dirac_delta_result:
+        return None, None, None
+
+    phase_space, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = dirac_delta_result
+
+    second, second_chi = (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
+    third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))
+    third_chi = tf.math.conj(tf.gather(_chi_k, index_kpp_full))
+
+    # Calculate pot_times_dirac
+    chi_prod = tf.einsum("kt,kl->ktl", second_chi, third_chi)
+    chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas**2))
+    scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
+    scaled_potential = tf.einsum("kij,kim->kjm", scaled_potential, second)
+    scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
+    scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
+
+    pot_times_dirac = tf.abs(scaled_potential) ** 2 * phase_space
+    # TODO: do not use manual indexing here
+    nup_vec = index_kp_vec * omega.shape[1] + mup_vec
+    nupp_vec = index_kpp_vec * omega.shape[1] + mupp_vec
+
+    pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar / 4 * GAMMA_TO_THZ / omega.flatten()[nu_single] / n_k_points
+    pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
+
+    sparse_potential = tf.sparse.SparseTensor(
+        tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+        pot_times_dirac,
+        (n_k_points * n_modes, n_k_points * n_modes),
+    )
+    sparse_phase = tf.sparse.SparseTensor(
+        tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+        phase_space,
+        (n_k_points * n_modes, n_k_points * n_modes),
+    )
+
+    population_1 = population[index_kp_vec, mup_vec]
+    population_2 = population[index_kpp_vec, mupp_vec]
+    population_0 = population[index_k, mu]
+    if is_plus:
+        population_delta = population_1 - population_2
+        if is_balanced:
+            # Detail balance
+            # (n0) * (n1) * (n2 + 1) - (n0 + 1) * (n1 + 1) * (n2) = 0
+            population_delta = 0.5 * (population_1 + 1) * population_2 / population_0
+            population_delta += 0.5 * population_1 * (population_2 + 1) / (1 + population_0)
+    else:
+        population_delta = 0.5 * (1 + population_1 + population_2)
+        if is_balanced:
+            # Detail balance
+            # (n0) * (n1 + 1) * (n2 + 1) - (n0 + 1) * (n1) * (n2) = 0
+            population_delta = 0.25 * population_1 * population_2 / population_0
+            population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
+
+    sparse_population = tf.sparse.SparseTensor(
+            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
+            population_delta,
+            (n_k_points * n_modes, n_k_points * n_modes),
         )
 
-        if not dirac_delta_result:
-            sparse_potential.append(None)
-            sparse_population.append(None)
-            sparse_phase.append(None)
-            continue
-
-        phase_space, index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = dirac_delta_result
-
-        second, second_chi = (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
-        third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))
-        third_chi = tf.math.conj(tf.gather(_chi_k, index_kpp_full))
-
-        # Calculate pot_times_dirac
-        chi_prod = tf.einsum("kt,kl->ktl", second_chi, third_chi)
-        chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas**2))
-        scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
-        scaled_potential = tf.einsum("kij,kim->kjm", scaled_potential, second)
-        scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
-        scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
-
-        pot_times_dirac = tf.abs(scaled_potential) ** 2 * phase_space
-        # TODO: do not use manual indexing here
-        nup_vec = index_kp_vec * omega.shape[1] + mup_vec
-        nupp_vec = index_kpp_vec * omega.shape[1] + mupp_vec
-
-        pot_times_dirac = tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar / 4 * GAMMA_TO_THZ / omega.flatten()[nu_single] / n_k_points
-        pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
-
-        sparse_potential.append(tf.sparse.SparseTensor(
-            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-            pot_times_dirac,
-            (n_k_points * n_modes, n_k_points * n_modes),
-        ))
-        sparse_phase.append(tf.sparse.SparseTensor(
-            tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-            phase_space,
-            (n_k_points * n_modes, n_k_points * n_modes),
-        ))
-
-        population_1 = population[index_kp_vec, mup_vec]
-        population_2 = population[index_kpp_vec, mupp_vec]
-        population_0 = population[index_k, mu]
-        if is_plus:
-            population_delta = population_1 - population_2
-            if is_balanced:
-                # Detail balance
-                # (n0) * (n1) * (n2 + 1) - (n0 + 1) * (n1 + 1) * (n2) = 0
-                population_delta = 0.5 * (population_1 + 1) * population_2 / population_0
-                population_delta += 0.5 * population_1 * (population_2 + 1) / (1 + population_0)
-        else:
-            population_delta = 0.5 * (1 + population_1 + population_2)
-            if is_balanced:
-                # Detail balance
-                # (n0) * (n1 + 1) * (n2 + 1) - (n0 + 1) * (n1) * (n2) = 0
-                population_delta = 0.25 * population_1 * population_2 / population_0
-                population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
-
-        sparse_population.append(
-            tf.sparse.SparseTensor(
-                tf.stack([tf.cast(nup_vec, dtype=tf.int64), tf.cast(nupp_vec, dtype=tf.int64)], axis=-1),
-                population_delta,
-                (n_k_points * n_modes, n_k_points * n_modes),
-            )
-        )
 
     return sparse_potential, sparse_phase, sparse_population
 
