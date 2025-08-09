@@ -190,6 +190,8 @@ def project_crystal(phonons):
 
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
     n_modes = phonons.n_modes
+    kpts = phonons.kpts
+
     # ps_and_gamma[nu_single] = np.zeros(2 + n_k_points * n_modes) if is_gamma_tensor_enabled else np.zeros(2)
     for is_plus in (0, 1):
 
@@ -203,36 +205,50 @@ def project_crystal(phonons):
             index_kpp_full_plus = phonons._allowed_third_phonons_index(index_k, True)
             index_kpp_full_minus = phonons._allowed_third_phonons_index(index_k, False)
 
-            results = project_crystal_mu(
-                is_plus,
+            index_kpp_full = index_kpp_full_plus if is_plus else index_kpp_full_minus
+            index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
+            # Calculate sigma
+            if phonons.third_bandwidth:
+                sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+            else:
+                sigma_tf = calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+
+            sparse_phase = calculate_dirac_delta_crystal(
                 omega,
-                population,
                 physical_mode,
+                sigma_tf,
                 broadening_shape,
-                nu_single,
-                is_balanced,
-                third_tf,
-                evect_tf,
-                n_k_points,
-                phonons.n_modes,
-                n_replicas,
-                is_sparse,
-                phonons.third_bandwidth,
-                hbar,
-                velocity_tf,
-                _chi_k,
-                index_kpp_full_plus,
-                index_kpp_full_minus,
-                second_minus,
-                second_minus_chi,
+                index_kpp_full,
                 index_k,
                 mu,
-                phonons.kpts,
-                cell_inv,
+                is_plus,
+                n_k_points,
+                n_modes
             )
-            if not results:
+
+            if not sparse_phase:
                 continue
-            sparse_potential, sparse_phase = results
+
+            sparse_potential = sparse_potential_mu(
+                nu_single,
+                evect_tf,
+                sparse_phase,
+                index_k,
+                mu,
+                n_k_points,
+                n_modes,
+                is_plus,
+                is_sparse,
+                index_kpp_full,
+                _chi_k,
+                second_minus,
+                second_minus_chi,
+                third_tf,
+                n_replicas,
+                omega,
+                hbar
+            )
+
             sparse_population = sparse_population_mu(
                 mu,
                 index_k,
@@ -264,91 +280,6 @@ def project_crystal(phonons):
                     ps_and_gamma[nu_single, 2:] += result_nup
                 ps_and_gamma[nu_single, 2:] += result_nupp
     return ps_and_gamma
-
-
-def project_crystal_mu(
-    is_plus,
-    omega,
-    population,
-    physical_mode,
-    broadening_shape,
-    nu_single,
-    is_balanced,
-    third_tf,
-    evect_tf,
-    n_k_points,
-    n_modes,
-    n_replicas,
-    is_sparse,
-    third_bandwidth,
-    hbar,
-    velocity_tf,
-    _chi_k,
-    index_kpp_full_plus,
-    index_kpp_full_minus,
-    second_minus,
-    second_minus_chi,
-    index_k,
-    mu,
-    kpts,
-    cell_inv,
-):
-    """
-    Project anharmonic properties for a single mode in crystalline materials.
-
-    Args:
-        (various): Parameters describing the phonon properties and material
-
-    Returns:
-        np.ndarray: Projected properties for the single mode
-    """
-
-    index_kpp_full = index_kpp_full_plus if is_plus else index_kpp_full_minus
-    index_kpp_full = tf.cast(index_kpp_full, dtype=tf.int32)
-
-    # Calculate sigma
-    if third_bandwidth:
-        sigma_tf = tf.constant(third_bandwidth, dtype=tf.float64)
-    else:
-        sigma_tf = calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
-
-    sparse_phase = calculate_dirac_delta_crystal(
-        omega,
-        physical_mode,
-        sigma_tf,
-        broadening_shape,
-        index_kpp_full,
-        index_k,
-        mu,
-        is_plus,
-        n_k_points,
-        n_modes
-    )
-
-    if not sparse_phase:
-        return None
-
-    sparse_potential = sparse_potential_mu(
-        nu_single,
-        evect_tf,
-        sparse_phase,
-        index_k,
-        mu,
-        n_k_points,
-        n_modes,
-        is_plus,
-        is_sparse,
-        index_kpp_full,
-        _chi_k,
-        second_minus,
-        second_minus_chi,
-        third_tf,
-        n_replicas,
-        omega,
-        hbar
-    )
-
-    return sparse_potential, sparse_phase
 
 
 def sparse_potential_mu(nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
