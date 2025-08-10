@@ -134,43 +134,62 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     # Optimized path for reading entire file (third_energy_threshold == 0)
     logging.info("Using optimized sparse import")
     
-    # Filter rows where first atom index is within n_atoms (in-place where possible)
-    valid_mask = lines[:, 0] - 1 < n_atoms
-    filtered_lines = lines[valid_mask]
+    # Stream process file without loading all into memory
+    coords_list = []
+    values_list = []
+    n_interactions = 0
     
-    # Pre-allocate arrays for all coordinates and values at once
-    n_filtered = filtered_lines.shape[0]
-    n_total_entries = n_filtered * 3
+    with open(filename, 'r') as f:
+        for line in f:
+            # Parse line without creating intermediate arrays
+            parts = line.strip().split()
+            if len(parts) < 8:
+                continue
+                
+            # Check if first atom index is valid (convert to 0-based)
+            atom1_idx = int(float(parts[0])) - 1
+            if atom1_idx >= n_atoms:
+                continue
+            
+            n_interactions += 1
+            
+            # Extract coordinates directly (convert to 0-based indexing)
+            base_coords = [
+                atom1_idx,                          # atom1
+                int(float(parts[1])) - 1,          # coord1  
+                int(float(parts[2])) - 1,          # atom2
+                int(float(parts[3])) - 1,          # coord2
+                int(float(parts[4])) - 1,          # atom3
+            ]
+            
+            # Extract and convert values
+            values = [float(parts[5]) * tenjovermoltoev,
+                     float(parts[6]) * tenjovermoltoev, 
+                     float(parts[7]) * tenjovermoltoev]
+            
+            # Generate coordinates for each alpha, skip zeros to reduce memory
+            for alpha in range(3):
+                if values[alpha] != 0.0:  # Skip zero values
+                    coords_list.append(base_coords + [alpha])
+                    values_list.append(values[alpha])
     
-    # Pre-allocate coordinate and value arrays for all alpha values
-    all_coords = np.empty((6, n_total_entries), dtype=np.int32)
-    all_values = np.empty(n_total_entries, dtype=filtered_lines.dtype)
-    
-    # Extract base coordinates once (convert to 0-based indexing)
-    base_coords = filtered_lines[:, :-3] - 1  # Shape: (n_filtered, 5)
-    values_data = filtered_lines[:, -3:] * tenjovermoltoev  # Apply conversion once
-    
-    # Vectorized coordinate and value assignment
-    for alpha in range(3):
-        start_idx = alpha * n_filtered
-        end_idx = start_idx + n_filtered
+    # Convert to arrays only once at the end
+    if coords_list:
+        all_coords = np.array(coords_list, dtype=np.int32).T  # Transpose for COO format
+        all_values = np.array(values_list, dtype=np.float64)
         
-        # Assign coordinates (reuse base coordinates, only alpha changes)
-        all_coords[0, start_idx:end_idx] = base_coords[:, 0]  # atom1
-        all_coords[1, start_idx:end_idx] = base_coords[:, 1]  # coord1  
-        all_coords[2, start_idx:end_idx] = base_coords[:, 2]  # atom2
-        all_coords[3, start_idx:end_idx] = base_coords[:, 3]  # coord2
-        all_coords[4, start_idx:end_idx] = base_coords[:, 4]  # atom3
-        all_coords[5, start_idx:end_idx] = alpha              # coord3 (alpha)
+        sparse_third = COO(all_coords, all_values, 
+                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
         
-        # Assign values
-        all_values[start_idx:end_idx] = values_data[:, alpha]
+        logging.info(f"Read {n_interactions} interactions with {len(values_list)} non-zero entries")
+    else:
+        # Handle empty case
+        empty_coords = np.empty((6, 0), dtype=np.int32)
+        empty_values = np.empty(0, dtype=np.float64)
+        sparse_third = COO(empty_coords, empty_values,
+                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        logging.info("No valid interactions found")
     
-    # Create single sparse tensor directly
-    sparse_third = COO(all_coords, all_values, 
-                      shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-    
-    logging.info(f"Read {n_filtered} interactions with {n_total_entries} total entries")
     return sparse_third
 
 
