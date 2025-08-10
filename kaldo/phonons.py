@@ -6,7 +6,7 @@ Anharmonic Lattice Dynamics
 from kaldo.helpers.storage import is_calculated
 from kaldo.helpers.storage import lazy_property
 from kaldo.helpers.logger import log_size
-from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
+from kaldo.helpers.storage import FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
@@ -124,6 +124,26 @@ class Phonons:
     -------
     Phonons Object
     """
+    
+    # Define storage formats for phonon properties
+    # This encapsulates the storage strategy within the class
+    _store_formats = {
+        'physical_mode': 'formatted',
+        'frequency': 'formatted',
+        'participation_ratio': 'formatted',
+        'velocity': 'formatted',
+        'heat_capacity': 'formatted',
+        'population': 'formatted',
+        'bandwidth': 'formatted',
+        'phase_space': 'formatted',
+        'diffusivity': 'numpy',
+        'flux': 'numpy',
+        '_dynmat_derivatives': 'numpy',
+        '_eigensystem': 'numpy',
+        '_ps_and_gamma': 'numpy',
+        '_ps_gamma_and_gamma_tensor': 'numpy',
+        '_generalized_diffusivity': 'numpy'
+    }
     def __init__(self,
                  forceconstants: ForceConstants,
                  temperature: float | None = None,
@@ -552,7 +572,7 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
-        store_format = DEFAULT_STORE_FORMATS['_ps_gamma_and_gamma_tensor'] \
+        store_format = self._store_formats.get('_ps_gamma_and_gamma_tensor', 'numpy') \
             if self.storage == 'formatted' else self.storage
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
                          format=store_format):
