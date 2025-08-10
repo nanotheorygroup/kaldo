@@ -318,3 +318,133 @@ def test_is_calculated_property_not_available(monkeypatch):
     monkeypatch.setattr('kaldo.helpers.storage.load', mock_load)
     result = is_calculated('test_property', instance)
     assert result == False
+
+
+def test_lazy_property_storage_integration(monkeypatch, tmp_path):
+    """Test lazy_property with storage integration similar to example usage"""
+    import tempfile
+    import os
+    
+    # Create a mock class similar to Phonons that uses storage
+    class MockPhonons:
+        def __init__(self, storage, kpts, temperature, folder):
+            self.storage = storage
+            self.kpts = kpts
+            self.temperature = temperature
+            self.folder = folder
+            self.is_classic = False
+            self.n_atoms = 2
+            self.n_modes = 6
+            self.n_k_points = np.prod(kpts)
+            self.n_phonons = self.n_k_points * self.n_modes
+        
+        @lazy_property(label='<temperature>/<statistics>')
+        def frequency(self):
+            """Mock frequency calculation - returns simple test data"""
+            return np.random.rand(self.n_k_points, self.n_modes) * 10
+        
+        @lazy_property(label='')
+        def heat_capacity(self):
+            """Mock heat capacity calculation - returns simple test data"""
+            return np.random.rand(self.n_k_points, self.n_modes) * 1e-20
+    
+    # Test with different storage options
+    test_folder = str(tmp_path)
+    kpts = [2, 2, 2]
+    temperature = 300
+    
+    # Add frequency and heat_capacity to DEFAULT_STORE_FORMATS for testing
+    original_formats = DEFAULT_STORE_FORMATS.copy()
+    DEFAULT_STORE_FORMATS['frequency'] = 'formatted'
+    DEFAULT_STORE_FORMATS['heat_capacity'] = 'formatted'
+    
+    try:
+        # Test 1: Memory storage - should compute and store in memory
+        phonons_memory = MockPhonons('memory', kpts, temperature, test_folder)
+        freq_memory = phonons_memory.frequency
+        assert freq_memory.shape == (8, 6)  # 2*2*2 k-points, 6 modes
+        
+        # Access again - should return from memory
+        freq_memory_2 = phonons_memory.frequency
+        np.testing.assert_array_equal(freq_memory, freq_memory_2)
+        
+        # Test 2: Formatted storage - should save to and load from files
+        phonons_formatted = MockPhonons('formatted', kpts, temperature, test_folder)
+        
+        # Mock the save and load functions to test file I/O
+        saved_data = {}
+        loaded_data = {}
+        
+        def mock_save(property, folder, data, format):
+            saved_data[f"{folder}/{property}"] = data
+            
+        def mock_load(property, folder, instance, format):
+            key = f"{folder}/{property}"
+            if key in loaded_data:
+                return loaded_data[key]
+            else:
+                # First time - not found, will trigger calculation and save
+                raise FileNotFoundError
+                
+        monkeypatch.setattr('kaldo.helpers.storage.save', mock_save)
+        monkeypatch.setattr('kaldo.helpers.storage.load', mock_load)
+        
+        # First access - should calculate and save
+        freq_formatted = phonons_formatted.frequency
+        expected_folder = f"{test_folder}/2_2_2/300/quantum"
+        assert f"{expected_folder}/frequency" in saved_data
+        
+        # Store the saved data for loading
+        loaded_data[f"{expected_folder}/frequency"] = saved_data[f"{expected_folder}/frequency"]
+        
+        # Create new instance to test loading
+        phonons_formatted_2 = MockPhonons('formatted', kpts, temperature, test_folder)
+        freq_loaded = phonons_formatted_2.frequency
+        np.testing.assert_array_equal(freq_formatted, freq_loaded)
+        
+        # Test 3: Heat capacity with simple label
+        hc_formatted = phonons_formatted.heat_capacity
+        expected_folder_simple = f"{test_folder}/2_2_2"
+        assert f"{expected_folder_simple}/heat_capacity" in saved_data
+        
+        # Test 4: Numpy storage
+        phonons_numpy = MockPhonons('numpy', kpts, temperature, test_folder)
+        
+        def mock_save_numpy(property, folder, data, format):
+            if format == 'numpy':
+                saved_data[f"{folder}/{property}.npy"] = data
+                
+        def mock_load_numpy(property, folder, instance, format):
+            if format == 'numpy':
+                key = f"{folder}/{property}.npy"
+                if key in loaded_data:
+                    return loaded_data[key]
+                else:
+                    raise FileNotFoundError
+            else:
+                raise FileNotFoundError
+                
+        monkeypatch.setattr('kaldo.helpers.storage.save', mock_save_numpy)
+        monkeypatch.setattr('kaldo.helpers.storage.load', mock_load_numpy)
+        
+        freq_numpy = phonons_numpy.frequency
+        expected_folder_numpy = f"{test_folder}/2_2_2"  # Uses default format for frequency
+        # Since frequency uses 'formatted' by default, it won't use numpy storage
+        # Let's test with a property that defaults to numpy
+        DEFAULT_STORE_FORMATS['test_numpy_prop'] = 'numpy'
+        
+        @lazy_property()
+        def test_numpy_prop(self):
+            return np.array([1, 2, 3, 4])
+        
+        # Monkey patch the method
+        MockPhonons.test_numpy_prop = test_numpy_prop
+        
+        # Test numpy storage
+        numpy_prop = phonons_numpy.test_numpy_prop
+        assert f"{expected_folder_numpy}/test_numpy_prop.npy" in saved_data
+        
+    finally:
+        # Restore original DEFAULT_STORE_FORMATS
+        DEFAULT_STORE_FORMATS.clear()
+        DEFAULT_STORE_FORMATS.update(original_formats)
