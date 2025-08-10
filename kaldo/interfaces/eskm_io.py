@@ -145,38 +145,38 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     # Create coordinates for all three alpha values at once
     n_filtered = coords_data.shape[0]
     
-    # Vectorized coordinate creation for all three sparse tensors
-    coords_base = np.repeat(coords_data, 3, axis=0)  # Repeat each row 3 times
-    alpha_indices = np.tile(np.arange(3), n_filtered)  # [0,1,2,0,1,2,...]
+    # Input format appears to be: [atom1, coord1, atom2, coord2, atom3, value1, value2, value3]
+    # So coords_data has shape (n_filtered, 5) with [atom1, coord1, atom2, coord2, atom3]
+    # We need to map to 6D tensor: (n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
     
-    # Complete coordinates: [atom1, coord1, atom2, coord2, atom3, coord3, alpha]
-    coords_full = np.column_stack([coords_base, alpha_indices])
+    coord_arrays = []
+    value_arrays = []
     
-    # Flatten values corresponding to alpha indices  
-    values_full = values_data.flatten()  # Flatten in row-major order: [val0_0, val0_1, val0_2, val1_0, ...]
+    for alpha in range(3):
+        # The alpha index is actually the third coordinate (coord3) in the 6D tensor
+        # So we need: [atom1, coord1, atom2, coord2, atom3, alpha]
+        alpha_coords = np.column_stack([
+            coords_data[:, 0],  # atom1 index
+            coords_data[:, 1],  # coord1 index  
+            coords_data[:, 2],  # atom2 index
+            coords_data[:, 3],  # coord2 index
+            coords_data[:, 4],  # atom3 index  
+            np.full(n_filtered, alpha)  # coord3 index (alpha value)
+        ]).astype(int)  # Ensure integer coordinates
+        
+        coord_arrays.append(alpha_coords.T)  # Transpose for COO format
+        value_arrays.append(values_data[:, alpha] * tenjovermoltoev)
     
-    # Apply unit conversion
-    values_full *= tenjovermoltoev
-    
-    # Create three separate sparse tensors for each value column, then sum
+    # Create three separate sparse tensors, one for each alpha value column
     sparse_tensors = []
     for alpha in range(3):
-        # Select entries for this alpha value
-        alpha_mask = alpha_indices == alpha
-        alpha_coords = coords_full[alpha_mask, :-1]  # Remove alpha column
-        alpha_values = values_full[alpha_mask]
-        
-        # Transpose coordinates for COO format
-        alpha_coords_t = alpha_coords.T
-        
-        # Create sparse tensor for this alpha
-        sparse_alpha = COO(alpha_coords_t, alpha_values, 
+        sparse_alpha = COO(coord_arrays[alpha], value_arrays[alpha], 
                           shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
         sparse_tensors.append(sparse_alpha)
     
     # Sum all three sparse tensors efficiently
     sparse_third = sparse_tensors[0] + sparse_tensors[1] + sparse_tensors[2]
-    logging.info(f"Read {len(filtered_lines)} interactions with {len(values_full)} total entries")
+    logging.info(f"Read {len(filtered_lines)} interactions with {len(filtered_lines) * 3} total entries")
     return sparse_third
 
 
