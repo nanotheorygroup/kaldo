@@ -162,6 +162,40 @@ class Conductivity(Storable):
         self.is_diffusivity_including_antiresonant = is_diffusivity_including_antiresonant
         self.diffusivity_shape = diffusivity_shape
 
+    def _get_folder_path_components(self, label):
+        """Get folder path components for Conductivity-specific attributes."""
+        components = []
+        
+        if '<diffusivity_bandwidth>' in label and self.diffusivity_bandwidth is not None:
+            components.append('db_' + str(np.mean(self.diffusivity_bandwidth)))
+            
+        if '<diffusivity_threshold>' in label and self.diffusivity_threshold is not None:
+            components.append('dt_' + str(self.diffusivity_threshold))
+            
+        if '<method>' in label:
+            components.append(str(self.method))
+            if (self.method == 'rta' or self.method == 'sc' or self.method == 'inverse') \
+                    and (self.length is not None):
+                if not (np.array(self.length) == np.array([None, None, None])).all() \
+                    and not (np.array(self.length) == np.array([0, 0, 0])).all():
+                    if '<length>' in label:
+                        length_str = 'l'
+                        for alpha in range(3):
+                            if self.length[alpha] is not None:
+                                length_str += '_' + str(self.length[alpha])
+                            else:
+                                length_str += '_0'
+                        components.append(length_str)
+                    if '<finite_length_method>' in label and self.finite_length_method is not None:
+                        components.append('fs' + str(self.finite_length_method))
+                        
+        # Delegate to parent class (Phonons) for common attributes
+        if hasattr(self, 'phonons'):
+            parent_components = self.phonons._get_folder_path_components(label)
+            components.extend(parent_components)
+            
+        return components
+
     def _load_formatted_property(self, property_name, name):
         """Override formatted loading for Conductivity-specific properties"""
         if property_name == 'mean_free_path':

@@ -144,7 +144,55 @@ class Storable:
         """
         Generate folder path from label template and instance attributes.
         """
-        return get_folder_from_label(self, label, base_folder)
+        if base_folder is None:
+            if hasattr(self, 'folder') and self.folder:
+                base_folder = self.folder
+            else:
+                base_folder = FOLDER_NAME
+        
+        # Add k-point or q-point structure
+        base_folder = self._add_grid_components(base_folder)
+        
+        # Add label-specific components
+        if label != '':
+            components = self._get_folder_path_components(label)
+            for component in components:
+                if component:  # Only add non-empty components
+                    base_folder += '/' + component
+        
+        return base_folder
+    
+    def _add_grid_components(self, base_folder):
+        """Add k-point grid or q-point components to folder path."""
+        try:
+            if hasattr(self, 'kpts') and np.prod(self.kpts) > 1:
+                kpts = self.kpts
+                base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+        except AttributeError:
+            try:
+                if hasattr(self, 'q_point'):
+                    q_point = self.q_point
+                    base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+            except AttributeError:
+                pass
+        return base_folder
+    
+    def _get_folder_path_components(self, label):
+        """
+        Get folder path components based on label template.
+        Override in subclasses to provide class-specific components.
+        
+        Parameters
+        ----------
+        label : str
+            Label template with placeholders like '<temperature>'
+            
+        Returns
+        -------
+        list of str
+            List of folder path components to append
+        """
+        return []
 
 
 
@@ -153,62 +201,6 @@ def parse_pair(txt):
 
 
 
-def get_folder_from_label(instance, label='', base_folder=None):
-    # TODO: move this into single observables
-    if base_folder is None:
-        if instance.folder:
-            base_folder = instance.folder
-        else:
-            base_folder = FOLDER_NAME
-    try:
-        if np.prod(instance.kpts) > 1:
-            kpts = instance.kpts
-            base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
-    except AttributeError:
-        try:
-            q_point = instance.q_point
-            base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
-        except AttributeError:
-            pass
-    if label != '':
-        if '<diffusivity_bandwidth>' in label:
-            if instance.diffusivity_bandwidth is not None:
-                base_folder += '/db_' + str(np.mean(instance.diffusivity_bandwidth))
-        if '<diffusivity_threshold>' in label:
-            if instance.diffusivity_threshold is not None:
-                base_folder += '/dt_' + str(instance.diffusivity_threshold)
-
-        if '<temperature>' in label:
-            base_folder += '/' + str(int(instance.temperature))
-        if '<statistics>' in label:
-            if instance.is_classic:
-                base_folder += '/classic'
-            else:
-                base_folder += '/quantum'
-        if '<third_bandwidth>' in label:
-            if instance.third_bandwidth is not None:
-                base_folder += '/tb_' + str(np.mean(instance.third_bandwidth))
-        if '<include_isotopes>' in label:
-            if instance.include_isotopes:
-                base_folder +='/isotopes'
-
-        if '<method>' in label:
-            base_folder += '/' + str(instance.method)
-            if (instance.method == 'rta' or instance.method == 'sc' or instance.method == 'inverse') \
-                    and (instance.length is not None):
-                if not (np.array(instance.length) == np.array([None, None, None])).all()\
-                    and not (np.array(instance.length) == np.array([0, 0, 0])).all():
-                    if '<length>' in label:
-                        base_folder += '/l'
-                        for alpha in range(3):
-                            if instance.length[alpha] is not None:
-                                base_folder += '_' + str(instance.length[alpha])
-                            else:
-                                base_folder += '_0'
-                    if '<finite_length_method>' in label:
-                        if instance.finite_length_method is not None:
-                            base_folder += '/fs' + str(instance.finite_length_method)
-    return base_folder
 
 
 def lazy_property(label: str = '', format: Optional[str] = None) -> Callable[[Callable], property]:
