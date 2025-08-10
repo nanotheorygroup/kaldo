@@ -92,43 +92,91 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]
     n_replicated_atoms = n_atoms * n_replicas
-    n_rows = count_rows(filename)
-    array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
-    coords = np.zeros((array_size, 6), dtype=int)
-    values = np.zeros((array_size))
-    alphas = np.arange(3)
-    index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
 
-    # Load file contents, then filter by energy threshold and n-atoms
-
+    # Load entire file at once
     lines = np.loadtxt(filename)
+    logging.info("Loaded third order file. Processing sparse input.")
 
-    above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
-    to_write = np.where((lines[:, 0] - 1 < n_atoms) & (above_threshold.any(axis=1)))
-    parsed_coords = lines[to_write][:, :-3] - 1
-    parsed_values = lines[to_write][:, -3:]
+    if third_energy_threshold > 0.0:
+        # Keep original method for threshold case (not optimized as requested)
+        n_rows = len(lines)
+        array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
+        coords = np.zeros((array_size, 6), dtype=int)
+        values = np.zeros((array_size))
+        alphas = np.arange(3)
+        index_in_unit_cell = 0
 
-    for i, (write, coords_to_write, values_to_write) in enumerate(
-        zip(above_threshold[to_write], parsed_coords, parsed_values)
-    ):
-        if i % 1000000 == 0:
-            logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
+        above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
+        to_write = np.where((lines[:, 0] - 1 < n_atoms) & (above_threshold.any(axis=1)))
+        parsed_coords = lines[to_write][:, :-3] - 1
+        parsed_values = lines[to_write][:, -3:]
 
-        for alpha in alphas[write]:
-            coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
-            coords[index_in_unit_cell, -1] = alpha
-            values[index_in_unit_cell] = tenjovermoltoev * values_to_write[alpha]
-            index_in_unit_cell += 1
+        for i, (write, coords_to_write, values_to_write) in enumerate(
+            zip(above_threshold[to_write], parsed_coords, parsed_values)
+        ):
+            if i % 1000000 == 0:
+                logging.info("Reading third order with threadhold: " + str(np.round(i / n_rows, 2) * 100) + "%")
 
-    logging.info("read " + str(3 * i) + " interactions")
+            for alpha in alphas[write]:
+                coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+                coords[index_in_unit_cell, -1] = alpha
+                values[index_in_unit_cell] = tenjovermoltoev * values_to_write[alpha]
+                index_in_unit_cell += 1
 
-    # Create sparse matrix from file contents
+        logging.info("read " + str(3 * i) + " interactions")
 
-    coords = coords[:index_in_unit_cell].T
-    values = values[:index_in_unit_cell]
-    sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-
+        coords = coords[:index_in_unit_cell].T
+        values = values[:index_in_unit_cell]
+        sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        return sparse_third
+    
+    # Optimized path for reading entire file (third_energy_threshold == 0)
+    logging.info("Using optimized sparse import")
+    
+    # Filter rows where first atom index is within n_atoms
+    valid_rows = lines[:, 0] - 1 < n_atoms
+    filtered_lines = lines[valid_rows]
+    
+    # Extract coordinates (convert to 0-based indexing) and values
+    coords_data = filtered_lines[:, :-3] - 1  # Shape: (n_filtered, 5)
+    values_data = filtered_lines[:, -3:]      # Shape: (n_filtered, 3)
+    
+    # Create coordinates for all three alpha values at once
+    n_filtered = coords_data.shape[0]
+    
+    # Vectorized coordinate creation for all three sparse tensors
+    coords_base = np.repeat(coords_data, 3, axis=0)  # Repeat each row 3 times
+    alpha_indices = np.tile(np.arange(3), n_filtered)  # [0,1,2,0,1,2,...]
+    
+    # Complete coordinates: [atom1, coord1, atom2, coord2, atom3, coord3, alpha]
+    coords_full = np.column_stack([coords_base, alpha_indices])
+    
+    # Flatten values corresponding to alpha indices  
+    values_full = values_data.flatten()  # Flatten in row-major order: [val0_0, val0_1, val0_2, val1_0, ...]
+    
+    # Apply unit conversion
+    values_full *= tenjovermoltoev
+    
+    # Create three separate sparse tensors for each value column, then sum
+    sparse_tensors = []
+    for alpha in range(3):
+        # Select entries for this alpha value
+        alpha_mask = alpha_indices == alpha
+        alpha_coords = coords_full[alpha_mask, :-1]  # Remove alpha column
+        alpha_values = values_full[alpha_mask]
+        
+        # Transpose coordinates for COO format
+        alpha_coords_t = alpha_coords.T
+        
+        # Create sparse tensor for this alpha
+        sparse_alpha = COO(alpha_coords_t, alpha_values, 
+                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        sparse_tensors.append(sparse_alpha)
+    
+    # Sum all three sparse tensors efficiently
+    sparse_third = sparse_tensors[0] + sparse_tensors[1] + sparse_tensors[2]
+    logging.info(f"Read {len(filtered_lines)} interactions with {len(values_full)} total entries")
     return sparse_third
 
 
