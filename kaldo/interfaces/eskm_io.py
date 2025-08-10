@@ -134,49 +134,43 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     # Optimized path for reading entire file (third_energy_threshold == 0)
     logging.info("Using optimized sparse import")
     
-    # Filter rows where first atom index is within n_atoms
-    valid_rows = lines[:, 0] - 1 < n_atoms
-    filtered_lines = lines[valid_rows]
+    # Filter rows where first atom index is within n_atoms (in-place where possible)
+    valid_mask = lines[:, 0] - 1 < n_atoms
+    filtered_lines = lines[valid_mask]
     
-    # Extract coordinates (convert to 0-based indexing) and values
-    coords_data = filtered_lines[:, :-3] - 1  # Shape: (n_filtered, 5)
-    values_data = filtered_lines[:, -3:]      # Shape: (n_filtered, 3)
+    # Pre-allocate arrays for all coordinates and values at once
+    n_filtered = filtered_lines.shape[0]
+    n_total_entries = n_filtered * 3
     
-    # Create coordinates for all three alpha values at once
-    n_filtered = coords_data.shape[0]
+    # Pre-allocate coordinate and value arrays for all alpha values
+    all_coords = np.empty((6, n_total_entries), dtype=np.int32)
+    all_values = np.empty(n_total_entries, dtype=filtered_lines.dtype)
     
-    # Input format appears to be: [atom1, coord1, atom2, coord2, atom3, value1, value2, value3]
-    # So coords_data has shape (n_filtered, 5) with [atom1, coord1, atom2, coord2, atom3]
-    # We need to map to 6D tensor: (n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+    # Extract base coordinates once (convert to 0-based indexing)
+    base_coords = filtered_lines[:, :-3] - 1  # Shape: (n_filtered, 5)
+    values_data = filtered_lines[:, -3:] * tenjovermoltoev  # Apply conversion once
     
-    coord_arrays = []
-    value_arrays = []
-    
+    # Vectorized coordinate and value assignment
     for alpha in range(3):
-        # The alpha index is actually the third coordinate (coord3) in the 6D tensor
-        # So we need: [atom1, coord1, atom2, coord2, atom3, alpha]
-        alpha_coords = np.column_stack([
-            coords_data[:, 0],  # atom1 index
-            coords_data[:, 1],  # coord1 index  
-            coords_data[:, 2],  # atom2 index
-            coords_data[:, 3],  # coord2 index
-            coords_data[:, 4],  # atom3 index  
-            np.full(n_filtered, alpha)  # coord3 index (alpha value)
-        ]).astype(int)  # Ensure integer coordinates
+        start_idx = alpha * n_filtered
+        end_idx = start_idx + n_filtered
         
-        coord_arrays.append(alpha_coords.T)  # Transpose for COO format
-        value_arrays.append(values_data[:, alpha] * tenjovermoltoev)
+        # Assign coordinates (reuse base coordinates, only alpha changes)
+        all_coords[0, start_idx:end_idx] = base_coords[:, 0]  # atom1
+        all_coords[1, start_idx:end_idx] = base_coords[:, 1]  # coord1  
+        all_coords[2, start_idx:end_idx] = base_coords[:, 2]  # atom2
+        all_coords[3, start_idx:end_idx] = base_coords[:, 3]  # coord2
+        all_coords[4, start_idx:end_idx] = base_coords[:, 4]  # atom3
+        all_coords[5, start_idx:end_idx] = alpha              # coord3 (alpha)
+        
+        # Assign values
+        all_values[start_idx:end_idx] = values_data[:, alpha]
     
-    # Create three separate sparse tensors, one for each alpha value column
-    sparse_tensors = []
-    for alpha in range(3):
-        sparse_alpha = COO(coord_arrays[alpha], value_arrays[alpha], 
-                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-        sparse_tensors.append(sparse_alpha)
+    # Create single sparse tensor directly
+    sparse_third = COO(all_coords, all_values, 
+                      shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
     
-    # Sum all three sparse tensors efficiently
-    sparse_third = sparse_tensors[0] + sparse_tensors[1] + sparse_tensors[2]
-    logging.info(f"Read {len(filtered_lines)} interactions with {len(filtered_lines) * 3} total entries")
+    logging.info(f"Read {n_filtered} interactions with {n_total_entries} total entries")
     return sparse_third
 
 
