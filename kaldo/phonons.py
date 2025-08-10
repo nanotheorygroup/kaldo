@@ -606,24 +606,202 @@ class Phonons(Storable):
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            if self._is_amorphous:
-                sparse_phase, sparse_potential = self._project_amorphous()
-            else:
-                sparse_phase, sparse_potential = self._project_crystal()
-            ps_and_gamma = self._select_algorithm_for_phase_space_and_gamma(
-                sparse_phase, sparse_potential, is_gamma_tensor_enabled=False)
+            ps_and_gamma = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
-        if self._is_amorphous:
-            sparse_phase, sparse_potential = self._project_amorphous()
-        else:
-            sparse_phase, sparse_potential = self._project_crystal()
-        ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(sparse_phase, sparse_potential,
-                                                                                     is_gamma_tensor_enabled=True)
+        ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
+
+    @lazy_property(label='<third_bandwidth>')
+    def _sparse_phase_and_potential(self):
+        """
+        Calculate both sparse phase and potential tensors for anharmonic interactions.
+        
+        Returns
+        -------
+        tuple : (sparse_phase, sparse_potential)
+            Both sparse tensor data structures
+        """
+        # Calculate from scratch
+        if self._is_amorphous:
+            return self._project_amorphous()
+        else:
+            return self._project_crystal()
+
+    def _convert_sparse_tensors_to_per_mu_arrays(self, sparse_phase, sparse_potential):
+        """
+        Convert sparse tensors to per-mu arrays for numpy storage.
+        
+        Returns a list where each element contains the data for one mu (phonon mode).
+        Each mu can have 0, 1, or 2 non-None tensors (for is_plus=0,1).
+        
+        Returns
+        -------
+        list : List of per-mu data dictionaries
+        """
+        per_mu_data = []
+        
+        for nu_single in range(len(sparse_phase)):
+            mu_data = {'exists': False, 'tensors': []}
+            
+            for is_plus in range(2):
+                if (nu_single < len(sparse_phase) and 
+                    is_plus < len(sparse_phase[nu_single]) and
+                    sparse_phase[nu_single][is_plus] is not None):
+                    
+                    phase_tensor = sparse_phase[nu_single][is_plus]
+                    potential_tensor = sparse_potential[nu_single][is_plus]
+                    
+                    # Get tensor components
+                    indices = phase_tensor.indices.numpy()
+                    phase_values = phase_tensor.values.numpy()  
+                    potential_values = potential_tensor.values.numpy()
+                    dense_shape = phase_tensor.dense_shape.numpy()
+                    
+                    tensor_data = {
+                        'is_plus': is_plus,
+                        'indices': indices,
+                        'phase_values': phase_values,
+                        'potential_values': potential_values,
+                        'dense_shape': dense_shape
+                    }
+                    
+                    mu_data['tensors'].append(tensor_data)
+                    mu_data['exists'] = True
+            
+            per_mu_data.append(mu_data)
+        
+        return per_mu_data
+    
+    def _convert_per_mu_arrays_to_sparse_tensors(self, per_mu_data):
+        """
+        Convert per-mu arrays back to sparse tensor format.
+        
+        Parameters
+        ----------
+        per_mu_data : list
+            List of per-mu data dictionaries
+            
+        Returns
+        -------
+        tuple : (sparse_phase, sparse_potential)
+        """
+        import tensorflow as tf
+        
+        sparse_phase = []
+        sparse_potential = []
+        
+        for nu_single, mu_data in enumerate(per_mu_data):
+            sparse_phase.append([None, None])  # Initialize with None for both is_plus
+            sparse_potential.append([None, None])
+            
+            if mu_data['exists']:
+                for tensor_data in mu_data['tensors']:
+                    is_plus = tensor_data['is_plus']
+                    
+                    # Reconstruct sparse tensors
+                    phase_tensor = tf.SparseTensor(
+                        indices=tensor_data['indices'],
+                        values=tensor_data['phase_values'],
+                        dense_shape=tensor_data['dense_shape']
+                    )
+                    potential_tensor = tf.SparseTensor(
+                        indices=tensor_data['indices'],
+                        values=tensor_data['potential_values'],
+                        dense_shape=tensor_data['dense_shape']
+                    )
+                    
+                    sparse_phase[nu_single][is_plus] = phase_tensor
+                    sparse_potential[nu_single][is_plus] = potential_tensor
+        
+        return sparse_phase, sparse_potential
+
+    def _load_property(self, property_name, folder, format='formatted'):
+        """
+        Override to handle custom loading for sparse tensors.
+        """
+        if property_name == '_sparse_phase_and_potential' and format == 'numpy':
+            # Custom loading for sparse tensors from per-mu numpy arrays
+            base_name = folder + '/' + property_name
+            
+            # Load list of which mus exist
+            saved_mus = np.load(f'{base_name}_mu_list.npy')
+            
+            # Determine total number of mus needed
+            n_phonons = self.n_phonons
+            
+            # Initialize per_mu_data with correct size
+            per_mu_data = [{'exists': False, 'tensors': []} for _ in range(n_phonons)]
+            
+            # Load existing mu data
+            for nu_single in saved_mus:
+                mu_filename = f'{base_name}_mu_{nu_single}.npy'
+                mu_data = np.load(mu_filename, allow_pickle=True).item()
+                per_mu_data[nu_single] = mu_data
+            
+            return self._convert_per_mu_arrays_to_sparse_tensors(per_mu_data)
+        else:
+            # Use parent method for other properties
+            return super()._load_property(property_name, folder, format)
+
+    def _save_property(self, property_name, folder, data, format='formatted'):
+        """
+        Override to handle custom storage for sparse tensors.
+        """
+        if property_name == '_sparse_phase_and_potential' and format == 'numpy':
+            # Custom storage for sparse tensors as per-mu numpy arrays
+            sparse_phase, sparse_potential = data
+            per_mu_data = self._convert_sparse_tensors_to_per_mu_arrays(sparse_phase, sparse_potential)
+            
+            # Save each mu separately
+            import os
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+                
+            base_name = folder + '/' + property_name
+            
+            # Save only mus that have data
+            saved_mus = []
+            for nu_single, mu_data in enumerate(per_mu_data):
+                if mu_data['exists']:
+                    mu_filename = f'{base_name}_mu_{nu_single}.npy'
+                    np.save(mu_filename, mu_data, allow_pickle=True)
+                    saved_mus.append(nu_single)
+            
+            # Save list of which mus exist
+            np.save(f'{base_name}_mu_list.npy', np.array(saved_mus, dtype=np.int32))
+            
+            logging.info(f'{base_name} stored as {len(saved_mus)} per-mu arrays')
+        else:
+            # Use parent method for other properties
+            super()._save_property(property_name, folder, data, format)
+
+    @property
+    def sparse_phase(self):
+        """
+        Sparse phase space tensor for anharmonic interactions.
+        
+        Returns
+        -------
+        sparse_phase : list
+            List of sparse tensors containing phase space information
+        """
+        return self._sparse_phase_and_potential[0]
+
+    @property
+    def sparse_potential(self):
+        """
+        Sparse potential tensor for anharmonic interactions.
+        
+        Returns
+        -------
+        sparse_potential : list
+            List of sparse tensors containing potential information
+        """
+        return self._sparse_phase_and_potential[1]
 
 
     @property
@@ -689,7 +867,6 @@ class Phonons(Storable):
                 p_atoms = [p_atoms]
 
         n_modes = self.n_modes
-        n_kpts = self.n_k_points
         eigensystem = self._eigensystem
         eigenvals = eigensystem[:, 0, :]
         normal_modes = eigensystem[:, 1:, :]
@@ -755,7 +932,7 @@ class Phonons(Storable):
         return index_qpp_full
 
 
-    def _select_algorithm_for_phase_space_and_gamma(self, sparse_phase, sparse_potential, is_gamma_tensor_enabled=True):
+    def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
@@ -763,8 +940,8 @@ class Phonons(Storable):
         population_flat = self.population.flatten()
         
         ps_and_gamma = aha.calculate_ps_and_gamma(
-            sparse_phase,
-            sparse_potential,
+            self.sparse_phase,
+            self.sparse_potential,
             population_flat,
             self.is_balanced,
             self.n_phonons,
@@ -775,7 +952,6 @@ class Phonons(Storable):
             ps_and_gamma[:, 0] /= self.n_k_points
 
         return ps_and_gamma
-
 
 
     @timeit
@@ -856,7 +1032,6 @@ class Phonons(Storable):
     @timeit
     def _project_crystal(self):
         n_replicas = self.forceconstants.third.n_replicas
-
         try:
             sparse_third = self.forceconstants.third.value.reshape((self.n_modes, -1))
             sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
