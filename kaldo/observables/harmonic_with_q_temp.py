@@ -1,7 +1,7 @@
 import kaldo.observables.harmonic_with_q as hwq
 import numpy as np
 import ase.units as units
-from kaldo.helpers.storage import lazy_property
+from kaldo.helpers.storage import lazy_property, StorageMixin
 
 
 class HarmonicWithQTemp(hwq.HarmonicWithQ):
