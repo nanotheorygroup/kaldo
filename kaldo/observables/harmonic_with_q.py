@@ -16,6 +16,21 @@ MIN_N_MODES_TO_STORE = 1000
 
 
 class HarmonicWithQ(Observable):
+    
+    # Define storage formats for harmonic properties
+    _store_formats = {
+        'frequency': 'formatted',
+        'velocity': 'formatted',
+        'participation_ratio': 'formatted',
+        '_dynmat_derivatives_x': 'numpy',
+        '_dynmat_derivatives_y': 'numpy', 
+        '_dynmat_derivatives_z': 'numpy',
+        '_dynmat_fourier': 'numpy',
+        '_eigensystem': 'numpy',
+        '_sij_x': 'numpy',
+        '_sij_y': 'numpy',
+        '_sij_z': 'numpy'
+    }
 
     def __init__(self, q_point, second,
                  distance_threshold=None,

@@ -8,24 +8,6 @@ logging = get_logger()
 LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
 
-# TODO: move this into single observables
-DEFAULT_STORE_FORMATS = {'physical_mode': 'formatted',
-                         'frequency': 'formatted',
-                         'participation_ratio':'formatted',
-                         'velocity': 'formatted',
-                         'heat_capacity': 'formatted',
-                         'population': 'formatted',
-                         'bandwidth': 'formatted',
-                         'phase_space': 'formatted',
-                         'conductivity': 'formatted',
-                         'mean_free_path': 'formatted',
-                         'diffusivity': 'numpy',
-                         'flux': 'numpy',
-                         '_dynmat_derivatives': 'numpy',
-                         '_eigensystem': 'numpy',
-                         '_ps_and_gamma': 'numpy',
-                         '_ps_gamma_and_gamma_tensor': 'numpy',
-                         '_generalized_diffusivity': 'numpy'}
 
 
 def parse_pair(txt):
@@ -187,29 +169,40 @@ def get_folder_from_label(instance, label='', base_folder=None):
     return base_folder
 
 
-def lazy_property(label=''):
+def lazy_property(label='', format=None):
+    """
+    Decorator for lazy evaluation of properties with storage support.
+    
+    Parameters
+    ----------
+    label : str
+        Label for folder structure generation (e.g., '<temperature>/<statistics>')
+    format : str, optional
+        Storage format for this specific property. If None, uses object's format hierarchy.
+    
+    Returns
+    -------
+    property
+        A property that lazy loads and caches data with storage support
+    """
     def _lazy_property(fn):
         @property
         def __lazy_property(self):
-            try:
-                if self.storage == 'formatted':
-                    format = DEFAULT_STORE_FORMATS[fn.__name__]
-                else:
-                    format = self.storage
-            except KeyError:
-                format = 'memory'
-            if (format != 'memory'):
+            # Determine storage format using hierarchy
+            storage_format = _get_storage_format(self, fn.__name__, format)
+            
+            if storage_format != 'memory':
                 folder = get_folder_from_label(self, label)
-                property = fn.__name__
+                property_name = fn.__name__
                 try:
-                    loaded_attr = load(property, folder, self, format=format)
+                    loaded_attr = load(property_name, folder, self, format=storage_format)
+                    logging.info('Loading ' + folder + '/' + str(property_name))
                 except (FileNotFoundError, OSError, KeyError):
-                    logging.info(folder + '/' + str(property) + ' not found in ' + format + ' format, calculating ' + str(fn.__name__))
+                    logging.info(folder + '/' + str(property_name) + ' not found in ' + storage_format + ' format, calculating ' + str(fn.__name__))
                     loaded_attr = fn(self)
-                    save(property, folder, loaded_attr, format=format)
-                else:
-                    logging.info('Loading ' + folder + '/' + str(property))
+                    save(property_name, folder, loaded_attr, format=storage_format)
             else:
+                # Memory storage
                 attr = LAZY_PREFIX + fn.__name__
                 if not hasattr(self, attr):
                     loaded_attr = fn(self)
@@ -220,6 +213,48 @@ def lazy_property(label=''):
         __lazy_property.__doc__ = fn.__doc__
         return __lazy_property
     return _lazy_property
+
+
+def _get_storage_format(instance, property_name, format_override=None):
+    """
+    Determine storage format using hierarchical approach:
+    1. format_override (decorator parameter)
+    2. instance._store_formats[property_name] (object-level, only when storage == 'formatted')
+    3. instance.storage (general setting)
+    4. 'memory' (final fallback)
+    
+    Parameters
+    ----------
+    instance : object
+        The object instance
+    property_name : str
+        Name of the property
+    format_override : str, optional
+        Format specified in decorator
+        
+    Returns
+    -------
+    str
+        Storage format to use
+    """
+    # 1. Decorator override has highest priority
+    if format_override is not None:
+        return format_override
+    
+    # Check if we should use formatted-specific formats
+    use_formatted_formats = hasattr(instance, 'storage') and instance.storage == 'formatted'
+    
+    # 2. Object-level store formats (only when storage == 'formatted')
+    if use_formatted_formats and hasattr(instance, '_store_formats'):
+        if property_name in instance._store_formats:
+            return instance._store_formats[property_name]
+    
+    # 3. General storage setting
+    if hasattr(instance, 'storage'):
+        return instance.storage
+    
+    # 4. Final fallback
+    return 'memory'
 
 
 def is_calculated(property, self, label='', format='formatted'):

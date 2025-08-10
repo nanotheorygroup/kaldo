@@ -110,6 +110,14 @@ class Conductivity:
     Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
     ```
     """
+    
+    # Define storage formats for conductivity properties
+    _store_formats = {
+        'conductivity': 'formatted',
+        'mean_free_path': 'formatted',
+        '_generalized_diffusivity': 'numpy'
+    }
+    
     def __init__(self,
                  phonons: Phonons,
                  *,
