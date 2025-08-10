@@ -52,43 +52,63 @@ def project_amorphous(phonons):
     logging.info("Projection started")
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
     sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
-    ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     n_modes = phonons.n_modes
     broadening_shape = phonons.broadening_shape
-    for mu in range(phonons.n_phonons):
-        if mu % 200 == 0:
-            logging.info("calculating third " + f"{mu}" + ": " + \
-                         f"{100 * mu / phonons.n_phonons:.2f}%")
+    n_phonons = phonons.n_phonons
+    sparse_phase = []
+    sparse_potential = []
+    for nu_single in range(phonons.n_phonons):
+        if nu_single % 200 == 0:
+            logging.info("calculating third " + f"{nu_single}" + ": " + \
+                         f"{100 * nu_single / phonons.n_phonons:.2f}%")
+
+        sparse_phase.append([])
+        sparse_potential.append([])
         for is_plus in (0, 1):
 
             # ps_and_gamma = np.zeros(2)
-            if not physical_mode[0, mu]:
+            if not physical_mode[0, nu_single]:
+                sparse_phase[nu_single].extend([None, None])
+                sparse_potential[nu_single].extend([None, None])
                 continue
 
-            dirac_delta_result = calculate_dirac_delta_amorphous(
-                is_plus, omega, physical_mode, sigma_tf, broadening_shape, mu
-            )
+            dirac_delta_result = calculate_dirac_delta_amorphous(is_plus, nu_single, omega, physical_mode, sigma_tf,
+                                                                 broadening_shape, n_phonons)
             if not dirac_delta_result:
+                sparse_phase[nu_single].append(None)
+                sparse_potential[nu_single].append(None)
                 continue
-            else:
-                dirac_delta_tf, mup_vec, mupp_vec = dirac_delta_result
+            sparse_phase[nu_single].append(dirac_delta_result)
+            mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
 
-            third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, mu], (n_modes, 1)))
+            third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1)))
             third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
             scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
             coords = tf.stack((mup_vec, mupp_vec), axis=-1)
             pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
             pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
-            pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[mu]
+            pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
+            sparse_potential[nu_single].append(pot_times_dirac)
+    ps_and_gamma = calculate_ps_and_gamma_amorphous(
+        sparse_phase, sparse_potential, population, is_balanced, n_phonons
+    )
+    return ps_and_gamma
+
+def calculate_ps_and_gamma_amorphous(sparse_phase, sparse_potential, population, is_balanced, n_phonons):
+    ps_and_gamma = np.zeros((n_phonons, 2))
+    for nu_single in range(n_phonons):
+        population_0 = population[0, nu_single]
+        for is_plus in (0, 1):
+            if sparse_phase[nu_single][is_plus] is None:
+                continue
+            mup_vec, mupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
+            dirac_delta_tf = sparse_phase[nu_single][is_plus].values
+            pot_times_dirac = sparse_potential[nu_single][is_plus]
             population_1 = tf.gather(population[0], mup_vec)
             population_2 = tf.gather(population[0], mupp_vec)
-            population_0 = population[0, mu]
             pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
-            ps_and_gamma[mu, 0] += tf.reduce_sum(dirac_delta_tf * pop_delta).numpy()
-            ps_and_gamma[mu, 1] += tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf * pop_delta).numpy()
-        logging.debug(f"{frequency.reshape(phonons.n_phonons)[mu]}: " + \
-                                    f"{ps_and_gamma[mu, 1] * THZ_TO_MEV / (2 * np.pi)}")
-
+            ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta_tf * pop_delta).numpy()
+            ps_and_gamma[nu_single, 1] += tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf * pop_delta).numpy()
     return ps_and_gamma
 
 
@@ -158,7 +178,7 @@ def project_crystal(phonons):
             else:
                 sigma_tf = calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
 
-            out = calculate_dirac_delta_crystal(
+            dirac_delta_result = calculate_dirac_delta_crystal(
                 omega,
                 physical_mode,
                 sigma_tf,
@@ -171,18 +191,18 @@ def project_crystal(phonons):
                 n_modes,
             )
 
-            if out is None:
+            if not dirac_delta_result:
                 sparse_phase[nu_single].append(None)
                 sparse_potential[nu_single].append(None)
                 continue
 
-            sparse_phase[nu_single].append(out)
+            sparse_phase[nu_single].append(dirac_delta_result)
 
             sparse_potential[nu_single].append(
                 sparse_potential_mu(
                     nu_single,
                     evect_tf,
-                    out,
+                    dirac_delta_result,
                     index_k,
                     mu,
                     n_k_points,
@@ -199,7 +219,7 @@ def project_crystal(phonons):
                     hbar,
                 )
             )
-    return calculate_ps_and_gamma(
+    ps_and_gamma = calculate_ps_and_gamma(
         sparse_phase,
         sparse_potential,
         population,
@@ -209,6 +229,7 @@ def project_crystal(phonons):
         n_phonons,
         phonons.is_gamma_tensor_enabled
     )
+    return ps_and_gamma
 
 def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_k_points, n_modes, n_phonons, is_gamma_tensor_enabled):
     if is_gamma_tensor_enabled:
@@ -379,13 +400,13 @@ def calculate_dirac_delta_crystal(
 
 def calculate_dirac_delta_amorphous(
     is_plus,
+    mu,
     omega,
     physical_mode,
     sigma_tf,
     broadening_shape,
-    mu,
-    default_delta_threshold=2,
-):
+    n_phonons,
+    default_delta_threshold=2):
     """
     Calculate the Dirac delta function for amorphous materials.
 
@@ -425,14 +446,19 @@ def calculate_dirac_delta_amorphous(
     if interactions.shape[0] <= 0:
         return None
 
-
     mup_vec = interactions[:, 0]
     mupp_vec = interactions[:, 1]
 
     omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
-    dirac_delta_tf = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
-    return dirac_delta_tf, mup_vec, mupp_vec
+    sparse_phase = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
+    sparse_phase = tf.sparse.SparseTensor(tf.stack([
+        tf.cast(mup_vec, tf.int64),
+        tf.cast(mupp_vec, tf.int64),
+    ], axis=-1), sparse_phase,
+        [n_phonons, n_phonons])
+
+    return sparse_phase
 
 def calculate_broadening(velocity_tf, cell_inv, k_size, index_kpp_vec):
     """
