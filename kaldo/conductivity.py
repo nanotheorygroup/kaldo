@@ -6,7 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
-from kaldo.helpers.storage import lazy_property
+from kaldo.helpers.storage import lazy_property, StorageMixin
 import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
 import gc
@@ -59,7 +59,7 @@ def mfp_matthiessen(gamma, velocity, length, physical_mode):
     return lambd_0
 
 
-class Conductivity:
+class Conductivity(StorageMixin):
     """ The conductivity object is responsible for mean free path and
     conductivity calculations. It takes a phonons object as a required argument.
 
@@ -161,6 +161,39 @@ class Conductivity:
         self.diffusivity_threshold = diffusivity_threshold
         self.is_diffusivity_including_antiresonant = is_diffusivity_including_antiresonant
         self.diffusivity_shape = diffusivity_shape
+
+    def _load_formatted_property(self, property_name, name):
+        """Override formatted loading for Conductivity-specific properties"""
+        if property_name == 'mean_free_path':
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
+            return np.array(loaded).transpose(1, 2, 0)
+        elif property_name == 'conductivity':
+            loaded = []
+            for alpha in range(3):
+                for beta in range(3):
+                    loaded.append(np.loadtxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', skiprows=1))
+            return np.array(loaded).reshape((3, 3, self.n_phonons)).transpose(2, 0, 1)
+        else:
+            # Use default implementation for other properties
+            return super()._load_formatted_property(property_name, name)
+    
+    def _save_formatted_property(self, property_name, name, data):
+        """Override formatted saving for Conductivity-specific properties"""
+        fmt = '%.18e'
+        if property_name == 'mean_free_path':
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', data[..., alpha], fmt=fmt,
+                          header=str(data[..., 0].shape))
+        elif property_name == 'conductivity':
+            for alpha in range(3):
+                for beta in range(3):
+                    np.savetxt(name + '_' + str(alpha) + '_' + str(beta) + '.dat', data[..., alpha, beta], fmt=fmt,
+                              header=str(data[..., 0, 0].shape))
+        else:
+            # Use default implementation for other properties
+            super()._save_formatted_property(property_name, name, data)
 
     @lazy_property(
         label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')

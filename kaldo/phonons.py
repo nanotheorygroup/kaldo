@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 
 """
 from kaldo.helpers.storage import is_calculated
-from kaldo.helpers.storage import lazy_property
+from kaldo.helpers.storage import lazy_property, StorageMixin
 from kaldo.helpers.logger import log_size
 from kaldo.helpers.storage import FOLDER_NAME
 from kaldo.grid import Grid
@@ -28,7 +28,7 @@ GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 HBAR = units._hbar
 THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
-class Phonons:
+class Phonons(StorageMixin):
     """
     The Phonons object exposes all the phononic properties of a system by manipulation
     of the quantities passed into the ForceConstant object. The arguments passed in here
@@ -198,6 +198,34 @@ class Phonons:
         self.g_factor = g_factor
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
+
+    def _load_formatted_property(self, property_name, name):
+        """Override formatted loading for Phonons-specific properties"""
+        if property_name == 'physical_mode':
+            loaded = np.loadtxt(name + '.dat', skiprows=1)
+            return np.round(loaded, 0).astype(bool)
+        elif property_name == 'velocity':
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
+            return np.array(loaded).transpose(1, 2, 0)
+        else:
+            # Use default implementation for other properties
+            return super()._load_formatted_property(property_name, name)
+    
+    def _save_formatted_property(self, property_name, name, data):
+        """Override formatted saving for Phonons-specific properties"""
+        if property_name == 'physical_mode':
+            fmt = '%d'
+            np.savetxt(name + '.dat', data, fmt=fmt, header=str(data.shape))
+        elif property_name == 'velocity':
+            fmt = '%.18e'
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', data[..., alpha], fmt=fmt, 
+                          header=str(data[..., 0].shape))
+        else:
+            # Use default implementation for other properties
+            super()._save_formatted_property(property_name, name, data)
 
 
 
