@@ -20,7 +20,7 @@ def phonons():
         kpts=[5, 5, 5],
         is_classic=False,
         temperature=300,
-        storage="numpy",
+        storage="memory",
     )
     phonons.frequency
     return phonons
@@ -50,7 +50,7 @@ def test_qhgk_conductivity(phonons):
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
-        np.mean(Conductivity(phonons=phonons, method="rta", storage="numpy").conductivity.sum(axis=0).diagonal())
+        np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
     np.testing.assert_approx_equal(cond, 226, significant=3)
 
