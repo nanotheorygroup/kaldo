@@ -15,12 +15,14 @@ def phonons():
     print("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder(folder="kaldo/tests/si-crystal", supercell=[3, 3, 3], format="eskm")
     phonons = Phonons(
+        folder='data',
         forceconstants=forceconstants,
         kpts=[5, 5, 5],
         is_classic=False,
         temperature=300,
-        storage="memory",
+        storage="numpy",
     )
+    phonons.frequency
     return phonons
 
 def test_phase_space(phonons):
@@ -48,7 +50,7 @@ def test_qhgk_conductivity(phonons):
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
-        np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
+        np.mean(Conductivity(phonons=phonons, method="rta", storage="numpy").conductivity.sum(axis=0).diagonal())
     )
     np.testing.assert_approx_equal(cond, 226, significant=3)
 

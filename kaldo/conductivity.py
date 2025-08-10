@@ -6,7 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
-from kaldo.helpers.storage import lazy_property, StorageMixin
+from kaldo.storable import lazy_property, Storable
 import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
 import gc
@@ -59,7 +59,7 @@ def mfp_matthiessen(gamma, velocity, length, physical_mode):
     return lambd_0
 
 
-class Conductivity(StorageMixin):
+class Conductivity(Storable):
     """ The conductivity object is responsible for mean free path and
     conductivity calculations. It takes a phonons object as a required argument.
 
