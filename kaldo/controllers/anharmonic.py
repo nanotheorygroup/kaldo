@@ -107,35 +107,33 @@ def project_amorphous_mu(
     Returns:
         np.ndarray: Projected properties for the single mode
     """
-    if not physical_mode[0, nu_single]:
-        return np.zeros(2)
-
-    dirac_delta_result = calculate_dirac_delta_amorphous(
-        omega, population, physical_mode, sigma_tf, broadening_shape, nu_single, is_balanced
-    )
-
-    if not dirac_delta_result:
-        return np.zeros(2)
-
-    dirac_delta_tf, mup_vec, mupp_vec = dirac_delta_result
-    dirac_delta = tf.reduce_sum(dirac_delta_tf)
-
-    third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, nu_single], ((n_modes, 1))))
-    third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
-
-    scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
-    coords = tf.stack((mup_vec, mupp_vec), axis=-1)
-    pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
-    pot_times_dirac = pot_times_dirac / tf.gather(omega[0], mup_vec) / tf.gather(omega[0], mupp_vec)
-    pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
-    pot_times_dirac = np.pi * hbar / 4.0 * pot_times_dirac * GAMMA_TO_THZ
-
     ps_and_gamma = np.zeros(2)
-    ps_and_gamma[0] = dirac_delta.numpy()
-    ps_and_gamma[1] = pot_times_dirac.numpy()
-    ps_and_gamma[1] /= omega.flatten()[nu_single]
+    if not physical_mode[0, nu_single]:
+        return ps_and_gamma
+
+    for is_plus in (0, 1):
+        dirac_delta_result = calculate_dirac_delta_amorphous(
+            is_plus, omega, population, physical_mode, sigma_tf, broadening_shape, nu_single, is_balanced
+        )
+        if not dirac_delta_result:
+            continue  # <-- was: return np.zeros(2)
+
+        dirac_delta_tf, mup_vec, mupp_vec = dirac_delta_result
+        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1)))
+        third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
+
+        scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
+        coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+        pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
+        pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
+        pot_times_dirac = tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf)
+        pot_times_dirac = np.pi * hbar / 4.0 * pot_times_dirac * GAMMA_TO_THZ
+
+        ps_and_gamma[0] += tf.reduce_sum(dirac_delta_tf).numpy()
+        ps_and_gamma[1] += (pot_times_dirac.numpy() / omega.flatten()[nu_single])
 
     return ps_and_gamma
+
 
 @timeit
 def project_crystal(phonons):
@@ -433,6 +431,7 @@ def calculate_dirac_delta_crystal(
 
 
 def calculate_dirac_delta_amorphous(
+    is_plus,
     omega,
     population,
     physical_mode,
@@ -468,60 +467,50 @@ def calculate_dirac_delta_amorphous(
     else:
         raise ValueError("Broadening function not implemented")
 
-    for is_plus in (1, 0):
 
-        second_sign = int(is_plus) * 2 - 1
-        omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] - omega[0, np.newaxis, :])
-        condition = (
-            (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf)
-            & (physical_mode[0, :, np.newaxis])
-            & (physical_mode[0, np.newaxis, :])
-        )
-        interactions = tf.where(condition)
+    second_sign = int(is_plus) * 2 - 1
+    omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] - omega[0, np.newaxis, :])
+    condition = (
+        (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf)
+        & (physical_mode[0, :, np.newaxis])
+        & (physical_mode[0, np.newaxis, :])
+    )
+    interactions = tf.where(condition)
 
-        if interactions.shape[0] <= 0:
-            continue
-
-        # Create sparse index
-
-        mup_vec = interactions[:, 0]
-        mupp_vec = interactions[:, 1]
-        mup_mapped = tf.gather(population[0], mup_vec)
-        mupp_mapped = tf.gather(population[0], mupp_vec)
-
-        if is_plus:
-            dirac_delta_tf = mup_mapped - mupp_mapped
-
-            if is_balanced:
-                # Detailed balance
-                # n0 * n1 * (n2 + 2) = (n0 + 1) * (n1 + 1) * n2
-                dirac_delta_tf = 0.5 * (mup_mapped + 1) * (mupp_mapped) / (population[0, mu])
-                dirac_delta_tf += 0.5 * (mup_mapped) * (mupp_mapped + 1) / (1 + population[0, mu])
-        else:
-            dirac_delta_tf = 0.5 * (1 + mup_mapped + mupp_mapped)
-
-            if is_balanced:
-                # Detailed balance
-                # n0 * (n1 + 1) * (n2 + 2) = (n0 + 1) * n1 * n2
-                dirac_delta_tf = 0.25 * (mup_mapped) * (mupp_mapped) / (population[0, mu])
-                dirac_delta_tf += 0.25 * (mup_mapped + 1) * (mupp_mapped + 1) / (1 + population[0, mu])
-
-        omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
-        dirac_delta_tf *= broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
-
-        try:
-            mup = tf.concat([mup, mup_vec], 0)
-            mupp = tf.concat([mupp, mupp_vec], 0)
-            current_delta = tf.concat([current_delta, dirac_delta_tf], 0)
-        except NameError:
-            mup = mup_vec
-            mupp = mupp_vec
-            current_delta = dirac_delta_tf
-
-    try:
-        return current_delta, mup, mupp
-    except:
+    if interactions.shape[0] <= 0:
         return None
+
+    # Create sparse index
+
+    mup_vec = interactions[:, 0]
+    mupp_vec = interactions[:, 1]
+    mup_mapped = tf.gather(population[0], mup_vec)
+    mupp_mapped = tf.gather(population[0], mupp_vec)
+
+    if is_plus:
+        dirac_delta_tf = mup_mapped - mupp_mapped
+
+        if is_balanced:
+            # Detailed balance
+            # n0 * n1 * (n2 + 2) = (n0 + 1) * (n1 + 1) * n2
+            dirac_delta_tf = 0.5 * (mup_mapped + 1) * (mupp_mapped) / (population[0, mu])
+            dirac_delta_tf += 0.5 * (mup_mapped) * (mupp_mapped + 1) / (1 + population[0, mu])
+    else:
+        dirac_delta_tf = 0.5 * (1 + mup_mapped + mupp_mapped)
+
+        if is_balanced:
+            # Detailed balance
+            # n0 * (n1 + 1) * (n2 + 2) = (n0 + 1) * n1 * n2
+            dirac_delta_tf = 0.25 * (mup_mapped) * (mupp_mapped) / (population[0, mu])
+            dirac_delta_tf += 0.25 * (mup_mapped + 1) * (mupp_mapped + 1) / (1 + population[0, mu])
+
+    omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
+    dirac_delta_tf *= broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+    mup = mup_vec
+    mupp = mupp_vec
+    current_delta = dirac_delta_tf
+
+    return current_delta, mup, mupp
 
 
 def calculate_broadening(velocity_tf, cell_inv, k_size, index_kpp_vec):
