@@ -39,10 +39,7 @@ def project_amorphous(phonons):
     population = phonons.population
     n_replicas = phonons.forceconstants.n_replicas
     rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
-
-    ps_and_gamma = np.zeros((phonons.n_phonons, 2))
     evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
-
     coords = phonons.forceconstants.third.value.coords
     coords = np.vstack([coords[1], coords[2], coords[0]])
     coords = tf.cast(coords.T, dtype=tf.int64)
@@ -50,114 +47,49 @@ def project_amorphous(phonons):
     third_tf = tf.SparseTensor(
         coords, data, (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes)
     )
-
     third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
     physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
     logging.info("Projection started")
-
     hbar = HBAR * (1e-6 if phonons.is_classic else 1)
     sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
     ps_and_gamma = np.zeros((phonons.n_phonons, 2))
+    n_modes = phonons.n_modes
+    broadening_shape = phonons.broadening_shape
     for mu in range(phonons.n_phonons):
         if mu % 200 == 0:
             logging.info("calculating third " + f"{mu}" + ": " + \
                          f"{100 * mu / phonons.n_phonons:.2f}%")
-
-
         for is_plus in (0, 1):
-            out = project_amorphous_mu(
-                is_plus,
-                omega,
-                population,
-                physical_mode,
-                sigma_tf,
-                phonons.broadening_shape,
-                mu,
-                is_balanced,
-                third_tf,
-                evect_tf,
-                phonons.n_modes,
-                n_replicas,
-                hbar,
+
+            # ps_and_gamma = np.zeros(2)
+            if not physical_mode[0, mu]:
+                continue
+
+            dirac_delta_result = calculate_dirac_delta_amorphous(
+                is_plus, omega, physical_mode, sigma_tf, broadening_shape, mu
             )
-            if out is None:
+            if not dirac_delta_result:
                 continue
             else:
-                mup_vec, mupp_vec, dirac_delta_tf, pot_times_dirac = out
+                dirac_delta_tf, mup_vec, mupp_vec = dirac_delta_result
 
+            third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, mu], (n_modes, 1)))
+            third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
+            scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
+            coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+            pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
+            pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
+            pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[mu]
             population_1 = tf.gather(population[0], mup_vec)
             population_2 = tf.gather(population[0], mupp_vec)
             population_0 = population[0, mu]
-            if is_plus:
-                population_delta = population_1 - population_2
-
-                if is_balanced:
-                    # Detailed balance
-                    # n0 * n1 * (n2 + 2) = (n0 + 1) * (n1 + 1) * n2
-                    population_delta = 0.5 * (population_1 + 1) * (population_2) / population_0
-                    population_delta += 0.5 * (population_1) * (population_2 + 1) / (1 + population_0)
-            else:
-                population_delta = 0.5 * (1 + population_1 + population_2)
-
-                if is_balanced:
-                    # Detailed balance
-                    # n0 * (n1 + 1) * (n2 + 2) = (n0 + 1) * n1 * n2
-                    population_delta = 0.25 * (population_1) * (population_2) / (population_0)
-                    population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
-            ps_and_gamma[mu, 0] += tf.reduce_sum(dirac_delta_tf * population_delta).numpy()
-            ps_and_gamma[mu, 1] += tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf * population_delta).numpy()
+            pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
+            ps_and_gamma[mu, 0] += tf.reduce_sum(dirac_delta_tf * pop_delta).numpy()
+            ps_and_gamma[mu, 1] += tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf * pop_delta).numpy()
         logging.debug(f"{frequency.reshape(phonons.n_phonons)[mu]}: " + \
                                     f"{ps_and_gamma[mu, 1] * THZ_TO_MEV / (2 * np.pi)}")
 
     return ps_and_gamma
-
-
-def project_amorphous_mu(
-    is_plus,
-    omega,
-    population,
-    physical_mode,
-    sigma_tf,
-    broadening_shape,
-    mu,
-    is_balanced,
-    third_tf,
-    evect_tf,
-    n_modes,
-    n_replicas,
-    hbar,
-):
-    """
-    Project anharmonic properties for a single mode in amorphous materials.
-
-    Args:
-        (various): Parameters describing the phonon properties and material
-
-    Returns:
-        np.ndarray: Projected properties for the single mode
-    """
-    # ps_and_gamma = np.zeros(2)
-    if not physical_mode[0, mu]:
-        return None
-
-    dirac_delta_result = calculate_dirac_delta_amorphous(
-        is_plus, omega, population, physical_mode, sigma_tf, broadening_shape, mu, is_balanced
-    )
-    if not dirac_delta_result:
-        return None
-
-    dirac_delta_tf, mup_vec, mupp_vec = dirac_delta_result
-
-    third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, mu], (n_modes, 1)))
-    third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
-
-    scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
-    coords = tf.stack((mup_vec, mupp_vec), axis=-1)
-    pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
-    pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
-    pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[mu]
-
-    return mup_vec, mupp_vec, dirac_delta_tf, pot_times_dirac
 
 
 @timeit
@@ -291,15 +223,11 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
         for is_plus in (0, 1):
             if sparse_phase[nu_single][is_plus] is None:
                 continue
-
-            pop_vec = sparse_population_mu(
-                    is_plus,
-                    mu,
-                    index_k,
-                    sparse_phase[nu_single][is_plus].indices,
-                    population,
-                    is_balanced,
-                )
+            index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
+            population_1 = population[index_kp_vec, mup_vec]
+            population_2 = population[index_kpp_vec, mupp_vec]
+            population_0 = population[index_k, mu]
+            pop_vec = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
 
             flat_indices = tf.sparse.reshape(
                 sparse_phase[nu_single][is_plus], tf.cast([n_k_points * n_modes, n_k_points * n_modes], tf.int64)
@@ -361,13 +289,7 @@ def sparse_potential_mu(
 
 
 
-def sparse_population_mu(is_plus, mu, index_k, indices, population, is_balanced):
-    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(indices, axis=1)
-
-    population_1 = population[index_kp_vec, mup_vec]
-    population_2 = population[index_kpp_vec, mupp_vec]
-    population_0 = population[index_k, mu]
-
+def population_delta(is_plus, population_1, population_2, population_0, is_balanced):
     if is_plus:
         population_delta = population_1 - population_2
         if is_balanced:
@@ -458,12 +380,10 @@ def calculate_dirac_delta_crystal(
 def calculate_dirac_delta_amorphous(
     is_plus,
     omega,
-    population,
     physical_mode,
     sigma_tf,
     broadening_shape,
     mu,
-    is_balanced,
     default_delta_threshold=2,
 ):
     """
