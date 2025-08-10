@@ -12,14 +12,21 @@ from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
+import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from scipy import stats
 import numpy as np
 from numpy.typing import ArrayLike
 import ase.units as units
+from kaldo.helpers.tools import timeit
 from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
+# Constants
+GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
+HBAR = units._hbar
+THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
 class Phonons:
     """
@@ -551,14 +558,26 @@ class Phonons:
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
-            ps_and_gamma = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=False)
+            self.n_k_points = np.prod(self.kpts)
+            self.n_phonons = self.n_k_points * self.n_modes
+            self.is_gamma_tensor_enabled = False
+            if self._is_amorphous:
+                ps_and_gamma = self._project_amorphous()
+            else:
+                ps_and_gamma = self._project_crystal()
         return ps_and_gamma
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_gamma_and_gamma_tensor(self):
-        ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
-        return ps_gamma_and_gamma_tensor
+        self.n_k_points = np.prod(self.kpts)
+        self.n_phonons = self.n_k_points * self.n_modes
+        self.is_gamma_tensor_enabled = True
+        if self._is_amorphous:
+            ps_and_gamma = self._project_amorphous()
+        else:
+            ps_and_gamma = self._project_crystal()
+        return ps_and_gamma
 
 
 # Helpers properties
@@ -692,13 +711,192 @@ class Phonons:
         return index_qpp_full
 
 
-    def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
-        self.n_k_points = np.prod(self.kpts)
-        self.n_phonons = self.n_k_points * self.n_modes
-        self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
-        if self._is_amorphous:
-            ps_and_gamma = aha.project_amorphous(self)
-        else:
-            ps_and_gamma = aha.project_crystal(self)
+    @timeit
+    def _project_amorphous(phonons):
+        """
+        Project anharmonic properties for amorphous materials.
+
+        Args:
+            phonons: Phonon object containing material properties
+
+        Returns:
+            np.ndarray: Array containing projected properties
+        """
+        is_balanced = phonons.is_balanced
+        frequency = phonons.frequency
+        omega = 2 * np.pi * frequency
+        population = phonons.population
+        n_replicas = phonons.forceconstants.n_replicas
+        rescaled_eigenvectors = phonons._rescaled_eigenvectors.astype(float)
+        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
+        coords = phonons.forceconstants.third.value.coords
+        coords = np.vstack([coords[1], coords[2], coords[0]])
+        coords = tf.cast(coords.T, dtype=tf.int64)
+        data = phonons.forceconstants.third.value.data
+        third_tf = tf.SparseTensor(
+            coords, data, (phonons.n_modes * n_replicas, phonons.n_modes * n_replicas, phonons.n_modes)
+        )
+        third_tf = tf.sparse.reshape(third_tf, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes))
+        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+        logging.info("Projection started")
+        hbar = HBAR * (1e-6 if phonons.is_classic else 1)
+        sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+        n_modes = phonons.n_modes
+        broadening_shape = phonons.broadening_shape
+        n_phonons = phonons.n_phonons
+        sparse_phase = []
+        sparse_potential = []
+        for nu_single in range(phonons.n_phonons):
+            if nu_single % 200 == 0:
+                logging.info("calculating third " + f"{nu_single}" + ": " + \
+                             f"{100 * nu_single / phonons.n_phonons:.2f}%")
+
+            sparse_phase.append([])
+            sparse_potential.append([])
+            for is_plus in (0, 1):
+
+                # ps_and_gamma = np.zeros(2)
+                if not physical_mode[0, nu_single]:
+                    sparse_phase[nu_single].extend([None, None])
+                    sparse_potential[nu_single].extend([None, None])
+                    continue
+
+                dirac_delta_result = aha.calculate_dirac_delta_amorphous(is_plus, nu_single, omega, physical_mode, sigma_tf,
+                                                                     broadening_shape, n_phonons)
+                if not dirac_delta_result:
+                    sparse_phase[nu_single].append(None)
+                    sparse_potential[nu_single].append(None)
+                    continue
+                sparse_phase[nu_single].append(dirac_delta_result)
+                mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
+
+                third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1)))
+                third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
+                scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
+                coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+                pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
+                pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
+                pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
+                sparse_potential[nu_single].append(pot_times_dirac)
+        ps_and_gamma = aha.calculate_ps_and_gamma_amorphous(
+            sparse_phase, sparse_potential, population, is_balanced, n_phonons
+        )
         return ps_and_gamma
 
+    @timeit
+    def _project_crystal(phonons):
+
+        n_replicas = phonons.forceconstants.third.n_replicas
+
+        try:
+            sparse_third = phonons.forceconstants.third.value.reshape((phonons.n_modes, -1))
+            sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
+            sparse_coords = tf.cast(sparse_coords, dtype=tf.int64)
+            third_tf = tf.SparseTensor(
+                sparse_coords, sparse_third.data, ((phonons.n_modes * n_replicas) ** 2, phonons.n_modes)
+            )
+            is_sparse = True
+        except AttributeError:
+            third_tf = tf.convert_to_tensor(phonons.forceconstants.third.value)
+            is_sparse = False
+        third_tf = tf.cast(third_tf, dtype=tf.complex128)
+
+        k_mesh = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
+        n_k_points = k_mesh.shape[0]
+        _chi_k = tf.convert_to_tensor(phonons.forceconstants.third._chi_k(k_mesh))
+        _chi_k = tf.cast(_chi_k, dtype=tf.complex128)
+        evect_tf = tf.convert_to_tensor(phonons._rescaled_eigenvectors)
+        evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
+
+        second_minus = tf.math.conj(evect_tf)
+        second_minus_chi = tf.math.conj(_chi_k)
+        logging.info("Projection started")
+
+        population = phonons.population
+        broadening_shape = phonons.broadening_shape
+        physical_mode = phonons.physical_mode.reshape((phonons.n_k_points, phonons.n_modes))
+        omega = phonons.omega
+        velocity_tf = tf.convert_to_tensor(phonons.velocity)
+        cell_inv = phonons.forceconstants.cell_inv
+        kpts = phonons.kpts
+
+        hbar = HBAR * (1e-6 if phonons.is_classic else 1)
+        n_modes = phonons.n_modes
+        n_phonons = phonons.n_phonons
+
+        sparse_phase = []
+        sparse_potential = []
+
+        for nu_single in range(n_phonons):
+            if nu_single % 200 == 0:
+                logging.info(f"calculating third {nu_single}: {100 * nu_single / phonons.n_phonons:.2f}%")
+
+            sparse_phase.append([])
+            sparse_potential.append([])
+
+            index_k, mu = np.unravel_index(nu_single, (n_k_points, phonons.n_modes))
+            if not physical_mode[index_k, mu]:
+                sparse_phase[nu_single].extend([None, None])
+                sparse_potential[nu_single].extend([None, None])
+                continue
+
+            for is_plus in (0, 1):
+                index_kpp_full = tf.cast(phonons._allowed_third_phonons_index(index_k, is_plus), dtype=tf.int32)
+
+                if phonons.third_bandwidth:
+                    sigma_tf = tf.constant(phonons.third_bandwidth, dtype=tf.float64)
+                else:
+                    sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+
+                dirac_delta_result = aha.calculate_dirac_delta_crystal(
+                    omega,
+                    physical_mode,
+                    sigma_tf,
+                    broadening_shape,
+                    index_kpp_full,
+                    index_k,
+                    mu,
+                    is_plus,
+                    n_k_points,
+                    n_modes,
+                )
+
+                if not dirac_delta_result:
+                    sparse_phase[nu_single].append(None)
+                    sparse_potential[nu_single].append(None)
+                    continue
+
+                sparse_phase[nu_single].append(dirac_delta_result)
+
+                sparse_potential[nu_single].append(
+                    aha.sparse_potential_mu(
+                        nu_single,
+                        evect_tf,
+                        dirac_delta_result,
+                        index_k,
+                        mu,
+                        n_k_points,
+                        n_modes,
+                        is_plus,
+                        is_sparse,
+                        index_kpp_full,
+                        _chi_k,
+                        second_minus,
+                        second_minus_chi,
+                        third_tf,
+                        n_replicas,
+                        omega,
+                        hbar,
+                    )
+                )
+        ps_and_gamma = aha.calculate_ps_and_gamma(
+            sparse_phase,
+            sparse_potential,
+            population,
+            phonons.is_balanced,
+            n_k_points,
+            n_modes,
+            n_phonons,
+            phonons.is_gamma_tensor_enabled
+        )
+        return ps_and_gamma
