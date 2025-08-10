@@ -5,7 +5,6 @@ import h5py
 from unittest.mock import MagicMock
 
 from kaldo.storable import (
-    get_folder_from_label,
     lazy_property,
     is_calculated,
     LAZY_PREFIX,
@@ -150,12 +149,13 @@ def test_save_hdf5_format(monkeypatch):
 
 
 def test_get_folder_from_label():
-    class Instance(object):
-        folder = 'base_folder'
-        kpts = [2, 2, 2]
+    class Instance(Storable):
+        def __init__(self):
+            self.folder = 'base_folder'
+            self.kpts = [2, 2, 2]
 
     instance = Instance()
-    folder = get_folder_from_label(instance)
+    folder = instance._get_folder_from_label()
     assert folder == 'base_folder/2_2_2'
 
 
@@ -284,29 +284,59 @@ def test_save_formatted_sij_property(monkeypatch):
 
 
 def test_get_folder_from_label_with_temperature():
-    class Instance(object):
-        folder = 'base_folder'
-        kpts = [2, 2, 2]
-        temperature = 300
-        is_classic = False
+    class Instance(Storable):
+        def __init__(self):
+            self.folder = 'base_folder'
+            self.kpts = [2, 2, 2]
+            self.temperature = 300
+            self.is_classic = False
+        
+        def _get_folder_path_components(self, label):
+            components = []
+            if '<temperature>' in label:
+                components.append(str(int(self.temperature)))
+            if '<statistics>' in label:
+                components.append('quantum' if not self.is_classic else 'classic')
+            return components
 
     label = '<temperature>/<statistics>'
     instance = Instance()
-    folder = get_folder_from_label(instance, label)
+    folder = instance._get_folder_from_label(label)
     assert folder == 'base_folder/2_2_2/300/quantum'
 
 
 def test_get_folder_from_label_with_method_and_length():
-    class Instance(object):
-        folder = 'base_folder'
-        kpts = [3, 3, 3]
-        method = 'rta'
-        length = [10, None, 0]
-        finite_length_method = 'some_method'
+    class Instance(Storable):
+        def __init__(self):
+            self.folder = 'base_folder'
+            self.kpts = [3, 3, 3]
+            self.method = 'rta'
+            self.length = [10, None, 0]
+            self.finite_length_method = 'some_method'
+        
+        def _get_folder_path_components(self, label):
+            components = []
+            if '<method>' in label:
+                components.append(str(self.method))
+                if (self.method == 'rta' or self.method == 'sc' or self.method == 'inverse') \
+                        and (self.length is not None):
+                    if not (np.array(self.length) == np.array([None, None, None])).all() \
+                        and not (np.array(self.length) == np.array([0, 0, 0])).all():
+                        if '<length>' in label:
+                            length_str = 'l'
+                            for alpha in range(3):
+                                if self.length[alpha] is not None:
+                                    length_str += '_' + str(self.length[alpha])
+                                else:
+                                    length_str += '_0'
+                            components.append(length_str)
+                        if '<finite_length_method>' in label and self.finite_length_method is not None:
+                            components.append('fs' + str(self.finite_length_method))
+            return components
 
     label = '<method>/<length>/<finite_length_method>'
     instance = Instance()
-    folder = get_folder_from_label(instance, label)
+    folder = instance._get_folder_from_label(label)
     assert folder == 'base_folder/3_3_3/rta/l_10_0_0/fssome_method'
 
 
@@ -462,6 +492,21 @@ def test_lazy_property_storage_integration(monkeypatch, tmp_path):
             self.n_modes = 6
             self.n_k_points = np.prod(kpts)
             self.n_phonons = self.n_k_points * self.n_modes
+        
+        def _get_folder_path_components(self, label):
+            """Get folder path components for test MockPhonons."""
+            components = []
+            
+            if '<temperature>' in label and hasattr(self, 'temperature'):
+                components.append(str(int(self.temperature)))
+                
+            if '<statistics>' in label:
+                if self.is_classic:
+                    components.append('classic')
+                else:
+                    components.append('quantum')
+                    
+            return components
 
         @lazy_property(label='<temperature>/<statistics>')
         def frequency(self):

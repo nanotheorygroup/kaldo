@@ -199,6 +199,27 @@ class Phonons(Storable):
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
 
+    def _get_folder_path_components(self, label):
+        """Get folder path components for Phonons-specific attributes."""
+        components = []
+        
+        if '<temperature>' in label and hasattr(self, 'temperature'):
+            components.append(str(int(self.temperature)))
+            
+        if '<statistics>' in label:
+            if self.is_classic:
+                components.append('classic')
+            else:
+                components.append('quantum')
+                
+        if '<third_bandwidth>' in label and self.third_bandwidth is not None:
+            components.append('tb_' + str(np.mean(self.third_bandwidth)))
+            
+        if '<include_isotopes>' in label and self.include_isotopes:
+            components.append('isotopes')
+            
+        return components
+
     def _load_formatted_property(self, property_name, name):
         """Override formatted loading for Phonons-specific properties"""
         if property_name == 'physical_mode':
