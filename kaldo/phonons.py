@@ -3,10 +3,10 @@ kaldo
 Anharmonic Lattice Dynamics
 
 """
-from kaldo.helpers.storage import is_calculated
-from kaldo.helpers.storage import lazy_property, StorageMixin
+from kaldo.storable import is_calculated
+from kaldo.storable import lazy_property, Storable
 from kaldo.helpers.logger import log_size
-from kaldo.helpers.storage import FOLDER_NAME
+from kaldo.storable import FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
@@ -28,7 +28,7 @@ GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 HBAR = units._hbar
 THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
-class Phonons(StorageMixin):
+class Phonons(Storable):
     """
     The Phonons object exposes all the phononic properties of a system by manipulation
     of the quantities passed into the ForceConstant object. The arguments passed in here

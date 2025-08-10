@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import h5py
+from typing import Any, Callable, Optional, Union
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
@@ -9,7 +10,7 @@ LAZY_PREFIX = '_lazy__'
 FOLDER_NAME = 'data'
 
 
-class StorageMixin:
+class Storable:
     """
     Mixin class that provides storage functionality to classes using lazy_property.
     Classes should inherit from this and define their own _store_formats.
@@ -210,7 +211,7 @@ def get_folder_from_label(instance, label='', base_folder=None):
     return base_folder
 
 
-def lazy_property(label='', format=None):
+def lazy_property(label: str = '', format: Optional[str] = None) -> Callable[[Callable], property]:
     """
     Decorator for lazy evaluation of properties with storage support.
     
@@ -226,9 +227,9 @@ def lazy_property(label='', format=None):
     property
         A property that lazy loads and caches data with storage support
     """
-    def _lazy_property(fn):
+    def _lazy_property(fn: Callable) -> property:
         @property
-        def __lazy_property(self):
+        def __lazy_property(self) -> Any:
             # Determine storage format using hierarchy
             storage_format = _get_storage_format(self, fn.__name__, format)
             
@@ -306,7 +307,7 @@ def is_calculated(property_name, instance, label='', format='formatted'):
     ----------
     property_name : str
         Name of the property to check
-    instance : StorageMixin
+    instance : Storable
         Instance that should have the property
     label : str
         Label for folder generation

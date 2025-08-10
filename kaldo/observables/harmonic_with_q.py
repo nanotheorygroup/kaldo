@@ -4,7 +4,7 @@ from kaldo.observables.observable import Observable
 import numpy as np
 from ase import units
 from opt_einsum import contract
-from kaldo.helpers.storage import lazy_property, StorageMixin
+from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
@@ -15,7 +15,7 @@ logging = get_logger()
 MIN_N_MODES_TO_STORE = 1000
 
 
-class HarmonicWithQ(Observable, StorageMixin):
+class HarmonicWithQ(Observable, Storable):
     
     # Define storage formats for harmonic properties
     _store_formats = {

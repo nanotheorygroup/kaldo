@@ -4,12 +4,12 @@ import os
 import h5py
 from unittest.mock import MagicMock
 
-from kaldo.helpers.storage import (
+from kaldo.storable import (
     get_folder_from_label,
     lazy_property,
     is_calculated,
     LAZY_PREFIX,
-    StorageMixin,
+    Storable,
 )
 
 
@@ -325,7 +325,7 @@ def test_lazy_property_with_storage_formats(monkeypatch):
     def mock_save_property(self, property_name, folder, data, format):
         return mock_save(property_name, folder, data, format)
 
-    class TestClass(StorageMixin):
+    class TestClass(Storable):
         # Define _store_formats at class level
         _store_formats = {
             'test_attr': 'formatted'
@@ -376,7 +376,7 @@ def test_is_calculated_false(monkeypatch):
 
 
 def test_is_calculated_with_stored_property(monkeypatch):
-    class Instance(StorageMixin):
+    class Instance(Storable):
         folder = 'test_folder'
         storage = 'formatted'
         kpts = [2, 2, 2]
@@ -393,7 +393,7 @@ def test_is_calculated_with_stored_property(monkeypatch):
 
 
 def test_is_calculated_property_not_available(monkeypatch):
-    class Instance(StorageMixin):
+    class Instance(Storable):
         folder = 'test_folder'
         storage = 'formatted'
         kpts = [2, 2, 2]
@@ -409,7 +409,7 @@ def test_is_calculated_property_not_available(monkeypatch):
 def test_lazy_property_format_override():
     """Test that @lazy_property format parameter overrides class defaults"""
 
-    class MockClass(StorageMixin):
+    class MockClass(Storable):
         _store_formats = {
             'test_prop': 'formatted'  # Default format
         }
@@ -424,7 +424,7 @@ def test_lazy_property_format_override():
             return np.array([1, 2, 3])
 
     # Test that decorator format override works
-    from kaldo.helpers.storage import _get_storage_format
+    from kaldo.storable import _get_storage_format
 
     instance = MockClass()
 
@@ -443,7 +443,7 @@ def test_lazy_property_storage_integration(monkeypatch, tmp_path):
     import os
 
     # Create a mock class similar to Phonons with _store_formats
-    class MockPhonons(StorageMixin):
+    class MockPhonons(Storable):
         # Define storage formats at class level (like improved Phonons)
         _store_formats = {
             'frequency': 'formatted',
