@@ -772,30 +772,36 @@ class Phonons(Storable):
         """
         Override to handle custom storage for sparse tensors.
         """
-        if property_name == '_sparse_phase_and_potential' and format == 'numpy':
-            # Custom storage for sparse tensors as per-mu numpy arrays
-            sparse_phase, sparse_potential = data
-            per_mu_data = self._convert_sparse_tensors_to_per_mu_arrays(sparse_phase, sparse_potential)
-            
-            # Save each mu separately
-            import os
-            if not os.path.exists(folder):
-                os.makedirs(folder)
+        if property_name == '_sparse_phase_and_potential':
+            if format == 'numpy':
+                # Custom storage for sparse tensors as per-mu numpy arrays
+                sparse_phase, sparse_potential = data
+                per_mu_data = self._convert_sparse_tensors_to_per_mu_arrays(sparse_phase, sparse_potential)
                 
-            base_name = folder + '/' + property_name
-            
-            # Save only mus that have data
-            saved_mus = []
-            for nu_single, mu_data in enumerate(per_mu_data):
-                if mu_data['exists']:
-                    mu_filename = f'{base_name}_mu_{nu_single}.npy'
-                    np.save(mu_filename, mu_data, allow_pickle=True)
-                    saved_mus.append(nu_single)
-            
-            # Save list of which mus exist
-            np.save(f'{base_name}_mu_list.npy', np.array(saved_mus, dtype=np.int32))
-            
-            logging.info(f'{base_name} stored as {len(saved_mus)} per-mu arrays')
+                # Save each mu separately
+                import os
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+                    
+                base_name = folder + '/' + property_name
+                
+                # Save only mus that have data
+                saved_mus = []
+                for nu_single, mu_data in enumerate(per_mu_data):
+                    if mu_data['exists']:
+                        mu_filename = f'{base_name}_mu_{nu_single}.npy'
+                        np.save(mu_filename, mu_data, allow_pickle=True)
+                        saved_mus.append(nu_single)
+                
+                # Save list of which mus exist
+                np.save(f'{base_name}_mu_list.npy', np.array(saved_mus, dtype=np.int32))
+                
+                logging.info(f'{base_name} stored as {len(saved_mus)} per-mu arrays')
+            else:
+                # Sparse tensors cannot be saved in formatted text format
+                # Force numpy format for this property type
+                logging.warning(f'Sparse tensors cannot be saved in {format} format. Using numpy format instead.')
+                self._save_property(property_name, folder, data, format='numpy')
         else:
             # Use parent method for other properties
             super()._save_property(property_name, folder, data, format)
