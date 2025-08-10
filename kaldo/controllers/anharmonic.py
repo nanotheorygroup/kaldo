@@ -22,26 +22,8 @@ HBAR = units._hbar
 THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
 
-def calculate_ps_and_gamma_amorphous(sparse_phase, sparse_potential, population, is_balanced, n_phonons):
-    ps_and_gamma = np.zeros((n_phonons, 2))
-    for nu_single in range(n_phonons):
-        population_0 = population[0, nu_single]
-        for is_plus in (0, 1):
-            if sparse_phase[nu_single][is_plus] is None:
-                continue
-            mup_vec, mupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
-            dirac_delta_tf = sparse_phase[nu_single][is_plus].values
-            pot_times_dirac = sparse_potential[nu_single][is_plus].values
-            population_1 = tf.gather(population[0], mup_vec)
-            population_2 = tf.gather(population[0], mupp_vec)
-            pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
-            ps_and_gamma[nu_single, 0] += tf.reduce_sum(dirac_delta_tf * pop_delta).numpy()
-            ps_and_gamma[nu_single, 1] += tf.reduce_sum(tf.abs(pot_times_dirac) * dirac_delta_tf * pop_delta).numpy()
-    return ps_and_gamma
-
-
-
-def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_k_points, n_modes, n_phonons, is_gamma_tensor_enabled):
+def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_phonons, is_amorphous, is_gamma_tensor_enabled=False):
+    # Set up the output array
     if is_gamma_tensor_enabled:
         shape = (n_phonons, 2 + n_phonons)
         log_size(shape, name="scattering_tensor")
@@ -50,36 +32,50 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
         ps_and_gamma = np.zeros((n_phonons, 2))
 
     for nu_single in range(n_phonons):
-        index_k, mu = np.unravel_index(nu_single, (n_k_points, n_modes))
+        population_0 = population[nu_single]
+            
         for is_plus in (0, 1):
             if sparse_phase[nu_single][is_plus] is None:
                 continue
-            index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
-            population_1 = population[index_kp_vec, mup_vec]
-            population_2 = population[index_kpp_vec, mupp_vec]
-            population_0 = population[index_k, mu]
-            pop_vec = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
-
-            flat_indices = tf.sparse.reshape(
-                sparse_phase[nu_single][is_plus], tf.cast([n_k_points * n_modes, n_k_points * n_modes], tf.int64)
-            ).indices
-
-            ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase[nu_single][is_plus].values * pop_vec) / n_k_points
-
-            contrib = sparse_potential[nu_single][is_plus].values * pop_vec
-            ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
-
-            if is_gamma_tensor_enabled:
-                nup = tf.cast(flat_indices[:, 0], tf.int32)
-                nupp = tf.cast(flat_indices[:, 1], tf.int32)
-                result_nup = tf.math.bincount(nup, contrib, n_k_points * n_modes)
-                result_nupp = tf.math.bincount(nupp, contrib, n_k_points * n_modes)
-                if is_plus:
-                    ps_and_gamma[nu_single, 2:] -= result_nup
-                else:
-                    ps_and_gamma[nu_single, 2:] += result_nup
-                ps_and_gamma[nu_single, 2:] += result_nupp
+                
+            # Extract indices - both cases use the same 2D format now
+            nup_vec, nupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
+            sparse_phase_nu = sparse_phase[nu_single][is_plus].values
+            sparse_pot_nu = sparse_potential[nu_single][is_plus].values
+            
+            # Use direct indexing for both cases
+            population_1 = tf.gather(population, nup_vec)
+            population_2 = tf.gather(population, nupp_vec)
+                
+            single_pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
+            
+            # Accumulate phase space and gamma
+            if is_amorphous:
+                ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta).numpy()
+                contrib = tf.abs(sparse_pot_nu) * sparse_phase_nu * single_pop_delta
+                ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib).numpy()
+            else:
+                # Crystal case includes 1/n_k_points normalization for phase space
+                ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta)
+                contrib = sparse_pot_nu * sparse_phase_nu * single_pop_delta
+                ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
+                
+                # Handle gamma tensor for crystal case
+                if is_gamma_tensor_enabled:
+                    nup = tf.cast(nup_vec, tf.int32)
+                    nupp = tf.cast(nupp_vec, tf.int32)
+                    result_nup = tf.math.bincount(nup, contrib, n_phonons)
+                    result_nupp = tf.math.bincount(nupp, contrib, n_phonons)
+                    if is_plus:
+                        ps_and_gamma[nu_single, 2:] -= result_nup
+                    else:
+                        ps_and_gamma[nu_single, 2:] += result_nup
+                    ps_and_gamma[nu_single, 2:] += result_nupp
+                    
     return ps_and_gamma
+
+
+
 
 def sparse_potential_mu(
     nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
@@ -111,7 +107,7 @@ def sparse_potential_mu(
     scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
     scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
 
-    pot_times_dirac = tf.abs(scaled_potential) ** 2 * sparse_phase.values
+    pot_times_dirac = tf.abs(scaled_potential) ** 2
     pot_times_dirac = (tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar/ 4 * GAMMA_TO_THZ / omega.flatten()[nu_single]
                        / n_k_points)
     pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
@@ -203,13 +199,16 @@ def calculate_dirac_delta_crystal(
         coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
         sigma_tf = tf.gather_nd(sigma_tf, coords_3)
     dirac_delta_tf = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
+    
+    # Convert to flattened indices to match amorphous format (n_phonons, n_phonons)
+    nup_indices = tf.cast(index_kp_vec * n_modes + mup_vec, tf.int64)
+    nupp_indices = tf.cast(index_kpp_vec * n_modes + mupp_vec, tf.int64)
+    
     sparse_phase = tf.sparse.SparseTensor(tf.stack([
-        tf.cast(index_kp_vec, tf.int64),
-        tf.cast(mup_vec, tf.int64),
-        tf.cast(index_kpp_vec, tf.int64),
-        tf.cast(mupp_vec, tf.int64),
+        nup_indices,
+        nupp_indices,
     ], axis=-1), dirac_delta_tf,
-        [n_k_points, n_modes, n_k_points, n_modes])
+        [n_k_points * n_modes, n_k_points * n_modes])
 
     return sparse_phase
 

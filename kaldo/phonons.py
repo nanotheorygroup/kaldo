@@ -759,22 +759,21 @@ class Phonons(Storable):
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
-        if self._is_amorphous:
-            ps_and_gamma = aha.calculate_ps_and_gamma_amorphous(sparse_phase, sparse_potential, self.population,
-                                                                self.is_balanced, self.n_phonons)
+        # Reshape population to 1D for unified indexing
+        population_flat = self.population.flatten()
+        
+        ps_and_gamma = aha.calculate_ps_and_gamma(
+            sparse_phase,
+            sparse_potential,
+            population_flat,
+            self.is_balanced,
+            self.n_phonons,
+            self._is_amorphous,
+            self.is_gamma_tensor_enabled
+        )
+        if not self._is_amorphous:
+            ps_and_gamma[:, 0] /= self.n_k_points
 
-        else:
-
-            ps_and_gamma = aha.calculate_ps_and_gamma(
-                sparse_phase,
-                sparse_potential,
-                self.population,
-                self.is_balanced,
-                self.n_k_points,
-                self.n_modes,
-                self.n_phonons,
-                self.is_gamma_tensor_enabled
-            )
         return ps_and_gamma
 
 
