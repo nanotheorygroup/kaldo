@@ -147,7 +147,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                 continue
                 
             # Check if first atom index is valid (convert to 0-based)
-            atom1_idx = int(float(parts[0])) - 1
+            atom1_idx = int(parts[0]) - 1
             if atom1_idx >= n_atoms:
                 continue
             
@@ -156,10 +156,10 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             # Extract coordinates directly (convert to 0-based indexing)
             base_coords = [
                 atom1_idx,                          # atom1
-                int(float(parts[1])) - 1,          # coord1  
-                int(float(parts[2])) - 1,          # atom2
-                int(float(parts[3])) - 1,          # coord2
-                int(float(parts[4])) - 1,          # atom3
+                int(parts[1]) - 1,          # coord1
+                int(parts[2]) - 1,          # atom2
+                int(parts[3]) - 1,          # coord2
+                int(parts[4]) - 1,          # atom3
             ]
             
             # Extract and convert values
