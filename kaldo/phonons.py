@@ -843,7 +843,14 @@ class Phonons(Storable):
                 pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
                 pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
                 pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
-                sparse_potential[nu_single].append(pot_times_dirac)
+                
+                # Convert to sparse tensor using the same indices as sparse_phase
+                sparse_potential_tensor = tf.SparseTensor(
+                    indices=dirac_delta_result.indices,
+                    values=pot_times_dirac,
+                    dense_shape=dirac_delta_result.dense_shape
+                )
+                sparse_potential[nu_single].append(sparse_potential_tensor)
         return sparse_phase, sparse_potential
 
 

@@ -31,7 +31,7 @@ def calculate_ps_and_gamma_amorphous(sparse_phase, sparse_potential, population,
                 continue
             mup_vec, mupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
             dirac_delta_tf = sparse_phase[nu_single][is_plus].values
-            pot_times_dirac = sparse_potential[nu_single][is_plus]
+            pot_times_dirac = sparse_potential[nu_single][is_plus].values
             population_1 = tf.gather(population[0], mup_vec)
             population_2 = tf.gather(population[0], mupp_vec)
             pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
@@ -66,7 +66,7 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
 
             ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase[nu_single][is_plus].values * pop_vec) / n_k_points
 
-            contrib = sparse_potential[nu_single][is_plus] * pop_vec
+            contrib = sparse_potential[nu_single][is_plus].values * pop_vec
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
 
             if is_gamma_tensor_enabled:
@@ -116,7 +116,13 @@ def sparse_potential_mu(
                        / n_k_points)
     pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
 
-    return pot_times_dirac
+    # Return as sparse tensor using the same indices as sparse_phase
+    sparse_potential_tensor = tf.SparseTensor(
+        indices=sparse_phase.indices,
+        values=pot_times_dirac,
+        dense_shape=sparse_phase.dense_shape
+    )
+    return sparse_potential_tensor
 
 
 
