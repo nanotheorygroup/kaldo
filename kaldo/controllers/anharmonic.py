@@ -22,7 +22,8 @@ HBAR = units._hbar
 THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
 
-def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_phonons, is_amorphous, is_gamma_tensor_enabled=False):
+def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_phonons, is_amorphous,
+                           is_gamma_tensor_enabled=False):
     # Set up the output array
     if is_gamma_tensor_enabled:
         shape = (n_phonons, 2 + n_phonons)
@@ -48,42 +49,35 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
             population_2 = tf.gather(population, nupp_vec)
                 
             single_pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
-            
+
             # Accumulate phase space and gamma
-            if is_amorphous:
-                ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta).numpy()
-                contrib = tf.abs(sparse_pot_nu) * sparse_phase_nu * single_pop_delta
-                ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib).numpy()
-            else:
-                # Crystal case includes 1/n_k_points normalization for phase space
-                ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta)
-                contrib = sparse_pot_nu * sparse_phase_nu * single_pop_delta
-                ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
-                
-                # Handle gamma tensor for crystal case
-                if is_gamma_tensor_enabled:
-                    nup = tf.cast(nup_vec, tf.int32)
-                    nupp = tf.cast(nupp_vec, tf.int32)
-                    result_nup = tf.math.bincount(nup, contrib, n_phonons)
-                    result_nupp = tf.math.bincount(nupp, contrib, n_phonons)
-                    if is_plus:
-                        ps_and_gamma[nu_single, 2:] -= result_nup
-                    else:
-                        ps_and_gamma[nu_single, 2:] += result_nup
-                    ps_and_gamma[nu_single, 2:] += result_nupp
+            ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta)
+            contrib = sparse_pot_nu * sparse_phase_nu * single_pop_delta
+            ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
+
+            # Handle gamma tensor for crystal case
+            if is_gamma_tensor_enabled:
+                nup = tf.cast(nup_vec, tf.int32)
+                nupp = tf.cast(nupp_vec, tf.int32)
+                result_nup = tf.math.bincount(nup, contrib, n_phonons)
+                result_nupp = tf.math.bincount(nupp, contrib, n_phonons)
+                if is_plus:
+                    ps_and_gamma[nu_single, 2:] -= result_nup
+                else:
+                    ps_and_gamma[nu_single, 2:] += result_nup
+                ps_and_gamma[nu_single, 2:] += result_nupp
                     
     return ps_and_gamma
-
-
 
 
 def sparse_potential_mu(
     nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
     index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf, n_replicas, omega, hbar
 ):
-    index_kp_vec, mup_vec, index_kpp_vec, mupp_vec = tf.unstack(sparse_phase.indices, axis=1)
-    nup_vec = index_kp_vec * n_modes + mup_vec
-    nupp_vec = index_kpp_vec * n_modes + mupp_vec
+    nup_vec, nupp_vec = tf.unstack(sparse_phase.indices, axis=1)
+
+    index_kp_vec, mup_vec = tf.unravel_index(nup_vec, (n_k_points, n_modes))
+    index_kpp_vec, mupp_vec = tf.unravel_index(nupp_vec, (n_k_points, n_modes))
 
     second, second_chi = (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
     third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))

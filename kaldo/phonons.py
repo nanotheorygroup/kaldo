@@ -855,7 +855,6 @@ class Phonons(Storable):
 
     @timeit
     def _project_crystal(self):
-
         n_replicas = self.forceconstants.third.n_replicas
 
         try:
@@ -870,54 +869,42 @@ class Phonons(Storable):
             third_tf = tf.convert_to_tensor(self.forceconstants.third.value)
             is_sparse = False
         third_tf = tf.cast(third_tf, dtype=tf.complex128)
-
         k_mesh = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         n_k_points = k_mesh.shape[0]
         _chi_k = tf.convert_to_tensor(self.forceconstants.third._chi_k(k_mesh))
         _chi_k = tf.cast(_chi_k, dtype=tf.complex128)
         evect_tf = tf.convert_to_tensor(self._rescaled_eigenvectors)
         evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
-
         second_minus = tf.math.conj(evect_tf)
         second_minus_chi = tf.math.conj(_chi_k)
         logging.info("Projection started")
-
-        population = self.population
         broadening_shape = self.broadening_shape
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         omega = self.omega
         velocity_tf = tf.convert_to_tensor(self.velocity)
         cell_inv = self.forceconstants.cell_inv
         kpts = self.kpts
-
         hbar = HBAR * (1e-6 if self.is_classic else 1)
         n_modes = self.n_modes
         n_phonons = self.n_phonons
-
         sparse_phase = []
         sparse_potential = []
-
         for nu_single in range(n_phonons):
             if nu_single % 200 == 0:
                 logging.info(f"calculating third {nu_single}: {100 * nu_single / self.n_phonons:.2f}%")
-
             sparse_phase.append([])
             sparse_potential.append([])
-
             index_k, mu = np.unravel_index(nu_single, (n_k_points, self.n_modes))
             if not physical_mode[index_k, mu]:
                 sparse_phase[nu_single].extend([None, None])
                 sparse_potential[nu_single].extend([None, None])
                 continue
-
             for is_plus in (0, 1):
                 index_kpp_full = tf.cast(self._allowed_third_phonons_index(index_k, is_plus), dtype=tf.int32)
-
                 if self.third_bandwidth:
                     sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
                 else:
                     sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
-
                 dirac_delta_result = aha.calculate_dirac_delta_crystal(
                     omega,
                     physical_mode,
@@ -930,14 +917,11 @@ class Phonons(Storable):
                     n_k_points,
                     n_modes,
                 )
-
                 if not dirac_delta_result:
                     sparse_phase[nu_single].append(None)
                     sparse_potential[nu_single].append(None)
                     continue
-
                 sparse_phase[nu_single].append(dirac_delta_result)
-
                 sparse_potential[nu_single].append(
                     aha.sparse_potential_mu(
                         nu_single,
