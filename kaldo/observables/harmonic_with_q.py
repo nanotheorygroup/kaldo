@@ -443,7 +443,7 @@ class HarmonicWithQ(Observable):
         correction_matrix
         '''
         # Constants, and system information
-        RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
+        ryBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
         eV_to_10Jmol = units.mol / (10 * units.J)
         e2 = 2.  # square of electron charge in A.U.
         atoms = self.second.atoms
@@ -475,7 +475,7 @@ class HarmonicWithQ(Observable):
 
         # 1. Construct grid of reciprocal unit cells
         # a. Find the number of replicas to make
-        n_greplicas = 3 + 2 * np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=0) # TODO: switch back to 2+2*
+        n_greplicas = 2 + 2 * np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=0)
         # b. If it's low-dimensional, don't replicate in reciprocal space along axes without replicas in real space
         n_greplicas[np.array(self.second.supercell) == 1] = 1
         # c. Generate the grid of replicas
@@ -540,7 +540,7 @@ class HarmonicWithQ(Observable):
         correction_matrix = tf.transpose(correction_matrix, perm=[2, 0, 3, 1])
         correction_matrix = tf.reshape(correction_matrix, shape=(natoms * 3, natoms * 3))
         correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
-        correction_matrix *= RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
+        correction_matrix *= ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         return correction_matrix
 
     def nac_derivatives(self, direction, Lambda=None, gmax=None):
@@ -559,7 +559,7 @@ class HarmonicWithQ(Observable):
         correction_matrix
         '''
         # Constants, and system information
-        RyBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
+        ryBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
         eV_to_10Jmol = units.mol / (10 * units.J) # eV to 10J/mol
         atoms = self.second.atoms
         natoms = len(atoms)
@@ -660,6 +660,6 @@ class HarmonicWithQ(Observable):
         correction_matrix = np.transpose(lr_correction, axes=(0, 2, 1, 3,))
         correction_matrix = np.reshape(correction_matrix, (natoms * 3, natoms * 3))
         correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
-        correction_matrix *= units.Bohr * RyBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
+        correction_matrix *= units.Bohr * ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         correction_matrix = 1j * correction_matrix
         return correction_matrix

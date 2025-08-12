@@ -44,7 +44,7 @@ forceconstant_nac = ForceConstants.from_folder(
                        is_acoustic_sum=True,
                        format='shengbte-qe')
 forceconstant = ForceConstants.from_folder(
-                       folder='./forces-uncharged',
+                       folder='./forces/uncharged',
                        supercell=supercell,
                        only_second=True,
                        is_acoustic_sum=True,
@@ -60,47 +60,64 @@ forceconstant = ForceConstants.from_folder(
 # forceconstant.atoms.set_array('charges', born_charges)
 
 # Create Phonon Object
+phonons_nac = Phonons(forceconstants=forceconstant,
+              kpts=kpts,
+              is_classic=False,
+              temperature=300,
+              folder='./forces',
+              is_unfolding=unfold_bool,
+              storage='numpy',)
 phonons = Phonons(forceconstants=forceconstant,
               kpts=kpts,
               is_classic=False,
               temperature=300,
-              folder='./',
+              folder='./forces/uncharged',
               is_unfolding=unfold_bool,
               storage='numpy',)
 
 # Density of States
 plot_dos(phonons, is_showing=False)
-print('dos figure saved!')
+plot_dos(phonons_nac, is_showing=False)
+print('dos figures saved!')
 
 # Dispersion
 atoms = forceconstant.atoms
 cell = atoms.cell
 lat = cell.get_bravais_lattice()
 path = cell.bandpath(pathstring, npoints=npoints)
-np.save('kpath.txt', path.kpts)
 print('Unit cell detected: {} '.format(atoms))
 print('Special points on cell: ')
 print(lat.get_special_points())
 print('Path: {}'.format(path))
 # Save path for Matdyn
-np.savetxt('path.txt', np.hstack([path.kpts, np.ones((path.kpts.shape[0], 1))]))
+np.savetxt('tools/kpath.txt', np.hstack([path.kpts, np.ones((path.kpts.shape[0], 1))]))
 
-freqs = []
-vels = []
-vnorms = []
+freqs_nac, freqs = [], []
+vels_nac, vels = [], []
+vnorms_nac, vnorms = [], []
 for i,kpoint in enumerate(path.kpts):
+    phonon_nac = HarmonicWithQ(kpoint,
+                           phonons_nac.forceconstants.second,
+                           distance_threshold=phonons.forceconstants.distance_threshold,
+                           storage='memory',
+                           is_nw=phonons.is_nw,
+                           is_unfolding=phonons.is_unfolding)
     phonon = HarmonicWithQ(kpoint,
                            phonons.forceconstants.second,
                            distance_threshold=phonons.forceconstants.distance_threshold,
                            storage='memory',
                            is_nw=phonons.is_nw,
-                           is_unfolding=phonons.is_unfolding,
-                           is_nac='sheng',)
+                           is_unfolding=phonons.is_unfolding)
     freqs.append(phonon.frequency.squeeze())
     vels.append(phonon.velocity.flatten())
     vnorms.append(np.linalg.norm(phonon.velocity.squeeze(), axis=-1).squeeze())
-np.savetxt(f'{outfold}/{pathstring}.pts-nac', path.kpts)
-np.savetxt(f'{outfold}/{pathstring}.freqs-nac', np.array(freqs))
-np.savetxt(f'{outfold}/{pathstring}.vels-nac', np.array(vels).squeeze())
-np.savetxt(f'{outfold}/{pathstring}.vnorms-nac', np.array(vnorms).squeeze())
-
+    freqs_nac.append(phonon_nac.frequency.squeeze())
+    vels_nac.append(phonon_nac.velocity.flatten())
+    vnorms_nac.append(np.linalg.norm(phonon_nac.velocity.squeeze(), axis=-1).squeeze())
+np.savetxt(f'{outfold}/{pathstring}.pts', path.kpts)
+np.savetxt(f'{outfold}/{pathstring}.freqs-nac', np.array(freqs_nac))
+np.savetxt(f'{outfold}/{pathstring}.freqs', np.array(freqs))
+np.savetxt(f'{outfold}/{pathstring}.vels-nac', np.array(vels_nac).squeeze())
+np.savetxt(f'{outfold}/{pathstring}.vels', np.array(vels).squeeze())
+np.savetxt(f'{outfold}/{pathstring}.vnorms-nac', np.array(vnorms_nac).squeeze())
+np.savetxt(f'{outfold}/{pathstring}.vnorms', np.array(vnorms).squeeze())
