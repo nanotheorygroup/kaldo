@@ -92,43 +92,104 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]
     n_replicated_atoms = n_atoms * n_replicas
-    n_rows = count_rows(filename)
-    array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
-    coords = np.zeros((array_size, 6), dtype=int)
-    values = np.zeros((array_size))
-    alphas = np.arange(3)
-    index_in_unit_cell = 0
     tenjovermoltoev = 10 * units.J / units.mol
 
-    # Load file contents, then filter by energy threshold and n-atoms
-
+    # Load entire file at once
     lines = np.loadtxt(filename)
+    logging.info("Loaded third order file. Processing sparse input.")
 
-    above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
-    to_write = np.where((lines[:, 0] - 1 < n_atoms) & (above_threshold.any(axis=1)))
-    parsed_coords = lines[to_write][:, :-3] - 1
-    parsed_values = lines[to_write][:, -3:]
+    if third_energy_threshold > 0.0:
+        # Keep original method for threshold case (not optimized as requested)
+        n_rows = len(lines)
+        array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
+        coords = np.zeros((array_size, 6), dtype=int)
+        values = np.zeros((array_size))
+        alphas = np.arange(3)
+        index_in_unit_cell = 0
 
-    for i, (write, coords_to_write, values_to_write) in enumerate(
-        zip(above_threshold[to_write], parsed_coords, parsed_values)
-    ):
-        if i % 1000000 == 0:
-            logging.info("reading third order: " + str(np.round(i / n_rows, 2) * 100) + "%")
+        above_threshold = np.abs(lines[:, -3:]) > third_energy_threshold
+        to_write = np.where((lines[:, 0] - 1 < n_atoms) & (above_threshold.any(axis=1)))
+        parsed_coords = lines[to_write][:, :-3] - 1
+        parsed_values = lines[to_write][:, -3:]
 
-        for alpha in alphas[write]:
-            coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
-            coords[index_in_unit_cell, -1] = alpha
-            values[index_in_unit_cell] = tenjovermoltoev * values_to_write[alpha]
-            index_in_unit_cell += 1
+        for i, (write, coords_to_write, values_to_write) in enumerate(
+            zip(above_threshold[to_write], parsed_coords, parsed_values)
+        ):
+            if i % 1000000 == 0:
+                logging.info("Reading third order with threadhold: " + str(np.round(i / n_rows, 2) * 100) + "%")
 
-    logging.info("read " + str(3 * i) + " interactions")
+            for alpha in alphas[write]:
+                coords[index_in_unit_cell, :-1] = coords_to_write[np.newaxis, :]
+                coords[index_in_unit_cell, -1] = alpha
+                values[index_in_unit_cell] = tenjovermoltoev * values_to_write[alpha]
+                index_in_unit_cell += 1
 
-    # Create sparse matrix from file contents
+        logging.info("read " + str(3 * i) + " interactions")
 
-    coords = coords[:index_in_unit_cell].T
-    values = values[:index_in_unit_cell]
-    sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-
+        coords = coords[:index_in_unit_cell].T
+        values = values[:index_in_unit_cell]
+        sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        return sparse_third
+    
+    # Optimized path for reading entire file (third_energy_threshold == 0)
+    logging.info("Using optimized sparse import")
+    
+    # Stream process file without loading all into memory
+    coords_list = []
+    values_list = []
+    n_interactions = 0
+    
+    with open(filename, 'r') as f:
+        for line in f:
+            # Parse line without creating intermediate arrays
+            parts = line.strip().split()
+            if len(parts) < 8:
+                continue
+                
+            # Check if first atom index is valid (convert to 0-based)
+            atom1_idx = int(parts[0]) - 1
+            if atom1_idx >= n_atoms:
+                continue
+            
+            n_interactions += 1
+            
+            # Extract coordinates directly (convert to 0-based indexing)
+            base_coords = [
+                atom1_idx,                          # atom1
+                int(parts[1]) - 1,          # coord1
+                int(parts[2]) - 1,          # atom2
+                int(parts[3]) - 1,          # coord2
+                int(parts[4]) - 1,          # atom3
+            ]
+            
+            # Extract and convert values
+            values = [float(parts[5]) * tenjovermoltoev,
+                     float(parts[6]) * tenjovermoltoev, 
+                     float(parts[7]) * tenjovermoltoev]
+            
+            # Generate coordinates for each alpha, skip zeros to reduce memory
+            for alpha in range(3):
+                if values[alpha] != 0.0:  # Skip zero values
+                    coords_list.append(base_coords + [alpha])
+                    values_list.append(values[alpha])
+    
+    # Convert to arrays only once at the end
+    if coords_list:
+        all_coords = np.array(coords_list, dtype=np.int32).T  # Transpose for COO format
+        all_values = np.array(values_list, dtype=np.float64)
+        
+        sparse_third = COO(all_coords, all_values, 
+                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        
+        logging.info(f"Read {n_interactions} interactions with {len(values_list)} non-zero entries")
+    else:
+        # Handle empty case
+        empty_coords = np.empty((6, 0), dtype=np.int32)
+        empty_values = np.empty(0, dtype=np.float64)
+        sparse_third = COO(empty_coords, empty_values,
+                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        logging.info("No valid interactions found")
+    
     return sparse_third
 
 
