@@ -457,7 +457,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">kaldo.phonons</span> <span class="kn">import</span> <span class="n">Phonons</span>
 <span class="kn">from</span> <span class="nn">kaldo.controllers.dirac_kernel</span> <span class="kn">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.storage</span> <span class="kn">import</span> <span class="n">lazy_property</span>
+<span class="kn">from</span> <span class="nn">kaldo.storable</span> <span class="kn">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">Storable</span>
 <span class="kn">import</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="k">as</span> <span class="nn">hwqwt</span>
 <span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
 <span class="kn">import</span> <span class="nn">gc</span>
@@ -510,7 +510,7 @@
     <span class="k">return</span> <span class="n">lambd_0</span>
 
 
-<div class="viewcode-block" id="Conductivity"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity">[docs]</a><span class="k">class</span> <span class="nc">Conductivity</span><span class="p">:</span>
+<div class="viewcode-block" id="Conductivity"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity">[docs]</a><span class="k">class</span> <span class="nc">Conductivity</span><span class="p">(</span><span class="n">Storable</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">""" The conductivity object is responsible for mean free path and</span>
 <span class="sd">    conductivity calculations. It takes a phonons object as a required argument.</span>
 
@@ -561,6 +561,14 @@
 <span class="sd">    Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))</span>
 <span class="sd">    ```</span>
 <span class="sd">    """</span>
+    
+    <span class="c1"># Define storage formats for conductivity properties</span>
+    <span class="n">_store_formats</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">'conductivity'</span><span class="p">:</span> <span class="s1">'formatted'</span><span class="p">,</span>
+        <span class="s1">'mean_free_path'</span><span class="p">:</span> <span class="s1">'formatted'</span><span class="p">,</span>
+        <span class="s1">'_generalized_diffusivity'</span><span class="p">:</span> <span class="s1">'numpy'</span>
+    <span class="p">}</span>
+    
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">phonons</span><span class="p">:</span> <span class="n">Phonons</span><span class="p">,</span>
                  <span class="o">*</span><span class="p">,</span>
@@ -604,6 +612,73 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span> <span class="o">=</span> <span class="n">diffusivity_threshold</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_diffusivity_including_antiresonant</span> <span class="o">=</span> <span class="n">is_diffusivity_including_antiresonant</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_shape</span> <span class="o">=</span> <span class="n">diffusivity_shape</span>
+
+    <span class="k">def</span> <span class="nf">_get_folder_path_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Get folder path components for Conductivity-specific attributes."""</span>
+        <span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">if</span> <span class="s1">'&lt;diffusivity_bandwidth&gt;'</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'db_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span><span class="p">)))</span>
+            
+        <span class="k">if</span> <span class="s1">'&lt;diffusivity_threshold&gt;'</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'dt_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span><span class="p">))</span>
+            
+        <span class="k">if</span> <span class="s1">'&lt;method&gt;'</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="p">))</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'sc'</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'inverse'</span><span class="p">)</span> \
+                    <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> \
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="s1">'&lt;length&gt;'</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+                        <span class="n">length_str</span> <span class="o">=</span> <span class="s1">'l'</span>
+                        <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                                <span class="n">length_str</span> <span class="o">+=</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">])</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">length_str</span> <span class="o">+=</span> <span class="s1">'_0'</span>
+                        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">length_str</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="s1">'&lt;finite_length_method&gt;'</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'fs'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span><span class="p">))</span>
+                        
+        <span class="c1"># Delegate to parent class (Phonons) for common attributes</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'phonons'</span><span class="p">):</span>
+            <span class="n">parent_components</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">_get_folder_path_components</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">parent_components</span><span class="p">)</span>
+            
+        <span class="k">return</span> <span class="n">components</span>
+
+    <span class="k">def</span> <span class="nf">_load_formatted_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Override formatted loading for Conductivity-specific properties"""</span>
+        <span class="k">if</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'mean_free_path'</span><span class="p">:</span>
+            <span class="n">loaded</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="n">loaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">loaded</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'conductivity'</span><span class="p">:</span>
+            <span class="n">loaded</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">beta</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                    <span class="n">loaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">loaded</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">))</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Use default implementation for other properties</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_load_formatted_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">_save_formatted_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Override formatted saving for Conductivity-specific properties"""</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s1">'</span><span class="si">%.18e</span><span class="s1">'</span>
+        <span class="k">if</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'mean_free_path'</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span>
+                          <span class="n">header</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'conductivity'</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">beta</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span>
+                              <span class="n">header</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Use default implementation for other properties</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_save_formatted_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
     <span class="nd">@lazy_property</span><span class="p">(</span>
         <span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
