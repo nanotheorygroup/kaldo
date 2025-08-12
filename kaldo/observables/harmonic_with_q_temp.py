@@ -1,10 +1,19 @@
 import kaldo.observables.harmonic_with_q as hwq
 import numpy as np
 import ase.units as units
-from kaldo.helpers.storage import lazy_property
+from kaldo.storable import lazy_property, Storable
 
 
 class HarmonicWithQTemp(hwq.HarmonicWithQ):
+    
+    # Define storage formats for temperature-dependent harmonic properties
+    # Inherits base _store_formats from HarmonicWithQ and adds temperature-specific ones
+    _store_formats = {
+        **hwq.HarmonicWithQ._store_formats,  # Inherit parent formats
+        'population': 'formatted',
+        'heat_capacity': 'formatted',
+        'heat_capacity_2d': 'formatted'
+    }
 
     def __init__(self, temperature, is_classic, *kargs, **kwargs):
         super().__init__(*kargs, **kwargs)
