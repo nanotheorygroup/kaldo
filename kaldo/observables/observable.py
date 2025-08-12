@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import h5py
-from kaldo.helpers.storage import FOLDER_NAME
+from kaldo.storable import FOLDER_NAME
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 

@@ -3,25 +3,32 @@ kaldo
 Anharmonic Lattice Dynamics
 
 """
-from kaldo.helpers.storage import is_calculated
-from kaldo.helpers.storage import lazy_property
+from kaldo.storable import is_calculated
+from kaldo.storable import lazy_property, Storable
 from kaldo.helpers.logger import log_size
-from kaldo.helpers.storage import DEFAULT_STORE_FORMATS, FOLDER_NAME
+from kaldo.storable import FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
+import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from scipy import stats
 import numpy as np
 from numpy.typing import ArrayLike
 import ase.units as units
+from kaldo.helpers.tools import timeit
 from kaldo.helpers.logger import get_logger
+
 logging = get_logger()
 
+# Constants
+GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
+HBAR = units._hbar
+THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
-class Phonons:
+class Phonons(Storable):
     """
     The Phonons object exposes all the phononic properties of a system by manipulation
     of the quantities passed into the ForceConstant object. The arguments passed in here
@@ -117,6 +124,26 @@ class Phonons:
     -------
     Phonons Object
     """
+    
+    # Define storage formats for phonon properties
+    # This encapsulates the storage strategy within the class
+    _store_formats = {
+        'physical_mode': 'formatted',
+        'frequency': 'formatted',
+        'participation_ratio': 'formatted',
+        'velocity': 'formatted',
+        'heat_capacity': 'formatted',
+        'population': 'formatted',
+        'bandwidth': 'formatted',
+        'phase_space': 'formatted',
+        'diffusivity': 'numpy',
+        'flux': 'numpy',
+        '_dynmat_derivatives': 'numpy',
+        '_eigensystem': 'numpy',
+        '_ps_and_gamma': 'numpy',
+        '_ps_gamma_and_gamma_tensor': 'numpy',
+        '_generalized_diffusivity': 'numpy'
+    }
     def __init__(self,
                  forceconstants: ForceConstants,
                  temperature: float | None = None,
@@ -171,6 +198,55 @@ class Phonons:
         self.g_factor = g_factor
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
+
+    def _get_folder_path_components(self, label):
+        """Get folder path components for Phonons-specific attributes."""
+        components = []
+        
+        if '<temperature>' in label and hasattr(self, 'temperature'):
+            components.append(str(int(self.temperature)))
+            
+        if '<statistics>' in label:
+            if self.is_classic:
+                components.append('classic')
+            else:
+                components.append('quantum')
+                
+        if '<third_bandwidth>' in label and self.third_bandwidth is not None:
+            components.append('tb_' + str(np.mean(self.third_bandwidth)))
+            
+        if '<include_isotopes>' in label and self.include_isotopes:
+            components.append('isotopes')
+            
+        return components
+
+    def _load_formatted_property(self, property_name, name):
+        """Override formatted loading for Phonons-specific properties"""
+        if property_name == 'physical_mode':
+            loaded = np.loadtxt(name + '.dat', skiprows=1)
+            return np.round(loaded, 0).astype(bool)
+        elif property_name == 'velocity':
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
+            return np.array(loaded).transpose(1, 2, 0)
+        else:
+            # Use default implementation for other properties
+            return super()._load_formatted_property(property_name, name)
+    
+    def _save_formatted_property(self, property_name, name, data):
+        """Override formatted saving for Phonons-specific properties"""
+        if property_name == 'physical_mode':
+            fmt = '%d'
+            np.savetxt(name + '.dat', data, fmt=fmt, header=str(data.shape))
+        elif property_name == 'velocity':
+            fmt = '%.18e'
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', data[..., alpha], fmt=fmt, 
+                          header=str(data[..., 0].shape))
+        else:
+            # Use default implementation for other properties
+            super()._save_formatted_property(property_name, name, data)
 
 
 
@@ -545,7 +621,7 @@ class Phonons:
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
     def _ps_and_gamma(self):
-        store_format = DEFAULT_STORE_FORMATS['_ps_gamma_and_gamma_tensor'] \
+        store_format = self._store_formats.get('_ps_gamma_and_gamma_tensor', 'numpy') \
             if self.storage == 'formatted' else self.storage
         if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
                          format=store_format):
@@ -560,8 +636,200 @@ class Phonons:
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
+    @lazy_property(label='<third_bandwidth>')
+    def _sparse_phase_and_potential(self):
+        """
+        Calculate both sparse phase and potential tensors for anharmonic interactions.
+        
+        Returns
+        -------
+        tuple : (sparse_phase, sparse_potential)
+            Both sparse tensor data structures
+        """
+        # Calculate from scratch
+        if self._is_amorphous:
+            return self._project_amorphous()
+        else:
+            return self._project_crystal()
 
-# Helpers properties
+    def _convert_sparse_tensors_to_per_mu_arrays(self, sparse_phase, sparse_potential):
+        """
+        Convert sparse tensors to per-mu arrays for numpy storage.
+        
+        Returns a list where each element contains the data for one mu (phonon mode).
+        Each mu can have 0, 1, or 2 non-None tensors (for is_plus=0,1).
+        
+        Returns
+        -------
+        list : List of per-mu data dictionaries
+        """
+        per_mu_data = []
+        
+        for nu_single in range(len(sparse_phase)):
+            mu_data = {'exists': False, 'tensors': []}
+            
+            for is_plus in range(2):
+                if (nu_single < len(sparse_phase) and 
+                    is_plus < len(sparse_phase[nu_single]) and
+                    sparse_phase[nu_single][is_plus] is not None):
+                    
+                    phase_tensor = sparse_phase[nu_single][is_plus]
+                    potential_tensor = sparse_potential[nu_single][is_plus]
+                    
+                    # Get tensor components
+                    indices = phase_tensor.indices.numpy()
+                    phase_values = phase_tensor.values.numpy()  
+                    potential_values = potential_tensor.values.numpy()
+                    dense_shape = phase_tensor.dense_shape.numpy()
+                    
+                    tensor_data = {
+                        'is_plus': is_plus,
+                        'indices': indices,
+                        'phase_values': phase_values,
+                        'potential_values': potential_values,
+                        'dense_shape': dense_shape
+                    }
+                    
+                    mu_data['tensors'].append(tensor_data)
+                    mu_data['exists'] = True
+            
+            per_mu_data.append(mu_data)
+        
+        return per_mu_data
+    
+    def _convert_per_mu_arrays_to_sparse_tensors(self, per_mu_data):
+        """
+        Convert per-mu arrays back to sparse tensor format.
+        
+        Parameters
+        ----------
+        per_mu_data : list
+            List of per-mu data dictionaries
+            
+        Returns
+        -------
+        tuple : (sparse_phase, sparse_potential)
+        """
+        import tensorflow as tf
+        
+        sparse_phase = []
+        sparse_potential = []
+        
+        for nu_single, mu_data in enumerate(per_mu_data):
+            sparse_phase.append([None, None])  # Initialize with None for both is_plus
+            sparse_potential.append([None, None])
+            
+            if mu_data['exists']:
+                for tensor_data in mu_data['tensors']:
+                    is_plus = tensor_data['is_plus']
+                    
+                    # Reconstruct sparse tensors
+                    phase_tensor = tf.SparseTensor(
+                        indices=tensor_data['indices'],
+                        values=tensor_data['phase_values'],
+                        dense_shape=tensor_data['dense_shape']
+                    )
+                    potential_tensor = tf.SparseTensor(
+                        indices=tensor_data['indices'],
+                        values=tensor_data['potential_values'],
+                        dense_shape=tensor_data['dense_shape']
+                    )
+                    
+                    sparse_phase[nu_single][is_plus] = phase_tensor
+                    sparse_potential[nu_single][is_plus] = potential_tensor
+        
+        return sparse_phase, sparse_potential
+
+    def _load_property(self, property_name, folder, format='formatted'):
+        """
+        Override to handle custom loading for sparse tensors.
+        """
+        if property_name == '_sparse_phase_and_potential' and format == 'numpy':
+            # Custom loading for sparse tensors from per-mu numpy arrays
+            base_name = folder + '/' + property_name
+            
+            # Load list of which mus exist
+            saved_mus = np.load(f'{base_name}_mu_list.npy')
+            
+            # Determine total number of mus needed
+            n_phonons = self.n_phonons
+            
+            # Initialize per_mu_data with correct size
+            per_mu_data = [{'exists': False, 'tensors': []} for _ in range(n_phonons)]
+            
+            # Load existing mu data
+            for nu_single in saved_mus:
+                mu_filename = f'{base_name}_mu_{nu_single}.npy'
+                mu_data = np.load(mu_filename, allow_pickle=True).item()
+                per_mu_data[nu_single] = mu_data
+            
+            return self._convert_per_mu_arrays_to_sparse_tensors(per_mu_data)
+        else:
+            # Use parent method for other properties
+            return super()._load_property(property_name, folder, format)
+
+    def _save_property(self, property_name, folder, data, format='formatted'):
+        """
+        Override to handle custom storage for sparse tensors.
+        """
+        if property_name == '_sparse_phase_and_potential':
+            if format == 'numpy':
+                # Custom storage for sparse tensors as per-mu numpy arrays
+                sparse_phase, sparse_potential = data
+                per_mu_data = self._convert_sparse_tensors_to_per_mu_arrays(sparse_phase, sparse_potential)
+                
+                # Save each mu separately
+                import os
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+                    
+                base_name = folder + '/' + property_name
+                
+                # Save only mus that have data
+                saved_mus = []
+                for nu_single, mu_data in enumerate(per_mu_data):
+                    if mu_data['exists']:
+                        mu_filename = f'{base_name}_mu_{nu_single}.npy'
+                        np.save(mu_filename, mu_data, allow_pickle=True)
+                        saved_mus.append(nu_single)
+                
+                # Save list of which mus exist
+                np.save(f'{base_name}_mu_list.npy', np.array(saved_mus, dtype=np.int32))
+                
+                logging.info(f'{base_name} stored as {len(saved_mus)} per-mu arrays')
+            else:
+                # Sparse tensors cannot be saved in formatted text format
+                # Force numpy format for this property type
+                logging.warning(f'Sparse tensors cannot be saved in {format} format. Using numpy format instead.')
+                self._save_property(property_name, folder, data, format='numpy')
+        else:
+            # Use parent method for other properties
+            super()._save_property(property_name, folder, data, format)
+
+    @property
+    def sparse_phase(self):
+        """
+        Sparse phase space tensor for anharmonic interactions.
+        
+        Returns
+        -------
+        sparse_phase : list
+            List of sparse tensors containing phase space information
+        """
+        return self._sparse_phase_and_potential[0]
+
+    @property
+    def sparse_potential(self):
+        """
+        Sparse potential tensor for anharmonic interactions.
+        
+        Returns
+        -------
+        sparse_potential : list
+            List of sparse tensors containing potential information
+        """
+        return self._sparse_phase_and_potential[1]
+
 
     @property
     def omega(self):
@@ -626,7 +894,6 @@ class Phonons:
                 p_atoms = [p_atoms]
 
         n_modes = self.n_modes
-        n_kpts = self.n_k_points
         eigensystem = self._eigensystem
         eigenvals = eigensystem[:, 0, :]
         normal_modes = eigensystem[:, 1:, :]
@@ -696,9 +963,186 @@ class Phonons:
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
-        if self._is_amorphous:
-            ps_and_gamma = aha.project_amorphous(self)
-        else:
-            ps_and_gamma = aha.project_crystal(self)
+        # Reshape population to 1D for unified indexing
+        population_flat = self.population.flatten()
+        
+        ps_and_gamma = aha.calculate_ps_and_gamma(
+            self.sparse_phase,
+            self.sparse_potential,
+            population_flat,
+            self.is_balanced,
+            self.n_phonons,
+            self._is_amorphous,
+            self.is_gamma_tensor_enabled
+        )
+        if not self._is_amorphous:
+            ps_and_gamma[:, 0] /= self.n_k_points
+
         return ps_and_gamma
 
+
+    @timeit
+    def _project_amorphous(self):
+        """
+        Project anharmonic properties for amorphous materials.
+
+        Args:
+            self: Phonon object containing material properties
+
+        Returns:
+            np.ndarray: Array containing projected properties
+        """
+        frequency = self.frequency
+        omega = 2 * np.pi * frequency
+        n_replicas = self.forceconstants.n_replicas
+        rescaled_eigenvectors = self._rescaled_eigenvectors.astype(float)
+        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
+        coords = self.forceconstants.third.value.coords
+        coords = np.vstack([coords[1], coords[2], coords[0]])
+        coords = tf.cast(coords.T, dtype=tf.int64)
+        data = self.forceconstants.third.value.data
+        third_tf = tf.SparseTensor(
+            coords, data, (self.n_modes * n_replicas, self.n_modes * n_replicas, self.n_modes)
+        )
+        third_tf = tf.sparse.reshape(third_tf, ((self.n_modes * n_replicas) ** 2, self.n_modes))
+        physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
+        logging.info("Projection started")
+        hbar = HBAR * (1e-6 if self.is_classic else 1)
+        sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
+        n_modes = self.n_modes
+        broadening_shape = self.broadening_shape
+        n_phonons = self.n_phonons
+        sparse_phase = []
+        sparse_potential = []
+        for nu_single in range(self.n_phonons):
+            if nu_single % 200 == 0:
+                logging.info("calculating third " + f"{nu_single}" + ": " + \
+                             f"{100 * nu_single / self.n_phonons:.2f}%")
+
+            sparse_phase.append([])
+            sparse_potential.append([])
+            for is_plus in (0, 1):
+
+                # ps_and_gamma = np.zeros(2)
+                if not physical_mode[0, nu_single]:
+                    sparse_phase[nu_single].extend([None, None])
+                    sparse_potential[nu_single].extend([None, None])
+                    continue
+
+                dirac_delta_result = aha.calculate_dirac_delta_amorphous(is_plus, nu_single, omega, physical_mode, sigma_tf,
+                                                                     broadening_shape, n_phonons)
+                if not dirac_delta_result:
+                    sparse_phase[nu_single].append(None)
+                    sparse_potential[nu_single].append(None)
+                    continue
+                sparse_phase[nu_single].append(dirac_delta_result)
+                mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
+
+                third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1)))
+                third_nu_tf = tf.reshape(third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas))
+                scaled_potential_tf = tf.einsum("ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf)
+                coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+                pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
+                pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
+                pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
+                
+                # Convert to sparse tensor using the same indices as sparse_phase
+                sparse_potential_tensor = tf.SparseTensor(
+                    indices=dirac_delta_result.indices,
+                    values=pot_times_dirac,
+                    dense_shape=dirac_delta_result.dense_shape
+                )
+                sparse_potential[nu_single].append(sparse_potential_tensor)
+        return sparse_phase, sparse_potential
+
+
+    @timeit
+    def _project_crystal(self):
+        n_replicas = self.forceconstants.third.n_replicas
+        try:
+            sparse_third = self.forceconstants.third.value.reshape((self.n_modes, -1))
+            sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
+            sparse_coords = tf.cast(sparse_coords, dtype=tf.int64)
+            third_tf = tf.SparseTensor(
+                sparse_coords, sparse_third.data, ((self.n_modes * n_replicas) ** 2, self.n_modes)
+            )
+            is_sparse = True
+        except AttributeError:
+            third_tf = tf.convert_to_tensor(self.forceconstants.third.value)
+            is_sparse = False
+        third_tf = tf.cast(third_tf, dtype=tf.complex128)
+        k_mesh = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        n_k_points = k_mesh.shape[0]
+        _chi_k = tf.convert_to_tensor(self.forceconstants.third._chi_k(k_mesh))
+        _chi_k = tf.cast(_chi_k, dtype=tf.complex128)
+        evect_tf = tf.convert_to_tensor(self._rescaled_eigenvectors)
+        evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
+        second_minus = tf.math.conj(evect_tf)
+        second_minus_chi = tf.math.conj(_chi_k)
+        logging.info("Projection started")
+        broadening_shape = self.broadening_shape
+        physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
+        omega = self.omega
+        velocity_tf = tf.convert_to_tensor(self.velocity)
+        cell_inv = self.forceconstants.cell_inv
+        kpts = self.kpts
+        hbar = HBAR * (1e-6 if self.is_classic else 1)
+        n_modes = self.n_modes
+        n_phonons = self.n_phonons
+        sparse_phase = []
+        sparse_potential = []
+        for nu_single in range(n_phonons):
+            if nu_single % 200 == 0:
+                logging.info(f"calculating third {nu_single}: {100 * nu_single / self.n_phonons:.2f}%")
+            sparse_phase.append([])
+            sparse_potential.append([])
+            index_k, mu = np.unravel_index(nu_single, (n_k_points, self.n_modes))
+            if not physical_mode[index_k, mu]:
+                sparse_phase[nu_single].extend([None, None])
+                sparse_potential[nu_single].extend([None, None])
+                continue
+            for is_plus in (0, 1):
+                index_kpp_full = tf.cast(self._allowed_third_phonons_index(index_k, is_plus), dtype=tf.int32)
+                if self.third_bandwidth:
+                    sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
+                else:
+                    sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+                dirac_delta_result = aha.calculate_dirac_delta_crystal(
+                    omega,
+                    physical_mode,
+                    sigma_tf,
+                    broadening_shape,
+                    index_kpp_full,
+                    index_k,
+                    mu,
+                    is_plus,
+                    n_k_points,
+                    n_modes,
+                )
+                if not dirac_delta_result:
+                    sparse_phase[nu_single].append(None)
+                    sparse_potential[nu_single].append(None)
+                    continue
+                sparse_phase[nu_single].append(dirac_delta_result)
+                sparse_potential[nu_single].append(
+                    aha.sparse_potential_mu(
+                        nu_single,
+                        evect_tf,
+                        dirac_delta_result,
+                        index_k,
+                        mu,
+                        n_k_points,
+                        n_modes,
+                        is_plus,
+                        is_sparse,
+                        index_kpp_full,
+                        _chi_k,
+                        second_minus,
+                        second_minus_chi,
+                        third_tf,
+                        n_replicas,
+                        omega,
+                        hbar,
+                    )
+                )
+        return sparse_phase, sparse_potential
