@@ -29,7 +29,7 @@ outfold = 'plots/'
 ### Settings detected by environment variables, POSCARs and arguments
 # Replicas
 k = 5 # cubed
-nrep = int(9) # cubed
+nrep = int(5) # cubed
 nrep_third = int(5) # cubed
 supercell = np.array([nrep, nrep, nrep])
 kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k, k, k)
@@ -60,7 +60,7 @@ forceconstant = ForceConstants.from_folder(
 # forceconstant.atoms.set_array('charges', born_charges)
 
 # Create Phonon Object
-phonons_nac = Phonons(forceconstants=forceconstant,
+phonons_nac = Phonons(forceconstants=forceconstant_nac,
               kpts=kpts,
               is_classic=False,
               temperature=300,

@@ -28,8 +28,8 @@ uncorrected_x = corrected_x = np.linspace(0, 1, corrected_y.shape[0])
 matdyn_y = np.loadtxt('tools/refs.freq')[:, 1:] / 33.356 # cm-1
 matdyn_x = np.arange(matdyn_y.shape[0])/(matdyn_y.shape[0])
 for column in range(corrected_y.shape[1]):
-    ax0.scatter(corrected_x, corrected_y[:, column], color=red, marker='o', s=12, zorder=2, alpha=0.5)
-    ax0.scatter(uncorrected_x, uncorrected_y[:, column], color=blue, marker='X', s=12, zorder=1, alpha=0.5)
+    ax0.scatter(uncorrected_x, corrected_y[:, column], color=red, marker='o', s=12, zorder=2, alpha=0.5)
+    ax0.scatter(uncorrected_x, uncorrected_y[:, column], color=blue, marker='s', s=12, zorder=1, alpha=0.5)
     ax0.scatter(matdyn_x, matdyn_y[:, column], color=green, marker='D', s=12, zorder=0, alpha=0.5)
 ax0.set_xticks(special_indices, labels=special_points,)
 ax0.set_ylabel('Frequency (THz)', fontsize=28)
@@ -41,13 +41,13 @@ corrected_y = np.loadtxt(f'{outfold}/{pathstring}.vnorms-nac')
 uncorrected_y = np.loadtxt(f'{outfold}/{pathstring}.vnorms')
 for column in range(corrected_y.shape[1]):
     ax1.scatter(corrected_x, corrected_y[:, column], color=red, s=12, zorder=2, alpha=0.5)
-    ax1.scatter(uncorrected_x, uncorrected_y[:, column], color=blue, s=12, zorder=1, alpha=0.5)
+    ax1.scatter(uncorrected_x, uncorrected_y[:, column], color=blue, s=12, marker='s', zorder=1, alpha=0.5)
 ax1.set_xticks(special_indices, labels=special_points)
 ax1.set_ylabel('Group Velocity (km/s)', fontsize=28)
 ax1.set_title('GV Norms', fontsize=32)
 
 labels = ['NAC', 'Uncorrected', 'Matdyn',]
-markers = ['o', 'X', 'D']
+markers = ['o', 's', 'D']
 colors = [red, blue, green]
 lines = [Line2D([],[], lw=0, marker=marker, markersize=8, color=color) \
             for marker, color in zip(markers, colors)]
