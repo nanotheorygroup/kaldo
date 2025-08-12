@@ -4,7 +4,7 @@ from kaldo.observables.observable import Observable
 import numpy as np
 from ase import units
 from opt_einsum import contract
-from kaldo.helpers.storage import lazy_property
+from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
@@ -15,7 +15,22 @@ logging = get_logger()
 MIN_N_MODES_TO_STORE = 1000
 
 
-class HarmonicWithQ(Observable):
+class HarmonicWithQ(Observable, Storable):
+    
+    # Define storage formats for harmonic properties
+    _store_formats = {
+        'frequency': 'formatted',
+        'velocity': 'formatted',
+        'participation_ratio': 'formatted',
+        '_dynmat_derivatives_x': 'numpy',
+        '_dynmat_derivatives_y': 'numpy', 
+        '_dynmat_derivatives_z': 'numpy',
+        '_dynmat_fourier': 'numpy',
+        '_eigensystem': 'numpy',
+        '_sij_x': 'numpy',
+        '_sij_y': 'numpy',
+        '_sij_z': 'numpy'
+    }
 
     def __init__(self, q_point, second,
                  distance_threshold=None,
@@ -48,6 +63,28 @@ class HarmonicWithQ(Observable):
             self.storage = storage
         else:
             self.storage = 'memory'
+
+    def _load_formatted_property(self, property_name, name):
+        """Override formatted loading for HarmonicWithQ-specific properties"""
+        if '_sij' in property_name:
+            loaded = []
+            for alpha in range(3):
+                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=complex))
+            return np.array(loaded).transpose(1, 0)
+        else:
+            # Use default implementation for other properties
+            return super()._load_formatted_property(property_name, name)
+    
+    def _save_formatted_property(self, property_name, name, data):
+        """Override formatted saving for HarmonicWithQ-specific properties"""
+        if '_sij' in property_name:
+            fmt = '%.18e'
+            for alpha in range(3):
+                np.savetxt(name + '_' + str(alpha) + '.dat', data[..., alpha].flatten(), fmt=fmt, 
+                          header=str(data[..., 0].shape))
+        else:
+            # Use default implementation for other properties
+            super()._save_formatted_property(property_name, name, data)
 
     @lazy_property(label='<q_point>')
     def frequency(self):
