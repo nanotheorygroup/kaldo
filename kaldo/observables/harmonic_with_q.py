@@ -485,9 +485,9 @@ class HarmonicWithQ(Observable, Storable):
         e2 = 2.  # square of electron charge in A.U.
         atoms = self.second.atoms
         natoms = len(atoms)
-        if gmax==None:
+        if gmax is None:
             gmax = 14  # maximum reciprocal vector (same default value in ShengBTE/QE)
-        if Lambda==None:
+        if Lambda is None:
             Lambda = 1 # (2*np.pi*units.Bohr/np.linalg.norm(atoms.cell[0,:]))**2
         geg0 = 4 * Lambda * gmax
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
@@ -668,7 +668,7 @@ class HarmonicWithQ(Observable, Storable):
         zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))
 
         # Combine terms!
-        lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dge
+        lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
 
         # Scale by exponential decay term
         lr_correction = np.einsum('i,inm,inmabc->nmabc', decay, phase, lr_correction)
