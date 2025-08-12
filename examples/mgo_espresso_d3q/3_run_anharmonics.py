@@ -14,18 +14,12 @@ from scipy import constants
 import h5py
 
 # Replicas
-k = 9 # cubed
+k = 5 # cubed
 nrep = int(9)
 nrep_third = int(5)
 supercell = np.array([nrep, nrep, nrep])
 kpts, kptfolder = [k, k, k], '{}_{}_{}'.format(k, k, k)
 third_supercell = np.array([nrep_third, nrep_third, nrep_third])
-radps_to_THz = 1 / (2 * np.pi)
-thz_to_invcm = constants.value('hertz-inverse meter relationship') * 1e12 / 100
-# sheng_data = './BTE.omega'
-# gamma_freqs = np.loadtxt(sheng_data)[0, :] * radps_to_THz
-#phonopy_data = h5py.File('phonopy/with_NAC/anharmonic.hdf5', 'r')
-# print(f'Frequencies at Gamma (shengbte): {gamma_freqs}')
 
 ### Begin simulation
 # Import kALDo
@@ -57,11 +51,11 @@ phonons_nac = Phonons(forceconstants=forceconstant_nac,
                   kpts=kpts,
                   is_classic=False,
                   temperature=300,
-                  folder='./',
+                  folder='./forces',
                   is_unfolding=True,
                   storage='numpy', )
 
-nac_cond_matrix = (Conductivity(phonons=phonons_nac, method='rta').conductivity.sum(axis=0))
+nac_rta_matrix = (Conductivity(phonons=phonons_nac, method='rta').conductivity.sum(axis=0))
 nac_inv_matrix = (Conductivity(phonons=phonons_nac, method='inverse').conductivity.sum(axis=0))
 
 forceconstant = ForceConstants.from_folder(
@@ -75,16 +69,16 @@ phonons = Phonons(forceconstants=forceconstant,
                   kpts=kpts,
                   is_classic=False,
                   temperature=300,
-                  folder='./nocharges',
+                  folder='./forces/uncharged',
                   is_unfolding=True,
                   storage='numpy', )
-cond_matrix = (Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0))
+rta_matrix = (Conductivity(phonons=phonons, method='rta').conductivity.sum(axis=0))
 inv_matrix = (Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0))
 
 
 print("uncharged")
-print(cond_matrix)
+print(rta_matrix)
 print(inv_matrix)
 print("charged")
-print(nac_cond_matrix)
+print(nac_rta_matrix)
 print(nac_inv_matrix)
