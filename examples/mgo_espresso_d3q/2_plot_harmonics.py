@@ -1,5 +1,5 @@
 import numpy as np
-xfrom matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 plt.style.use('/home/nwlundgren/.config/matplotlib/matplotlibrc')
 
