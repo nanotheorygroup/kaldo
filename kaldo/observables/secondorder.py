@@ -170,7 +170,7 @@ class SecondOrder(ForceConstant):
                     if not os.path.isfile(filename):
                         raise FileNotFoundError(f"File {filename} not found.")
                     _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
-                    if (not charges is None) and charges.any():
+                    if (not charges is None):
                         atoms.info['dielectric'] = charges[0, :, :]
                         atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                     _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))

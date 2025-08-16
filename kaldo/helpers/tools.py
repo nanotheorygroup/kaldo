@@ -3,7 +3,6 @@ kaldo
 Anharmonic Lattice Dynamics
 """
 import time
-import numpy as np
 from itertools import takewhile, repeat
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
