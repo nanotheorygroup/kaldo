@@ -87,19 +87,25 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename="Dyn.form"):
     return dynamical_matrix * tenjovermoltoev
 
 
-def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_energy_threshold=0.0):
+def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_energy_threshold=0.0, chunk_size=100000):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]
     n_replicated_atoms = n_atoms * n_replicas
     tenjovermoltoev = 10 * units.J / units.mol
 
-    # Load entire file at once
-    lines = np.loadtxt(filename)
-    logging.info("Loaded third order file. Processing sparse input.")
+    logging.info("Processing sparse third order file.")
 
     if third_energy_threshold > 0.0:
-        # Keep original method for threshold case (not optimized as requested)
+        try:
+            lines = np.loadtxt(filename)
+            logging.info("Loaded third order file for threshold processing.")
+        except Exception as e:
+            logging.warning(f"Failed to load file with np.loadtxt: {e}")
+            empty_coords = np.empty((6, 0), dtype=np.int32)
+            empty_values = np.empty(0, dtype=np.float64)
+            return COO(empty_coords, empty_values,
+                      shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
         n_rows = len(lines)
         array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
         coords = np.zeros((array_size, 6), dtype=int)
@@ -131,64 +137,288 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
         sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
         return sparse_third
     
-    # Optimized path for reading entire file (third_energy_threshold == 0)
-    logging.info("Using optimized sparse import")
+    logging.info("Using hybrid optimized sparse import")
     
-    # Stream process file without loading all into memory
-    coords_list = []
-    values_list = []
-    n_interactions = 0
-    
-    with open(filename, 'r') as f:
-        for line in f:
-            # Parse line without creating intermediate arrays
-            parts = line.strip().split()
-            if len(parts) < 8:
-                continue
+    def _import_with_array_chunked():
+        import array
+        import sys
+        import gc
+        
+        if sys.maxsize > 2**32:
+            coord_typecode = 'L'
+            coord_dtype = np.uint64
+        else:
+            coord_typecode = 'I'
+            coord_dtype = np.uint32
+        
+        logging.info(f"Using {coord_typecode} array type ({coord_dtype})")
+        
+        coords_list = array.array(coord_typecode)
+        values_list = array.array('d')
+        n_interactions = 0
+        non_zero_count = 0
+        
+
+        estimated_entries_per_line = 2.1
+        target_memory_mb = min(chunk_size * 6 * coord_dtype().itemsize / (1024**2), 500)
+        adaptive_chunk_size = min(chunk_size, int(target_memory_mb * 1024**2 / (6 * coord_dtype().itemsize)))
+        
+        logging.info(f"Using adaptive chunk size: {adaptive_chunk_size} entries")
+        
+
+        coords_chunk = array.array(coord_typecode, [0]) * (6 * adaptive_chunk_size)
+        values_chunk = array.array('d', [0.0]) * adaptive_chunk_size
+        chunk_pos = 0
+        
+
+        def validate_chunks():
+            if len(coords_list) % 6 != 0:
+                raise ValueError(f"Coordinate array length ({len(coords_list)}) not divisible by 6")
+            if len(coords_list) // 6 != len(values_list):
+                raise ValueError(f"Coordinate/value count mismatch: {len(coords_list)//6} vs {len(values_list)}")
+        
+
+        def flush_chunk():
+            nonlocal chunk_pos, non_zero_count
+            if chunk_pos == 0:
+                return
                 
-            # Check if first atom index is valid (convert to 0-based)
-            atom1_idx = int(parts[0]) - 1
-            if atom1_idx >= n_atoms:
-                continue
+
+            coords_list.extend(coords_chunk[:6 * chunk_pos])
+            values_list.extend(values_chunk[:chunk_pos])
+            non_zero_count += chunk_pos
+            chunk_pos = 0
             
-            n_interactions += 1
-            
-            # Extract coordinates directly (convert to 0-based indexing)
-            base_coords = [
-                atom1_idx,                          # atom1
-                int(parts[1]) - 1,          # coord1
-                int(parts[2]) - 1,          # atom2
-                int(parts[3]) - 1,          # coord2
-                int(parts[4]) - 1,          # atom3
-            ]
-            
-            # Extract and convert values
-            values = [float(parts[5]) * tenjovermoltoev,
-                     float(parts[6]) * tenjovermoltoev, 
-                     float(parts[7]) * tenjovermoltoev]
-            
-            # Generate coordinates for each alpha, skip zeros to reduce memory
-            for alpha in range(3):
-                if values[alpha] != 0.0:  # Skip zero values
-                    coords_list.append(base_coords + [alpha])
-                    values_list.append(values[alpha])
+
+            if len(coords_list) > 0 and len(coords_list) % (6 * adaptive_chunk_size * 10) == 0:
+                gc.collect()
+                logging.info(f"Processed {non_zero_count} non-zero entries, memory check passed")
+        
+
+        try:
+            with open(filename, 'r', buffering=65536) as f:
+                for line_num, line in enumerate(f, 1):
+
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+
+                    parts = line.split()
+                    if len(parts) < 8:
+                        continue
+                    
+
+                    try:
+                        atom1_idx = int(parts[0]) - 1
+                        if atom1_idx < 0 or atom1_idx >= n_atoms:
+                            continue
+                    except (ValueError, IndexError):
+                        continue
+                    
+                    n_interactions += 1
+                    
+
+                    try:
+                        coords = [
+                            atom1_idx,
+                            int(parts[1]) - 1,
+                            int(parts[2]) - 1,
+                            int(parts[3]) - 1,
+                            int(parts[4]) - 1
+                        ]
+                    except (ValueError, IndexError):
+                        continue
+                    
+
+                    try:
+                        values = [
+                            float(parts[5]) * tenjovermoltoev,
+                            float(parts[6]) * tenjovermoltoev,
+                            float(parts[7]) * tenjovermoltoev
+                        ]
+                    except (ValueError, IndexError, OverflowError):
+                        continue
+                    
+
+                    for alpha, value in enumerate(values):
+                        if value != 0.0:
+
+                            if chunk_pos >= adaptive_chunk_size:
+                                flush_chunk()
+                            
+
+                            try:
+                                base_idx = 6 * chunk_pos
+                                for i, coord in enumerate(coords):
+                                    coords_chunk[base_idx + i] = coord
+                                coords_chunk[base_idx + 5] = alpha
+                                values_chunk[chunk_pos] = value
+                                chunk_pos += 1
+                            except (IndexError, OverflowError) as e:
+                                logging.warning(f"Chunk overflow at line {line_num}: {e}")
+                                flush_chunk()
+                                break
+        
+        except Exception as e:
+            logging.error(f"Error in array processing: {e}")
+            raise
+        
+
+        flush_chunk()
+        
+        logging.info(f"Array processing complete: {n_interactions} interactions, {non_zero_count} non-zero entries")
+        
+
+        if non_zero_count > 0:
+            try:
+
+                if coords_list.itemsize != coord_dtype().itemsize:
+                    raise ValueError(f"Array itemsize mismatch: {coords_list.itemsize} vs {coord_dtype().itemsize}")
+                
+
+                all_coords = np.frombuffer(coords_list, dtype=coord_dtype).reshape(-1, 6).T
+                all_values = np.frombuffer(values_list, dtype=np.float64)
+                
+
+                if all_coords.shape[1] != len(all_values):
+                    raise ValueError(f"Final shape mismatch: {all_coords.shape[1]} coords vs {len(all_values)} values")
+                
+
+                
+                sparse_third = COO(
+                    all_coords.astype(np.int32),
+                    all_values,
+                    shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+                )
+                
+                logging.info(f"Array method successful: {sparse_third.nnz} non-zero entries")
+                return sparse_third
+                
+            except Exception as e:
+                logging.error(f"Error converting arrays to sparse matrix: {e}")
+                raise
+        else:
+
+            logging.info("No non-zero entries found")
+            return COO(
+                np.empty((6, 0), dtype=np.int32),
+                np.empty(0, dtype=np.float64),
+                shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+            )
     
-    # Convert to arrays only once at the end
-    if coords_list:
-        all_coords = np.array(coords_list, dtype=np.int32).T  # Transpose for COO format
-        all_values = np.array(values_list, dtype=np.float64)
+    def _import_with_chunked_numpy_fallback():
+        """
+        Fallback method using chunked numpy arrays - more reliable but uses more memory.
+        """
+        import gc
         
-        sparse_third = COO(all_coords, all_values, 
-                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        logging.info("Using numpy chunked fallback method")
         
-        logging.info(f"Read {n_interactions} interactions with {len(values_list)} non-zero entries")
-    else:
-        # Handle empty case
-        empty_coords = np.empty((6, 0), dtype=np.int32)
-        empty_values = np.empty(0, dtype=np.float64)
-        sparse_third = COO(empty_coords, empty_values,
-                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-        logging.info("No valid interactions found")
+        n_interactions = 0
+        all_sparse_chunks = []
+        fallback_chunk_size = min(chunk_size, 50000)
+        
+
+        coords_chunk = np.empty((fallback_chunk_size, 6), dtype=np.int32)
+        values_chunk = np.empty(fallback_chunk_size, dtype=np.float64)
+        chunk_idx = 0
+        
+        def process_chunk():
+            nonlocal chunk_idx
+            if chunk_idx == 0:
+                return None
+                
+
+            valid_coords = coords_chunk[:chunk_idx].T
+            valid_values = values_chunk[:chunk_idx].copy()
+            
+            chunk_sparse = COO(valid_coords, valid_values,
+                              shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+            
+            chunk_idx = 0
+            gc.collect()
+            return chunk_sparse
+        
+
+        with open(filename, 'r', buffering=65536) as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 8:
+                    continue
+                    
+                try:
+                    atom1_idx = int(parts[0]) - 1
+                    if atom1_idx >= n_atoms:
+                        continue
+                        
+                    n_interactions += 1
+                    
+                    base_coords = [
+                        atom1_idx,
+                        int(parts[1]) - 1,
+                        int(parts[2]) - 1,
+                        int(parts[3]) - 1,
+                        int(parts[4]) - 1
+                    ]
+                    
+                    val0 = float(parts[5]) * tenjovermoltoev
+                    val1 = float(parts[6]) * tenjovermoltoev
+                    val2 = float(parts[7]) * tenjovermoltoev
+                    
+                    for alpha, value in enumerate([val0, val1, val2]):
+                        if value != 0.0 and chunk_idx < fallback_chunk_size:
+                            coords_chunk[chunk_idx] = base_coords + [alpha]
+                            values_chunk[chunk_idx] = value
+                            chunk_idx += 1
+                            
+                            if chunk_idx >= fallback_chunk_size:
+                                chunk_sparse = process_chunk()
+                                if chunk_sparse is not None:
+                                    all_sparse_chunks.append(chunk_sparse)
+                                break
+                                
+                except (ValueError, IndexError):
+                    continue
+        
+
+        final_chunk = process_chunk()
+        if final_chunk is not None:
+            all_sparse_chunks.append(final_chunk)
+        
+
+        if all_sparse_chunks:
+            if len(all_sparse_chunks) == 1:
+                sparse_third = all_sparse_chunks[0]
+            else:
+                sparse_third = sum(all_sparse_chunks)
+            logging.info(f"Fallback method successful: {sparse_third.nnz} non-zero entries")
+            return sparse_third
+        else:
+            return COO(
+                np.empty((6, 0), dtype=np.int32),
+                np.empty(0, dtype=np.float64),
+                shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+            )
+    
+
+    try:
+        sparse_third = _import_with_array_chunked()
+        logging.info(f"Hybrid import successful with array method")
+    except Exception as e:
+        logging.warning(f"Array method failed ({e}), falling back to numpy chunked method")
+        try:
+            sparse_third = _import_with_chunked_numpy_fallback()
+            logging.info(f"Hybrid import successful with fallback method")
+        except Exception as e2:
+            logging.error(f"Both methods failed. Array error: {e}, Fallback error: {e2}")
+
+            sparse_third = COO(
+                np.empty((6, 0), dtype=np.int32),
+                np.empty(0, dtype=np.float64),
+                shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
+            )
+            logging.error("Returning empty sparse matrix due to import failures")
     
     return sparse_third
 
