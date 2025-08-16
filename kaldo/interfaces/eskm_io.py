@@ -87,7 +87,7 @@ def import_dynamical_matrix(n_atoms, supercell=(1, 1, 1), filename="Dyn.form"):
     return dynamical_matrix * tenjovermoltoev
 
 
-def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_energy_threshold=0.0):
+def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_energy_threshold=0.0, chunk_size=100000):
     supercell = np.array(supercell)
     n_replicas = np.prod(supercell)
     n_atoms = atoms.get_positions().shape[0]
@@ -132,56 +132,104 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
         return sparse_third
     
     # Optimized path for reading entire file (third_energy_threshold == 0)
-    logging.info("Using optimized sparse import")
+    logging.info("Using optimized chunked sparse import")
     
-    # Stream process file without loading all into memory
-    coords_list = []
-    values_list = []
+    import gc
+    
     n_interactions = 0
+    all_sparse_chunks = []
+    # Use provided chunk_size parameter
     
-    with open(filename, 'r') as f:
+    # Pre-allocate arrays for current chunk
+    coords_chunk = np.empty((chunk_size, 6), dtype=np.int32)
+    values_chunk = np.empty(chunk_size, dtype=np.float64)
+    chunk_idx = 0
+    
+    def process_chunk():
+        nonlocal chunk_idx
+        if chunk_idx == 0:
+            return None
+            
+        # Create COO from filled portion of arrays
+        valid_coords = coords_chunk[:chunk_idx].T  # Transpose for COO format
+        valid_values = values_chunk[:chunk_idx].copy()
+        
+        chunk_sparse = COO(valid_coords, valid_values,
+                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
+        
+        chunk_idx = 0  # Reset for next chunk
+        gc.collect()   # Force garbage collection
+        return chunk_sparse
+    
+    # Use buffered reading for better I/O performance
+    with open(filename, 'r', buffering=65536) as f:
         for line in f:
-            # Parse line without creating intermediate arrays
-            parts = line.strip().split()
+            parts = line.split()  # Avoid strip() if not needed
             if len(parts) < 8:
                 continue
                 
-            # Check if first atom index is valid (convert to 0-based)
-            atom1_idx = int(parts[0]) - 1
-            if atom1_idx >= n_atoms:
-                continue
-            
-            n_interactions += 1
-            
-            # Extract coordinates directly (convert to 0-based indexing)
-            base_coords = [
-                atom1_idx,                          # atom1
-                int(parts[1]) - 1,          # coord1
-                int(parts[2]) - 1,          # atom2
-                int(parts[3]) - 1,          # coord2
-                int(parts[4]) - 1,          # atom3
-            ]
-            
-            # Extract and convert values
-            values = [float(parts[5]) * tenjovermoltoev,
-                     float(parts[6]) * tenjovermoltoev, 
-                     float(parts[7]) * tenjovermoltoev]
-            
-            # Generate coordinates for each alpha, skip zeros to reduce memory
-            for alpha in range(3):
-                if values[alpha] != 0.0:  # Skip zero values
-                    coords_list.append(base_coords + [alpha])
-                    values_list.append(values[alpha])
+            # Fast integer parsing with error handling
+            try:
+                atom1_idx = int(parts[0]) - 1
+                if atom1_idx >= n_atoms:
+                    continue
+                    
+                n_interactions += 1
+                
+                # Parse coordinates once
+                base_coords = [
+                    atom1_idx,
+                    int(parts[1]) - 1,
+                    int(parts[2]) - 1,
+                    int(parts[3]) - 1,
+                    int(parts[4]) - 1
+                ]
+                
+                # Parse values once with multiplication
+                val0 = float(parts[5]) * tenjovermoltoev
+                val1 = float(parts[6]) * tenjovermoltoev
+                val2 = float(parts[7]) * tenjovermoltoev
+                
+                # Process non-zero values directly into pre-allocated arrays
+                if val0 != 0.0:
+                    coords_chunk[chunk_idx] = base_coords + [0]
+                    values_chunk[chunk_idx] = val0
+                    chunk_idx += 1
+                    
+                if val1 != 0.0 and chunk_idx < chunk_size:
+                    coords_chunk[chunk_idx] = base_coords + [1]
+                    values_chunk[chunk_idx] = val1
+                    chunk_idx += 1
+                    
+                if val2 != 0.0 and chunk_idx < chunk_size:
+                    coords_chunk[chunk_idx] = base_coords + [2]
+                    values_chunk[chunk_idx] = val2
+                    chunk_idx += 1
+                
+                # Process chunk when full
+                if chunk_idx >= chunk_size:
+                    chunk_sparse = process_chunk()
+                    if chunk_sparse is not None:
+                        all_sparse_chunks.append(chunk_sparse)
+                        logging.info(f"Processed chunk {len(all_sparse_chunks)} with {chunk_size} entries")
+                        
+            except (ValueError, IndexError):
+                continue  # Skip malformed lines
     
-    # Convert to arrays only once at the end
-    if coords_list:
-        all_coords = np.array(coords_list, dtype=np.int32).T  # Transpose for COO format
-        all_values = np.array(values_list, dtype=np.float64)
-        
-        sparse_third = COO(all_coords, all_values, 
-                          shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-        
-        logging.info(f"Read {n_interactions} interactions with {len(values_list)} non-zero entries")
+    # Process final chunk
+    final_chunk = process_chunk()
+    if final_chunk is not None:
+        all_sparse_chunks.append(final_chunk)
+        logging.info(f"Processed final chunk {len(all_sparse_chunks)} with {chunk_idx} entries")
+    
+    # Combine chunks
+    if all_sparse_chunks:
+        logging.info(f"Combining {len(all_sparse_chunks)} chunks...")
+        if len(all_sparse_chunks) == 1:
+            sparse_third = all_sparse_chunks[0]
+        else:
+            sparse_third = sum(all_sparse_chunks)
+        logging.info(f"Read {n_interactions} interactions with {sparse_third.nnz} non-zero entries")
     else:
         # Handle empty case
         empty_coords = np.empty((6, 0), dtype=np.int32)
