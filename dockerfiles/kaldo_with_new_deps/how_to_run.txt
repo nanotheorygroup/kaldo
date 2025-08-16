@@ -1,5 +1,10 @@
 
-docker build -t kaldo/deps
-docker run -p 8000:8000 kaldo/deps
+docker build -t kaldo/deps 		#build the container.
+docker run -p 8000:8000 kaldo/deps	#run with an active port
 
-firefox http://localhost:8000
+firefox http://localhost:8000		#view docs
+
+#if your container is stopped and already created you can get docs and items with this.
+cid=$(docker create kaldo-docs)                         # make a temp container
+docker cp "$cid":/opt/kaldo-docs ./kaldo-docs           # copy to host ./kaldo-docs/
+docker rm "$cid"                                        # remove the temp container
