@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import seekpath
 import numpy as np
 from scipy import ndimage
-from kaldo.helpers.storage import get_folder_from_label
+from kaldo.storable import get_folder_from_label
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.helpers.logger import get_logger
 import os
