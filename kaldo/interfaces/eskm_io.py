@@ -197,9 +197,8 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             non_zero_count += chunk_pos
             chunk_pos = 0
             
-            # Periodic validation and garbage collection
+            # Periodic garbage collection only
             if len(coords_list) > 0 and len(coords_list) % (6 * adaptive_chunk_size * 10) == 0:
-                validate_chunks()
                 gc.collect()
                 logging.info(f"Processed {non_zero_count} non-zero entries, memory check passed")
         
@@ -231,10 +230,10 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                     try:
                         coords = [
                             atom1_idx,
-                            max(0, min(int(parts[1]) - 1, 2)),  # Clamp coord1 to [0,2]
-                            max(0, min(int(parts[2]) - 1, n_replicated_atoms - 1)),  # Clamp atom2
-                            max(0, min(int(parts[3]) - 1, 2)),  # Clamp coord2 to [0,2]
-                            max(0, min(int(parts[4]) - 1, n_replicated_atoms - 1))   # Clamp atom3
+                            int(parts[1]) - 1,  # coord1
+                            int(parts[2]) - 1,  # atom2
+                            int(parts[3]) - 1,  # coord2
+                            int(parts[4]) - 1   # atom3
                         ]
                     except (ValueError, IndexError):
                         continue
@@ -246,15 +245,12 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                             float(parts[6]) * tenjovermoltoev,
                             float(parts[7]) * tenjovermoltoev
                         ]
-                        # Check for reasonable value ranges
-                        if any(abs(v) > 1e10 for v in values):  # Sanity check
-                            continue
                     except (ValueError, IndexError, OverflowError):
                         continue
                     
                     # Process non-zero values
                     for alpha, value in enumerate(values):
-                        if abs(value) > 1e-20:  # More robust zero check
+                        if value != 0.0:  # Use exact same zero check as original
                             # Flush chunk if needed
                             if chunk_pos >= adaptive_chunk_size:
                                 flush_chunk()
@@ -276,9 +272,8 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             logging.error(f"Error in array processing: {e}")
             raise
         
-        # Final flush and validation
+        # Final flush
         flush_chunk()
-        validate_chunks()
         
         logging.info(f"Array processing complete: {n_interactions} interactions, {non_zero_count} non-zero entries")
         
@@ -297,13 +292,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                 if all_coords.shape[1] != len(all_values):
                     raise ValueError(f"Final shape mismatch: {all_coords.shape[1]} coords vs {len(all_values)} values")
                 
-                # Validate coordinate ranges
-                if (all_coords[0] >= n_atoms).any() or (all_coords[0] < 0).any():
-                    raise ValueError("Invalid atom1 indices detected")
-                if (all_coords[2] >= n_replicated_atoms).any() or (all_coords[2] < 0).any():
-                    raise ValueError("Invalid atom2 indices detected")
-                if (all_coords[4] >= n_replicated_atoms).any() or (all_coords[4] < 0).any():
-                    raise ValueError("Invalid atom3 indices detected")
+                # Skip coordinate validation to match original behavior exactly
                 
                 sparse_third = COO(
                     all_coords.astype(np.int32),  # Convert to standard int32 for COO
