@@ -97,18 +97,15 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
     logging.info("Processing sparse third order file.")
 
     if third_energy_threshold > 0.0:
-        # Load entire file for threshold case (original method)
         try:
             lines = np.loadtxt(filename)
             logging.info("Loaded third order file for threshold processing.")
         except Exception as e:
             logging.warning(f"Failed to load file with np.loadtxt: {e}")
-            # Return empty sparse matrix for malformed files
             empty_coords = np.empty((6, 0), dtype=np.int32)
             empty_values = np.empty(0, dtype=np.float64)
             return COO(empty_coords, empty_values,
                       shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
-        # Keep original method for threshold case (not optimized as requested)
         n_rows = len(lines)
         array_size = min(n_rows * 3, n_atoms * 3 * (n_replicated_atoms * 3) ** 2)
         coords = np.zeros((array_size, 6), dtype=int)
@@ -140,83 +137,78 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
         sparse_third = COO(coords, values, shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3))
         return sparse_third
     
-    # Hybrid optimized path for reading entire file (third_energy_threshold == 0)
     logging.info("Using hybrid optimized sparse import")
     
     def _import_with_array_chunked():
-        """
-        Memory-optimal approach using array.array with safety checks and chunking.
-        """
         import array
         import sys
         import gc
         
-        # Platform-safe dtype selection
         if sys.maxsize > 2**32:
-            coord_typecode = 'L'  # unsigned long (64-bit)
+            coord_typecode = 'L'
             coord_dtype = np.uint64
         else:
-            coord_typecode = 'I'  # unsigned int (32-bit)
+            coord_typecode = 'I'
             coord_dtype = np.uint32
         
         logging.info(f"Using {coord_typecode} array type ({coord_dtype})")
         
         coords_list = array.array(coord_typecode)
-        values_list = array.array('d')  # double precision
+        values_list = array.array('d')
         n_interactions = 0
         non_zero_count = 0
         
-        # Adaptive chunk size based on available memory and atom count
-        estimated_entries_per_line = 2.1  # Average non-zero entries per interaction
-        target_memory_mb = min(chunk_size * 6 * coord_dtype().itemsize / (1024**2), 500)  # Max 500MB chunks
+
+        estimated_entries_per_line = 2.1
+        target_memory_mb = min(chunk_size * 6 * coord_dtype().itemsize / (1024**2), 500)
         adaptive_chunk_size = min(chunk_size, int(target_memory_mb * 1024**2 / (6 * coord_dtype().itemsize)))
         
         logging.info(f"Using adaptive chunk size: {adaptive_chunk_size} entries")
         
-        # Pre-allocate chunk arrays
+
         coords_chunk = array.array(coord_typecode, [0]) * (6 * adaptive_chunk_size)
         values_chunk = array.array('d', [0.0]) * adaptive_chunk_size
         chunk_pos = 0
         
-        # Validation function
+
         def validate_chunks():
             if len(coords_list) % 6 != 0:
                 raise ValueError(f"Coordinate array length ({len(coords_list)}) not divisible by 6")
             if len(coords_list) // 6 != len(values_list):
                 raise ValueError(f"Coordinate/value count mismatch: {len(coords_list)//6} vs {len(values_list)}")
         
-        # Chunk flushing function
+
         def flush_chunk():
             nonlocal chunk_pos, non_zero_count
             if chunk_pos == 0:
                 return
                 
-            # Add chunk data to main arrays
+
             coords_list.extend(coords_chunk[:6 * chunk_pos])
             values_list.extend(values_chunk[:chunk_pos])
             non_zero_count += chunk_pos
             chunk_pos = 0
             
-            # Periodic garbage collection only
+
             if len(coords_list) > 0 and len(coords_list) % (6 * adaptive_chunk_size * 10) == 0:
                 gc.collect()
                 logging.info(f"Processed {non_zero_count} non-zero entries, memory check passed")
         
-        # Process file with enhanced error handling
+
         try:
             with open(filename, 'r', buffering=65536) as f:
                 for line_num, line in enumerate(f, 1):
-                    # Skip empty lines
+
                     line = line.strip()
                     if not line:
                         continue
                     
-                    # Parse line
+
                     parts = line.split()
                     if len(parts) < 8:
                         continue
                     
-                    # Parse and validate atom index
+
                     try:
                         atom1_idx = int(parts[0]) - 1
                         if atom1_idx < 0 or atom1_idx >= n_atoms:
@@ -226,19 +218,19 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                     
                     n_interactions += 1
                     
-                    # Parse coordinates with validation
+
                     try:
                         coords = [
                             atom1_idx,
-                            int(parts[1]) - 1,  # coord1
-                            int(parts[2]) - 1,  # atom2
-                            int(parts[3]) - 1,  # coord2
-                            int(parts[4]) - 1   # atom3
+                            int(parts[1]) - 1,
+                            int(parts[2]) - 1,
+                            int(parts[3]) - 1,
+                            int(parts[4]) - 1
                         ]
                     except (ValueError, IndexError):
                         continue
                     
-                    # Parse values with validation
+
                     try:
                         values = [
                             float(parts[5]) * tenjovermoltoev,
@@ -248,14 +240,14 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                     except (ValueError, IndexError, OverflowError):
                         continue
                     
-                    # Process non-zero values
+
                     for alpha, value in enumerate(values):
-                        if value != 0.0:  # Use exact same zero check as original
-                            # Flush chunk if needed
+                        if value != 0.0:
+
                             if chunk_pos >= adaptive_chunk_size:
                                 flush_chunk()
                             
-                            # Add to chunk with bounds checking
+
                             try:
                                 base_idx = 6 * chunk_pos
                                 for i, coord in enumerate(coords):
@@ -265,37 +257,37 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                                 chunk_pos += 1
                             except (IndexError, OverflowError) as e:
                                 logging.warning(f"Chunk overflow at line {line_num}: {e}")
-                                flush_chunk()  # Try to recover
+                                flush_chunk()
                                 break
         
         except Exception as e:
             logging.error(f"Error in array processing: {e}")
             raise
         
-        # Final flush
+
         flush_chunk()
         
         logging.info(f"Array processing complete: {n_interactions} interactions, {non_zero_count} non-zero entries")
         
-        # Convert to numpy with safety checks
+
         if non_zero_count > 0:
             try:
-                # Verify array compatibility
+
                 if coords_list.itemsize != coord_dtype().itemsize:
                     raise ValueError(f"Array itemsize mismatch: {coords_list.itemsize} vs {coord_dtype().itemsize}")
                 
-                # Convert with explicit dtype checking
+
                 all_coords = np.frombuffer(coords_list, dtype=coord_dtype).reshape(-1, 6).T
                 all_values = np.frombuffer(values_list, dtype=np.float64)
                 
-                # Final validation
+
                 if all_coords.shape[1] != len(all_values):
                     raise ValueError(f"Final shape mismatch: {all_coords.shape[1]} coords vs {len(all_values)} values")
                 
-                # Skip coordinate validation to match original behavior exactly
+
                 
                 sparse_third = COO(
-                    all_coords.astype(np.int32),  # Convert to standard int32 for COO
+                    all_coords.astype(np.int32),
                     all_values,
                     shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
                 )
@@ -307,7 +299,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                 logging.error(f"Error converting arrays to sparse matrix: {e}")
                 raise
         else:
-            # Empty case
+
             logging.info("No non-zero entries found")
             return COO(
                 np.empty((6, 0), dtype=np.int32),
@@ -325,9 +317,9 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
         
         n_interactions = 0
         all_sparse_chunks = []
-        fallback_chunk_size = min(chunk_size, 50000)  # Smaller chunks for fallback
+        fallback_chunk_size = min(chunk_size, 50000)
         
-        # Pre-allocate arrays for current chunk
+
         coords_chunk = np.empty((fallback_chunk_size, 6), dtype=np.int32)
         values_chunk = np.empty(fallback_chunk_size, dtype=np.float64)
         chunk_idx = 0
@@ -337,7 +329,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             if chunk_idx == 0:
                 return None
                 
-            # Create COO from filled portion of arrays
+
             valid_coords = coords_chunk[:chunk_idx].T
             valid_values = values_chunk[:chunk_idx].copy()
             
@@ -348,7 +340,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             gc.collect()
             return chunk_sparse
         
-        # Process file
+
         with open(filename, 'r', buffering=65536) as f:
             for line in f:
                 parts = line.split()
@@ -389,12 +381,12 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                 except (ValueError, IndexError):
                     continue
         
-        # Process final chunk
+
         final_chunk = process_chunk()
         if final_chunk is not None:
             all_sparse_chunks.append(final_chunk)
         
-        # Combine chunks
+
         if all_sparse_chunks:
             if len(all_sparse_chunks) == 1:
                 sparse_third = all_sparse_chunks[0]
@@ -409,7 +401,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
                 shape=(n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)
             )
     
-    # Try array method first, fallback to numpy chunked if it fails
+
     try:
         sparse_third = _import_with_array_chunked()
         logging.info(f"Hybrid import successful with array method")
@@ -420,7 +412,7 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
             logging.info(f"Hybrid import successful with fallback method")
         except Exception as e2:
             logging.error(f"Both methods failed. Array error: {e}, Fallback error: {e2}")
-            # Final fallback to empty result
+
             sparse_third = COO(
                 np.empty((6, 0), dtype=np.int32),
                 np.empty(0, dtype=np.float64),
