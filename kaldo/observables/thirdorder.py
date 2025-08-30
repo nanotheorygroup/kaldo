@@ -253,7 +253,7 @@ class ThirdOrder(ForceConstant):
     def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        replicated_atoms.set_calculator(calculator)
+        replicated_atoms.calc = calculator
         if is_storing:
             try:
                 self.value = ThirdOrder.load(folder=self.folder, supercell=self.supercell).value
