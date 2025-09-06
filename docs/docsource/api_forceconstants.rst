@@ -54,10 +54,10 @@ calculation and stop it after it prints a few atoms. Take the average time per a
 frame :math:`t_{pf}` including overhead of I/O operations, launching tasks, etc. The total times are given by:
 
 .. math::
-    t_{2nd Order} = t_{pf} \times {6N}
+    t_{\text{2nd Order}} = t_{pf} \times {6N}
 
 .. math::
-    t_{3rd Order} = t_{pf} \times {6N}^2
+    t_{\text{3rd Order}} = t_{pf} \times {6N}^2
 
 Calculation Workflow
 ====================
