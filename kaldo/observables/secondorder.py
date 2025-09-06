@@ -66,7 +66,7 @@ class SecondOrder(ForceConstant):
         """
         Load second order force constants from a folder in the given format, used for library internally.
 
-        To load force constants data, `ForceConstants.from_folder` is recommended.
+        To load force constants data, ``ForceConstants.from_folder`` is recommended.
 
         Parameters
         ----------
@@ -80,7 +80,7 @@ class SecondOrder(ForceConstant):
             Default: 'sparse'
         is_acoustic_sum : bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
-            Default: `False`
+            Default: False
 
         Returns
         -------

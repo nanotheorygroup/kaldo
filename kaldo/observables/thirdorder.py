@@ -21,8 +21,8 @@ THIRD_ORDER_FILE = 'third.npy'
 
 
 def detect_path(files: list[str], folder: str = ""):
-    """return the path and the filename of the first existed file in the `files` list in `folder`.
-    Raise an error if none of the files in the list is found in `folder`.
+    """return the path and the filename of the first existed file in the ``files`` list in ``folder``.
+    Raise an error if none of the files in the list is found in ``folder``.
     """
     # file_list = list(map(lambda f: os.path.join(folder, f), files))
     results = list(filter(lambda f: os.path.isfile(os.path.join(folder, f)), files))
@@ -43,7 +43,7 @@ class ThirdOrder(ForceConstant):
         """
         Load thrid order force constants from a folder in the given format, used for library internally.
 
-        To load force constants data, `ForceConstants.from_folder` is recommended.
+        To load force constants data, ``ForceConstants.from_folder`` is recommended.
 
         Parameters
         ----------
@@ -58,7 +58,7 @@ class ThirdOrder(ForceConstant):
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
             the threshold value in magnitude are ignored. Units: eV/A^3
-            Default: `None`
+            Default: None
 
         Returns
         -------
