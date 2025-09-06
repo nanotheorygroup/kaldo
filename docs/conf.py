@@ -53,7 +53,9 @@ extensions = [
     'recommonmark',
     'nbsphinx',
     'numpydoc',
-    'sphinx.ext.imgmath']
+    'sphinx.ext.mathjax',   # use MathJax to render math in browser
+    # 'sphinx.ext.imgmath', # use LaTeX to render math into image
+]
 
 
 # We do it like this to support multiple sphinx version without having warning.
