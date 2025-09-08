@@ -120,12 +120,12 @@ class ForceConstants:
         Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
         to read it with nicer formatting and explanations).
 
-        numpy: replicated_atoms.xyz, second.npy, third.npz
-        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
-        lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
-        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
+        - numpy: replicated_atoms.xyz, second.npy, third.npz
+        - eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
+        - lammps: replicated_atoms.xyz, Dyn.form, THIRD
+        - shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        - shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
 
         Parameters
         ----------
