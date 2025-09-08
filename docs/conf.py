@@ -50,9 +50,9 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
+    'sphinx_immaterial',
     'recommonmark',
     'nbsphinx',
-    'numpydoc',
     'sphinx.ext.mathjax',   # use MathJax to render math in browser
     # 'sphinx.ext.imgmath', # use LaTeX to render math into image
 ]
@@ -68,10 +68,6 @@ autodoc_member_order = 'bysource'
 #napoleon_google_docstring = False
 #napoleon_use_param = True
 #napoleon_use_ivar = True
-numpydoc_member_order = 'bysource'
-numpydoc_show_class_members = True
-numpydoc_show_inherited_class_members = False
-numpydoc_class_members_toctree = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -79,7 +75,13 @@ templates_path = ['_templates']
 # The suffix(es) of docsource filenames.
 # You can specify multiple suffix as a list of string:
 #
-source_suffix = ['.rst', '.md', '.ipynb']
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+    # do not add '.ipynb' here, jupyter notebook should be added in the toctree, which would parsed by nbsphinx
+}
+
+needs_sphinx = '8.0'
 
 # The master toctree document.
 master_doc = 'index'
@@ -107,7 +109,7 @@ pygments_style = 'default'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_material'
+html_theme = 'sphinx_immaterial'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -129,8 +131,30 @@ html_theme_options = {
     'base_url': 'https://github.com/nanotheorygroup/kaldo',
 
     # Set the color and the accent color
-    'color_primary': 'red',
-    'color_accent': 'orange',
+    "palette": [
+        # Light mode
+        {
+            "media": "(prefers-color-scheme: light)",
+            "scheme": "default",
+            "primary": "red",
+            "accent": "orange",
+            "toggle": {
+                "icon": "material/weather-night",
+                "name": "Switch to dark mode",
+            },
+        },
+        # Dark mode
+        {
+            "media": "(prefers-color-scheme: dark)",
+            "scheme": "slate",
+            "primary": "red",
+            "accent": "orange",
+            "toggle": {
+                "icon": "material/weather-sunny",
+                "name": "Switch to light mode",
+            },
+        },
+    ],
 
     # Set the repo location to get a badge with stats
     'repo_url': 'https://github.com/nanotheorygroup/kaldo',
@@ -153,6 +177,12 @@ html_sidebars = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# Manually add jQuery to be loaded, 
+# Sphinx v8 removed jQuery
+html_js_files = [
+    ('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js', {'priority': 100}),
+]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
