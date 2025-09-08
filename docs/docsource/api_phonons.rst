@@ -20,7 +20,7 @@ adjusted through the ``kpts`` argument. The argument here should be an array or 
 such as (2, 2, 2). You will need to converge the final thermal conductivity of the material against increasingly
 dense k-grids to ensure the reliability of your calculation. Increasing the number of ``kpts`` along a lattice vector
 is the equivalent to increasing the wavelength of a vibrational normal mode along that axis. See our
-ref:`Basic Concepts` section for more details.
+:doc:`Basic Concepts <theory>` section for more details.
 
 Your choice of ``kpts`` should strive to sample each direction in reciprocal space equally by scaling the number of
 points in that direction according to the magnitude of the reciprocal lattice vector. A quick way to do this is by
@@ -52,7 +52,7 @@ Classical Limit
 
 Probably the second most important setting is the ``is_classic`` argument. By defaut, kALDo uses the Bose-Einstein
 distribution to describe the phonon population at a given temperature which assumes quantized energy.
-The :ref:`Basic Concepts` section will provide more details, however because of this population choice the heat capacity
+The :doc:`Basic Concepts <theory>` section will provide more details, however because of this population choice the heat capacity
 also becomes affected. Close to, or above the Debye Temperature you should switch the ``is_classic`` Boolean to True which
 changes the calculation of mode population to the classical limit as described in the theory section. In general, the
 heat capacities and scattering will both increase, shortening the lifetimes and increasing the energy per mode
@@ -64,7 +64,7 @@ General vs. Case-Specific Arguments
 This section is intended to clarify which arguments need to be set for all users, and which should be used in
 more specific situations. If you are a beginner to intermediate user, avoid the case-specific arguemnts. Advanced users
 can read more on the details of each case-specific argument in :ref:`the phonons api <phonons-api>` section, and in some
-cases the :ref:`Basic Concepts` section.
+cases the :doc:`Basic Concepts <theory>` section.
 
 .. list-table:: General Arguments
    :align: center
