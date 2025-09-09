@@ -25,8 +25,8 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'kALDo'
-copyright = ("2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio")
-author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio'
+copyright = ("2020-2025, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Dylan Folkner, Bohan Li, Davide Donadio")
+author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Dylan Folkner, Bohan Li, Davide Donadio'
 
 # The short X.Y version
 version = ''
