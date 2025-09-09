@@ -34,14 +34,14 @@ class ForceConstants:
     third_supercell: tuple[int, int, int], optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
-        Default: `self.supercell`
+        Default: ``self.supercell``
     folder: str, optional
         Name to be used for the displacement information folder.
-        Default: 'displacement'
+        Default: ``'displacement'``
     distance_threshold: float, optional
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
-        Default: `None`
+        Default: None
 
     Attributes
     ----------
@@ -51,9 +51,9 @@ class ForceConstants:
         The number of possible vibrational modes in the system from a lattice dynamics perspective. Equivalent to
         3*n_atoms where the factor of 3 comes from the 3 Cartesian directions.
     n_replicas: int
-        The number of repeated unit cells represented in the system. Equivalent to np.prod(supercell).
+        The number of repeated unit cells represented in the system. Equivalent to ``np.prod(supercell)``.
     n_replicated_atoms: int
-        The number of atoms represented in the system. Equivalent to n_atoms * np.prod(supercell)
+        The number of atoms represented in the system. Equivalent to ``n_atoms * np.prod(supercell)``
     cell_inv: np.array(3, 3)
         A 3x3 matrix which satisfies AB=I where A is the matrix of cell vectors, I is the identity matrix, and B is the
         cell_inv matrix.
@@ -120,12 +120,12 @@ class ForceConstants:
         Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
         to read it with nicer formatting and explanations).
 
-        numpy: replicated_atoms.xyz, second.npy, third.npz
-        eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
-        lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
-        hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
+        - numpy: replicated_atoms.xyz, second.npy, third.npz
+        - eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
+        - lammps: replicated_atoms.xyz, Dyn.form, THIRD
+        - shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        - shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
 
         Parameters
         ----------
@@ -136,11 +136,11 @@ class ForceConstants:
             Default is (1, 1, 1)
         format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
             Format of force constant information being loaded into ForceConstants object.
-            Default is 'numpy'
+            Default is ``'numpy'``
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
             the threshold value in magnitude are ignored. Units: eV/Angstrom^3
-            Default is `None`
+            Default is None
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
             distance threshold will be ignored.
@@ -197,11 +197,11 @@ class ForceConstants:
         ----------
         reduced_third : array, optional
             The third order force constant matrix.
-            Default is `self.third`
+            Default is ``self.third``
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than
             the distance threshold will be ignored.
-            Default is `self.distance_threshold`
+            Default is ``self.distance_threshold``
         """
         logging.info('Unfolding third order matrix')
         if distance_threshold is None:
@@ -368,13 +368,13 @@ class ForceConstants:
         Parameters
         ----------
         fc_file : str, optional
-            Path to the force constant file. Default is 'infile.forceconstant'.
+            Path to the force constant file. Default is ``'infile.forceconstant'``.
         primitive_file : str, optional
-            Path to the primitive cell file. Default is 'infile.ucposcar'.
+            Path to the primitive cell file. Default is ``'infile.ucposcar'``.
         supercell_file : str, optional
-            Path to the supercell file. Default is 'infile.ssposcar'.
+            Path to the supercell file. Default is ``'infile.ssposcar'``.
         md_run : str, optional
-            Path to the MD trajectory file. Default is 'dump.xyz'.
+            Path to the MD trajectory file. Default is ``'dump.xyz'``.
 
         Returns
         -------
