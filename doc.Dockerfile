@@ -11,20 +11,6 @@ COPY . /app
 # Prevent apt from prompting for input
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update packages and install only the necessary LaTeX packages and cleanup in the same layer to save space
-RUN apt-get update && \
-    apt-get upgrade -y
-
-RUN apt-get install -y --no-install-recommends texlive-base \
-    texlive-latex-base \
-    texlive-fonts-recommended \
-    texlive-fonts-extra \
-    texlive-latex-extra \
-    dvipng && \
-    # Clean up to reduce layer size
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
 # Install Python dependencies
 RUN conda install pip && \
     conda install conda-forge::psutil && \
@@ -33,6 +19,10 @@ RUN conda install pip && \
 # Install additional packages needed for your project
 RUN conda install conda-forge::pandoc && \
     conda install anaconda::make
+
+# Clean out python cache
+RUN pip cache purge
+RUN conda clean --all
 
 # Set the working directory in the final image
 WORKDIR /app
