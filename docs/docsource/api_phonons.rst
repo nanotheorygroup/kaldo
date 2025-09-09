@@ -1,4 +1,4 @@
-.. _phonons-frontmatter
+.. _phonons-frontmatter:
 
 .. currentmodule:: kaldo.phonons
 
@@ -70,29 +70,29 @@ cases the :doc:`Basic Concepts <theory>` section.
    :align: center
    :widths: auto
 
-    * - ForceConstants
-      - Temperature
-      - is_classic
-      - folder
-    * - kpts
-      - broadening_shape
-      - third_bandwidth
-      - storage
+   * - ForceConstants
+     - Temperature
+     - is_classic
+     - folder
+   * - kpts
+     - broadening_shape
+     - third_bandwidth
+     - storage
 
 .. list-table:: Case-Specific Arguments
    :align: center
    :widths: auto
 
-    * - min_frequency
-      - max_frequency
-      - is_symmetrizing_frequency
-      - is_antisymmetrizing_velocity
-      - is_balanced
-    * - is_unfolding
-      - is_nw
-      - g_factor
-      - include_isotopes
-      - iso_speed_up
+   * - min_frequency
+     - max_frequency
+     - is_symmetrizing_frequency
+     - is_antisymmetrizing_velocity
+     - is_balanced
+   * - is_unfolding
+     - is_nw
+     - g_factor
+     - include_isotopes
+     - iso_speed_up
 
 .. _phonons-api:
 
@@ -104,7 +104,6 @@ API Reference
 
 .. autosummary::
    :nosignatures:
-   :toctree: API/Phonons
    :template: minimal_module.rst
 
    Phonons.pdos
@@ -113,7 +112,6 @@ API Reference
 
 .. autosummary::
   :nosignatures:
-  :toctree: API/Phonons
   :template: minimal_module.rst
 
    Phonons.physical_mode
