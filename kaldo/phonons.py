@@ -940,6 +940,7 @@ class Phonons(Storable):
                 for j in range(proj.shape[1]):
                     p_dos[ip, i] += np.sum(amp * proj[:, j, :])
 
+            # NOTE: np.trapz is deprecated in numpy 2.0+, but np.trapezoid does not exist before numpy 2.0. migrate it after this function gets removed. 
             p_dos[ip] *= 3 * n_atoms / np.trapz(p_dos[ip], f_grid)
 
         return f_grid, p_dos
