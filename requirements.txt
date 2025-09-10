@@ -1,4 +1,4 @@
-# requires version of python < 3.12
+# requires version of python < 3.13
 numpy>=1.25.1,<2.0
 scipy>=1.11.1
 ase>=3.22.1
