@@ -253,7 +253,7 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with
         for alpha in range(3):
             np.savetxt(folder + '/' + 'velocity_' + str(alpha), vel_plot[:, :, alpha])
         fig2, ax2 = plt.subplots()
-        plt.ylabel('$|v|(\AA/ps)$', fontsize=16)
+        plt.ylabel(r'$|v|(\AA/ps)$', fontsize=16)
         plt.xlabel('$q$', fontsize=16)
         plt.tick_params(axis='both', which='major', labelsize=16)
         plt.tick_params(axis='both', which='minor', labelsize=20)
