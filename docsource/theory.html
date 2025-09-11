@@ -1,695 +1,1703 @@
 
-<!DOCTYPE html>
 
-<html lang="en">
+
+<!doctype html>
+<html lang="en" class="no-js">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="getting_started.html">
+      
+      
+        <link rel="next" href="user_guide.html">
+      
+      
+      <link rel="icon" href="../_static/logo.ico">
+    
+    
+      
+        <title>Basic Concepts - kALDo</title>
+      
+    
+    
+      
+        
+      
+      
 
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <meta name="lang:clipboard.copy" content="Copy to clipboard">
-  <meta name="lang:clipboard.copied" content="Copied to clipboard">
-  <meta name="lang:search.language" content="en">
-  <meta name="lang:search.pipeline.stopwords" content="True">
-  <meta name="lang:search.pipeline.trimmer" content="True">
-  <meta name="lang:search.result.none" content="No matching documents">
-  <meta name="lang:search.result.one" content="1 matching document">
-  <meta name="lang:search.result.other" content="# matching documents">
-  <meta name="lang:search.tokenizer" content="[\s\-]+">
 
-  
-    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
-    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
-
-    <style>
-      body,
-      input {
-        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
-      }
-
-      code,
-      kbd,
-      pre {
-        font-family: "Roboto Mono", "Courier New", Courier, monospace
-      }
-    </style>
+    
+    
+      
+    
+    
+      
+        
+        
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+        <link rel="stylesheet" type="text/css" href="../_static/sphinx_immaterial_theme.acf80fe7f4d9ef9e2.min.css?v=9e56d0d2" />
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
   
 
-  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
-  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
-  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
-  
-  <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
-  
-  <meta name="theme-color" content="#3f51b5">
-  <script src="../_static/javascripts/modernizr.js"></script>
-  
-  <script>
-      window.ga = window.ga || function () {
-          (ga.q = ga.q || []).push(arguments)
-      };
-      ga.l = +new Date;
-      ga('create', 'UA-172053863-1', 'auto');
-      ga('send', 'pageview');
-  </script>
-  <script async src='https://www.google-analytics.com/analytics.js'></script>
-  
-  
-    <title>Basic Concepts &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <link rel="shortcut icon" href="../_static/logo.ico"/>
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Interfacing with Other Codes" href="user_guide.html" />
-    <link rel="prev" title="Quick Install" href="getting_started.html" />
-  
-   
 
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-HQHR3LWX3F"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-HQHR3LWX3F",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-HQHR3LWX3F",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
   </head>
-  <body dir=ltr
-        data-md-color-primary=red data-md-color-accent=orange>
   
-  <svg class="md-svg">
-    <defs data-children-count="0">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
-      
-    </defs>
-  </svg>
   
-  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
-  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
-  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
-  <a href="#docsource/theory" tabindex="1" class="md-skip"> Skip to content </a>
-  <header class="md-header" data-md-component="header">
-  <nav class="md-header-nav md-grid">
-    <div class="md-flex navheader">
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="../index.html" title="kALDo  documentation"
-           class="md-header-nav__button md-logo">
-          
-            &nbsp;
-          
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#Interatomic-potentials" class="md-skip">
+          Skip to content
         </a>
-      </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
-      </div>
-      <div class="md-flex__cell md-flex__cell--stretch">
-        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
-          <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Basic Concepts </span>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="kALDo" class="md-header__button md-logo" aria-label="kALDo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kALDo
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Basic Concepts
+            
+          </span>
         </div>
       </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="red" data-md-color-accent="orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
         
-<div class="md-search" data-md-component="search" role="dialog">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
-    <form class="md-search__form" action="../search.html" method="GET" name="search">
-      <input type="text" class="md-search__input" name="q" placeholder="Search"
-             autocapitalize="off" autocomplete="off" spellcheck="false"
-             data-md-component="query" data-md-state="active">
-      <label class="md-icon md-search__icon" for="__search"></label>
-      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
-        &#xE5CD;
-      </button>
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
     </form>
     <div class="md-search__output">
-      <div class="md-search__scrollwrap" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="result">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Type to start searching
+            Initializing search
           </div>
-          <ol class="md-search-result__list"></ol>
+          <ol class="md-search-result__list" role="presentation"></ol>
         </div>
       </div>
     </div>
   </div>
 </div>
-
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kALDo
+  </div>
+</a>
       </div>
-      
-        <div class="md-flex__cell md-flex__cell--shrink">
-          <div class="md-header-nav__source">
-            <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
-
-    <div class="md-source__icon">
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
-        <use xlink:href="#__github" width="24" height="24"></use>
-      </svg>
-    </div>
-  
-  <div class="md-source__repository">
-    kALDo
-  </div>
-</a>
-          </div>
-        </div>
-      
-      
-  
-  <script src="../_static/javascripts/version_dropdown.js"></script>
-  <script>
-    var json_loc = "../"versions.json"",
-        target_loc = "../../",
-        text = "Versions";
-    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
-  </script>
-  
-
-    </div>
+    
   </nav>
+  
 </header>
-
-  
-  <div class="md-container">
     
-    
-    
-  <nav class="md-tabs" data-md-component="tabs">
-    <div class="md-tabs__inner md-grid">
-      <ul class="md-tabs__list">
-          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">kALDo  documentation</a></li>
-      </ul>
-    </div>
-  </nav>
-    <main class="md-main">
-      <div class="md-main__inner md-grid" data-md-component="container">
+    <div class="md-container" data-md-component="container">
+      
+      
+      
+      
         
-          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                <nav class="md-nav md-nav--primary" data-md-level="0">
-  <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href="../index.html" title="kALDo documentation" class="md-nav__button md-logo">
+          
+        
       
-        <img src="../_static/" alt=" logo" width="48" height="48">
-      
-    </a>
-    <a href="../index.html"
-       title="kALDo documentation">kALDo</a>
-  </label>
-    <div class="md-nav__source">
-      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
 
-    <div class="md-source__icon">
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
-        <use xlink:href="#__github" width="24" height="24"></use>
-      </svg>
-    </div>
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="kALDo" class="md-nav__button md-logo" aria-label="kALDo" data-md-component="logo">
+      
   
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+    </a>
+    kALDo
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
   <div class="md-source__repository">
     kALDo
   </div>
 </a>
     </div>
   
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
   
-
   
-  <ul class="md-nav__list">
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Introduction</span></span>
-    
-    </li>
-    <li class="md-nav__item">
+  
+  
     
     
-      <a href="introduction.html" class="md-nav__link">Overview</a>
-      
     
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Features" class="md-nav__link">Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Getting Started</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="getting_started.html" class="md-nav__link">Quick Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">User Guide</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> Basic Concepts </label>
-    
-      <a href="#" class="md-nav__link md-nav__link--active">Basic Concepts</a>
+    <li class="md-nav__item md-nav__item--nested">
       
         
-<nav class="md-nav md-nav--secondary">
-    <label class="md-nav__title" for="__toc">Contents</label>
-  <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Basic Concepts</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Interatomic-potentials" class="md-nav__link">Interatomic potentials</a>
-        </li>
-        <li class="md-nav__item"><a href="#Boltzman-Transport-Equation" class="md-nav__link">Boltzman Transport Equation</a>
-        </li>
-        <li class="md-nav__item"><a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">Quasi-Harmonic Green Kubo</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Workflow" class="md-nav__link">Workflow</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Ab-initio-silicon-diamond" class="md-nav__link"><em>Ab initio</em> silicon diamond</a>
-        </li>
-        <li class="md-nav__item"><a href="#Amorphous-silicon" class="md-nav__link">Amorphous silicon</a>
-        </li>
-        <li class="md-nav__item"><a href="#References" class="md-nav__link">References</a>
-        </li></ul>
-            </nav>
-        </li>
-    
-<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/theory.ipynb.txt">Show Source</a> </li>
-
-  </ul>
-</nav>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="#Workflow" class="md-nav__link">Workflow</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="user_guide.html" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="user_guide.html#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="user_guide.html#Units" class="md-nav__link">Units</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Reference</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_phonons.html" class="md-nav__link">Phonons</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_conductivity.html" class="md-nav__link">Conductivity</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials and examples</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="examples.html" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Citations</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="citations.html" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="citations.html#references" class="md-nav__link">References</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../publications/readme.html" class="md-nav__link">Publications using kALDo</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="other_codes.html" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Developer Guide</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="code_architecture.html" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="contributing.html" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Acknowledgements</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="credits.html" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">License</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="license.html" class="md-nav__link">License Information</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="license.html#copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-  </ul>
-  
-
-</nav>
-              </div>
-            </div>
-          </div>
-          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                
-<nav class="md-nav md-nav--secondary">
-    <label class="md-nav__title" for="__toc">Contents</label>
-  <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-theory--page-root" class="md-nav__link">Basic Concepts</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Interatomic-potentials" class="md-nav__link">Interatomic potentials</a>
-        </li>
-        <li class="md-nav__item"><a href="#Boltzman-Transport-Equation" class="md-nav__link">Boltzman Transport Equation</a>
-        </li>
-        <li class="md-nav__item"><a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">Quasi-Harmonic Green Kubo</a>
-        </li></ul>
-            </nav>
-        </li>
-        <li class="md-nav__item"><a href="#Workflow" class="md-nav__link">Workflow</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#Ab-initio-silicon-diamond" class="md-nav__link"><em>Ab initio</em> silicon diamond</a>
-        </li>
-        <li class="md-nav__item"><a href="#Amorphous-silicon" class="md-nav__link">Amorphous silicon</a>
-        </li>
-        <li class="md-nav__item"><a href="#References" class="md-nav__link">References</a>
-        </li></ul>
-            </nav>
-        </li>
-    
-<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/theory.ipynb.txt">Show Source</a> </li>
-
-<li id="searchbox" class="md-nav__item"></li>
-
-  </ul>
-</nav>
-              </div>
-            </div>
-          </div>
         
-        <div class="md-content">
-          <article class="md-content__inner md-typeset" role="main">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
-  <section id="Basic-Concepts">
-<h1 id="docsource-theory--page-root">Basic Concepts<a class="headerlink" href="#docsource-theory--page-root" title="Permalink to this heading">¶</a></h1>
+  
+  
+  <span class="md-ellipsis">
+    <span>Introduction</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Introduction</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb (reference label)"><span>Overview</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html#Features" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb#features (reference label)"><span>Features</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Getting Started</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Getting Started</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting_started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/getting_started.md (reference label)"><span>Quick Install</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>User Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            <span>User Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb (reference label)"><span>Basic Concepts</span></span>
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="#" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb (reference label)"><span>Basic Concepts</span></span>
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#Interatomic-potentials" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#interatomic-potentials (reference label)"><span>Interatomic potentials</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#Boltzman-Transport-Equation" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#boltzman-transport-equation (reference label)"><span>Boltzman Transport Equation</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#quasi-harmonic-green-kubo (reference label)"><span>Quasi-<wbr>Harmonic Green Kubo</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+    
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__current-nested md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="#Workflow" class="md-nav__link md-nav__link--active">
+              
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#workflow (reference label)"><span>Workflow</span></span>
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link md-nav__link--active" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            <span title="/docsource/theory.ipynb#workflow (reference label)"><span>Workflow</span></span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="#Ab-initio-silicon-diamond" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#ab-initio-silicon-diamond (reference label)"><span>Ab initio silicon diamond</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="#Amorphous-silicon" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#amorphous-silicon (reference label)"><span>Amorphous silicon</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="#References" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#references (reference label)"><span>References</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+      
+    <li class="md-nav__item md-nav__item--active md-nav__current-toc">
+      
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#workflow (reference label)"><span>Workflow</span></span>
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="#Workflow" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#workflow (reference label)"><span>Workflow</span></span>
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#Interatomic-potentials" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#interatomic-potentials (reference label)"><span>Interatomic potentials</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#Boltzman-Transport-Equation" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#boltzman-transport-equation (reference label)"><span>Boltzman Transport Equation</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#quasi-harmonic-green-kubo (reference label)"><span>Quasi-<wbr>Harmonic Green Kubo</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user_guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb (reference label)"><span>Interfacing with Other Codes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user_guide.html#Output-Storage" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb#output-storage (reference label)"><span>Output Storage</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user_guide.html#Units" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb#units (reference label)"><span>Units</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Reference</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Reference</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_forceconstants.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_forceconstants.rst (reference label)"><span>Force<wbr>Constants</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_phonons.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_phonons.rst (reference label)"><span>Phonons</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_conductivity.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_conductivity.rst (reference label)"><span>Conductivity</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Tutorials and examples</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Tutorials and examples</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="crystal_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/crystal_presentation.ipynb (reference label)"><span>Silicon diamond tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="amorphous_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/amorphous_presentation.ipynb (reference label)"><span>Amorphous silicon tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="examples.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/examples.md (reference label)"><span>Examples</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Citations</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Citations</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="citations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md (reference label)"><span>How to cite</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="citations.html#references" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md#references (reference label)"><span>References</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../publications/readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/publications/readme.md (reference label)"><span>Publications using k<wbr>ALDo</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="other_codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/other_codes.md (reference label)"><span>Other codes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Developer Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Developer Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code_architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/code_architecture.ipynb (reference label)"><span>Code Architecture</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="contributing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/contributing.md (reference label)"><span>How to contribute changes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Acknowledgements</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Acknowledgements</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="credits.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/credits.ipynb (reference label)"><span>Acknowledgements</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>License</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <span>License</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="license.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/license.md (reference label)"><span>License Information</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="license.html#copyright" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/license.md#copyright (reference label)"><span>Copyright</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#Interatomic-potentials" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#interatomic-potentials (reference label)"><span>Interatomic potentials</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#Boltzman-Transport-Equation" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#boltzman-transport-equation (reference label)"><span>Boltzman Transport Equation</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#Quasi-Harmonic-Green-Kubo" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/theory.ipynb#quasi-harmonic-green-kubo (reference label)"><span>Quasi-<wbr>Harmonic Green Kubo</span></span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset" role="main">
+                
+                
+                  
+
+
+<h1 id="Basic-Concepts">Basic Concepts<a class="headerlink" href="#Basic-Concepts" title="Link to this heading">¶</a></h1>
 <p>Understanding heat transport in semiconductors and insulators is of fundamental importance because of its technological impact in electronics and renewable energy harvesting and conversion. Anharmonic Lattice Dynamics provides a powerful framework for the description of heat transport at the nanoscale. One of the advantages of this method is that it naturally includes quantum effects due to atoms vibrations, which are needed to compute thermal properties of semiconductors widely use in
 nanotechnology, like Silicon and Carbon, even at room temperature. While heat transport in amorphous and crystalline semiconductors has a different microscopic origin, a unified approach to simulate both crystals and glasses has been devised. Here we introduce a unified workflow, which implements both the Boltzmann Transport equation (BTE) and the Quasi Harmonic Green-Kubo (QHGK) methods. We discuss how the theory can be optimized to exploit modern parallel architectures, and how it is
 implemented in kALDo: a versatile and scalable open-source software to compute phonon transport in solids.</p>
-<section id="Interatomic-potentials">
-<h2 id="Interatomic-potentials">Interatomic potentials<a class="headerlink" href="#Interatomic-potentials" title="Permalink to this heading">¶</a></h2>
-<p>In semiconductors, electronic and vibrational dynamics often occur over different time scales, and can thus be decoupled using the Born Oppenheimer approximation. Under this assumption, the potential <img alt="\phi" class="math" src="../_images/math/8d4b26ae65ca854986cf150c8fbef20db93a402b.png"/> of a system made of <img alt="N_{atoms}" class="math" src="../_images/math/bced6265a9a5ed6d8a3f63f71ce29b2851f0e468.png"/> atoms, is a function of all the <img alt="x_{i\alpha}" class="math" src="../_images/math/21dfd2fd9265de558f67909e229063930f6967b8.png"/> atomic positions, where <img alt="i" class="math" src="../_images/math/8216274682ad4c02b3821d303fe8a1c94b09b3bd.png"/> and <img alt="\alpha" class="math" src="../_images/math/04d011ebcba612844adea8dbc1d9c21e8bc7bc26.png"/> refer to the atomic and Cartesian indices, respectively. Near thermal equilibrium, the potential energy can be Taylor expanded in the atomic
-displacements, <img alt="\mathbf{u}=\mathbf x-\mathbf{x}_{\rm equilibrium}" class="math" src="../_images/math/3ace6a7dd6a4122a46b2a4e2e6e791358e426948.png"/>,</p>
-<div class="math">
-<p><img alt="\phi(\{x_{i\alpha}\})=\phi_0 +
+<h2 id="Interatomic-potentials">Interatomic potentials<a class="headerlink" href="#Interatomic-potentials" title="Link to this heading">¶</a></h2>
+<p>In semiconductors, electronic and vibrational dynamics often occur over different time scales, and can thus be decoupled using the Born Oppenheimer approximation. Under this assumption, the potential <span class="math notranslate nohighlight">\(\phi\)</span> of a system made of <span class="math notranslate nohighlight">\(N_{atoms}\)</span> atoms, is a function of all the <span class="math notranslate nohighlight">\(x_{i\alpha}\)</span> atomic positions, where <span class="math notranslate nohighlight">\(i\)</span> and <span class="math notranslate nohighlight">\(\alpha\)</span> refer to the atomic and Cartesian indices, respectively. Near thermal equilibrium, the potential energy can be Taylor expanded in the atomic
+displacements, <span class="math notranslate nohighlight">\(\mathbf{u}=\mathbf x-\mathbf{x}_{\rm equilibrium}\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[ \phi(\{x_{i\alpha}\})=\phi_0 +
 \sum_{i\alpha}\phi^{\prime}_{i\alpha }u_{i\alpha}
 +\frac{1}{2}
 \sum_{i\alpha i'\alpha'}
-\phi^{\prime\prime}_{i\alpha i'\alpha '}u_{i\alpha} u_{i'\alpha'}+" src="../_images/math/b8231ce8e7e8440797c8d7b36eb5383a4cac5ee0.png"/></p>
-</div><div class="math">
-<p><img alt="+
+\phi^{\prime\prime}_{i\alpha i'\alpha '}u_{i\alpha} u_{i'\alpha'}+\]</div>
+<div class="math notranslate nohighlight">
+\[+
 \frac{1}{3!}\sum_{i\alpha i'\alpha 'i''\alpha ''}
-\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''} u_{i\alpha }u_{i'\alpha '} u_{i''\alpha ''}  + \dots," src="../_images/math/af41c508a6e811ff27b4524f93e47eeed5448720.png"/></p>
-</div><p>where</p>
-<div class="math">
-<p><img alt="\phi^{\prime\prime}_{i\alpha i'\alpha '}=\frac{\partial^{2} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} },\qquad
-\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''}=\frac{\partial^{3} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} \partial u_{i''\alpha ''}}," src="../_images/math/26ebc3736f4e1ef9c0bf858eb8a0fe4eb600a764.png"/></p>
-</div><p>are the second and third order interatomic force constants (IFC). The term <img alt="\phi_0" class="math" src="../_images/math/dd3aff514ed62571a49b5f37e6b063339bc2298e.png"/> can be discarded, and the forces <img alt="F = - \phi^{\prime}" class="math" src="../_images/math/9e44fa34424c3d8a310d7bb9410ad05b3893a9ad.png"/> are zero at equilibrium.</p>
-<p>The IFCs can be evaluated by finite difference, which consists in calculating the difference between the forces acting on the system when one of the atoms is displaced by a small finite shift along a Cartesian direction. The second and third order IFCs need respectively, <img alt="2N_{atoms}" class="math" src="../_images/math/a851bcbc94808871668ab7cd7c1641d01659bab9.png"/>, and <img alt="4N_{atoms}^2" class="math" src="../_images/math/6779a356e76a5c8f597a0deac1036e003cb7d78d.png"/> forces calculations. In crystals, this amount can be reduced exploiting the spatial symmetries of the system, or adopting a compressed sensing approach. In the framework of DFT, it is
+\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''} u_{i\alpha }u_{i'\alpha '} u_{i''\alpha ''}  + \dots,\]</div>
+<p>where</p>
+<div class="math notranslate nohighlight">
+\[ \phi^{\prime\prime}_{i\alpha i'\alpha '}=\frac{\partial^{2} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} },\qquad
+\phi^{\prime\prime\prime}_{i\alpha i'\alpha 'i''\alpha ''}=\frac{\partial^{3} \phi}{\partial u_{i\alpha } \partial u_{i'\alpha '} \partial u_{i''\alpha ''}},\]</div>
+<p>are the second and third order interatomic force constants (IFC). The term <span class="math notranslate nohighlight">\(\phi_0\)</span> can be discarded, and the forces <span class="math notranslate nohighlight">\(F = - \phi^{\prime}\)</span> are zero at equilibrium.</p>
+<p>The IFCs can be evaluated by finite difference, which consists in calculating the difference between the forces acting on the system when one of the atoms is displaced by a small finite shift along a Cartesian direction. The second and third order IFCs need respectively, <span class="math notranslate nohighlight">\(2N_{atoms}\)</span>, and <span class="math notranslate nohighlight">\(4N_{atoms}^2\)</span> forces calculations. In crystals, this amount can be reduced exploiting the spatial symmetries of the system, or adopting a compressed sensing approach. In the framework of DFT, it is
 also possible and often convenient to compute IFCs using perturbation theory.</p>
-<p>The dynamical matrix is the second order IFC rescaled by the masses, <img alt="D_{i\alpha i'\alpha}=\phi^{\prime\prime}_{i\alpha i'\alpha'}/\sqrt{m_im_{i'}}" class="math" src="../_images/math/837d6ba1ca6eb706558bf1676fa572c77b8ba256.png"/>. It is diagonal in the phonons basis</p>
-<div class="math">
-<p><img alt="\sum_{i'\alpha'} D_{i\alpha i'\alpha'}\eta_{i'\alpha'\mu} =\eta_{i\alpha\mu} \omega_\mu^2" src="../_images/math/1428a883e025ec25f8496cde9efaf4ba99c1165b.png"/></p>
-</div><p>and <img alt="\omega_\mu/(2\pi)" class="math" src="../_images/math/cce151bc0e208afb494682945fdb93c4dc303c79.png"/> are the frequencies of the normal modes of the system.</p>
-<p>For crystals, where there is long range order due to the periodicity, the dimensionality of the problem can be reduced. The Fourier transfom maps the large direct space onto a compact volume in the reciprocal space: the Brillouin zone. More precisely we adopt a supercell approach, where we calculate the dynamical matrix on <img alt="N_{\rm replicas}" class="math" src="../_images/math/235da8446439519b5b7aa8d8780b264caa608f21.png"/> replicas of a unit cell of <img alt="N_{\rm unit}" class="math" src="../_images/math/342d0d63e0c6a58e08c2950ba6a702e063d209da.png"/> atoms, at positions <img alt="\mathbf R_l" class="math" src="../_images/math/939d964931cb595013ec1bc6e7e83720f61fb28d.png"/>, and calculate</p>
-<div class="math">
-<p><img alt="D_{i \alpha k i' \alpha'}=\sum_l \chi_{kl}  D_{i \alpha l i' \alpha'},\quad \chi_{kl} = \mathrm{e}^{-i \mathbf{q_k}\cdot \mathbf{R}_{l} }," src="../_images/math/a7e8df9bbd60a79b59f6bae0b3e94370be1bd152.png"/></p>
-</div><p>where <img alt="\mathbf q_k" class="math" src="../_images/math/97c93ba870f07c2e7ced475cb3bf70361d00a327.png"/> is a grid of size <img alt="N_k" class="math" src="../_images/math/07bf00ff17cb51d080ac678bd294ac239b06a132.png"/> indexed by <img alt="k" class="math" src="../_images/math/c3144087f4141b1a902ffbbca1128a22f5df8682.png"/> and the eigenvalue equation becomes</p>
-<div class="math">
-<p><img alt="\sum_{i'\alpha'} D_{i \alpha k i' \alpha'} \eta_{i' \alpha'k s}=\omega_{k m}^{2} \eta_{i \alpha k s }." src="../_images/math/31f639dfd1c1cbb270d1c4156b5c96009c43b5ee.png"/></p>
-</div><p>which now depends on the quasi-momentum index, <img alt="k" class="math" src="../_images/math/c3144087f4141b1a902ffbbca1128a22f5df8682.png"/>, and the phonons mode <img alt="s" class="math" src="../_images/math/66b7b213f6794acfd003d7b9471d389cfc120aa3.png"/>.</p>
-</section>
-<section id="Boltzman-Transport-Equation">
-<h2 id="Boltzman-Transport-Equation">Boltzman Transport Equation<a class="headerlink" href="#Boltzman-Transport-Equation" title="Permalink to this heading">¶</a></h2>
-<p>At finite temperature <img alt="T" class="math" src="../_images/math/1a99e57b148bd48c6519ff1158f1ce03a258c7ff.png"/>, the Bose Einstein statistic is the quantum distribution for atomic vibrations</p>
-<div class="math">
-<p><img alt="n_{\mu}=n(\omega_{\mu})=\frac{1}{e^{\frac{\hbar\omega_{\mu}}{k_B T}}-1}" src="../_images/math/4211a9b4f51fc9873cf74c29779e862030461c05.png"/></p>
-</div><p>where <img alt="k_B" class="math" src="../_images/math/44a6e23c9b975fb48206833723cba1ffe7dc6937.png"/> is the Boltzmann constant and we use <img alt="\mu =(k,s)" class="math" src="../_images/math/fd95d09370796bc141e065467fd123c60a6dc276.png"/>.</p>
-<p>We consider a small temperature gradient applied along the <img alt="\alpha" class="math" src="../_images/math/04d011ebcba612844adea8dbc1d9c21e8bc7bc26.png"/>-axis of a crystalline material. If the phonons population depends on the position only through the temperature, <img alt="\frac{\partial n_{\mu\alpha}}{\partial x_\alpha} =  \frac{\partial n_{\mu\alpha}}{\partial T}\nabla_\alpha T" class="math" src="../_images/math/cd962b037b9206dc86f1ceff529f5e4a73a34da8.png"/>, we can Taylor expand it</p>
-<div class="math">
-<p><img alt="\tilde n_{\mu\alpha} \simeq n_\mu + \lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial x_\alpha} \simeq  n_\mu + \psi_{\mu\alpha}\nabla_\alpha T" src="../_images/math/b65295794f2545a70f73d4d22bffdd5665e16e00.png"/></p>
-</div><p>with <img alt="\psi_{\mu\alpha}=\lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial T}" class="math" src="../_images/math/8ba062745bfc7525f06df7ac3c15fed246bbe58a.png"/>, where <img alt="\lambda_{\mu\alpha}" class="math" src="../_images/math/e9f73010bf0e181e64a2fd9e6de01238d5376512.png"/> is the phonons mean free path. Being quantum quasi-particles, phonons have a well-defined group velocity, which, for the acoustic modes in the long wavelength limit, corresponds to the speed of sound in the material,</p>
-<div class="math">
-<p><img alt="v_{ ks\alpha}=\frac{\partial \omega_{k s}}{\partial {q_{k\alpha}}} = \frac{1}{2\omega_{ks}}\sum_{i\beta l i'\beta'}
+<p>The dynamical matrix is the second order IFC rescaled by the masses, <span class="math notranslate nohighlight">\(D_{i\alpha i'\alpha}=\phi^{\prime\prime}_{i\alpha i'\alpha'}/\sqrt{m_im_{i'}}\)</span>. It is diagonal in the phonons basis</p>
+<div class="math notranslate nohighlight">
+\[\sum_{i'\alpha'} D_{i\alpha i'\alpha'}\eta_{i'\alpha'\mu} =\eta_{i\alpha\mu} \omega_\mu^2\]</div>
+<p>and <span class="math notranslate nohighlight">\(\omega_\mu/(2\pi)\)</span> are the frequencies of the normal modes of the system.</p>
+<p>For crystals, where there is long range order due to the periodicity, the dimensionality of the problem can be reduced. The Fourier transfom maps the large direct space onto a compact volume in the reciprocal space: the Brillouin zone. More precisely we adopt a supercell approach, where we calculate the dynamical matrix on <span class="math notranslate nohighlight">\(N_{\rm replicas}\)</span> replicas of a unit cell of <span class="math notranslate nohighlight">\(N_{\rm unit}\)</span> atoms, at positions <span class="math notranslate nohighlight">\(\mathbf R_l\)</span>, and calculate</p>
+<div class="math notranslate nohighlight">
+\[D_{i \alpha k i' \alpha'}=\sum_l \chi_{kl}  D_{i \alpha l i' \alpha'},\quad \chi_{kl} = \mathrm{e}^{-i \mathbf{q_k}\cdot \mathbf{R}_{l} },\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf q_k\)</span> is a grid of size <span class="math notranslate nohighlight">\(N_k\)</span> indexed by <span class="math notranslate nohighlight">\(k\)</span> and the eigenvalue equation becomes</p>
+<div class="math notranslate nohighlight">
+\[\sum_{i'\alpha'} D_{i \alpha k i' \alpha'} \eta_{i' \alpha'k s}=\omega_{k m}^{2} \eta_{i \alpha k s }.\]</div>
+<p>which now depends on the quasi-momentum index, <span class="math notranslate nohighlight">\(k\)</span>, and the phonons mode <span class="math notranslate nohighlight">\(s\)</span>.</p>
+<h2 id="Boltzman-Transport-Equation">Boltzman Transport Equation<a class="headerlink" href="#Boltzman-Transport-Equation" title="Link to this heading">¶</a></h2>
+<p>At finite temperature <span class="math notranslate nohighlight">\(T\)</span>, the Bose Einstein statistic is the quantum distribution for atomic vibrations</p>
+<div class="math notranslate nohighlight">
+\[n_{\mu}=n(\omega_{\mu})=\frac{1}{e^{\frac{\hbar\omega_{\mu}}{k_B T}}-1}\]</div>
+<p>where <span class="math notranslate nohighlight">\(k_B\)</span> is the Boltzmann constant and we use <span class="math notranslate nohighlight">\(\mu =(k,s)\)</span>.</p>
+<p>We consider a small temperature gradient applied along the <span class="math notranslate nohighlight">\(\alpha\)</span>-axis of a crystalline material. If the phonons population depends on the position only through the temperature, <span class="math notranslate nohighlight">\(\frac{\partial n_{\mu\alpha}}{\partial x_\alpha} =  \frac{\partial n_{\mu\alpha}}{\partial T}\nabla_\alpha T\)</span>, we can Taylor expand it</p>
+<div class="math notranslate nohighlight">
+\[\tilde n_{\mu\alpha} \simeq n_\mu + \lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial x_\alpha} \simeq  n_\mu + \psi_{\mu\alpha}\nabla_\alpha T\]</div>
+<p>with <span class="math notranslate nohighlight">\(\psi_{\mu\alpha}=\lambda_{\mu\alpha} \frac{\partial n_\mu}{\partial T}\)</span>, where <span class="math notranslate nohighlight">\(\lambda_{\mu\alpha}\)</span> is the phonons mean free path. Being quantum quasi-particles, phonons have a well-defined group velocity, which, for the acoustic modes in the long wavelength limit, corresponds to the speed of sound in the material,</p>
+<div class="math notranslate nohighlight">
+\[v_{ ks\alpha}=\frac{\partial \omega_{k s}}{\partial {q_{k\alpha}}} = \frac{1}{2\omega_{ks}}\sum_{i\beta l i'\beta'}
 i R_{l \alpha} D_{i\beta li'\beta'}\chi_{kl}
-\eta_{ks i\beta}\eta_{ksi'\beta}" src="../_images/math/236929005cc97f021bac1b5e1f47cd1bb971c735.png"/></p>
-</div><p>and the last equality is obtained by applying the derivative with respect to <img alt="\mathbf{q}_k" class="math" src="../_images/math/7630b2fe2f924c2f5103e0af5d8780f852442335.png"/> directly to tbe eigenvectors Equation</p>
-<p>The heat current per mode is written in terms of the phonon energy <img alt="\hbar \omega" class="math" src="../_images/math/e508329683c88a0b4b703fb8097a05357f2dbacb.png"/>, velocity <img alt="v" class="math" src="../_images/math/b43d608e0158751c5b9d8cfaf328be4f257351be.png"/>, and out-of-equilibrium phonons population, <img alt="\tilde n" class="math" src="../_images/math/f3b610cd9fb6bb1be0af420f5b305fd0f6b3aeaf.png"/>:</p>
-<div class="math">
-<p><img alt="j_{\mu\alpha'} =\sum_\alpha \hbar \omega_\mu v_{\mu\alpha'} (\tilde n_{\mu\alpha} - n_{\mu})\simeq- \sum_\alpha c_\mu v_{\mu\alpha'} \mathbf{\lambda}_{\mu\alpha}  \nabla_\alpha T ." src="../_images/math/5c10839b0c0c27d07da4a29b3544b9b24923c5b1.png"/></p>
-</div><p>As we deal with extended systems, we can assume heat transport in the diffusive regime, and we can use Fourier’s law</p>
-<div class="math">
-<p><img alt="J_{\alpha}=-\sum_{\alpha'}\kappa_{\alpha\alpha'} \nabla_{\alpha'} T," src="../_images/math/2c407a4a34f9cfd9518fb4e68d30a273348e8f32.png"/></p>
-</div><p>where the heat current is the sum of the contribution from each phonon mode: <img alt="J_\alpha = 1/(N_k V)\sum_\mu j_{\mu\alpha}" class="math" src="../_images/math/c61c9f0da42d83b11fd672def616b0ce93e1303f.png"/>. The thermal conductivity then results:</p>
-<div class="math">
-<p><img alt="\kappa_{\alpha \alpha'}=\frac{1}{ V N_k} \sum_{\mu} c_\mu v_{\mu\alpha} \lambda_{\mu\alpha'}," src="../_images/math/c818593f21fee14492a75d8f0b7228a4c5ddda89.png"/></p>
-</div><p>where we defined the heat capacity per mode</p>
-<div class="math">
-<p><img alt="c_\mu=\hbar \omega_\mu \frac{\partial n_\mu}{\partial T}," src="../_images/math/d7cef486035c1ab22687e1733be213b972881618.png"/></p>
-</div><p>which is connected to total heat capacity through <img alt="C = \sum_\mu c_\mu /NV" class="math" src="../_images/math/da04106cc5514703843099260a74905de16259e5.png"/>.</p>
+\eta_{ks i\beta}\eta_{ksi'\beta}\]</div>
+<p>and the last equality is obtained by applying the derivative with respect to <span class="math notranslate nohighlight">\(\mathbf{q}_k\)</span> directly to tbe eigenvectors Equation</p>
+<p>The heat current per mode is written in terms of the phonon energy <span class="math notranslate nohighlight">\(\hbar \omega\)</span>, velocity <span class="math notranslate nohighlight">\(v\)</span>, and out-of-equilibrium phonons population, <span class="math notranslate nohighlight">\(\tilde n\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[j_{\mu\alpha'} =\sum_\alpha \hbar \omega_\mu v_{\mu\alpha'} (\tilde n_{\mu\alpha} - n_{\mu})\simeq- \sum_\alpha c_\mu v_{\mu\alpha'} \mathbf{\lambda}_{\mu\alpha}  \nabla_\alpha T .\]</div>
+<p>As we deal with extended systems, we can assume heat transport in the diffusive regime, and we can use Fourier’s law</p>
+<div class="math notranslate nohighlight">
+\[J_{\alpha}=-\sum_{\alpha'}\kappa_{\alpha\alpha'} \nabla_{\alpha'} T,\]</div>
+<p>where the heat current is the sum of the contribution from each phonon mode: <span class="math notranslate nohighlight">\(J_\alpha = 1/(N_k V)\sum_\mu j_{\mu\alpha}\)</span>. The thermal conductivity then results:</p>
+<div class="math notranslate nohighlight">
+\[\kappa_{\alpha \alpha'}=\frac{1}{ V N_k} \sum_{\mu} c_\mu v_{\mu\alpha} \lambda_{\mu\alpha'},\]</div>
+<p>where we defined the heat capacity per mode</p>
+<div class="math notranslate nohighlight">
+\[c_\mu=\hbar \omega_\mu \frac{\partial n_\mu}{\partial T},\]</div>
+<p>which is connected to total heat capacity through <span class="math notranslate nohighlight">\(C = \sum_\mu c_\mu /NV\)</span>.</p>
 <p>We can now introduce the BTE, which combines the kinetic theory of gases with collective phonons vibrations:</p>
-<div class="math">
-<p><img alt="{\mathbf{v}}_{\mu} \cdot {\boldsymbol{\nabla}} T \frac{\partial n_{\mu}}{\partial T}=\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}}," src="../_images/math/43938f4a0a595d0c1cba93724564635e61191b77.png"/></p>
-</div><p>where the scattering term, in the linearized form is</p>
-<div class="math">
-<p><img alt="\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}}=" src="../_images/math/602ad9771d539de5ccbd10d6ba1ae47286538872.png"/></p>
-</div><div class="math">
-<p><img alt="\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{+} \Gamma_{\mu \mu^{\prime}  \mu^{\prime \prime}}^{+}
+<div class="math notranslate nohighlight">
+\[{\mathbf{v}}_{\mu} \cdot {\boldsymbol{\nabla}} T \frac{\partial n_{\mu}}{\partial T}=\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}},\]</div>
+<p>where the scattering term, in the linearized form is</p>
+<div class="math notranslate nohighlight">
+\[\left.\frac{\partial n_{\mu}}{\partial t}\right|_{\text {scatt}}=\]</div>
+<div class="math notranslate nohighlight">
+\[\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{+} \Gamma_{\mu \mu^{\prime}  \mu^{\prime \prime}}^{+}
 \left(\omega_\mu\mathbf{\psi}_{\mu\alpha}
 +\omega_{\mu^{\prime}}\mathbf{\psi}_{\mu^{\prime}\alpha}
 -\omega_{\mu^{\prime \prime}} \mathbf{\psi}_{\mu^{\prime \prime}\alpha}\right)
-+" src="../_images/math/2aa27ecda86550b348df76c0b097ca9684d4abec.png"/></p>
-</div><div class="math">
-<p><img alt="+\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{-}  \frac{1}{2} \Gamma_{\mu  \mu^{\prime} \mu^{\prime \prime}}^{-}
++\]</div>
+<div class="math notranslate nohighlight">
+\[+\frac{\nabla_\alpha T}{\omega_\mu N_k}\sum_{\mu^{\prime} \mu^{\prime \prime}}^{-}  \frac{1}{2} \Gamma_{\mu  \mu^{\prime} \mu^{\prime \prime}}^{-}
 \left(\omega_\mu\mathbf{\psi}_{\mu\alpha}
 -\omega_{\mu^{\prime}} \mathbf{\psi}_{\mu^{\prime}\alpha}
--\omega_{\mu^{\prime \prime}} \mathbf{\psi}_{\mu^{\prime \prime}\alpha}\right) ." src="../_images/math/759afec27074b857c77935a39d0564c07008f504.png"/></p>
-</div><p><img alt="\Gamma^{+}_{\mu\mu'\mu''}" class="math" src="../_images/math/0ead92e5baefe0690454835d4d130d413068932b.png"/> and <img alt="\Gamma^{-}_{\mu\mu'\mu''}" class="math" src="../_images/math/850f6c1abb2c025e35b2e24145c4c54f110c1e2e.png"/> are the scattering rates for three-phonon scattering processes, and they correspond to the events of phonons annihilation <img alt="\mu, \mu'\rightarrow\mu''" class="math" src="../_images/math/9390693a225f6ab4f07068edc612ffe79da42788.png"/> and phonons creation $:nbsphinx-math:<img alt="\mu `:nbsphinx-math:" class="math" src="../_images/math/b192c851a3815daa1083169d441e3272469a3b5b.png"/>rightarrow`:nbsphinx-math:<img alt="\mu" class="math" src="../_images/math/a4caa874866b94dff22cb16659fd568d9e44caac.png"/>‘,:nbsphinx-math:<img alt="\mu" class="math" src="../_images/math/a4caa874866b94dff22cb16659fd568d9e44caac.png"/>’’</p>
-<div class="math">
-<p><img alt="\Gamma_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm} =\frac{\hbar \pi}{8} \frac{g_{\mu\mu'\mu''}^{\pm}}{\omega_{\mu} \omega_{\mu'} \omega_{\mu''}}\left|\phi_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm}\right|^{2}," src="../_images/math/fe6c787acf05aa597cff6053070b879317a40ef3.png"/></p>
-</div><p>and the projection of the potentials on the phonon modes are given by</p>
-<div class="math">
-<p><img alt="\phi^\pm
+-\omega_{\mu^{\prime \prime}} \mathbf{\psi}_{\mu^{\prime \prime}\alpha}\right) .\]</div>
+<p><span class="math notranslate nohighlight">\(\Gamma^{+}_{\mu\mu'\mu''}\)</span> and <span class="math notranslate nohighlight">\(\Gamma^{-}_{\mu\mu'\mu''}\)</span> are the scattering rates for three-phonon scattering processes, and they correspond to the events of phonons annihilation <span class="math notranslate nohighlight">\(\mu, \mu'\rightarrow\mu''\)</span> and phonons creation $:nbsphinx-math:<cite>mu `:nbsphinx-math:</cite>rightarrow`:nbsphinx-math:<cite>mu</cite>’,:nbsphinx-math:<cite>mu</cite>’’</p>
+<div class="math notranslate nohighlight">
+\[\Gamma_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm} =\frac{\hbar \pi}{8} \frac{g_{\mu\mu'\mu''}^{\pm}}{\omega_{\mu} \omega_{\mu'} \omega_{\mu''}}\left|\phi_{\mu \mu^{\prime} \mu^{\prime \prime}}^{\pm}\right|^{2},\]</div>
+<p>and the projection of the potentials on the phonon modes are given by</p>
+<div class="math notranslate nohighlight">
+\[\phi^\pm
 _{ksk's'k'' s''}=
 \sum_{il'i'l''i''}
 \frac{
 \phi_{il'i'l''i''}}
 {\sqrt{m_{i}m_{i'}m_{i''}}}
 \eta_{i ks}\eta^{\pm}_{i'k' s'}
-\eta^*_{i''k''s''}\chi^\pm_{k'l'}\chi^*_{k''l''}" src="../_images/math/e800279098b845c089ef3bfa9eb70e76fb06aea4.png"/></p>
-</div><p>with <img alt="\eta^+=\eta" class="math" src="../_images/math/0e6c288c3c1e39b11141387dcc2d8bfe3641a84f.png"/>, <img alt="\chi^+=\chi" class="math" src="../_images/math/39417df6b0b48a4a7dfa8c02a9f3df8a75a5da6b.png"/> and <img alt="\eta^-=\eta^*" class="math" src="../_images/math/bd74c98b8d534558ed327b33cc64bdc6d9e8835c.png"/>, <img alt="\chi^-=\chi^*" class="math" src="../_images/math/8011d5e76f60e88b4eac4ad55f87558a98760fa3.png"/>. The phase space volume <img alt="g^\pm_{\mu\mu^\prime\mu^{\prime\prime}}" class="math" src="../_images/math/6708d4f3235f1c9f4e0a3d15968d755e8d27271d.png"/> in the previous equation are defined as</p>
-<div class="math">
-<p><img alt="g^+_{\mu\mu^\prime\mu^{\prime\prime}}  = (n_{\mu'}-n_{\mu''})
-\delta^+_{\mu\mu^\prime\mu^{\prime\prime}}" src="../_images/math/24649cb8bee623d0a021fa21991fcab0d354c55d.png"/></p>
-</div><div class="math">
-<p><img alt="g^-_{\mu\mu^\prime\mu^{\prime\prime}}  = (1 + n_{\mu'}+n_{\mu''})
-\delta^-_{\mu\mu^\prime\mu^{\prime\prime}}," src="../_images/math/fe82a5f419c311d420c88119ffa63f4f85ae04ea.png"/></p>
-</div><p>and include the <img alt="\delta" class="math" src="../_images/math/aa6d507fd5689e58b02e4120d3cda22a9ee6993e.png"/> for the conservation of the energy and momentum in three-phonons scattering processes,</p>
-<div class="math">
-<p><img alt="\delta_{ks k's' k''s''}^{\pm}=
+\eta^*_{i''k''s''}\chi^\pm_{k'l'}\chi^*_{k''l''}\]</div>
+<p>with <span class="math notranslate nohighlight">\(\eta^+=\eta\)</span>, <span class="math notranslate nohighlight">\(\chi^+=\chi\)</span> and <span class="math notranslate nohighlight">\(\eta^-=\eta^*\)</span>, <span class="math notranslate nohighlight">\(\chi^-=\chi^*\)</span>. The phase space volume <span class="math notranslate nohighlight">\(g^\pm_{\mu\mu^\prime\mu^{\prime\prime}}\)</span> in the previous equation are defined as</p>
+<div class="math notranslate nohighlight">
+\[g^+_{\mu\mu^\prime\mu^{\prime\prime}}  = (n_{\mu'}-n_{\mu''})
+\delta^+_{\mu\mu^\prime\mu^{\prime\prime}}\]</div>
+<div class="math notranslate nohighlight">
+\[g^-_{\mu\mu^\prime\mu^{\prime\prime}}  = (1 + n_{\mu'}+n_{\mu''})
+\delta^-_{\mu\mu^\prime\mu^{\prime\prime}},\]</div>
+<p>and include the <span class="math notranslate nohighlight">\(\delta\)</span> for the conservation of the energy and momentum in three-phonons scattering processes,</p>
+<div class="math notranslate nohighlight">
+\[\delta_{ks k's' k''s''}^{\pm}=
 \delta_{\mathbf q_{k}\pm\mathbf q_{k'}-\mathbf q_{k''}, \mathbf Q}
-\delta\left(\omega_{ks}\pm\omega_{k's'}-\omega_{k''s''}\right)," src="../_images/math/462ff41b4596bee678a803124783d7d1d0154626.png"/></p>
-</div><p>with <img alt="Q" class="math" src="../_images/math/388feb12298f4406245e011ecd38a187e8587245.png"/> the lattice vectors. Finally, the normalized phase-space per mode <img alt="g_\mu=\frac{1}{N}\sum_{\mu'\mu''}g_{\mu\mu'\mu''}" class="math" src="../_images/math/262769ad6ec3528beb094b5082e1d683ae48a53c.png"/>, provides useful information about the weight of a specific mode in the anharmonic scattering processes.</p>
+\delta\left(\omega_{ks}\pm\omega_{k's'}-\omega_{k''s''}\right),\]</div>
+<p>with <span class="math notranslate nohighlight">\(Q\)</span> the lattice vectors. Finally, the normalized phase-space per mode <span class="math notranslate nohighlight">\(g_\mu=\frac{1}{N}\sum_{\mu'\mu''}g_{\mu\mu'\mu''}\)</span>, provides useful information about the weight of a specific mode in the anharmonic scattering processes.</p>
 <p>In order to calculate the conductivity, we express the mean free path in terms of the 3-phonon scattering rates</p>
-<div class="math">
-<p><img alt="v_{\mu\alpha} = \tilde \Gamma_{\mu\mu' }\lambda_\mu = (\delta_{\mu\mu'}\Gamma^0_\mu + \Gamma^{1}_{\mu\mu'})\lambda_{\mu\alpha}," src="../_images/math/0d90eff801ae0a4a22bb6b763816daa29c0764a5.png"/></p>
-</div><p>where we introduced</p>
-<div class="math">
-<p><img alt="\Gamma^{0}_\mu=\sum_{\mu'\mu''}(\Gamma^+_{\mu\mu'\mu''}  + \Gamma^-_{\mu\mu'\mu''} )," src="../_images/math/83209f49b37dc7a2182b9cbed4a93ba65da7b516.png"/></p>
-</div><p>and</p>
-<div class="math">
-<p><img alt="\Gamma^{1}_{\mu\mu'}=
+<div class="math notranslate nohighlight">
+\[v_{\mu\alpha} = \tilde \Gamma_{\mu\mu' }\lambda_\mu = (\delta_{\mu\mu'}\Gamma^0_\mu + \Gamma^{1}_{\mu\mu'})\lambda_{\mu\alpha},\]</div>
+<p>where we introduced</p>
+<div class="math notranslate nohighlight">
+\[\Gamma^{0}_\mu=\sum_{\mu'\mu''}(\Gamma^+_{\mu\mu'\mu''}  + \Gamma^-_{\mu\mu'\mu''} ),\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[\Gamma^{1}_{\mu\mu'}=
 \frac{\omega_{\mu'}}{\omega_\mu}
 \sum_{\mu''}(\Gamma^+_{\mu\mu'\mu''}
 -\Gamma^+_{\mu\mu''\mu'}
 -\Gamma^-_{\mu\mu'\mu''}
 -\Gamma^-_{\mu\mu''\mu'}
-)." src="../_images/math/2e53808ef16bded55f20fec41f04d05c3890572e.png"/></p>
-</div><p>In RTA, the off-diagonal terms are ignored, <img alt="\Gamma^{1}_{\mu\mu'}=0" class="math" src="../_images/math/c1046a22c5ee02507eec28aa97f6be0713faf238.png"/>, and the conductivity is</p>
-<div class="math">
-<p><img alt="\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu}c_\mu v_{\mu\alpha}{\lambda_{\mu\alpha'}}
-=\frac{1}{N_kV} \sum_\mu c_\mu v_{\mu\alpha} {\tau_\mu}{v_{\mu\alpha'}}," src="../_images/math/308ea6b4d2596091d66db078c42ea13780e7b631.png"/></p>
-</div><p>where <img alt="\tau_\mu=1/2\Gamma_{\mu}^0" class="math" src="../_images/math/3144c9eef73802f731910e5a4811facefa7f01c7.png"/> corresponds the phonons lifetime calculated using the Fermi Golden Rule.</p>
+).\]</div>
+<p>In RTA, the off-diagonal terms are ignored, <span class="math notranslate nohighlight">\(\Gamma^{1}_{\mu\mu'}=0\)</span>, and the conductivity is</p>
+<div class="math notranslate nohighlight">
+\[\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu}c_\mu v_{\mu\alpha}{\lambda_{\mu\alpha'}}
+=\frac{1}{N_kV} \sum_\mu c_\mu v_{\mu\alpha} {\tau_\mu}{v_{\mu\alpha'}},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\tau_\mu=1/2\Gamma_{\mu}^0\)</span> corresponds the phonons lifetime calculated using the Fermi Golden Rule.</p>
 <p>It has been shown that, to correctly capture the physics of phonon transport, especially in highly conductive materials, the off diagonal terms of the scattering rates cannot be disregarded. More generally, the mean free path is calculated inverting the scattering tensor</p>
-<div class="math">
-<p><img alt="\lambda_{\mu\alpha} = \sum_{\mu'}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha}." src="../_images/math/005dffd73253ed199b9266190f6b7b6f08cc8cea.png"/></p>
-</div><div class="math">
-<p><img alt="\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu\mu'} c_\mu v_{\mu\alpha}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha'}." src="../_images/math/7f7b9c1bec69a3edc5ca91648a27d6a5518348cc.png"/></p>
-</div><p>This inversion operation is computationally expensive; however, when the off-diagonal elements of the scattering rate matrix are much smaller than the diagonal, we can rewrite the mean free path obtained from the BTE as a series:</p>
-<div class="math">
-<p><img alt="\lambda_{\mu\alpha} = \sum_{\mu'}\left(\delta_{\mu\mu'} + \frac{1}{\Gamma^0_\mu}\Gamma^{1}_{\mu\mu'}\right)^{-1}\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} =" src="../_images/math/2d8213f183618ace63c459f78c3c4a4922afd3f1.png"/></p>
-</div><div class="math">
-<p><img alt="=
+<div class="math notranslate nohighlight">
+\[\lambda_{\mu\alpha} = \sum_{\mu'}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha}.\]</div>
+<div class="math notranslate nohighlight">
+\[\kappa_{\alpha\alpha'} =\frac{1}{N_kV} \sum_{\mu\mu'} c_\mu v_{\mu\alpha}(\tilde \Gamma_{\mu\mu' })^{-1}v_{\mu'\alpha'}.\]</div>
+<p>This inversion operation is computationally expensive; however, when the off-diagonal elements of the scattering rate matrix are much smaller than the diagonal, we can rewrite the mean free path obtained from the BTE as a series:</p>
+<div class="math notranslate nohighlight">
+\[\lambda_{\mu\alpha} = \sum_{\mu'}\left(\delta_{\mu\mu'} + \frac{1}{\Gamma^0_\mu}\Gamma^{1}_{\mu\mu'}\right)^{-1}\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} =\]</div>
+<div class="math notranslate nohighlight">
+\[=
 \sum_{\mu'}
 \left[
 \sum^{\infty}_{n=0}\left(- \frac{1}{\Gamma^0_\mu}\Gamma^{1}_{\mu\mu'}\right)^n
-\right]\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} ," src="../_images/math/326a8525270bbc823de989bb5b800a3278297ef6.png"/></p>
-</div><p>where in the last step we used the identity <img alt="\sum_0 q^n = (1 - q)^{-1}" class="math" src="../_images/math/33e43e6365f1e6c4f5d070a1332f1b892b8b676d.png"/>, true when <img alt="|q|=|\Gamma^1/\Gamma^0|&lt;1" class="math" src="../_images/math/4544565957b449f4aa00fe1336e26205d1a5471c.png"/>. This equation can then be written in an iterative form</p>
-<div class="math">
-<p><img alt="\lambda^0_{\mu\alpha} = \frac{1}{\Gamma^0_\mu}v_\mu
+\right]\frac{1}{\Gamma^0_{\mu'}}v_{\mu'\alpha} ,\]</div>
+<p>where in the last step we used the identity <span class="math notranslate nohighlight">\(\sum_0 q^n = (1 - q)^{-1}\)</span>, true when <span class="math notranslate nohighlight">\(|q|=|\Gamma^1/\Gamma^0|&lt;1\)</span>. This equation can then be written in an iterative form</p>
+<div class="math notranslate nohighlight">
+\[\lambda^0_{\mu\alpha} = \frac{1}{\Gamma^0_\mu}v_\mu
 \qquad
-\lambda^{n+1}_{\mu\alpha} = - \frac{1}{\Gamma^0_\mu}\sum_{\mu'}\Gamma^{1}_{\mu\mu'} \lambda^{n}_{\mu'\alpha}." src="../_images/math/fd98d00ba6c2e3ed17d7d120df78b2516d85cb9b.png"/></p>
-</div><p>Hence, the inversion in of the scattering tensor is obtained by a recursive expression. Once the mean free path is calculated, the conductivity is straightforwardly computed.</p>
-</section>
-<section id="Quasi-Harmonic-Green-Kubo">
-<h2 id="Quasi-Harmonic-Green-Kubo">Quasi-Harmonic Green Kubo<a class="headerlink" href="#Quasi-Harmonic-Green-Kubo" title="Permalink to this heading">¶</a></h2>
+\lambda^{n+1}_{\mu\alpha} = - \frac{1}{\Gamma^0_\mu}\sum_{\mu'}\Gamma^{1}_{\mu\mu'} \lambda^{n}_{\mu'\alpha}.\]</div>
+<p>Hence, the inversion in of the scattering tensor is obtained by a recursive expression. Once the mean free path is calculated, the conductivity is straightforwardly computed.</p>
+<h2 id="Quasi-Harmonic-Green-Kubo">Quasi-Harmonic Green Kubo<a class="headerlink" href="#Quasi-Harmonic-Green-Kubo" title="Link to this heading">¶</a></h2>
 <p>In non-crystalline solids with no long range order, such as glasses, alloys, nano-crystalline, and partially disordered systems, the phonon picture is formally not well-defined. While vibrational modes are still the heat carriers, their mean-free-paths may be so short that the quasi-particle picture of heat carriers breaks down and the BTE is no longer applicable. In glasses heat transport is dominated by a diffusive processes in which delocalized modes with similar frequency transfer energy
 from one to another. Whereas this mechanism is intrinsically distinct from the underlying hypothesis of the BTE approach, the two transport pictures have been recently reconciled in a unified theory, in which the thermal conductivity is written as:</p>
-<div class="math">
-<p><img alt="\kappa_{\alpha \alpha'}=\frac{1}{V} \sum_{\mu \mu'} c_{\mu \mu'} v_{\mu \mu' \alpha} v_{\mu \mu' \alpha'} \tau_{\mu \mu'}." src="../_images/math/0f4acc1b3d5531e4bfe81382f3b064f46cdfc42d.png"/></p>
-</div><p>This expression is analogous to the RTA one, where modal heat capacity, phonon group velocity and lifetimes are replaced by the generalized heat capacity,</p>
-<div class="math">
-<p><img alt="c_{\mu \mu'}=\frac{\hbar \omega_{\mu} \omega_{\mu'}}{T} \frac{n_{\mu}-n_{\mu'}}{\omega_{\mu}-\omega_{\mu'}}," src="../_images/math/43251a91640e3216f901f6cb39fdaf15377b5f60.png"/></p>
-</div><p>the generalized velocities,</p>
-<div class="math">
-<p><img alt="v_{\mu\mu'\alpha}=\frac{1}{2\sqrt{\omega_\mu\omega_{\mu'}}}
-\sum_{ii'\beta'\beta''}(x_{i\alpha}-x_{i'\alpha })D_{i\beta i'\beta'}\eta_{\mu i\beta}\eta_{\mu'i'\beta'}," src="../_images/math/ab036318aa270be105c25b8814c11af2e31d2889.png"/></p>
-</div><p>and the generalized lifetime <img alt="\tau_{\mu\mu'}" class="math" src="../_images/math/b0385b55b92597e01d3570a9b1d17a7f75a20a11.png"/>. The latter is expressed as a Lorentzian, which weighs diffusive processes between phonons with nearly-resonant frequencies:</p>
-<div class="math">
-<p><img alt="\tau_{\mu\mu'} =
- \frac{\gamma_{\mu}+\gamma_{\mu'}}{\left(\omega_{\mu}-\omega_{\mu'}\right)^{2}+\left(\gamma_{\mu}+\gamma_{\mu'}\right)^{2}}" src="../_images/math/422336aa5b2f35ad8b97e3b82914c9485d86eff1.png"/></p>
-</div><p>where <img alt="\gamma_\mu" class="math" src="../_images/math/abee54ea153278e0b566138aad51554e4195fbed.png"/> is the line width of mode <img alt="\mu" class="math" src="../_images/math/a4caa874866b94dff22cb16659fd568d9e44caac.png"/> that can be computed using Fermi Golden rule. These equations have been derived from the Green-Kubo theory of linear response applied to thermal conductivity, by taking a quasi-harmonic approximation of the heat current, from which this approach is named quasi-harmonic Green-Kubo (QHGK). It has been proven that for crystalline materials QHGK is formally equivalent to the BTE in the relaxation time approximation, and that its
+<div class="math notranslate nohighlight">
+\[\kappa_{\alpha \alpha'}=\frac{1}{V} \sum_{\mu \mu'} c_{\mu \mu'} v_{\mu \mu' \alpha} v_{\mu \mu' \alpha'} \tau_{\mu \mu'}.\]</div>
+<p>This expression is analogous to the RTA one, where modal heat capacity, phonon group velocity and lifetimes are replaced by the generalized heat capacity,</p>
+<div class="math notranslate nohighlight">
+\[c_{\mu \mu'}=\frac{\hbar \omega_{\mu} \omega_{\mu'}}{T} \frac{n_{\mu}-n_{\mu'}}{\omega_{\mu}-\omega_{\mu'}},\]</div>
+<p>the generalized velocities,</p>
+<div class="math notranslate nohighlight">
+\[v_{\mu\mu'\alpha}=\frac{1}{2\sqrt{\omega_\mu\omega_{\mu'}}}
+\sum_{ii'\beta'\beta''}(x_{i\alpha}-x_{i'\alpha })D_{i\beta i'\beta'}\eta_{\mu i\beta}\eta_{\mu'i'\beta'},\]</div>
+<p>and the generalized lifetime <span class="math notranslate nohighlight">\(\tau_{\mu\mu'}\)</span>. The latter is expressed as a Lorentzian, which weighs diffusive processes between phonons with nearly-resonant frequencies:</p>
+<div class="math notranslate nohighlight">
+\[\tau_{\mu\mu'} =
+ \frac{\gamma_{\mu}+\gamma_{\mu'}}{\left(\omega_{\mu}-\omega_{\mu'}\right)^{2}+\left(\gamma_{\mu}+\gamma_{\mu'}\right)^{2}}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\gamma_\mu\)</span> is the line width of mode <span class="math notranslate nohighlight">\(\mu\)</span> that can be computed using Fermi Golden rule. These equations have been derived from the Green-Kubo theory of linear response applied to thermal conductivity, by taking a quasi-harmonic approximation of the heat current, from which this approach is named quasi-harmonic Green-Kubo (QHGK). It has been proven that for crystalline materials QHGK is formally equivalent to the BTE in the relaxation time approximation, and that its
 classical limit reproduces correctly molecular dynamics simulations for amorphous silicon up to relatively high temperature (600 K). Finally, we provide a microscopic definition of the mode diffusivity,</p>
-<div class="math">
-<p><img alt="D_{\mu} =\frac{1}{N_k V} \sum_{\mu'}v_{\mu\mu'} \tau_{\mu\mu'}v_{\mu\mu'}," src="../_images/math/9fce8c0ab4f4597b0cd165b3cbb34bc92e67bc78.png"/></p>
-</div><p>which conveniently provide a measure of the temperature-independent contribution of each mode to thermal transport.</p>
-</section>
-</section>
-<section id="Workflow">
-<h1 id="Workflow">Workflow<a class="headerlink" href="#Workflow" title="Permalink to this heading">¶</a></h1>
+<div class="math notranslate nohighlight">
+\[D_{\mu} =\frac{1}{N_k V} \sum_{\mu'}v_{\mu\mu'} \tau_{\mu\mu'}v_{\mu\mu'},\]</div>
+<p>which conveniently provide a measure of the temperature-independent contribution of each mode to thermal transport.</p>
+<h1 id="Workflow">Workflow<a class="headerlink" href="#Workflow" title="Link to this heading">¶</a></h1>
 <p>The workflow for ALD calculations is illustrated below</p>
-<p><img alt="9bd15da8a1c6400498e0ff32349b0b49" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;"/></p>
+<p><img alt="60a58a22e3e04dd6b9949d2f659ad236" class="no-scaled-link" src="../_images/timeline.png" style="width: 650px;" /></p>
 <p>Here, we present two example simulations of both a periodic and an amorphous structure.</p>
-<section id="Ab-initio-silicon-diamond">
-<h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Permalink to this heading">¶</a></h2>
+<h2 id="Ab-initio-silicon-diamond"><em>Ab initio</em> silicon diamond<a class="headerlink" href="#Ab-initio-silicon-diamond" title="Link to this heading">¶</a></h2>
 <p>In this example we calculate the second order IFC using Density Functional Perturbation Theory as implemented in the Quantum-Espresso package. The phonon lifetimes and thermal conductivity calculations are performed using a (19, 19, 19) q-point grid.</p>
 <p>The kALDo minimal input file, looks like</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># IFCs object creation using ase.build.bulk</span>
-<span class="n">fc</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">bulk</span><span class="p">(</span><span class="s1">'Si'</span><span class="p">,</span> <span class="s1">'diamond'</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mf">2.699</span><span class="p">),</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span class="c1"># IFCs object creation using ase.build.bulk</span>
+<span class="n">fc</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">bulk</span><span class="p">(</span><span class="s1">&#39;Si&#39;</span><span class="p">,</span> <span class="s1">&#39;diamond&#39;</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mf">2.699</span><span class="p">),</span>
                     <span class="n">supercell</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)))</span>
 
 <span class="c1"># input is the ASE input for QE</span>
@@ -705,21 +1713,19 @@ classical limit reproduces correctly molecular dynamics simulations for amorphou
 <span class="c1"># Conductivity calculations</span>
 <span class="n">cond</span> <span class="o">=</span> <span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">))</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Thermal conductivity matrix, in (W/m/K):'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">cond</span><span class="o">.</span><span class="n">conductivity</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'inverse'</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
-</pre></div>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Thermal conductivity matrix, in (W/m/K):&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cond</span><span class="o">.</span><span class="n">conductivity</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;inverse&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
 </div>
 <p>We performed the simulation using the local density approximation for the exchange and correlation functional and a Bachelet-Hamann-Schluter norm-conserving pseudoptential. Kohn-Sham orbitals are represented on a plane-waves basis set with a cutoff of 20 Ry and (8, 8, 8) k-points mesh. The minimized lattice parameter is 5.398A. The third-order IFC is calculated using finite difference displacement on (5, 5, 5) replicas of the irreducible fcc-unit cell, including up to the 5th nearest neighbor.
 We obtained the following thermal properties</p>
-<p><img alt="1b44c68a34b14435ad64200b71243f3c" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;"/></p>
-<p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <img alt="g" class="math" src="../_images/math/86b44067536d63fd1271ac76c4a35eb79a6aa5dd.png"/>, c) lifetime per mode <img alt="\tau" class="math" src="../_images/math/303b8f73dd9a98bea8df8d22419bc3436abe91a9.png"/>, d) mean free path <img alt="\lambda" class="math" src="../_images/math/b67363a3f3c2ddf224f82975c53b7004abc08d20.png"/>, and e) cumulative conductivity <img alt="\kappa_{cum}" class="math" src="../_images/math/b1c775a79651621157c3335eeba4f6b733d71b1d.png"/>.</p>
-</section>
-<section id="Amorphous-silicon">
-<h2 id="Amorphous-silicon">Amorphous silicon<a class="headerlink" href="#Amorphous-silicon" title="Permalink to this heading">¶</a></h2>
+<p><img alt="bc2c11c5699e4e8f8b35aead1bed176a" class="no-scaled-link" src="../_images/si-diamond-observables.png" style="width: 650px;" /></p>
+<p>The silicon diamond modes analysis is shown above. Quantum (red) and classical (blue) results are compared. a) Normalized density of states, b) Normalized phase-space per mode <span class="math notranslate nohighlight">\(g\)</span>, c) lifetime per mode <span class="math notranslate nohighlight">\(\tau\)</span>, d) mean free path <span class="math notranslate nohighlight">\(\lambda\)</span>, and e) cumulative conductivity <span class="math notranslate nohighlight">\(\kappa_{cum}\)</span>.</p>
+<h2 id="Amorphous-silicon">Amorphous silicon<a class="headerlink" href="#Amorphous-silicon" title="Link to this heading">¶</a></h2>
 <p>Here we study a-Si generated by LAMMPS molecular dynamics simulations of quenching from the melt a 4096 atom crystal silicon structure, with 1989 Tersoff interatomic potential and the QHGK method. The minimal input file looks like the following</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># IFCs object creation</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span class="c1"># IFCs object creation</span>
 <span class="n">fc</span> <span class="o">=</span> <span class="n">ForceConstants</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                <span class="n">folder</span><span class="o">=</span><span class="s1">'./input_data'</span><span class="p">))</span>
+                                <span class="n">folder</span><span class="o">=</span><span class="s1">&#39;./input_data&#39;</span><span class="p">))</span>
 
 <span class="c1"># Phonons object creation</span>
 <span class="n">phon</span> <span class="o">=</span> <span class="n">Phonons</span><span class="p">(</span><span class="n">force_constants</span><span class="o">=</span><span class="n">fc</span><span class="p">,</span>
@@ -728,16 +1734,14 @@ We obtained the following thermal properties</p>
 <span class="c1"># Conductivity calculations</span>
 <span class="n">cond</span> <span class="o">=</span> <span class="n">Conductivity</span><span class="p">(</span><span class="n">phonons</span><span class="o">=</span><span class="n">phonons</span><span class="p">))</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Thermal conductivity matrix, in (W/m/K):'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">cond</span><span class="o">.</span><span class="n">conductivity</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'qhgk'</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
-</pre></div>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Thermal conductivity matrix, in (W/m/K):&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cond</span><span class="o">.</span><span class="n">conductivity</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;qhgk&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
 </div>
 <p>In a simliar treatment to the silicon crystal, a full battery of modal analysis can be calculated with both quantum and classical statistics on the amorphous systems re- turning the phonon DoS as well as the associated lifetimes, generalized diffusivities, normalized phase space and cumulative conductivity</p>
-<p><img alt="9aa04e6ecba84f03829ac7cc29cfad05" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;"/></p>
+<p><img alt="318c314b46634b92aa6bb3d1173cf54b" class="no-scaled-link" src="../_images/amorphous.png" style="width: 650px;" /></p>
 <p>Classical and quantum properties for 4096 atom amorphous silicon system are shown above. a) density of states, b) lifetimes, c) diffusivities, and e) cumulative thermal conductivity. In spite of the increased quantum lifetimes, a decrease of 0.17W/m/K is seen in the quantum conductivity. The difference in conductivity is primarily a result of the overestimation of classical high frequency heat capacities.</p>
-</section>
-<section id="References">
-<h2 id="References">References<a class="headerlink" href="#References" title="Permalink to this heading">¶</a></h2>
+<h2 id="References">References<a class="headerlink" href="#References" title="Link to this heading">¶</a></h2>
 <p>[1]: B. J. Alder, D. M. Gass, and T. E. Wainwright, “Studies in Molecular Dynamics. VIII. The Transport Coefficients for a Hard-Sphere Fluid,” Journal Chemical Physics 53, 3813–3826 (1970).</p>
 <p>[2]: A. J. C. Ladd, B. Moran, and W. G. Hoover, “Lattice thermal conductivity: A comparison of molecular dynamics and anharmonic lattice dynamics,” Physical Review B 34, 5058–5064 (1986).</p>
 <p>[3]: A. Marcolongo, P. Umari, and S. Baroni, “Microscopic theory and quantum simulation of atomic heat transport,” Nature Physics 12, 80–84 (2015).</p>
@@ -769,7 +1773,7 @@ We obtained the following thermal properties</p>
 <p>[30]: M. Simoncelli, N. Marzari, and F. Mauri, “Unified theory of thermal transport in crystals and glasses,” Nature Physics 15, 809–813 (2019).</p>
 <p>[31]: F. Eriksson, E. Fransson, and P. Erhart, “The Hiphive Package for the Extraction of High-Order Force Constants by Machine Learning,” Advanced Theory and Simulations 2, 1800184–11 (2019).</p>
 <p>[32]: S. Baroni, S. de Gironcoli, A. Dal Corso, and P. Giannozzi, “Phonons and related crystal properties from density-functional perturbation theory,” Rev Mod Phys 73, 515–562 (2001).</p>
-<p>[33]: L. Paulatto, F. Mauri, and M. Lazzeri, “Anharmonic properties from a generalized third-order ab initioapproach: Theory and applications to graphite and graphene,” Phys. Rev. B 87, 214303–18 (2013).</p>
+<p>[33]: L. Paulatto, F. Mauri, and M. Lazzeri, “Anharmonic properties from a generalized third-order ab initioapproach: Theory and applications to graphite and graphene,” Phys. Rev. B 87, 214303–18 (2013).</p>
 <p>[34]: G. P. Srivastava, “The Physics of Phonons, ,” Adam Hilger, Bristol 1990. (1990).</p>
 <p>[35]: M. S. Green, “Markoff random processes and the statistical mechanics of time-dependent phenomena.” Journal Chemical Physics 20, 1281–1295 (1952).</p>
 <p>[36]: M. Green, “Markoff random processes and the statistical mechanics of time-dependent phenomena. ii. irreversible processes in fluids,” Journal Chemical Physics 22, 398–413 (1954).</p>
@@ -788,65 +1792,73 @@ Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Tho
 <p>[41]: A. Krylov, T. L. Windus, T. Barnes, E. Marin-Rimoldi, J. A. Nash, B. Pritchard, D. G. Smith, D. Altarawy, P. Saxe, C. Clementi, T. D. Crawford, R. J. Harrison, S. Jha, V. S. Pande, and T. Head-Gordon, “Perspective: Computational chemistry software and its advancement as illustrated through three grand challenge cases for molecular science,” Journal of Chemical Physics 149, 180901 (2018).</p>
 <p>[42]: N.Wilkins-Diehrand, T.D.Crawford,“NSF’s Inaugural Software Institutes: The Science Gateways Community Institute and the Molecular Sciences Software Institute.” Computing in Science and Engineering 20 (2018).</p>
 <p>[43]: W. Li, N. Mingo, L. Lindsay, D. A. Broido, D. A. Stewart, and N. A. Katcho, “Thermal conductivity of diamond nanowires from first princi- ples,” Physical Review B 85, 195436 (2012).</p>
-</section>
-</section>
 
 
-          </article>
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
         </div>
-      </div>
-    </main>
-  </div>
-  <footer class="md-footer">
-    <div class="md-footer-nav">
-      <nav class="md-footer-nav__inner md-grid">
-          
-            <a href="getting_started.html" title="Quick Install"
-               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
-               rel="prev">
-              <div class="md-flex__cell md-flex__cell--shrink">
-                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
-              </div>
-              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-                <span class="md-flex__ellipsis">
-                  <span
-                      class="md-footer-nav__direction"> Previous </span> Quick Install </span>
-              </div>
-            </a>
-          
-          
-            <a href="user_guide.html" title="Interfacing with Other Codes"
-               class="md-flex md-footer-nav__link md-footer-nav__link--next"
-               rel="next">
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
-                class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Interfacing with Other Codes </span>
-            </div>
-            <div class="md-flex__cell md-flex__cell--shrink"><i
-                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
-            </div>
-          
-        </a>
         
-      </nav>
+      </main>
+      
+        <footer class="md-footer">
+  
+  
+  
+  <div class="md-footer-meta md-typeset">
+    
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-footer-copyright__highlight">
+        &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
+        
     </div>
-    <div class="md-footer-meta md-typeset">
-      <div class="md-footer-meta__inner md-grid">
-        <div class="md-footer-copyright">
-          <div class="md-footer-copyright__highlight">
-              &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
-              
-          </div>
-            Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
-             and
-            <a href="https://github.com/bashtage/sphinx-material/">Material for
-              Sphinx</a>
-        </div>
-      </div>
+  
+    Created using
+    <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+    8.1.3.
+     and
+    <a href="https://github.com/jbms/sphinx-immaterial/" target="_blank" rel="noopener">Sphinx-Immaterial</a>
+  
+</div>
+      
     </div>
-  </footer>
-  <script src="../_static/javascripts/application.js"></script>
-  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+    
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="../_static/sphinx_immaterial_theme.32136f45f91ae6956.min.js?v=a7a9472a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script id="MathJax-script" src="../_static/mathjax/tex-mml-chtml.js?v=cadf963e"></script>
+    
   </body>
 </html>

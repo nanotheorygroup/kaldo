@@ -1,471 +1,1244 @@
 
-<!DOCTYPE html>
 
-<html lang="en">
+
+<!doctype html>
+<html lang="en" class="no-js">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <meta name="lang:clipboard.copy" content="Copy to clipboard">
-  <meta name="lang:clipboard.copied" content="Copied to clipboard">
-  <meta name="lang:search.language" content="en">
-  <meta name="lang:search.pipeline.stopwords" content="True">
-  <meta name="lang:search.pipeline.trimmer" content="True">
-  <meta name="lang:search.result.none" content="No matching documents">
-  <meta name="lang:search.result.one" content="1 matching document">
-  <meta name="lang:search.result.other" content="# matching documents">
-  <meta name="lang:search.tokenizer" content="[\s\-]+">
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+      <link rel="icon" href="../../_static/logo.ico">
+    
+    
+      
+        <title>kaldo.conductivity - kALDo</title>
+      
+    
+    
+      
+        
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+        <link rel="stylesheet" type="text/css" href="../../_static/sphinx_immaterial_theme.acf80fe7f4d9ef9e2.min.css?v=9e56d0d2" />
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
 
   
-    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
-    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
-
-    <style>
-      body,
-      input {
-        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
-      }
-
-      code,
-      kbd,
-      pre {
-        font-family: "Roboto Mono", "Courier New", Courier, monospace
-      }
-    </style>
   
 
-  <link rel="stylesheet" href="../../_static/stylesheets/application.css"/>
-  <link rel="stylesheet" href="../../_static/stylesheets/application-palette.css"/>
-  <link rel="stylesheet" href="../../_static/stylesheets/application-fixes.css"/>
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-HQHR3LWX3F"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-HQHR3LWX3F",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-HQHR3LWX3F",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
   
-  <link rel="stylesheet" href="../../_static/fonts/material-icons.css"/>
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
   
-  <meta name="theme-color" content="#3f51b5">
-  <script src="../../_static/javascripts/modernizr.js"></script>
-  
-  <script>
-      window.ga = window.ga || function () {
-          (ga.q = ga.q || []).push(arguments)
-      };
-      ga.l = +new Date;
-      ga('create', 'UA-172053863-1', 'auto');
-      ga('send', 'pageview');
-  </script>
-  <script async src='https://www.google-analytics.com/analytics.js'></script>
-  
-  
-    <title>kaldo.conductivity &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/material.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="../../_static/doctools.js"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <link rel="shortcut icon" href="../../_static/logo.ico"/>
-    <link rel="index" title="Index" href="../../genindex.html" />
-    <link rel="search" title="Search" href="../../search.html" />
-  
-   
 
+    
+    
+    
   </head>
-  <body dir=ltr
-        data-md-color-primary=red data-md-color-accent=orange>
   
-  <svg class="md-svg">
-    <defs data-children-count="0">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
-      
-    </defs>
-  </svg>
   
-  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
-  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
-  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
-  <a href="#_modules/kaldo/conductivity" tabindex="1" class="md-skip"> Skip to content </a>
-  <header class="md-header" data-md-component="header">
-  <nav class="md-header-nav md-grid">
-    <div class="md-flex navheader">
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="../../index.html" title="kALDo  documentation"
-           class="md-header-nav__button md-logo">
-          
-            &nbsp;
-          
-        </a>
-      </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
-      </div>
-      <div class="md-flex__cell md-flex__cell--stretch">
-        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
-          <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> kaldo.conductivity </span>
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../index.html" title="kALDo" class="md-header__button md-logo" aria-label="kALDo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kALDo
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              kaldo.conductivity
+            
+          </span>
         </div>
       </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="red" data-md-color-accent="orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
         
-<div class="md-search" data-md-component="search" role="dialog">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
-    <form class="md-search__form" action="../../search.html" method="GET" name="search">
-      <input type="text" class="md-search__input" name="q" placeholder="Search"
-             autocapitalize="off" autocomplete="off" spellcheck="false"
-             data-md-component="query" data-md-state="active">
-      <label class="md-icon md-search__icon" for="__search"></label>
-      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
-        &#xE5CD;
-      </button>
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
     </form>
     <div class="md-search__output">
-      <div class="md-search__scrollwrap" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="result">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Type to start searching
+            Initializing search
           </div>
-          <ol class="md-search-result__list"></ol>
+          <ol class="md-search-result__list" role="presentation"></ol>
         </div>
       </div>
     </div>
   </div>
 </div>
-
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kALDo
+  </div>
+</a>
       </div>
-      
-        <div class="md-flex__cell md-flex__cell--shrink">
-          <div class="md-header-nav__source">
-            <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
-
-    <div class="md-source__icon">
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
-        <use xlink:href="#__github" width="24" height="24"></use>
-      </svg>
-    </div>
-  
-  <div class="md-source__repository">
-    kALDo
-  </div>
-</a>
-          </div>
-        </div>
-      
-      
-  
-  <script src="../../_static/javascripts/version_dropdown.js"></script>
-  <script>
-    var json_loc = "../../"versions.json"",
-        target_loc = "../../../",
-        text = "Versions";
-    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
-  </script>
-  
-
-    </div>
+    
   </nav>
+  
 </header>
-
-  
-  <div class="md-container">
     
-    
-    
-  <nav class="md-tabs" data-md-component="tabs">
-    <div class="md-tabs__inner md-grid">
-      <ul class="md-tabs__list">
-          <li class="md-tabs__item"><a href="../../index.html" class="md-tabs__link">kALDo  documentation</a></li>
-          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">Module code</a></li>
-      </ul>
-    </div>
-  </nav>
-    <main class="md-main">
-      <div class="md-main__inner md-grid" data-md-component="container">
+    <div class="md-container" data-md-component="container">
+      
+      
+      
+      
         
-          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                <nav class="md-nav md-nav--primary" data-md-level="0">
-  <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href="../../index.html" title="kALDo documentation" class="md-nav__button md-logo">
+          
+        
       
-        <img src="../../_static/" alt=" logo" width="48" height="48">
-      
-    </a>
-    <a href="../../index.html"
-       title="kALDo documentation">kALDo</a>
-  </label>
-    <div class="md-nav__source">
-      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
 
-    <div class="md-source__icon">
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
-        <use xlink:href="#__github" width="24" height="24"></use>
-      </svg>
-    </div>
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../index.html" title="kALDo" class="md-nav__button md-logo" aria-label="kALDo" data-md-component="logo">
+      
   
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+    </a>
+    kALDo
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
   <div class="md-source__repository">
     kALDo
   </div>
 </a>
     </div>
   
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
   
-
   
-  <ul class="md-nav__list">
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Introduction</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/introduction.html" class="md-nav__link">Overview</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/introduction.html#Features" class="md-nav__link">Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Getting Started</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/getting_started.html" class="md-nav__link">Quick Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">User Guide</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/theory.html" class="md-nav__link">Basic Concepts</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/theory.html#Workflow" class="md-nav__link">Workflow</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/user_guide.html" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/user_guide.html#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/user_guide.html#Units" class="md-nav__link">Units</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Reference</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/api_forceconstants.html" class="md-nav__link">ForceConstants</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/api_phonons.html" class="md-nav__link">Phonons</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/api_conductivity.html" class="md-nav__link">Conductivity</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials and examples</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/examples.html" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Citations</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/citations.html" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/citations.html#references" class="md-nav__link">References</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../publications/readme.html" class="md-nav__link">Publications using kALDo</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/other_codes.html" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Developer Guide</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/code_architecture.html" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/contributing.html" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Acknowledgements</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/credits.html" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">License</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/license.html" class="md-nav__link">License Information</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../../docsource/license.html#copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-  </ul>
   
-
-</nav>
-              </div>
-            </div>
-          </div>
-          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                
-<nav class="md-nav md-nav--secondary">
-  <ul class="md-nav__list" data-md-scrollfix="">
+  
     
-
-<li id="searchbox" class="md-nav__item"></li>
-
-  </ul>
-</nav>
-              </div>
-            </div>
-          </div>
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
         
-        <div class="md-content">
-          <article class="md-content__inner md-typeset" role="main">
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
-  <h1 id="modules-kaldo-conductivity--page-root">Source code for kaldo.conductivity</h1><div class="highlight"><pre>
-<span></span><span class="sd">"""</span>
+  
+  
+  <span class="md-ellipsis">
+    <span>Introduction</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Introduction</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb (reference label)"><span>Overview</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/introduction.html#Features" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb#features (reference label)"><span>Features</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Getting Started</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Getting Started</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/getting_started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/getting_started.md (reference label)"><span>Quick Install</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>User Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            <span>User Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/theory.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb (reference label)"><span>Basic Concepts</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/theory.html#Workflow" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#workflow (reference label)"><span>Workflow</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/user_guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb (reference label)"><span>Interfacing with Other Codes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/user_guide.html#Output-Storage" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb#output-storage (reference label)"><span>Output Storage</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/user_guide.html#Units" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb#units (reference label)"><span>Units</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Reference</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Reference</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/api_forceconstants.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_forceconstants.rst (reference label)"><span>Force<wbr>Constants</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/api_phonons.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_phonons.rst (reference label)"><span>Phonons</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/api_conductivity.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_conductivity.rst (reference label)"><span>Conductivity</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Tutorials and examples</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Tutorials and examples</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/crystal_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/crystal_presentation.ipynb (reference label)"><span>Silicon diamond tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/amorphous_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/amorphous_presentation.ipynb (reference label)"><span>Amorphous silicon tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/examples.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/examples.md (reference label)"><span>Examples</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Citations</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Citations</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/citations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md (reference label)"><span>How to cite</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/citations.html#references" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md#references (reference label)"><span>References</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../publications/readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/publications/readme.md (reference label)"><span>Publications using k<wbr>ALDo</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/other_codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/other_codes.md (reference label)"><span>Other codes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Developer Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Developer Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/code_architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/code_architecture.ipynb (reference label)"><span>Code Architecture</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/contributing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/contributing.md (reference label)"><span>How to contribute changes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Acknowledgements</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Acknowledgements</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/credits.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/credits.ipynb (reference label)"><span>Acknowledgements</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>License</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <span>License</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/license.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/license.md (reference label)"><span>License Information</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docsource/license.html#copyright" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/license.md#copyright (reference label)"><span>Copyright</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset" role="main">
+                
+                
+                  
+
+
+<h1>Source code for kaldo.conductivity</h1><div class="highlight"><pre>
+<span></span><code><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">kaldo</span>
 <span class="sd">Anharmonic Lattice Dynamics</span>
-<span class="sd">"""</span>
-<span class="kn">from</span> <span class="nn">opt_einsum</span> <span class="kn">import</span> <span class="n">contract</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">kaldo.phonons</span> <span class="kn">import</span> <span class="n">Phonons</span>
-<span class="kn">from</span> <span class="nn">kaldo.controllers.dirac_kernel</span> <span class="kn">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
-<span class="kn">from</span> <span class="nn">kaldo.storable</span> <span class="kn">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">Storable</span>
-<span class="kn">import</span> <span class="nn">kaldo.observables.harmonic_with_q_temp</span> <span class="k">as</span> <span class="nn">hwqwt</span>
-<span class="kn">from</span> <span class="nn">kaldo.helpers.logger</span> <span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
-<span class="kn">import</span> <span class="nn">gc</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">opt_einsum</span><span class="w"> </span><span class="kn">import</span> <span class="n">contract</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.phonons</span><span class="w"> </span><span class="kn">import</span> <span class="n">Phonons</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.controllers.dirac_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="n">lorentz_delta</span><span class="p">,</span> <span class="n">gaussian_delta</span><span class="p">,</span> <span class="n">triangular_delta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.storable</span><span class="w"> </span><span class="kn">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">Storable</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q_temp</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">hwqwt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.helpers.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">gc</span>
 
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
 
-<span class="k">def</span> <span class="nf">calculate_conductivity_per_mode</span><span class="p">(</span><span class="n">heat_capacity</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">mfp</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">n_phonons</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_conductivity_per_mode</span><span class="p">(</span><span class="n">heat_capacity</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">mfp</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">n_phonons</span><span class="p">):</span>
     <span class="n">conductivity_per_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_phonons</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
     <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_phonons</span><span class="p">)</span>
     <span class="n">velocity</span> <span class="o">=</span> <span class="n">velocity</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_phonons</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
@@ -475,7 +1248,7 @@
     <span class="k">return</span> <span class="n">conductivity_per_mode</span> <span class="o">*</span> <span class="mf">1e22</span>
 
 
-<span class="k">def</span> <span class="nf">calculate_diffusivity</span><span class="p">(</span><span class="n">omega</span><span class="p">,</span> <span class="n">sij_left</span><span class="p">,</span> <span class="n">sij_right</span><span class="p">,</span> <span class="n">diffusivity_bandwidth</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_diffusivity</span><span class="p">(</span><span class="n">omega</span><span class="p">,</span> <span class="n">sij_left</span><span class="p">,</span> <span class="n">sij_right</span><span class="p">,</span> <span class="n">diffusivity_bandwidth</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">curve</span><span class="p">,</span>
                           <span class="n">is_diffusivity_including_antiresonant</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                           <span class="n">diffusivity_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="c1"># TODO: cache this</span>
@@ -500,7 +1273,7 @@
     <span class="k">return</span> <span class="n">diffusivity</span>
 
 
-<span class="k">def</span> <span class="nf">mfp_matthiessen</span><span class="p">(</span><span class="n">gamma</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">mfp_matthiessen</span><span class="p">(</span><span class="n">gamma</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">):</span>
     <span class="n">lambd_0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">velocity</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -510,28 +1283,30 @@
     <span class="k">return</span> <span class="n">lambd_0</span>
 
 
-<div class="viewcode-block" id="Conductivity"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity">[docs]</a><span class="k">class</span> <span class="nc">Conductivity</span><span class="p">(</span><span class="n">Storable</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">""" The conductivity object is responsible for mean free path and</span>
+<div class="viewcode-block" id="Conductivity">
+<a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Conductivity</span><span class="p">(</span><span class="n">Storable</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; The conductivity object is responsible for mean free path and</span>
 <span class="sd">    conductivity calculations. It takes a phonons object as a required argument.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    phonons : Phonons</span>
 <span class="sd">        Contains all the information about the calculated phononic properties of the system</span>
-<span class="sd">    method : 'rta', 'sc', 'qhgk', 'inverse'</span>
+<span class="sd">    method : &#39;rta&#39;, &#39;sc&#39;, &#39;qhgk&#39;, &#39;inverse&#39;</span>
 <span class="sd">        Specifies the method used to calculate the conductivity.</span>
-<span class="sd">        `rta` is relaxation time approximation; `sc` is self-consistent; `qhgk` is Quasi-Harmonic Green Kubo; `inverse` is inversion of the scattering matrix for mean free path.</span>
+<span class="sd">        ``&#39;rta&#39;`` is relaxation time approximation; ``&#39;sc&#39;`` is self-consistent; ``&#39;qhgk&#39;`` is Quasi-Harmonic Green Kubo; ``&#39;inverse&#39;`` is inversion of the scattering matrix for mean free path.</span>
 <span class="sd">    diffusivity_bandwidth : float, optional</span>
 <span class="sd">        (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the</span>
 <span class="sd">        thermal conductivity in amorphous systems. Units: rad/ps</span>
 <span class="sd">    diffusivity_threshold : float, optional</span>
 <span class="sd">        (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</span>
 <span class="sd">    diffusivity_shape : string, optional</span>
-<span class="sd">        (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.</span>
-<span class="sd">        Default is `lorentz`.</span>
+<span class="sd">        (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are ``&#39;gauss&#39;``, ``&#39;lorentz&#39;`` and ``&#39;triangle&#39;``.</span>
+<span class="sd">        Default is ``&#39;lorentz&#39;``.</span>
 <span class="sd">    is_diffusivity_including_antiresonant : bool, optional</span>
 <span class="sd">        (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.</span>
-<span class="sd">        Default is `False`.</span>
+<span class="sd">        Default is False.</span>
 <span class="sd">    tolerance : int</span>
 <span class="sd">        (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n</span>
 <span class="sd">        and n+1 step, to set as exit/convergence condition.</span>
@@ -541,56 +1316,56 @@
 <span class="sd">    length: (3) tuple</span>
 <span class="sd">        (Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values</span>
 <span class="sd">        corresponds to the infinity length limit.</span>
-<span class="sd">    finite_length_method : 'ms', 'ballistic'</span>
-<span class="sd">        (Finite Size) Specifies how to calculate the finite size conductivity. 'ms' is the Mckelvey-Schockley method.</span>
-<span class="sd">        'ballistic' is the ballistic limit.</span>
-<span class="sd">    storage : 'formatted', 'hdf5', 'numpy', 'memory', optional</span>
+<span class="sd">    finite_length_method : &#39;ms&#39;, &#39;ballistic&#39;</span>
+<span class="sd">        (Finite Size) Specifies how to calculate the finite size conductivity. &#39;ms&#39; is the Mckelvey-Schockley method.</span>
+<span class="sd">        &#39;ballistic&#39; is the ballistic limit.</span>
+<span class="sd">    storage : &#39;formatted&#39;, &#39;hdf5&#39;, &#39;numpy&#39;, &#39;memory&#39;, optional</span>
 <span class="sd">        Defines the type of storage used for the simulation.</span>
-<span class="sd">        Default is `formatted`</span>
+<span class="sd">        Default is ``&#39;formatted&#39;``</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    Conductivity</span>
-<span class="sd">        An instance of the `Conductivity` class.</span>
+<span class="sd">        An instance of the ``Conductivity`` class.</span>
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    Here's an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes</span>
+<span class="sd">    Here&#39;s an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes</span>
 
 <span class="sd">    ```</span>
-<span class="sd">    Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))</span>
+<span class="sd">    Conductivity(phonons=phonons, method=&#39;inverse&#39;, storage=&#39;memory&#39;).conductivity.sum(axis=0))</span>
 <span class="sd">    ```</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     
     <span class="c1"># Define storage formats for conductivity properties</span>
     <span class="n">_store_formats</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">'conductivity'</span><span class="p">:</span> <span class="s1">'formatted'</span><span class="p">,</span>
-        <span class="s1">'mean_free_path'</span><span class="p">:</span> <span class="s1">'formatted'</span><span class="p">,</span>
-        <span class="s1">'_generalized_diffusivity'</span><span class="p">:</span> <span class="s1">'numpy'</span>
+        <span class="s1">&#39;conductivity&#39;</span><span class="p">:</span> <span class="s1">&#39;formatted&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;mean_free_path&#39;</span><span class="p">:</span> <span class="s1">&#39;formatted&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;_generalized_diffusivity&#39;</span><span class="p">:</span> <span class="s1">&#39;numpy&#39;</span>
     <span class="p">}</span>
     
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">phonons</span><span class="p">:</span> <span class="n">Phonons</span><span class="p">,</span>
                  <span class="o">*</span><span class="p">,</span>
-                 <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'rta'</span><span class="p">,</span>
+                 <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;rta&#39;</span><span class="p">,</span>
                  <span class="n">diffusivity_bandwidth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">diffusivity_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">diffusivity_shape</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'lorentz'</span><span class="p">,</span>
+                 <span class="n">diffusivity_shape</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;lorentz&#39;</span><span class="p">,</span>
                  <span class="n">is_diffusivity_including_antiresonant</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="n">tolerance</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">n_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">length</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-                 <span class="n">finite_length_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'ms'</span><span class="p">,</span>
-                 <span class="n">storage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'formatted'</span><span class="p">,</span>
+                 <span class="n">finite_length_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;ms&#39;</span><span class="p">,</span>
+                 <span class="n">storage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;formatted&#39;</span><span class="p">,</span>
                  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span> <span class="o">=</span> <span class="n">phonons</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">storage</span>
 
         <span class="c1"># force n_iterations to 0 if method is `rta`</span>
-        <span class="k">if</span> <span class="n">n_iterations</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"rta method is specified, but n_iterations is not specified to be 0. Please check your setup. Now, n_iterations is reset to 0."</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span> <span class="k">else</span> <span class="n">n_iterations</span>
+        <span class="k">if</span> <span class="n">n_iterations</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;rta&#39;</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;rta method is specified, but n_iterations is not specified to be 0. Please check your setup. Now, n_iterations is reset to 0.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;rta&#39;</span> <span class="k">else</span> <span class="n">n_iterations</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="n">length</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span> <span class="o">=</span> <span class="n">finite_length_method</span>
@@ -613,92 +1388,92 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">is_diffusivity_including_antiresonant</span> <span class="o">=</span> <span class="n">is_diffusivity_including_antiresonant</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_shape</span> <span class="o">=</span> <span class="n">diffusivity_shape</span>
 
-    <span class="k">def</span> <span class="nf">_get_folder_path_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Get folder path components for Conductivity-specific attributes."""</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_folder_path_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get folder path components for Conductivity-specific attributes.&quot;&quot;&quot;</span>
         <span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
         
-        <span class="k">if</span> <span class="s1">'&lt;diffusivity_bandwidth&gt;'</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'db_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="s1">&#39;&lt;diffusivity_bandwidth&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;db_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span><span class="p">)))</span>
             
-        <span class="k">if</span> <span class="s1">'&lt;diffusivity_threshold&gt;'</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'dt_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;&lt;diffusivity_threshold&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;dt_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_threshold</span><span class="p">))</span>
             
-        <span class="k">if</span> <span class="s1">'&lt;method&gt;'</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;&lt;method&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
             <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="p">))</span>
-            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'rta'</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'sc'</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">'inverse'</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;rta&#39;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;sc&#39;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;inverse&#39;</span><span class="p">)</span> \
                     <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> \
                     <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-                    <span class="k">if</span> <span class="s1">'&lt;length&gt;'</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
-                        <span class="n">length_str</span> <span class="o">=</span> <span class="s1">'l'</span>
+                    <span class="k">if</span> <span class="s1">&#39;&lt;length&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+                        <span class="n">length_str</span> <span class="o">=</span> <span class="s1">&#39;l&#39;</span>
                         <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
                             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                                <span class="n">length_str</span> <span class="o">+=</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">])</span>
+                                <span class="n">length_str</span> <span class="o">+=</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">])</span>
                             <span class="k">else</span><span class="p">:</span>
-                                <span class="n">length_str</span> <span class="o">+=</span> <span class="s1">'_0'</span>
+                                <span class="n">length_str</span> <span class="o">+=</span> <span class="s1">&#39;_0&#39;</span>
                         <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">length_str</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="s1">'&lt;finite_length_method&gt;'</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'fs'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="s1">&#39;&lt;finite_length_method&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;fs&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span><span class="p">))</span>
                         
         <span class="c1"># Delegate to parent class (Phonons) for common attributes</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'phonons'</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;phonons&#39;</span><span class="p">):</span>
             <span class="n">parent_components</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">_get_folder_path_components</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
             <span class="n">components</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">parent_components</span><span class="p">)</span>
             
         <span class="k">return</span> <span class="n">components</span>
 
-    <span class="k">def</span> <span class="nf">_load_formatted_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Override formatted loading for Conductivity-specific properties"""</span>
-        <span class="k">if</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'mean_free_path'</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_formatted_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Override formatted loading for Conductivity-specific properties&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">&#39;mean_free_path&#39;</span><span class="p">:</span>
             <span class="n">loaded</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="n">loaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+                <span class="n">loaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.dat&#39;</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">loaded</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'conductivity'</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">&#39;conductivity&#39;</span><span class="p">:</span>
             <span class="n">loaded</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
                 <span class="k">for</span> <span class="n">beta</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                    <span class="n">loaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+                    <span class="n">loaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.dat&#39;</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">loaded</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">))</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Use default implementation for other properties</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_load_formatted_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
     
-    <span class="k">def</span> <span class="nf">_save_formatted_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Override formatted saving for Conductivity-specific properties"""</span>
-        <span class="n">fmt</span> <span class="o">=</span> <span class="s1">'</span><span class="si">%.18e</span><span class="s1">'</span>
-        <span class="k">if</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'mean_free_path'</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_save_formatted_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Override formatted saving for Conductivity-specific properties&quot;&quot;&quot;</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%.18e</span><span class="s1">&#39;</span>
+        <span class="k">if</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">&#39;mean_free_path&#39;</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.dat&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span>
                           <span class="n">header</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
-        <span class="k">elif</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">'conductivity'</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">property_name</span> <span class="o">==</span> <span class="s1">&#39;conductivity&#39;</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
                 <span class="k">for</span> <span class="n">beta</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                    <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'.dat'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.dat&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span>
                               <span class="n">header</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Use default implementation for other properties</span>
             <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_save_formatted_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
     <span class="nd">@lazy_property</span><span class="p">(</span>
-        <span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">conductivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;&#39;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">conductivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the thermal conductivity per mode in W/m/K</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        conductivity : np array</span>
 <span class="sd">            (n_k_points, n_modes, 3, 3) float</span>
-<span class="sd">        """</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span>
         <span class="k">match</span> <span class="n">method</span><span class="p">:</span>
-            <span class="k">case</span> <span class="s1">'qhgk'</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s1">&#39;qhgk&#39;</span><span class="p">:</span>
                 <span class="n">cond</span><span class="p">,</span> <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_conductivity_and_diffusivity_qhgk</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_diffusivity</span> <span class="o">=</span> <span class="n">diff</span>
-            <span class="k">case</span> <span class="s1">'full'</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
                 <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_conductivity_full</span><span class="p">()</span>
-            <span class="k">case</span> <span class="s1">'rta'</span> <span class="o">|</span> <span class="s1">'sc'</span> <span class="o">|</span> <span class="s1">'inverse'</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s1">&#39;rta&#39;</span> <span class="o">|</span> <span class="s1">&#39;sc&#39;</span> <span class="o">|</span> <span class="s1">&#39;inverse&#39;</span><span class="p">:</span>
                 <span class="n">lambd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_free_path</span>
                 <span class="n">conductivity_per_mode</span> <span class="o">=</span> <span class="n">calculate_conductivity_per_mode</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">heat_capacity</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)),</span>
@@ -709,62 +1484,64 @@
                 <span class="n">cond</span> <span class="o">=</span> <span class="n">conductivity_per_mode</span> <span class="o">/</span> <span class="p">(</span><span class="n">volume</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">)</span>
 
             <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Conductivity method "</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s1">" not implemented'</span><span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Conductivity method &quot;</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s1">&quot; not implemented&#39;</span><span class="p">)</span>
 
-        <span class="c1"># folder = get_folder_from_label(phonons, '&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;')</span>
-        <span class="c1"># save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \</span>
-        <span class="c1">#      format=phonons.store_format['conductivity'])</span>
+        <span class="c1"># folder = get_folder_from_label(phonons, &#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;&#39;)</span>
+        <span class="c1"># save(&#39;cond&#39;, folder + &#39;/&#39; + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \</span>
+        <span class="c1">#      format=phonons.store_format[&#39;conductivity&#39;])</span>
         <span class="nb">sum</span> <span class="o">=</span> <span class="p">(</span><span class="n">cond</span><span class="o">.</span><span class="n">imag</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">sum</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'The conductivity has an immaginary part. Sum(Im(k)) = '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Conductivity calculated'</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;The conductivity has an immaginary part. Sum(Im(k)) = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Conductivity calculated&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">cond</span><span class="o">.</span><span class="n">real</span>
 
     <span class="nd">@lazy_property</span><span class="p">(</span>
-        <span class="n">label</span><span class="o">=</span><span class="s1">'&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;'</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">mean_free_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;&#39;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mean_free_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the mean_free_path per mode in A</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        mfp : np array</span>
 <span class="sd">            (n_k_points, n_modes) float</span>
-<span class="sd">        """</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span>
         <span class="k">match</span> <span class="n">method</span><span class="p">:</span>
-            <span class="k">case</span> <span class="s1">'rta'</span> <span class="o">|</span> <span class="s1">'sc'</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s1">&#39;rta&#39;</span> <span class="o">|</span> <span class="s1">&#39;sc&#39;</span><span class="p">:</span>
                 <span class="n">mfp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mfp_sc</span><span class="p">()</span>
-            <span class="k">case</span> <span class="s1">'inverse'</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s1">&#39;inverse&#39;</span><span class="p">:</span>
                 <span class="n">mfp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_mfp_inverse</span><span class="p">()</span>
             <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Mean free path not available for '</span> <span class="o">+</span> <span class="n">method</span><span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Mean free path not available for &#39;</span> <span class="o">+</span> <span class="n">method</span><span class="p">)</span>
 
-        <span class="c1"># folder = get_folder_from_label(phonons, '&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;')</span>
-        <span class="c1"># save('cond', folder + '/' + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \</span>
-        <span class="c1">#      format=phonons.store_format['conductivity'])</span>
+        <span class="c1"># folder = get_folder_from_label(phonons, &#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;&#39;)</span>
+        <span class="c1"># save(&#39;cond&#39;, folder + &#39;/&#39; + method, cond.reshape(phonons.n_k_points, phonons.n_modes, 3, 3), \</span>
+        <span class="c1">#      format=phonons.store_format[&#39;conductivity&#39;])</span>
         <span class="nb">sum</span> <span class="o">=</span> <span class="p">(</span><span class="n">mfp</span><span class="o">.</span><span class="n">imag</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">sum</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'The conductivity has an immaginary part. Sum(Im(k)) = '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;The conductivity has an immaginary part. Sum(Im(k)) = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">mfp</span><span class="o">.</span><span class="n">real</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the diffusivity, for each k point in k_points and each mode.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        diffusivity : np.array(n_k_points, n_modes)</span>
 <span class="sd">            diffusivity in mm^2/s</span>
-<span class="sd">        """</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_diffusivity</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'You need to calculate the conductivity QHGK first.'</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;You need to calculate the conductivity QHGK first.&#39;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Conductivity.calculate_scattering_matrix"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_scattering_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_scattering_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_including_diagonal</span><span class="p">,</span> <span class="n">is_rescaling_omega</span><span class="p">,</span> <span class="n">is_rescaling_population</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Calculate the scattering matrix for phonons."""</span>
+<div class="viewcode-block" id="Conductivity.calculate_scattering_matrix">
+<a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_scattering_matrix">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_scattering_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_including_diagonal</span><span class="p">,</span> <span class="n">is_rescaling_omega</span><span class="p">,</span> <span class="n">is_rescaling_population</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the scattering matrix for phonons.&quot;&quot;&quot;</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)[</span><span class="n">physical_mode</span><span class="p">]</span>
 
@@ -772,13 +1549,13 @@
         <span class="n">gamma_tensor</span> <span class="o">=</span> <span class="n">gamma_tensor</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">)]</span>
 
         <span class="n">n_physical</span> <span class="o">=</span> <span class="n">physical_mode</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-        <span class="n">log_size</span><span class="p">((</span><span class="n">n_physical</span><span class="p">,</span> <span class="n">n_physical</span><span class="p">),</span> <span class="nb">float</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'_scattering_matrix'</span><span class="p">)</span>
+        <span class="n">log_size</span><span class="p">((</span><span class="n">n_physical</span><span class="p">,</span> <span class="n">n_physical</span><span class="p">),</span> <span class="nb">float</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;_scattering_matrix&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">is_rescaling_population</span><span class="p">:</span>
             <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">population</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)[</span><span class="n">physical_mode</span><span class="p">]</span>
             <span class="n">n_sqrt</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">**</span> <span class="mf">0.5</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'a,ab,b-&gt;ab'</span><span class="p">,</span> <span class="n">n_sqrt</span><span class="p">,</span> <span class="n">gamma_tensor</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">n_sqrt</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">gamma_tensor</span><span class="p">)</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Asymmetry of gamma_tensor: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">gamma_tensor</span> <span class="o">-</span> <span class="n">gamma_tensor</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;a,ab,b-&gt;ab&#39;</span><span class="p">,</span> <span class="n">n_sqrt</span><span class="p">,</span> <span class="n">gamma_tensor</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">n_sqrt</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">gamma_tensor</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Asymmetry of gamma_tensor: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">gamma_tensor</span> <span class="o">-</span> <span class="n">gamma_tensor</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
 
         <span class="k">if</span> <span class="n">is_including_diagonal</span><span class="p">:</span>
             <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)[</span><span class="n">physical_mode</span><span class="p">]</span>
@@ -792,7 +1569,8 @@
         <span class="k">return</span> <span class="n">gamma_tensor</span></div>
 
 
-    <span class="k">def</span> <span class="nf">calculate_conductivity_and_diffusivity_qhgk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_conductivity_and_diffusivity_qhgk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span>
         <span class="n">omega</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">omega</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="n">volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">))</span>
@@ -802,29 +1580,29 @@
         <span class="n">diffusivity_with_axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">conductivity_per_mode</span><span class="p">)</span>
 
         <span class="k">match</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_shape</span><span class="p">:</span>
-            <span class="k">case</span> <span class="s1">'lorentz'</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using Lorentzian diffusivity_shape'</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;lorentz&#39;</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using Lorentzian diffusivity_shape&#39;</span><span class="p">)</span>
                 <span class="n">curve</span> <span class="o">=</span> <span class="n">lorentz_delta</span>
-            <span class="k">case</span> <span class="s1">'gauss'</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using Gaussian diffusivity_shape'</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;gauss&#39;</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using Gaussian diffusivity_shape&#39;</span><span class="p">)</span>
                 <span class="n">curve</span> <span class="o">=</span> <span class="n">gaussian_delta</span>
-            <span class="k">case</span> <span class="s1">'triangle'</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using triangular diffusivity_shape'</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;triangle&#39;</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using triangular diffusivity_shape&#39;</span><span class="p">)</span>
                 <span class="n">curve</span> <span class="o">=</span> <span class="n">triangular_delta</span>
             <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Diffusivity shape not implemented'</span><span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Diffusivity shape not implemented&#39;</span><span class="p">)</span>
                 <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
 
         <span class="n">is_diffusivity_including_antiresonant</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_diffusivity_including_antiresonant</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Using diffusivity bandwidth from input'</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using diffusivity bandwidth from input&#39;</span><span class="p">)</span>
             <span class="n">diffusivity_bandwidth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusivity_bandwidth</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span>
                                                                          <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">diffusivity_bandwidth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span> <span class="o">/</span> <span class="mf">2.</span>
 
-        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Start calculation diffusivity'</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Start calculation diffusivity&#39;</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">k_index</span><span class="p">,</span> <span class="n">q_point</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">q_points</span><span class="p">):</span>
             <span class="n">phonon</span> <span class="o">=</span> <span class="n">hwqwt</span><span class="o">.</span><span class="n">HarmonicWithQTemp</span><span class="p">(</span>
@@ -841,7 +1619,7 @@
             <span class="p">)</span>
             <span class="n">heat_capacity_2d</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
             <span class="k">if</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'calculating conductivity for q = '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">q_point</span><span class="p">))</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;calculating conductivity for q = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">q_point</span><span class="p">))</span>
 
             <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">alpha</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -880,11 +1658,13 @@
             <span class="k">if</span> <span class="n">k_index</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
 
-        <span class="n">diffusivity</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">contract</span><span class="p">(</span><span class="s1">'knaa-&gt;kn'</span><span class="p">,</span> <span class="n">diffusivity_with_axis</span><span class="p">)</span>
+        <span class="n">diffusivity</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">contract</span><span class="p">(</span><span class="s1">&#39;knaa-&gt;kn&#39;</span><span class="p">,</span> <span class="n">diffusivity_with_axis</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">conductivity_per_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span> <span class="o">*</span> <span class="mf">1e22</span><span class="p">,</span> <span class="n">diffusivity</span>
 
-<div class="viewcode-block" id="Conductivity.calculate_mfp_inverse"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_mfp_inverse">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_mfp_inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
+<div class="viewcode-block" id="Conductivity.calculate_mfp_inverse">
+<a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_mfp_inverse">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_mfp_inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This method calculates the inverse of the mean free path for each phonon.</span>
 <span class="sd">        The matrix returns k vectors for each mode and has units of inverse Angstroms.</span>
 
@@ -892,7 +1672,7 @@
 <span class="sd">        -------</span>
 <span class="sd">        lambda : np array</span>
 <span class="sd">            (n_k_points, n_modes)</span>
-<span class="sd">        """</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
         <span class="n">phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span>
         <span class="n">finite_length_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span>
@@ -909,7 +1689,7 @@
 
             <span class="n">gamma</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">'ms'</span> <span class="ow">and</span> <span class="n">length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">&#39;ms&#39;</span> <span class="ow">and</span> <span class="n">length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]:</span>
                 <span class="n">gamma</span> <span class="o">+=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">velocity</span><span class="p">[:,</span> <span class="n">alpha</span><span class="p">])</span> <span class="o">/</span> <span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span>
             <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
 
@@ -919,7 +1699,7 @@
             <span class="k">del</span> <span class="n">scattering_matrix</span><span class="p">,</span> <span class="n">scattering_inverse</span><span class="p">,</span> <span class="n">gamma</span>
             <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
 
-            <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">'ballistic'</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">&#39;ballistic&#39;</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">[</span><span class="n">alpha</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
                 <span class="n">velocity_alpha</span> <span class="o">=</span> <span class="n">velocity</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">]</span>
                 <span class="n">gamma_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">velocity_alpha</span><span class="p">)</span>
                 <span class="n">nonzero_velocity</span> <span class="o">=</span> <span class="n">velocity_alpha</span> <span class="o">!=</span> <span class="mi">0</span>
@@ -930,26 +1710,27 @@
 
         <span class="k">return</span> <span class="n">lambd</span></div>
 
-    <span class="k">def</span> <span class="nf">calculate_lambda_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">scattering_inverse</span><span class="p">):</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_lambda_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">scattering_inverse</span><span class="p">):</span>
         <span class="c1"># TODO: replace with same caching strategy as rest of code</span>
         <span class="n">n_k_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
         <span class="n">third_bandwidth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">third_bandwidth</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
-            <span class="n">stat_label</span> <span class="o">=</span> <span class="s1">'c'</span>
+            <span class="n">stat_label</span> <span class="o">=</span> <span class="s1">&#39;c&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">stat_label</span> <span class="o">=</span> <span class="s1">'q'</span>
-        <span class="n">str_to_add</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">n_k_points</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">temperature</span><span class="p">))</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="n">stat_label</span>
-        <span class="n">lamdb_filename</span> <span class="o">=</span> <span class="s1">'lamdb_'</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="n">str_to_add</span>
-        <span class="n">psi_filename</span> <span class="o">=</span> <span class="s1">'psi_'</span> <span class="o">+</span> <span class="n">str_to_add</span>
-        <span class="n">psi_inv_filename</span> <span class="o">=</span> <span class="s1">'psi_inv_'</span> <span class="o">+</span> <span class="n">str_to_add</span>
+            <span class="n">stat_label</span> <span class="o">=</span> <span class="s1">&#39;q&#39;</span>
+        <span class="n">str_to_add</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">n_k_points</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phonons</span><span class="o">.</span><span class="n">temperature</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">stat_label</span>
+        <span class="n">lamdb_filename</span> <span class="o">=</span> <span class="s1">&#39;lamdb_&#39;</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">str_to_add</span>
+        <span class="n">psi_filename</span> <span class="o">=</span> <span class="s1">&#39;psi_&#39;</span> <span class="o">+</span> <span class="n">str_to_add</span>
+        <span class="n">psi_inv_filename</span> <span class="o">=</span> <span class="s1">&#39;psi_inv_&#39;</span> <span class="o">+</span> <span class="n">str_to_add</span>
         <span class="k">if</span> <span class="n">third_bandwidth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">lamdb_filename</span> <span class="o">=</span> <span class="n">lamdb_filename</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">)</span>
-            <span class="n">psi_filename</span> <span class="o">=</span> <span class="n">psi_filename</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">)</span>
-            <span class="n">psi_inv_filename</span> <span class="o">=</span> <span class="n">psi_inv_filename</span> <span class="o">+</span> <span class="s1">'_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">)</span>
+            <span class="n">lamdb_filename</span> <span class="o">=</span> <span class="n">lamdb_filename</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">)</span>
+            <span class="n">psi_filename</span> <span class="o">=</span> <span class="n">psi_filename</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">)</span>
+            <span class="n">psi_inv_filename</span> <span class="o">=</span> <span class="n">psi_inv_filename</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">)</span>
 
-        <span class="n">lamdb_filename</span> <span class="o">=</span> <span class="n">lamdb_filename</span> <span class="o">+</span> <span class="s1">'.npy'</span>
-        <span class="n">psi_filename</span> <span class="o">=</span> <span class="n">psi_filename</span> <span class="o">+</span> <span class="s1">'.npy'</span>
-        <span class="n">psi_inv_filename</span> <span class="o">=</span> <span class="n">psi_inv_filename</span> <span class="o">+</span> <span class="s1">'.npy'</span>
+        <span class="n">lamdb_filename</span> <span class="o">=</span> <span class="n">lamdb_filename</span> <span class="o">+</span> <span class="s1">&#39;.npy&#39;</span>
+        <span class="n">psi_filename</span> <span class="o">=</span> <span class="n">psi_filename</span> <span class="o">+</span> <span class="s1">&#39;.npy&#39;</span>
+        <span class="n">psi_inv_filename</span> <span class="o">=</span> <span class="n">psi_inv_filename</span> <span class="o">+</span> <span class="s1">&#39;.npy&#39;</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lambd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">lamdb_filename</span><span class="p">,</span> <span class="n">allow_pickle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -964,7 +1745,7 @@
             <span class="n">sqr_heat_capacity</span> <span class="o">=</span> <span class="n">heat_capacity</span> <span class="o">**</span> <span class="mf">0.5</span>
 
             <span class="n">v_new</span> <span class="o">=</span> <span class="n">velocity</span><span class="p">[:,</span> <span class="n">alpha</span><span class="p">]</span>
-            <span class="n">lambd_tensor</span> <span class="o">=</span> <span class="n">contract</span><span class="p">(</span><span class="s1">'m,m,mn,n-&gt;mn'</span><span class="p">,</span> <span class="n">sqr_heat_capacity</span><span class="p">,</span>
+            <span class="n">lambd_tensor</span> <span class="o">=</span> <span class="n">contract</span><span class="p">(</span><span class="s1">&#39;m,m,mn,n-&gt;mn&#39;</span><span class="p">,</span> <span class="n">sqr_heat_capacity</span><span class="p">,</span>
                                     <span class="n">v_new</span><span class="p">,</span>
                                     <span class="n">scattering_inverse</span><span class="p">,</span>
                                     <span class="mi">1</span> <span class="o">/</span> <span class="n">sqr_heat_capacity</span><span class="p">)</span>
@@ -979,15 +1760,17 @@
             <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">psi_filename</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_psi</span><span class="p">)</span>
             <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">psi_inv_filename</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_psi_inv</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Conductivity.calculate_conductivity_full"><a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_conductivity_full">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_conductivity_full</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_using_gamma_tensor_evects</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""</span>
+<div class="viewcode-block" id="Conductivity.calculate_conductivity_full">
+<a class="viewcode-back" href="../../docsource/api_conductivity.html#kaldo.conductivity.Conductivity.calculate_conductivity_full">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_conductivity_full</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_using_gamma_tensor_evects</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        conductivity_per_mode : np array</span>
 <span class="sd">            (n_k_points, n_modes, 3)</span>
-<span class="sd">        """</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
         <span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span>
         <span class="n">n_k_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
@@ -1000,11 +1783,11 @@
                                                         <span class="n">is_rescaling_population</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="n">neg_diag</span> <span class="o">=</span> <span class="p">(</span><span class="n">gamma_tensor</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'negative on diagonal : '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">neg_diag</span><span class="p">))</span>
-        <span class="n">log_size</span><span class="p">(</span><span class="n">gamma_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'scattering_inverse'</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;negative on diagonal : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">neg_diag</span><span class="p">))</span>
+        <span class="n">log_size</span><span class="p">(</span><span class="n">gamma_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;scattering_inverse&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">is_using_gamma_tensor_evects</span><span class="p">:</span>
             <span class="n">evals</span><span class="p">,</span> <span class="n">evects</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">gamma_tensor</span><span class="p">)</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'negative eigenvals : '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">((</span><span class="n">evals</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;negative eigenvals : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">((</span><span class="n">evals</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
             <span class="n">new_physical_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">evals</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
             <span class="n">reduced_evects</span> <span class="o">=</span> <span class="n">evects</span><span class="p">[</span><span class="n">new_physical_states</span><span class="p">:,</span> <span class="n">new_physical_states</span><span class="p">:]</span>
             <span class="n">reduced_evals</span> <span class="o">=</span> <span class="n">evals</span><span class="p">[</span><span class="n">new_physical_states</span><span class="p">:]</span>
@@ -1037,7 +1820,7 @@
                 <span class="n">new_lambd</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_lambd</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">lambd_p</span>
             <span class="n">lambd_tilde</span> <span class="o">=</span> <span class="n">new_lambd</span>
             <span class="k">for</span> <span class="n">beta</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="n">cond</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">contract</span><span class="p">(</span><span class="s1">'nl,l,lk,k,k-&gt;n'</span><span class="p">,</span>
+                <span class="n">cond</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">contract</span><span class="p">(</span><span class="s1">&#39;nl,l,lk,k,k-&gt;n&#39;</span><span class="p">,</span>
                                     <span class="bp">self</span><span class="o">.</span><span class="n">_psi</span><span class="p">,</span>
                                     <span class="n">lambd_tilde</span><span class="p">,</span>
                                     <span class="bp">self</span><span class="o">.</span><span class="n">_psi_inv</span><span class="p">,</span>
@@ -1047,18 +1830,19 @@
                 <span class="n">full_cond</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">]</span> <span class="o">=</span> <span class="n">cond</span>
         <span class="k">return</span> <span class="n">full_cond</span> <span class="o">/</span> <span class="p">(</span><span class="n">volume</span> <span class="o">*</span> <span class="n">n_k_points</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e22</span></div>
 
-    <span class="k">def</span> <span class="nf">_calculate_mfp_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_mfp_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># TODO: rewrite this method as vector-vector multiplications instead of using the full inversion</span>
         <span class="c1"># in order to scale to higher k points meshes</span>
         <span class="n">finite_length_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finite_length_method</span>
 
-        <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">'ms'</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">finite_length_method</span> <span class="o">==</span> <span class="s1">&#39;ms&#39;</span><span class="p">:</span>
             <span class="n">lambd_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sc_mfp_with_length</span><span class="p">(</span><span class="n">matthiessen_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">lambd_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sc_mfp_with_length</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">lambd_n</span>
 
-    <span class="k">def</span> <span class="nf">_calculate_sc_mfp_with_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matthiessen_length</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_iterations_sc</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_sc_mfp_with_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matthiessen_length</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_iterations_sc</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
         <span class="n">tolerance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span>
         <span class="n">n_iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span>
         <span class="n">phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span>
@@ -1093,41 +1877,75 @@
                 <span class="n">delta_lambd</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">phonons</span><span class="o">.</span><span class="n">bandwidth</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_phonons</span><span class="p">))[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> \
                               <span class="o">*</span> <span class="n">scattering_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">lambd_n</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="p">:])</span>
                 <span class="n">lambd_n</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">lambd_0</span><span class="p">[</span><span class="n">physical_mode</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">delta_lambd</span><span class="p">[:,</span> <span class="p">:]</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">'Number of self-consistent iterations: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">n_iteration</span><span class="p">))</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Number of self-consistent iterations: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">n_iteration</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">lambd_n</span></div>
-</pre></div>
 
-          </article>
+</code></pre></div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
         </div>
-      </div>
-    </main>
-  </div>
-  <footer class="md-footer">
-    <div class="md-footer-nav">
-      <nav class="md-footer-nav__inner md-grid">
-          
-          
-        </a>
         
-      </nav>
+      </main>
+      
+        <footer class="md-footer">
+  
+  
+  
+  <div class="md-footer-meta md-typeset">
+    
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-footer-copyright__highlight">
+        &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
+        
     </div>
-    <div class="md-footer-meta md-typeset">
-      <div class="md-footer-meta__inner md-grid">
-        <div class="md-footer-copyright">
-          <div class="md-footer-copyright__highlight">
-              &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
-              
-          </div>
-            Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
-             and
-            <a href="https://github.com/bashtage/sphinx-material/">Material for
-              Sphinx</a>
-        </div>
-      </div>
+  
+    Created using
+    <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+    8.1.3.
+     and
+    <a href="https://github.com/jbms/sphinx-immaterial/" target="_blank" rel="noopener">Sphinx-Immaterial</a>
+  
+</div>
+      
     </div>
-  </footer>
-  <script src="../../_static/javascripts/application.js"></script>
-  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+    
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="../../_static/sphinx_immaterial_theme.32136f45f91ae6956.min.js?v=a7a9472a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
   </body>
 </html>

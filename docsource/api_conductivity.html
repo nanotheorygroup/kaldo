@@ -1,698 +1,2293 @@
 
-<!DOCTYPE html>
 
-<html lang="en">
+
+<!doctype html>
+<html lang="en" class="no-js">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="api_phonons.html">
+      
+      
+        <link rel="next" href="crystal_presentation.html">
+      
+      
+      <link rel="icon" href="../_static/logo.ico">
+    
+    
+      
+        <title>Conductivity - kALDo</title>
+      
+    
+    
+      
+        
+      
+      
 
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <meta name="lang:clipboard.copy" content="Copy to clipboard">
-  <meta name="lang:clipboard.copied" content="Copied to clipboard">
-  <meta name="lang:search.language" content="en">
-  <meta name="lang:search.pipeline.stopwords" content="True">
-  <meta name="lang:search.pipeline.trimmer" content="True">
-  <meta name="lang:search.result.none" content="No matching documents">
-  <meta name="lang:search.result.one" content="1 matching document">
-  <meta name="lang:search.result.other" content="# matching documents">
-  <meta name="lang:search.tokenizer" content="[\s\-]+">
 
-  
-    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
-    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
-
-    <style>
-      body,
-      input {
-        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
-      }
-
-      code,
-      kbd,
-      pre {
-        font-family: "Roboto Mono", "Courier New", Courier, monospace
-      }
-    </style>
+    
+    
+      
+    
+    
+      
+        
+        
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+        <link rel="stylesheet" type="text/css" href="../_static/sphinx_immaterial_theme.acf80fe7f4d9ef9e2.min.css?v=9e56d0d2" />
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
   
 
-  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
-  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
-  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
-  
-  <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
-  
-  <meta name="theme-color" content="#3f51b5">
-  <script src="../_static/javascripts/modernizr.js"></script>
-  
-  <script>
-      window.ga = window.ga || function () {
-          (ga.q = ga.q || []).push(arguments)
-      };
-      ga.l = +new Date;
-      ga('create', 'UA-172053863-1', 'auto');
-      ga('send', 'pageview');
-  </script>
-  <script async src='https://www.google-analytics.com/analytics.js'></script>
-  
-  
-    <title>Conductivity &#8212; kALDo  documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/material.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <link rel="shortcut icon" href="../_static/logo.ico"/>
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Silicon diamond tutorial" href="crystal_presentation.html" />
-    <link rel="prev" title="kaldo.phonons.Phonons.eigenvectors" href="API/Phonons/kaldo.phonons.Phonons.eigenvectors.html" />
-  
-   
 
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-HQHR3LWX3F"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-HQHR3LWX3F",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-HQHR3LWX3F",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
   </head>
-  <body dir=ltr
-        data-md-color-primary=red data-md-color-accent=orange>
   
-  <svg class="md-svg">
-    <defs data-children-count="0">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
-      
-    </defs>
-  </svg>
   
-  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
-  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
-  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
-  <a href="#docsource/api_conductivity" tabindex="1" class="md-skip"> Skip to content </a>
-  <header class="md-header" data-md-component="header">
-  <nav class="md-header-nav md-grid">
-    <div class="md-flex navheader">
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="../index.html" title="kALDo  documentation"
-           class="md-header-nav__button md-logo">
-          
-            &nbsp;
-          
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#api-reference" class="md-skip">
+          Skip to content
         </a>
-      </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
-      </div>
-      <div class="md-flex__cell md-flex__cell--stretch">
-        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
-          <span class="md-header-nav__topic">kALDo</span>
-          <span class="md-header-nav__topic"> Conductivity </span>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="kALDo" class="md-header__button md-logo" aria-label="kALDo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kALDo
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Conductivity
+            
+          </span>
         </div>
       </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="red" data-md-color-accent="orange"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
         
-<div class="md-search" data-md-component="search" role="dialog">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
-    <form class="md-search__form" action="../search.html" method="GET" name="search">
-      <input type="text" class="md-search__input" name="q" placeholder="Search"
-             autocapitalize="off" autocomplete="off" spellcheck="false"
-             data-md-component="query" data-md-state="active">
-      <label class="md-icon md-search__icon" for="__search"></label>
-      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
-        &#xE5CD;
-      </button>
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
     </form>
     <div class="md-search__output">
-      <div class="md-search__scrollwrap" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="result">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Type to start searching
+            Initializing search
           </div>
-          <ol class="md-search-result__list"></ol>
+          <ol class="md-search-result__list" role="presentation"></ol>
         </div>
       </div>
     </div>
   </div>
 </div>
-
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kALDo
+  </div>
+</a>
       </div>
-      
-        <div class="md-flex__cell md-flex__cell--shrink">
-          <div class="md-header-nav__source">
-            <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
-
-    <div class="md-source__icon">
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
-        <use xlink:href="#__github" width="24" height="24"></use>
-      </svg>
-    </div>
-  
-  <div class="md-source__repository">
-    kALDo
-  </div>
-</a>
-          </div>
-        </div>
-      
-      
-  
-  <script src="../_static/javascripts/version_dropdown.js"></script>
-  <script>
-    var json_loc = "../"versions.json"",
-        target_loc = "../../",
-        text = "Versions";
-    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
-  </script>
-  
-
-    </div>
+    
   </nav>
+  
 </header>
-
-  
-  <div class="md-container">
     
-    
-    
-  <nav class="md-tabs" data-md-component="tabs">
-    <div class="md-tabs__inner md-grid">
-      <ul class="md-tabs__list">
-          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">kALDo  documentation</a></li>
-      </ul>
-    </div>
-  </nav>
-    <main class="md-main">
-      <div class="md-main__inner md-grid" data-md-component="container">
+    <div class="md-container" data-md-component="container">
+      
+      
+      
+      
         
-          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                <nav class="md-nav md-nav--primary" data-md-level="0">
-  <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href="../index.html" title="kALDo documentation" class="md-nav__button md-logo">
+          
+        
       
-        <img src="../_static/" alt=" logo" width="48" height="48">
-      
-    </a>
-    <a href="../index.html"
-       title="kALDo documentation">kALDo</a>
-  </label>
-    <div class="md-nav__source">
-      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-source="github">
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
 
-    <div class="md-source__icon">
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
-        <use xlink:href="#__github" width="24" height="24"></use>
-      </svg>
-    </div>
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="kALDo" class="md-nav__button md-logo" aria-label="kALDo" data-md-component="logo">
+      
   
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+    </a>
+    kALDo
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
   <div class="md-source__repository">
     kALDo
   </div>
 </a>
     </div>
   
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
   
-
   
-  <ul class="md-nav__list">
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Introduction</span></span>
-    
-    </li>
-    <li class="md-nav__item">
+  
+  
     
     
-      <a href="introduction.html" class="md-nav__link">Overview</a>
-      
     
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="introduction.html#Features" class="md-nav__link">Features</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Getting Started</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="getting_started.html" class="md-nav__link">Quick Install</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">User Guide</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html" class="md-nav__link">Basic Concepts</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="theory.html#Workflow" class="md-nav__link">Workflow</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="user_guide.html" class="md-nav__link">Interfacing with Other Codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="user_guide.html#Output-Storage" class="md-nav__link">Output Storage</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="user_guide.html#Units" class="md-nav__link">Units</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Reference</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_forceconstants.html" class="md-nav__link">ForceConstants</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="api_phonons.html" class="md-nav__link">Phonons</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    <label class="md-nav__link md-nav__link--active" for="__toc"> Conductivity </label>
-    
-      <a href="#" class="md-nav__link md-nav__link--active">Conductivity</a>
+    <li class="md-nav__item md-nav__item--nested">
       
         
-<nav class="md-nav md-nav--secondary">
-    <label class="md-nav__title" for="__toc">Contents</label>
-  <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-api-conductivity--page-root" class="md-nav__link">Conductivity</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
-        </li></ul>
-            </nav>
-        </li>
-    
-<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/api_conductivity.rst.txt">Show Source</a> </li>
-
-  </ul>
-</nav>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Tutorials and examples</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="crystal_presentation.html" class="md-nav__link">Silicon diamond tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="amorphous_presentation.html" class="md-nav__link">Amorphous silicon tutorial</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="examples.html" class="md-nav__link">Examples</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Citations</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="citations.html" class="md-nav__link">How to cite</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="citations.html#references" class="md-nav__link">References</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="../publications/readme.html" class="md-nav__link">Publications using kALDo</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="other_codes.html" class="md-nav__link">Other codes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Developer Guide</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="code_architecture.html" class="md-nav__link">Code Architecture</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="contributing.html" class="md-nav__link">How to contribute changes</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">Acknowledgements</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="credits.html" class="md-nav__link">Acknowledgements</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-      <span class="md-nav__link caption"><span class="caption-text">License</span></span>
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="license.html" class="md-nav__link">License Information</a>
-      
-    
-    </li>
-    <li class="md-nav__item">
-    
-    
-      <a href="license.html#copyright" class="md-nav__link">Copyright</a>
-      
-    
-    </li>
-  </ul>
-  
-
-</nav>
-              </div>
-            </div>
-          </div>
-          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                
-<nav class="md-nav md-nav--secondary">
-    <label class="md-nav__title" for="__toc">Contents</label>
-  <ul class="md-nav__list" data-md-scrollfix="">
-        <li class="md-nav__item"><a href="#docsource-api-conductivity--page-root" class="md-nav__link">Conductivity</a><nav class="md-nav">
-              <ul class="md-nav__list">
-        <li class="md-nav__item"><a href="#api-reference" class="md-nav__link">API Reference</a>
-        </li></ul>
-            </nav>
-        </li>
-    
-<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/docsource/api_conductivity.rst.txt">Show Source</a> </li>
-
-<li id="searchbox" class="md-nav__item"></li>
-
-  </ul>
-</nav>
-              </div>
-            </div>
-          </div>
         
-        <div class="md-content">
-          <article class="md-content__inner md-typeset" role="main">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
-  <section id="conductivity">
-<span id="conductivity-api"></span><h1 id="docsource-api-conductivity--page-root">Conductivity<a class="headerlink" href="#docsource-api-conductivity--page-root" title="Permalink to this heading">¶</a></h1>
+  
+  
+  <span class="md-ellipsis">
+    <span>Introduction</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Introduction</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb (reference label)"><span>Overview</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html#Features" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb#features (reference label)"><span>Features</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Getting Started</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Getting Started</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting_started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/getting_started.md (reference label)"><span>Quick Install</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>User Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            <span>User Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="theory.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb (reference label)"><span>Basic Concepts</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="theory.html#Workflow" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/theory.ipynb#workflow (reference label)"><span>Workflow</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user_guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb (reference label)"><span>Interfacing with Other Codes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user_guide.html#Output-Storage" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb#output-storage (reference label)"><span>Output Storage</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user_guide.html#Units" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/user_guide.ipynb#units (reference label)"><span>Units</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Reference</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Reference</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_forceconstants.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_forceconstants.rst (reference label)"><span>Force<wbr>Constants</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_phonons.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_phonons.rst (reference label)"><span>Phonons</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_conductivity.rst (reference label)"><span>Conductivity</span></span>
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="#" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_conductivity.rst (reference label)"><span>Conductivity</span></span>
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/api_conductivity.rst#api-reference (reference label)"><span>API Reference</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity" class="md-nav__link">
+    
+      <span aria-label="Python class" class="objinfo-icon objinfo-icon__data" title="Python class">C</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity (Python class) — The conductivity object is responsible for mean free path and conductivity calculations. It takes a phonons object as a required argument."><span>kaldo.<wbr>conductivity.<wbr>Conductivity</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="kaldo.conductivity.Conductivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity-parameters" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Parameters</span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.phonons" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.phonons (Python parameter) — Contains all the information about the calculated phononic properties of the system"><span>phonons</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.method" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.method (Python parameter) — Specifies the method used to calculate the conductivity. &#39;rta&#39; is relaxation time approximation; &#39;sc&#39; is self-consistent; &#39;qhgk&#39; is Quasi-Harmonic Green Kubo; &#39;inverse&#39; is inversion of the scattering matrix for mean free path."><span>method</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth (Python parameter) — (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the thermal conductivity in amorphous systems."><span>diffusivity_<wbr>bandwidth</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.diffusivity_threshold" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.diffusivity_threshold (Python parameter) — (QHGK) This option is off by default."><span>diffusivity_<wbr>threshold</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.diffusivity_shape" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.diffusivity_shape (Python parameter) — (QHGK) Defines the algorithm to use to calculate the diffusivity."><span>diffusivity_<wbr>shape</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant (Python parameter) — (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations. Default is False."><span>is_<wbr>diffusivity_<wbr>including_<wbr>antiresonant</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.tolerance" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.tolerance (Python parameter) — (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n and n+1 step, to set as exit/convergence condition."><span>tolerance</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.n_iterations" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.n_iterations (Python parameter) — (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity calculation"><span>n_<wbr>iterations</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.length" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.length (Python parameter) — (Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity."><span>length</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.finite_length_method" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.finite_length_method (Python parameter) — (Finite Size) Specifies how to calculate the finite size conductivity."><span>finite_<wbr>length_<wbr>method</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.storage" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.storage (Python parameter) — Defines the type of storage used for the simulation. Default is &#39;formatted&#39;"><span>storage</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.conductivity" class="md-nav__link">
+    
+      <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.conductivity (Python property) — Calculate the thermal conductivity per mode in W/m/K"><span>conductivity</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="conductivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.conductivity-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.conductivity-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.mean_free_path" class="md-nav__link">
+    
+      <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.mean_free_path (Python property) — Calculate the mean_free_path per mode in A"><span>mean_<wbr>free_<wbr>path</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mean_free_path">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.mean_free_path-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.mean_free_path-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.diffusivity" class="md-nav__link">
+    
+      <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.diffusivity (Python property) — Calculate the diffusivity, for each k point in k_points and each mode."><span>diffusivity</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="diffusivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.diffusivity-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.diffusivity-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" class="md-nav__link">
+    
+      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.calculate_scattering_matrix (Python method) — Calculate the scattering matrix for phonons."><span>calculate_<wbr>scattering_<wbr>matrix</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" class="md-nav__link">
+    
+      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.calculate_mfp_inverse (Python method) — This method calculates the inverse of the mean free path for each phonon. The matrix returns k vectors for each mode and has units of inverse Angstroms."><span>calculate_<wbr>mfp_<wbr>inverse</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calculate_mfp_inverse">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" class="md-nav__link">
+    
+      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.calculate_conductivity_full (Python method) — This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation."><span>calculate_<wbr>conductivity_<wbr>full</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calculate_conductivity_full">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_conductivity_full-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_conductivity_full-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Tutorials and examples</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Tutorials and examples</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="crystal_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/crystal_presentation.ipynb (reference label)"><span>Silicon diamond tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="amorphous_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/amorphous_presentation.ipynb (reference label)"><span>Amorphous silicon tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="examples.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/examples.md (reference label)"><span>Examples</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Citations</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Citations</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="citations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md (reference label)"><span>How to cite</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="citations.html#references" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md#references (reference label)"><span>References</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../publications/readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/publications/readme.md (reference label)"><span>Publications using k<wbr>ALDo</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="other_codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/other_codes.md (reference label)"><span>Other codes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Developer Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Developer Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code_architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/code_architecture.ipynb (reference label)"><span>Code Architecture</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="contributing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/contributing.md (reference label)"><span>How to contribute changes</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Acknowledgements</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Acknowledgements</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="credits.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/credits.ipynb (reference label)"><span>Acknowledgements</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>License</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <span>License</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="license.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/license.md (reference label)"><span>License Information</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="license.html#copyright" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/license.md#copyright (reference label)"><span>Copyright</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span title="/docsource/api_conductivity.rst#api-reference (reference label)"><span>API Reference</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity" class="md-nav__link">
+    
+      <span aria-label="Python class" class="objinfo-icon objinfo-icon__data" title="Python class">C</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity (Python class) — The conductivity object is responsible for mean free path and conductivity calculations. It takes a phonons object as a required argument."><span>kaldo.<wbr>conductivity.<wbr>Conductivity</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="kaldo.conductivity.Conductivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity-parameters" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Parameters</span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.phonons" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.phonons (Python parameter) — Contains all the information about the calculated phononic properties of the system"><span>phonons</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.method" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.method (Python parameter) — Specifies the method used to calculate the conductivity. &#39;rta&#39; is relaxation time approximation; &#39;sc&#39; is self-consistent; &#39;qhgk&#39; is Quasi-Harmonic Green Kubo; &#39;inverse&#39; is inversion of the scattering matrix for mean free path."><span>method</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth (Python parameter) — (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the thermal conductivity in amorphous systems."><span>diffusivity_<wbr>bandwidth</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.diffusivity_threshold" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.diffusivity_threshold (Python parameter) — (QHGK) This option is off by default."><span>diffusivity_<wbr>threshold</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.diffusivity_shape" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.diffusivity_shape (Python parameter) — (QHGK) Defines the algorithm to use to calculate the diffusivity."><span>diffusivity_<wbr>shape</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant (Python parameter) — (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations. Default is False."><span>is_<wbr>diffusivity_<wbr>including_<wbr>antiresonant</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.tolerance" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.tolerance (Python parameter) — (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n and n+1 step, to set as exit/convergence condition."><span>tolerance</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.n_iterations" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.n_iterations (Python parameter) — (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity calculation"><span>n_<wbr>iterations</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.length" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.length (Python parameter) — (Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity."><span>length</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.finite_length_method" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.finite_length_method (Python parameter) — (Finite Size) Specifies how to calculate the finite size conductivity."><span>finite_<wbr>length_<wbr>method</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.__init__.storage" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.__init__.storage (Python parameter) — Defines the type of storage used for the simulation. Default is &#39;formatted&#39;"><span>storage</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.conductivity" class="md-nav__link">
+    
+      <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.conductivity (Python property) — Calculate the thermal conductivity per mode in W/m/K"><span>conductivity</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="conductivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.conductivity-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.conductivity-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.mean_free_path" class="md-nav__link">
+    
+      <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.mean_free_path (Python property) — Calculate the mean_free_path per mode in A"><span>mean_<wbr>free_<wbr>path</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mean_free_path">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.mean_free_path-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.mean_free_path-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.diffusivity" class="md-nav__link">
+    
+      <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.diffusivity (Python property) — Calculate the diffusivity, for each k point in k_points and each mode."><span>diffusivity</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="diffusivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.diffusivity-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.diffusivity-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" class="md-nav__link">
+    
+      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.calculate_scattering_matrix (Python method) — Calculate the scattering matrix for phonons."><span>calculate_<wbr>scattering_<wbr>matrix</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" class="md-nav__link">
+    
+      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.calculate_mfp_inverse (Python method) — This method calculates the inverse of the mean free path for each phonon. The matrix returns k vectors for each mode and has units of inverse Angstroms."><span>calculate_<wbr>mfp_<wbr>inverse</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calculate_mfp_inverse">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" class="md-nav__link">
+    
+      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.conductivity.Conductivity.calculate_conductivity_full (Python method) — This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation."><span>calculate_<wbr>conductivity_<wbr>full</span></span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calculate_conductivity_full">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_conductivity_full-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.conductivity.Conductivity.calculate_conductivity_full-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset" role="main">
+                
+                
+                  
+
+
+<h1 id="conductivity"><span id="conductivity-api"></span>Conductivity<a class="headerlink" href="#conductivity" title="Link to this heading">¶</a></h1>
 <p>The conductivity class is used to calculate the thermal conductivity in one of the four
 frameworks outline in the theory portion. When building a conductivity class object,
 be sure to include a phonon object and select a framework for calculation.</p>
-<section id="api-reference">
-<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading">¶</a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.conductivity.</span></span><span class="sig-name descname"><span class="pre">Conductivity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phonons</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api_phonons.html#kaldo.phonons.Phonons" title="kaldo.phonons.Phonons"><span class="pre">Phonons</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'rta'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diffusivity_bandwidth</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diffusivity_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diffusivity_shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'lorentz'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_diffusivity_including_antiresonant</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(None,</span> <span class="pre">None,</span> <span class="pre">None)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finite_length_method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ms'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">storage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'formatted'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity" title="Permalink to this definition">¶</a></dt>
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h2>
+<dl class="py class objdesc">
+<dt class="sig sig-object highlight sig-wrap py" id="kaldo.conductivity.Conductivity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.conductivity.</span></span><span class="sig-name descname"><span class="pre">Conductivity</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.phonons" title="kaldo.conductivity.Conductivity.__init__.phonons (Python parameter) — Contains all the information about the calculated phononic properties of the system"><span class="n"><span class="pre">phonons</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><a class="reference internal" href="api_phonons.html#kaldo.phonons.Phonons" title="kaldo.phonons.Phonons (Python class) — The Phonons object exposes all the phononic properties of a system by manipulation of the quantities passed into the ForceConstant object. The arguments passed in here reflect assumptions to be made about the macroscopic system e.g. the temperature, or whether the system is amorphous or a nanowire. The ForceConstants, and temperature are the only two required parameters, though we highly recommend the switch controlling whether to use quantum/classical statistics (is_classic) and the number of k-points to consider (kpts). For most users, you will not need to access any Phonon object functions directly , but only reference an attribute (e.g. Phonons.frequency). Please check out the examples for details on our recommendations for retrieving, and plotting data."><span class="pre">Phonons</span></a></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.method" title="kaldo.conductivity.Conductivity.__init__.method (Python parameter) — Specifies the method used to calculate the conductivity. 'rta' is relaxation time approximation; 'sc' is self-consistent; 'qhgk' is Quasi-Harmonic Green Kubo; 'inverse' is inversion of the scattering matrix for mean free path."><span class="n"><span class="pre">method</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;rta&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth" title="kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth (Python parameter) — (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the thermal conductivity in amorphous systems."><span class="n"><span class="pre">diffusivity_bandwidth</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.diffusivity_threshold" title="kaldo.conductivity.Conductivity.__init__.diffusivity_threshold (Python parameter) — (QHGK) This option is off by default."><span class="n"><span class="pre">diffusivity_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.diffusivity_shape" title="kaldo.conductivity.Conductivity.__init__.diffusivity_shape (Python parameter) — (QHGK) Defines the algorithm to use to calculate the diffusivity."><span class="n"><span class="pre">diffusivity_shape</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;lorentz&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant" title="kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant (Python parameter) — (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations. Default is False."><span class="n"><span class="pre">is_diffusivity_including_antiresonant</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.tolerance" title="kaldo.conductivity.Conductivity.__init__.tolerance (Python parameter) — (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n and n+1 step, to set as exit/convergence condition."><span class="n"><span class="pre">tolerance</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.n_iterations" title="kaldo.conductivity.Conductivity.__init__.n_iterations (Python parameter) — (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity calculation"><span class="n"><span class="pre">n_iterations</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.length" title="kaldo.conductivity.Conductivity.__init__.length (Python parameter) — (Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity."><span class="n"><span class="pre">length</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.finite_length_method" title="kaldo.conductivity.Conductivity.__init__.finite_length_method (Python parameter) — (Finite Size) Specifies how to calculate the finite size conductivity."><span class="n"><span class="pre">finite_length_method</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;ms&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.__init__.storage" title="kaldo.conductivity.Conductivity.__init__.storage (Python parameter) — Defines the type of storage used for the simulation. Default is 'formatted'"><span class="n"><span class="pre">storage</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;formatted&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><span class="o"><span class="pre">**</span></span><a class="n reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity.__init__.kwargs (Python parameter)"><span class="n"><span class="pre">kwargs</span></span></a></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity" title="Link to this definition">¶</a></dt>
 <dd><p>The conductivity object is responsible for mean free path and
 conductivity calculations. It takes a phonons object as a required argument.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>phonons</strong> (<a class="reference internal" href="api_phonons.html#kaldo.phonons.Phonons" title="kaldo.phonons.Phonons"><em>Phonons</em></a>) – Contains all the information about the calculated phononic properties of the system</p></li>
-<li><p><strong>method</strong> (<em>'rta'</em><em>, </em><em>'sc'</em><em>, </em><em>'qhgk'</em><em>, </em><em>'inverse'</em>) – Specifies the method used to calculate the conductivity.
-<img alt="rta" class="math" src="../_images/math/7d587e3101c95442836bdfc43d1e50f76c493ad2.png"/> is relaxation time approximation; <img alt="sc" class="math" src="../_images/math/b84887b1b3a5466e379c0095db1e542816be96e8.png"/> is self-consistent; <img alt="qhgk" class="math" src="../_images/math/8415f84451d1dbee8be4b800a7f86cfe5c89eb5f.png"/> is Quasi-Harmonic Green Kubo; <img alt="inverse" class="math" src="../_images/math/247f764c77d3a32fc76517e1d66f1507231b7791.png"/> is inversion of the scattering matrix for mean free path.</p></li>
-<li><p><strong>diffusivity_bandwidth</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
-thermal conductivity in amorphous systems. Units: rad/ps</p></li>
-<li><p><strong>diffusivity_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</p></li>
-<li><p><strong>diffusivity_shape</strong> (<em>string</em><em>, </em><em>optional</em>) – (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are <img alt="gauss" class="math" src="../_images/math/2059dd30c330e08ced22748f70360a59603b6252.png"/>, <img alt="lorentz" class="math" src="../_images/math/0ecd3a42fba2ac4f9fc492ba29a99a8a670a5f8e.png"/> and <img alt="triangle" class="math" src="../_images/math/34b7c8af4374add3e6f9fb880161480a6ac7ea40.png"/>.
-Default is <img alt="lorentz" class="math" src="../_images/math/0ecd3a42fba2ac4f9fc492ba29a99a8a670a5f8e.png"/>.</p></li>
-<li><p><strong>is_diffusivity_including_antiresonant</strong> (<em>bool</em><em>, </em><em>optional</em>) – (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
-Default is <img alt="False" class="math" src="../_images/math/7492b7ed43697b62f89bfbfdd66b552e2ec5e7d1.png"/>.</p></li>
-<li><p><strong>tolerance</strong> (<em>int</em>) – (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
-and n+1 step, to set as exit/convergence condition.</p></li>
-<li><p><strong>n_iterations</strong> (<em>int</em>) – (Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
-calculation</p></li>
-<li><p><strong>length</strong> – (Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values
-corresponds to the infinity length limit.</p></li>
-<li><p><strong>finite_length_method</strong> (<em>'ms'</em><em>, </em><em>'ballistic'</em>) – (Finite Size) Specifies how to calculate the finite size conductivity. ‘ms’ is the Mckelvey-Schockley method.
-‘ballistic’ is the ballistic limit.</p></li>
-<li><p><strong>storage</strong> (<em>'formatted'</em><em>, </em><em>'hdf5'</em><em>, </em><em>'numpy'</em><em>, </em><em>'memory'</em><em>, </em><em>optional</em>) – Defines the type of storage used for the simulation.
-Default is <img alt="formatted" class="math" src="../_images/math/ce7075e3e5655ca06a8192bc6a440969509266d2.png"/></p></li>
-</ul>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity-parameters">Parameters<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity-parameters" title="Permalink to this headline">¶</a></dt>
+<dd class="field-odd"><dl class="simple api-field highlight">
+<dt id="kaldo.conductivity.Conductivity.__init__.phonons"><span class="sig-name descname">phonons</span><span class="p"> : </span><span class="desctype"><span class="desctype"><a class="reference internal" href="api_phonons.html#kaldo.phonons.Phonons" title="kaldo.phonons.Phonons (Python class) — The Phonons object exposes all the phononic properties of a system by manipulation of the quantities passed into the ForceConstant object. The arguments passed in here reflect assumptions to be made about the macroscopic system e.g. the temperature, or whether the system is amorphous or a nanowire. The ForceConstants, and temperature are the only two required parameters, though we highly recommend the switch controlling whether to use quantum/classical statistics (is_classic) and the number of k-points to consider (kpts). For most users, you will not need to access any Phonon object functions directly , but only reference an attribute (e.g. Phonons.frequency). Please check out the examples for details on our recommendations for retrieving, and plotting data.">Phonons</a></span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.phonons" title="Permalink to this definition">¶</a></dt><dd><p>Contains all the information about the calculated phononic properties of the system</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>An instance of the <img alt="Conductivity" class="math" src="../_images/math/d86e818b25701d35fc54e6c81501cc9af319d14a.png"/> class.</p>
+<dt id="kaldo.conductivity.Conductivity.__init__.method"><span class="sig-name descname">method</span><span class="p"> : </span><span class="desctype"><span class="desctype">'rta', 'sc', 'qhgk', 'inverse'</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.method" title="Permalink to this definition">¶</a></dt><dd><p>Specifies the method used to calculate the conductivity.
+<code class="docutils literal notranslate"><span class="pre">'rta'</span></code> is relaxation time approximation; <code class="docutils literal notranslate"><span class="pre">'sc'</span></code> is self-consistent; <code class="docutils literal notranslate"><span class="pre">'qhgk'</span></code> is Quasi-Harmonic Green Kubo; <code class="docutils literal notranslate"><span class="pre">'inverse'</span></code> is inversion of the scattering matrix for mean free path.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity">Conductivity</a></p>
+<dt id="kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth"><span class="sig-name descname">diffusivity_bandwidth</span><span class="p"> : </span><span class="desctype"><span class="desctype">float, optional</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.diffusivity_bandwidth" title="Permalink to this definition">¶</a></dt><dd><p>(QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
+thermal conductivity in amorphous systems. Units: rad/ps</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.diffusivity_threshold"><span class="sig-name descname">diffusivity_threshold</span><span class="p"> : </span><span class="desctype"><span class="desctype">float, optional</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.diffusivity_threshold" title="Permalink to this definition">¶</a></dt><dd><p>(QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.diffusivity_shape"><span class="sig-name descname">diffusivity_shape</span><span class="p"> : </span><span class="desctype"><span class="desctype">string, optional</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.diffusivity_shape" title="Permalink to this definition">¶</a></dt><dd><p>(QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are <code class="docutils literal notranslate"><span class="pre">'gauss'</span></code>, <code class="docutils literal notranslate"><span class="pre">'lorentz'</span></code> and <code class="docutils literal notranslate"><span class="pre">'triangle'</span></code>.
+Default is <code class="docutils literal notranslate"><span class="pre">'lorentz'</span></code>.</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant"><span class="sig-name descname">is_diffusivity_including_antiresonant</span><span class="p"> : </span><span class="desctype"><span class="desctype">bool, optional</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.is_diffusivity_including_antiresonant" title="Permalink to this definition">¶</a></dt><dd><p>(QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
+Default is False.</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.tolerance"><span class="sig-name descname">tolerance</span><span class="p"> : </span><span class="desctype"><span class="desctype">int</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.tolerance" title="Permalink to this definition">¶</a></dt><dd><p>(Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
+and n+1 step, to set as exit/convergence condition.</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.n_iterations"><span class="sig-name descname">n_iterations</span><span class="p"> : </span><span class="desctype"><span class="desctype">int</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.n_iterations" title="Permalink to this definition">¶</a></dt><dd><p>(Self-consistent) Specifies the max number of iterations to set as exit condition in the self consistent conductivity
+calculation</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.length"><span class="n sig-name">length</span><span class="p">:</span><span class="w"> </span><span class="n"><span class="desctype">tuple<span class="p">[</span>int<span class="p">,</span><span class="w"> </span>int<span class="p">,</span><span class="w"> </span>int<span class="p">]</span></span></span><span class="w"> </span><span class="o">=</span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></code><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.length" title="Permalink to this definition">¶</a></dt><dd><p>(Finite Size) Specifies the length to use in x, y, z to calculate the finite size conductivity. 0 or None values
+corresponds to the infinity length limit.</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.finite_length_method"><span class="sig-name descname">finite_length_method</span><span class="p"> : </span><span class="desctype"><span class="desctype">'ms', 'ballistic'</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.finite_length_method" title="Permalink to this definition">¶</a></dt><dd><p>(Finite Size) Specifies how to calculate the finite size conductivity. ‘ms’ is the Mckelvey-Schockley method.
+‘ballistic’ is the ballistic limit.</p>
+</dd>
+<dt id="kaldo.conductivity.Conductivity.__init__.storage"><span class="sig-name descname">storage</span><span class="p"> : </span><span class="desctype"><span class="desctype">'formatted', 'hdf5', 'numpy', 'memory', optional</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.__init__.storage" title="Permalink to this definition">¶</a></dt><dd><p>Defines the type of storage used for the simulation.
+Default is <code class="docutils literal notranslate"><span class="pre">'formatted'</span></code></p>
 </dd>
 </dl>
-<p class="rubric">Examples</p>
+</dd>
+<dt class="field-even" id="kaldo.conductivity.Conductivity-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity-returns" title="Permalink to this headline">¶</a></dt>
+<dd class="field-even"><p>An instance of the <code class="docutils literal notranslate"><span class="pre">Conductivity</span></code> class.</p>
+</dd>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity-return-type" title="Permalink to this headline">¶</a></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#kaldo.conductivity.Conductivity" title="kaldo.conductivity.Conductivity (Python class) — The conductivity object is responsible for mean free path and conductivity calculations. It takes a phonons object as a required argument.">Conductivity</a></p>
+</dd>
+</dl>
+<p class="example rubric">Examples</p>
 <p>Here’s an example to calculate the inverse conductivity on the phonons object and tracing over the phonons modes</p>
 <p><code class="docutils literal notranslate"><span class="pre">`</span>
 <span class="pre">Conductivity(phonons=phonons,</span> <span class="pre">method='inverse',</span> <span class="pre">storage='memory').conductivity.sum(axis=0))</span>
 <span class="pre">`</span></code></p>
-<dl class="field-list simple">
-<dt class="field-odd">Attributes<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><a class="reference internal" href="#kaldo.conductivity.Conductivity.conductivity" title="kaldo.conductivity.Conductivity.conductivity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">conductivity</span></code></a></dt><dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
-</dd>
-<dt><a class="reference internal" href="#kaldo.conductivity.Conductivity.diffusivity" title="kaldo.conductivity.Conductivity.diffusivity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">diffusivity</span></code></a></dt><dd><p>Calculate the diffusivity, for each k point in k_points and each mode.</p>
-</dd>
-<dt><a class="reference internal" href="#kaldo.conductivity.Conductivity.mean_free_path" title="kaldo.conductivity.Conductivity.mean_free_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mean_free_path</span></code></a></dt><dd><p>Calculate the mean_free_path per mode in A</p>
-</dd>
-</dl>
-</dd>
-</dl>
-<p class="rubric">Methods</p>
-<table class="autosummary longtable docutils align-default">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_conductivity_full</span></code></a>([...])</p></td>
-<td><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="kaldo.conductivity.Conductivity.calculate_mfp_inverse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_mfp_inverse</span></code></a>()</p></td>
-<td><p>This method calculates the inverse of the mean free path for each phonon.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="kaldo.conductivity.Conductivity.calculate_scattering_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_scattering_matrix</span></code></a>(...)</p></td>
-<td><p>Calculate the scattering matrix for phonons.</p></td>
-</tr>
-</tbody>
-</table>
-<table>
-<tbody>
-<tr class="row-odd"><td><p><strong>calculate_conductivity_and_diffusivity_qhgk</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>calculate_lambda_tensor</strong></p></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.conductivity">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">conductivity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></em><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity" title="Permalink to this definition">¶</a></dt>
+<dl class="py property objdesc">
+<dt class="sig sig-object highlight py" id="kaldo.conductivity.Conductivity.conductivity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">conductivity</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity" title="Link to this definition">¶</a></dt>
 <dd><p>Calculate the thermal conductivity per mode in W/m/K</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity.conductivity-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>conductivity</strong> – (n_k_points, n_modes, 3, 3) float</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dt class="field-even" id="kaldo.conductivity.Conductivity.conductivity-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.conductivity-return-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.mean_free_path">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mean_free_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></em><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path" title="Permalink to this definition">¶</a></dt>
+
+<dl class="py property objdesc">
+<dt class="sig sig-object highlight py" id="kaldo.conductivity.Conductivity.mean_free_path">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mean_free_path</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path" title="Link to this definition">¶</a></dt>
 <dd><p>Calculate the mean_free_path per mode in A</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity.mean_free_path-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>mfp</strong> – (n_k_points, n_modes) float</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dt class="field-even" id="kaldo.conductivity.Conductivity.mean_free_path-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.mean_free_path-return-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.diffusivity">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">diffusivity</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity" title="Permalink to this definition">¶</a></dt>
+
+<dl class="py property objdesc">
+<dt class="sig sig-object highlight py" id="kaldo.conductivity.Conductivity.diffusivity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">diffusivity</span></span><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity" title="Link to this definition">¶</a></dt>
 <dd><p>Calculate the diffusivity, for each k point in k_points and each mode.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity.diffusivity-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>diffusivity</strong> – diffusivity in mm^2/s</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dt class="field-even" id="kaldo.conductivity.Conductivity.diffusivity-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.diffusivity-return-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-even"><p>np.array(n_k_points, n_modes)</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_scattering_matrix">
-<span class="sig-name descname"><span class="pre">calculate_scattering_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_including_diagonal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_rescaling_omega</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_rescaling_population</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_scattering_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="Permalink to this definition">¶</a></dt>
+
+<dl class="py method objdesc">
+<dt class="sig sig-object highlight sig-wrap py" id="kaldo.conductivity.Conductivity.calculate_scattering_matrix">
+<span class="sig-name descname"><span class="pre">calculate_scattering_matrix</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="kaldo.conductivity.Conductivity.calculate_scattering_matrix.is_including_diagonal (Python parameter)"><span class="n"><span class="pre">is_including_diagonal</span></span></a></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="kaldo.conductivity.Conductivity.calculate_scattering_matrix.is_rescaling_omega (Python parameter)"><span class="n"><span class="pre">is_rescaling_omega</span></span></a></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="kaldo.conductivity.Conductivity.calculate_scattering_matrix.is_rescaling_population (Python parameter)"><span class="n"><span class="pre">is_rescaling_population</span></span></a></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_scattering_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_scattering_matrix" title="Link to this definition">¶</a></dt>
 <dd><p>Calculate the scattering matrix for phonons.</p>
 </dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_mfp_inverse">
-<span class="sig-name descname"><span class="pre">calculate_mfp_inverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_inverse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="Permalink to this definition">¶</a></dt>
+
+<dl class="py method objdesc">
+<dt class="sig sig-object highlight py" id="kaldo.conductivity.Conductivity.calculate_mfp_inverse">
+<span class="sig-name descname"><span class="pre">calculate_mfp_inverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_mfp_inverse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse" title="Link to this definition">¶</a></dt>
 <dd><p>This method calculates the inverse of the mean free path for each phonon.
 The matrix returns k vectors for each mode and has units of inverse Angstroms.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity.calculate_mfp_inverse-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>lambda</strong> – (n_k_points, n_modes)</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dt class="field-even" id="kaldo.conductivity.Conductivity.calculate_mfp_inverse-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_mfp_inverse-return-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
 </dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="kaldo.conductivity.Conductivity.calculate_conductivity_full">
-<span class="sig-name descname"><span class="pre">calculate_conductivity_full</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_using_gamma_tensor_evects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_full"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="Permalink to this definition">¶</a></dt>
+
+<dl class="py method objdesc">
+<dt class="sig sig-object highlight py" id="kaldo.conductivity.Conductivity.calculate_conductivity_full">
+<span class="sig-name descname"><span class="pre">calculate_conductivity_full</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="kaldo.conductivity.Conductivity.calculate_conductivity_full.is_using_gamma_tensor_evects (Python parameter)"><span class="n"><span class="pre">is_using_gamma_tensor_evects</span></span></a><span class="o"><span class="pre">=</span></span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_full"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full" title="Link to this definition">¶</a></dt>
 <dd><p>This calculates the conductivity using the full solution of the space-dependent Boltzmann Transport Equation.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dt class="field-odd" id="kaldo.conductivity.Conductivity.calculate_conductivity_full-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>conductivity_per_mode</strong> – (n_k_points, n_modes, 3)</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dt class="field-even" id="kaldo.conductivity.Conductivity.calculate_conductivity_full-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_full-return-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-even"><p>np array</p>
 </dd>
 </dl>
 </dd></dl>
+
 </dd></dl>
-</section>
-</section>
 
 
-          </article>
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
         </div>
-      </div>
-    </main>
-  </div>
-  <footer class="md-footer">
-    <div class="md-footer-nav">
-      <nav class="md-footer-nav__inner md-grid">
-          
-            <a href="API/Phonons/kaldo.phonons.Phonons.eigenvectors.html" title="kaldo.phonons.Phonons.eigenvectors"
-               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
-               rel="prev">
-              <div class="md-flex__cell md-flex__cell--shrink">
-                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
-              </div>
-              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-                <span class="md-flex__ellipsis">
-                  <span
-                      class="md-footer-nav__direction"> Previous </span> kaldo.phonons.Phonons.eigenvectors </span>
-              </div>
-            </a>
-          
-          
-            <a href="crystal_presentation.html" title="Silicon diamond tutorial"
-               class="md-flex md-footer-nav__link md-footer-nav__link--next"
-               rel="next">
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
-                class="md-flex__ellipsis"> <span
-                class="md-footer-nav__direction"> Next </span> Silicon diamond tutorial </span>
-            </div>
-            <div class="md-flex__cell md-flex__cell--shrink"><i
-                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
-            </div>
-          
-        </a>
         
-      </nav>
+      </main>
+      
+        <footer class="md-footer">
+  
+  
+  
+  <div class="md-footer-meta md-typeset">
+    
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-footer-copyright__highlight">
+        &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
+        
     </div>
-    <div class="md-footer-meta md-typeset">
-      <div class="md-footer-meta__inner md-grid">
-        <div class="md-footer-copyright">
-          <div class="md-footer-copyright__highlight">
-              &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
-              
-          </div>
-            Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 5.0.1.
-             and
-            <a href="https://github.com/bashtage/sphinx-material/">Material for
-              Sphinx</a>
-        </div>
-      </div>
+  
+    Created using
+    <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+    8.1.3.
+     and
+    <a href="https://github.com/jbms/sphinx-immaterial/" target="_blank" rel="noopener">Sphinx-Immaterial</a>
+  
+</div>
+      
     </div>
-  </footer>
-  <script src="../_static/javascripts/application.js"></script>
-  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+    
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="../_static/sphinx_immaterial_theme.32136f45f91ae6956.min.js?v=a7a9472a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
   </body>
 </html>
