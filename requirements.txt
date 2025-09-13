@@ -1,9 +1,7 @@
-numpy>=1.25.1,<2.0 ; python_version < "3.13" 
-numpy>=2.0 ; python_version >= "3.13" 
-scipy>=1.14 ; python_version >= "3.13"
-scipy>=1.11.1; python_version < "3.13" 
+numpy>=1.25.1
+scipy>=1.11.1
 ase>=3.22.1
-sparse>=0.16
+sparse>=0.15
 seekpath>=1.8
 tensorflow>=2.13
 opt_einsum>=2.3
