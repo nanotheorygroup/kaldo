@@ -122,6 +122,9 @@ html_theme = 'sphinx_immaterial'
 html_title = 'kALDo'
 
 html_theme_options = {
+
+    "font": False, # use system font. disable font download from google fonts, because CI cannot pass
+
     # Set you GA account ID to enable tracking
     # 'google_analytics_account': 'UA-172053863-1',
 
