@@ -37,12 +37,8 @@
     
     
       
-        
-        
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
-      
     
-        <link rel="stylesheet" type="text/css" href="../_static/sphinx_immaterial_theme.acf80fe7f4d9ef9e2.min.css?v=9e56d0d2" />
+        <link rel="stylesheet" type="text/css" href="../_static/sphinx_immaterial_theme.cf2c65c97ee1b6f01.min.css?v=0a68cab4" />
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -1255,7 +1251,7 @@
 <p><strong>Scalable</strong>. In a system of N atoms and N_k k points. kALDo uses (3N)^2 floating point numbers to save the state of the system when using QHGK, (Nk x 3N)^2 for the full solution of the BTE and Nk x 3N^2 when using BTE-RTA.</p>
 <p><strong>Performance</strong>. The bottleneck, and slow part of ALD simulations is the calculation of the phonons lifetimes and the scattering matrix. This step requires projecting the interatomic potential on 3N phonons modes and the algorithm scales like (Nk x 3N)^3, because of the 3 projections on phonons modes. In kALDo such algorithm is implemented as 2 Nk x 3N tensor multiplications of size Nk x (3N)^2 for BTE calculations while 3N^2 for QHGK.</p>
 <p><strong>Open-Source</strong>. Free for the community to use and contribute with edits and suggestion. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.</p>
-<p><img alt="76bdb6938b5049af838d1bcab6a5d9be" class="no-scaled-link" src="../_images/features.png" style="width: 650px;" /></p>
+<p><img alt="8c38983b05c14b578f9737737a89bd8a" class="no-scaled-link" src="../_images/features.png" style="width: 650px;" /></p>
 
 
 
@@ -1292,7 +1288,7 @@
       <div class="md-copyright">
   
     <div class="md-footer-copyright__highlight">
-        &#169; Copyright 2020, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Davide Donadio.
+        &#169; Copyright 2020-2025, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Dylan Folkner, Bohan Li, Davide Donadio.
         
     </div>
   

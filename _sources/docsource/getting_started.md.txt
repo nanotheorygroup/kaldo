@@ -1,8 +1,10 @@
 ### Quick Install
 
-We recommend creating a new environment with Python 3.10.
+kALDo supports Python version 3.10 or higher. 
+
+We recommend creating a new environment with Python 3.13.
 ```bash
-conda create -n kaldo python=3.10
+conda create -n kaldo python=3.13
 ```
 and enable the environment
 ```bash
