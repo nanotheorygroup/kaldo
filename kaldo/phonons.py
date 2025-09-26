@@ -633,7 +633,7 @@ class Phonons(Storable):
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
-    @lazy_property(label='<third_bandwidth>')
+    @lazy_property(label='<statistics>/<third_bandwidth>')
     def _sparse_phase_and_potential(self):
         """
         Calculate both sparse phase and potential tensors for anharmonic interactions.
