@@ -25,8 +25,7 @@ logging = get_logger()
 
 # Constants
 GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
-HBAR = units._hbar
-THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
+THZ_TO_MEV = units.J * units._hbar * 2 * np.pi * 1e15
 
 class Phonons(Storable):
     """
@@ -633,7 +632,7 @@ class Phonons(Storable):
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
-    @lazy_property(label='<statistics>/<third_bandwidth>')
+    @lazy_property(label='<third_bandwidth>')
     def _sparse_phase_and_potential(self):
         """
         Calculate both sparse phase and potential tensors for anharmonic interactions.
@@ -963,7 +962,10 @@ class Phonons(Storable):
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
         # Reshape population to 1D for unified indexing
         population_flat = self.population.flatten()
-        
+
+        # Apply hbar scaling factor for classical vs quantum
+        hbar_factor = 1e-6 if self.is_classic else 1
+
         ps_and_gamma = aha.calculate_ps_and_gamma(
             self.sparse_phase,
             self.sparse_potential,
@@ -971,7 +973,8 @@ class Phonons(Storable):
             self.is_balanced,
             self.n_phonons,
             self._is_amorphous,
-            self.is_gamma_tensor_enabled
+            self.is_gamma_tensor_enabled,
+            hbar_factor
         )
         if not self._is_amorphous:
             ps_and_gamma[:, 0] /= self.n_k_points
@@ -1005,7 +1008,7 @@ class Phonons(Storable):
         third_tf = tf.sparse.reshape(third_tf, ((self.n_modes * n_replicas) ** 2, self.n_modes))
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         logging.info("Projection started")
-        hbar = HBAR * (1e-6 if self.is_classic else 1)
+        hbar = units._hbar
         sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
         n_modes = self.n_modes
         broadening_shape = self.broadening_shape
@@ -1084,7 +1087,7 @@ class Phonons(Storable):
         velocity_tf = tf.convert_to_tensor(self.velocity)
         cell_inv = self.forceconstants.cell_inv
         kpts = self.kpts
-        hbar = HBAR * (1e-6 if self.is_classic else 1)
+        hbar = units._hbar
         n_modes = self.n_modes
         n_phonons = self.n_phonons
         sparse_phase = []
