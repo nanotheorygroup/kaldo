@@ -9,7 +9,6 @@ from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.controllers.sigma2 import sigma2_tdep_md
 import ase.units as units
 logging = get_logger()
 
@@ -338,36 +337,4 @@ class ForceConstants:
         return evperang3togpa * cijkl / evtotenjovermol
 
 
-    # Preserve the staticmethod as a wrapper for backwards compatibility
-    @staticmethod
-    def sigma2_tdep_MD(fc_file: str = 'infile.forceconstant',
-                       primitive_file: str = 'infile.ucposcar',
-                       supercell_file: str = 'infile.ssposcar',
-                       md_run: str = 'dump.xyz') -> float:
-        """
-        Calculate the sigma2 value using TDEP and MD data.
-
-        Parameters
-        ----------
-        fc_file : str, optional
-            Path to the force constant file. Default is ``'infile.forceconstant'``.
-        primitive_file : str, optional
-            Path to the primitive cell file. Default is ``'infile.ucposcar'``.
-        supercell_file : str, optional
-            Path to the supercell file. Default is ``'infile.ssposcar'``.
-        md_run : str, optional
-            Path to the MD trajectory file. Default is ``'dump.xyz'``.
-
-        Returns
-        -------
-        float
-            The average sigma2 value.
-
-        """
-        return sigma2_tdep_md(
-            fc_file=fc_file,
-            primitive_file=primitive_file,
-            supercell_file=supercell_file,
-            md_run=md_run
-        )
 
