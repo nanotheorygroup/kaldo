@@ -3,17 +3,14 @@ Unit and regression test for the kaldo package.
 """
 
 # Import package, test suite, and other packages as needed
-from kaldo.forceconstants import ForceConstants
-import numpy as np
-import os
-import sys
+from kaldo.controllers.sigma2 import sigma2_tdep_md
 import pytest
 
 
 @pytest.fixture(scope="session")
 def sigma2():
     root = "kaldo/tests/sigma2"
-    result = ForceConstants.sigma2_tdep_MD(
+    result = sigma2_tdep_md(
         md_run=f"{root}/tdep_fit_configurations.xyz",
         primitive_file=f"{root}/infile.ucposcar",
         supercell_file=f"{root}/infile.ssposcar",
