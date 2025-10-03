@@ -253,70 +253,101 @@ class ForceConstants:
 
     def elastic_prop(self):
         """
-        Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa. This describes the stress-strain
-        relationship of the material and can sometimes be used as a loose predictor for thermal conductivity. Requires
-        the dynamical matrix to be loaded or calculated.
+        Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa.
 
-        Parameters
-        ----------
-        None
+        This describes the stress-strain relationship of the material and can sometimes
+        be used as a loose predictor for thermal conductivity. Requires the dynamical
+        matrix to be loaded or calculated.
 
         Returns
         -------
-        C_ijkl : np.array(3, 3, 3, 3)
-            Elasticity tensor in GPa
-        """
-        # Notation of the variable comes from this paper:
-        # Theory of the elastic constants of graphite and graphene, DOI 10.1002/pssb.200879604
+        np.ndarray
+            Elasticity tensor C_ijkl with shape (3, 3, 3, 3) in GPa.
 
-        # Intake key parameters
+        Notes
+        -----
+        Notation follows: Theory of the elastic constants of graphite and graphene,
+        DOI 10.1002/pssb.200879604
+        """
+        # Extract key parameters
         atoms = self.atoms
         masses = atoms.get_masses()
         volume = atoms.get_volume()
         list_of_replicas = self.second.list_of_replicas
 
-        # rest of the code for elastic tensor assumes C-type grid
-        # generate C-type grid from start
+        # Rest of the code for elastic tensor assumes C-type grid
+        # Generate C-type grid if needed
         if self.second._direct_grid.order == 'F':
-            # list_of_replicas property
-            list_of_replicas = Grid(self.second.supercell, order='C').grid(is_wrapping=True).dot(self.atoms.cell)
+            list_of_replicas = (
+                Grid(self.second.supercell, order='C')
+                .grid(is_wrapping=True)
+                .dot(self.atoms.cell)
+            )
 
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
 
-        distance = positions[:, np.newaxis, np.newaxis, :] - (
-                    positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
+        distance = (
+            positions[:, np.newaxis, np.newaxis, :] -
+            (positions[np.newaxis, np.newaxis, :, :] +
+             list_of_replicas[np.newaxis, :, np.newaxis, :])
+        )
 
-        # first order term of the expansion of dynamical matrix
-        d1 = np.einsum('iljx,ibljc->ibjcx', distance.astype(complex), dynmat.numpy().astype(complex))
+        # First order term of the expansion of dynamical matrix
+        d1 = np.einsum(
+            'iljx,ibljc->ibjcx',
+            distance.astype(complex),
+            dynmat.numpy().astype(complex)
+        )
 
-        # second order term of the expansion of dynamical matrix
-        d2 = -1 * np.einsum(
+        # Second order term of the expansion of dynamical matrix
+        d2 = -np.einsum(
             'iljx,iljy,ibljc->ibjcxy',
             distance.astype(complex),
             distance.astype(complex),
-            dynmat.numpy().astype(complex))
+            dynmat.numpy().astype(complex)
+        )
 
         # Compute Gamma tensor as eq.6
         h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
-        # optical eigenvectors
-        e_mu = np.array(h0._eigensystem[1:, :]).reshape(
-            (n_unit, 3, 3 * (n_unit)))
-        # optical eigenfrequencies
-        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** (0.5)  # optical frequencies (w/(2*pi) = f) in THz
-        gamma = np.einsum('iav,jbv,v->iajb', e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2)
 
-        # Compute component square braket (`b`) and round bracket (`r`) terms, keep the real component only
+        # Optical eigenvectors
+        e_mu = np.array(h0._eigensystem[1:, :]).reshape((n_unit, 3, 3 * n_unit))
 
-        # square braket term, eq.4, $[ij, kl] = b_{ijkl} = 1/(2 v_c) \sum_{n,m} \sqrt{M_n} \sqrt{M_m} D^{nm}_{ij,kl}^{(2)}$
-        b = (1/(2*volume))*np.einsum('n,m,nimjkl->ijkl', masses**(0.5), masses**(0.5), d2).real
+        # Optical eigenfrequencies (w/(2*pi) = f) in THz
+        w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** 0.5
 
-        # include mass in first order term
-        d1r = np.einsum('nhmij,m->nhmij', d1, masses**(0.5))
+        gamma = np.einsum(
+            'iav,jbv,v->iajb',
+            e_mu[:, :, 3:],
+            e_mu[:, :, 3:],
+            1 / w_mu[3:] ** 2
+        )
 
-        # round bracket term, eq.5, mass is included in d1r
-        r = -1 * (1/volume) * np.einsum('nhmij,nhrp,rpskl->ijkl', d1r, gamma, d1r).real
+        # Compute component square bracket (`b`) and round bracket (`r`) terms
+        # Keep the real component only
+
+        # Square bracket term, eq.4
+        # [ij, kl] = b_{ijkl} = 1/(2 v_c) \sum_{n,m} \sqrt{M_n} \sqrt{M_m} D^{nm}_{ij,kl}^{(2)}
+        sqrt_masses = masses ** 0.5
+        b = (1 / (2 * volume)) * np.einsum(
+            'n,m,nimjkl->ijkl',
+            sqrt_masses,
+            sqrt_masses,
+            d2
+        ).real
+
+        # Include mass in first order term
+        d1r = np.einsum('nhmij,m->nhmij', d1, sqrt_masses)
+
+        # Round bracket term, eq.5, mass is included in d1r
+        r = -(1 / volume) * np.einsum(
+            'nhmij,nhrp,rpskl->ijkl',
+            d1r,
+            gamma,
+            d1r
+        ).real
 
         # Compute elastic constants C_{ij,kl} as eq.3
         cijkl = np.zeros((3, 3, 3, 3))
@@ -324,17 +355,21 @@ class ForceConstants:
             for j in range(3):
                 for k in range(3):
                     for l in range(3):
-                        cijkl[i, j, k, l] = b[i, k, j, l] + b[j, k, i, l] - b[i, j, k, l] + r[i, j, k, l]
+                        cijkl[i, j, k, l] = (
+                            b[i, k, j, l] + b[j, k, i, l] -
+                            b[i, j, k, l] + r[i, j, k, l]
+                        )
 
-        evtotenjovermol = units.mol / (10 * units.J)
-        # units._e = 1.602×10−19J
-        # units.Angstorm = 1.0 = 1e-10 m
-        # (units.Angstrom) ** 3 = 1e-30 m / 1e9 from Pa to GPa
-        # give raises to 1e-21
+        # Unit conversion constants
+        ev_to_tenjovermol = units.mol / (10 * units.J)
+        # units._e = 1.602×10^-19 J
+        # units.Angstrom = 1.0 = 1e-10 m
+        # (units.Angstrom)^3 = 1e-30 m^3 / 1e9 from Pa to GPa
+        # Combined: 1e-21
         evperang3togpa = units._e / (units.Angstrom * 1e-21)
 
-        # Denote parameter for irreducible Cij in the unit of GPa
-        return evperang3togpa * cijkl / evtotenjovermol
+        # Return elastic tensor in GPa
+        return evperang3togpa * cijkl / ev_to_tenjovermol
 
 
 
