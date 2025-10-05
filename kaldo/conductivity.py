@@ -69,18 +69,18 @@ class Conductivity(Storable):
         Contains all the information about the calculated phononic properties of the system
     method : 'rta', 'sc', 'qhgk', 'inverse'
         Specifies the method used to calculate the conductivity.
-        `rta` is relaxation time approximation; `sc` is self-consistent; `qhgk` is Quasi-Harmonic Green Kubo; `inverse` is inversion of the scattering matrix for mean free path.
+        ``'rta'`` is relaxation time approximation; ``'sc'`` is self-consistent; ``'qhgk'`` is Quasi-Harmonic Green Kubo; ``'inverse'`` is inversion of the scattering matrix for mean free path.
     diffusivity_bandwidth : float, optional
         (QHGK) Specifies the bandwidth to use in the calculation of the flux operator in the Allen-Feldman model of the
         thermal conductivity in amorphous systems. Units: rad/ps
     diffusivity_threshold : float, optional
         (QHGK) This option is off by default. In such case the flux operator in the QHGK and AF models is calculated
     diffusivity_shape : string, optional
-        (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are `gauss`, `lorentz` and `triangle`.
-        Default is `lorentz`.
+        (QHGK) Defines the algorithm to use to calculate the diffusivity. Available broadenings are ``'gauss'``, ``'lorentz'`` and ``'triangle'``.
+        Default is ``'lorentz'``.
     is_diffusivity_including_antiresonant : bool, optional
         (QHGK) Defines if you want to include or not anti-resonant terms in diffusivity calculations.
-        Default is `False`.
+        Default is False.
     tolerance : int
         (Self-consistent) In the self consistent conductivity calculation, it specifies the difference in W/m/K between n
         and n+1 step, to set as exit/convergence condition.
@@ -95,12 +95,12 @@ class Conductivity(Storable):
         'ballistic' is the ballistic limit.
     storage : 'formatted', 'hdf5', 'numpy', 'memory', optional
         Defines the type of storage used for the simulation.
-        Default is `formatted`
+        Default is ``'formatted'``
 
     Returns
     -------
     Conductivity
-        An instance of the `Conductivity` class.
+        An instance of the ``Conductivity`` class.
 
     Examples
     --------

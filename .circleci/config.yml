@@ -6,7 +6,7 @@ jobs:
   build-and-test:
     executor:
         name: python/default
-        tag: '3.10'
+        tag: '3.12'
     docker:
       - image: "gbarbalinardo/kaldo:amd"
     resource_class: xlarge

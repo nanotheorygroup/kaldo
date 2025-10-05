@@ -23,7 +23,7 @@ THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
 
 def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_phonons, is_amorphous,
-                           is_gamma_tensor_enabled=False):
+                           is_gamma_tensor_enabled=False, hbar_factor=1):
     # Set up the output array
     if is_gamma_tensor_enabled:
         shape = (n_phonons, 2 + n_phonons)
@@ -34,15 +34,16 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
 
     for nu_single in range(n_phonons):
         population_0 = population[nu_single]
-            
+
         for is_plus in (0, 1):
             if sparse_phase[nu_single][is_plus] is None:
                 continue
-                
+
             # Extract indices - both cases use the same 2D format now
             nup_vec, nupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
             sparse_phase_nu = sparse_phase[nu_single][is_plus].values
-            sparse_pot_nu = sparse_potential[nu_single][is_plus].values
+            # Apply hbar_factor to potential values for classical/quantum
+            sparse_pot_nu = sparse_potential[nu_single][is_plus].values * hbar_factor
             
             # Use direct indexing for both cases
             population_1 = tf.gather(population, nup_vec)
