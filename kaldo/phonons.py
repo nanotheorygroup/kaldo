@@ -25,8 +25,7 @@ logging = get_logger()
 
 # Constants
 GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
-HBAR = units._hbar
-THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
+THZ_TO_MEV = units.J * units._hbar * 2 * np.pi * 1e15
 
 class Phonons(Storable):
     """
@@ -36,7 +35,7 @@ class Phonons(Storable):
     whether the system is amorphous or a nanowire.
     The ForceConstants, and temperature are the only two required parameters, though we
     highly recommend the switch controlling whether to use quantum/classical statistics
-    (`is_classic`) and the number of k-points to consider (`kpts`).
+    (``is_classic``) and the number of k-points to consider (``kpts``).
     For most users, you will not need to access any Phonon object functions directly
     , but only reference an attribute (e.g. Phonons.frequency). Please check out the
     examples for details on our recommendations for retrieving, and plotting data.
@@ -52,45 +51,45 @@ class Phonons(Storable):
     is_classic : bool
         Specifies if the system is treated with classical or quantum
         statistics.
-        Default: `False`
+        Default: False
     kpts : (int, int, int)
         Defines the number of k points to use to create the k mesh
         Default: (1, 1, 1)
     min_frequency : float
-        Ignores all phonons with frequency below `min_frequency`
+        Ignores all phonons with frequency below ``min_frequency``
         Units: Thz
-        Default: `None`
+        Default: None
     max_frequency : float
-        Ignores all phonons with frequency above `max_frequency`
+        Ignores all phonons with frequency above ``max_frequency``
         Units: THz
-        Default: `None`
+        Default: None
     third_bandwidth : float
         Defines the width of the energy conservation smearing in the phonons
-        scattering calculation. If `None` the width is calculated
+        scattering calculation. If ``None`` the width is calculated
         dynamically. Otherwise the input value corresponds to the width.
         Units: THz
-        Default: `None`
+        Default: None
     broadening_shape : string
         Defines the algorithm to use for line-broadening when enforcing
         energy conservation rules for three-phonon scattering.
-        Options: `gauss`, `lorentz` and `triangle`.
-        Default: `gauss`
+        Options: 'gauss', 'lorentz' and 'triangle'.
+        Default: ``'gauss'``
     folder : string
         Specifies where to store the data files.
-        Default: `output`.
+        Default: ``'output'``.
     storage : string
-        Defines the strategy used to store observables. The `default` strategy
+        Defines the strategy used to store observables. The ``default`` strategy
         stores formatted text files for most harmonic properties but relies on
-        numpy arrays for large arrays like the gamma tensor. The `memory` option
+        numpy arrays for large arrays like the gamma tensor. The ``memory`` option
         doesn't generate any output except what is printed in your script.
-        Options: `default`, `formatted`, `numpy`, `memory`, `hdf5`
-        Default: 'formatted'
+        Options: ``'default'``, ``'formatted'``, ``'numpy'``, ``'memory'``, ``'hdf5'``
+        Default: ``'formatted'``
     grid_type : string
         Specifies whether the atoms in the replicated system were repeated using
         a C-like index ordering which changes the last axis the fastest or
         FORTRAN-like index ordering which changes the first index fastest.
-        Options: 'C', 'F'
-        Default: 'C'
+        Options: ``'C'``, ``'F'``
+        Default: ``'C'``
     is_balanced : bool
         Enforce detailed balance when calculating anharmonic properties. Useful for
         simulations where it may be difficult to get a sufficiently dense k-point grid.
@@ -347,7 +346,7 @@ class Phonons(Storable):
 
         Returns
         -------
-        velocity : np array(n_k_points, n_unit_cell * 3, 3)
+        velocity : np.array(n_k_points, n_unit_cell * 3, 3)
              velocity in 100m/s or A/ps
         """
 
@@ -407,11 +406,8 @@ class Phonons(Storable):
         """
         Calculate the heat capacity for each k point in k_points and each mode.
         If classical, it returns the Boltzmann constant in J/K. If quantum it returns the derivative of the
-        Bose-Einstein weighted by each phonons energy.
-        .. math::
-
-            c_\\mu = k_B \\frac{\\nu_\\mu^2}{ \\tilde T^2} n_\\mu (n_\\mu + 1)
-
+        Bose-Einstein weighted by each phonons energy
+        :math:`c_\\mu = k_B \\frac{\\nu_\\mu^2}{ \\tilde T^2} n_\\mu (n_\\mu + 1)`, 
         where the frequency :math:`\\nu` and the temperature :math:`\\tilde T` are in THz.
 
         Returns
@@ -943,6 +939,7 @@ class Phonons(Storable):
                 for j in range(proj.shape[1]):
                     p_dos[ip, i] += np.sum(amp * proj[:, j, :])
 
+            # TODO: np.trapz is deprecated in numpy 2.0+, but np.trapezoid does not exist before numpy 2.0. migrate it after this function gets removed. 
             p_dos[ip] *= 3 * n_atoms / np.trapz(p_dos[ip], f_grid)
 
         return f_grid, p_dos
@@ -965,7 +962,10 @@ class Phonons(Storable):
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
         # Reshape population to 1D for unified indexing
         population_flat = self.population.flatten()
-        
+
+        # Apply hbar scaling factor for classical vs quantum
+        hbar_factor = 1e-6 if self.is_classic else 1
+
         ps_and_gamma = aha.calculate_ps_and_gamma(
             self.sparse_phase,
             self.sparse_potential,
@@ -973,7 +973,8 @@ class Phonons(Storable):
             self.is_balanced,
             self.n_phonons,
             self._is_amorphous,
-            self.is_gamma_tensor_enabled
+            self.is_gamma_tensor_enabled,
+            hbar_factor
         )
         if not self._is_amorphous:
             ps_and_gamma[:, 0] /= self.n_k_points
@@ -1007,7 +1008,7 @@ class Phonons(Storable):
         third_tf = tf.sparse.reshape(third_tf, ((self.n_modes * n_replicas) ** 2, self.n_modes))
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         logging.info("Projection started")
-        hbar = HBAR * (1e-6 if self.is_classic else 1)
+        hbar = units._hbar
         sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
         n_modes = self.n_modes
         broadening_shape = self.broadening_shape
@@ -1086,7 +1087,7 @@ class Phonons(Storable):
         velocity_tf = tf.convert_to_tensor(self.velocity)
         cell_inv = self.forceconstants.cell_inv
         kpts = self.kpts
-        hbar = HBAR * (1e-6 if self.is_classic else 1)
+        hbar = units._hbar
         n_modes = self.n_modes
         n_phonons = self.n_phonons
         sparse_phase = []
