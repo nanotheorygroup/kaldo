@@ -7,6 +7,8 @@ from kaldo.conductivity import Conductivity
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 import numpy as np
+import shutil
+import os
 
 
 @pytest.fixture(scope="session")
@@ -23,7 +25,12 @@ def phonons():
     }
 
     phonons = Phonons(forceconstants=forceconstants, **phonons_config)
-    return phonons
+    yield phonons
+    
+    # Cleanup: remove the ALD_si_bulk folder after tests complete
+    if os.path.exists("ALD_si_bulk"):
+        shutil.rmtree("ALD_si_bulk")
+        print("Cleaned up ALD_si_bulk folder.")
 
 
 def test_qhgk_conductivity(phonons):
