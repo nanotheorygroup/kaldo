@@ -238,6 +238,77 @@ class _Plotter:
             for t in ax.yaxis.get_ticklines():
                 t.set_color(panel_color_str)
                 t.set_linewidth(line_width)
+
+    def _calculate_dispersion_data(self, n_k_points=300, symprec=1e-3, manually_defined_path=None):
+        """Calculate dispersion and velocity data along high-symmetry path.
+        
+        This is a shared helper method used by both plot_dispersion and plot_crystal.
+        
+        Parameters
+        ----------
+        n_k_points : int
+            Number of k-points along the path. Default: 300
+        symprec : float
+            Symmetry precision for automatic path detection. Default: 1e-3
+        manually_defined_path : ase.dft.kpoints.BandPath, optional
+            Manually defined band path. If None, uses automatic detection.
+            
+        Returns
+        -------
+        q : ndarray
+            Normalized q-point coordinates (0 to 1)
+        Q : ndarray
+            Positions of high-symmetry points
+        point_names : list
+            Names of high-symmetry points
+        freqs_plot : ndarray
+            Phonon frequencies along path
+        vel_norm_plot : ndarray
+            Group velocity norms along path
+        vel_plot : ndarray
+            Full velocity vectors along path
+        """
+        atoms = self.phonons.atoms
+        if self.phonons.is_nw:
+            q = np.linspace(0, 0.5, n_k_points)
+            k_list = np.zeros((n_k_points, 3))
+            k_list[:, 0] = q
+            k_list[:, 2] = q
+            Q = [0, 0.5]
+            point_names = ['$\\Gamma$', 'X']
+        else:
+            try:
+                k_list, Q, point_names = self._create_k_and_symmetry_space(
+                    atoms, n_k_points=n_k_points, symprec=symprec, manually_defined_path=manually_defined_path)
+                q = np.linspace(0, 1, k_list.shape[0])
+            except seekpath.hpkot.SymmetryDetectionError as err:
+                logging.warning(f"Symmetry detection error: {err}. Using default path.")
+                q = np.linspace(0, 0.5, n_k_points)
+                k_list = np.zeros((n_k_points, 3))
+                k_list[:, 0] = q
+                k_list[:, 2] = q
+                Q = [0, 0.5]
+                point_names = ['$\\Gamma$', 'X']
+
+        freqs_plot = []
+        vel_plot = []
+        vel_norm_plot = []
+        for q_point in k_list:
+            phonon = HarmonicWithQ(q_point, self.phonons.forceconstants.second,
+                                   distance_threshold=self.phonons.forceconstants.distance_threshold,
+                                   storage='memory',
+                                   is_nw=self.phonons.is_nw,
+                                   is_unfolding=self.phonons.is_unfolding)
+            freqs_plot.append(phonon.frequency.flatten())
+            vel_value = phonon.velocity[0]
+            vel_plot.append(vel_value)
+            vel_norm_plot.append(np.linalg.norm(vel_value, axis=-1))
+
+        freqs_plot = np.array(freqs_plot)
+        vel_plot = np.array(vel_plot)
+        vel_norm_plot = np.array(vel_norm_plot)
+        
+        return q, Q, point_names, freqs_plot, vel_norm_plot, vel_plot
     def _calculate_dos(self, p_atoms_list=None, p_atoms_labels=None, direction=None, 
                        bandwidth=0.05, n_points=200):
         """Calculate density of states (DOS) or projected DOS (PDOS) for multiple atom sets.
@@ -336,7 +407,8 @@ class _Plotter:
         else:
             plt.close()
 
-    def plot_dos(self, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos'):
+    def plot_dos(self, p_atoms=None, p_atoms_labels=None, direction=None, bandwidth=.05, n_points=200, 
+                 is_showing=True, filename='dos', figsize=(8, 6)):
         """Produce a plot of phonon density of states (DOS) or projected phonon DOS (PDOS).
 
         Parameters
@@ -346,6 +418,9 @@ class _Plotter:
             species for multi-element systems, or calculates total DOS for single-element systems.
             Providing a list of atom indices returns single PDOS summed over those atoms.
             Providing a list of lists returns one PDOS for each set of indices.
+        p_atoms_labels : list of str, optional
+            Labels for each atom set in p_atoms for DOS legend. If None, uses chemical 
+            symbols for multi-element systems.
         direction : array_like, optional
             3-vector direction for DOS projection. If None, sums over all Cartesian directions.
         bandwidth : float
@@ -357,6 +432,9 @@ class _Plotter:
             Whether to display the plot. Default: True
         filename : str
             Output filename (without extension). Default: 'dos'
+        figsize : tuple
+            Figure size (width, height) in inches. Default: (8, 6) for publication.
+            Use (8, 6) for larger presentations.
         """
         # Convert single list to list of lists for unified handling
         if p_atoms is None:
@@ -372,39 +450,66 @@ class _Plotter:
         if not os.path.exists(folder):
             os.makedirs(folder)
 
+        # Load kaldo style guide if available
+        style_file = os.path.join(os.path.dirname(__file__), 'kaldo_style_guide.mpl')
+        if os.path.exists(style_file):
+            plt.style.use(style_file)
+        
+        # Additional style settings
+        plt.rcParams['text.usetex'] = False
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['mathtext.fontset'] = 'cm'
+
         # Use unified DOS calculation method
-        dos_data, _ = self._calculate_dos(p_atoms_list, p_atoms_labels=None,
-                                          direction=direction, bandwidth=bandwidth,
-                                          n_points=n_points)
+        dos_data, p_atoms_labels = self._calculate_dos(p_atoms_list, p_atoms_labels=p_atoms_labels,
+                                                        direction=direction, bandwidth=bandwidth,
+                                                        n_points=n_points)
 
         if not dos_data:
             logging.error('Failed to calculate DOS')
             return
 
         # Save and plot the DOS
-        fig = plt.figure()
-        for fgrid, pdos in dos_data:
+        fig = plt.figure(figsize=figsize)
+        ax = fig.gca()
+        self._set_fig_properties([ax])
+        
+        colors = ['#E24A33', '#348ABD', '#988ED5', '#777777', '#FBC15E', '#8EBA42']
+        for idx, (fgrid, pdos) in enumerate(dos_data):
             np.save(folder + f'/{filename}.npy', np.vstack((fgrid, pdos)))
+            color = colors[idx % len(colors)]
+            label = p_atoms_labels[idx] if idx < len(p_atoms_labels) else None
             for p in np.expand_dims(pdos, 0) if pdos.ndim == 1 else pdos:
-                plt.plot(fgrid, p)
+                plt.plot(fgrid, p, c=color, label=label)
+                label = None
 
-        plt.xlabel("$\\nu$ (THz)", fontsize=16)
-        plt.ylabel('DOS', fontsize=16)
-        plt.tick_params(axis='both', which='major', labelsize=16)
-        plt.tick_params(axis='both', which='minor', labelsize=16)
-        fig.savefig(folder + f'/{filename}.png')
+        plt.xlabel("Frequency (THz)")
+        plt.ylabel('DOS')
+        if p_atoms_labels is not None and len(dos_data) > 1:
+            plt.legend(loc='best')
+        fig.savefig(folder + f'/{filename}.png', dpi=300, bbox_inches='tight')
 
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-    def plot_dispersion(self, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True,
-                        color='b', manually_defined_path=None, folder=None):
-        """Plot phonon dispersion relation and optionally group velocity.
+    def plot_dispersion(self, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
+                        n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True,
+                        manually_defined_path=None, folder=None, figsize=(8, 6)):
+        """Plot phonon dispersion relation and optionally group velocity with DOS panel.
 
         Parameters
         ----------
+        p_atoms_list : list of lists, optional
+            List of atom index sets for projected DOS. If None, plots total DOS.
+        p_atoms_labels : list of str, optional
+            Labels for each atom set in p_atoms_list for DOS legend. If None, uses 'Total'.
+        bandwidth : float
+            Gaussian smearing width for DOS calculation. Default: 0.05
+            Units: THz
+        n_points : int
+            Number of frequency points for DOS. Default: 200
         n_k_points : int
             Number of k-points along the path. Default: 300
         is_showing : bool
@@ -413,81 +518,84 @@ class _Plotter:
             Symmetry precision for automatic path detection. Default: 1e-3
         with_velocity : bool
             Whether to also plot group velocity. Default: True
-        color : str, optional
-            Color for the dispersion lines. Default: 'b'
         manually_defined_path : ase.dft.kpoints.BandPath, optional
             Manually defined band path. If None, uses automatic detection.
         folder : str, optional
             Output folder. If None, uses default from phonons object.
+        figsize : tuple
+            Figure size (width, height) in inches. Default: (8, 6) for publication.
+            Use (8, 6) for larger presentations.
         """
-        atoms = self.phonons.atoms
-        if self.phonons.is_nw:
-            q = np.linspace(0, 0.5, n_k_points)
-            k_list = np.zeros((n_k_points, 3))
-            k_list[:, 0] = q
-            k_list[:, 2] = q
-            Q = [0, 0.5]
-            point_names = ['$\\Gamma$', 'X']
-        else:
-            try:
-                k_list, Q, point_names = self._create_k_and_symmetry_space(
-                    atoms, n_k_points=n_k_points, symprec=symprec, manually_defined_path=manually_defined_path)
-                q = np.linspace(0, 1, k_list.shape[0])
-            except seekpath.hpkot.SymmetryDetectionError as err:
-                logging.warning(f"Symmetry detection error: {err}. Using default path.")
-                q = np.linspace(0, 0.5, n_k_points)
-                k_list = np.zeros((n_k_points, 3))
-                k_list[:, 0] = q
-                k_list[:, 2] = q
-                Q = [0, 0.5]
-                point_names = ['$\\Gamma$', 'X']
-
-        freqs_plot = []
-        vel_plot = []
-        vel_norm = []
-        for q_point in k_list:
-            phonon = HarmonicWithQ(q_point, self.phonons.forceconstants.second,
-                                   distance_threshold=self.phonons.forceconstants.distance_threshold,
-                                   storage='memory',
-                                   is_nw=self.phonons.is_nw,
-                                   is_unfolding=self.phonons.is_unfolding)
-            freqs_plot.append(phonon.frequency.flatten())
-            if with_velocity:
-                val_value = phonon.velocity[0]
-                vel_plot.append(val_value)
-                vel_norm.append(np.linalg.norm(val_value, axis=-1))
-
-        freqs_plot = np.array(freqs_plot)
-        if with_velocity:
-            vel_plot = np.array(vel_plot)
-            vel_norm = np.array(vel_norm)
-
-        # Plot dispersion
-        fig1, ax1 = plt.subplots()
-        plt.tick_params(axis='both', which='minor', labelsize=16)
-        plt.ylabel("$\\nu$ (THz)", fontsize=16)
-        plt.xlabel('$q$', fontsize=16)
-        plt.tick_params(axis='both', which='major', labelsize=16)
-        plt.xticks(Q, point_names)
-        plt.xlim(q[0], q[-1])
-        if color is not None:
-            plt.plot(q, freqs_plot, '.', color=color, linewidth=4, markersize=4)
-        else:
-            plt.plot(q, freqs_plot, '.', linewidth=4, markersize=4)
-        plt.grid()
-        plt.ylim(freqs_plot.min(), freqs_plot.max() * 1.05)
-
         if not folder:
             folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
-        fig1.savefig(folder + '/' + 'dispersion' + '.png')
-        np.savetxt(folder + '/' + 'q', q)
-        np.savetxt(folder + '/' + 'dispersion', freqs_plot)
-        np.savetxt(folder + '/' + 'Q_val', Q)
-        np.savetxt(folder + '/' + 'point_names', point_names, fmt='%s')
+        # Load kaldo style guide if available
+        style_file = os.path.join(os.path.dirname(__file__), 'kaldo_style_guide.mpl')
+        if os.path.exists(style_file):
+            plt.style.use(style_file)
+        
+        # Additional style settings
+        plt.rcParams['text.usetex'] = False
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['mathtext.fontset'] = 'cm'
+
+        # Calculate dispersion data using shared method
+        q, Q, point_names, freqs_plot, vel_norm_plot, vel_plot = self._calculate_dispersion_data(
+            n_k_points=n_k_points, symprec=symprec, manually_defined_path=manually_defined_path)
+
+        # By default, plot total DOS (all atoms)
+        if p_atoms_list is None:
+            p_atoms_list = [list(range(self.phonons.n_atoms))]
+            if p_atoms_labels is None:
+                p_atoms_labels = ['Total']
+
+        # Calculate DOS using unified method
+        dos_data, p_atoms_labels = self._calculate_dos(p_atoms_list, p_atoms_labels,
+                                                        direction=None, bandwidth=bandwidth,
+                                                        n_points=n_points)
+
+        # Plot dispersion with DOS panel
+        fig = plt.figure(figsize=figsize)
+        # Create main axes that leave room for DOS panel on the right
+        ax = fig.add_axes([0.125, 0.11, 0.7, 0.77])
+        self._set_fig_properties([ax])
+        plt.sca(ax)
+        plt.plot(q[0], freqs_plot[0, 0], 'r.', ms=2)
+        plt.plot(q, freqs_plot, 'r.', ms=2)
+        plt.axhline(y=0, color='k', ls='-', lw=1)
+        for i in range(1, len(Q)-1):
+            plt.axvline(x=Q[i], ymin=0, ymax=1, ls='--', lw=2, c='k')
+        plt.ylabel('Frequency (THz)')
+        plt.xlabel(r'Wave vector ($\frac{2\pi}{a}$)')
+        plt.xticks(Q, point_names)
+        plt.xlim([Q[0], Q[-1]])
+
+        # Add DOS panel on the right
+        if dos_data:
+            dosax = fig.add_axes([0.85, .11, .13, .77])
+            self._set_fig_properties([dosax])
+            colors = ['#E24A33', '#348ABD', '#988ED5', '#777777', '#FBC15E', '#8EBA42']
+            for idx, (fgrid, pdos) in enumerate(dos_data):
+                color = colors[idx % len(colors)]
+                label = p_atoms_labels[idx] if idx < len(p_atoms_labels) else None
+                for p in np.expand_dims(pdos, 0) if pdos.ndim == 1 else pdos:
+                    dosax.plot(p, fgrid, c=color, label=label)
+                    label = None
+            dosax.set_yticks([])
+            dosax.set_xticks([])
+            dosax.set_xlabel("DOS")
+            dosax.set_ylim(ax.get_ylim())
+            if p_atoms_labels is not None and len(dos_data) > 1:
+                dosax.legend(fontsize=6.5, loc='best')
+
+        plt.savefig(folder + '/dispersion_dos.png', dpi=300, bbox_inches='tight')
+        
+        np.savetxt(folder + '/q', q)
+        np.savetxt(folder + '/dispersion', freqs_plot)
+        np.savetxt(folder + '/Q_val', Q)
+        np.savetxt(folder + '/point_names', point_names, fmt='%s')
 
         if is_showing:
             plt.show()
@@ -497,34 +605,33 @@ class _Plotter:
         # Plot velocity if requested
         if with_velocity:
             for alpha in range(3):
-                np.savetxt(folder + '/' + 'velocity_' + str(alpha), vel_plot[:, :, alpha])
-            fig2, ax2 = plt.subplots()
-            plt.ylabel(r'$|v|(\AA/ps)$', fontsize=16)
-            plt.xlabel('$q$', fontsize=16)
-            plt.tick_params(axis='both', which='major', labelsize=16)
-            plt.tick_params(axis='both', which='minor', labelsize=20)
+                np.savetxt(folder + '/velocity_' + str(alpha), vel_plot[:, :, alpha])
+            
+            fig = plt.figure(figsize=figsize)
+            ax = fig.gca()
+            self._set_fig_properties([ax])
+            plt.plot(q, vel_norm_plot / 10.0, 'r.', ms=2)
+            for i in range(1, len(Q)-1):
+                plt.axvline(x=Q[i], ymin=0, ymax=1, ls='--', lw=2, c='k')
+            plt.ylabel(r'$|v|$ (km/s)')
+            plt.xlabel(r'Wave vector ($\frac{2\pi}{a}$)')
             plt.xticks(Q, point_names)
-            plt.xlim(q[0], q[-1])
-            if color is not None:
-                plt.plot(q, vel_norm[:, :], '.', linewidth=4, markersize=4, color=color)
-            else:
-                plt.plot(q, vel_norm[:, :], '.', linewidth=4, markersize=4)
-
-            plt.grid()
-            plt.tick_params(axis='both', which='major', labelsize=16)
-            fig2.savefig(folder + '/' + 'velocity.png')
-            np.savetxt(folder + '/' + 'velocity_norm',  vel_norm)
+            plt.xlim([Q[0], Q[-1]])
+            plt.savefig(folder + '/velocity.png', dpi=300, bbox_inches='tight')
+            np.savetxt(folder + '/velocity_norm', vel_norm_plot)
+            
             if is_showing:
                 plt.show()
             else:
                 plt.close()
 
     def plot_crystal(self, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                     is_showing=True, n_k_points=300, symprec=1e-3, method='inverse', figsize=(4, 3)):
+                     is_showing=True, n_k_points=300, symprec=1e-3, method='inverse', figsize=(8, 6)):
         """Create comprehensive plots for crystal phonon properties.
 
         Generates a complete set of publication-quality plots including:
         - Dispersion with DOS
+        - Velocity vs q (along high-symmetry path)
         - Heat capacity vs frequency
         - Group velocity vs frequency
         - Phase space vs frequency
@@ -558,7 +665,7 @@ class _Plotter:
         method : str
             Method for conductivity calculation ('rta', 'sc', 'inverse'). Default: 'inverse'
         figsize : tuple
-            Figure size (width, height) in inches. Default: (4, 3) for publication.
+            Figure size (width, height) in inches. Default: (8, 6) for publication.
             Use (8, 6) for larger presentations.
         """
         folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
@@ -582,30 +689,17 @@ class _Plotter:
         physical_mode = self.phonons.physical_mode.flatten()
         frequency = self.phonons.frequency.flatten()
 
-        # Dispersion with DOS
+        # Calculate dispersion and velocity along high-symmetry path using shared method
         if self.phonons.is_nw:
             logging.warning("Comprehensive plotting for nanowires not yet fully supported")
             return
 
         try:
-            atoms = self.phonons.atoms
-            k_list, Q, point_names = self._create_k_and_symmetry_space(atoms, n_k_points=n_k_points,
-                                                                        symprec=symprec)
-            q = np.linspace(0, 1, k_list.shape[0])
+            q, Q, point_names, freqs_plot, vel_norm_plot, _ = self._calculate_dispersion_data(
+                n_k_points=n_k_points, symprec=symprec)
         except Exception as e:
             logging.error(f"Failed to create k-space: {e}")
             return
-
-        # Calculate dispersion
-        freqs_plot = []
-        for q_point in k_list:
-            phonon = HarmonicWithQ(q_point, self.phonons.forceconstants.second,
-                                   distance_threshold=self.phonons.forceconstants.distance_threshold,
-                                   storage='memory',
-                                   is_nw=self.phonons.is_nw,
-                                   is_unfolding=self.phonons.is_unfolding)
-            freqs_plot.append(phonon.frequency.flatten())
-        freqs_plot = np.array(freqs_plot)
 
         # Calculate DOS using unified method
         dos_data, p_atoms_labels = self._calculate_dos(p_atoms_list, p_atoms_labels,
@@ -616,8 +710,8 @@ class _Plotter:
         fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
-        plt.plot(q[0], freqs_plot[0, 0], 'r-', ms=1)
-        plt.plot(q, freqs_plot, 'r-', ms=1)
+        plt.plot(q[0], freqs_plot[0, 0], 'r.', ms=2)
+        plt.plot(q, freqs_plot, 'r.', ms=2)
         plt.axhline(y=0, color='k', ls='-', lw=1)
         for i in range(1, len(Q)-1):
             plt.axvline(x=Q[i], ymin=0, ymax=1, ls='--', lw=2, c='k')
@@ -645,6 +739,23 @@ class _Plotter:
                 dosax.legend(fontsize=6.5, loc='best')
 
         plt.savefig(folder + '/dispersion_dos.png', dpi=300, bbox_inches='tight')
+        if is_showing:
+            plt.show()
+        else:
+            plt.close()
+
+        # Velocity vs q (along high-symmetry path)
+        fig = plt.figure(figsize=figsize)
+        ax = fig.gca()
+        self._set_fig_properties([ax])
+        plt.plot(q, vel_norm_plot / 10.0, 'r.', ms=2)
+        for i in range(1, len(Q)-1):
+            plt.axvline(x=Q[i], ymin=0, ymax=1, ls='--', lw=2, c='k')
+        plt.ylabel(r'$|v|$ (km/s)')
+        plt.xlabel(r'Wave vector ($\frac{2\pi}{a}$)')
+        plt.xticks(Q, point_names)
+        plt.xlim([Q[0], Q[-1]])
+        plt.savefig(folder + '/velocity_vs_q.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
@@ -817,7 +928,7 @@ class _Plotter:
         logging.info(f"Plots saved to {folder} (κ = {kappa_total:.1f} W/m·K)")
 
     def plot_amorphous(self, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                       is_showing=True, method='qhgk', figsize=(4, 3)):
+                       is_showing=True, method='qhgk', figsize=(8, 6)):
         """Create comprehensive plots for amorphous phonon properties.
 
         Generates a complete set of publication-quality plots including:
@@ -852,7 +963,7 @@ class _Plotter:
         method : str
             Method for conductivity calculation. Default: 'qhgk' (appropriate for amorphous)
         figsize : tuple
-            Figure size (width, height) in inches. Default: (4, 3) for publication.
+            Figure size (width, height) in inches. Default: (8, 6) for publication.
             Use (8, 6) for larger presentations.
         """
         folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
@@ -1122,7 +1233,8 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     plotter.plot_vs_frequency(observable, observable_name, is_showing)
 
 
-def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200, is_showing=True, filename='dos'):
+def plot_dos(phonons, p_atoms=None, p_atoms_labels=None, direction=None, bandwidth=.05, n_points=200,
+             is_showing=True, filename='dos', figsize=(8, 6)):
     """Produce a plot of phonon density of states (DOS) or projected phonon DOS (PDOS).
 
     Parameters
@@ -1131,6 +1243,8 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
         Phonons object
     p_atoms : list or list of lists, optional
         Atom indices for projected DOS
+    p_atoms_labels : list of str, optional
+        Labels for each atom set in p_atoms for DOS legend
     direction : array_like, optional
         3-vector direction for DOS projection
     bandwidth : float
@@ -1141,19 +1255,31 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
         Whether to display the plot. Default: True
     filename : str
         Output filename. Default: 'dos'
+    figsize : tuple
+        Figure size (width, height) in inches. Default: (8, 6)
     """
     plotter = _Plotter(phonons)
-    plotter.plot_dos(p_atoms, direction, bandwidth, n_points, is_showing, filename)
+    plotter.plot_dos(p_atoms, p_atoms_labels, direction, bandwidth, n_points, is_showing, filename, figsize)
 
 
-def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True,
-                    color='b', manually_defined_path=None, folder=None):
-    """Plot phonon dispersion relation and optionally group velocity.
+def plot_dispersion(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
+                    n_k_points=300, is_showing=True, symprec=1e-3, with_velocity=True,
+                    manually_defined_path=None, folder=None, figsize=(8, 6)):
+    """Plot phonon dispersion relation and optionally group velocity with DOS panel.
 
     Parameters
     ----------
     phonons : Phonons
         Phonons object
+    p_atoms_list : list of lists, optional
+        List of atom index sets for projected DOS. If None, automatically groups
+        by chemical species for multi-element systems.
+    p_atoms_labels : list of str, optional
+        Labels for each atom set in p_atoms_list for DOS legend
+    bandwidth : float
+        Gaussian smearing width for DOS calculation. Default: 0.05
+    n_points : int
+        Number of frequency points for DOS. Default: 200
     n_k_points : int
         Number of k-points along the path. Default: 300
     is_showing : bool
@@ -1162,19 +1288,21 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with
         Symmetry precision. Default: 1e-3
     with_velocity : bool
         Whether to also plot group velocity. Default: True
-    color : str
-        Color for dispersion lines. Default: 'b'
     manually_defined_path : ase.dft.kpoints.BandPath, optional
         Manually defined band path
     folder : str, optional
         Output folder
+    figsize : tuple
+        Figure size (width, height) in inches. Default: (8, 6)
     """
     plotter = _Plotter(phonons)
-    plotter.plot_dispersion(n_k_points, is_showing, symprec, with_velocity, color, manually_defined_path, folder)
+    plotter.plot_dispersion(p_atoms_list, p_atoms_labels, bandwidth, n_points,
+                           n_k_points, is_showing, symprec, with_velocity,
+                           manually_defined_path, folder, figsize)
 
 
 def plot_crystal(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                 is_showing=True, n_k_points=300, symprec=1e-3, method='inverse', figsize=(4, 3)):
+                 is_showing=True, n_k_points=300, symprec=1e-3, method='inverse', figsize=(8, 6)):
     """Create comprehensive plots for crystal phonon properties.
 
     Parameters
@@ -1200,14 +1328,14 @@ def plot_crystal(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05,
     method : str
         Method for conductivity calculation. Default: 'inverse'
     figsize : tuple
-        Figure size (width, height) in inches. Default: (4, 3)
+        Figure size (width, height) in inches. Default: (8, 6)
     """
     plotter = _Plotter(phonons)
     plotter.plot_crystal(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, n_k_points, symprec, method, figsize)
 
 
 def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200, is_showing=True,
-                   method='qhgk', figsize=(4, 3)):
+                   method='qhgk', figsize=(8, 6)):
     """Create comprehensive plots for amorphous phonon properties.
 
     Parameters
@@ -1229,7 +1357,7 @@ def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.0
     method : str
         Method for conductivity calculation. Default: 'qhgk'
     figsize : tuple
-        Figure size (width, height) in inches. Default: (4, 3)
+        Figure size (width, height) in inches. Default: (8, 6)
     """
     plotter = _Plotter(phonons)
     plotter.plot_amorphous(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, method, figsize)
