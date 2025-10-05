@@ -109,7 +109,8 @@ class ForceConstants:
                     third_supercell: tuple[int, int, int] | None = None,
                     is_acoustic_sum: bool = False,
                     only_second: bool = False,
-                    distance_threshold: float | None = None):
+                    distance_threshold: float | None = None,
+                    chunk_size: int = 100000):
         """
         Create a finite difference object from a folder
 
@@ -147,6 +148,10 @@ class ForceConstants:
         is_acoustic_sum : Bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
+        chunk_size : int, optional
+            Number of entries to process per chunk when reading sparse third order files.
+            Larger values use more memory but may be faster for very large files.
+            Default: 100000
 
         Returns
         -------
@@ -179,7 +184,7 @@ class ForceConstants:
             if third_supercell is None:
                 third_supercell = supercell
             third_order = ThirdOrder.load(folder=folder, supercell=third_supercell, format=third_format,
-                                          third_energy_threshold=third_energy_threshold)
+                                          third_energy_threshold=third_energy_threshold, chunk_size=chunk_size)
 
             forceconstants.third = third_order
 
