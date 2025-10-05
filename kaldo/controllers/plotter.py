@@ -1,5 +1,5 @@
 """
-Plotter module for visualizing phonon properties.
+_Plotter module for visualizing phonon properties.
 
 References
 ----------
@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import seekpath
 from scipy import ndimage
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.conductivity import Conductivity
 from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
@@ -29,9 +30,22 @@ logging = get_logger()
 BUFFER_PLOT = .2
 DEFAULT_FOLDER = 'plots'
 
+# Public API - use these functions directly
+__all__ = [
+    'plot_vs_frequency',
+    'plot_dos',
+    'plot_dispersion',
+    'plot_crystal',
+    'plot_amorphous',
+]
 
-class Plotter:
-    """Visualization toolkit for phonon properties.
+
+class _Plotter:
+    """Internal visualization toolkit for phonon properties.
+
+    Note: This class is internal. Users should use the module-level functions
+    like plot_crystal(), plot_amorphous(), plot_dos(), etc. instead of
+    instantiating this class directly.
 
     This class provides comprehensive plotting capabilities for phonon dispersion,
     density of states, thermal conductivity, and other phonon-related properties.
@@ -47,19 +61,15 @@ class Plotter:
 
     Examples
     --------
-    Using class-based interface:
-    >>> plotter = Plotter(phonons)
-    >>> plotter.plot_dispersion(is_showing=False)
-    >>> plotter.plot_dos(is_showing=False)
-
-    Using functional interface (backward compatible):
-    >>> from kaldo.controllers.plotter import plot_dispersion, plot_dos
+    This class is internal - users should use module-level functions:
+    >>> from kaldo.controllers.plotter import plot_dispersion, plot_dos, plot_crystal
     >>> plot_dispersion(phonons, is_showing=False)
     >>> plot_dos(phonons, is_showing=False)
+    >>> plot_crystal(phonons, figsize=(8, 6))
     """
 
     def __init__(self, phonons, backend=None, style=None):
-        """Initialize Plotter with phonons object.
+        """Initialize _Plotter with phonons object.
 
         Parameters
         ----------
@@ -110,7 +120,7 @@ class Plotter:
         Can use Fourier and/or spline interpolation.
         """
         if fourier_order:
-            observable = Plotter._resample_fourier(observable, increase_factor=fourier_order).real
+            observable = _Plotter._resample_fourier(observable, increase_factor=fourier_order).real
 
         k_size = np.array(observable.shape)
         if is_wrapping:
@@ -147,7 +157,7 @@ class Plotter:
             bandpath = manually_defined_path
         else:
             # Use auto-detect scheme
-            spg_struct = Plotter._convert_to_spg_structure(atoms)
+            spg_struct = _Plotter._convert_to_spg_structure(atoms)
             autopath = seekpath.get_path(spg_struct, symprec=symprec)
             path_cleaned = []
             for edge in autopath['path']:
@@ -228,35 +238,6 @@ class Plotter:
             for t in ax.yaxis.get_ticklines():
                 t.set_color(panel_color_str)
                 t.set_linewidth(line_width)
-
-    @staticmethod
-    def _cumulative_cond_wrt_observable(observables, kappa_tensor, prefactor=1/3):
-        """Compute cumulative conductivity based on observable (frequency or mean-free path).
-
-        Parameters
-        ----------
-        observables : ndarray
-            Either phonon frequency or mean-free path
-        kappa_tensor : ndarray
-            Conductivity tensor
-        prefactor : float
-            Prefactor to average kappa tensor, 1/3 for bulk material. Default: 1/3
-
-        Returns
-        -------
-        observables_sorted : ndarray
-            Sorted phonon frequency or mean-free path
-        kappa_cumulative : ndarray
-            Cumulative conductivity
-        """
-        # Sum over kappa by directions
-        kappa = np.einsum('maa->m', prefactor * kappa_tensor)
-
-        # Sort observables
-        observables_argsort_indices = np.argsort(observables)
-        cumulative_kappa = np.cumsum(kappa[observables_argsort_indices])
-        return observables[observables_argsort_indices], cumulative_kappa
-
     def _calculate_dos(self, p_atoms_list=None, p_atoms_labels=None, direction=None, 
                        bandwidth=0.05, n_points=200):
         """Calculate density of states (DOS) or projected DOS (PDOS) for multiple atom sets.
@@ -267,10 +248,12 @@ class Plotter:
         Parameters
         ----------
         p_atoms_list : list of lists, optional
-            List of atom index sets for projected DOS. If None, uses all atoms.
-            Each element is a list of atom indices to sum over.
+            List of atom index sets for projected DOS. If None, automatically groups 
+            by chemical species for multi-element systems, or uses all atoms for 
+            single-element systems.
         p_atoms_labels : list of str, optional
-            Labels for each atom set in p_atoms_list. If None, uses 'Total' for all.
+            Labels for each atom set in p_atoms_list. If None, uses chemical symbols
+            for multi-element systems or 'Total' for single-element systems.
         direction : array_like, optional
             3-vector direction for DOS projection. If None, sums over all Cartesian directions.
         bandwidth : float
@@ -286,9 +269,26 @@ class Plotter:
         labels : list of str
             List of labels corresponding to each DOS dataset
         """
-        # Set defaults
+        # Automatically infer p_atoms_list and labels from atoms object if not provided
         if p_atoms_list is None:
-            p_atoms_list = [list(range(self.phonons.n_atoms))]
+            symbols = self.phonons.atoms.get_chemical_symbols()
+            unique_species = list(dict.fromkeys(symbols))  # Preserve order
+            
+            # For multi-element systems, group by species
+            if len(unique_species) > 1:
+                p_atoms_list = []
+                p_atoms_labels = []
+                for species in unique_species:
+                    indices = [i for i, s in enumerate(symbols) if s == species]
+                    p_atoms_list.append(indices)
+                    p_atoms_labels.append(species)
+            else:
+                # Single-element system: use all atoms
+                p_atoms_list = [list(range(self.phonons.n_atoms))]
+                if p_atoms_labels is None:
+                    p_atoms_labels = ['Total']
+        
+        # Set default labels if not provided
         if p_atoms_labels is None:
             p_atoms_labels = ['Total'] * len(p_atoms_list)
 
@@ -342,7 +342,8 @@ class Plotter:
         Parameters
         ----------
         p_atoms : list or list of lists, optional
-            Atom indices for projected DOS. If None, calculates total DOS.
+            Atom indices for projected DOS. If None, automatically groups by chemical 
+            species for multi-element systems, or calculates total DOS for single-element systems.
             Providing a list of atom indices returns single PDOS summed over those atoms.
             Providing a list of lists returns one PDOS for each set of indices.
         direction : array_like, optional
@@ -519,7 +520,7 @@ class Plotter:
                 plt.close()
 
     def plot_crystal(self, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                     is_showing=True, n_k_points=300, symprec=1e-3, method='inverse'):
+                     is_showing=True, n_k_points=300, symprec=1e-3, method='inverse', figsize=(4, 3)):
         """Create comprehensive plots for crystal phonon properties.
 
         Generates a complete set of publication-quality plots including:
@@ -537,10 +538,12 @@ class Plotter:
         Parameters
         ----------
         p_atoms_list : list of lists, optional
-            List of atom index sets for projected DOS. If None, uses all atoms.
+            List of atom index sets for projected DOS. If None, automatically groups 
+            by chemical species for multi-element systems, or uses all atoms for 
+            single-element systems.
         p_atoms_labels : list of str, optional
-            Labels for each atom set in p_atoms_list for DOS legend.
-            If None, no legend is shown in DOS panel.
+            Labels for each atom set in p_atoms_list for DOS legend. If None, uses 
+            chemical symbols for multi-element systems.
         bandwidth : float
             Gaussian smearing width for DOS calculation. Default: 0.05
             Units: THz
@@ -554,32 +557,32 @@ class Plotter:
             Symmetry precision for dispersion calculation. Default: 1e-3
         method : str
             Method for conductivity calculation ('rta', 'sc', 'inverse'). Default: 'inverse'
+        figsize : tuple
+            Figure size (width, height) in inches. Default: (4, 3) for publication.
+            Use (8, 6) for larger presentations.
         """
-        from kaldo.conductivity import Conductivity
-
         folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        # Set publication-quality plot defaults
-        aw = 2
-        fs = 12
-        font = {'size': fs}
-        plt.rc('font', **font)
-        plt.rc('axes', linewidth=aw)
+        # Load kaldo style guide if available
+        style_file = os.path.join(os.path.dirname(__file__), 'kaldo_style_guide.mpl')
+        if os.path.exists(style_file):
+            plt.style.use(style_file)
+        
+        # Additional style settings
         plt.rcParams['text.usetex'] = False
         plt.rcParams['font.family'] = 'serif'
         plt.rcParams['mathtext.fontset'] = 'cm'
 
         # Calculate conductivity for mean free path and kappa plots
-        logging.info(f"Calculating conductivity using {method} method...")
         conductivity = Conductivity(phonons=self.phonons, method=method, storage='memory')
 
         # Get flattened data
         physical_mode = self.phonons.physical_mode.flatten()
         frequency = self.phonons.frequency.flatten()
 
-        # ===== Plot 1: Dispersion with DOS =====
+        # Dispersion with DOS
         if self.phonons.is_nw:
             logging.warning("Comprehensive plotting for nanowires not yet fully supported")
             return
@@ -610,16 +613,16 @@ class Plotter:
                                                         n_points=n_points)
 
         # Plot dispersion with DOS panel
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.plot(q[0], freqs_plot[0, 0], 'r-', ms=1)
         plt.plot(q, freqs_plot, 'r-', ms=1)
-        plt.axhline(y=0, color='k', ls='-', lw=1)  # Line at y=0
+        plt.axhline(y=0, color='k', ls='-', lw=1)
         for i in range(1, len(Q)-1):
             plt.axvline(x=Q[i], ymin=0, ymax=1, ls='--', lw=2, c='k')
-        plt.ylabel('Frequency (THz)', fontsize=14)
-        plt.xlabel(r'Wave vector ($\frac{2\pi}{a}$)', fontsize=14)
+        plt.ylabel('Frequency (THz)')
+        plt.xlabel(r'Wave vector ($\frac{2\pi}{a}$)')
         plt.xticks(Q, point_names)
         plt.xlim([Q[0], Q[-1]])
 
@@ -627,13 +630,13 @@ class Plotter:
         if dos_data:
             dosax = fig.add_axes([0.91, .11, .17, .77])
             self._set_fig_properties([dosax])
-            colors = ['r', 'm', 'orange', 'c', 'g', 'b']
+            colors = ['#E24A33', '#348ABD', '#988ED5', '#777777', '#FBC15E', '#8EBA42']
             for idx, (fgrid, pdos) in enumerate(dos_data):
                 color = colors[idx % len(colors)]
                 label = p_atoms_labels[idx] if idx < len(p_atoms_labels) else None
                 for p in np.expand_dims(pdos, 0) if pdos.ndim == 1 else pdos:
                     dosax.plot(p, fgrid, c=color, label=label)
-                    label = None  # Only label first curve for each atom set
+                    label = None
             dosax.set_yticks([])
             dosax.set_xticks([])
             dosax.set_xlabel("DOS")
@@ -647,16 +650,16 @@ class Plotter:
         else:
             plt.close()
 
-        # ===== Plot 2: Heat Capacity =====
+        # Heat Capacity
         heat_capacity = self.phonons.heat_capacity.flatten()
         
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], 1e23*heat_capacity[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='8')
-        plt.ylabel(r"$C_{v}$ ($10^{23}$ J/K)", fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='8')
+        plt.ylabel(r"$C_{v}$ ($10^{23}$ J/K)")
+        plt.xlabel('Frequency (THz)')
         y_data = 1e23*heat_capacity[physical_mode]
         y_min, y_max = y_data.min(), y_data.max()
         plt.ylim(0.9*y_min, 1.05*y_max)
@@ -666,82 +669,82 @@ class Plotter:
         else:
             plt.close()
 
-        # ===== Plot 3: Group Velocity =====
+        # Group Velocity
         velocity = self.phonons.velocity.real.reshape(-1, 3)
-        velocity_norm = np.linalg.norm(velocity, axis=1) / 10.0  # Convert Å/ps to km/s
+        velocity_norm = np.linalg.norm(velocity, axis=1) / 10.0
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], velocity_norm[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='^')
-        plt.xlabel('Frequency (THz)', fontsize=14)
-        plt.ylabel(r'$|v|$ (km/s)', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='^')
+        plt.xlabel('Frequency (THz)')
+        plt.ylabel(r'$|v|$ (km/s)')
         plt.savefig(folder + '/velocity.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 4: Phase Space =====
+        # Phase Space
         phase_space = self.phonons.phase_space.flatten()
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], phase_space[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='o')
-        plt.xlabel('Frequency (THz)', fontsize=14)
-        plt.ylabel('Phase space', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='o')
+        plt.xlabel('Frequency (THz)')
+        plt.ylabel('Phase space')
         plt.savefig(folder + '/phasespace.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 5: Lifetime =====
+        # Lifetime
         scattering_rate = self.phonons.bandwidth.flatten()
         lifetime = scattering_rate ** (-1)
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], lifetime[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='s')
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='s')
         plt.yscale('log')
-        plt.ylabel(r'$\tau$ (ps)', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+        plt.ylabel(r'$\tau$ (ps)')
+        plt.xlabel('Frequency (THz)')
         plt.savefig(folder + '/lifetime.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 6: Scattering Rate =====
-        fig = plt.figure(figsize=(4, 3))
+        # Scattering Rate
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], scattering_rate[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='d')
-        plt.ylabel(r'$\Gamma$ (THz)', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='d')
+        plt.ylabel(r'$\Gamma$ (THz)')
+        plt.xlabel('Frequency (THz)')
         plt.savefig(folder + '/gamma.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 7: Mean Free Path =====
-        mean_free_path = conductivity.mean_free_path.reshape(-1, 3) / 10.0  # Convert Å to nm
+        # Mean Free Path
+        mean_free_path = conductivity.mean_free_path.reshape(-1, 3) / 10.0
         mean_free_path_norm = np.linalg.norm(mean_free_path, axis=1)
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], mean_free_path_norm[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='8')
-        plt.ylabel(r'$\lambda$ (nm)', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='8')
+        plt.ylabel(r'$\lambda$ (nm)')
+        plt.xlabel('Frequency (THz)')
         plt.yscale('log')
         plt.savefig(folder + '/mfp.png', dpi=300, bbox_inches='tight')
         if is_showing:
@@ -749,57 +752,61 @@ class Plotter:
         else:
             plt.close()
 
-        # ===== Plot 8: Per-mode Conductivity =====
+        # Per-mode Conductivity
         kappa_tensor = conductivity.conductivity.reshape(self.phonons.n_k_points, self.phonons.n_modes, 3, 3)
         kappa_per_mode = kappa_tensor.sum(axis=-1).sum(axis=-1).flatten()
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], kappa_per_mode[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='>')
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='>')
         plt.axhline(y=0, color='k', ls='--', lw=1)
-        plt.ylabel(r'$\kappa_{per \ mode}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+        plt.ylabel(r'$\kappa_{per \ mode}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$')
+        plt.xlabel('Frequency (THz)')
         plt.savefig(folder + '/kappa_per_mode.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 9: Cumulative Conductivity vs Frequency =====
-        freq_sorted, kappa_cum_wrt_freq = self._cumulative_cond_wrt_observable(
-            frequency, kappa_tensor.reshape(-1, 3, 3))
+        # Cumulative Conductivity vs Frequency
+        # Compute cumulative conductivity vs frequency
+        kappa_freq = np.einsum('maa->m', 1/3 * kappa_tensor.reshape(-1, 3, 3))
+        freq_argsort = np.argsort(frequency)
+        freq_sorted = frequency[freq_argsort]
+        kappa_cum_wrt_freq = np.cumsum(kappa_freq[freq_argsort])
 
         kappa_matrix = kappa_tensor.sum(axis=0).sum(axis=0)
         kappa_total = np.mean(np.diag(kappa_matrix))
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
-        plt.plot(freq_sorted, kappa_cum_wrt_freq, 'r',
+        plt.plot(freq_sorted, kappa_cum_wrt_freq, c='#E24A33',
                  label=r'$\kappa \approx %.0f$ $\frac{\rm{W}}{\rm{m}\cdot\rm{K}}$' % kappa_total)
-        plt.ylabel(r'$\kappa_{cumulative, \omega}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$',
-                   fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
-        plt.legend(loc='best', fontsize=10)
+        plt.ylabel(r'$\kappa_{cumulative, \omega}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$')
+        plt.xlabel('Frequency (THz)')
+        plt.legend(loc='best')
         plt.savefig(folder + '/kappa_cumulative_freq.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 10: Cumulative Conductivity vs Mean Free Path =====
-        lambda_sorted, kappa_cum_wrt_lambda = self._cumulative_cond_wrt_observable(
-            mean_free_path_norm, kappa_tensor.reshape(-1, 3, 3))
+        # Cumulative Conductivity vs Mean Free Path
+        # Compute cumulative conductivity vs mean free path
+        kappa_mfp = np.einsum('maa->m', 1/3 * kappa_tensor.reshape(-1, 3, 3))
+        lambda_argsort = np.argsort(mean_free_path_norm)
+        lambda_sorted = mean_free_path_norm[lambda_argsort]
+        kappa_cum_wrt_lambda = np.cumsum(kappa_mfp[lambda_argsort])
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
-        plt.plot(lambda_sorted, kappa_cum_wrt_lambda, 'r')
-        plt.xlabel(r'$\lambda$ (nm)', fontsize=14)
-        plt.ylabel(r'$\kappa_{cumulative, \lambda}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$',
-                   fontsize=14)
+        plt.plot(lambda_sorted, kappa_cum_wrt_lambda, c='#E24A33')
+        plt.xlabel(r'$\lambda$ (nm)')
+        plt.ylabel(r'$\kappa_{cumulative, \lambda}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$')
         plt.xscale('log')
         plt.savefig(folder + '/kappa_cumulative_mfp.png', dpi=300, bbox_inches='tight')
         if is_showing:
@@ -807,11 +814,10 @@ class Plotter:
         else:
             plt.close()
 
-        logging.info(f"Comprehensive plots saved to {folder}")
-        logging.info(f"Thermal conductivity: {kappa_total:.1f} W/m·K")
+        logging.info(f"Plots saved to {folder} (κ = {kappa_total:.1f} W/m·K)")
 
     def plot_amorphous(self, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                       is_showing=True, method='qhgk'):
+                       is_showing=True, method='qhgk', figsize=(4, 3)):
         """Create comprehensive plots for amorphous phonon properties.
 
         Generates a complete set of publication-quality plots including:
@@ -830,10 +836,12 @@ class Plotter:
         Parameters
         ----------
         p_atoms_list : list of lists, optional
-            List of atom index sets for projected DOS. If None, uses all atoms.
+            List of atom index sets for projected DOS. If None, automatically groups 
+            by chemical species for multi-element systems, or uses all atoms for 
+            single-element systems.
         p_atoms_labels : list of str, optional
-            Labels for each atom set in p_atoms_list for DOS legend.
-            If None, no legend is shown.
+            Labels for each atom set in p_atoms_list for DOS legend. If None, uses 
+            chemical symbols for multi-element systems.
         bandwidth : float
             Gaussian smearing width for DOS calculation. Default: 0.05
             Units: THz
@@ -843,25 +851,25 @@ class Plotter:
             Whether to display plots interactively. Default: True
         method : str
             Method for conductivity calculation. Default: 'qhgk' (appropriate for amorphous)
+        figsize : tuple
+            Figure size (width, height) in inches. Default: (4, 3) for publication.
+            Use (8, 6) for larger presentations.
         """
-        from kaldo.conductivity import Conductivity
-
         folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        # Set publication-quality plot defaults
-        aw = 2
-        fs = 12
-        font = {'size': fs}
-        plt.rc('font', **font)
-        plt.rc('axes', linewidth=aw)
+        # Load kaldo style guide if available
+        style_file = os.path.join(os.path.dirname(__file__), 'kaldo_style_guide.mpl')
+        if os.path.exists(style_file):
+            plt.style.use(style_file)
+        
+        # Additional style settings
         plt.rcParams['text.usetex'] = False
         plt.rcParams['font.family'] = 'serif'
         plt.rcParams['mathtext.fontset'] = 'cm'
 
         # Calculate conductivity for mean free path, diffusivity, and kappa plots
-        logging.info(f"Calculating conductivity using {method} method...")
         # For QHGK method, enable diffusivity calculation by passing bandwidth
         if method == 'qhgk':
             conductivity = Conductivity(phonons=self.phonons, method=method, storage='memory',
@@ -884,42 +892,42 @@ class Plotter:
         else:
             diffusivity = None
 
-        # ===== Plot 1: DOS =====
+        # DOS
         dos_data, p_atoms_labels = self._calculate_dos(p_atoms_list, p_atoms_labels,
                                                         direction=None, bandwidth=bandwidth,
                                                         n_points=n_points)
 
         if dos_data:
-            fig = plt.figure(figsize=(4, 3))
+            fig = plt.figure(figsize=figsize)
             ax = fig.gca()
             self._set_fig_properties([ax])
-            colors = ['r', 'm', 'orange', 'c', 'g', 'b']
+            colors = ['#E24A33', '#348ABD', '#988ED5', '#777777', '#FBC15E', '#8EBA42']
             for idx, (fgrid, pdos) in enumerate(dos_data):
                 color = colors[idx % len(colors)]
                 label = p_atoms_labels[idx] if idx < len(p_atoms_labels) else None
                 for p in np.expand_dims(pdos, 0) if pdos.ndim == 1 else pdos:
                     plt.plot(fgrid, p, c=color, label=label)
-                    label = None  # Only label first curve for each atom set
-            plt.xlabel("Frequency (THz)", fontsize=14)
-            plt.ylabel('DOS', fontsize=14)
+                    label = None
+            plt.xlabel("Frequency (THz)")
+            plt.ylabel('DOS')
             if p_atoms_labels is not None and len(dos_data) > 1:
-                plt.legend(fontsize=10, loc='best')
+                plt.legend(loc='best')
             plt.savefig(folder + '/dos.png', dpi=300, bbox_inches='tight')
             if is_showing:
                 plt.show()
             else:
                 plt.close()
 
-        # ===== Plot 2: Heat Capacity =====
+        # Heat Capacity
         heat_capacity = self.phonons.heat_capacity.flatten()
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], 1e23*heat_capacity[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='8')
-        plt.ylabel(r"$C_{v}$ ($10^{23}$ J/K)", fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='8')
+        plt.ylabel(r"$C_{v}$ ($10^{23}$ J/K)")
+        plt.xlabel('Frequency (THz)')
         y_data = 1e23*heat_capacity[physical_mode]
         y_min, y_max = y_data.min(), y_data.max()
         plt.ylim(0.9*y_min, 1.05*y_max)
@@ -929,14 +937,14 @@ class Plotter:
         else:
             plt.close()
 
-        # ===== Plot 3: Diffusivity =====
+        # Diffusivity
         if diffusivity is not None:
-            fig = plt.figure(figsize=(4, 3))
+            fig = plt.figure(figsize=figsize)
             ax = fig.gca()
             self._set_fig_properties([ax])
-            plt.scatter(frequency[3:], diffusivity[3:], s=5, c='r')
-            plt.xlabel(r'$\nu$ (THz)', fontsize=16)
-            plt.ylabel(r'$D$ (mm$^2$/s)', fontsize=16)
+            plt.scatter(frequency[3:], diffusivity[3:], s=5, c='#E24A33')
+            plt.xlabel(r'$\nu$ (THz)')
+            plt.ylabel(r'$D$ (mm$^2$/s)')
             plt.xlim([0, 25])
             plt.savefig(folder + '/diffusivity.png', dpi=300, bbox_inches='tight')
             if is_showing:
@@ -944,32 +952,32 @@ class Plotter:
             else:
                 plt.close()
 
-        # ===== Plot 4: Phase Space =====
+        # Phase Space
         phase_space = self.phonons.phase_space.flatten()
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], phase_space[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='o')
-        plt.xlabel('Frequency (THz)', fontsize=14)
-        plt.ylabel('Phase space', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='o')
+        plt.xlabel('Frequency (THz)')
+        plt.ylabel('Phase space')
         plt.savefig(folder + '/phasespace.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 5: Participation Ratio =====
+        # Participation Ratio
         try:
             participation_ratio = self.phonons.participation_ratio.flatten()
-            fig = plt.figure(figsize=(4, 3))
+            fig = plt.figure(figsize=figsize)
             ax = fig.gca()
             self._set_fig_properties([ax])
             plt.scatter(frequency[physical_mode], participation_ratio[physical_mode],
-                        facecolor='w', edgecolor='r', s=10, marker='o')
-            plt.ylabel('Participation ratio', fontsize=14)
-            plt.xlabel('Frequency (THz)', fontsize=14)
+                        facecolor='w', edgecolor='#E24A33', s=10, marker='o')
+            plt.ylabel('Participation ratio')
+            plt.xlabel('Frequency (THz)')
             plt.ylim(0, 1.05)
             plt.savefig(folder + '/participation_ratio.png', dpi=300, bbox_inches='tight')
             if is_showing:
@@ -979,51 +987,51 @@ class Plotter:
         except Exception as e:
             logging.warning(f"Failed to plot participation ratio: {e}")
 
-        # ===== Plot 6: Lifetime =====
+        # Lifetime
         scattering_rate = self.phonons.bandwidth.flatten()
         lifetime = scattering_rate ** (-1)
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], lifetime[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='s')
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='s')
         plt.yscale('log')
-        plt.ylabel(r'$\tau$ (ps)', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+        plt.ylabel(r'$\tau$ (ps)')
+        plt.xlabel('Frequency (THz)')
         plt.savefig(folder + '/lifetime.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 7: Scattering Rate =====
-        fig = plt.figure(figsize=(4, 3))
+        # Scattering Rate
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], scattering_rate[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='d')
-        plt.ylabel(r'$\Gamma$ (THz)', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='d')
+        plt.ylabel(r'$\Gamma$ (THz)')
+        plt.xlabel('Frequency (THz)')
         plt.savefig(folder + '/gamma.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 8: Mean Free Path (if available) =====
+        # Mean Free Path (if available)
         try:
-            mean_free_path = conductivity.mean_free_path.reshape(-1, 3) / 10.0  # Convert Å to nm
+            mean_free_path = conductivity.mean_free_path.reshape(-1, 3) / 10.0
             mean_free_path_norm = np.linalg.norm(mean_free_path, axis=1)
             has_mfp = True
             
-            fig = plt.figure(figsize=(4, 3))
+            fig = plt.figure(figsize=figsize)
             ax = fig.gca()
             self._set_fig_properties([ax])
             plt.scatter(frequency[physical_mode], mean_free_path_norm[physical_mode],
-                        facecolor='w', edgecolor='r', s=10, marker='8')
-            plt.ylabel(r'$\lambda$ (nm)', fontsize=14)
-            plt.xlabel('Frequency (THz)', fontsize=14)
+                        facecolor='w', edgecolor='#E24A33', s=10, marker='8')
+            plt.ylabel(r'$\lambda$ (nm)')
+            plt.xlabel('Frequency (THz)')
             plt.yscale('log')
             plt.savefig(folder + '/mfp.png', dpi=300, bbox_inches='tight')
             if is_showing:
@@ -1032,57 +1040,60 @@ class Plotter:
                 plt.close()
         except:
             has_mfp = False
-            logging.info(f"Mean free path not available for {method} method")
 
-        # ===== Plot 9: Per-mode Conductivity =====
-        fig = plt.figure(figsize=(4, 3))
+        # Per-mode Conductivity
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
         plt.scatter(frequency[physical_mode], kappa_per_mode[physical_mode],
-                    facecolor='w', edgecolor='r', s=10, marker='>')
+                    facecolor='w', edgecolor='#E24A33', s=10, marker='>')
         plt.axhline(y=0, color='k', ls='--', lw=1)
-        plt.ylabel(r'$\kappa_{per \ mode}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$', fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
+        plt.ylabel(r'$\kappa_{per \ mode}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$')
+        plt.xlabel('Frequency (THz)')
         plt.savefig(folder + '/kappa_per_mode.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 10: Cumulative Conductivity vs Frequency =====
-        freq_sorted, kappa_cum_wrt_freq = self._cumulative_cond_wrt_observable(
-            frequency, kappa_tensor.reshape(-1, 3, 3))
+        # Cumulative Conductivity vs Frequency
+        # Compute cumulative conductivity vs frequency
+        kappa_freq = np.einsum('maa->m', 1/3 * kappa_tensor.reshape(-1, 3, 3))
+        freq_argsort = np.argsort(frequency)
+        freq_sorted = frequency[freq_argsort]
+        kappa_cum_wrt_freq = np.cumsum(kappa_freq[freq_argsort])
 
         kappa_matrix = kappa_tensor.sum(axis=0).sum(axis=0)
         kappa_total = np.mean(np.diag(kappa_matrix))
 
-        fig = plt.figure(figsize=(4, 3))
+        fig = plt.figure(figsize=figsize)
         ax = fig.gca()
         self._set_fig_properties([ax])
-        plt.plot(freq_sorted, kappa_cum_wrt_freq, 'r',
+        plt.plot(freq_sorted, kappa_cum_wrt_freq, c='#E24A33',
                  label=r'$\kappa \approx %.0f$ $\frac{\rm{W}}{\rm{m}\cdot\rm{K}}$' % kappa_total)
-        plt.ylabel(r'$\kappa_{cumulative, \omega}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$',
-                   fontsize=14)
-        plt.xlabel('Frequency (THz)', fontsize=14)
-        plt.legend(loc='best', fontsize=10)
+        plt.ylabel(r'$\kappa_{cumulative, \omega}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$')
+        plt.xlabel('Frequency (THz)')
+        plt.legend(loc='best')
         plt.savefig(folder + '/kappa_cumulative_freq.png', dpi=300, bbox_inches='tight')
         if is_showing:
             plt.show()
         else:
             plt.close()
 
-        # ===== Plot 11: Cumulative Conductivity vs Mean Free Path (if available) =====
+        # Cumulative Conductivity vs Mean Free Path (if available)
         if has_mfp:
-            lambda_sorted, kappa_cum_wrt_lambda = self._cumulative_cond_wrt_observable(
-                mean_free_path_norm, kappa_tensor.reshape(-1, 3, 3))
+            # Compute cumulative conductivity vs mean free path
+            kappa_mfp = np.einsum('maa->m', 1/3 * kappa_tensor.reshape(-1, 3, 3))
+            lambda_argsort = np.argsort(mean_free_path_norm)
+            lambda_sorted = mean_free_path_norm[lambda_argsort]
+            kappa_cum_wrt_lambda = np.cumsum(kappa_mfp[lambda_argsort])
 
-            fig = plt.figure(figsize=(4, 3))
+            fig = plt.figure(figsize=figsize)
             ax = fig.gca()
             self._set_fig_properties([ax])
-            plt.plot(lambda_sorted, kappa_cum_wrt_lambda, 'r')
-            plt.xlabel(r'$\lambda$ (nm)', fontsize=14)
-            plt.ylabel(r'$\kappa_{cumulative, \lambda}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$',
-                       fontsize=14)
+            plt.plot(lambda_sorted, kappa_cum_wrt_lambda, c='#E24A33')
+            plt.xlabel(r'$\lambda$ (nm)')
+            plt.ylabel(r'$\kappa_{cumulative, \lambda}$ $\left(\frac{\rm{W}}{\rm{m}\cdot\rm{K}}\right)$')
             plt.xscale('log')
             plt.savefig(folder + '/kappa_cumulative_mfp.png', dpi=300, bbox_inches='tight')
             if is_showing:
@@ -1090,13 +1101,8 @@ class Plotter:
             else:
                 plt.close()
 
-        logging.info(f"Comprehensive amorphous plots saved to {folder}")
-        logging.info(f"Thermal conductivity: {kappa_total:.1f} W/m·K")
+        logging.info(f"Plots saved to {folder} (κ = {kappa_total:.1f} W/m·K)")
 
-
-# ========================================
-# Module-level functions for backward compatibility
-# ========================================
 
 def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     """Create scatter plot of observable vs phonon frequency.
@@ -1112,7 +1118,7 @@ def plot_vs_frequency(phonons, observable, observable_name, is_showing=True):
     is_showing : bool
         Whether to display the plot. Default: True
     """
-    plotter = Plotter(phonons)
+    plotter = _Plotter(phonons)
     plotter.plot_vs_frequency(observable, observable_name, is_showing)
 
 
@@ -1136,7 +1142,7 @@ def plot_dos(phonons, p_atoms=None, direction=None, bandwidth=.05, n_points=200,
     filename : str
         Output filename. Default: 'dos'
     """
-    plotter = Plotter(phonons)
+    plotter = _Plotter(phonons)
     plotter.plot_dos(p_atoms, direction, bandwidth, n_points, is_showing, filename)
 
 
@@ -1163,12 +1169,12 @@ def plot_dispersion(phonons, n_k_points=300, is_showing=True, symprec=1e-3, with
     folder : str, optional
         Output folder
     """
-    plotter = Plotter(phonons)
+    plotter = _Plotter(phonons)
     plotter.plot_dispersion(n_k_points, is_showing, symprec, with_velocity, color, manually_defined_path, folder)
 
 
 def plot_crystal(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                 is_showing=True, n_k_points=300, symprec=1e-3, method='inverse'):
+                 is_showing=True, n_k_points=300, symprec=1e-3, method='inverse', figsize=(4, 3)):
     """Create comprehensive plots for crystal phonon properties.
 
     Parameters
@@ -1176,9 +1182,11 @@ def plot_crystal(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05,
     phonons : Phonons
         Phonons object
     p_atoms_list : list of lists, optional
-        List of atom index sets for projected DOS
+        List of atom index sets for projected DOS. If None, automatically groups
+        by chemical species for multi-element systems.
     p_atoms_labels : list of str, optional
-        Labels for each atom set in p_atoms_list for DOS legend
+        Labels for each atom set in p_atoms_list for DOS legend. If None, uses
+        chemical symbols for multi-element systems.
     bandwidth : float
         Gaussian smearing width. Default: 0.05
     n_points : int
@@ -1191,13 +1199,15 @@ def plot_crystal(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05,
         Symmetry precision. Default: 1e-3
     method : str
         Method for conductivity calculation. Default: 'inverse'
+    figsize : tuple
+        Figure size (width, height) in inches. Default: (4, 3)
     """
-    plotter = Plotter(phonons)
-    plotter.plot_crystal(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, n_k_points, symprec, method)
+    plotter = _Plotter(phonons)
+    plotter.plot_crystal(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, n_k_points, symprec, method, figsize)
 
 
 def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200, is_showing=True,
-                   method='qhgk'):
+                   method='qhgk', figsize=(4, 3)):
     """Create comprehensive plots for amorphous phonon properties.
 
     Parameters
@@ -1205,9 +1215,11 @@ def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.0
     phonons : Phonons
         Phonons object
     p_atoms_list : list of lists, optional
-        List of atom index sets for projected DOS
+        List of atom index sets for projected DOS. If None, automatically groups
+        by chemical species for multi-element systems.
     p_atoms_labels : list of str, optional
-        Labels for each atom set in p_atoms_list for DOS legend
+        Labels for each atom set in p_atoms_list for DOS legend. If None, uses
+        chemical symbols for multi-element systems.
     bandwidth : float
         Gaussian smearing width. Default: 0.05
     n_points : int
@@ -1216,85 +1228,34 @@ def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.0
         Whether to display plots. Default: True
     method : str
         Method for conductivity calculation. Default: 'qhgk'
+    figsize : tuple
+        Figure size (width, height) in inches. Default: (4, 3)
     """
-    plotter = Plotter(phonons)
-    plotter.plot_amorphous(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, method)
-
-
-def plot_crystal_all(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.05, n_points=200,
-                     is_showing=True, n_k_points=300, symprec=1e-3, method='inverse'):
-    """Create comprehensive plots for crystal phonon properties.
-
-    Deprecated: Use plot_crystal instead.
-
-    Parameters
-    ----------
-    phonons : Phonons
-        Phonons object
-    p_atoms_list : list of lists, optional
-        List of atom index sets for projected DOS
-    p_atoms_labels : list of str, optional
-        Labels for each atom set in p_atoms_list for DOS legend
-    bandwidth : float
-        Gaussian smearing width. Default: 0.05
-    n_points : int
-        Number of frequency points for DOS. Default: 200
-    is_showing : bool
-        Whether to display plots. Default: True
-    n_k_points : int
-        Number of k-points for dispersion. Default: 300
-    symprec : float
-        Symmetry precision. Default: 1e-3
-    method : str
-        Method for conductivity calculation. Default: 'inverse'
-    """
-    logging.warning("plot_crystal_all is deprecated. Use plot_crystal instead.")
-    plotter = Plotter(phonons)
-    plotter.plot_crystal(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, n_k_points, symprec, method)
+    plotter = _Plotter(phonons)
+    plotter.plot_amorphous(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, method, figsize)
 
 
 # Legacy helper functions for backward compatibility
 def convert_to_spg_structure(atoms):
     """Convert ASE atoms to spglib structure format."""
-    return Plotter._convert_to_spg_structure(atoms)
+    return _Plotter._convert_to_spg_structure(atoms)
 
 
 def resample_fourier(observable, increase_factor):
     """Resample observable using Fourier interpolation."""
-    return Plotter._resample_fourier(observable, increase_factor)
+    return _Plotter._resample_fourier(observable, increase_factor)
 
 
 def interpolator(k_list, observable, fourier_order=0, interpolation_order=0, is_wrapping=True):
     """Interpolate observable on k-point list."""
-    return Plotter._interpolator(k_list, observable, fourier_order, interpolation_order, is_wrapping)
+    return _Plotter._interpolator(k_list, observable, fourier_order, interpolation_order, is_wrapping)
 
 
 def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05, manually_defined_path=None):
     """Create k-point path and symmetry labels for band structure plotting."""
-    return Plotter._create_k_and_symmetry_space(atoms, n_k_points, symprec, manually_defined_path)
+    return _Plotter._create_k_and_symmetry_space(atoms, n_k_points, symprec, manually_defined_path)
 
 
 def set_fig_properties(ax_list, panel_color_str='black', line_width=2):
     """Apply consistent formatting to matplotlib axes."""
-    Plotter._set_fig_properties(ax_list, panel_color_str, line_width)
-
-
-def cumulative_cond_wrt_observable(observables, kappa_tensor, prefactor=1/3):
-    """Compute cumulative conductivity based on observable."""
-    return Plotter._cumulative_cond_wrt_observable(observables, kappa_tensor, prefactor)
-
-
-def cumulative_cond_cal(freq, full_cond, n_phonons):
-    """Legacy function for cumulative conductivity calculation.
-
-    Deprecated: Use cumulative_cond_wrt_observable instead.
-    """
-    logging.warning("cumulative_cond_cal is deprecated. Use cumulative_cond_wrt_observable instead.")
-    conductivity = np.einsum('maa->m', 1/3 * full_cond)
-    conductivity = conductivity.reshape(n_phonons)
-    cumulative_cond = np.zeros_like(conductivity)
-    freq_reshaped = freq.reshape(n_phonons)
-    for mu in range(cumulative_cond.size):
-        single_cumulative_cond = conductivity[(freq_reshaped < freq_reshaped[mu])].sum()
-        cumulative_cond[mu] = single_cumulative_cond
-    return cumulative_cond
+    _Plotter._set_fig_properties(ax_list, panel_color_str, line_width)
