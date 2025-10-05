@@ -39,7 +39,8 @@ class ThirdOrder(ForceConstant):
              folder: str,
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = 'sparse',
-             third_energy_threshold: float = 0.):
+             third_energy_threshold: float = 0.,
+             chunk_size: int = 100000):
         """
         Load thrid order force constants from a folder in the given format, used for library internally.
 
@@ -58,7 +59,11 @@ class ThirdOrder(ForceConstant):
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
             the threshold value in magnitude are ignored. Units: eV/A^3
-            Default: None
+            Default: `None`
+        chunk_size : int, optional
+            Number of entries to process per chunk when reading sparse third order files.
+            Larger values use more memory but may be faster for very large files.
+            Default: 100000
 
         Returns
         -------
@@ -121,7 +126,8 @@ class ThirdOrder(ForceConstant):
                 out = import_from_files(replicated_atoms=replicated_atoms,
                                         third_file=third_file,
                                         supercell=supercell,
-                                        third_energy_threshold=third_energy_threshold)
+                                        third_energy_threshold=third_energy_threshold,
+                                        chunk_size=chunk_size)
                 third_order = ThirdOrder(atoms=atoms,
                                          replicated_positions=replicated_atoms.positions,
                                          supercell=supercell,
