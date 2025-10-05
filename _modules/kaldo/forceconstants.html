@@ -1336,7 +1336,8 @@
                     <span class="n">third_supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                     <span class="n">only_second</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                    <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                    <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100000</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a finite difference object from a folder</span>
 
@@ -1374,6 +1375,10 @@
 <span class="sd">        is_acoustic_sum : Bool, optional</span>
 <span class="sd">            If true, the acoustic sum rule is applied to the dynamical matrix.</span>
 <span class="sd">            Default is False</span>
+<span class="sd">        chunk_size : int, optional</span>
+<span class="sd">            Number of entries to process per chunk when reading sparse third order files.</span>
+<span class="sd">            Larger values use more memory but may be faster for very large files.</span>
+<span class="sd">            Default: 100000</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1406,7 +1411,7 @@
             <span class="k">if</span> <span class="n">third_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">supercell</span>
             <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">third_supercell</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">third_format</span><span class="p">,</span>
-                                          <span class="n">third_energy_threshold</span><span class="o">=</span><span class="n">third_energy_threshold</span><span class="p">)</span>
+                                          <span class="n">third_energy_threshold</span><span class="o">=</span><span class="n">third_energy_threshold</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span>
 
             <span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span> <span class="o">=</span> <span class="n">third_order</span>
 
