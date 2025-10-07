@@ -1,5 +1,3 @@
-from kaldo.observables.secondorder import SecondOrder
-from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
