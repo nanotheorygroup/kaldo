@@ -895,6 +895,9 @@ class Phonons(Storable):
         normal_modes = eigensystem[:, 1:, :]
         frequency = np.real(np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.))
 
+        # Get physical mode mask to filter out acoustic modes at Gamma and other non-physical modes
+        physical_mode = self.physical_mode
+
         fmin, fmax = frequency.min(), frequency.max()
 
         f_grid = np.linspace(0.9 * fmin, 1.1 * fmax, n_points)
@@ -936,8 +939,9 @@ class Phonons(Storable):
             for i in range(n_points):
                 x = (frequency - f_grid[i]) / np.sqrt(bandwidth)
                 amp = stats.norm.pdf(x)
+                # Apply physical mode mask when summing
                 for j in range(proj.shape[1]):
-                    p_dos[ip, i] += np.sum(amp * proj[:, j, :])
+                    p_dos[ip, i] += np.sum(amp * proj[:, j, :] * physical_mode)
 
             # TODO: np.trapz is deprecated in numpy 2.0+, but np.trapezoid does not exist before numpy 2.0. migrate it after this function gets removed. 
             p_dos[ip] *= 3 * n_atoms / np.trapz(p_dos[ip], f_grid)
