@@ -332,8 +332,8 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_participation_ratio(self):
         n_atoms = self.n_modes // 3
-        eigensystem = self._eigensystem[1:, :]
-        eigenvectors = tf.transpose(eigensystem)
+        eigenvectors = self._eigensystem[1:, :]
+        eigenvectors = tf.transpose(eigenvectors)
         eigenvectors = np.reshape(eigenvectors, (self.n_modes, n_atoms, 3))
         conjugate = tf.math.conj(eigenvectors)
         participation_ratio = tf.math.reduce_sum(eigenvectors*conjugate, axis=2)
