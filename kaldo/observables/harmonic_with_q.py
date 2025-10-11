@@ -136,9 +136,6 @@ class HarmonicWithQ(Observable, Storable):
             _eigensystem = self.calculate_eigensystem_unfolded(only_eigenvals=False)
         else:
             _eigensystem = self.calculate_eigensystem(only_eigenvals=False)
-        # Ensure shape is always (n_modes+1, n_modes) by removing leading dimension if present
-        if _eigensystem.ndim == 3 and _eigensystem.shape[0] == 1:
-            _eigensystem = _eigensystem[0]
         return _eigensystem
 
     @lazy_property(label='<q_point>')
