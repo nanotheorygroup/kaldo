@@ -498,19 +498,42 @@ class Phonons(Storable):
     @lazy_property(label='<temperature>')
     def free_energy(self):
         """
-        Harmonic **thermal** free energy, already Brillouin-zone averaged,
-        returned in eV per mode (ZPE not included).
+        Harmonic free energy, already Brillouin-zone averaged,
+        returned in meV per mode (including zero-point energy).
+        
+        Formula: F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2
+        
+        where:
+            k_B: Boltzmann constant
+            T: temperature
+            hbar: reduced Planck constant
+            omega: angular frequency (2*pi*frequency)
         """
+        # At T=0, F = ZPE only (thermal contribution vanishes)
+        if self.temperature == 0:
+            return self.zero_point_harmonic_energy * self.n_k_points / self.n_k_points
+        
         x_vals = units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / (units._k * self.temperature)
-        ln_term = np.log1p(-np.exp(-x_vals))  # ln(1 − e^{-x})
-        f_cell = 1000.0 / units._e * units._k * self.temperature * ln_term
+        ln_term = np.zeros_like(x_vals)
+        
+        # Only calculate for physical modes to avoid log(0) issues with low-frequency modes
+        physical = self.physical_mode.reshape(self.frequency.shape)
+        ln_term[physical] = np.log1p(-np.exp(-x_vals[physical]))  # ln(1 − e^{-x})
+        
+        # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T)))
+        thermal_part = 1000.0 / units._e * units._k * self.temperature * ln_term
+        
+        # Zero-point energy: use the existing method to avoid code duplication
+        zpe_part = self.zero_point_harmonic_energy * self.n_k_points
+        
+        f_cell = thermal_part + zpe_part
         return f_cell / self.n_k_points
 
     @lazy_property(label='')
     def zero_point_harmonic_energy(self):
         """
         Harmonic zero-point energy, Brillouin-zone averaged,
-        returned in eV per mode.
+        returned in meV per mode.
         """
         zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e15 / units._e
         return zpe_cell / self.n_k_points
