@@ -1,11 +1,12 @@
 # Setup
-Please use the "unpack.sh" bash script to unpack the force constants
+Please use the "0_unpack.sh" bash script to unpack the force constants
+>> bash 0_unpack.sh 
+If you prefer untar the file yourself, copy the POSCAR and FORCE_CONSTANTS_THIRD file
+from the forces directory to the forces_no_charges directory as well.
 
 # Running
-Execute the python scripts in order to generate the harmonic quantities,
-then plot them!
-    >> This generates a plot to compare velocities and frequencies along
-    >> the chosen path.
+Execute 1_run_simulation.py to calculate both corrected and uncorrected quantities.
 
-Execute the anharmonic script to output the thermal conductivity in
-both RTA and full inversion for both the NAC and uncorrected forces.
+# Reference Plots
+Copies of the plots that should be output by the scripts are available in the tools/refs.plots.tgz
+archive if you'd like to check your example came out correctly.
