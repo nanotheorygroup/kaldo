@@ -57,17 +57,28 @@ def test_eigensystem_shape(phonons):
     
     This test catches the bug where _eigensystem could have shape (1, n_modes+1, n_modes)
     instead of (n_modes+1, n_modes) after being stored and loaded from disk.
+    Uses third_bandwidth=0 for fast testing.
     """
     # Access a HarmonicWithQ object at gamma point
     from kaldo.observables.harmonic_with_q import HarmonicWithQ
     
+    # Create a quick phonons object with third_bandwidth=0 for fast testing
+    quick_phonons = Phonons(
+        forceconstants=phonons.forceconstants,
+        is_classic=False,
+        temperature=300,
+        third_bandwidth=0.0,
+        broadening_shape="triangle",
+        storage="memory",
+    )
+    
     q_point = np.array([0., 0., 0.])
     phonon = HarmonicWithQ(
         q_point=q_point,
-        second=phonons.forceconstants.second,
-        distance_threshold=phonons.forceconstants.distance_threshold,
-        folder=phonons.folder,
-        storage=phonons.storage,
+        second=quick_phonons.forceconstants.second,
+        distance_threshold=quick_phonons.forceconstants.distance_threshold,
+        folder=quick_phonons.folder,
+        storage=quick_phonons.storage,
         is_amorphous=True
     )
     
