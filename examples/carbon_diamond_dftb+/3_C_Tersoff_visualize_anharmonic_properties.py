@@ -10,7 +10,6 @@ from ase.calculators.lammpslib import LAMMPSlib
 from kaldo.conductivity import Conductivity
 from kaldo.controllers import plotter
 from kaldo.forceconstants import ForceConstants
-from kaldo.helpers.storage import get_folder_from_label
 from kaldo.phonons import Phonons
 import matplotlib.pyplot as plt
 import numpy as np
@@ -78,7 +77,7 @@ phonons = Phonons(forceconstants=forceconstants, **phonons_config)
 
 # Define the base folder to contain plots
 # 'base_folder':name of the base folder
-folder = get_folder_from_label(phonons, base_folder='plots')
+folder = phonons._get_folder_from_label(base_folder='plots')
 if not os.path.exists(folder):
     os.makedirs(folder)
 

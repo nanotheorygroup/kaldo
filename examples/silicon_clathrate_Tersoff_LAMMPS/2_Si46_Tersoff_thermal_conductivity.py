@@ -10,7 +10,6 @@ from kaldo.conductivity import Conductivity
 from kaldo.controllers import plotter
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
-from kaldo.helpers.storage import get_folder_from_label
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -62,7 +61,7 @@ print(rta_cond_matrix)
 
 # Define the base folder to contain plots
 # 'base_folder':name of the base folder
-folder = get_folder_from_label(phonons, base_folder='plots')
+folder = phonons._get_folder_from_label(base_folder='plots')
 if not os.path.exists(folder):
   os.makedirs(folder)
 
