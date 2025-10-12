@@ -499,44 +499,70 @@ class Phonons(Storable):
     def free_energy(self):
         """
         Harmonic free energy, already Brillouin-zone averaged,
-        returned in meV per mode (including zero-point energy).
-        
+        returned in eV per mode (including zero-point energy).
+
         Formula: F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2
-        
+
         where:
             k_B: Boltzmann constant
             T: temperature
             hbar: reduced Planck constant
             omega: angular frequency (2*pi*frequency)
+
+        Returns
+        -------
+        ndarray
+            Free energy array with shape matching frequency array. Non-physical modes
+            (including acoustic modes at Gamma point and modes with imaginary frequencies)
+            have zero free energy in the returned array.
+
+        Notes
+        -----
+        - At T=0, only the zero-point energy contributes (thermal term vanishes)
+        - Modes with imaginary frequencies (negative frequency values) are automatically
+          excluded and will trigger a warning, as they may indicate structural instability
         """
         # At T=0, F = ZPE only (thermal contribution vanishes)
         if self.temperature == 0:
-            return self.zero_point_harmonic_energy * self.n_k_points / self.n_k_points
-        
+            return self.zero_point_harmonic_energy
+
+        # Check for imaginary frequencies (negative values)
+        has_imaginary = np.any(self.frequency < 0)
+        if has_imaginary:
+            n_imaginary = np.sum(self.frequency < 0)
+            logging.warning(
+                f"Found {n_imaginary} modes with imaginary frequencies (negative values). "
+                f"These modes will be excluded from free energy calculation. "
+                f"This may indicate structural instability."
+            )
+
         x_vals = units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / (units._k * self.temperature)
         ln_term = np.zeros_like(x_vals)
-        
-        # Only calculate for physical modes to avoid log(0) issues with low-frequency modes
+
+        # Only calculate for physical modes with positive frequencies
+        # This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies
         physical = self.physical_mode.reshape(self.frequency.shape)
-        ln_term[physical] = np.log1p(-np.exp(-x_vals[physical]))  # ln(1 − e^{-x})
-        
-        # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T)))
-        thermal_part = 1000.0 / units._e * units._k * self.temperature * ln_term
-        
-        # Zero-point energy: use the existing method to avoid code duplication
+        valid_modes = physical & (self.frequency > 0)
+        ln_term[valid_modes] = np.log1p(-np.exp(-x_vals[valid_modes]))  # ln(1 − e^{-x})
+
+        # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in meV
+        thermal_part_meV = 1000.0 / units._e * units._k * self.temperature * ln_term
+
+        # Zero-point energy: use the existing method to avoid code duplication (in eV)
         zpe_part = self.zero_point_harmonic_energy * self.n_k_points
-        
-        f_cell = thermal_part + zpe_part
+
+        # Convert thermal part from meV to eV and combine
+        f_cell = thermal_part_meV / 1000.0 + zpe_part
         return f_cell / self.n_k_points
 
     @lazy_property(label='')
     def zero_point_harmonic_energy(self):
         """
         Harmonic zero-point energy, Brillouin-zone averaged,
-        returned in meV per mode.
+        returned in eV per mode.
         """
-        zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e15 / units._e
-        return zpe_cell / self.n_k_points
+        zpe_cell_meV = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e15 / units._e
+        return zpe_cell_meV / self.n_k_points / 1000.0
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
