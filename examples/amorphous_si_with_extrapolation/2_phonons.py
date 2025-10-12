@@ -12,7 +12,7 @@ def phononics(ge_concentration='0'):
 
 	# Set up Forceconstants Object
 	folder_string = 'structures/1728_atom/aSiGe_C'+ge_concentration+'/'
-	atoms = read(folder_string+'replicated_atoms.xyz',format='xyz')
+	atoms = read(folder_string+'replicated_atoms.xyz')
 
 	forceconstants = ForceConstants(atoms=atoms,
 		folder=folder_string+'/ald')
