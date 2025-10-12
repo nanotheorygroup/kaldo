@@ -25,5 +25,5 @@ def test_phonon_free_energy(phonons):
     free_energy = phonons.free_energy[physical_mode].sum()
     # Free energy now includes zero-point energy: F = k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2
     # At 300K, ZPE dominates over thermal contribution, giving positive total free energy
-    # Expected range in meV for Si at 300K with ZPE included
-    assert 90 < free_energy < 95, f"Unexpected free energy: {free_energy} meV"
+    # Expected range in eV for Si at 300K with ZPE included
+    assert 0.090 < free_energy < 0.095, f"Unexpected free energy: {free_energy} eV"

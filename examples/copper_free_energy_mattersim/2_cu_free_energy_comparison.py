@@ -141,11 +141,8 @@ def calculate_kaldo_free_energy(
             storage="numpy",
         )
 
-        # Extract free energy for physical modes only
-        physical_mode = phonons.physical_mode.reshape(phonons.frequency.shape)
-
-        # Convert from meV per mode to eV per atom
-        f_vib = phonons.free_energy[physical_mode].sum() / 1000.0 / n_atoms
+        # Sum free energy over all modes and divide by number of atoms
+        f_vib = phonons.free_energy.sum() / n_atoms
         free_energies[i] = f_vib
 
     print(f"  Complete! F(T=0) = {free_energies[0]:.6f} eV/atom")
@@ -201,20 +198,16 @@ def calculate_phonopy_free_energy(
     if has_imag:
         print("Warning: Phonopy found imaginary frequencies!")
 
-    # Calculate thermal properties
-    max_temp = temperatures[-1]
-    phonons.run_thermal_properties(0, max_temp)
+    # Calculate thermal properties at the requested temperatures
+    phonons.run_thermal_properties(temperatures=temperatures)
 
-    # Extract free energies
-    temps, free_energy, entropy, cv = phonons.thermal_properties.thermal_properties
+    # Extract free energies (Phonopy returns: temps, free_energy, entropy, cv)
+    _, free_energy, _, _ = phonons.thermal_properties.thermal_properties
 
     # Convert from kJ/mol to eV/atom
-    # Phonopy outputs in kJ/mol, we need eV/primitive_cell then eV/atom
-    free_energy_eV = free_energy * units.kJ / units._Nav  # kJ/mol -> eV/primitive_cell
-    free_energy_eV /= len(phonons.primitive.positions)    # eV/primitive_cell -> eV/atom
-
-    # Interpolate to match requested temperatures
-    free_energies = np.interp(temperatures, temps, free_energy_eV)
+    # Phonopy outputs in kJ/mol per primitive cell
+    free_energies = free_energy * units.kJ / units._Nav  # kJ/mol -> eV/primitive_cell
+    free_energies /= len(phonons.primitive.positions)    # eV/primitive_cell -> eV/atom
 
     print(f"  Complete! F(T=0) = {free_energies[0]:.6f} eV/atom")
 
@@ -251,8 +244,9 @@ def plot_comparison(
     ax1.legend(fontsize=11)
     ax1.grid(True, alpha=0.3)
 
-    # Plot 2: Relative free energy (entropy contribution)
-    ax2 = ax2
+    # Plot 2: Relative free energy
+    # Note: This is only the entropy contribution if temperatures[0] = 0
+    # (since F(0) = ZPE only, with no thermal part)
     kaldo_rel = kaldo_energies - kaldo_energies[0]
     phonopy_rel = phonopy_energies - phonopy_energies[0]
     ax2.plot(temperatures, kaldo_rel, 'o-', linewidth=2, markersize=8,
@@ -261,8 +255,14 @@ def plot_comparison(
              label='Phonopy', color='C1', alpha=0.8)
     ax2.axhline(y=0, color='k', linestyle='--', alpha=0.3)
     ax2.set_xlabel('Temperature (K)', fontsize=12)
-    ax2.set_ylabel('$\Delta F$ (eV/atom)', fontsize=12)
-    ax2.set_title('Entropy Contribution (F - F$_0$)', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('$\\Delta F$ (eV/atom)', fontsize=12)
+    
+    # Set title based on whether we start from T=0
+    if temperatures[0] == 0:
+        title = 'Entropy Contribution (F - F$_0$)'
+    else:
+        title = f'Relative Free Energy (F - F({temperatures[0]:.0f}K))'
+    ax2.set_title(title, fontsize=14, fontweight='bold')
     ax2.legend(fontsize=11)
     ax2.grid(True, alpha=0.3)
 

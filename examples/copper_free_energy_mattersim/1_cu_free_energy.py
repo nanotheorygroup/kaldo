@@ -150,12 +150,8 @@ def calculate_vibrational_free_energy(
             storage="numpy",   # Cache results for faster recomputation
         )
 
-        # Extract free energy for physical modes only
-        # (excludes acoustic modes at Gamma point and non-physical modes)
-        physical_mode = phonons.physical_mode.reshape(phonons.frequency.shape)
-
-        # free_energy is in meV per mode, so convert to eV per atom
-        f_vib = phonons.free_energy[physical_mode].sum() / 1000.0 / n_atoms
+        # Sum free energy over all modes and divide by number of atoms
+        f_vib = phonons.free_energy.sum() / n_atoms
         free_energies[i] = f_vib
 
         print(f"  T = {T:3d} K: F_vib = {f_vib:.6f} eV/atom")
