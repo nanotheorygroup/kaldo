@@ -3,7 +3,8 @@ Vibrational Free Energy Calculation for Copper using kALDo and MatterSim
 
 This example demonstrates how to calculate the vibrational free energy
 of a copper crystal using kALDo with the MatterSim machine learning potential.
-The free energy includes both the zero-point energy and thermal contributions.
+The vibrational free energy includes both the zero-point energy and thermal contributions,
+which does not include the potential energy from machine learning potential. 
 
 The calculation uses the harmonic approximation:
     F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2

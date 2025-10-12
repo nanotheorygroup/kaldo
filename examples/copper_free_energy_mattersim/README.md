@@ -1,6 +1,6 @@
 # `copper_free_energy_mattersim`
 
-This example demonstrates how to calculate the vibrational free energy of a copper crystal using kALDo with the MatterSim machine learning potential.
+This example demonstrates how to calculate the vibrational free energy of a copper crystal using kALDo with the MatterSim machine learning potential. Note that the vibrational free energy does not include the potential energy from the machine learning potential. 
 
 ## Overview
 
