@@ -185,11 +185,7 @@ class ForceConstants:
 
         # initialize third order force
         if not only_second:
-            if format == 'numpy':
-                third_format = 'sparse'
-            else:
-                third_format = format
-            third_order = ThirdOrder.load(folder=folder, supercell=forceconstants.third_supercell, format=third_format,
+            third_order = ThirdOrder.load(folder=folder, supercell=forceconstants.third_supercell, format=format,
                                           third_energy_threshold=third_energy_threshold, chunk_size=chunk_size)
 
             forceconstants.third = third_order
