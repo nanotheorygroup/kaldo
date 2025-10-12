@@ -545,14 +545,14 @@ class Phonons(Storable):
         valid_modes = physical & (self.frequency > 0)
         ln_term[valid_modes] = np.log1p(-np.exp(-x_vals[valid_modes]))  # ln(1 − e^{-x})
 
-        # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in meV
-        thermal_part_meV = 1000.0 / units._e * units._k * self.temperature * ln_term
+        # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in eV
+        thermal_part_eV = 1.0 / units._e * units._k * self.temperature * ln_term
 
         # Zero-point energy: use the existing method to avoid code duplication (in eV)
         zpe_part = self.zero_point_harmonic_energy * self.n_k_points
 
-        # Convert thermal part from meV to eV and combine
-        f_cell = thermal_part_meV / 1000.0 + zpe_part
+        # Combine thermal and zero-point energy contributions
+        f_cell = thermal_part_eV + zpe_part
         return f_cell / self.n_k_points
 
     @lazy_property(label='')
@@ -561,8 +561,8 @@ class Phonons(Storable):
         Harmonic zero-point energy, Brillouin-zone averaged,
         returned in eV per mode.
         """
-        zpe_cell_meV = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e15 / units._e
-        return zpe_cell_meV / self.n_k_points / 1000.0
+        zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / units._e
+        return zpe_cell / self.n_k_points
 
 
     @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')

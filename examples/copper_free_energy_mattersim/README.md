@@ -174,16 +174,10 @@ The kALDo implementation should give similar results to Phonopy (typically withi
 - Same displacement amplitude/finite difference step
 
 ### Key Implementation Differences
-- **Internal units**: kALDo uses meV internally and converts to eV; Phonopy uses kJ/mol
+- **Internal units**: kALDo uses eV internally and converts to eV; Phonopy uses kJ/mol
 - **Mode filtering**: kALDo explicitly filters physical modes to exclude acoustic modes at Γ
 - **Primitive cell**: Phonopy automatically finds the primitive cell; kALDo uses the input cell
 - **Formula**: Both use the same harmonic free energy formula
-
-### Typical Results
-For copper at 300 K with a 16×16×16 k-point mesh:
-- Absolute difference: < 0.5 meV/atom
-- Relative difference: < 1%
-- Best agreement at low temperatures where quantum effects dominate
 
 ## Notes
 
