@@ -93,10 +93,6 @@ class ForceConstants:
                                                       folder=self.folder)
         return self._second
 
-    @second.setter
-    def second(self, value):
-        self._second = value
-
     @property
     def third(self):
         if self._third is None:
@@ -105,10 +101,6 @@ class ForceConstants:
                                                     grid_type='C',
                                                     folder=self.folder)
         return self._third
-
-    @third.setter
-    def third(self, value):
-        self._third = value
 
     @classmethod
     def from_folder(cls,
@@ -181,14 +173,14 @@ class ForceConstants:
                              distance_threshold=distance_threshold)
 
         # initialize second order force
-        forceconstants.second = second_order
+        forceconstants._second = second_order
 
         # initialize third order force
         if not only_second:
             third_order = ThirdOrder.load(folder=folder, supercell=forceconstants.third_supercell, format=format,
                                           third_energy_threshold=third_energy_threshold, chunk_size=chunk_size)
 
-            forceconstants.third = third_order
+            forceconstants._third = third_order
 
         return forceconstants
 
