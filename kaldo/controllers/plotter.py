@@ -37,6 +37,7 @@ __all__ = [
     'plot_dispersion',
     'plot_crystal',
     'plot_amorphous',
+    'plot_qha',
 ]
 
 
@@ -1361,6 +1362,138 @@ def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.0
     """
     plotter = _Plotter(phonons)
     plotter.plot_amorphous(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, method, figsize)
+
+
+def plot_qha(qha_results, folder=None, is_showing=True, figsize=(8, 6)):
+    """Create comprehensive plots for Quasi-Harmonic Approximation results.
+
+    Generates publication-quality plots including:
+    - Free energy vs temperature
+    - Lattice constant(s) vs temperature
+    - Linear thermal expansion coefficient(s) vs temperature
+    - Volumetric thermal expansion coefficient vs temperature (if applicable)
+
+    Parameters
+    ----------
+    qha_results : dict
+        Results dictionary from calculate_qha() containing QHA calculation results
+    folder : str, optional
+        Output folder for plots. If None, uses 'qha_plots'. Default: None
+    is_showing : bool
+        Whether to display plots interactively. Default: True
+    figsize : tuple
+        Figure size (width, height) in inches. Default: (8, 6)
+
+    Examples
+    --------
+    >>> from kaldo.quasiharmonic import calculate_qha
+    >>> from kaldo.controllers.plotter import plot_qha
+    >>> results = calculate_qha(atoms, calculator, temperatures=np.linspace(0, 300, 11))
+    >>> plot_qha(results, folder='qha_plots', is_showing=True)
+    """
+    if folder is None:
+        folder = 'qha_plots'
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    # Load kaldo style guide if available
+    style_file = os.path.join(os.path.dirname(__file__), 'kaldo_style_guide.mpl')
+    if os.path.exists(style_file):
+        plt.style.use(style_file)
+
+    # Additional style settings
+    plt.rcParams['text.usetex'] = False
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['mathtext.fontset'] = 'cm'
+
+    # Get data from QHA results dictionary
+    temperatures = qha_results['temperatures']
+    lattice_constants = qha_results['lattice_constants']
+    free_energies = qha_results['free_energies']
+    thermal_expansion = qha_results['thermal_expansion']
+
+    # Determine symmetry from lattice constants shape
+    n_params = lattice_constants.shape[1]
+    symmetry_labels = {1: ['a'], 2: ['a', 'c'], 3: ['a', 'b', 'c']}
+    param_labels = symmetry_labels.get(n_params, [f'param_{i}' for i in range(n_params)])
+
+    # Plot 1: Free Energy vs Temperature
+    fig = plt.figure(figsize=figsize)
+    ax = fig.gca()
+    _Plotter._set_fig_properties([ax])
+    plt.plot(temperatures, free_energies, 'o-', color='#E24A33', markersize=6, linewidth=2)
+    plt.xlabel('Temperature (K)')
+    plt.ylabel('Free energy (eV/atom)')
+    plt.grid(True, alpha=0.3)
+    plt.savefig(os.path.join(folder, 'free_energy.png'), dpi=300, bbox_inches='tight')
+    if is_showing:
+        plt.show()
+    else:
+        plt.close()
+
+    # Plot 2: Lattice Constant(s) vs Temperature
+    fig = plt.figure(figsize=figsize)
+    ax = fig.gca()
+    _Plotter._set_fig_properties([ax])
+    colors = ['#E24A33', '#348ABD', '#988ED5']
+    for i, label in enumerate(param_labels):
+        color = colors[i % len(colors)]
+        plt.plot(temperatures, lattice_constants[:, i], 'o-',
+                color=color, markersize=6, linewidth=2, label=label)
+    plt.xlabel('Temperature (K)')
+    plt.ylabel('Lattice constant (Å)')
+    if n_params > 1:
+        plt.legend(loc='best')
+    plt.grid(True, alpha=0.3)
+    plt.savefig(os.path.join(folder, 'lattice_constants.png'), dpi=300, bbox_inches='tight')
+    if is_showing:
+        plt.show()
+    else:
+        plt.close()
+
+    # Plot 3: Linear Thermal Expansion Coefficient(s) vs Temperature
+    fig = plt.figure(figsize=figsize)
+    ax = fig.gca()
+    _Plotter._set_fig_properties([ax])
+    for i, label in enumerate(param_labels):
+        color = colors[i % len(colors)]
+        # Convert to 10^-6 /K for readability
+        alpha_values = thermal_expansion[:, i] * 1e6
+        plt.plot(temperatures, alpha_values, 'o-',
+                color=color, markersize=6, linewidth=2, label=f'α_{label}')
+    plt.xlabel('Temperature (K)')
+    plt.ylabel(r'$\alpha_L$ ($10^{-6}$ K$^{-1}$)')
+    if n_params > 1:
+        plt.legend(loc='best')
+    plt.grid(True, alpha=0.3)
+    plt.savefig(os.path.join(folder, 'thermal_expansion.png'), dpi=300, bbox_inches='tight')
+    if is_showing:
+        plt.show()
+    else:
+        plt.close()
+
+    # Plot 4: Volumetric Thermal Expansion Coefficient
+    from kaldo.quasiharmonic import get_volumetric_thermal_expansion
+    volumetric_expansion = get_volumetric_thermal_expansion(thermal_expansion)
+    fig = plt.figure(figsize=figsize)
+    ax = fig.gca()
+    _Plotter._set_fig_properties([ax])
+    # Convert to 10^-6 /K for readability
+    alpha_v_values = volumetric_expansion * 1e6
+    plt.plot(temperatures, alpha_v_values, 'o-',
+            color='#E24A33', markersize=6, linewidth=2)
+    plt.xlabel('Temperature (K)')
+    plt.ylabel(r'$\alpha_V$ ($10^{-6}$ K$^{-1}$)')
+    plt.grid(True, alpha=0.3)
+    plt.savefig(os.path.join(folder, 'volumetric_thermal_expansion.png'),
+               dpi=300, bbox_inches='tight')
+    if is_showing:
+        plt.show()
+    else:
+        plt.close()
+
+    logging.info(f"QHA plots saved to {folder}")
 
 
 # Legacy helper functions for backward compatibility
