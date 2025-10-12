@@ -1267,9 +1267,35 @@
       <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic thermal free energy, already Brillouin-zone averaged, returned in eV per mode (ZPE not included)."><span>free_<wbr>energy</span></span>
+      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic free energy, already Brillouin-zone averaged, returned in eV per mode (including zero-point energy)."><span>free_<wbr>energy</span></span>
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="free_energy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.phonons.Phonons.free_energy-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.phonons.Phonons.free_energy-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -2817,9 +2843,35 @@
       <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic thermal free energy, already Brillouin-zone averaged, returned in eV per mode (ZPE not included)."><span>free_<wbr>energy</span></span>
+      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic free energy, already Brillouin-zone averaged, returned in eV per mode (including zero-point energy)."><span>free_<wbr>energy</span></span>
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="free_energy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.phonons.Phonons.free_energy-returns" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Returns</span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.phonons.Phonons.free_energy-return-type" class="md-nav__link">
+    
+    <span class="md-ellipsis">
+      <span>Return type</span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -3572,8 +3624,32 @@ If quantum it returns the Bose-Einstein distribution</p>
 <dl class="py property objdesc">
 <dt class="sig sig-object highlight py" id="kaldo.phonons.Phonons.free_energy">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_energy</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy" title="Link to this definition">¶</a></dt>
-<dd><p>Harmonic <strong>thermal</strong> free energy, already Brillouin-zone averaged,
-returned in eV per mode (ZPE not included).</p>
+<dd><p>Harmonic free energy, already Brillouin-zone averaged,
+returned in eV per mode (including zero-point energy).</p>
+<p>Formula: F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2</p>
+<dl class="simple">
+<dt>where:</dt><dd><p>k_B: Boltzmann constant
+T: temperature
+hbar: reduced Planck constant
+omega: angular frequency (2*pi*frequency)</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd" id="kaldo.phonons.Phonons.free_energy-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy-returns" title="Permalink to this headline">¶</a></dt>
+<dd class="field-odd"><p>Free energy array with shape matching frequency array. Non-physical modes
+(including acoustic modes at Gamma point and modes with imaginary frequencies)
+have zero free energy in the returned array.</p>
+</dd>
+<dt class="field-even" id="kaldo.phonons.Phonons.free_energy-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy-return-type" title="Permalink to this headline">¶</a></dt>
+<dd class="field-even"><p>ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>At T=0, only the zero-point energy contributes (thermal term vanishes)</p></li>
+<li><p>Modes with imaginary frequencies (negative frequency values) are automatically
+excluded and will trigger a warning, as they may indicate structural instability</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py property objdesc">
