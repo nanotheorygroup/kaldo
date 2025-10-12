@@ -164,17 +164,14 @@ class Storable:
     
     def _add_grid_components(self, base_folder):
         """Add k-point grid or q-point components to folder path."""
-        try:
-            if hasattr(self, 'kpts') and np.prod(self.kpts) > 1:
-                kpts = self.kpts
-                base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
-        except AttributeError:
-            try:
-                if hasattr(self, 'q_point'):
-                    q_point = self.q_point
-                    base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
-            except AttributeError:
-                pass
+        # Check if this is a multi-kpoint system
+        if hasattr(self, 'kpts') and np.prod(self.kpts) > 1:
+            kpts = self.kpts
+            base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+        # Otherwise check if it's a single q-point system
+        elif hasattr(self, 'q_point'):
+            q_point = self.q_point
+            base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
         return base_folder
     
     def _get_folder_path_components(self, label):
