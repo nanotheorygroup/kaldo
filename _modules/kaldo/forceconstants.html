@@ -1235,6 +1235,12 @@
 <span class="n">MAIN_FOLDER</span> <span class="o">=</span> <span class="s1">&#39;displacement&#39;</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_supercell</span><span class="p">(</span><span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">supercell</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="ForceConstants">
 <a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">ForceConstants</span><span class="p">:</span>
@@ -1261,6 +1267,12 @@
 <span class="sd">        If the distance between two atoms exceeds threshold, the interatomic</span>
 <span class="sd">        force is ignored.</span>
 <span class="sd">        Default: None</span>
+<span class="sd">    second_order: SecondOrder, optional</span>
+<span class="sd">        Preloaded second-order force constants attached to the instance.</span>
+<span class="sd">        Default: ``None`` (lazy construction)</span>
+<span class="sd">    third_order: ThirdOrder, optional</span>
+<span class="sd">        Preloaded third-order force constants attached to the instance.</span>
+<span class="sd">        Default: ``None`` (lazy construction)</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -1281,46 +1293,50 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">atoms</span><span class="p">,</span>
-                 <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
                  <span class="n">third_supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">MAIN_FOLDER</span><span class="p">,</span>
-                 <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                 <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MAIN_FOLDER</span><span class="p">,</span>
+                 <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">second_order</span><span class="p">:</span> <span class="n">SecondOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">third_order</span><span class="p">:</span> <span class="n">ThirdOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 
         <span class="c1"># Store the user defined information to the object</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="n">atoms</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">=</span> <span class="n">supercell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">third_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">third_supercell</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_replicated_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cell_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">folder</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">distance_threshold</span> <span class="o">=</span> <span class="n">distance_threshold</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_list_of_replicas</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="c1"># TODO: we should probably remove the following initialization</span>
-        <span class="c1"># * by default do not initialize second order </span>
-        <span class="c1"># * some options here:</span>
-        <span class="c1"># * 1. allow user to use this function</span>
-        <span class="c1"># * 2. directly remove this part</span>
-        <span class="c1"># * 3. now allow user to use supercell and third_supercell, but warn that it is not encouraged</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">supercell</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">folder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Directly use ForceConstants to load data from folder is discouraged with limit </span><span class="se">\</span>
-<span class="s2">                            functionalities. Please use ForceConstants.from_folder for more options.&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">second</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                                     <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
-                                                     <span class="n">grid_type</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">,</span>
-                                                     <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                                                     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">third_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">supercell</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">third</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span>
-                                                   <span class="n">supercell</span><span class="o">=</span><span class="n">third_supercell</span><span class="p">,</span>
-                                                   <span class="n">grid_type</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">,</span>
-                                                   <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_second</span> <span class="o">=</span> <span class="n">second_order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_third</span> <span class="o">=</span> <span class="n">third_order</span>
 
         <span class="k">if</span> <span class="n">distance_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using folded IFC matrices.&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">second</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_second</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># initialize an empty SecondOrder object for computing force constants later.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_second</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span>
+                                                      <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
+                                                      <span class="n">grid_type</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">,</span>
+                                                      <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                                      <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_second</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">third</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_third</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_third</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span>
+                                                    <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">third_supercell</span><span class="p">,</span>
+                                                    <span class="n">grid_type</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">,</span>
+                                                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_third</span>
 
 <div class="viewcode-block" id="ForceConstants.from_folder">
 <a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants.from_folder">[docs]</a>
@@ -1382,37 +1398,37 @@
 <span class="sd">        forceconstants: ForceConstants object</span>
 <span class="sd">            A new instance of the ForceConstants class</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># get atoms first before initialize forceconstants</span>
-        <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span>
+        <span class="n">supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+        <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">third_supercell</span><span class="p">)</span>
+
+        <span class="n">effective_second_format</span> <span class="o">=</span> <span class="nb">format</span>
+        <span class="n">effective_third_format</span> <span class="o">=</span> <span class="nb">format</span>
+
+        <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                                        <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                                        <span class="nb">format</span><span class="o">=</span><span class="n">effective_second_format</span><span class="p">,</span>
                                         <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">)</span>
         <span class="n">atoms</span> <span class="o">=</span> <span class="n">second_order</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">resolved_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">second_order</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
 
-        <span class="c1"># initialize forceconstants object, without initializing second and third</span>
-        <span class="n">forceconstants</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
-                             <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
-                             <span class="n">third_supercell</span><span class="o">=</span><span class="n">third_supercell</span><span class="p">,</span>
-                             <span class="n">folder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                             <span class="n">distance_threshold</span><span class="o">=</span><span class="n">distance_threshold</span><span class="p">)</span>
-        <span class="c1"># overwrite folder</span>
-        <span class="n">forceconstants</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">folder</span>
+        <span class="n">third_order</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">target_third_supercell</span> <span class="o">=</span> <span class="n">third_supercell</span> <span class="ow">or</span> <span class="n">resolved_supercell</span>
 
-        <span class="c1"># initialize second order force</span>
-        <span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span> <span class="o">=</span> <span class="n">second_order</span>
-
-        <span class="c1"># initialize third order force</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">only_second</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
-                <span class="n">third_format</span> <span class="o">=</span> <span class="s1">&#39;sparse&#39;</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">third_format</span> <span class="o">=</span> <span class="nb">format</span>
-            <span class="k">if</span> <span class="n">third_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">supercell</span>
-            <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">third_supercell</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">third_format</span><span class="p">,</span>
-                                          <span class="n">third_energy_threshold</span><span class="o">=</span><span class="n">third_energy_threshold</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span>
+            <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                                          <span class="n">supercell</span><span class="o">=</span><span class="n">target_third_supercell</span><span class="p">,</span>
+                                          <span class="nb">format</span><span class="o">=</span><span class="n">effective_third_format</span><span class="p">,</span>
+                                          <span class="n">third_energy_threshold</span><span class="o">=</span><span class="n">third_energy_threshold</span><span class="p">,</span>
+                                          <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span>
+            <span class="n">target_third_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">third_order</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
 
-            <span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span> <span class="o">=</span> <span class="n">third_order</span>
-
-        <span class="k">return</span> <span class="n">forceconstants</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                   <span class="n">supercell</span><span class="o">=</span><span class="n">resolved_supercell</span><span class="p">,</span>
+                   <span class="n">third_supercell</span><span class="o">=</span><span class="n">target_third_supercell</span><span class="p">,</span>
+                   <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                   <span class="n">distance_threshold</span><span class="o">=</span><span class="n">distance_threshold</span><span class="p">,</span>
+                   <span class="n">second_order</span><span class="o">=</span><span class="n">second_order</span><span class="p">,</span>
+                   <span class="n">third_order</span><span class="o">=</span><span class="n">third_order</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ForceConstants.unfold_third_order">
@@ -1606,9 +1622,6 @@
         <span class="c1"># Return elastic tensor in GPa</span>
         <span class="k">return</span> <span class="n">evperang3togpa</span> <span class="o">*</span> <span class="n">cijkl</span> <span class="o">/</span> <span class="n">ev_to_tenjovermol</span></div>
 </div>
-
-
-
 
 </code></pre></div>
 

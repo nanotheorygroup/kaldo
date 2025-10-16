@@ -1251,7 +1251,7 @@
 <p><strong>Scalable</strong>. In a system of N atoms and N_k k points. kALDo uses (3N)^2 floating point numbers to save the state of the system when using QHGK, (Nk x 3N)^2 for the full solution of the BTE and Nk x 3N^2 when using BTE-RTA.</p>
 <p><strong>Performance</strong>. The bottleneck, and slow part of ALD simulations is the calculation of the phonons lifetimes and the scattering matrix. This step requires projecting the interatomic potential on 3N phonons modes and the algorithm scales like (Nk x 3N)^3, because of the 3 projections on phonons modes. In kALDo such algorithm is implemented as 2 Nk x 3N tensor multiplications of size Nk x (3N)^2 for BTE calculations while 3N^2 for QHGK.</p>
 <p><strong>Open-Source</strong>. Free for the community to use and contribute with edits and suggestion. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.</p>
-<p><img alt="340596a24b4740f5bb6c6872a7f84a93" class="no-scaled-link" src="../_images/features.png" style="width: 650px;" /></p>
+<p><img alt="23bde00a7f2546c9babdc2ce51f7fb40" class="no-scaled-link" src="../_images/features.png" style="width: 650px;" /></p>
 
 
 
