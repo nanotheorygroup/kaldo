@@ -15,6 +15,12 @@ logging = get_logger()
 MAIN_FOLDER = 'displacement'
 
 
+def _normalize_supercell(supercell: tuple[int, int, int] | np.ndarray | None):
+    if supercell is None:
+        return None
+    return tuple(int(value) for value in supercell)
+
+
 class ForceConstants:
     """
     A ForceConstants class object is used to create or load the second or third order force constant matrices as well as
@@ -39,6 +45,12 @@ class ForceConstants:
         If the distance between two atoms exceeds threshold, the interatomic
         force is ignored.
         Default: None
+    second_order: SecondOrder, optional
+        Preloaded second-order force constants attached to the instance.
+        Default: ``None`` (lazy construction)
+    third_order: ThirdOrder, optional
+        Preloaded third-order force constants attached to the instance.
+        Default: ``None`` (lazy construction)
 
     Attributes
     ----------
@@ -59,46 +71,50 @@ class ForceConstants:
     """
     def __init__(self,
                  atoms,
-                 supercell: tuple[int, int, int] | None = None,
+                 supercell: tuple[int, int, int] = (1, 1, 1),
                  third_supercell: tuple[int, int, int] | None = None,
-                 folder: str | None = MAIN_FOLDER,
-                 distance_threshold: float | None = None):
+                 folder: str = MAIN_FOLDER,
+                 distance_threshold: float | None = None,
+                 second_order: SecondOrder | None = None,
+                 third_order: ThirdOrder | None = None):
 
         # Store the user defined information to the object
         self.atoms = atoms
-        self.supercell = supercell
+        self.supercell = _normalize_supercell(supercell)
+        self.third_supercell = _normalize_supercell(third_supercell) or self.supercell
         self.n_atoms = atoms.positions.shape[0]
         self.n_modes = self.n_atoms * 3
-        self.n_replicas = np.prod(supercell)
+        self.n_replicas = np.prod(self.supercell)
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
         self.cell_inv = np.linalg.inv(atoms.cell)
         self.folder = folder
         self.distance_threshold = distance_threshold
         self._list_of_replicas = None
-
-        # TODO: we should probably remove the following initialization
-        # * by default do not initialize second order 
-        # * some options here:
-        # * 1. allow user to use this function
-        # * 2. directly remove this part
-        # * 3. now allow user to use supercell and third_supercell, but warn that it is not encouraged
-        if (supercell is not None) and (folder is not None):
-            logging.warning("Directly use ForceConstants to load data from folder is discouraged with limit \
-                            functionalities. Please use ForceConstants.from_folder for more options.")
-            self.second = SecondOrder.from_supercell(atoms,
-                                                     supercell=self.supercell,
-                                                     grid_type='C',
-                                                     is_acoustic_sum=False,
-                                                     folder=folder)
-            if third_supercell is None:
-                third_supercell = supercell
-            self.third = ThirdOrder.from_supercell(atoms,
-                                                   supercell=third_supercell,
-                                                   grid_type='C',
-                                                   folder=folder)
+        self._second = second_order
+        self._third = third_order
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
+
+    @property
+    def second(self):
+        if self._second is None:
+            # initialize an empty SecondOrder object for computing force constants later.
+            self._second = SecondOrder.from_supercell(self.atoms,
+                                                      supercell=self.supercell,
+                                                      grid_type='C',
+                                                      is_acoustic_sum=False,
+                                                      folder=self.folder)
+        return self._second
+
+    @property
+    def third(self):
+        if self._third is None:
+            self._third = ThirdOrder.from_supercell(self.atoms,
+                                                    supercell=self.third_supercell,
+                                                    grid_type='C',
+                                                    folder=self.folder)
+        return self._third
 
     @classmethod
     def from_folder(cls,
@@ -158,37 +174,37 @@ class ForceConstants:
         forceconstants: ForceConstants object
             A new instance of the ForceConstants class
         """
-        # get atoms first before initialize forceconstants
-        second_order = SecondOrder.load(folder=folder, supercell=supercell, format=format,
+        supercell = _normalize_supercell(supercell)
+        third_supercell = _normalize_supercell(third_supercell)
+
+        effective_second_format = format
+        effective_third_format = format
+
+        second_order = SecondOrder.load(folder=folder,
+                                        supercell=supercell,
+                                        format=effective_second_format,
                                         is_acoustic_sum=is_acoustic_sum)
         atoms = second_order.atoms
+        resolved_supercell = _normalize_supercell(second_order.supercell)
 
-        # initialize forceconstants object, without initializing second and third
-        forceconstants = cls(atoms=atoms,
-                             supercell=supercell,
-                             third_supercell=third_supercell,
-                             folder=None,
-                             distance_threshold=distance_threshold)
-        # overwrite folder
-        forceconstants.folder = folder
+        third_order = None
+        target_third_supercell = third_supercell or resolved_supercell
 
-        # initialize second order force
-        forceconstants.second = second_order
-
-        # initialize third order force
         if not only_second:
-            if format == 'numpy':
-                third_format = 'sparse'
-            else:
-                third_format = format
-            if third_supercell is None:
-                third_supercell = supercell
-            third_order = ThirdOrder.load(folder=folder, supercell=third_supercell, format=third_format,
-                                          third_energy_threshold=third_energy_threshold, chunk_size=chunk_size)
+            third_order = ThirdOrder.load(folder=folder,
+                                          supercell=target_third_supercell,
+                                          format=effective_third_format,
+                                          third_energy_threshold=third_energy_threshold,
+                                          chunk_size=chunk_size)
+            target_third_supercell = _normalize_supercell(third_order.supercell)
 
-            forceconstants.third = third_order
-
-        return forceconstants
+        return cls(atoms=atoms,
+                   supercell=resolved_supercell,
+                   third_supercell=target_third_supercell,
+                   folder=folder,
+                   distance_threshold=distance_threshold,
+                   second_order=second_order,
+                   third_order=third_order)
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
@@ -375,6 +391,3 @@ class ForceConstants:
 
         # Return elastic tensor in GPa
         return evperang3togpa * cijkl / ev_to_tenjovermol
-
-
-
