@@ -72,7 +72,7 @@ class ThirdOrder(ForceConstant):
         """
 
         match format:
-            case 'sparse':
+            case 'sparse' | 'numpy':
                 config_path, _ = detect_path([REPLICATED_ATOMS_THIRD_FILE, REPLICATED_ATOMS_FILE], folder)
                 replicated_atoms = ase.io.read(config_path, format='extxyz')
 
@@ -219,40 +219,41 @@ class ThirdOrder(ForceConstant):
         folder = self.folder
         filename = folder + '/' + filename
         n_atoms = self.atoms.positions.shape[0]
-        if format == 'eskm':
-            logging.info('Exporting third in eskm format')
-            n_replicas = self.n_replicas
-            n_replicated_atoms = n_atoms * n_replicas
-            tenjovermoltoev = 10 * units.J / units.mol
-            third = self.value.reshape((n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)) / tenjovermoltoev
-            with open(filename, 'w') as out_file:
-                for i in range(n_atoms):
-                    for alpha in range(3):
-                        for j in range(n_replicated_atoms):
-                            for beta in range(3):
-                                value = third[i, alpha, j, beta].todense()
-                                mask = np.argwhere(np.linalg.norm(value, axis=1) > min_force)
-                                if mask.any():
-                                    for k in mask:
-                                        k = k[0]
-                                        out_file.write("{:5d} ".format(i + 1))
-                                        out_file.write("{:5d} ".format(alpha + 1))
-                                        out_file.write("{:5d} ".format(j + 1))
-                                        out_file.write("{:5d} ".format(beta + 1))
-                                        out_file.write("{:5d} ".format(k + 1))
-                                        for gamma in range(3):
-                                            out_file.write(' {:16.6f}'.format(third[i, alpha, j, beta, k, gamma]))
-                                        out_file.write('\n')
-            logging.info('Done exporting third.')
-        elif format=='sparse':
-            config_file = folder + REPLICATED_ATOMS_THIRD_FILE
-            ase.io.write(config_file, self.replicated_atoms, format='extxyz')
+        match format:
+            case 'eskm':
+                logging.info('Exporting third in eskm format')
+                n_replicas = self.n_replicas
+                n_replicated_atoms = n_atoms * n_replicas
+                tenjovermoltoev = 10 * units.J / units.mol
+                third = self.value.reshape((n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)) / tenjovermoltoev
+                with open(filename, 'w') as out_file:
+                    for i in range(n_atoms):
+                        for alpha in range(3):
+                            for j in range(n_replicated_atoms):
+                                for beta in range(3):
+                                    value = third[i, alpha, j, beta].todense()
+                                    mask = np.argwhere(np.linalg.norm(value, axis=1) > min_force)
+                                    if mask.any():
+                                        for k in mask:
+                                            k = k[0]
+                                            out_file.write("{:5d} ".format(i + 1))
+                                            out_file.write("{:5d} ".format(alpha + 1))
+                                            out_file.write("{:5d} ".format(j + 1))
+                                            out_file.write("{:5d} ".format(beta + 1))
+                                            out_file.write("{:5d} ".format(k + 1))
+                                            for gamma in range(3):
+                                                out_file.write(' {:16.6f}'.format(third[i, alpha, j, beta, k, gamma]))
+                                            out_file.write('\n')
+                logging.info('Done exporting third.')
+            case 'sparse' | 'numpy':
+                config_file = folder + REPLICATED_ATOMS_THIRD_FILE
+                ase.io.write(config_file, self.replicated_atoms, format='extxyz')
 
-            save_npz(folder + '/' + THIRD_ORDER_FILE_SPARSE, self.value.reshape((n_atoms * 3 * self.n_replicas *
-                                                                           n_atoms * 3, self.n_replicas *
-                                                                           n_atoms * 3)).to_scipy_sparse())
-        else:
-            super(ThirdOrder, self).save(filename, format)
+                save_npz(folder + '/' + THIRD_ORDER_FILE_SPARSE, self.value.reshape((n_atoms * 3 * self.n_replicas *
+                                                                            n_atoms * 3, self.n_replicas *
+                                                                            n_atoms * 3)).to_scipy_sparse())
+            case _:
+                super(ThirdOrder, self).save(filename, format)
 
 
 
