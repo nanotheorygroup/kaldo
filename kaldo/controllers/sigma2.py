@@ -5,7 +5,7 @@ import numpy as np
 from ase.geometry import find_mic
 from ase.io import read
 from sklearn.metrics import mean_squared_error
-from kaldo.observables.secondorder import parse_tdep_forceconstant
+from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
 
 
 def calculate_displacement(atoms, initial_structure):

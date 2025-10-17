@@ -2,6 +2,8 @@
 kaldo
 Anharmonic Lattice Dynamics
 """
+from pathlib import Path
+
 import numpy as np
 from ase.units import Rydberg, Bohr
 from ase import Atoms
@@ -9,6 +11,7 @@ from kaldo.grid import Grid
 from sparse import COO
 from kaldo.helpers.logger import get_logger
 from numpy.typing import ArrayLike
+from kaldo.interfaces.common import ForceConstantData, ensure_replicas
 logging = get_logger()
 
 
@@ -289,6 +292,90 @@ def read_third_d3q(filename: str,
                                            n_replicas * n_unit_atoms * 3,
                                            n_replicas * n_unit_atoms * 3))
         return third_order
+
+
+def load_second_vasp(*, folder: Path, resolved, filenames=("FORCE_CONSTANTS_2ND", "FORCE_CONSTANTS"), **_) -> ForceConstantData:
+    for name in filenames:
+        path = folder / name
+        if path.exists():
+            raw = read_second_order_matrix(str(path), resolved.supercell)
+            break
+    else:
+        qe_path = folder / "espresso.ifc2"
+        if qe_path.exists():
+            return load_second_qe(folder=folder, resolved=resolved, filename="espresso.ifc2")
+        raise FileNotFoundError(f"No FORCE_CONSTANTS_2ND file found in '{folder}'.")
+
+    n_unit = raw.shape[0]
+    n_rep = int(np.prod(resolved.supercell))
+    reshaped = raw.reshape((n_unit, 3, n_rep, n_unit, 3))
+    value = reshaped[np.newaxis, ...]
+    replicas = ensure_replicas(resolved, folder, ("replicated_atoms.xyz", "replicated_atoms_second.xyz"))
+    data = ForceConstantData(
+        order=2,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+        grid_order="F",
+    )
+    if resolved.charges is not None:
+        data.metadata["charges"] = resolved.charges
+    data.metadata["apply_acoustic_sum"] = True
+    return data
+
+
+def load_second_qe(*, folder: Path, resolved, filename: str = "espresso.ifc2", **_) -> ForceConstantData:
+    raw, supercell, charges = read_second_order_qe_matrix(str(folder / filename))
+    n_unit = raw.shape[0]
+    n_rep = int(np.prod(supercell))
+    reshaped = raw.reshape((n_unit, 3, n_rep, n_unit, 3))
+    transposed = reshaped.transpose(3, 4, 2, 0, 1)
+    value = transposed[np.newaxis, ...]
+    resolved_qe = resolved.with_supercell(tuple(supercell))
+    replicas = ensure_replicas(resolved_qe, folder, ("replicated_atoms.xyz", "replicated_atoms_second.xyz", "infile.ssposcar"))
+    data = ForceConstantData(
+        order=2,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=tuple(supercell),
+        replicated_atoms=replicas,
+        grid_order="F",
+    )
+    if charges is not None:
+        data.metadata["charges"] = charges
+    data.metadata["apply_acoustic_sum"] = True
+    return data
+
+
+def load_third_vasp(*, folder: Path, resolved, filename: str = "FORCE_CONSTANTS_3RD", **_) -> ForceConstantData:
+    raw = read_third_order_matrix(str(folder / filename), resolved.unit_atoms, resolved.supercell, order='C')
+    replicas = ensure_replicas(resolved, folder, ("replicated_atoms_third.xyz", "replicated_atoms.xyz"))
+    return ForceConstantData(
+        order=3,
+        value=raw,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+        grid_order="F",
+    )
+
+
+def load_third_d3q(*, folder: Path, resolved, filename: str = "FORCE_CONSTANTS_3RD", **_) -> ForceConstantData:
+    raw = read_third_d3q(str(folder / filename), resolved.unit_atoms, resolved.supercell, order='C')
+    n_unit = resolved.unit_atoms.positions.shape[0]
+    n_rep = int(np.prod(resolved.supercell))
+    value = raw.reshape((3 * n_unit, 3 * n_rep * n_unit, 3 * n_rep * n_unit))
+    replicas = ensure_replicas(resolved, folder, ("replicated_atoms_third.xyz", "replicated_atoms.xyz"))
+    return ForceConstantData(
+        order=3,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+        grid_order="F",
+        metadata={"layout": "d3q"},
+    )
 
 
 def import_control_file(control_file):
@@ -609,4 +696,3 @@ def type_element_id(atoms, element_name):
         element = unique_elements[i]
         if element == element_name:
             return i
-

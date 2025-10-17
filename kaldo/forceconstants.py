@@ -7,6 +7,7 @@ from sparse import COO
 from kaldo.grid import wrap_coordinates, Grid
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
+from kaldo.interfaces import load_forceconstants, resolve_structure
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
@@ -117,64 +118,19 @@ class ForceConstants:
                     is_acoustic_sum: bool = False,
                     only_second: bool = False,
                     distance_threshold: float | None = None,
-                    chunk_size: int = 100000):
-        """
-        Create a finite difference object from a folder
-
-        The folder should contain the a set of files whose names and contents are dependent on the "format" parameter.
-        Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
-        to read it with nicer formatting and explanations).
-
-        - numpy: replicated_atoms.xyz, second.npy, third.npz
-        - eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
-        - lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        - shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        - shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
-        - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
-
-        Parameters
-        ----------
-        folder : str
-            Chosen folder to load in system information.
-        supercell : (int, int, int), optional
-            Number of unit cells in each cartesian direction replicated to form the input structure.
-            Default is (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
-            Format of force constant information being loaded into ForceConstants object.
-            Default is ``'numpy'``
-        third_energy_threshold : float, optional
-            When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: eV/Angstrom^3
-            Default is None
-        distance_threshold : float, optional
-            When calculating force constants, contributions from atoms further than the
-            distance threshold will be ignored.
-        third_supercell : (int, int, int), optional
-            Takes in the unit cell for the third order force constant matrix.
-            Default is self.supercell
-        is_acoustic_sum : Bool, optional
-            If true, the acoustic sum rule is applied to the dynamical matrix.
-            Default is False
-        chunk_size : int, optional
-            Number of entries to process per chunk when reading sparse third order files.
-            Larger values use more memory but may be faster for very large files.
-            Default: 100000
-
-        Returns
-        -------
-        forceconstants: ForceConstants object
-            A new instance of the ForceConstants class
-        """
-        supercell = _normalize_supercell(supercell)
+                    chunk_size: int = 100000,
+                    *,
+                    second_format: str | None = None,
+                    third_format: str | None = None):
+        supercell = _normalize_supercell(supercell) or (1, 1, 1)
         third_supercell = _normalize_supercell(third_supercell)
 
-        effective_second_format = format
-        effective_third_format = format
+        resolved = resolve_structure(folder, format_hint=format, supercell_hint=supercell)
 
-        second_order = SecondOrder.load(folder=folder,
-                                        supercell=supercell,
-                                        format=effective_second_format,
-                                        is_acoustic_sum=is_acoustic_sum)
+        second_token = second_format or format
+        second_data = load_forceconstants(2, second_token, resolved, folder=folder)
+        second_order = SecondOrder.from_data(second_data, folder=folder, is_acoustic_sum=is_acoustic_sum)
+
         atoms = second_order.atoms
         resolved_supercell = _normalize_supercell(second_order.supercell)
 
@@ -182,11 +138,12 @@ class ForceConstants:
         target_third_supercell = third_supercell or resolved_supercell
 
         if not only_second:
-            third_order = ThirdOrder.load(folder=folder,
-                                          supercell=target_third_supercell,
-                                          format=effective_third_format,
-                                          third_energy_threshold=third_energy_threshold,
-                                          chunk_size=chunk_size)
+            third_token = third_format or format
+            resolved_for_third = resolved.with_supercell(target_third_supercell)
+            third_data = load_forceconstants(3, third_token, resolved_for_third, folder=folder,
+                                             third_energy_threshold=third_energy_threshold,
+                                             chunk_size=chunk_size)
+            third_order = ThirdOrder.from_data(third_data, folder=folder)
             target_third_supercell = _normalize_supercell(third_order.supercell)
 
         return cls(atoms=atoms,

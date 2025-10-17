@@ -3,6 +3,8 @@ kaldo
 Anharmonic Lattice Dynamics
 """
 
+from pathlib import Path
+
 import ase.units as units
 from sparse import COO
 from ase import Atoms
@@ -10,54 +12,9 @@ import pandas as pd
 import numpy as np
 
 from kaldo.helpers.logger import get_logger
-from kaldo.helpers.tools import count_rows
+from kaldo.interfaces.common import ForceConstantData, ensure_replicas
 
 logging = get_logger()
-
-
-def import_from_files(
-    replicated_atoms, dynmat_file=None, third_file=None, supercell=(1, 1, 1), third_energy_threshold=0.0, chunk_size=100000
-):
-    # TODO: split this method into two pieces
-    n_replicas = np.prod(supercell)
-    n_total_atoms = replicated_atoms.positions.shape[0]
-    n_unit_atoms = int(n_total_atoms / n_replicas)
-    unit_symbols = []
-    unit_positions = []
-    for i in range(n_unit_atoms):
-        unit_symbols.append(replicated_atoms.get_chemical_symbols()[i])
-        unit_positions.append(replicated_atoms.positions[i])
-    unit_cell = replicated_atoms.cell / supercell
-
-    atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
-
-    second_order = None
-    third_order = None
-
-    if dynmat_file:
-        logging.info("Reading dynamical matrix")
-        second_dl = import_second(atoms, replicas=supercell, filename=dynmat_file)
-        second_order = second_dl
-
-    if third_file:
-        try:
-            logging.info("Reading sparse third order")
-            third_dl = import_sparse_third(
-                atoms=atoms, supercell=supercell, filename=third_file, third_energy_threshold=third_energy_threshold, chunk_size=chunk_size
-            )
-
-        except UnicodeDecodeError:
-            if third_energy_threshold != 0:
-                raise ValueError("Third threshold not supported for dense third")
-            logging.info("Reading dense third order")
-            third_dl = import_dense_third(atoms, supercell=supercell, filename=third_file)
-            logging.info("Third order matrix stored.")
-        third_dl = third_dl[:n_unit_atoms]
-        third_shape = (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)
-        third_dl = third_dl.reshape(third_shape)
-        third_order = third_dl
-
-    return second_order, third_order
 
 
 def import_second(atoms, replicas=(1, 1, 1), filename="Dyn.form"):
@@ -356,3 +313,73 @@ def import_dense_third(atoms, supercell, filename, is_reduced=True):
     
     third = np.fromfile(filename, dtype=float, count=total_rows)
     return third.reshape(shape)
+
+
+def load_second_eskm(*, folder: Path, resolved, filename: str = "Dyn.form", **_) -> ForceConstantData:
+    replicas = ensure_replicas(resolved, folder, ("CONFIG",))
+    value = import_second(resolved.unit_atoms, replicas=resolved.supercell, filename=str(folder / filename))
+    return ForceConstantData(
+        order=2,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+    )
+
+
+def load_second_lammps(*, folder: Path, resolved, filename: str = "Dyn.form", **_) -> ForceConstantData:
+    replicas = ensure_replicas(resolved, folder, ("replicated_atoms.xyz", "CONFIG"))
+    value = import_second(resolved.unit_atoms, replicas=resolved.supercell, filename=str(folder / filename))
+    return ForceConstantData(
+        order=2,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+    )
+
+
+def load_third_eskm(*,
+                    folder: Path,
+                    resolved,
+                    filename: str = "THIRD",
+                    third_energy_threshold: float = 0.0,
+                    chunk_size: int = 100000,
+                    **_) -> ForceConstantData:
+    replicas = ensure_replicas(resolved, folder, ("CONFIG", "replicated_atoms.xyz"))
+    atoms = resolved.unit_atoms
+    try:
+        third = import_sparse_third(
+            atoms=atoms,
+            supercell=resolved.supercell,
+            filename=str(folder / filename),
+            third_energy_threshold=third_energy_threshold,
+            chunk_size=chunk_size,
+        )
+    except UnicodeDecodeError:
+        third = import_dense_third(atoms, supercell=resolved.supercell, filename=str(folder / filename))
+
+    n_unit = atoms.positions.shape[0]
+    n_rep = int(np.prod(resolved.supercell))
+    value = third.reshape((3 * n_unit, 3 * n_rep * n_unit, 3 * n_rep * n_unit))
+    return ForceConstantData(
+        order=3,
+        value=value,
+        unit_atoms=atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+    )
+
+
+def load_third_lammps(*,
+                      folder: Path,
+                      resolved,
+                      filename: str = "THIRD",
+                      third_energy_threshold: float = 0.0,
+                      chunk_size: int = 100000,
+                      **_) -> ForceConstantData:
+    return load_third_eskm(folder=folder,
+                           resolved=resolved,
+                           filename=filename,
+                           third_energy_threshold=third_energy_threshold,
+                           chunk_size=chunk_size)
