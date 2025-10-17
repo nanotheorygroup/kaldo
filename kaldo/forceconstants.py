@@ -90,31 +90,22 @@ class ForceConstants:
         self.folder = folder
         self.distance_threshold = distance_threshold
         self._list_of_replicas = None
-        self._second = second_order
-        self._third = third_order
+        self.second = second_order or SecondOrder.from_supercell(
+            self.atoms,
+            supercell=self.supercell,
+            grid_type='C',
+            is_acoustic_sum=False,
+            folder=self.folder
+        )
+        self.third = third_order or ThirdOrder.from_supercell(
+            self.atoms,
+            supercell=self.third_supercell,
+            grid_type='C',
+            folder=self.folder
+        )
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
-
-    @property
-    def second(self):
-        if self._second is None:
-            # initialize an empty SecondOrder object for computing force constants later.
-            self._second = SecondOrder.from_supercell(self.atoms,
-                                                      supercell=self.supercell,
-                                                      grid_type='C',
-                                                      is_acoustic_sum=False,
-                                                      folder=self.folder)
-        return self._second
-
-    @property
-    def third(self):
-        if self._third is None:
-            self._third = ThirdOrder.from_supercell(self.atoms,
-                                                    supercell=self.third_supercell,
-                                                    grid_type='C',
-                                                    folder=self.folder)
-        return self._third
 
     @classmethod
     def from_folder(cls,
