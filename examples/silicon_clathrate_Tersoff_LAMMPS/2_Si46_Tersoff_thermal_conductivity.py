@@ -61,7 +61,7 @@ print(rta_cond_matrix)
 
 # Define the base folder to contain plots
 # 'base_folder':name of the base folder
-folder = phonons._get_folder_from_label(base_folder='plots')
+folder = phonons.get_folder_from_label(base_folder='plots')
 if not os.path.exists(folder):
   os.makedirs(folder)
 
