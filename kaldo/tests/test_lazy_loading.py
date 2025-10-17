@@ -155,7 +155,7 @@ def test_get_folder_from_label():
             self.kpts = [2, 2, 2]
 
     instance = Instance()
-    folder = instance._get_folder_from_label()
+    folder = instance.get_folder_from_label()
     assert folder == 'base_folder/2_2_2'
 
 
@@ -301,7 +301,7 @@ def test_get_folder_from_label_with_temperature():
 
     label = '<temperature>/<statistics>'
     instance = Instance()
-    folder = instance._get_folder_from_label(label)
+    folder = instance.get_folder_from_label(label)
     assert folder == 'base_folder/2_2_2/300/quantum'
 
 
@@ -336,7 +336,7 @@ def test_get_folder_from_label_with_method_and_length():
 
     label = '<method>/<length>/<finite_length_method>'
     instance = Instance()
-    folder = instance._get_folder_from_label(label)
+    folder = instance.get_folder_from_label(label)
     assert folder == 'base_folder/3_3_3/rta/l_10_0_0/fssome_method'
 
 
