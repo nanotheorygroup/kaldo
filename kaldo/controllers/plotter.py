@@ -398,7 +398,7 @@ class _Plotter:
         plt.ylim(observable.min(), observable.max())
         plt.tick_params(axis='both', which='major', labelsize=16)
         plt.tick_params(axis='both', which='minor', labelsize=16)
-        folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
+        folder = self.phonons.get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
         fig.savefig(folder + '/' + observable_name + '.png')
@@ -446,7 +446,7 @@ class _Plotter:
             # Already a list of lists
             p_atoms_list = p_atoms
 
-        folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
+        folder = self.phonons.get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -527,7 +527,7 @@ class _Plotter:
             Use (8, 6) for larger presentations.
         """
         if not folder:
-            folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
+            folder = self.phonons.get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -668,7 +668,7 @@ class _Plotter:
             Figure size (width, height) in inches. Default: (8, 6) for publication.
             Use (8, 6) for larger presentations.
         """
-        folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
+        folder = self.phonons.get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -966,7 +966,7 @@ class _Plotter:
             Figure size (width, height) in inches. Default: (8, 6) for publication.
             Use (8, 6) for larger presentations.
         """
-        folder = self.phonons._get_folder_from_label(base_folder=DEFAULT_FOLDER)
+        folder = self.phonons.get_folder_from_label(base_folder=DEFAULT_FOLDER)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
