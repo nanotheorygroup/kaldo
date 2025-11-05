@@ -179,15 +179,15 @@ def fit_and_minimize_polynomial(grid, free_energies, degree=4, alpha=1e-3,
     """
     if grid.shape[1] == 1:
         model = make_pipeline(PolynomialFeatures(4), Ridge(alpha=1e-3))
-        X_poly = PolynomialFeatures(degree=4).fit_transform(grid)
-        model.fit(X_poly, free_energies)
+        x_poly = PolynomialFeatures(degree=4).fit_transform(grid)
+        model.fit(x_poly, free_energies)
 
         # Generate fine grid and evaluate
         grid_min, grid_max = grid.min(), grid.max()
         fine_grid = np.linspace(grid_min, grid_max, n_fine_points)[:, np.newaxis]
         #fine_free_energies = poly_func(fine_grid)
-        X_poly = PolynomialFeatures(degree=4).fit_transform(fine_grid)
-        fine_free_energies = model.predict(X_poly)
+        x_poly = PolynomialFeatures(degree=4).fit_transform(fine_grid)
+        fine_free_energies = model.predict(x_poly)
 
         # Find minimum
         min_idx = np.argmin(fine_free_energies)
@@ -199,8 +199,8 @@ def fit_and_minimize_polynomial(grid, free_energies, degree=4, alpha=1e-3,
         # Interpolate to create smooth function
 
         model = make_pipeline(PolynomialFeatures(4), Ridge(alpha=1e-3))
-        X_poly = PolynomialFeatures(degree=4).fit_transform(grid)
-        model.fit(X_poly, free_energies)
+        x_poly = PolynomialFeatures(degree=4).fit_transform(grid)
+        model.fit(x_poly, free_energies)
 
         # Generate fine grid
         if grid.shape[1] == 2:
@@ -222,8 +222,8 @@ def fit_and_minimize_polynomial(grid, free_energies, degree=4, alpha=1e-3,
             X1, X2, X3 = np.meshgrid(x1_fine, x2_fine, x3_fine, indexing='ij')
             fine_grid_points = np.column_stack([X1.ravel(), X2.ravel(), X3.ravel()])
 
-        X_poly = PolynomialFeatures(degree=4).fit_transform(fine_grid_points)
-        fine_free_energies = model.predict(X_poly)
+        x_poly = PolynomialFeatures(degree=4).fit_transform(fine_grid_points)
+        fine_free_energies = model.predict(x_poly)
 
         # Handle NaN values from extrapolation (use nearest neighbor)
         nan_mask = np.isnan(fine_free_energies)
