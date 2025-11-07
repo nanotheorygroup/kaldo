@@ -10,7 +10,6 @@ from ase.calculators.lammpslib import LAMMPSlib
 from kaldo.conductivity import Conductivity
 from kaldo.controllers import plotter
 from kaldo.forceconstants import ForceConstants
-from kaldo.helpers.storage import get_folder_from_label
 from kaldo.phonons import Phonons
 import numpy as np
 import os

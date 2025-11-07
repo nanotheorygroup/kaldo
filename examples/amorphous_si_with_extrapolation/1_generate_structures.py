@@ -9,7 +9,7 @@ desired_concentrations = [0.1]
 
 def change_concentration(ge_concentration=0):
 	# Read in 1728 atom system
-	atoms = read('structures/1728_atom/aSi.xyz', format='xyz')
+	atoms = read('structures/1728_atom/aSi.xyz')
 
 	# Swap in Ge atoms
 	if ge_concentration != 0:
@@ -35,7 +35,7 @@ def change_concentration(ge_concentration=0):
 	search = LBFGSLineSearch(atoms)
 	search.run(fmax=.001)
 	write('structures/1728_atom/aSiGe_C'+str(ge_concentration)+'/replicated_atoms.xyz',
-		 search.atoms, format='xyz')
+		 search.atoms)
 
 for c in desired_concentrations:
 	change_concentration(c)
