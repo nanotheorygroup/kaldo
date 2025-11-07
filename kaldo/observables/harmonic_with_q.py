@@ -332,8 +332,8 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_participation_ratio(self):
         n_atoms = self.n_modes // 3
-        eigensystem = self._eigensystem[1:, :]
-        eigenvectors = tf.transpose(eigensystem)
+        eigenvectors = self._eigensystem[1:, :]
+        eigenvectors = tf.transpose(eigenvectors)
         eigenvectors = np.reshape(eigenvectors, (self.n_modes, n_atoms, 3))
         conjugate = tf.math.conj(eigenvectors)
         participation_ratio = tf.math.reduce_sum(eigenvectors*conjugate, axis=2)
@@ -525,7 +525,7 @@ class HarmonicWithQ(Observable, Storable):
 
         # 2. Filter cells that don't meet our Ewald cutoff criteria
         # a. setup mask
-        geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions, dtype=np.float128)
+        geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions)
         # change_units_gmax = 16/np.pi**2
         cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
         # b. apply mask

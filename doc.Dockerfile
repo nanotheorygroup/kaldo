@@ -1,41 +1,25 @@
-# Use a multi-stage build to keep the final image size down
-# Builder stage for installing necessary packages
-FROM continuumio/miniconda3
+# Start from a Debian Slim-based image
+FROM python:3.12-slim-bookworm
 
-# Set working directory
-WORKDIR /app
-
-# Copy your application into the container
-COPY . /app
-
-# Prevent apt from prompting for input
+# Set an environment variable to ensure apt-get runs non-interactively
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update packages and install only the necessary LaTeX packages and cleanup in the same layer to save space
+# Update package lists, install pandoc and make, and clean up in a single layer
 RUN apt-get update && \
-    apt-get upgrade -y
-
-RUN apt-get install -y --no-install-recommends texlive-base \
-    texlive-latex-base \
-    texlive-fonts-recommended \
-    texlive-fonts-extra \
-    texlive-latex-extra \
-    dvipng && \
-    # Clean up to reduce layer size
+    apt-get install -y --no-install-recommends pandoc make && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-RUN conda install pip && \
-    conda install conda-forge::psutil && \
-    pip install -r docs/doc_requirements.txt
+# install python packages
+COPY docs/doc_requirements.txt /tmp/doc_requirements.txt
+RUN pip install --no-cache-dir -r /tmp/doc_requirements.txt && \
+    pip cache purge
 
-# Install additional packages needed for your project
-RUN conda install conda-forge::pandoc && \
-    conda install anaconda::make
+# uncomment to copy the code base
+# Since we will load the code from github, no need to copy it
+# COPY . .
 
-# Set the working directory in the final image
+# Set workdir
 WORKDIR /app
 
-# Command to run your application
 CMD ["/bin/bash"]
