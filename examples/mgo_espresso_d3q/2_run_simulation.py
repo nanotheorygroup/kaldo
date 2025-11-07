@@ -7,8 +7,8 @@ Adjust k points in "Replica Settings" under the Configuration header, lower
 will run quicker but less accurately.
 """
 
-# Edit the number of threads here to control the threading. 
-nthr = 1
+# Edit the number of threads here to control the threading.
+nthr = 32
 import tensorflow as tf
 tf.config.threading.set_intra_op_parallelism_threads(nthr)
 tf.config.threading.set_inter_op_parallelism_threads(nthr)
@@ -22,7 +22,7 @@ import numpy as np
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
-from kaldo.controllers.plotter import plot_dos
+from kaldo.controllers.plotter import plot_dos, plot_dispersion
 from kaldo.conductivity import Conductivity
 
 # ============================================================
@@ -35,7 +35,7 @@ unfold_bool = True
 output_folder = 'plots/'
 
 # Replica settings
-k = 15
+k = 9
 kpt_array = np.array([k, k, k])
 nrep = int(9)
 nrep_third = int(5)
@@ -44,22 +44,21 @@ third_supercell = np.array([nrep_third, nrep_third, nrep_third])
 
 # Simulation Settings
 temperature = 300
-classical_stats = False 
+classical_stats = False
 # True/False means Classical/Quantum heat capacity + phonon populations
 
 # Correction-dependent Settings
 # True = using NAC
 # False = without NAC
 nac_folder_dic = {
-	'True': 'forces',
-	'False': 'forces_without_
+	True: 'forces',
+	False: 'forces_no_charges'
 }
 
 for is_nac_corrected in [True, False]:
 	io_folder = nac_folder_dic[is_nac_corrected]
-	
 	# ============================================================
-	# Create Phonon objects from Force Constants with/without NAC 
+	# Create Phonon objects from Force Constants with/without NAC
 	# ============================================================
 	print("Loading force constants with NAC correction...")
 	forceconstant = ForceConstants.from_folder(
@@ -93,8 +92,8 @@ for is_nac_corrected in [True, False]:
 	atoms = forceconstant.atoms
 	cell = atoms.cell
 	lat = cell.get_bravais_lattice()
-	path = cell.bandpath(pathstring, npoints=npoints)
-	print(f"Calculating dispersion along path {pathstring}...")
+	path = cell.bandpath(path_string, npoints=n_points)
+	print(f"Calculating dispersion along path {path_string}...")
 	print(f'\tPath: {path}')
 
 	# Save path for reference, if desired
