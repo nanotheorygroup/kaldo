@@ -1,8 +1,7 @@
 # Setup
-Please use the "0_unpack.sh" bash script to unpack the force constants
->> bash 0_unpack.sh 
-If you prefer untar the file yourself, copy the POSCAR and FORCE_CONSTANTS_THIRD file
-from the forces directory to the forces_no_charges directory as well.
+Please untar and unzip the data/mgo-qe-d3q.tgz file.
+Then, copy the POSCAR and FORCE_CONSTANTS_THIRD file from the forces directory to the 
+forces_no_charges directory.
 
 # Running
 Execute 1_run_simulation.py to calculate both corrected and uncorrected quantities.
