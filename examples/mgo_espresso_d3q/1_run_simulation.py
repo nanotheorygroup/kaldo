@@ -7,12 +7,11 @@ Adjust k points in "Replica Settings" under the Configuration header, lower
 will run quicker but less accurately.
 """
 
-import numpy as np
-from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.forceconstants import ForceConstants
-from kaldo.phonons import Phonons
 from kaldo.controllers.plotter import plot_dos, plot_dispersion
+from kaldo.forceconstants import ForceConstants
 from kaldo.conductivity import Conductivity
+from kaldo.phonons import Phonons
+import numpy as np
 
 # Model parameters-
 k = 5
@@ -36,9 +35,6 @@ nac_folder_dic = {
 }
 
 for io_folder in ['forces', 'forces_no_charges']:
-#for is_nac_corrected in [True, False]:
-	#io_folder = nac_folder_dic[is_nac_corrected]
-	# Create Phonon objects from Force Constants with/without NAC
 	print("Loading force constants with NAC correction...")
 	forceconstant = ForceConstants.from_folder(
 	    folder=io_folder,
@@ -73,8 +69,8 @@ for io_folder in ['forces', 'forces_no_charges']:
 	print(f"Calculating dispersion along path GXUGLW...")
 	print(f'\tPath: {path}')
 
-	# Save path for reference, if desired
-	# np.savetxt('tools/kpath.txt', path.kpts)
+	# Save path for reference, if desired (e.g. for use with matdyn.x)
+	# np.savetxt('data/kpath.txt', path.kpts)
 
 	# Calculate frequencies and velocities along path
 	plot_dispersion(phonons,
@@ -90,14 +86,12 @@ for io_folder in ['forces', 'forces_no_charges']:
 	print("\tInverse method...")
 	inv_matrix = Conductivity(phonons=phonons, method='inverse').conductivity.sum(axis=0)
 
-
 	print_string = "WITHOUT" if io_folder.endswith("no_charges") else "WITH"
 	print("\n\n" + "="*48)
 	print(f"RESULTS {print_string} NAC CORRECTION")
-	print("="*48)
 	print("Thermal Conductivity (W/m/K):")
 	print(f"\tRTA method:")
 	print(f"    {rta_matrix}\n")
 	print(f"\tInverse method:")
 	print(f"    {inv_matrix}\n")
-	print("="*48 + "\n\n")
+    print("\n\n" + "="*48)
