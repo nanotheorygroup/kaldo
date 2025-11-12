@@ -7,6 +7,7 @@ from ase.geometry import get_distances
 from kaldo.helpers.logger import get_logger
 from kaldo.grid import Grid
 from sparse import COO
+from kaldo.interfaces.common import ForceConstantData, ensure_replicas
 
 logging = get_logger()
 
@@ -458,3 +459,42 @@ def parse_tdep_third_forceconstant(
     ))
 
     return third_ifcs
+
+
+def load_second_tdep(*, folder: Path, resolved, filename: str = "infile.forceconstant", **_) -> ForceConstantData:
+    d2 = parse_tdep_forceconstant(
+        fc_file=str(folder / filename),
+        primitive=str(folder / "infile.ucposcar"),
+        supercell=str(folder / "infile.ssposcar"),
+        reduce_fc=False,
+    )
+    n_unit = resolved.unit_atoms.positions.shape[0]
+    n_rep = int(np.prod(resolved.supercell))
+    value = d2.reshape((n_rep, n_unit, 3, n_rep, n_unit, 3))[0, np.newaxis, ...]
+    replicas = ensure_replicas(resolved, folder, ("infile.ssposcar",))
+    return ForceConstantData(
+        order=2,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+    )
+
+
+def load_third_tdep(*, folder: Path, resolved, filename: str = "infile.forceconstant_thirdorder", **_) -> ForceConstantData:
+    raw = parse_tdep_third_forceconstant(
+        fc_filename=str(folder / filename),
+        primitive=str(folder / "infile.ucposcar"),
+        supercell=resolved.supercell,
+    )
+    n_unit = resolved.unit_atoms.positions.shape[0]
+    n_rep = int(np.prod(resolved.supercell))
+    value = raw.reshape((3 * n_unit, 3 * n_rep * n_unit, 3 * n_rep * n_unit))
+    replicas = ensure_replicas(resolved, folder, ("infile.ssposcar",))
+    return ForceConstantData(
+        order=3,
+        value=value,
+        unit_atoms=resolved.unit_atoms,
+        supercell=resolved.supercell,
+        replicated_atoms=replicas,
+    )
