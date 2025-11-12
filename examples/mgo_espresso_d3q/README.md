@@ -7,5 +7,5 @@ forces_no_charges directory.
 Execute 1_run_simulation.py to calculate both corrected and uncorrected quantities.
 
 # Reference Plots
-Copies of the plots that should be output by the scripts are available in the tools/refs.plots.tgz
+Copies of the plots that should be output by the scripts are available in the data/refs.plots.tgz
 archive if you'd like to check your example came out correctly.
