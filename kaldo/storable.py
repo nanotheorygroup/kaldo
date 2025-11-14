@@ -140,7 +140,7 @@ class Storable:
         fmt = '%.18e'
         np.savetxt(name + '.dat', data, fmt=fmt, header=str(data.shape))
     
-    def _get_folder_from_label(self, label='', base_folder=None):
+    def get_folder_from_label(self, label='', base_folder=None):
         """
         Generate folder path from label template and instance attributes.
         """
@@ -223,7 +223,7 @@ def lazy_property(label: str = '', format: Optional[str] = None) -> Callable[[Ca
             storage_format = _get_storage_format(self, fn.__name__, format)
             
             if storage_format != 'memory':
-                folder = self._get_folder_from_label(label)
+                folder = self.get_folder_from_label(label)
                 property_name = fn.__name__
                 try:
                     loaded_attr = self._load_property(property_name, folder, format=storage_format)
@@ -318,9 +318,9 @@ def is_calculated(property_name, instance, label='', format='formatted'):
         pass
     
     # Try to load from storage if instance is a StorageMixin
-    if hasattr(instance, '_load_property') and hasattr(instance, '_get_folder_from_label'):
+    if hasattr(instance, '_load_property') and hasattr(instance, 'get_folder_from_label'):
         try:
-            folder = instance._get_folder_from_label(label)
+            folder = instance.get_folder_from_label(label)
             loaded_attr = instance._load_property(property_name, folder, format=format)
             setattr(instance, attr, loaded_attr)
             return loaded_attr is not None

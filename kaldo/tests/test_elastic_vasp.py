@@ -11,7 +11,7 @@ import pytest
 @pytest.fixture(scope="session")
 def forceconstants():
     print("Preparing phonons object.")
-    forceconstants = ForceConstants.from_folder(folder="kaldo/tests/si-crystal/vasp", supercell=[5, 5, 5], format="shengbte")
+    forceconstants = ForceConstants.from_folder(folder="kaldo/tests/si-crystal/vasp", supercell=[5, 5, 5], format="vasp")
     return forceconstants
 
 
