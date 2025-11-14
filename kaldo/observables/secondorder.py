@@ -148,7 +148,7 @@ class SecondOrder(ForceConstant):
                     folder=folder,
                 )
 
-            case "shengbte" | "shengbte-qe" | "shengbte-d3q":
+            case ("vasp" | "shengbte") | ("qe-vasp" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
                 config_file = os.path.join(folder, "CONTROL")
                 try:
                     atoms, supercell, charges = shengbte_io.import_control_file(config_file)
@@ -162,29 +162,31 @@ class SecondOrder(ForceConstant):
 
                 # Create a finite difference object
                 # TODO: we need to read the grid type here
-                is_qe_input = (format == "shengbte-qe" or format == "shengbte-d3q")
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
-                if is_qe_input:
-                    filename = os.path.join(folder, "espresso.ifc2")
-                    if not os.path.isfile(filename):
-                        raise FileNotFoundError(f"File {filename} not found.")
-                    _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
-                    if (not charges is None):
-                        atoms.info['dielectric'] = charges[0, :, :]
-                        atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
-                    _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                    _second_order = _second_order.transpose(3, 4, 2, 0, 1)
-                    grid_type = "F"
-                else:
-                    filename = os.path.join(folder, "FORCE_CONSTANTS_2ND")
-                    if not os.path.isfile(filename):
-                        filename = os.path.join(folder, "FORCE_CONSTANTS")
-                    if not os.path.isfile(filename):
-                        raise FileNotFoundError(f"File {filename} not found.")
-                    _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
-                    _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                    grid_type = "F"
+                match format:
+                    case ("qe-vasp" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
+                        # load QE second order force constant
+                        filename = os.path.join(folder, "espresso.ifc2")
+                        if not os.path.isfile(filename):
+                            raise FileNotFoundError(f"File {filename} not found.")
+                        _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
+                        if (not charges is None):
+                            atoms.info['dielectric'] = charges[0, :, :]
+                            atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
+                        _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        _second_order = _second_order.transpose(3, 4, 2, 0, 1)
+                        grid_type = "F"
+                    case _:
+                        # load VASP second order force constant
+                        filename = os.path.join(folder, "FORCE_CONSTANTS_2ND")
+                        if not os.path.isfile(filename):
+                            filename = os.path.join(folder, "FORCE_CONSTANTS")
+                        if not os.path.isfile(filename):
+                            raise FileNotFoundError(f"File {filename} not found.")
+                        _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
+                        _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        grid_type = "F"
                 second_order = SecondOrder.from_supercell(
                     atoms=atoms,
                     grid_type=grid_type,

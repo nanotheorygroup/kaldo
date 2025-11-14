@@ -16,7 +16,7 @@ def phonons():
     forceconstants = ForceConstants.from_folder(
         folder="kaldo/tests/ge-crystal",
         supercell=[10, 10, 10],
-        format="shengbte-d3q",
+        format="qe-d3q",
         only_second=True,
     )
     phonons = Phonons(

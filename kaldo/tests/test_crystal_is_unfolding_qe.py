@@ -17,7 +17,7 @@ import pytest
 def phonons():
     print("Preparing phonons object.")
     forceconstants = ForceConstants.from_folder(
-        folder="kaldo/tests/si-crystal/qe", supercell=[3, 3, 3], format="shengbte-qe"
+        folder="kaldo/tests/si-crystal/qe", supercell=[3, 3, 3], format="qe-vasp"
     )
     phonons = Phonons(
         forceconstants=forceconstants,

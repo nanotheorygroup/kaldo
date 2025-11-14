@@ -17,7 +17,7 @@ def phonons():
         folder="kaldo/tests/ge-crystal/d3q",
         supercell=[10, 10, 10],
         third_supercell=[3, 3, 3],
-        format="shengbte-d3q")
+        format="qe-d3q")
     phonons = Phonons(
         forceconstants=forceconstants,
         kpts=[3, 3, 3],
@@ -27,6 +27,22 @@ def phonons():
         storage="memory",
     )
     return phonons
+
+def test_lagacy_format():
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/ge-crystal/d3q",
+        supercell=[10, 10, 10],
+        third_supercell=[3, 3, 3],
+        format="qe-d3q")
+    
+    forceconstants2 = ForceConstants.from_folder(
+        folder="kaldo/tests/ge-crystal/d3q",
+        supercell=[10, 10, 10],
+        third_supercell=[3, 3, 3],
+        format="shengbte-d3q")
+    
+    np.testing.assert_equal(forceconstants.second.value, forceconstants2.second.value)
+    np.testing.assert_equal(forceconstants.third.value, forceconstants2.third.value)
 
 
 def test_qhgk_conductivity(phonons):

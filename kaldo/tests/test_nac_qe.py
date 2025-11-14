@@ -20,7 +20,7 @@ def phonons():
         folder="kaldo/tests/mgo",
         supercell=[5, 5, 5],
         only_second=True,
-        format="shengbte-d3q",
+        format="qe-d3q",
     )
     phonons = Phonons(
         forceconstants=forceconstants,
