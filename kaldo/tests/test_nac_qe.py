@@ -33,16 +33,16 @@ def phonons():
     return phonons
 
 
-def test_unfolding_dispersion(phonons):
+def test_nac_dispersion(phonons):
     q_point = np.array([0.3, 0, 0.3])  # chosen to check we get a degenerate pair for both acoustic and optical
-    frequency_expected = np.array([7.05676324,  7.1162959 , 10.96372809, 12.71796071, 12.75355179, 17.50524562])
+    frequency_expected = np.array([7.18794357,  7.18794363, 11.02311516, 12.67918914, 12.67918918, 17.46740768])
     frequency_actual = HarmonicWithQ(q_point=q_point, second=phonons.forceconstants.second, is_unfolding=True).frequency
     frequency_actual = frequency_actual.flatten()  # HWQ outputs a 2d array
     np.testing.assert_array_almost_equal(frequency_expected, frequency_actual, decimal=2)
 
-def test_unfolding_velocity(phonons):
+def test_nac_velocity(phonons):
     q_point = np.array([0.3, 0, 0.3])
-    velocity_expected = np.array([34.64999537, 36.2252077 , 35.78366205,  7.71079558,  8.99215236, 23.52709405])
+    velocity_expected = np.array([33.9062635 , 33.9062648 , 32.84431542,  8.68236353,  8.6823644, 21.59580316])
     velocity = HarmonicWithQ(q_point=q_point, second=phonons.forceconstants.second, is_unfolding=True).velocity
     velocity_actual = np.linalg.norm(velocity, axis=-1).flatten()
     np.testing.assert_array_almost_equal(velocity_expected, velocity_actual, decimal=2)
