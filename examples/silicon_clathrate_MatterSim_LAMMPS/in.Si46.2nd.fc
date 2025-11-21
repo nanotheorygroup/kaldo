@@ -1,0 +1,15 @@
+units        metal
+processors      * * *
+boundary p p p
+atom_style    atomic
+atom_modify map yes
+read_data  Si46_opt.lmp
+
+pair_style gnnp/gpu /home/holiveira/programs/lammps/src/ML-GNNP
+pair_coeff    * * mattersim MatterSim-v1.0.0-1M Si
+mass            1 28.055
+replicate 3 3 3
+group core id 1:46
+neighbor 0.0001 bin
+print 'calculating calculate_dynmat'
+dynamical_matrix core eskm 3e-2 file fc_Si46/Dyn.form binary no fold yes
