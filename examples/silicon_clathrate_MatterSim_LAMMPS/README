@@ -1,0 +1,53 @@
+###(optional) use a virtual env to avoid incompatibility issues with python
+conda create -n lammps_MS_tutorial python=3.10
+
+conda activate lammps_MS_tutorial
+
+#after setting up the enviroment you can run the compile script:
+./compile_lammps_with_mattersim.sh
+
+#now mv to a directory where you want to install kaldo and do:
+
+git clone https://github.com/nanotheorygroup/kaldo.git
+
+cd kaldo
+
+pip install .
+
+#once kaldo is installed sucessfully you can run the scripts:
+
+python3 0_generate_LAMMPS_input_and_supercell_structures.py
+
+#which will generate the required input for lammps to compute the forceconstants, as :
+
+#2nd order
+/path/to/lammps/build/lmp -in in.Si46.2nd.fc
+
+#3rd order (this one may take a while, might want to put in background using nohup)
+nohup /path/to/lammps/build/lmp -in in.Si46.3rd.fc &
+
+#after sucessfull calculation, second order properties can be computed as:
+
+python3 1_phonon.py
+
+#that one will show the phonon dispersions for the Si46, group velocities and DOS, as long as the argument is_showing=True on the plotter methods, otherwise will just save the outputs into a plots folder.
+
+#after the phonon dispersion, one can run the lattice dynamics script within kaldo to get the third order properties and the thermal conductivity within the QHGK and RTA formalisms:
+
+nohup python3 2_thermal_conductivity.py &
+
+#for the whole temperature curve using rta:
+nohup python3 3_thermal_conductivity_rta.py &
+
+#and for QHGK:
+
+nohup python3 3_thermal_conductivity_qhgk.py &
+
+#to show the plots run the script :
+
+python3 plot.py
+
+###Important: Sometimes you can find an error while running on GPU if the memory of your GPU is exceeded, in that case just set the cuda variable in your shell as below disable GPU temporarily and bind the calculation to CPU: (this will likely be the case in this example for the thermal conductivity scripts)
+
+export CUDA_VISIBLE_DEVICES=""
+
