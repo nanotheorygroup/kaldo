@@ -131,7 +131,7 @@ phase_space = np.load(data_folder +
 
 # Compute norm of group velocity
 # Convert the unit from angstrom / picosecond to kilometer/ second
-group_velcotiy_norm = np.linalg.norm(
+group_velocity_norm = np.linalg.norm(
     group_velocity.reshape(-1, 3), axis=1) / 10.0
 
 # Plot observables in subplot
@@ -148,7 +148,7 @@ gca().set_xticks(np.arange(0, 20, 5))
 subplot(1 ,3, 2)
 set_fig_properties([gca()])
 scatter(frequency.flatten(order='C'),
-        group_velcotiy_norm, facecolor='w', edgecolor='r', s=10, marker='^')
+        group_velocity_norm, facecolor='w', edgecolor='r', s=10, marker='^')
 xlabel('Frequency (THz)', fontsize=14)
 ylabel(r'$|v| \ (\frac{km}{s})$', fontsize=14)
 
@@ -275,40 +275,40 @@ show()
 temperatures = np.arange(60, 1060, 50, dtype=int)
 
 # Denote zeros to intake kappa tensor
-kappa_at_T_0 = []
-kappa_at_T_1 = []
-kappa_tensor_0=np.copy(kappa_tensor)
-kappa_tensor_1=np.copy(kappa_tensor)
+kappa_vary_temperature_rta = []
+kappa_vary_temperature_qhgk = []
+kappa_tensor_rta = np.copy(kappa_tensor)
+kappa_tensor_qhgk = np.copy(kappa_tensor)
 for temperature in temperatures:
-    T_str = str(temperature)
-    kappa_data_path_0 = data_folder + \
-    'ALD_Si46/5_5_5/rta/' + T_str + '/quantum/conductivity_' + \
+    temperature_str = str(temperature)
+    kappa_data_path_rta = data_folder + \
+    'ALD_Si46/5_5_5/rta/' + temperature_str + '/quantum/conductivity_' + \
     str(i) + '_' + str(j) + '.dat'
     
-    kappa_data_path_1 = data_folder + \
-    'ALD_Si46/5_5_5/qhgk/' + T_str + '/quantum/conductivity_' + \
+    kappa_data_path_qhgk = data_folder + \
+    'ALD_Si46/5_5_5/qhgk/' + temperature_str + '/quantum/conductivity_' + \
     str(i) + '_' + str(j) + '.dat'
     for i in range(3):
         for j in range(3):
-            kappa_tensor_0[:, i, j] = np.loadtxt(kappa_data_path_0)
-            kappa_tensor_1[:, i, j] = np.loadtxt(kappa_data_path_1)
+            kappa_tensor_rta[:, i, j] = np.loadtxt(kappa_data_path_rta)
+            kappa_tensor_qhgk[:, i, j] = np.loadtxt(kappa_data_path_qhgk)
 
     # Sum over the 0th dimension to recover 3-by-3 kappa matrix
     # and take the average of body-diagonal
-    kappa_0 = np.diag(kappa_tensor_0.sum(axis=0)).mean()
-    kappa_1 = np.diag(kappa_tensor_1.sum(axis=0)).mean()
-    kappa_at_T_0.append(kappa_0.copy())
-    kappa_at_T_1.append(kappa_1.copy())
+    kappa_rta = np.diag(kappa_tensor_rta.sum(axis=0)).mean()
+    kappa_qhgk = np.diag(kappa_tensor_qhgk.sum(axis=0)).mean()
+    kappa_vary_temperature_rta.append(kappa_rta.copy())
+    kappa_vary_temperature_qhgk.append(kappa_qhgk.copy())
 
 
 # Cast list to array
-kappa_at_T_0 = np.array(kappa_at_T_0)
-kappa_at_T_1 = np.array(kappa_at_T_1)
+kappa_vary_temperature_rta = np.array(kappa_vary_temperature_rta)
+kappa_vary_tempeature_qhgk = np.array(kappa_vary_temperature_qhgk)
 
 figure(figsize=(8,6))
 set_fig_properties([gca()])
-plt.semilogy(temperatures, kappa_at_T_0, c='r', lw=1.5, label=r'$\kappa$ALDo_rta')
-plt.semilogy(temperatures, kappa_at_T_1, c='b', lw=1.5, label=r'$\kappa$ALDo_qhgk')
+plt.semilogy(temperatures, kappa_vary_temperature_rta, c='r', lw=1.5, label=r'$\kappa$ALDo_rta')
+plt.semilogy(temperatures, kappa_vary_temperature_qhgk, c='b', lw=1.5, label=r'$\kappa$ALDo_qhgk')
 scatter(300, 45.4, edgecolor='c', facecolor='w', marker='d',s=60, label = r'DFT (PBE functional) + BTE $\approx  45.4 \;\frac{\rm{W}}{\rm{m}\cdot\rm{K}}$')
 scatter(300, 53.0, edgecolor='m', facecolor='w', marker='s',s=60, label = r'DFT (LDA functional) + BTE  $\approx  53.0 \;\frac{\rm{W}}{\rm{m}\cdot\rm{K}}$')
 gca().errorbar(300, 43.1, yerr=4.1, fmt="s", capsize=3,

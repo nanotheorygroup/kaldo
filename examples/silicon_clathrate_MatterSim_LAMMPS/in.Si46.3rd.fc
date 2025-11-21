@@ -5,7 +5,7 @@ atom_style    atomic
 atom_modify map yes
 read_data  Si46_opt.lmp
 
-pair_style gnnp/gpu /home/holiveira/programs/lammps/src/ML-GNNP
+pair_style gnnp/gpu /path/to/lammps/src/ML-GNNP
 pair_coeff    * * mattersim MatterSim-v1.0.0-1M Si
 mass            1 28.055
 replicate 3 3 3
