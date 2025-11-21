@@ -17,11 +17,11 @@ forceconstants = ForceConstants.from_folder(folder='fc_Si46',
 
 # Create Phonons Object
 phonons = Phonons(forceconstants = forceconstants,
-                kpts = [5, 5, 5],
-                is_classic = False,
-                temperature = 300, # K
-                folder = 'ALD_Si46',
-                storage = 'numpy')
+                  kpts = [5, 5, 5],
+                  is_classic = False,
+                  temperature = 300, # K
+                  folder = 'ALD_Si46',
+                  storage = 'numpy')
 
 # Plot phonon dispersion
 plotter.plot_dispersion(phonons,n_k_points=300, is_showing=False)
