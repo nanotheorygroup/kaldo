@@ -137,8 +137,10 @@ class ForceConstants:
         - numpy: replicated_atoms.xyz, second.npy, third.npz
         - eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
         - lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        - shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        - shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        - vasp: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        - qe-vasp: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        - vasp-d3q: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD_D3Q
+        - qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q
         - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
 
         Parameters
