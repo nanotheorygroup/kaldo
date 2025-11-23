@@ -144,13 +144,14 @@ class ThirdOrder(ForceConstant):
                         logging.info('Trying to open POSCAR')
                         atoms = ase.io.read(config_path)
 
-                third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD')
                 match format:
                     case ("vasp" | "shengbte") | ("qe-vasp" | "shengbte-qe"):
                         # load VASP third order force constant
+                        third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD')
                         third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
                     case _:
                         # load d3q third order force constant
+                        third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD_D3Q')
                         third_order = shengbte_io.read_third_d3q(third_file, atoms, supercell, order='C')
                 third_order = ThirdOrder.from_supercell(atoms=atoms,
                                                         grid_type=grid_type,
