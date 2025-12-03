@@ -2723,9 +2723,12 @@ to read it with nicer formatting and explanations).</p>
 <li><p>numpy: replicated_atoms.xyz, second.npy, third.npz</p></li>
 <li><p>eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD</p></li>
 <li><p>lammps: replicated_atoms.xyz, Dyn.form, THIRD</p></li>
-<li><p>shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD</p></li>
-<li><p>shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD</p></li>
+<li><p>vasp: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD</p></li>
+<li><p>qe-vasp: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD</p></li>
+<li><p>vasp-d3q: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD_D3Q</p></li>
+<li><p>qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q</p></li>
 <li><p>hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs</p></li>
+<li><p>tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder</p></li>
 </ul>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.forceconstants.ForceConstants.from_folder-parameters">Parameters<span class="colon">:</span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder-parameters" title="Permalink to this headline">¶</a></dt>
@@ -2735,7 +2738,7 @@ to read it with nicer formatting and explanations).</p>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">(int, int, int), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Number of unit cells in each cartesian direction replicated to form the input structure.
 Default is (1, 1, 1)</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.from_folder.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of force constant information being loaded into ForceConstants object.
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">'numpy', 'eskm', 'lammps', 'vasp', 'qe-vasp', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep'</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of force constant information being loaded into ForceConstants object.
 Default is <code class="docutils literal notranslate"><span class="pre">'numpy'</span></code></p>
 </dd>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold"><span class="sig-name descname">third_energy_threshold</span><span class="p"> : </span><span class="desctype"><span class="desctype">float, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold" title="Permalink to this definition">¶</a></dt><dd><p>When importing sparse third order force constant matrices, energies below
