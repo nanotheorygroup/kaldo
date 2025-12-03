@@ -137,9 +137,12 @@ class ForceConstants:
         - numpy: replicated_atoms.xyz, second.npy, third.npz
         - eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD
         - lammps: replicated_atoms.xyz, Dyn.form, THIRD
-        - shengbte: CONTROL, POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
-        - shengbte-qe: CONTROL, POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        - vasp: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD
+        - qe-vasp: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD
+        - vasp-d3q: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD_D3Q
+        - qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q
         - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
+        - tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder
 
         Parameters
         ----------
@@ -148,7 +151,7 @@ class ForceConstants:
         supercell : (int, int, int), optional
             Number of unit cells in each cartesian direction replicated to form the input structure.
             Default is (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'shengbte', 'shengbte-qe', 'hiphive'
+        format : 'numpy', 'eskm', 'lammps', 'vasp', 'qe-vasp', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep'
             Format of force constant information being loaded into ForceConstants object.
             Default is ``'numpy'``
         third_energy_threshold : float, optional
