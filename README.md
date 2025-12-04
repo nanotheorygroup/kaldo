@@ -15,7 +15,7 @@ Built on the anharmonic lattice dynamics (ALD) framework, κALDo provides GPU- a
 - **Boltzmann Transport Equation (BTE)** for crystals
 - **Quasi-Harmonic Green-Kubo (QHGK)** method for disordered and amorphous systems
 
-The QHGK formalism uniquely extends thermal transport predictions beyond crystals to materials lacking long-range order—including glasses, alloys, and complex nanostructures.
+The QHGK formalism uniquely extends thermal transport predictions beyond crystals to materials lacking long-range order, including glasses, alloys, and complex nanostructures.
 
 ## Key Features
 
@@ -58,11 +58,6 @@ Run κALDo interactively on Google Colab:
 
 ```bash
 pip install kaldo
-```
-
-For GPU support, install TensorFlow with CUDA:
-```bash
-pip install tensorflow[and-cuda]
 ```
 
 Docker deployment:
@@ -141,31 +136,11 @@ print(f"Thermal conductivity: {kappa.trace()/3:.1f} W/m/K")
 
 ## Theory Background
 
-κALDo computes the lattice thermal conductivity tensor:
-
-$$\kappa_{\alpha\beta} = \frac{1}{N_q V}\sum_{\mu}c_\mu v_{\mu\alpha}\tau_\mu v_{\mu\beta}$$
-
-where phonon lifetimes $\tau_\mu$ arise from three-phonon scattering processes governed by third-order interatomic force constants. For disordered systems, QHGK extends this framework using generalized velocities and diffusivities that capture heat transport without requiring well-defined wavevectors.
+For detailed theoretical background on anharmonic lattice dynamics, the Boltzmann Transport Equation, and the Quasi-Harmonic Green-Kubo method, see the [documentation](https://nanotheorygroup.github.io/kaldo/).
 
 ## Examples
 
-Detailed examples for various materials and workflows are available in the [`examples`](examples/) folder:
-
-| Material | Example | Method |
-|----------|---------|--------|
-| Silicon (bulk) | `silicon_bulk_Tersoff_ASE_LAMMPS_hiPhive` | Tersoff + HiPhive |
-| Silicon (bulk) | `silicon_bulk_ShengBTE_QE` | Quantum ESPRESSO + ShengBTE |
-| Silicon (bulk) | `silicon_bulk_LDA_ASE_QE_hiPhive` | QE + HiPhive |
-| Silicon (amorphous) | `amorphous_silicon_Tersoff_LAMMPS` | Tersoff LAMMPS |
-| Silicon (amorphous) | `amorphous_si_with_extrapolation` | With extrapolation |
-| Silicon (clathrate) | `silicon_clathrate_Tersoff_LAMMPS` | Tersoff LAMMPS |
-| Silicon (clathrate) | `silicon_clathrate_MatterSim_LAMMPS` | MatterSim MLP |
-| Germanium | `germanium_espresso_d3q` | QE + d3q |
-| MgO | `mgo_espresso_d3q` | QE + d3q |
-| Carbon (diamond) | `carbon_diamond_Tersoff_ASE_LAMMPS` | Tersoff |
-| Carbon (diamond) | `carbon_diamond_dftb+` | DFTB+ |
-| Carbon (nanotube) | `carbon_nanotube_Tersoff_LAMMPS` | Tersoff LAMMPS |
-| Copper | `copper_free_energy_mattersim` | MatterSim MLP |
+Detailed examples for various materials and workflows are available in the [`examples`](examples/) folder.
 
 ## Citations
 
