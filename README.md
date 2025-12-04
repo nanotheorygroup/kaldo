@@ -183,7 +183,7 @@ We welcome contributions! Please visit our [discussions page](https://github.com
 
 ## Copyright
 
-Copyright (c) 2022-2025, Giuseppe Barbalinardo, Zekun Chen, Dylan Folkner, Bohan Li, Nicholas W. Lundgren, Alfredo Fiorentino, Nathaniel Troup, Davide Donadio
+Copyright (c) 2022-2025, The kALDo Developers
 
 ## Acknowledgements
 
