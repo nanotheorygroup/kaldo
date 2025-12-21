@@ -1,6 +1,6 @@
 ### Quick Install
 
-kALDo supports Python version 3.10 or higher. 
+kALDo supports Python version 3.10 or higher.
 
 We recommend creating a new environment with Python 3.13.
 ```bash
@@ -42,4 +42,23 @@ The next lines are pulling the repo from Github and adding it to the `PYTHONPATH
 If you want to make the last change in the `PYTHONPATH` permanent, you can also run
 ```bash
 echo "export PYTHONPATH=~/development/kaldo:$PYTHONPATH" >> ~/.bashrc
+```
+
+### Examples Repository
+
+A comprehensive examples repository is available with detailed workflows for various materials:
+
+**Repository**: [https://github.com/nanotheorygroup/kaldo-examples](https://github.com/nanotheorygroup/kaldo-examples)
+
+Examples include:
+- Si, Ge, SiC, GaAs, MgO, AlN thermal conductivity
+- DFT with DFPT/D3Q workflows
+- Empirical potentials via LAMMPS
+- Machine-learned potentials (MatterSim, ORB, NEP, ACE)
+
+### Docker
+
+A Docker image with all dependencies pre-installed is available:
+```bash
+docker pull gbarbalinardo/kaldo:latest
 ```
