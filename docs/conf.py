@@ -119,7 +119,7 @@ html_theme = 'sphinx_immaterial'
 #                       'github-repo':'https://github.com/nanotheorygroup/kaldo'}
 # Material theme options (see theme.conf for more information)
 
-html_title = 'kALDo'
+html_title = ''
 
 html_logo = 'docsource/_resources/logo.png'
 
