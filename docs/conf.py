@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'kALDo'
-copyright = ("2020-2025, Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Dylan Folkner, Bohan Li, Davide Donadio")
+copyright = "2022-2025, The kALDo Developers"
 author = 'Giuseppe Barbalinardo, Zekun Chen, Nicholas W. Lundgren, Dylan Folkner, Bohan Li, Davide Donadio'
 
 # The short X.Y version
@@ -121,6 +121,8 @@ html_theme = 'sphinx_immaterial'
 
 html_title = 'kALDo'
 
+html_logo = 'docsource/_resources/logo.png'
+
 html_theme_options = {
 
     "font": False, # use system font. disable font download from google fonts, because CI cannot pass
@@ -137,30 +139,11 @@ html_theme_options = {
     'site_url': 'https://github.com/nanotheorygroup/kaldo',
 
     # Set the color and the accent color
-    "palette": [
-        # Light mode
-        {
-            "media": "(prefers-color-scheme: light)",
-            "scheme": "default",
-            "primary": "red",
-            "accent": "orange",
-            "toggle": {
-                "icon": "material/weather-night",
-                "name": "Switch to dark mode",
-            },
-        },
-        # Dark mode
-        {
-            "media": "(prefers-color-scheme: dark)",
-            "scheme": "slate",
-            "primary": "red",
-            "accent": "orange",
-            "toggle": {
-                "icon": "material/weather-sunny",
-                "name": "Switch to light mode",
-            },
-        },
-    ],
+    "palette": {
+        "scheme": "default",
+        "primary": "red",
+        "accent": "orange",
+    },
 
     # Set the repo location to get a badge with stats
     'repo_url': 'https://github.com/nanotheorygroup/kaldo',
