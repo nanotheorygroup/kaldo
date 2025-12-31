@@ -2,37 +2,61 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "id": "intro-overview",
+   "metadata": {},
+   "source": "## Introduction\n\n### Overview\n\nkALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA.\n\nThe software seamlessly interfaces with popular ab initio codes ([Quantum ESPRESSO](https://www.quantum-espresso.org/), [VASP](https://www.vasp.at/)), molecular dynamics packages ([LAMMPS](https://github.com/lammps/lammps)), and state-of-the-art machine-learned potentials ([NEP](https://github.com/brucefan1983/GPUMD), [MACE](https://github.com/ACEsuit/mace), [MatterSim](https://github.com/microsoft/mattersim), [Orb](https://github.com/orbital-materials/orb-models)), enabling thermal transport studies from 0 K to finite temperatures.\n\n<img src=\"_resources/kaldo-inputs.png\" width=\"450\">\n\n*kALDo input/output ecosystem showing integration with diverse force constant sources.*\n\n### What's New in 2.0\n\n- **[TDEP](https://github.com/tdep-developers/tdep) Support**: Native integration with temperature-dependent effective potentials for materials with strong anharmonicity\n- **Machine-Learned Potentials**: Seamless integration with [NEP](https://github.com/brucefan1983/GPUMD), [MACE](https://github.com/ACEsuit/mace), [MatterSim](https://github.com/microsoft/mattersim), [Orb](https://github.com/orbital-materials/orb-models), and other MLPs via [ASE](https://wiki.fysik.dtu.dk/ase/). For benchmarks comparing MLP accuracy, see [Matbench Discovery](https://matbench-discovery.materialsproject.org/).\n- **Anharmonicity Diagnostics**: σ_A score to quantify anharmonic strength before expensive calculations\n- **QHA Thermal Expansion**: Quasi-harmonic approximation for temperature-dependent lattice properties\n- **Elastic Properties**: Calculate elastic constants from force constants\n- **Flexible Storage**: Multiple backends (formatted, numpy, hdf5, memory) for different use cases\n- **JSON CLI**: Command-line interface for batch processing on HPC systems\n\n### Architecture\n\nkALDo implements a hierarchical workflow with three core classes:\n\n- **ForceConstants**: Manages second- and third-order IFCs with methods for importing from external codes or direct calculation via [ASE](https://wiki.fysik.dtu.dk/ase/)\n- **Phonons**: Computes vibrational properties including frequencies, velocities, scattering rates, heat capacities, and populations\n- **Conductivity**: Solves for thermal transport via BTE (RTA, self-consistent, inverse) or QHGK methods\n\n<img src=\"_resources/kaldo-classes.png\" width=\"650\">\n\n*kALDo class structure showing the three main components and their relationships.*\n\n### Features\n\n**Forcefields.** Using the [Atomic Simulation Environment (ASE)](https://wiki.fysik.dtu.dk/ase/), kALDo can calculate the interatomic force constants using several ab-initio and molecular dynamics codes. A native [LAMMPS](https://github.com/lammps/lammps) interface is also available in the USER-PHONON package. Through seamless integration with the [HiPhive](https://hiphive.materialsmodeling.org/) package, the IFC calculation can take advantage of compressing-sensing machine learning algorithms. Version 2.0 adds native support for modern MLPs including [NEP](https://github.com/brucefan1983/GPUMD), [MACE](https://github.com/ACEsuit/mace), [MatterSim](https://github.com/microsoft/mattersim), and [Orb](https://github.com/orbital-materials/orb-models).\n\n**CPUs and GPUs.** Multithread implementation on CPUs and GPUs. The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.\n\n**Scalable.** In a system of N atoms and N_k k points, kALDo uses (3N)² floating point numbers to save the state of the system when using QHGK, (N_k × 3N)² for the full solution of the BTE and N_k × 3N² when using BTE-RTA.\n\n**Performance.** The bottleneck in ALD simulations is the calculation of phonon lifetimes and scattering matrices. This step requires projecting the interatomic potential on 3N phonon modes and scales like (N_k × 3N)³. In kALDo this is implemented as tensor multiplications, with GPU acceleration providing 5-10× speedup for systems with >50 atoms.\n\n<img src=\"_resources/features.png\" width=\"650\">"
+  },
+  {
+   "cell_type": "markdown",
+   "id": "theory",
+   "metadata": {},
+   "source": "---\n\n## Theory\n\n### Computational Workflow\n\nThermal transport calculations in kALDo proceed through three main stages:\n\n**Stage 1: Force Constant Generation.** Second and third-order interatomic force constants (IFCs) are computed or imported. These tensors encode harmonic and anharmonic interatomic interactions. Methods include: (i) finite-difference calculations with user-specified atomic displacements, (ii) direct import from density functional perturbation theory (DFPT) calculations, (iii) extraction from molecular dynamics trajectories via [TDEP](https://github.com/tdep-developers/tdep), or (iv) loading from external codes in various file formats.\n\n**Stage 2: Phonon Property Computation.** The dynamical matrix constructed from second-order IFCs is diagonalized to obtain phonon frequencies, eigenvectors, and group velocities. Third-order IFCs are projected onto phonon eigenstates to compute scattering phase space and rates. Additional properties including heat capacities, populations (Bose-Einstein or classical), and optional isotopic scattering rates are calculated.\n\n**Stage 3: Thermal Conductivity Calculation.** The BTE or QHGK formalism is employed using phonon properties from Stage 2. Multiple solution methods are available depending on accuracy requirements, memory constraints, and material characteristics.\n\n### Interatomic Force Constants\n\nAccurate thermal transport predictions require precise determination of interatomic force constants (IFCs), which describe the potential energy surface governing atomic motion. The Taylor expansion of the potential energy $\\phi$ around equilibrium atomic positions in terms of atomic displacements $u_{i\\alpha}$ (atom $i$, Cartesian direction $\\alpha$) provides the foundation:\n\n$$\n\\phi(\\{u_{i\\alpha}\\}) = \\phi_0 + \\sum_{i\\alpha}\\phi^{\\prime}_{i\\alpha}u_{i\\alpha}\n+\\frac{1}{2}\\sum_{i\\alpha i'\\alpha'}\\phi^{\\prime\\prime}_{i\\alpha i'\\alpha'}u_{i\\alpha} u_{i'\\alpha'}\n+\\frac{1}{3!}\\sum_{i\\alpha i'\\alpha' i''\\alpha''}\\phi^{\\prime\\prime\\prime}_{i\\alpha i'\\alpha' i''\\alpha''} u_{i\\alpha}u_{i'\\alpha'} u_{i''\\alpha''} + \\mathcal{O}(u^4)\n$$\n\nThe mass-scaled second-order IFCs define the **dynamical matrix**:\n\n$$\nD_{i\\alpha i'\\beta} = \\frac{\\phi^{\\prime\\prime}_{i\\alpha i'\\beta}}{\\sqrt{m_i m_{i'}}}\n$$\n\nPhonon frequencies $\\omega_\\mu$ and polarization vectors $\\eta_{i\\alpha\\mu}$ satisfy the eigenvalue equation:\n\n$$\n\\sum_{i'\\beta} D_{i\\alpha i'\\beta} \\eta_{i'\\beta\\mu} = \\omega_\\mu^2 \\eta_{i\\alpha\\mu}\n$$\n\n### Phonon Properties\n\n#### Group Velocities\n\nPhonon group velocity is computed as:\n\n$$\nv_{\\mu\\alpha} = \\frac{\\partial \\omega_\\mu}{\\partial q_\\alpha} = \\frac{1}{2\\omega_\\mu}\\sum_{i\\beta i'\\beta'}\\eta^*_{i\\beta\\mu}\\frac{\\partial D_{i\\beta i'\\beta'}(\\mathbf{q})}{\\partial q_\\alpha}\\eta_{i'\\beta'\\mu}\n$$\n\n#### Phonon Populations and Heat Capacity\n\nThe equilibrium phonon population follows **Bose-Einstein statistics**:\n\n$$\nn_\\mu(T) = \\frac{1}{e^{\\hbar\\omega_\\mu/k_B T}-1}\n$$\n\nThe **modal heat capacity** is:\n\n$$\nc_\\mu = k_B\\left(\\frac{\\hbar\\omega_\\mu}{k_B T}\\right)^2\\frac{e^{\\hbar\\omega_\\mu/k_B T}}{(e^{\\hbar\\omega_\\mu/k_B T}-1)^2}\n$$\n\nThe flag `is_classic` controls whether quantum or classical statistics are employed.\n\n#### Three-Phonon Scattering\n\nThe **phonon lifetime** from anharmonic scattering is:\n\n$$\n\\tau_\\mu = \\frac{1}{\\gamma_\\mu} = \\frac{1}{\\sum_{\\mu'\\mu''}(\\Gamma^{+}_{\\mu\\mu'\\mu''} + \\Gamma^{-}_{\\mu\\mu'\\mu''})}\n$$"
+  },
+  {
+   "cell_type": "markdown",
+   "id": "conductivity",
+   "metadata": {},
    "source": [
-    "### Overview\n",
+    "### Thermal Conductivity Methods\n",
     "\n",
-    "κALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA. \n",
+    "#### Boltzmann Transport Equation\n",
     "\n",
-    "The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.\n",
+    "The **thermal conductivity** is:\n",
     "\n",
-    "Using the Atomic Simulation Environment, κALDo can calculate the IFCs using several ab initio and molecular dynamics codes, thus enabling the use of first-principles DFT, empirical forcefields and semi-empirical tight- binding. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through seamless integration with the hiPhive package, the IFC calculation can take advantage of compressing-sensing machine learning algorithms\n",
+    "$$\n",
+    "\\kappa_{\\alpha\\beta} = \\frac{1}{N_q V}\\sum_{\\mu}c_\\mu v_{\\mu\\alpha}\\tau_\\mu v_{\\mu\\beta}\n",
+    "$$\n",
     "\n",
-    "The code is released open-source for the community to use and contribute with edits and suggestions. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.\n",
+    "Three BTE solution methods are implemented:\n",
     "\n",
-    "### Features\n",
+    "| Method | Description | Use Case |\n",
+    "|--------|-------------|----------|\n",
+    "| `rta` | Relaxation Time Approximation | Quick estimates, strongly anharmonic materials |\n",
+    "| `sc` | Self-consistent iteration | Most bulk materials, good accuracy/cost balance |\n",
+    "| `inverse` | Full matrix inversion | Highest accuracy for crystals |\n",
     "\n",
-    "Below we illustrate the main features of the code.\n",
+    "#### Quasi-Harmonic Green-Kubo (QHGK)\n",
     "\n",
-    "**Forcefields**. Using the Atomic Simulation Environment, kALDo can calculate the interatomic force constants using several ab-initio and molecular dynamics codes. A native LAMMPS interface is also available in the USER-PHONON package. Finally, through a seamless integration with the Hiphive package, the IFC calculation can take advantage of compressingsensing machine learning algorithms.\n",
+    "For **disordered or amorphous materials** where translational symmetry is broken, the QHGK method provides lattice dynamics-based thermal conductivity predictions:\n",
     "\n",
-    "**CPUs and GPUs**. Multithread implementation on CPUs and GPUs. The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.\n",
+    "$$\n",
+    "\\kappa_{\\alpha\\beta} = \\frac{1}{V}\\sum_{\\mu\\mu'}c_{\\mu\\mu'} v_{\\mu\\mu'}^{\\alpha}\\tau_{\\mu\\mu'} v_{\\mu\\mu'}^{\\beta}\n",
+    "$$\n",
     "\n",
-    "**Scalable**. In a system of N atoms and N_k k points. kALDo uses (3N)^2 floating point numbers to save the state of the system when using QHGK, (Nk x 3N)^2 for the full solution of the BTE and Nk x 3N^2 when using BTE-RTA.\n",
+    "Unlike BTE which treats phonons as plane waves, QHGK naturally captures **diffuson** and **locon** contributions in disordered systems.\n",
     "\n",
-    "**Performance**. The bottleneck, and slow part of ALD simulations is the calculation of the phonons lifetimes and the scattering matrix. This step requires projecting the interatomic potential on 3N phonons modes and the algorithm scales like (Nk x 3N)^3, because of the 3 projections on phonons modes. In kALDo such algorithm is implemented as 2 Nk x 3N tensor multiplications of size Nk x (3N)^2 for BTE calculations while 3N^2 for QHGK.\n",
+    "### Physical Modeling Extensions\n",
     "\n",
-    "**Open-Source**. Free for the community to use and contribute with edits and suggestion. It is designed on modern software best practices, and we hope to provide a development platform to implement new theory and methods.\n",
-    "\n",
-    "<img src=\"_resources/features.png\" width=\"650\">\n"
-   ],
-   "metadata": {
-    "collapsed": false
-   },
-   "id": "ba5b1540c3b4f894"
+    "- **Isotopic Scattering**: Enable via `include_isotopes=True`\n",
+    "- **Non-Analytical Corrections (NAC)**: For polar materials with LO-TO splitting, enable via `is_nac=True`\n",
+    "- **Finite-Size Effects**: Specify sample dimensions via `length=(L_x, L_y, L_z)` in Angstroms"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "user-guide",
+   "metadata": {},
+   "source": "---\n\n## User Guide\n\n### Supported Force Constant Formats\n\nkALDo supports importing force constants from multiple sources via `ForceConstants.from_folder()`:\n\n| Source | Format String | Second-Order Files | Third-Order Files |\n|--------|---------------|-------------------|------------------|\n| Numpy | `numpy` | `second.npy` | `third.npz` or `third.npy` |\n| ESKM | `eskm` | `Dyn.form` | `THIRD` |\n| [LAMMPS](https://github.com/lammps/lammps) | `lammps` | `Dyn.form` | `THIRD` |\n| [VASP](https://www.vasp.at/) / [ShengBTE](https://www.shengbte.org/) | `vasp` | `FORCE_CONSTANTS_2ND` | `FORCE_CONSTANTS_3RD` |\n| [QE](https://www.quantum-espresso.org/) + VASP | `qe-vasp` | `espresso.ifc2` | `FORCE_CONSTANTS_3RD` |\n| VASP + d3q | `vasp-d3q` | `FORCE_CONSTANTS_2ND` | `FORCE_CONSTANTS_3RD_D3Q` |\n| QE + d3q | `qe-d3q` | `espresso.ifc2` | `FORCE_CONSTANTS_3RD_D3Q` |\n| [HiPhive](https://hiphive.materialsmodeling.org/) | `hiphive` | `model2.fcs` | `model3.fcs` |\n| [TDEP](https://github.com/tdep-developers/tdep) | `tdep` | `infile.forceconstant` | `infile.forceconstant_thirdorder` |\n\n### Machine-Learned Potentials\n\nExample using [MatterSim](https://github.com/microsoft/mattersim):\n\n```python\nfrom kaldo.forceconstants import ForceConstants\nfrom kaldo.phonons import Phonons\nfrom kaldo.conductivity import Conductivity\nfrom ase.build import bulk\nfrom ase.optimize import BFGS\nfrom ase.constraints import StrainFilter\nfrom mattersim.forcefield import MatterSimCalculator\n\n# Structure optimization\natoms = bulk('SiC', 'zincblende', a=4.35)\ncalc = MatterSimCalculator(device='cuda')\natoms.calc = calc\nsf = StrainFilter(atoms)\nopt = BFGS(sf)\nopt.run(fmax=0.001)\n\n# Compute force constants\nfc = ForceConstants(\n    atoms=atoms,\n    supercell=[10, 10, 10],\n    third_supercell=[5, 5, 5],\n    folder='fd_SiC_MatterSim'\n)\nfc.second.calculate(calc, delta_shift=0.03)\nfc.third.calculate(calc, delta_shift=0.03)\n\n# Calculate thermal conductivity\nphonons = Phonons(\n    forceconstants=fc,\n    kpts=[15, 15, 15],\n    temperature=300,\n    is_classic=False,\n    folder='ALD_SiC_MatterSim'\n)\ncond = Conductivity(phonons=phonons, method='inverse')\nprint(f\"Thermal conductivity: {cond.conductivity.sum(axis=0).trace()/3:.1f} W/m/K\")\n```\n\n### Storage Backends\n\n| Backend | I/O Speed | Recommended Use Case |\n|---------|-----------|---------------------|\n| `formatted` | Slow | Human inspection, small systems |\n| `numpy` | Fast | Production calculations, large systems |\n| `hdf5` | Fast | Complex datasets, database integration |\n| `memory` | Fastest | Transient calculations, testing |\n\n### JSON Command-Line Interface\n\nkALDo accepts JSON configuration files for batch processing:\n\n```json\n{\n  \"forceconstants\": {\n    \"folder\": \"path/to/data\",\n    \"format\": \"eskm\",\n    \"supercell\": [3, 3, 3]\n  },\n  \"phonons\": {\n    \"temperature\": 300.0,\n    \"kpts\": [5, 5, 5],\n    \"is_classic\": false\n  },\n  \"conductivity\": {\n    \"method\": \"rta\"\n  }\n}\n```\n\nExecute with: `kaldo < config.json`\n\n### Units\n\n| Measurement | Units |\n|-------------|-------|\n| Distances | Å |\n| Frequencies | THz |\n| Conductivity | W/(m·K) |"
   }
  ],
  "metadata": {
@@ -42,16 +66,8 @@
    "name": "python3"
   },
   "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 2
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
    "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython2",
-   "version": "2.7.6"
+   "version": "3.10.0"
   }
  },
  "nbformat": 4,
