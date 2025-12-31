@@ -6,20 +6,13 @@
 .. image:: docsource/_resources/logo.png
    :width: 400
 
-kALDo: Advanced Thermal Property Predictions via Lattice Dynamics and Machine Learning for Nanoscale Materials.
-===============================================================================================================
+Scalable Thermal Transport from First Principles and Machine Learning Potentials
+=================================================================================
 
-Read the paper on Arxiv_.
+**kALDo** is an open-source Python package for computing thermal transport properties of crystalline, disordered, and amorphous materials. It implements the **Boltzmann Transport Equation (BTE)** for crystals and the **Quasi-Harmonic Green-Kubo (QHGK)** method for systems lacking long-range order.
 
-.. _Arxiv: https://arxiv.org/abs/2009.01967
+Read the paper on `arXiv <https://arxiv.org/abs/2009.01967>`_.
 
-
-.. toctree::
-   :glob:
-   :caption: Introduction
-   :maxdepth: 1
-
-   docsource/introduction.ipynb
 
 .. toctree::
    :glob:
@@ -27,18 +20,21 @@ Read the paper on Arxiv_.
    :maxdepth: 1
 
    docsource/getting_started.md
-
-.. toctree::
-   :caption: User Guide
-   :maxdepth: 1
-
-   docsource/theory.ipynb
-   docsource/user_guide.ipynb
+   docsource/introduction.ipynb
 
 
 .. toctree::
    :glob:
-   :caption: Reference
+   :caption: Tutorials
+   :maxdepth: 1
+
+   docsource/crystal_presentation.ipynb
+   docsource/amorphous_presentation.ipynb
+
+
+.. toctree::
+   :glob:
+   :caption: API Reference
    :maxdepth: 2
 
    docsource/api_forceconstants
@@ -48,22 +44,11 @@ Read the paper on Arxiv_.
 
 .. toctree::
    :glob:
-   :caption: Tutorials and examples
-   :maxdepth: 1
-
-   docsource/crystal_presentation.ipynb
-   docsource/amorphous_presentation.ipynb
-   docsource/examples.md
-
-
-.. toctree::
-   :glob:
    :caption: Citations
    :maxdepth: 1
 
    docsource/citations.md
    publications/readme.md
-   docsource/other_codes.md
 
 
 .. toctree::
@@ -71,29 +56,13 @@ Read the paper on Arxiv_.
    :caption: Developer Guide
    :maxdepth: 1
 
-   docsource/code_architecture.ipynb
    docsource/contributing.md
 
 
-.. toctree::
-   :glob:
-   :caption: Acknowledgements
-   :maxdepth: 1
+Acknowledgements
+================
 
-   docsource/credits.ipynb
+.. image:: docsource/_resources/funding.png
+   :width: 650
 
-
-.. toctree::
-   :glob:
-   :caption: License
-   :maxdepth: 1
-
-   docsource/license.md
-
-
-Index
-=====
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech. `Explore MolSSI's software projects <https://molssi.org/software-projects/>`_.
