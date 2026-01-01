@@ -42,7 +42,7 @@ def read_second_order_matrix(filename, supercell):
     """
     with open(filename, 'r') as file:
         first_row = file.readline()
-        n_rows = int(first_row.strip())
+        n_rows = int(first_row.strip().split()[0])
         n_replicas = np.prod(supercell)
         n_unit_atoms = int(n_rows / n_replicas)
 
