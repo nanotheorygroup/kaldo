@@ -605,3 +605,37 @@ def test_lazy_property_storage_integration(monkeypatch, tmp_path):
     assert f"{expected_folder_temp}/frequency" in saved_data
     # With numpy storage, it should use the general setting, not _store_formats
     assert saved_data[f"{expected_folder_temp}/frequency"][1] == 'numpy'
+
+
+def test_get_folder_from_label_with_q_point_and_temperature():
+    """Test folder path generation for single q-point with temperature.
+
+    Regression test for HarmonicWithQTemp missing _get_folder_path_components().
+    """
+    class Instance(Storable):
+        def __init__(self, temperature, is_classic):
+            self.folder = 'base_folder'
+            self.q_point = np.array([0., 0., 0.])
+            self.temperature = temperature
+            self.is_classic = is_classic
+
+        def _get_folder_path_components(self, label):
+            components = []
+            if '<temperature>' in label:
+                components.append(str(int(self.temperature)))
+            if '<statistics>' in label:
+                components.append('quantum' if not self.is_classic else 'classic')
+            return components
+
+    # Test quantum at 300K
+    instance_300 = Instance(300, False)
+    folder_300 = instance_300.get_folder_from_label('<temperature>/<statistics>/<q_point>')
+    assert folder_300 == 'base_folder/single_q/0.0_0.0_0.0/300/quantum'
+
+    # Test classic at 500K - different path
+    instance_500 = Instance(500, True)
+    folder_500 = instance_500.get_folder_from_label('<temperature>/<statistics>/<q_point>')
+    assert folder_500 == 'base_folder/single_q/0.0_0.0_0.0/500/classic'
+
+    # Critical: different temperatures must produce different paths
+    assert folder_300 != folder_500
