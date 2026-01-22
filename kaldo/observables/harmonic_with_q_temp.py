@@ -23,6 +23,13 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         if self.is_classic:
             self.hbar = self.hbar * 1e-6
 
+    def _get_folder_path_components(self, label):
+        components = []
+        if '<temperature>' in label:
+            components.append(str(int(self.temperature)))
+        if '<statistics>' in label:
+            components.append('classic' if self.is_classic else 'quantum')
+        return components
 
     @lazy_property(label='<temperature>/<statistics>/<q_point>')
     def population(self):
