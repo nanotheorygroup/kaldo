@@ -1620,7 +1620,7 @@
 <p>kALDo is a versatile and scalable open-source software to compute phonon transport in crystalline and amorphous solids. It features real space QHGK calculations and three different solvers of the linearized BTE: direct inversion, self-consistent cycle, and RTA.</p>
 <p>The software seamlessly interfaces with popular ab initio codes (<a class="reference external" href="https://www.quantum-espresso.org/">Quantum ESPRESSO</a>, <a class="reference external" href="https://www.vasp.at/">VASP</a>), molecular dynamics packages (<a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a>), and state-of-the-art machine-learned potentials (<a class="reference external" href="https://github.com/brucefan1983/GPUMD">NEP</a>, <a class="reference external" href="https://github.com/ACEsuit/mace">MACE</a>, <a class="reference external" href="https://github.com/microsoft/mattersim">MatterSim</a>, <a class="reference external" href="https://github.com/orbital-materials/orb-models">Orb</a>), enabling
 thermal transport studies from 0 K to finite temperatures.</p>
-<p><img alt="726129837b17473ba23382878e85598c" class="no-scaled-link" src="../_images/kaldo-inputs.png" style="width: 450px;" /></p>
+<p><img alt="9c16671d634847a8a83016c27bf3daa1" class="no-scaled-link" src="../_images/kaldo-inputs.png" style="width: 450px;" /></p>
 <p><em>kALDo input/output ecosystem showing integration with diverse force constant sources.</em></p>
 <h2 id="What's-New-in-2.0">What’s New in 2.0<a class="headerlink" href="#What's-New-in-2.0" title="Link to this heading">¶</a></h2>
 <ul class="simple">
@@ -1639,7 +1639,7 @@ thermal transport studies from 0 K to finite temperatures.</p>
 <li><p><strong>Phonons</strong>: Computes vibrational properties including frequencies, velocities, scattering rates, heat capacities, and populations</p></li>
 <li><p><strong>Conductivity</strong>: Solves for thermal transport via BTE (RTA, self-consistent, inverse) or QHGK methods</p></li>
 </ul>
-<p><img alt="0135def218ef4fe9901528986ba6ff5f" class="no-scaled-link" src="../_images/kaldo-classes.png" style="width: 650px;" /></p>
+<p><img alt="6c1811afbd8b40d5984d767e1f377b75" class="no-scaled-link" src="../_images/kaldo-classes.png" style="width: 650px;" /></p>
 <p><em>kALDo class structure showing the three main components and their relationships.</em></p>
 <h2 id="Features">Features<a class="headerlink" href="#Features" title="Link to this heading">¶</a></h2>
 <p><strong>Forcefields.</strong> Using the <a class="reference external" href="https://wiki.fysik.dtu.dk/ase/">Atomic Simulation Environment (ASE)</a>, kALDo can calculate the interatomic force constants using several ab-initio and molecular dynamics codes. A native <a class="reference external" href="https://github.com/lammps/lammps">LAMMPS</a> interface is also available in the USER-PHONON package. Through seamless integration with the <a class="reference external" href="https://hiphive.materialsmodeling.org/">HiPhive</a> package, the IFC calculation can take advantage of compressing-sensing machine learning
@@ -1647,7 +1647,7 @@ algorithms. Version 2.0 adds native support for modern MLPs including <a class="
 <p><strong>CPUs and GPUs.</strong> Multithread implementation on CPUs and GPUs. The algorithms are implemented using linear algebra operations on tensors, to take advantage of multithreading on GPU and CPU using Numpy, Tensorflow and optimized tensor libraries.</p>
 <p><strong>Scalable.</strong> In a system of N atoms and N_k k points, kALDo uses (3N)² floating point numbers to save the state of the system when using QHGK, (N_k × 3N)² for the full solution of the BTE and N_k × 3N² when using BTE-RTA.</p>
 <p><strong>Performance.</strong> The bottleneck in ALD simulations is the calculation of phonon lifetimes and scattering matrices. This step requires projecting the interatomic potential on 3N phonon modes and scales like (N_k × 3N)³. In kALDo this is implemented as tensor multiplications, with GPU acceleration providing 5-10× speedup for systems with &gt;50 atoms.</p>
-<p><img alt="148022cd53be4b64804553de9de98b3e" class="no-scaled-link" src="../_images/features.png" style="width: 650px;" /></p>
+<p><img alt="eb0564fb7bee4161881e4a693aca1bda" class="no-scaled-link" src="../_images/features.png" style="width: 650px;" /></p>
 <hr class="docutils" />
 <h1 id="Theory">Theory<a class="headerlink" href="#Theory" title="Link to this heading">¶</a></h1>
 <h2 id="Computational-Workflow">Computational Workflow<a class="headerlink" href="#Computational-Workflow" title="Link to this heading">¶</a></h2>
