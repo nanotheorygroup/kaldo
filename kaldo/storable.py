@@ -60,27 +60,41 @@ class Storable:
     
     def _load_formatted_property(self, property_name, name):
         """
-        Load a property from formatted files. Override in subclasses for 
+        Load a property from formatted files. Override in subclasses for
         property-specific formatted loading.
-        
+
         Parameters
         ----------
         property_name : str
             Name of the property
         name : str
             Full file path without extension
-            
+
         Returns
         -------
         loaded_data : any
             The loaded property data
         """
-        # Default: single file with float dtype
-        if property_name == 'diffusivity':
-            dt = complex
-        else:
-            dt = float
-        return np.loadtxt(name + '.dat', skiprows=1, dtype=dt)
+        filename = name + '.dat'
+        with open(filename, 'r') as f:
+            header = f.readline().strip()
+
+        dtype = complex if 'complex' in header.lower() else float
+
+        shape = None
+        if '(' in header and ')' in header:
+            shape_str = header[header.find('(')+1:header.find(')')]
+            try:
+                shape = tuple(int(x.strip()) for x in shape_str.split(',') if x.strip())
+            except ValueError:
+                shape = None
+
+        data = np.loadtxt(filename, skiprows=1, dtype=dtype)
+
+        if shape is not None and np.prod(shape) == data.size:
+            data = data.reshape(shape)
+
+        return data
     
     def _save_property(self, property_name, folder, data, format='formatted'):
         """
