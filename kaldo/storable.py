@@ -60,8 +60,8 @@ class Storable:
     
     def _load_formatted_property(self, property_name, name):
         """
-        Load a property from formatted files. Override in subclasses for
-        property-specific formatted loading.
+        Load a property from formatted files. Handles split files for 3D arrays
+        with spatial coordinates (last dimension = 3).
 
         Parameters
         ----------
@@ -75,6 +75,38 @@ class Storable:
         loaded_data : any
             The loaded property data
         """
+        # Check if this is a split file (3D array with spatial last dim)
+        if os.path.exists(name + '_0.dat'):
+            loaded = []
+            for alpha in range(3):
+                filename = name + '_' + str(alpha) + '.dat'
+                with open(filename, 'r') as f:
+                    header = f.readline().strip()
+                dtype = complex if 'complex' in header.lower() else float
+                loaded.append(np.loadtxt(filename, skiprows=1, dtype=dtype))
+
+            # Reconstruct shape from header
+            shape = None
+            if '(' in header and ')' in header:
+                shape_str = header[header.find('(')+1:header.find(')')]
+                try:
+                    shape = tuple(int(x.strip()) for x in shape_str.split(',') if x.strip())
+                except ValueError:
+                    shape = None
+
+            # Stack and reshape if needed
+            data = np.array(loaded)
+            if shape is not None and np.prod(shape) == data[0].size:
+                # Reshape each slice, then stack along last axis
+                reshaped = [d.reshape(shape) for d in data]
+                data = np.stack(reshaped, axis=-1)
+            else:
+                # Transpose to move the split dimension back to last position
+                # Original shape was (..., 3), we loaded as (3, ...)
+                data = np.moveaxis(data, 0, -1)
+            return data
+
+        # Single file path (existing logic)
         filename = name + '.dat'
         with open(filename, 'r') as f:
             header = f.readline().strip()
@@ -138,9 +170,9 @@ class Storable:
     
     def _save_formatted_property(self, property_name, name, data):
         """
-        Save a property to formatted files. Override in subclasses for 
-        property-specific formatted saving.
-        
+        Save a property to formatted files. Handles multi-dimensional arrays
+        by splitting along the last dimension when it equals 3 (spatial coords).
+
         Parameters
         ----------
         property_name : str
@@ -150,9 +182,24 @@ class Storable:
         data : any
             The property data to save
         """
-        # Default: single file with scientific notation
         fmt = '%.18e'
-        np.savetxt(name + '.dat', data, fmt=fmt, header=str(data.shape))
+
+        # Handle 3D+ arrays with last dimension = 3 (spatial coordinates)
+        if data.ndim >= 3 and data.shape[-1] == 3:
+            for alpha in range(3):
+                slice_data = data[..., alpha]
+                # Flatten if still > 2D after slicing
+                if slice_data.ndim > 2:
+                    slice_data = slice_data.reshape(-1, slice_data.shape[-1]) if slice_data.ndim > 1 else slice_data.flatten()
+                np.savetxt(name + '_' + str(alpha) + '.dat', slice_data, fmt=fmt,
+                          header=str(data[..., 0].shape))
+        elif data.ndim > 2:
+            # Generic fallback: flatten to 2D, store original shape in header
+            flat_data = data.reshape(-1, data.shape[-1]) if data.shape[-1] > 1 else data.flatten()
+            np.savetxt(name + '.dat', flat_data, fmt=fmt, header=str(data.shape))
+        else:
+            # Default: 1D or 2D array
+            np.savetxt(name + '.dat', data, fmt=fmt, header=str(data.shape))
     
     def get_folder_from_label(self, label='', base_folder=None):
         """
