@@ -151,7 +151,7 @@ Input Files and Formats
 
    * - Format
      - Config filename
-     - ASE format
+     - ASE format (for config file)
      - 2nd Order FCs
      - 3rd Order FCs
    * - numpy
@@ -169,16 +169,26 @@ Input Files and Formats
      - xyz
      - Dyn.form
      - THIRD
-   * - shengbte
-     - CONTROL [#f1]_
-     - None [#f2]_
+   * - vasp-sheng
+     - CONTROL / POSCAR [#f1]_
+     - N/A / vasp [#f2]_
      - FORCE_CONSTANTS_2ND
      - FORCE_CONSTANTS_3RD
-   * - shengbte-qe
-     - CONTROL [#f1]_
-     - None
+   * - qe-sheng
+     - CONTROL / POSCAR [#f1]_
+     - N/A / vasp [#f2]_
      - espresso.ifc2
      - FORCE_CONSTANTS_3RD
+   * - vasp-d3q
+     - CONTROL / POSCAR [#f1]_
+     - N/A / vasp [#f2]_
+     - FORCE_CONSTANTS_2ND
+     - FORCE_CONSTANTS_3RD_D3Q
+   * - qe-d3q
+     - CONTROL / POSCAR [#f1]_
+     - N/A / vasp [#f2]_
+     - espresso.ifc2
+     - FORCE_CONSTANTS_3RD_D3Q
    * - hiphive
      - atom_prim.xyz + replicated_atoms.xyz
      - xyz
@@ -195,8 +205,8 @@ Input Files and Formats
 
 .. [#f1] The shengbte and shengbte-qe format will look for the "CONTROL" file first, however, if it is not found it will
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
-.. [#f2] The shengbte format does not have a direct equivalent in ASE. You can be create the atoms object manually or
-         use the import_control_file method.
+.. [#f2] ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
+         use the ``kaldo.interfaces.shegbte_io.import_control_file`` method.
 
 .. _forceconstants-api:
 
