@@ -2151,12 +2151,12 @@ generate a phonon dispersion along a new path.</p>
 <p>TDEP with kaldo will only work for bulk materials (3D) materials</p>
 </div>
 <h3 id="input-files-and-formats"><span id="input-files"></span>Input Files and Formats<a class="headerlink" href="#input-files-and-formats" title="Link to this heading">¶</a></h3>
-<table class="docutils data align-center" id="id4">
-<caption><span class="caption-text">Input Files</span><a class="headerlink" href="#id4" title="Link to this table">¶</a></caption>
+<table class="docutils data align-center" id="id9">
+<caption><span class="caption-text">Input Files</span><a class="headerlink" href="#id9" title="Link to this table">¶</a></caption>
 <thead>
 <tr class="row-odd"><th class="head"><p>Format</p></th>
 <th class="head"><p>Config filename</p></th>
-<th class="head"><p>ASE format</p></th>
+<th class="head"><p>ASE format (for config file)</p></th>
 <th class="head"><p>2nd Order FCs</p></th>
 <th class="head"><p>3rd Order FCs</p></th>
 </tr>
@@ -2180,17 +2180,29 @@ generate a phonon dispersion along a new path.</p>
 <td><p>Dyn.form</p></td>
 <td><p>THIRD</p></td>
 </tr>
-<tr class="row-odd"><td><p>shengbte</p></td>
-<td><p>CONTROL <a class="footnote-reference brackets" href="#f1" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
-<td><p>None <a class="footnote-reference brackets" href="#f2" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
+<tr class="row-odd"><td><p>vasp-sheng</p></td>
+<td><p>CONTROL / POSCAR <a class="footnote-reference brackets" href="#f1" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
+<td><p>N/A / vasp <a class="footnote-reference brackets" href="#f2" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
 <td><p>FORCE_CONSTANTS_2ND</p></td>
 <td><p>FORCE_CONSTANTS_3RD</p></td>
 </tr>
-<tr class="row-even"><td><p>shengbte-qe</p></td>
-<td><p>CONTROL <a class="footnote-reference brackets" href="#f1" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
-<td><p>None</p></td>
+<tr class="row-even"><td><p>qe-sheng</p></td>
+<td><p>CONTROL / POSCAR <a class="footnote-reference brackets" href="#f1" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
+<td><p>N/A / vasp <a class="footnote-reference brackets" href="#f2" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
 <td><p>espresso.ifc2</p></td>
 <td><p>FORCE_CONSTANTS_3RD</p></td>
+</tr>
+<tr class="row-odd"><td><p>vasp-d3q</p></td>
+<td><p>CONTROL / POSCAR <a class="footnote-reference brackets" href="#f1" id="id5" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
+<td><p>N/A / vasp <a class="footnote-reference brackets" href="#f2" id="id6" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
+<td><p>FORCE_CONSTANTS_2ND</p></td>
+<td><p>FORCE_CONSTANTS_3RD_D3Q</p></td>
+</tr>
+<tr class="row-even"><td><p>qe-d3q</p></td>
+<td><p>CONTROL / POSCAR <a class="footnote-reference brackets" href="#f1" id="id7" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
+<td><p>N/A / vasp <a class="footnote-reference brackets" href="#f2" id="id8" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
+<td><p>espresso.ifc2</p></td>
+<td><p>FORCE_CONSTANTS_3RD_D3Q</p></td>
 </tr>
 <tr class="row-odd"><td><p>hiphive</p></td>
 <td><p>atom_prim.xyz + replicated_atoms.xyz</p></td>
@@ -2210,14 +2222,15 @@ generate a phonon dispersion along a new path.</p>
 <aside class="footnote-list brackets">
 <aside class="footnote brackets" id="f1" role="doc-footnote">
 <span class="label"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></span>
-<span class="backrefs">(<a role="doc-backlink" href="#id1">1</a>,<a role="doc-backlink" href="#id3">2</a>)</span>
+<span class="backrefs">(<a role="doc-backlink" href="#id1">1</a>,<a role="doc-backlink" href="#id3">2</a>,<a role="doc-backlink" href="#id5">3</a>,<a role="doc-backlink" href="#id7">4</a>)</span>
 <p>The shengbte and shengbte-qe format will look for the “CONTROL” file first, however, if it is not found it will
 look for a “POSCAR” file (ASE format “vasp”). If neither are found, it will raise an error.</p>
 </aside>
 <aside class="footnote brackets" id="f2" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">2</a><span class="fn-bracket">]</span></span>
-<p>The shengbte format does not have a direct equivalent in ASE. You can be create the atoms object manually or
-use the import_control_file method.</p>
+<span class="label"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a role="doc-backlink" href="#id2">1</a>,<a role="doc-backlink" href="#id4">2</a>,<a role="doc-backlink" href="#id6">3</a>,<a role="doc-backlink" href="#id8">4</a>)</span>
+<p>ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
+use the <code class="docutils literal notranslate"><span class="pre">kaldo.interfaces.shegbte_io.import_control_file</span></code> method.</p>
 </aside>
 </aside>
 <h2 id="api-reference"><span id="forceconstants-api"></span>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h2>
@@ -2323,8 +2336,8 @@ to read it with nicer formatting and explanations).</p>
 <li><p>numpy: replicated_atoms.xyz, second.npy, third.npz</p></li>
 <li><p>eskm: CONFIG, replicated_atoms.xyz, Dyn.form, THIRD</p></li>
 <li><p>lammps: replicated_atoms.xyz, Dyn.form, THIRD</p></li>
-<li><p>vasp: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD</p></li>
-<li><p>qe-vasp: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD</p></li>
+<li><p>vasp-sheng: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD</p></li>
+<li><p>qe-sheng: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD</p></li>
 <li><p>vasp-d3q: CONTROL/POSCAR, FORCE_CONSTANTS_2ND/FORCE_CONSTANTS, FORCE_CONSTANTS_3RD_D3Q</p></li>
 <li><p>qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q</p></li>
 <li><p>hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs</p></li>
@@ -2338,7 +2351,7 @@ to read it with nicer formatting and explanations).</p>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">(int, int, int), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Number of unit cells in each cartesian direction replicated to form the input structure.
 Default is (1, 1, 1)</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.from_folder.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">'numpy', 'eskm', 'lammps', 'vasp', 'qe-vasp', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep'</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of force constant information being loaded into ForceConstants object.
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep'</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of force constant information being loaded into ForceConstants object.
 Default is <code class="docutils literal notranslate"><span class="pre">'numpy'</span></code></p>
 </dd>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold"><span class="sig-name descname">third_energy_threshold</span><span class="p"> : </span><span class="desctype"><span class="desctype">float, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold" title="Permalink to this definition">¶</a></dt><dd><p>When importing sparse third order force constant matrices, energies below
