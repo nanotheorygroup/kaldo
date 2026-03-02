@@ -127,12 +127,15 @@ print(f"Thermal conductivity: {kappa.trace()/3:.1f} W/m/K")
 | NumPy | `numpy` | `second.npy` | `third.npz` or `third.npy` |
 | ESKM | `eskm` | `Dyn.form` | `THIRD` |
 | LAMMPS | `lammps` | `Dyn.form` | `THIRD` |
-| VASP / ShengBTE | `vasp` | `FORCE_CONSTANTS_2ND` or `FORCE_CONSTANTS` | `FORCE_CONSTANTS_3RD` |
-| QE + VASP | `qe-vasp` | `espresso.ifc2` | `FORCE_CONSTANTS_3RD` |
-| VASP + d3q | `vasp-d3q` | `FORCE_CONSTANTS_2ND` or `FORCE_CONSTANTS` | `FORCE_CONSTANTS_3RD_D3Q` |
+| VASP + ShengBTE | `vasp-sheng` | `FORCE_CONSTANTS_2ND` or `FORCE_CONSTANTS` | `FORCE_CONSTANTS_3RD` |
+| QE + ShengBTE [1] | `qe-sheng` | `espresso.ifc2` | `FORCE_CONSTANTS_3RD` |
+| VASP + d3q [2] | `vasp-d3q` | `FORCE_CONSTANTS_2ND` or `FORCE_CONSTANTS` | `FORCE_CONSTANTS_3RD_D3Q` |
 | QE + d3q | `qe-d3q` | `espresso.ifc2` | `FORCE_CONSTANTS_3RD_D3Q` |
 | HiPhive | `hiphive` | `model2.fcs` | `model3.fcs` |
 | TDEP | `tdep` | `infile.forceconstant` | `infile.forceconstant_thirdorder` |
+
+[1]: κALDo supports loading force constants with mixed formats. Here, it means that the second-order force constant comes from Quantum Espresso and the third-order force comes from thirdorder.py in ShengBTE. See examples on how to use thirdorder.py with Quantum Espresso. 
+[2]: The second-order force constant comes from VASP and the third-order force constant comes from [D3Q](https://anharmonic.github.io/d3q/) (Thermal2). See examples on how to use D3Q to calculate third order force constant for κALDo. 
 
 ## Theory Background
 
