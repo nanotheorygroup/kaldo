@@ -1,9 +1,14 @@
 
+import multiprocessing
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from kaldo.helpers.logger import get_logger
 from sparse import COO
 logging = get_logger()
+
+# Stores calculator_factory during parallel execution so forked workers
+# inherit it without pickling. Set before creating the executor; cleared after.
+_calculator_factory_store = None
 
 
 def list_of_replicas(atoms, replicated_atoms):
@@ -122,6 +127,12 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
     return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
 
 
+def _compute_iat_forked(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose):
+    """Parallel worker: reads calculator_factory from module global inherited via fork."""
+    return _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
+                        calculator_factory=_calculator_factory_store)
+
+
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
                     n_threads=1, calculator_factory=None):
     """
@@ -170,25 +181,31 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             replicated_atoms_workers = replicated_atoms.copy()
         else:
             replicated_atoms_workers = replicated_atoms
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(_compute_iat, iat, atoms, replicated_atoms_workers,
-                               third_order_delta, distance_threshold, is_verbose, calculator_factory): iat
-                for iat in range(n_atoms)
-            }
-            for future in as_completed(futures):
-                iat = futures[future]
-                local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
-                i_at_sparse.extend(local_i_at)
-                i_coord_sparse.extend(local_i_coord)
-                jat_sparse.extend(local_jat)
-                j_coord_sparse.extend(local_j_coord)
-                k_sparse.extend(local_k)
-                value_sparse.extend(local_value)
-                n_forces_done += n_done
-                n_forces_skipped += n_skipped
-                logging.info(f'Completed atom {iat}: '
-                             f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
+        global _calculator_factory_store
+        _calculator_factory_store = calculator_factory
+        ctx = multiprocessing.get_context('fork')
+        try:
+            with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as executor:
+                futures = {
+                    executor.submit(_compute_iat_forked, iat, atoms, replicated_atoms_workers,
+                                   third_order_delta, distance_threshold, is_verbose): iat
+                    for iat in range(n_atoms)
+                }
+                for future in as_completed(futures):
+                    iat = futures[future]
+                    local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
+                    i_at_sparse.extend(local_i_at)
+                    i_coord_sparse.extend(local_i_coord)
+                    jat_sparse.extend(local_jat)
+                    j_coord_sparse.extend(local_j_coord)
+                    k_sparse.extend(local_k)
+                    value_sparse.extend(local_value)
+                    n_forces_done += n_done
+                    n_forces_skipped += n_skipped
+                    logging.info(f'Completed atom {iat}: '
+                                 f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
+        finally:
+            _calculator_factory_store = None
     else:
         if calculator_factory is not None:
             # Serial: create one calculator instance and reuse across all iat iterations.
