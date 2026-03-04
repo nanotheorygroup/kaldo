@@ -261,22 +261,37 @@ class ThirdOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_threads=1):
+    def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
+                  n_threads=1, calculator_factory=None):
         """Calculate the third order force constants.
 
         Parameters
         ----------
+        calculator : ASE Calculator or None
+            Calculator to use. Must be picklable when ``n_threads != 1`` and
+            ``calculator_factory`` is not provided.
+        calculator_factory : callable or None
+            Zero-argument callable that returns a fresh ASE calculator. Use this
+            for file-based calculators that cannot be pickled. When ``n_threads != 1``,
+            each worker process calls the factory to create its own isolated instance.
+            If the calculator writes files, configure a unique directory per process::
+
+                import os
+                calculator_factory=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
+
+            When ``n_threads == 1``, the factory is called once and reused. If both
+            ``calculator`` and ``calculator_factory`` are provided, the factory takes
+            precedence for the actual force evaluation.
         n_threads : int or None
-            Number of parallel worker processes for the finite-difference
-            calculation. ``1`` runs serially (default). ``None`` uses all
-            available CPUs. Values > 1 launch that many workers via
-            ``concurrent.futures.ProcessPoolExecutor``.
-            Note: the calculator must be picklable when n_threads != 1.
+            Number of parallel worker processes. ``1`` runs serially (default).
+            ``None`` uses all available CPUs.
         """
+        if calculator is None and calculator_factory is None:
+            raise ValueError("Provide either calculator or calculator_factory")
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        replicated_atoms.calc = calculator
+        if calculator_factory is None:
+            replicated_atoms.calc = calculator
         if is_storing:
             try:
                 self.value = ThirdOrder.load(folder=self.folder, supercell=self.supercell).value
@@ -288,7 +303,8 @@ class ThirdOrder(ForceConstant):
                                              delta_shift,
                                              distance_threshold=distance_threshold,
                                              is_verbose=is_verbose,
-                                             n_threads=n_threads)
+                                             n_threads=n_threads,
+                                             calculator_factory=calculator_factory)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -299,7 +315,8 @@ class ThirdOrder(ForceConstant):
                                          delta_shift,
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose,
-                                         n_threads=n_threads)
+                                         n_threads=n_threads,
+                                         calculator_factory=calculator_factory)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')

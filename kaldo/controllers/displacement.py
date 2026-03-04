@@ -70,12 +70,23 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     return second
 
 
-def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose):
+def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
+                 calculator_factory=None):
     """Compute all third-order force constant terms for a single unit cell atom index.
 
     Module-level worker function used by calculate_third for parallel execution.
-    The calculator attached to replicated_atoms must be picklable when n_threads > 1.
+
+    Parameters
+    ----------
+    calculator_factory : callable or None
+        If provided, a fresh calculator is created via ``calculator_factory()`` and
+        attached to a copy of replicated_atoms. Use this for file-based calculators
+        that cannot be pickled, or when each worker needs an isolated scratch directory.
+        If None, replicated_atoms must already have a calculator attached.
     """
+    if calculator_factory is not None:
+        replicated_atoms = replicated_atoms.copy()
+        replicated_atoms.calc = calculator_factory()
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
     local_i_at = []
@@ -111,7 +122,8 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
     return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
 
 
-def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False, n_threads=1):
+def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
+                    n_threads=1, calculator_factory=None):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -122,8 +134,18 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         Number of parallel worker processes. ``1`` runs serially (default).
         ``None`` uses all available CPUs. Values > 1 launch that many workers
         via ``concurrent.futures.ProcessPoolExecutor``.
-        Note: the calculator attached to replicated_atoms must be picklable
-        when n_threads != 1.
+    calculator_factory : callable or None
+        Zero-argument callable that returns a fresh ASE calculator. When provided,
+        the calculator is not pickled — each worker (or the serial loop) calls
+        the factory to create its own instance. Required for file-based calculators
+        that cannot be pickled. When running in parallel, ensure the factory
+        configures a unique working directory per process, e.g.::
+
+            import os
+            calculator_factory=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
+
+        If None, the calculator must already be attached to replicated_atoms and
+        must be picklable when n_threads != 1.
     """
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
@@ -142,9 +164,16 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
 
     if use_parallel:
         max_workers = None if n_threads is None else n_threads
+        if calculator_factory is not None:
+            # Strip the calculator so atoms are picklable; workers will call factory instead.
+            # ASE Atoms.copy() does not copy the calculator.
+            replicated_atoms_workers = replicated_atoms.copy()
+        else:
+            replicated_atoms_workers = replicated_atoms
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = {
-                executor.submit(_compute_iat, iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose): iat
+                executor.submit(_compute_iat, iat, atoms, replicated_atoms_workers,
+                               third_order_delta, distance_threshold, is_verbose, calculator_factory): iat
                 for iat in range(n_atoms)
             }
             for future in as_completed(futures):
@@ -161,9 +190,14 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                 logging.info(f'Completed atom {iat}: '
                              f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
     else:
+        if calculator_factory is not None:
+            # Serial: create one calculator instance and reuse across all iat iterations.
+            replicated_atoms = replicated_atoms.copy()
+            replicated_atoms.calc = calculator_factory()
         for iat in range(n_atoms):
             local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = \
-                _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose)
+                _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
+                             calculator_factory=None)
             i_at_sparse.extend(local_i_at)
             i_coord_sparse.extend(local_i_coord)
             jat_sparse.extend(local_jat)
