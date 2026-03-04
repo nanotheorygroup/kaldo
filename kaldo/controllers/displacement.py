@@ -1,5 +1,6 @@
 
 import numpy as np
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from kaldo.helpers.logger import get_logger
 from sparse import COO
 logging = get_logger()
@@ -69,14 +70,63 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     return second
 
 
-def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False):
+def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose):
+    """Compute all third-order force constant terms for a single unit cell atom index.
+
+    Module-level worker function used by calculate_third for parallel execution.
+    The calculator attached to replicated_atoms must be picklable when n_threads > 1.
+    """
+    n_atoms = len(atoms.numbers)
+    n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
+    local_i_at = []
+    local_i_coord = []
+    local_jat = []
+    local_j_coord = []
+    local_k = []
+    local_value = []
+    n_done = 0
+    n_skipped = 0
+    for jat in range(n_replicas * n_atoms):
+        is_computing = True
+        if distance_threshold is not None:
+            dxij = replicated_atoms.get_distance(iat, jat, mic=True, vector=False)
+            if dxij > distance_threshold:
+                is_computing = False
+                n_skipped += 9
+        if is_computing:
+            if is_verbose:
+                logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij) if distance_threshold is not None else None}')
+            for icoord in range(3):
+                for jcoord in range(3):
+                    value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
+                                                   third_order_delta)
+                    for id_k in range(value.shape[0]):
+                        local_i_at.append(iat)
+                        local_i_coord.append(icoord)
+                        local_jat.append(jat)
+                        local_j_coord.append(jcoord)
+                        local_k.append(id_k)
+                        local_value.append(value[id_k])
+            n_done += 9
+    return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
+
+
+def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False, n_threads=1):
     """
     Compute third order force constant matrices by using the central
-    difference formula for the approximation
+    difference formula for the approximation.
+
+    Parameters
+    ----------
+    n_threads : int or None
+        Number of parallel worker processes. ``1`` runs serially (default).
+        ``None`` uses all available CPUs. Values > 1 launch that many workers
+        via ``concurrent.futures.ProcessPoolExecutor``.
+        Note: the calculator attached to replicated_atoms must be picklable
+        when n_threads != 1.
     """
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
-    replicated_atoms = replicated_atoms
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
     i_at_sparse = []
     i_coord_sparse = []
@@ -87,33 +137,44 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
     n_forces_done = 0
     n_forces_skipped = 0
-    for iat in range(n_atoms):
-        for jat in range(n_replicas * n_atoms):
-            is_computing = True
-            m, j_small = np.unravel_index(jat, (n_replicas, n_atoms))
-            if (distance_threshold is not None):
-                dxij = replicated_atoms.get_distance(iat, jat, mic=True, vector=False) 
-                if (dxij > distance_threshold):
-                    is_computing = False
-                    n_forces_skipped += 9
-            if is_computing:
-                if is_verbose:
-                    logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij) if distance_threshold is not None else None}')
-                for icoord in range(3):
-                    for jcoord in range(3):
-                        value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
-                                                       third_order_delta)
-                        for id in range(value.shape[0]):
-                            i_at_sparse.append(iat)
-                            i_coord_sparse.append(icoord)
-                            jat_sparse.append(jat)
-                            j_coord_sparse.append(jcoord)
-                            k_sparse.append(id)
-                            value_sparse.append(value[id])
-                n_forces_done += 9
-            if (n_forces_done + n_forces_skipped % 300) == 0:
-                logging.info('Calculate third derivatives ' + str
-                    (int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
+
+    use_parallel = n_threads is None or n_threads > 1
+
+    if use_parallel:
+        max_workers = None if n_threads is None else n_threads
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(_compute_iat, iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose): iat
+                for iat in range(n_atoms)
+            }
+            for future in as_completed(futures):
+                iat = futures[future]
+                local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
+                i_at_sparse.extend(local_i_at)
+                i_coord_sparse.extend(local_i_coord)
+                jat_sparse.extend(local_jat)
+                j_coord_sparse.extend(local_j_coord)
+                k_sparse.extend(local_k)
+                value_sparse.extend(local_value)
+                n_forces_done += n_done
+                n_forces_skipped += n_skipped
+                logging.info(f'Completed atom {iat}: '
+                             f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
+    else:
+        for iat in range(n_atoms):
+            local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = \
+                _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose)
+            i_at_sparse.extend(local_i_at)
+            i_coord_sparse.extend(local_i_coord)
+            jat_sparse.extend(local_jat)
+            j_coord_sparse.extend(local_j_coord)
+            k_sparse.extend(local_k)
+            value_sparse.extend(local_value)
+            n_forces_done += n_done
+            n_forces_skipped += n_skipped
+            if (n_forces_done + n_forces_skipped) % 300 == 0:
+                logging.info('Calculate third derivatives ' + str(
+                    int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
 
     logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
@@ -121,8 +182,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
     shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
     phifull = COO(coords, np.array(value_sparse), shape)
-    phifull = phifull.reshape \
-        ((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
+    phifull = phifull.reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
     return phifull
 
 

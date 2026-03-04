@@ -261,7 +261,19 @@ class ThirdOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False):
+    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
+                  n_threads=1):
+        """Calculate the third order force constants.
+
+        Parameters
+        ----------
+        n_threads : int or None
+            Number of parallel worker processes for the finite-difference
+            calculation. ``1`` runs serially (default). ``None`` uses all
+            available CPUs. Values > 1 launch that many workers via
+            ``concurrent.futures.ProcessPoolExecutor``.
+            Note: the calculator must be picklable when n_threads != 1.
+        """
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         replicated_atoms.calc = calculator
@@ -275,7 +287,8 @@ class ThirdOrder(ForceConstant):
                                              replicated_atoms,
                                              delta_shift,
                                              distance_threshold=distance_threshold,
-                                             is_verbose=is_verbose)
+                                             is_verbose=is_verbose,
+                                             n_threads=n_threads)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -285,7 +298,8 @@ class ThirdOrder(ForceConstant):
                                          replicated_atoms,
                                          delta_shift,
                                          distance_threshold=distance_threshold,
-                                         is_verbose=is_verbose)
+                                         is_verbose=is_verbose,
+                                         n_threads=n_threads)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
