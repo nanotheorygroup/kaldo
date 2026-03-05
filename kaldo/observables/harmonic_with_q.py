@@ -3,6 +3,8 @@ from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
 from ase import units
+import ase.io
+from ase import Atoms
 from opt_einsum import contract
 from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
@@ -700,3 +702,115 @@ class HarmonicWithQ(Observable, Storable):
         correction_matrix *= units.Bohr * ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         correction_matrix = 1j * correction_matrix
         return correction_matrix
+
+    def visualize_phonon_mode(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100, filename='phonon_mode.xyz'):
+        """
+        Write an extended-XYZ trajectory that animates a single phonon eigenmode
+        over the replicated supercell.
+
+        For mode (s) at wavevector (q) the displacement of atom *i* inside
+        unit-cell replica (l) at time (t) is
+
+            u_{lia}(t) = amplitude · Re[ e_{sia}(q)/sqrt(m_i)*exp(i(2*pi*sum_b[q_b*R_{lb}] − w_s*t)) ]
+
+        where R_l are the replicas positions, and w_s = 2*pi*f_s (rad/ps).
+
+        Parameters
+        ----------
+        mode_index : int
+            Zero-based index of the phonon branch to animate, ordered by ascending frequency (e.g. acoustic modes 1-3 = mode indices 0-2).
+        amplitude : float
+            Peak atomic displacement in Angstroms.
+        time_step : float
+            Time interval between consecutive frames, in picoseconds (THz * ps = 1).
+        n_steps : int
+            Total number of frames constructed after starting frame (trajectory length - 1)
+        filename : str
+            Path of the output extended-XYZ file.
+
+        Returns
+        -------
+        frames : list[ase.Atoms]
+            The ASE Atoms objects that were written to "filename"
+        """
+        
+        q_point = self.q_point
+
+        if not (0 <= mode_index < self.n_modes):
+            raise IndexError(
+                f"Mode_index {mode_index} out of range [0, {int(self.n_modes-1)}]."
+            )
+
+        n_atoms = len(self.atoms)
+        n_replicas = int(np.prod(self.supercell))
+
+        eigvec = np.array(self._eigensystem)[1:, mode_index]   # (n_modes,)
+
+        masses = np.repeat(self.atoms.get_masses(), 3)       # (n_modes,)
+        disp_cell = eigvec / np.sqrt(masses)                 # (n_modes,)
+        norm = np.linalg.norm(disp_cell)
+        if norm > 0:
+            disp_cell = disp_cell / norm
+        disp_cell = (amplitude * disp_cell).reshape(n_atoms, 3) # (n_atoms, 3)
+
+        freq = float(self.frequency[0, mode_index])   
+        total_time = n_steps * time_step              
+
+        omega = 2.0 * np.pi * abs(freq)
+
+        rep_pos = self.second.replicated_atoms.positions.reshape(
+            n_replicas, n_atoms, 3
+        )
+        
+        R_l = rep_pos[:, 0, :] - self.atoms.positions[0]          # (n_replicas, 3)
+
+        cell_inv = self.second.cell_inv                            # (3, 3)
+        phase_l = R_l.dot(cell_inv.dot(self.q_point))              # (n_replicas,)
+
+        eq_positions = self.second.replicated_atoms.positions.copy()  # (n_replicas*n_atoms, 3)
+        supercell_cell = self.second.replicated_atoms.cell
+        symbols = list(self.atoms.get_chemical_symbols()) * n_replicas
+
+        frame = Atoms(
+                symbols=symbols,
+                positions=eq_positions,
+                cell=supercell_cell,
+                pbc=True)
+
+        frame.info['time_ps'] = 0.
+        frame.info['frequency_THz'] = freq
+        frame.info['q_point'] = list(self.q_point)
+        frame.info['mode_index'] = mode_index
+        frame.info['amplitude_A'] = amplitude
+
+        frames = []
+        frames.append(frame)
+        for step in range(n_steps):
+            t = (step + 1) * time_step
+
+            pf = np.exp(1j * (2.0 * np.pi * phase_l - omega * t))   # (n_replicas,)
+
+            displacements = np.real(
+                disp_cell[np.newaxis, :, :] * pf[:, np.newaxis, np.newaxis]
+            ).reshape(n_replicas * n_atoms, 3)
+
+            if np.abs(omega) < 1e-3:
+                factor = step + 1
+            else:
+                factor = 1
+
+            frame = Atoms(
+                symbols=symbols,
+                positions=eq_positions + factor * displacements,
+                cell=supercell_cell,
+                pbc=True,
+            )
+            frame.info['time_ps'] = t
+            frame.info['frequency_THz'] = freq
+            frame.info['q_point'] = list(self.q_point)
+            frame.info['mode_index'] = mode_index
+            frame.info['amplitude_A'] = amplitude
+            frames.append(frame)
+
+        ase.io.write(filename, frames, format='extxyz')
+        return frames
