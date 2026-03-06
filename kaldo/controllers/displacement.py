@@ -259,12 +259,20 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         global _calculator_factory_store
         _calculator_factory_store = calculator_factory
         ctx = multiprocessing.get_context('fork')
+        if use_scratch:
+            atoms_to_compute = [iat for iat in range(n_atoms)
+                                 if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.npz'))]
+            n_resumed = n_atoms - len(atoms_to_compute)
+            if n_resumed:
+                logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
+        else:
+            atoms_to_compute = list(range(n_atoms))
         try:
             with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as executor:
                 futures = {
                     executor.submit(_compute_iat_forked, iat, atoms, replicated_atoms_workers,
                                    third_order_delta, distance_threshold, is_verbose): iat
-                    for iat in range(n_atoms)
+                    for iat in atoms_to_compute
                 }
                 for future in as_completed(futures):
                     iat = futures[future]
@@ -291,6 +299,11 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             replicated_atoms = replicated_atoms.copy()
             replicated_atoms.calc = calculator_factory()
         for iat in range(n_atoms):
+            if use_scratch:
+                chunk_path = os.path.join(scratch_dir, f'iat_{iat:05d}.npz')
+                if os.path.exists(chunk_path):
+                    logging.info(f'Atom {iat}: already computed, skipping')
+                    continue
             local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = \
                 _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
                              calculator_factory=None)
