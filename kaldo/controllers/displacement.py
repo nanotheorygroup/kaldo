@@ -1,5 +1,7 @@
 
+import glob
 import multiprocessing
+import os
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from kaldo.helpers.logger import get_logger
@@ -133,8 +135,67 @@ def _compute_iat_forked(iat, atoms, replicated_atoms, third_order_delta, distanc
                         calculator_factory=_calculator_factory_store)
 
 
+def _save_iat_chunk(scratch_dir, iat, local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value):
+    """Save one atom's sparse IFC data to a compressed numpy file."""
+    path = os.path.join(scratch_dir, f'iat_{iat:05d}.npz')
+    np.savez_compressed(path,
+                        i_at=np.array(local_i_at, dtype=np.int64),
+                        i_coord=np.array(local_i_coord, dtype=np.int64),
+                        jat=np.array(local_jat, dtype=np.int64),
+                        j_coord=np.array(local_j_coord, dtype=np.int64),
+                        k=np.array(local_k, dtype=np.int64),
+                        value=np.array(local_value, dtype=np.float64))
+
+
+def _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch):
+    """Build the final COO tensor from per-atom scratch files using two passes.
+
+    Pass 1 reads only array metadata to count total non-zeros, allowing a single
+    pre-allocated set of arrays (peak memory ~1x final COO size + one chunk).
+    Pass 2 fills those arrays slice-by-slice and optionally deletes each file.
+    """
+    pattern = os.path.join(scratch_dir, 'iat_*.npz')
+    files = sorted(glob.glob(pattern))
+    if not files:
+        raise FileNotFoundError(f'No scratch files found in {scratch_dir}')
+
+    # Pass 1: count total non-zeros from metadata only (lazy load)
+    total_nnz = 0
+    for path in files:
+        with np.load(path) as f:
+            total_nnz += f['value'].shape[0]
+
+    coords = np.empty((5, total_nnz), dtype=np.int64)
+    values = np.empty(total_nnz, dtype=np.float64)
+
+    # Pass 2: fill pre-allocated arrays
+    offset = 0
+    for path in files:
+        with np.load(path) as f:
+            n = f['value'].shape[0]
+            coords[0, offset:offset + n] = f['i_at']
+            coords[1, offset:offset + n] = f['i_coord']
+            coords[2, offset:offset + n] = f['jat']
+            coords[3, offset:offset + n] = f['j_coord']
+            coords[4, offset:offset + n] = f['k']
+            values[offset:offset + n] = f['value']
+        offset += n
+        if not keep_scratch:
+            os.remove(path)
+
+    if not keep_scratch:
+        try:
+            os.rmdir(scratch_dir)
+        except OSError:
+            pass  # not empty — leave it
+
+    shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
+    phifull = COO(coords, values, shape)
+    return phifull.reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
+
+
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
-                    n_threads=1, calculator_factory=None):
+                    n_threads=1, calculator_factory=None, scratch_dir=None, keep_scratch=False):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -157,16 +218,30 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
 
         If None, the calculator must already be attached to replicated_atoms and
         must be picklable when n_threads != 1.
+    scratch_dir : str or None
+        Path to a directory where per-atom sparse data is saved as `iat_NNNNN.npz`
+        files during calculation. Using scratch files keeps peak memory near
+        1x the final COO size instead of accumulating all data in Python lists.
+        The directory is created if it does not exist. If None (default), results
+        are accumulated in memory (original behaviour).
+    keep_scratch : bool
+        If True, scratch files are preserved after successful assembly. If False
+        (default), each file is deleted as it is consumed during assembly, and the
+        directory is removed if empty.
     """
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
-    i_at_sparse = []
-    i_coord_sparse = []
-    jat_sparse = []
-    j_coord_sparse = []
-    k_sparse = []
-    value_sparse = []
+    use_scratch = scratch_dir is not None
+    if use_scratch:
+        os.makedirs(scratch_dir, exist_ok=True)
+    else:
+        i_at_sparse = []
+        i_coord_sparse = []
+        jat_sparse = []
+        j_coord_sparse = []
+        k_sparse = []
+        value_sparse = []
     n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
     n_forces_done = 0
     n_forces_skipped = 0
@@ -194,12 +269,16 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                 for future in as_completed(futures):
                     iat = futures[future]
                     local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
-                    i_at_sparse.extend(local_i_at)
-                    i_coord_sparse.extend(local_i_coord)
-                    jat_sparse.extend(local_jat)
-                    j_coord_sparse.extend(local_j_coord)
-                    k_sparse.extend(local_k)
-                    value_sparse.extend(local_value)
+                    if use_scratch:
+                        _save_iat_chunk(scratch_dir, iat, local_i_at, local_i_coord,
+                                        local_jat, local_j_coord, local_k, local_value)
+                    else:
+                        i_at_sparse.extend(local_i_at)
+                        i_coord_sparse.extend(local_i_coord)
+                        jat_sparse.extend(local_jat)
+                        j_coord_sparse.extend(local_j_coord)
+                        k_sparse.extend(local_k)
+                        value_sparse.extend(local_value)
                     n_forces_done += n_done
                     n_forces_skipped += n_skipped
                     logging.info(f'Completed atom {iat}: '
@@ -215,12 +294,16 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = \
                 _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
                              calculator_factory=None)
-            i_at_sparse.extend(local_i_at)
-            i_coord_sparse.extend(local_i_coord)
-            jat_sparse.extend(local_jat)
-            j_coord_sparse.extend(local_j_coord)
-            k_sparse.extend(local_k)
-            value_sparse.extend(local_value)
+            if use_scratch:
+                _save_iat_chunk(scratch_dir, iat, local_i_at, local_i_coord,
+                                local_jat, local_j_coord, local_k, local_value)
+            else:
+                i_at_sparse.extend(local_i_at)
+                i_coord_sparse.extend(local_i_coord)
+                jat_sparse.extend(local_jat)
+                j_coord_sparse.extend(local_j_coord)
+                k_sparse.extend(local_k)
+                value_sparse.extend(local_value)
             n_forces_done += n_done
             n_forces_skipped += n_skipped
             if (n_forces_done + n_forces_skipped) % 300 == 0:
@@ -230,6 +313,8 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
+    if use_scratch:
+        return _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch)
     coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
     shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
     phifull = COO(coords, np.array(value_sparse), shape)
