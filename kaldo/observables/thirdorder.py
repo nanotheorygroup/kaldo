@@ -262,7 +262,7 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_threads=1, calculator_factory=None):
+                  n_threads=1, calculator_factory=None, scratch_dir=None, keep_scratch=False):
         """Calculate the third order force constants.
 
         Parameters
@@ -285,6 +285,14 @@ class ThirdOrder(ForceConstant):
         n_threads : int or None
             Number of parallel worker processes. ``1`` runs serially (default).
             ``None`` uses all available CPUs.
+        scratch_dir : str or None
+            Directory for per-atom intermediate ``.npz`` files written during
+            calculation to keep peak memory low. Defaults to
+            ``{folder}/third_order`` when ``self.folder`` is set; pass an explicit
+            path to override. Pass an empty string ``''`` to disable scratch files
+            and fall back to in-memory accumulation.
+        keep_scratch : bool
+            If True, scratch files are kept after assembly. Default False.
         """
         if calculator is None and calculator_factory is None:
             raise ValueError("Provide either calculator or calculator_factory")
@@ -292,6 +300,11 @@ class ThirdOrder(ForceConstant):
         replicated_atoms = self.replicated_atoms
         if calculator_factory is None:
             replicated_atoms.calc = calculator
+        # Resolve scratch_dir default
+        if scratch_dir is None and self.folder:
+            scratch_dir = os.path.join(self.folder, 'third_order')
+        elif scratch_dir == '':
+            scratch_dir = None
         if is_storing:
             try:
                 self.value = ThirdOrder.load(folder=self.folder, supercell=self.supercell).value
@@ -304,7 +317,9 @@ class ThirdOrder(ForceConstant):
                                              distance_threshold=distance_threshold,
                                              is_verbose=is_verbose,
                                              n_threads=n_threads,
-                                             calculator_factory=calculator_factory)
+                                             calculator_factory=calculator_factory,
+                                             scratch_dir=scratch_dir,
+                                             keep_scratch=keep_scratch)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -316,7 +331,9 @@ class ThirdOrder(ForceConstant):
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose,
                                          n_threads=n_threads,
-                                         calculator_factory=calculator_factory)
+                                         calculator_factory=calculator_factory,
+                                         scratch_dir=scratch_dir,
+                                         keep_scratch=keep_scratch)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
