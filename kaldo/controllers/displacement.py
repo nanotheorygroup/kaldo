@@ -8,9 +8,11 @@ from kaldo.helpers.logger import get_logger
 from sparse import COO
 logging = get_logger()
 
-# Stores calculator_factory during parallel execution so forked workers
-# inherit it without pickling. Set before creating the executor; cleared after.
+# Module-level stores for forked worker processes. Set in calculate_third before
+# creating the executor; cleared in the finally block afterwards.
 _calculator_factory_store = None
+_scratch_dir_store = None
+_jat_flush_every_store = 50
 
 
 def list_of_replicas(atoms, replicated_atoms):
@@ -78,7 +80,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
 
 
 def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                 calculator_factory=None):
+                 calculator_factory=None, scratch_dir=None, jat_flush_every=50):
     """Compute all third-order force constant terms for a single unit cell atom index.
 
     Module-level worker function used by calculate_third for parallel execution.
@@ -90,20 +92,71 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
         attached to a copy of replicated_atoms. Use this for file-based calculators
         that cannot be pickled, or when each worker needs an isolated scratch directory.
         If None, replicated_atoms must already have a calculator attached.
+    scratch_dir : str or None
+        If provided, results are written directly to ``scratch_dir`` as a series of
+        ``iat_NNNNN_chunk_MMMM.npz`` files. A ``iat_NNNNN.done`` sentinel is written
+        on completion. Empty lists are returned in place of data to keep peak memory
+        proportional to one flush window rather than the full atom.
+    jat_flush_every : int
+        Number of jat iterations to accumulate (as compact numpy arrays) before
+        flushing to disk. Only used when ``scratch_dir`` is set.
     """
     if calculator_factory is not None:
         replicated_atoms = replicated_atoms.copy()
         replicated_atoms.calc = calculator_factory()
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
+    n_done = 0
+    n_skipped = 0
+
+    if scratch_dir is not None:
+        chunk_id = 0
+        jat_count_in_chunk = 0
+        chunk_coords = []   # list of (5, n_k) int64 arrays
+        chunk_values = []   # list of (n_k,) float64 arrays
+        for jat in range(n_replicas * n_atoms):
+            is_computing = True
+            if distance_threshold is not None:
+                dxij = replicated_atoms.get_distance(iat, jat, mic=True, vector=False)
+                if dxij > distance_threshold:
+                    is_computing = False
+                    n_skipped += 9
+            if is_computing:
+                if is_verbose:
+                    logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij) if distance_threshold is not None else None}')
+                for icoord in range(3):
+                    for jcoord in range(3):
+                        value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
+                                                       third_order_delta)
+                        n_k = value.shape[0]
+                        chunk_coords.append(np.array([
+                            np.full(n_k, iat,    dtype=np.int64),
+                            np.full(n_k, icoord, dtype=np.int64),
+                            np.full(n_k, jat,    dtype=np.int64),
+                            np.full(n_k, jcoord, dtype=np.int64),
+                            np.arange(n_k,       dtype=np.int64),
+                        ]))
+                        chunk_values.append(value.astype(np.float64))
+                n_done += 9
+            jat_count_in_chunk += 1
+            if jat_count_in_chunk >= jat_flush_every and chunk_values:
+                _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
+                chunk_id += 1
+                jat_count_in_chunk = 0
+                chunk_coords = []
+                chunk_values = []
+        if chunk_values:
+            _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
+        open(os.path.join(scratch_dir, f'iat_{iat:05d}.done'), 'w').close()
+        return [], [], [], [], [], [], n_done, n_skipped
+
+    # Original in-memory path
     local_i_at = []
     local_i_coord = []
     local_jat = []
     local_j_coord = []
     local_k = []
     local_value = []
-    n_done = 0
-    n_skipped = 0
     for jat in range(n_replicas * n_atoms):
         is_computing = True
         if distance_threshold is not None:
@@ -130,60 +183,55 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
 
 
 def _compute_iat_forked(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose):
-    """Parallel worker: reads calculator_factory from module global inherited via fork."""
+    """Parallel worker: reads per-run settings from module globals inherited via fork."""
     return _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                        calculator_factory=_calculator_factory_store)
+                        calculator_factory=_calculator_factory_store,
+                        scratch_dir=_scratch_dir_store,
+                        jat_flush_every=_jat_flush_every_store)
 
 
-def _save_iat_chunk(scratch_dir, iat, local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value):
-    """Save one atom's sparse IFC data to a compressed numpy file."""
-    path = os.path.join(scratch_dir, f'iat_{iat:05d}.npz')
-    np.savez_compressed(path,
-                        i_at=np.array(local_i_at, dtype=np.int64),
-                        i_coord=np.array(local_i_coord, dtype=np.int64),
-                        jat=np.array(local_jat, dtype=np.int64),
-                        j_coord=np.array(local_j_coord, dtype=np.int64),
-                        k=np.array(local_k, dtype=np.int64),
-                        value=np.array(local_value, dtype=np.float64))
+def _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
+    """Concatenate buffered numpy arrays and write one chunk file to disk."""
+    coords = np.concatenate(chunk_coords, axis=1)   # shape (5, total_k)
+    values = np.concatenate(chunk_values)            # shape (total_k,)
+    path = os.path.join(scratch_dir, f'iat_{iat:05d}_chunk_{chunk_id:04d}.npz')
+    np.savez_compressed(path, coords=coords, values=values)
 
 
 def _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch):
-    """Build the final COO tensor from per-atom scratch files using two passes.
+    """Build the final COO tensor from per-jat-chunk scratch files using two passes.
 
     Pass 1 reads only array metadata to count total non-zeros, allowing a single
     pre-allocated set of arrays (peak memory ~1x final COO size + one chunk).
     Pass 2 fills those arrays slice-by-slice and optionally deletes each file.
     """
-    pattern = os.path.join(scratch_dir, 'iat_*.npz')
-    files = sorted(glob.glob(pattern))
+    files = sorted(glob.glob(os.path.join(scratch_dir, 'iat_*_chunk_*.npz')))
     if not files:
-        raise FileNotFoundError(f'No scratch files found in {scratch_dir}')
+        raise FileNotFoundError(f'No scratch chunk files found in {scratch_dir}')
 
-    # Pass 1: count total non-zeros from metadata only (lazy load)
+    # Pass 1: count total non-zeros from metadata only (lazy load — no data read)
     total_nnz = 0
     for path in files:
         with np.load(path) as f:
-            total_nnz += f['value'].shape[0]
+            total_nnz += f['values'].shape[0]
 
     coords = np.empty((5, total_nnz), dtype=np.int64)
     values = np.empty(total_nnz, dtype=np.float64)
 
-    # Pass 2: fill pre-allocated arrays
+    # Pass 2: fill pre-allocated arrays, consuming each file as we go
     offset = 0
     for path in files:
         with np.load(path) as f:
-            n = f['value'].shape[0]
-            coords[0, offset:offset + n] = f['i_at']
-            coords[1, offset:offset + n] = f['i_coord']
-            coords[2, offset:offset + n] = f['jat']
-            coords[3, offset:offset + n] = f['j_coord']
-            coords[4, offset:offset + n] = f['k']
-            values[offset:offset + n] = f['value']
+            n = f['values'].shape[0]
+            coords[:, offset:offset + n] = f['coords']
+            values[offset:offset + n] = f['values']
         offset += n
         if not keep_scratch:
             os.remove(path)
 
     if not keep_scratch:
+        for sentinel in glob.glob(os.path.join(scratch_dir, 'iat_*.done')):
+            os.remove(sentinel)
         try:
             os.rmdir(scratch_dir)
         except OSError:
@@ -195,7 +243,8 @@ def _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch):
 
 
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
-                    n_threads=1, calculator_factory=None, scratch_dir=None, keep_scratch=False):
+                    n_threads=1, calculator_factory=None, scratch_dir=None, keep_scratch=False,
+                    jat_flush_every=50):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -219,15 +268,18 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         If None, the calculator must already be attached to replicated_atoms and
         must be picklable when n_threads != 1.
     scratch_dir : str or None
-        Path to a directory where per-atom sparse data is saved as `iat_NNNNN.npz`
-        files during calculation. Using scratch files keeps peak memory near
-        1x the final COO size instead of accumulating all data in Python lists.
+        Path to a directory for scratch chunk files (``iat_NNNNN_chunk_MMMM.npz``).
+        Workers flush to disk every ``jat_flush_every`` jat iterations, keeping
+        peak memory proportional to one flush window rather than a full atom.
         The directory is created if it does not exist. If None (default), results
         are accumulated in memory (original behaviour).
     keep_scratch : bool
         If True, scratch files are preserved after successful assembly. If False
         (default), each file is deleted as it is consumed during assembly, and the
         directory is removed if empty.
+    jat_flush_every : int
+        Number of jat iterations to buffer before flushing to disk. Only used
+        when ``scratch_dir`` is set. Default 50.
     """
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
@@ -256,12 +308,14 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             replicated_atoms_workers = replicated_atoms.copy()
         else:
             replicated_atoms_workers = replicated_atoms
-        global _calculator_factory_store
+        global _calculator_factory_store, _scratch_dir_store, _jat_flush_every_store
         _calculator_factory_store = calculator_factory
+        _scratch_dir_store = scratch_dir
+        _jat_flush_every_store = jat_flush_every
         ctx = multiprocessing.get_context('fork')
         if use_scratch:
             atoms_to_compute = [iat for iat in range(n_atoms)
-                                 if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.npz'))]
+                                 if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))]
             n_resumed = n_atoms - len(atoms_to_compute)
             if n_resumed:
                 logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
@@ -277,22 +331,21 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                 for future in as_completed(futures):
                     iat = futures[future]
                     local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
-                    if use_scratch:
-                        _save_iat_chunk(scratch_dir, iat, local_i_at, local_i_coord,
-                                        local_jat, local_j_coord, local_k, local_value)
-                    else:
+                    if not use_scratch:
                         i_at_sparse.extend(local_i_at)
                         i_coord_sparse.extend(local_i_coord)
                         jat_sparse.extend(local_jat)
                         j_coord_sparse.extend(local_j_coord)
                         k_sparse.extend(local_k)
                         value_sparse.extend(local_value)
+                    # else: workers wrote their own chunk files directly
                     n_forces_done += n_done
                     n_forces_skipped += n_skipped
                     logging.info(f'Completed atom {iat}: '
                                  f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
         finally:
             _calculator_factory_store = None
+            _scratch_dir_store = None
     else:
         if calculator_factory is not None:
             # Serial: create one calculator instance and reuse across all iat iterations.
@@ -300,17 +353,14 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             replicated_atoms.calc = calculator_factory()
         for iat in range(n_atoms):
             if use_scratch:
-                chunk_path = os.path.join(scratch_dir, f'iat_{iat:05d}.npz')
-                if os.path.exists(chunk_path):
+                if os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done')):
                     logging.info(f'Atom {iat}: already computed, skipping')
                     continue
             local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = \
                 _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                             calculator_factory=None)
-            if use_scratch:
-                _save_iat_chunk(scratch_dir, iat, local_i_at, local_i_coord,
-                                local_jat, local_j_coord, local_k, local_value)
-            else:
+                             calculator_factory=None, scratch_dir=scratch_dir,
+                             jat_flush_every=jat_flush_every)
+            if not use_scratch:
                 i_at_sparse.extend(local_i_at)
                 i_coord_sparse.extend(local_i_coord)
                 jat_sparse.extend(local_jat)
