@@ -164,6 +164,8 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
             if dxij > distance_threshold:
                 is_computing = False
                 n_skipped += 9
+                if is_verbose:
+                    logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij)}')
         if is_computing:
             if is_verbose:
                 logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij) if distance_threshold is not None else None}')
