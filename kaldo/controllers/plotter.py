@@ -37,6 +37,8 @@ __all__ = [
     'plot_dispersion',
     'plot_crystal',
     'plot_amorphous',
+    'write_phonon_mode_xyz',
+    'write_phonon_mode_html',
 ]
 
 
@@ -1361,6 +1363,185 @@ def plot_amorphous(phonons, p_atoms_list=None, p_atoms_labels=None, bandwidth=.0
     """
     plotter = _Plotter(phonons)
     plotter.plot_amorphous(p_atoms_list, p_atoms_labels, bandwidth, n_points, is_showing, method, figsize)
+
+
+def write_phonon_mode_xyz(harmonic, mode_index, filename='phonon_mode.xyz',
+                          amplitude=0.1, time_step=0.01, n_steps=100):
+    """Write an extended-XYZ trajectory animating a single phonon eigenmode.
+
+    Parameters
+    ----------
+    harmonic : HarmonicWithQ
+        HarmonicWithQ object at the desired q-point.
+    mode_index : int
+        Phonon branch index (0-based, ascending frequency).
+    filename : str
+        Output extended-XYZ path. Default: 'phonon_mode.xyz'
+    amplitude : float
+        Peak displacement in Angstroms. Default: 0.1
+    time_step : float
+        Frame interval in picoseconds. Default: 0.01
+    n_steps : int
+        Number of frames after the equilibrium frame. Default: 100
+
+    Returns
+    -------
+    frames : list[ase.Atoms]
+    """
+    import ase.io
+    frames = harmonic.phonon_mode_frames(
+        mode_index=mode_index, amplitude=amplitude,
+        time_step=time_step, n_steps=n_steps,
+    )
+    ase.io.write(filename, frames, format='extxyz')
+    return frames
+
+
+def write_phonon_mode_html(harmonic, mode_index, html_filename='phonon_mode.html',
+                           amplitude=0.1, time_step=0.01, n_steps=100):
+    """Generate a standalone HTML file that animates a phonon eigenmode using 3Dmol.js.
+
+    The output is a single self-contained HTML file that loads 3Dmol.js from CDN
+    and embeds the trajectory data inline. Opens in any browser, no server needed.
+
+    Parameters
+    ----------
+    harmonic : HarmonicWithQ
+        HarmonicWithQ object at the desired q-point.
+    mode_index : int
+        Phonon branch index (0-based, ascending frequency).
+    html_filename : str
+        Output HTML file path. Default: 'phonon_mode.html'
+    amplitude : float
+        Peak displacement in Angstroms. Default: 0.1
+    time_step : float
+        Frame interval in picoseconds. Default: 0.01
+    n_steps : int
+        Number of frames after the equilibrium frame. Default: 100
+
+    Returns
+    -------
+    frames : list[ase.Atoms]
+    """
+    import ase.io
+    from io import StringIO
+
+    frames = harmonic.phonon_mode_frames(
+        mode_index=mode_index, amplitude=amplitude,
+        time_step=time_step, n_steps=n_steps,
+    )
+
+    # Serialize frames to XYZ string
+    buf = StringIO()
+    ase.io.write(buf, frames, format='xyz')
+    xyz_data = buf.getvalue()
+
+    freq = float(harmonic.frequency[0, mode_index])
+    q = harmonic.q_point
+    q_str = f"[{q[0]:.3f}, {q[1]:.3f}, {q[2]:.3f}]"
+
+    html = _PHONON_HTML_TEMPLATE.replace('__XYZ_DATA__', xyz_data.replace('\\', '\\\\').replace('`', '\\`'))
+    html = html.replace('__MODE_INDEX__', str(mode_index))
+    html = html.replace('__FREQUENCY__', f'{freq:.4f}')
+    html = html.replace('__Q_POINT__', q_str)
+    html = html.replace('__N_FRAMES__', str(len(frames)))
+
+    with open(html_filename, 'w') as f:
+        f.write(html)
+
+    return frames
+
+
+_PHONON_HTML_TEMPLATE = r"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phonon Mode __MODE_INDEX__</title>
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+<style>
+  body { margin: 0; font-family: sans-serif; background: #1a1a2e; color: #eee; }
+  #container { position: relative; width: 100vw; height: 100vh; }
+  #viewer { width: 100%; height: 100%; }
+  #overlay {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(0,0,0,0.6); padding: 10px 16px; border-radius: 6px;
+    font-size: 14px; line-height: 1.6; pointer-events: none;
+  }
+  #controls {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 6px;
+  }
+  button { padding: 6px 16px; cursor: pointer; border: none; border-radius: 4px;
+           background: #4a6fa5; color: #fff; font-size: 14px; }
+  button:hover { background: #5a8fd5; }
+  input[type=range] { width: 260px; }
+  #frame-label { min-width: 60px; text-align: center; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="viewer"></div>
+  <div id="overlay">
+    Mode: <b>__MODE_INDEX__</b><br>
+    Frequency: <b>__FREQUENCY__ THz</b><br>
+    q-point: <b>__Q_POINT__</b>
+  </div>
+  <div id="controls">
+    <button id="playbtn" onclick="togglePlay()">Pause</button>
+    <input id="slider" type="range" min="0" max="__N_FRAMES__" value="0"
+           oninput="seekFrame(this.value)">
+    <span id="frame-label">0</span>
+  </div>
+</div>
+<script>
+var xyzData = `__XYZ_DATA__`;
+var nFrames = __N_FRAMES__;
+var playing = true;
+var currentFrame = 0;
+var viewer = $3Dmol.createViewer("viewer", {backgroundColor: "0x1a1a2e"});
+viewer.addModelsAsFrames(xyzData, "xyz");
+viewer.setStyle({}, {stick: {radius: 0.15}, sphere: {scale: 0.3}});
+viewer.zoomTo();
+viewer.animate({loop: "forward", reps: 0, interval: 50});
+viewer.render();
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById("playbtn").textContent = playing ? "Pause" : "Play";
+  if (playing) {
+    viewer.animate({loop: "forward", reps: 0, interval: 50});
+  } else {
+    viewer.stopAnimate();
+  }
+}
+
+function seekFrame(val) {
+  currentFrame = parseInt(val);
+  document.getElementById("frame-label").textContent = currentFrame;
+  viewer.setFrame(currentFrame);
+  if (playing) {
+    playing = false;
+    document.getElementById("playbtn").textContent = "Play";
+    viewer.stopAnimate();
+  }
+  viewer.render();
+}
+
+// Keep slider in sync during animation
+setInterval(function() {
+  if (playing) {
+    var f = viewer.getFrame();
+    if (f !== undefined) {
+      document.getElementById("slider").value = f;
+      document.getElementById("frame-label").textContent = f;
+    }
+  }
+}, 100);
+</script>
+</body>
+</html>
+"""
 
 
 # Legacy helper functions for backward compatibility
