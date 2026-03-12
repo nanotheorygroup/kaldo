@@ -262,47 +262,49 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_threads=1, calculator_factory=None, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
+                  n_threads=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
         """Calculate the third order force constants.
 
         Parameters
         ----------
-        calculator : ASE Calculator or None
-            Calculator to use. Must be picklable when ``n_threads != 1`` and
-            ``calculator_factory`` is not provided.
-        calculator_factory : callable or None
-            Zero-argument callable that returns a fresh ASE calculator. Use this
-            for file-based calculators that cannot be pickled. When ``n_threads != 1``,
-            each worker process calls the factory to create its own isolated instance.
-            If the calculator writes files, configure a unique directory per process::
+        calculator : ASE Calculator instance or callable
+            Serial (``n_threads == 1``): pass a constructed ASE calculator instance.
+            Parallel (``n_threads != 1``): pass a zero-argument callable (e.g. a class
+            or lambda) that each worker calls to create its own isolated instance.
+            For file-based calculators in parallel mode, configure a unique directory
+            per process via the factory::
 
                 import os
-                calculator_factory=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
+                calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
+                
+            Where the tmp_dir is the important feature (to prevent overwriting by each
+            process). For an argument-less class like ASE's EMT implementation use::
+        
+                from ase.calculators.emt import EMT
+                calculator=EMT
 
-            When ``n_threads == 1``, the factory is called once and reused. If both
-            ``calculator`` and ``calculator_factory`` are provided, the factory takes
-            precedence for the actual force evaluation.
+            If None, replicated_atoms must already have a calculator attached.
         n_threads : int or None
-            Number of parallel worker processes. ``1`` runs serially (default).
+            Number of parallel worker processes. ``1`` runs serially .
             ``None`` uses all available CPUs.
+            Default: 1 (serial)
         scratch_dir : str or None
             Directory for scratch chunk files written during calculation to keep
-            peak memory low. Defaults to ``{folder}/third_order`` when
-            ``self.folder`` is set; pass an explicit path to override. Pass an
+            peak memory low. pass an explicit path to override. Pass an
             empty string ``''`` to disable scratch files and fall back to
             in-memory accumulation.
+            Default: ``{folder}/third_order`` when ``self.folder`` is set
         keep_scratch : bool
-            If True, scratch files are kept after assembly. Default False.
+            If True, scratch files are kept after assembly.
+            Default: False
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
         """
-        if calculator is None and calculator_factory is None:
-            raise ValueError("Provide either calculator or calculator_factory")
+        if calculator is None:
+            raise ValueError("Provide a calculator")
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        if calculator_factory is None:
-            replicated_atoms.calc = calculator
         # Resolve scratch_dir default
         if scratch_dir is None and self.folder:
             scratch_dir = os.path.join(self.folder, 'third_order')
@@ -320,7 +322,7 @@ class ThirdOrder(ForceConstant):
                                              distance_threshold=distance_threshold,
                                              is_verbose=is_verbose,
                                              n_threads=n_threads,
-                                             calculator_factory=calculator_factory,
+                                             calculator=calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
                                              jat_flush_every=jat_flush_every)
@@ -335,7 +337,7 @@ class ThirdOrder(ForceConstant):
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose,
                                          n_threads=n_threads,
-                                         calculator_factory=calculator_factory,
+                                         calculator=calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
                                          jat_flush_every=jat_flush_every)
