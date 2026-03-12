@@ -192,7 +192,6 @@ Copyright (c) 2022-2025, The kALDo Developers
 
 We gratefully acknowledge support by the Investment Software Fellowships (grant No. ACI-1547580-479590) of the NSF Molecular Sciences Software Institute (grant No. ACI-1547580) at Virginia Tech.
 
-<a href="https://molssi.org">
-<img src="https://raw.githubusercontent.com/nanotheorygroup/kaldo/main/docs/docsource/_resources/molssi-logo.png" height="120">
-<img src="https://raw.githubusercontent.com/nanotheorygroup/kaldo/main/docs/docsource/_resources/nsf_logo.png" height="120">
+<a>
+<img src="https://github.com/nanotheorygroup/kaldo/blob/main/docs/docsource/_resources/funding.png" height="120">
 </a>
