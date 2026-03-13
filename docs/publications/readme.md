@@ -19,8 +19,16 @@
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (18)
 
+
+## 2026 (1)
+
+* Z. Zhang, R. Ma, S. Lu, S. Volz, J. Chen, [Decoding thermal transport mechanisms induced by short-range order in amorphous system](https://journals.aps.org/prresearch/abstract/10.1103/k5pw-jnl8), Phys. Rev. Research 8, 013007 (2026).
+
+
+## 2025 (19)
+
+* M Grumet, [Computational Raman Spectroscopy for Solid-State Ion Conductors](Computational Raman Spectroscopy for Solid-State Ion Conductors)
 
 * W. Zhou, C. Ke, S. Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://journals.aps.org/prb/abstract/10.1103/3nqr-9b32), Phys. Rev. B. ***112***, 134307 (2025).
 
