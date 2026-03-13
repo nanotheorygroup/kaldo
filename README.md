@@ -143,7 +143,7 @@ For detailed theoretical background on anharmonic lattice dynamics, the Boltzman
 
 ## Examples
 
-Detailed examples for various materials and workflows are available [in a deidcated repository](https://github.com/nanotheorygroup/kaldo-examples).
+Detailed examples for various materials and workflows are available [in a stand-alone repository](https://github.com/nanotheorygroup/kaldo-examples).
 
 ## Citations
 

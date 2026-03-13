@@ -26,11 +26,13 @@
 * Z. Zhang, R. Ma, S. Lu, S. Volz, J. Chen, [Decoding thermal transport mechanisms induced by short-range order in amorphous system](https://journals.aps.org/prresearch/abstract/10.1103/k5pw-jnl8), Phys. Rev. Research ***8***, 013007 (2026).
 
 
-## 2025 (24)
+## 2025 (28)
+
+* S. Mu, J. T. Heron, M. E. Manley, B. Liao, [Tailoring thermal transport in (Sc, Yb) AlN thin films to the glassy limit](https://www.sciencedirect.com/science/article/pii/S1359645425010547?casa_token=DW2BSmRE6okAAAAA:hkRy3zzivpiULq5Oub5I_rWJjm1O51NeRWag6VxYkCA_xGZDv3mo8peN8MPApJjLo3eKopTIVqQ), Appl. Phys. Lett. ***126***, 042201 (2025).
 
 * M Grumet, [Computational Raman Spectroscopy for Solid-State Ion Conductors](https://mediatum.ub.tum.de/doc/1781889/1781889.pdf)
 
-* M. Jakhar, P. Chauhan, A. Kumar, R. Pandey, [Theoretical advances in predicting the thermoelectric performance of materials, 2D Mater](https://iopscience.iop.org/article/10.1088/2053-1583/ad8011). ***12***, 013001 (2025).
+* M. Jakhar, P. Chauhan, A. Kumar, R. Pandey, [Theoretical advances in predicting the thermoelectric performance of materials](https://iopscience.iop.org/article/10.1088/2053-1583/ad8011), 2D Mater ***12***, 013001 (2025).
 
 * S. Nayeb Sadeghi, S. Lee, K. Esfarjani, [THERMACOND, a code to compute lattice thermal conductivity from harmonic and anharmonic force constants](https://www.nature.com/articles/s41524-025-01673-8), npj Comput. Mater. ***11***, 303 (2025).
 
@@ -38,8 +40,17 @@
 
 * W. Zhou, C. Ke, S. Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://journals.aps.org/prb/abstract/10.1103/3nqr-9b32), Phys. Rev. B. ***112***, 134307 (2025).
 
+* Y. Wang, N. Liang, X. Zhang, W. Yan, H. He, A. Fiorentino, B. Song, [Thermal transport in a 2D amorphous material](https://journals.aps.org/prx/abstract/10.1103/fjww-9pm3), Phys. Rev. X ***15***, 031077 (2025).
+
+* N. Liang, A. Fiorentino, B. Song, [Thermal transport in amorphous carbon nanotubes](https://journals.aps.org/prb/abstract/10.1103/klhj-x3f2), Phys. Rev. B. ***112***, 094205 (2025).
 
 * Y. Luo, D. Mangtani, S. Peng, J. Yao, S. Kliavinek, M. Bernardi, [Tensor Learning and Compression of N-Phonon Interactions](https://journals.aps.org/prl/abstract/10.1103/nmgj-yq1g), Phys. Rev. Lett. ***135***, 126101 (2025).
+
+* X. Sun, R. Chen, N. Yang, S. Hu, [Anisotropic lattice thermal conductivity in Sn2S3: Role of rattling modes in phonon transport](https://journals.aps.org/prl/abstract/10.1103/nmgj-yq1g), Phys. Rev. B. ***112***, 125401 (2025).
+
+* Y. Dong, H. Cheng, Y. Ding, X. Zhang, L. Yan, R. Deng, [Thermal Transport Modulation via Interfacial Vacancy Defects in Carbon/Boron Nitride Heteronanotubes](https://pubs.acs.org/doi/full/10.1021/acs.langmuir.5c03302?casa_token=frWsF38bXAkAAAAA%3AsMtjMJUv3g0vt-mmPAAQ0qRzVaaJli6ojeBE3UGdR_U3si88FMZZoI536-LB9w4JiqxNE9Mezf6DznoG), Langmuir ***41***, 23214 (2025).
+
+* K. Esfarjani, J. Shiomi, [Fundamentals and advances in thermal transport in thermoelectric materials](https://link.springer.com/article/10.1557/s43577-025-00951-6), MRS Bull. ***50***, 935 (2025).
 
 * Xiang, Xing, [Quantifying Thermal Transport Channels in Complex Materials](https://www.proquest.com/docview/3273501948?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations%20&%20Theses)
 
