@@ -3,6 +3,8 @@ from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
 from ase import units
+import ase.io
+from ase import Atoms
 from opt_einsum import contract
 from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
@@ -358,10 +360,10 @@ class HarmonicWithQ(Observable, Storable):
         supercell_positions = self.second.supercell_positions
         supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
         cell_replicas = self.second.supercell_replicas
-        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
+        cell_positions = contract('ia,ab->ib', cell_replicas, cell)
         cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
         supercell_positions = self.second.supercell_positions
-        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
+        supercell_cell_distances = contract('La,inma->Linm', supercell_positions, cell_plus_distance)
         projection = supercell_cell_distances - supercell_norms[:, None, None, None]
 
         # Filter + Weights
@@ -378,8 +380,8 @@ class HarmonicWithQ(Observable, Storable):
 
         # Calculate phase and combine with coefficient to normalize contributions from replicas
         # that may be represented more than once
-        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
-        prefactors = np.einsum('i,inm->inm', phase, coefficients)
+        phase = np.exp(-2j * np.pi * contract('a,ia->i', q_point, cell_replicas))
+        prefactors = contract('i,inm->inm', phase, coefficients)
         prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
         prefactors = prefactors.transpose((4, 2, 0, 3, 1))
 
@@ -423,9 +425,9 @@ class HarmonicWithQ(Observable, Storable):
         supercell_positions = self.second.supercell_positions
         supercell_norms = (1/2) * np.linalg.norm(supercell_positions, axis=1) ** 2
         cell_replicas = self.second.supercell_replicas
-        cell_positions = np.einsum('ia,ab->ib', cell_replicas, cell)
+        cell_positions = contract('ia,ab->ib', cell_replicas, cell)
         cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
-        supercell_cell_distances = np.einsum('La,inma->Linm', supercell_positions, cell_plus_distance)
+        supercell_cell_distances = contract('La,inma->Linm', supercell_positions, cell_plus_distance)
         projection = supercell_cell_distances - supercell_norms[:, None, None, None]
 
         # Filter + Weights
@@ -445,8 +447,8 @@ class HarmonicWithQ(Observable, Storable):
         # that may be represented more than once
         # NOTE: If you wanted to redo this to calculate all the directions at the same time, the first
         # prefactors line is the only place where direction is used.
-        phase = np.exp(-2j * np.pi * np.einsum('a,ia->i', q_point, cell_replicas))
-        prefactors = np.einsum('i,i,inm->inm', cell_positions[:, direction], phase, coefficients)
+        phase = np.exp(-2j * np.pi * contract('a,ia->i', q_point, cell_replicas))
+        prefactors = contract('i,i,inm->inm', cell_positions[:, direction], phase, coefficients)
         prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
         prefactors = prefactors.transpose((4, 2, 0, 3, 1))
 
@@ -499,7 +501,7 @@ class HarmonicWithQ(Observable, Storable):
         prefactor = 4 * np.pi * e2 / omega_bohr
 
         sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
-        mass_prefactor = np.reciprocal(np.einsum('i,j->ij', sqrt_mass, sqrt_mass))
+        mass_prefactor = np.reciprocal(contract('i,j->ij', sqrt_mass, sqrt_mass))
 
         # Charge information
         epsilon = atoms.info['dielectric']  # in e^2/Bohr
@@ -519,13 +521,13 @@ class HarmonicWithQ(Observable, Storable):
         g_grid = Grid(n_greplicas.astype(int))
         g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
         # d. Transform the raw indices, to coordinates in reciprocal space
-        g_positions = np.einsum('ib,ab->ia', g_replicas, reciprocal_n)
+        g_positions = contract('ib,ab->ia', g_replicas, reciprocal_n)
         if qpoint is not None:  # If we're measuring at finite q, shift the images' positions
             g_positions = g_positions + (qpoint @ reciprocal_n.T)
 
         # 2. Filter cells that don't meet our Ewald cutoff criteria
         # a. setup mask
-        geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions)
+        geg = contract('ia,ab,ib->i', g_positions, epsilon, g_positions)
         # change_units_gmax = 16/np.pi**2
         cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
         # b. apply mask
@@ -537,39 +539,39 @@ class HarmonicWithQ(Observable, Storable):
         # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
         decay = prefactor * np.exp(-1 * geg / (Lambda * 4)) / geg
         # b. effective charges at each G-vector
-        zag = np.einsum('nab,ia->inb', zeff, g_positions)
+        zag = contract('nab,ia->inb', zeff, g_positions)
 
         # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
         # the phase factor is based on the distance of the G-vector and atomic positions
         # TODO: This "if-else" block could likely be replaced with the just the "if" block since the imaginary term I
         # think should be zero at Gamma, but we'd need to check that for sure.
         if qpoint is not None:
-            phase = np.exp(1j * np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+            phase = np.exp(1j * np.pi * contract('ia,nma->inm', g_positions, distances_n))
 
             # The long range forces are the outer product of the effective charges, scaled by the phase term. We impose
             # Hermicity on cartesian axes by taking the average of M and M^T
-            lr_correction = np.einsum('ina,inm,imb->inmab', zag, phase, zag)
+            lr_correction = contract('ina,inm,imb->inmab', zag, phase, zag)
             lr_correction += np.transpose(lr_correction, (0, 1, 2, 4, 3))
             lr_correction *= 0.5
 
             # Scale by exponential decay term, sum over G-vectors
-            lr_correction = np.einsum('i,inmab->abnm', decay, lr_correction)
+            lr_correction = contract('i,inmab->abnm', decay, lr_correction)
 
             # Apply the correction to each atom pair
             correction_matrix += lr_correction
 
         else:  # only the real part of the phase is taken at Gamma
-            phase = np.cos(np.pi * np.einsum('ia,nma->inm', g_positions, distances_n))
+            phase = np.cos(np.pi * contract('ia,nma->inm', g_positions, distances_n))
 
             # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
             # The long range forces are an outer product of the effective charges, scaled by the exponential term.
             # We impose Hermicity on cartesian axes by taking the average of M and M^T
-            lr_correction = np.einsum('ina,inm,imb->inab', zag, phase, zag)
+            lr_correction = contract('ina,inm,imb->inab', zag, phase, zag)
             lr_correction += np.transpose(lr_correction, (0, 1, 3, 2))
             lr_correction *= 0.5
 
             # Scale by exponential decay term, sum over G-vectors
-            lr_correction = np.einsum('i,inab->abn', decay, lr_correction)
+            lr_correction = contract('i,inab->abn', decay, lr_correction)
 
             # Apply the correction to the diagonals of the dynamical matrix
             correction_matrix = tf.linalg.set_diag(correction_matrix,
@@ -616,7 +618,7 @@ class HarmonicWithQ(Observable, Storable):
         prefactor = 4 * np.pi * e2 / omega_bohr
 
         sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
-        mass_prefactor = np.reciprocal(np.einsum('i,j->ij', sqrt_mass, sqrt_mass))
+        mass_prefactor = np.reciprocal(contract('i,j->ij', sqrt_mass, sqrt_mass))
 
         # Charge information
         epsilon = atoms.info['dielectric']  # in e^2/Bohr
@@ -636,12 +638,12 @@ class HarmonicWithQ(Observable, Storable):
         g_grid = Grid(n_greplicas.astype(int))
         g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
         # d. Transform the raw indices, to coordinates in reciprocal space
-        g_positions = np.einsum('ib,ab->ia', g_replicas, reciprocal)
+        g_positions = contract('ib,ab->ia', g_replicas, reciprocal)
         g_positions = g_positions + (self.q_point @ reciprocal.T)
 
         # 2. Filter cells that don't meet our Ewald cutoff criteria
         # a. setup mask
-        geg = np.einsum('ia,ab,ib->i', g_positions, epsilon, g_positions)
+        geg = contract('ia,ab,ib->i', g_positions, epsilon, g_positions)
         cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
         # b. apply mask
         geg = geg[cells_to_include]
@@ -651,37 +653,37 @@ class HarmonicWithQ(Observable, Storable):
         # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
         decay = prefactor * np.exp(-1 * geg / (Lambda * 4)) / geg
         # b. effective charges at each G-vector
-        zag = np.einsum('nab,ia->inb', zeff, g_positions)
+        zag = contract('nab,ia->inb', zeff, g_positions)
 
         # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
         # the phase factor is based on the distance of the G-vector and atomic positions
-        phase = np.exp(1j * np.einsum('ia,nma->inm', g_positions, distances_bohr))
+        phase = np.exp(1j * contract('ia,nma->inm', g_positions, distances_bohr))
         '''
         # All directions at once code
         # Terms 1 + 2
-        zag_zeff = np.einsum('ina,mcb->inmabc', zag, zeff)
+        zag_zeff = contract('ina,mcb->inmabc', zag, zeff)
         zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3, 5))
         # Term 3 (imaginary)
-        zag_zbg_rij = 1j * np.einsum('ina,imb,nmc->inmabc', zag, zag, distances_n)
+        zag_zbg_rij = 1j * contract('ina,imb,nmc->inmabc', zag, zag, distances_n)
         # Term 4 (negative)
-        dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)
-        zag_zbg_dgeg = -1 * np.einsum('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))
+        dgeg = contract('ab,ib->ib', epsilon + epsilon.T, g_positions)
+        zag_zbg_dgeg = -1 * contract('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))
 
         # Combine terms!
         lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
 
         # Scale by exponential decay term
-        lr_correction = np.einsum('i,inm,inmabc->nmabc', decay, phase, lr_correction)
+        lr_correction = contract('i,inm,inmabc->nmabc', decay, phase, lr_correction)
         '''
         # Derivative terms in a single direction
         # Terms 1 + 2
-        zag_zeff = np.einsum('ina,mb->inmab', zag, zeff[:, direction, :])
+        zag_zeff = contract('ina,mb->inmab', zag, zeff[:, direction, :])
         zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3))
         # Term 3 (imaginary)
-        zag_zbg_rij = 1j * np.einsum('ina,imb,nm->inmab', zag, zag, distances_bohr[:, :, direction])
+        zag_zbg_rij = 1j * contract('ina,imb,nm->inmab', zag, zag, distances_bohr[:, :, direction])
         # Term 4 (negative)
-        dgeg = np.einsum('ab,ib->ib', epsilon + epsilon.T, g_positions)[:, direction]
-        zag_zbg_dgeg = -1 * np.einsum('ina,imb,i,i->inmab', zag, zag, dgeg,\
+        dgeg = contract('ab,ib->ib', epsilon + epsilon.T, g_positions)[:, direction]
+        zag_zbg_dgeg = -1 * contract('ina,imb,i,i->inmab', zag, zag, dgeg,\
                                       (1/(4*Lambda) + 1/(geg)))
         # Combine terms!
         lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
@@ -689,7 +691,7 @@ class HarmonicWithQ(Observable, Storable):
         # Scale by exponential decay and phase terms, sum over G-vectors
         # Note: Einsum does not use the distributive property for complex number mult., so we have to
         # do a second multiplication operation when applying the phase factor.
-        lr_correction = np.einsum('i,inmab->inmab', decay, lr_correction)
+        lr_correction = contract('i,inmab->inmab', decay, lr_correction)
         lr_correction *= phase[:, :, :, None, None]
         lr_correction = lr_correction.sum(axis=0)
 
@@ -700,3 +702,96 @@ class HarmonicWithQ(Observable, Storable):
         correction_matrix *= units.Bohr * ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         correction_matrix = 1j * correction_matrix
         return correction_matrix
+
+    def phonon_mode_frames(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100):
+        """
+        Generate frames animating a single phonon eigenmode over the
+        replicated supercell.
+
+        For mode (s) at wavevector (q) the displacement of atom *i* inside
+        unit-cell replica (l) at time (t) is
+
+            u_{lia}(t) = amplitude * Re[ e_{sia}(q)/sqrt(m_i) * exp(i(2*pi*q.R_l - w_s*t)) ]
+
+        where R_l are the replica positions and w_s = 2*pi*f_s (rad/ps).
+        Acoustic modes at Gamma (w_s ~ 0) use a small artificial frequency
+        so they oscillate as rigid translations rather than drifting unbounded.
+
+        Parameters
+        ----------
+        mode_index : int
+            Phonon branch index (0-based, ascending frequency).
+        amplitude : float
+            Peak displacement in Angstroms.
+        time_step : float
+            Frame interval in picoseconds.
+        n_steps : int
+            Number of frames after the equilibrium frame.
+
+        Returns
+        -------
+        frames : list[ase.Atoms]
+        """
+        if not (0 <= mode_index < self.n_modes):
+            raise IndexError(
+                f"mode_index {mode_index} out of range [0, {self.n_modes - 1}]."
+            )
+
+        n_atoms = len(self.atoms)
+        n_replicas = int(np.prod(self.supercell))
+
+        # Eigenvector for this mode, mass-weighted displacement pattern
+        eigvec = np.array(self._eigensystem)[1:, mode_index]
+        masses = np.repeat(self.atoms.get_masses(), 3)
+        disp_cell = eigvec / np.sqrt(masses)
+        norm = np.linalg.norm(disp_cell)
+        if norm > 0:
+            disp_cell /= norm
+        disp_cell = (amplitude * disp_cell).reshape(n_atoms, 3)
+
+        freq = float(self.frequency[0, mode_index])
+        omega = 2.0 * np.pi * abs(freq)
+
+        # For acoustic modes at Gamma, use the lowest optical frequency
+        # so rigid translations still oscillate visually
+        if omega < 1e-3:
+            physical = self.physical_mode[0]
+            optical_freqs = np.abs(self.frequency[0, physical])
+            omega = 2.0 * np.pi * optical_freqs.min() if optical_freqs.size > 0 else 1.0
+
+        # Replica phases: q . R_l in fractional coordinates
+        rep_pos = self.second.replicated_atoms.positions.reshape(n_replicas, n_atoms, 3)
+        R_l = rep_pos[:, 0, :] - self.atoms.positions[0]
+        cell_inv = self.second.cell_inv
+        phase_l = R_l.dot(cell_inv.dot(self.q_point))
+
+        # Supercell geometry
+        eq_positions = self.second.replicated_atoms.positions.copy()
+        supercell_cell = self.second.replicated_atoms.cell
+        symbols = list(self.atoms.get_chemical_symbols()) * n_replicas
+
+        info = {
+            'frequency_THz': freq,
+            'q_point': list(self.q_point),
+            'mode_index': mode_index,
+            'amplitude_A': amplitude,
+        }
+
+        frames = []
+        for step in range(n_steps + 1):
+            t = step * time_step
+            pf = np.exp(1j * (2.0 * np.pi * phase_l - omega * t))
+            displacements = np.real(
+                disp_cell[np.newaxis, :, :] * pf[:, np.newaxis, np.newaxis]
+            ).reshape(n_replicas * n_atoms, 3)
+
+            frame = Atoms(
+                symbols=symbols,
+                positions=eq_positions + displacements,
+                cell=supercell_cell,
+                pbc=True,
+            )
+            frame.info = {**info, 'time_ps': t}
+            frames.append(frame)
+
+        return frames

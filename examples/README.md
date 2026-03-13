@@ -49,6 +49,8 @@ This example illustrates how to perform thermal transport simulation for a bulk 
 from reference force calculations computed with  [ASE and LAMMPS](https://wiki.fysik.dtu.dk/ase/_modules/ase/calculators/lammpslib.html).
 - `silicon_clathrate_Tersoff_LAMMPS:`
 This example illustrates how to perform thermal transport simulation for a type I clathrate (46 atoms per cell) system using [LAMMPS USER-PHONON](https://lammps.sandia.gov/doc/Packages_details.html#pkg-user-phonon) package as force calculator.
+- `phonon_visualization:`
+This example illustrates how to visualize phonon eigenmodes as animated trajectories using extended-XYZ files (for ASE GUI and OVITO) and standalone HTML files (for interactive 3D viewing in the browser via 3Dmol.js).
 
 ## Using Git Large File Storage (LFS)
 

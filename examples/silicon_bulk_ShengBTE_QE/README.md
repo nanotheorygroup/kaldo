@@ -1,5 +1,5 @@
 # Overview `silicon_bulk_ShengBTE_QE`
-Example silicon_bulk_ShengBTE_QE shows off the `is_unfolding` flag using supercells of bulk silicon (2 atoms per cell).
+Example silicon_bulk_ShengBTE_QE shows the `is_unfolding` flag using supercells of bulk silicon (2 atoms per cell).
 Harmonic force constants are calculated directly with [quantum espress](https://www.quantum-espresso.org/) and
 [thirdorder](https://www.shengbte.org/) extracts third order force constants from reference quantum espresso force 
 calculations on a supercell.
