@@ -104,7 +104,10 @@ class ThirdOrder(ForceConstant):
                     config_file = os.path.join(folder, "CONFIG")
                     replicated_atoms = ase.io.read(config_file, format='dlp4')
                 elif format == 'lammps':
-                    config_file = os.path.join(folder, "replicated_atoms.xyz")
+                    if os.path.exists(os.path.join(folder, "replicated_atoms_third.xyz")):
+                        config_file = os.path.join(folder, "replicated_atoms_third.xyz")
+                    else:
+                        config_file = os.path.join(folder, "replicated_atoms.xyz")
                     replicated_atoms = ase.io.read(config_file, format='extxyz')
 
                 third_file = os.path.join(folder, "THIRD")
