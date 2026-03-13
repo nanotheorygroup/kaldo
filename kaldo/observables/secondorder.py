@@ -148,7 +148,7 @@ class SecondOrder(ForceConstant):
                     folder=folder,
                 )
 
-            case ("vasp" | "shengbte") | ("qe-vasp" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
+            case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
                 config_file = os.path.join(folder, "CONTROL")
                 try:
                     atoms, supercell, charges = shengbte_io.import_control_file(config_file)
@@ -165,7 +165,7 @@ class SecondOrder(ForceConstant):
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
                 match format:
-                    case ("qe-vasp" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
+                    case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
                         # load QE second order force constant
                         filename = os.path.join(folder, "espresso.ifc2")
                         if not os.path.isfile(filename):

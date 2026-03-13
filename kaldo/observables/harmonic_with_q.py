@@ -3,6 +3,8 @@ from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
 from ase import units
+import ase.io
+from ase import Atoms
 from opt_einsum import contract
 from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
@@ -700,3 +702,96 @@ class HarmonicWithQ(Observable, Storable):
         correction_matrix *= units.Bohr * ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
         correction_matrix = 1j * correction_matrix
         return correction_matrix
+
+    def phonon_mode_frames(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100):
+        """
+        Generate frames animating a single phonon eigenmode over the
+        replicated supercell.
+
+        For mode (s) at wavevector (q) the displacement of atom *i* inside
+        unit-cell replica (l) at time (t) is
+
+            u_{lia}(t) = amplitude * Re[ e_{sia}(q)/sqrt(m_i) * exp(i(2*pi*q.R_l - w_s*t)) ]
+
+        where R_l are the replica positions and w_s = 2*pi*f_s (rad/ps).
+        Acoustic modes at Gamma (w_s ~ 0) use a small artificial frequency
+        so they oscillate as rigid translations rather than drifting unbounded.
+
+        Parameters
+        ----------
+        mode_index : int
+            Phonon branch index (0-based, ascending frequency).
+        amplitude : float
+            Peak displacement in Angstroms.
+        time_step : float
+            Frame interval in picoseconds.
+        n_steps : int
+            Number of frames after the equilibrium frame.
+
+        Returns
+        -------
+        frames : list[ase.Atoms]
+        """
+        if not (0 <= mode_index < self.n_modes):
+            raise IndexError(
+                f"mode_index {mode_index} out of range [0, {self.n_modes - 1}]."
+            )
+
+        n_atoms = len(self.atoms)
+        n_replicas = int(np.prod(self.supercell))
+
+        # Eigenvector for this mode, mass-weighted displacement pattern
+        eigvec = np.array(self._eigensystem)[1:, mode_index]
+        masses = np.repeat(self.atoms.get_masses(), 3)
+        disp_cell = eigvec / np.sqrt(masses)
+        norm = np.linalg.norm(disp_cell)
+        if norm > 0:
+            disp_cell /= norm
+        disp_cell = (amplitude * disp_cell).reshape(n_atoms, 3)
+
+        freq = float(self.frequency[0, mode_index])
+        omega = 2.0 * np.pi * abs(freq)
+
+        # For acoustic modes at Gamma, use the lowest optical frequency
+        # so rigid translations still oscillate visually
+        if omega < 1e-3:
+            physical = self.physical_mode[0]
+            optical_freqs = np.abs(self.frequency[0, physical])
+            omega = 2.0 * np.pi * optical_freqs.min() if optical_freqs.size > 0 else 1.0
+
+        # Replica phases: q . R_l in fractional coordinates
+        rep_pos = self.second.replicated_atoms.positions.reshape(n_replicas, n_atoms, 3)
+        R_l = rep_pos[:, 0, :] - self.atoms.positions[0]
+        cell_inv = self.second.cell_inv
+        phase_l = R_l.dot(cell_inv.dot(self.q_point))
+
+        # Supercell geometry
+        eq_positions = self.second.replicated_atoms.positions.copy()
+        supercell_cell = self.second.replicated_atoms.cell
+        symbols = list(self.atoms.get_chemical_symbols()) * n_replicas
+
+        info = {
+            'frequency_THz': freq,
+            'q_point': list(self.q_point),
+            'mode_index': mode_index,
+            'amplitude_A': amplitude,
+        }
+
+        frames = []
+        for step in range(n_steps + 1):
+            t = step * time_step
+            pf = np.exp(1j * (2.0 * np.pi * phase_l - omega * t))
+            displacements = np.real(
+                disp_cell[np.newaxis, :, :] * pf[:, np.newaxis, np.newaxis]
+            ).reshape(n_replicas * n_atoms, 3)
+
+            frame = Atoms(
+                symbols=symbols,
+                positions=eq_positions + displacements,
+                cell=supercell_cell,
+                pbc=True,
+            )
+            frame.info = {**info, 'time_ps': t}
+            frames.append(frame)
+
+        return frames
