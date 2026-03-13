@@ -28,7 +28,7 @@
 
 ## 2025 (19)
 
-* M Grumet, [Computational Raman Spectroscopy for Solid-State Ion Conductors](Computational Raman Spectroscopy for Solid-State Ion Conductors)
+* M Grumet, [Computational Raman Spectroscopy for Solid-State Ion Conductors](https://mediatum.ub.tum.de/doc/1781889/1781889.pdf)
 
 * W. Zhou, C. Ke, S. Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://journals.aps.org/prb/abstract/10.1103/3nqr-9b32), Phys. Rev. B. ***112***, 134307 (2025).
 
