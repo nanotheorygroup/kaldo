@@ -17,7 +17,7 @@ def phonons():
         folder="kaldo/tests/si-crystal/qe",
         supercell=[3, 3, 3],
         third_supercell=[3, 3, 3],
-        format="qe-vasp")
+        format="qe-sheng")
     phonons = Phonons(
         forceconstants=forceconstants,
         kpts=[3, 3, 3],
@@ -32,7 +32,7 @@ def test_lagacy_format():
         folder="kaldo/tests/si-crystal/qe",
         supercell=[3, 3, 3],
         third_supercell=[3, 3, 3],
-        format="qe-vasp")
+        format="qe-sheng")
     
     forceconstants2 = ForceConstants.from_folder(
         folder="kaldo/tests/si-crystal/qe",

@@ -134,7 +134,7 @@ class ThirdOrder(ForceConstant):
                                          value=out[1],
                                          folder=folder)
 
-            case ("vasp" | "shengbte") | ("qe-vasp" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
+            case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
                 grid_type = 'F'
                 config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
                 match config_file:
@@ -145,7 +145,7 @@ class ThirdOrder(ForceConstant):
                         atoms = ase.io.read(config_path)
 
                 match format:
-                    case ("vasp" | "shengbte") | ("qe-vasp" | "shengbte-qe"):
+                    case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe"):
                         # load VASP third order force constant
                         third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD')
                         third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
