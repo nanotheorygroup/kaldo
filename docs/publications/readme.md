@@ -23,12 +23,18 @@
 
 ## 2026 (1)
 
-* Z. Zhang, R. Ma, S. Lu, S. Volz, J. Chen, [Decoding thermal transport mechanisms induced by short-range order in amorphous system](https://journals.aps.org/prresearch/abstract/10.1103/k5pw-jnl8), Phys. Rev. Research 8, 013007 (2026).
+* Z. Zhang, R. Ma, S. Lu, S. Volz, J. Chen, [Decoding thermal transport mechanisms induced by short-range order in amorphous system](https://journals.aps.org/prresearch/abstract/10.1103/k5pw-jnl8), Phys. Rev. Research ***8***, 013007 (2026).
 
 
-## 2025 (19)
+## 2025 (24)
 
 * M Grumet, [Computational Raman Spectroscopy for Solid-State Ion Conductors](https://mediatum.ub.tum.de/doc/1781889/1781889.pdf)
+
+* M. Jakhar, P. Chauhan, A. Kumar, R. Pandey, [Theoretical advances in predicting the thermoelectric performance of materials, 2D Mater](https://iopscience.iop.org/article/10.1088/2053-1583/ad8011). ***12***, 013001 (2025).
+
+* S. Nayeb Sadeghi, S. Lee, K. Esfarjani, [THERMACOND, a code to compute lattice thermal conductivity from harmonic and anharmonic force constants](https://www.nature.com/articles/s41524-025-01673-8), npj Comput. Mater. ***11***, 303 (2025).
+
+* A. J. McGaughey, L. Lindsay, H. Bao, T. Hamakawa, R. Juneja, S. Li, X. Zhang, [Phonon Olympics: Phonon property and lattice thermal conductivity benchmarking from open-source packages](https://pubs.aip.org/aip/jap/article/138/13/135108/3366423/Phonon-Olympics-Phonon-property-and-lattice), J. Appl. Phys. ***138***, 131101 (2025).
 
 * W. Zhou, C. Ke, S. Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://journals.aps.org/prb/abstract/10.1103/3nqr-9b32), Phys. Rev. B. ***112***, 134307 (2025).
 
