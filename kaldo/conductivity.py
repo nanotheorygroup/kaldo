@@ -114,6 +114,7 @@ class Conductivity(Storable):
     # Define storage formats for conductivity properties
     _store_formats = {
         'conductivity': 'formatted',
+        'diffusivity': 'formatted',
         'mean_free_path': 'formatted',
         '_generalized_diffusivity': 'numpy'
     }
@@ -297,7 +298,8 @@ class Conductivity(Storable):
             logging.warning('The conductivity has an immaginary part. Sum(Im(k)) = ' + str(sum))
         return mfp.real
 
-    @property
+    @lazy_property(
+        label='<diffusivity_bandwidth>/<diffusivity_threshold>/<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<method>/<length>/<finite_length_method>')
     def diffusivity(self):
         """
         Calculate the diffusivity, for each k point in k_points and each mode.
