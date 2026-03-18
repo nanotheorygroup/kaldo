@@ -1,25 +1,60 @@
 # Publications using kALDo
 
-## Preprints (8)
+## Preprints (7)
 
-* Ting Liang, Wenwu Jiang, Ke Xu, Hekai Bu, Zheyong Fan, Wengen Ouyang, Jianbin Xu, [PYSED: A tool for extracting kinetic-energy-weighted phonon dispersion and lifetime from molecular dynamics simulations](https://arxiv.org/abs/2505.00353)
+* Giuseppe Barbalinardo, Zekun Chen, Dylan Folkner, Bohan Li, Nicholas W. Lundgren, Nathaniel Troup, Alfredo Fiorentino, Davide Donadio, [kALDo 2.0: Scalable Thermal Transport from First Principles and Machine Learning Potentials](https://arxiv.org/abs/2602.23728)
 
-* Yao Luo, Dhruv Mangtani, Shiyu Peng, Jia Yao, Sergei Kliavinek, Marco Bernardi, [Tensor Learning and Compression of N-phonon Interactions](https://arxiv.org/pdf/2503.05913)
+* Vladislav Efremkin, Stefano Mossa, Jean-Louis Barrat, Markus Holzmann, [Computation of thermal conductivity based on Path Integral Monte Carlo methods](https://arxiv.org/abs/2602.16405)
+
+* Feng Tao, Xiaoliang Zhang, Dawei Tang, Shigeo Maruyama, Ya Feng, [Predicting the Thermal Conductivity Collapse in SWCNT Bundles: The Interplay of Symmetry Breaking and Scattering Revealed by Machine-Learning-Driven Quantum Transport](https://arxiv.org/abs/2512.12940)
+
 
 * Jielan Li, Zekun Chen, Qian Wang, Han Yang, Ziheng Lu, Guanzhi Li, Shuizhou Chen, Yu Zhu, Xixian Liu, Junfu Tan, Mingfa Tang, Yichi Zhou, Claudio Zeni, Andrew Fowler, Daniel Zügner, Robert Pinsler, Matthew Horton, Tian Xie, Tie-Yan Liu, Haiguang Liu, Tao Qin, Bing Lv, Davide Donadio, Hongxia Hao, [Probing the Limit of Heat Transfer in Inorganic Crystals with Deep Learning](https://arxiv.org/pdf/2503.11568).
 
-* Wenjie Zhou, Shi Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://arxiv.org/abs/2501.09990).
 
 * M. Yazdani-Kachoei, B. Rabihavi, I. E. Brumboiu, S. Mehdi Vaez Allaei, I. Di Marco, [Understanding the role of defects in the lattice transport properties of half-Heusler compounds: a machine learning analysis](https://arxiv.org/abs/2412.10794).
 
 * B Pota, P Ahlawat, G Csanyi, M Simoncelli, [Thermal Conductivity Predictions with Foundation Atomistic Models](https://arxiv.org/abs/2408.00755).
 
-* Zezhu Zeng, Zheyong Fan, Chen Chen, Ting Liang, Yue Chen, Geoff Thornton, Bingqing Cheng,[Lattice distortion leads to glassy thermal transport in crystalline Cs3Bi2I6Cl3](https://arxiv.org/abs/2407.18510).
-
 * G Romano,
 [Openbte: a solver for ab-initio phonon transport in multidimensional structures](https://arxiv.org/abs/2106.02764).
 
-## 2025 (13)
+
+
+## 2026 (1)
+
+* Z. Zhang, R. Ma, S. Lu, S. Volz, J. Chen, [Decoding thermal transport mechanisms induced by short-range order in amorphous system](https://journals.aps.org/prresearch/abstract/10.1103/k5pw-jnl8), Phys. Rev. Research ***8***, 013007 (2026).
+
+
+## 2025 (28)
+
+* S. Mu, J. T. Heron, M. E. Manley, B. Liao, [Tailoring thermal transport in (Sc, Yb) AlN thin films to the glassy limit](https://www.sciencedirect.com/science/article/pii/S1359645425010547?casa_token=DW2BSmRE6okAAAAA:hkRy3zzivpiULq5Oub5I_rWJjm1O51NeRWag6VxYkCA_xGZDv3mo8peN8MPApJjLo3eKopTIVqQ), Appl. Phys. Lett. ***126***, 042201 (2025).
+
+* M Grumet, [Computational Raman Spectroscopy for Solid-State Ion Conductors](https://mediatum.ub.tum.de/doc/1781889/1781889.pdf)
+
+* M. Jakhar, P. Chauhan, A. Kumar, R. Pandey, [Theoretical advances in predicting the thermoelectric performance of materials](https://iopscience.iop.org/article/10.1088/2053-1583/ad8011), 2D Mater ***12***, 013001 (2025).
+
+* S. Nayeb Sadeghi, S. Lee, K. Esfarjani, [THERMACOND, a code to compute lattice thermal conductivity from harmonic and anharmonic force constants](https://www.nature.com/articles/s41524-025-01673-8), npj Comput. Mater. ***11***, 303 (2025).
+
+* A. J. McGaughey, L. Lindsay, H. Bao, T. Hamakawa, R. Juneja, S. Li, X. Zhang, [Phonon Olympics: Phonon property and lattice thermal conductivity benchmarking from open-source packages](https://pubs.aip.org/aip/jap/article/138/13/135108/3366423/Phonon-Olympics-Phonon-property-and-lattice), J. Appl. Phys. ***138***, 131101 (2025).
+
+* W. Zhou, C. Ke, S. Liu, [Two-dimensional ferroelectric crystal with temperature-invariant ultralow thermal conductivity](https://journals.aps.org/prb/abstract/10.1103/3nqr-9b32), Phys. Rev. B. ***112***, 134307 (2025).
+
+* Y. Wang, N. Liang, X. Zhang, W. Yan, H. He, A. Fiorentino, B. Song, [Thermal transport in a 2D amorphous material](https://journals.aps.org/prx/abstract/10.1103/fjww-9pm3), Phys. Rev. X ***15***, 031077 (2025).
+
+* N. Liang, A. Fiorentino, B. Song, [Thermal transport in amorphous carbon nanotubes](https://journals.aps.org/prb/abstract/10.1103/klhj-x3f2), Phys. Rev. B. ***112***, 094205 (2025).
+
+* Y. Luo, D. Mangtani, S. Peng, J. Yao, S. Kliavinek, M. Bernardi, [Tensor Learning and Compression of N-Phonon Interactions](https://journals.aps.org/prl/abstract/10.1103/nmgj-yq1g), Phys. Rev. Lett. ***135***, 126101 (2025).
+
+* X. Sun, R. Chen, N. Yang, S. Hu, [Anisotropic lattice thermal conductivity in Sn2S3: Role of rattling modes in phonon transport](https://journals.aps.org/prl/abstract/10.1103/nmgj-yq1g), Phys. Rev. B. ***112***, 125401 (2025).
+
+* Y. Dong, H. Cheng, Y. Ding, X. Zhang, L. Yan, R. Deng, [Thermal Transport Modulation via Interfacial Vacancy Defects in Carbon/Boron Nitride Heteronanotubes](https://pubs.acs.org/doi/full/10.1021/acs.langmuir.5c03302?casa_token=frWsF38bXAkAAAAA%3AsMtjMJUv3g0vt-mmPAAQ0qRzVaaJli6ojeBE3UGdR_U3si88FMZZoI536-LB9w4JiqxNE9Mezf6DznoG), Langmuir ***41***, 23214 (2025).
+
+* K. Esfarjani, J. Shiomi, [Fundamentals and advances in thermal transport in thermoelectric materials](https://link.springer.com/article/10.1557/s43577-025-00951-6), MRS Bull. ***50***, 935 (2025).
+
+* Xiang, Xing, [Quantifying Thermal Transport Channels in Complex Materials](https://www.proquest.com/docview/3273501948?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations%20&%20Theses)
+
+* T. Liang, W. Jiang, K. Xu, H. Bu, Z. Fan, W. Ouyang, J. Xu, [PYSED: A tool for extracting kinetic-energy-weighted phonon dispersion and lifetime from molecular dynamics simulations](https://pubs.aip.org/aip/jap/article/138/7/075101/3359033), J. Appl. Phys. ***138***, 075101 (2025).
 
 * Lorenzo Manunza, Riccardo Dettori, Antonio Cappai, Claudio Melis,  [Investigating Thermal Conductivity in Graphene Moiré Superlattices Through Approach-to-Equilibrium Molecular Dynamics](https://www.mdpi.com/2311-5629/11/3/46), C. ***11(3)***, 46 (2025)
 
@@ -45,6 +80,9 @@ Thermoelectric Materials](https://pubs.aip.org/aip/apr/article/12/1/011339/33408
 * Hisao Nakamura, Naoyuki Karasawa, [Anharmonicity-induced thermal rectification of a single diblock molecular junction inspired by the Aviram–Ratner diode](https://pubs.rsc.org/en/content/articlepdf/2025/nr/d4nr04716h), Nanoscale. ***17***, 7402 (2025)
 
 * Penghua Ying, Wenjiang Zhou, Lucas Svensson, Erik Fransson, Fredrik Eriksson, Ke Xu, Ting Liang, Bai Song, Shunda Chen, Paul Erhart, Zheyong Fan, [Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: Case studies on thermal properties of materials](https://pubs.aip.org/aip/jcp/article/162/6/064109/3335667), J. Chem. Phys. ***162***, 064109 (2025).
+
+* Z. Zeng, Z. Fan, M. Simoncelli, C. Chen, T. Liang, Y. Chen, B. Cheng, [Lattice distortion leads to glassy thermal transport in crystalline Cs3Bi2I6Cl3](https://www.pnas.org/doi/abs/10.1073/pnas.2415664122), Proc. Natl. Acad. Sci. U.S.A. ***122***, e2415664122 (2025).
+
 
 * Shun Li, Lantao Fang, Tao Liu, Xuping Wang, Bing Liu, Yuanyuan Zhang, Xianshun Lv, Lei Wei, [Machine learning-accelerated molecular dynamics calculations for investigating the thermal modulation by ferroelectric domain wall in KTN single crystals](https://www.sciencedirect.com/science/article/pii/S0927025625000175), Comput. Mater. Sci. ***249***, 113674 (2025). 
 
