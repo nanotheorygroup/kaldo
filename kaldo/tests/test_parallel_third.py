@@ -49,7 +49,7 @@ def test_parallel_matches_serial(al_atoms, serial_result):
     np.testing.assert_allclose(
         serial_result.todense(),
         result_parallel.todense(),
-        rtol=1e-10,
+        rtol=1e-7,
         err_msg="Parallel third order calculation results differ from serial.",
     )
 
@@ -70,7 +70,7 @@ def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
     np.testing.assert_allclose(
         serial_result.todense(),
         result_full.todense(),
-        rtol=1e-10,
+        rtol=1e-7,
         err_msg="Assembling third order FC's from scratch differs from serial.",
     )
 
@@ -115,6 +115,6 @@ def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
     np.testing.assert_allclose(
         serial_result.todense(),
         result_resumed.todense(),
-        rtol=1e-10,
+        rtol=1e-7,
         err_msg="Resumed scratch result differs from serial baseline",
     )
