@@ -15,14 +15,13 @@ params = {
 }
 plt.rcParams.update(params)
 
-methods = ['RTA', 'Self-Consistent', 'Inverse (Exact)']
+methods = ['RTA', 'Inverse (Exact)']
 kappa_serial   = np.load('kappa_serial.npy')
 kappa_parallel = np.load('kappa_parallel.npy')
 
 # --- Bar chart: serial vs parallel per BTE method ---
 x = np.arange(len(methods))
 width = 0.35
-
 fig, ax = plt.subplots()
 bars_s = ax.bar(x - width / 2, kappa_serial,   width, label='Serial',   color='steelblue',  alpha=0.85)
 bars_p = ax.bar(x + width / 2, kappa_parallel, width, label='Parallel', color='darkorange', alpha=0.85)
@@ -34,7 +33,8 @@ for bar in list(bars_s) + list(bars_p):
             f'{height:.2f}', ha='center', va='bottom', fontsize=10)
 
 # Reference line for experimental value
-ax.axhline(237, color='crimson', linestyle='--', linewidth=1.5, label='Experiment: 237 W/m/K')
+ax.axhline(5.8, color='crimson', linestyle='--', linewidth=1.5, label='Ab Initio (LDA)')
+ax.axhline(5.6, color='crimson', linestyle='--', linewidth=1.5, label='Ab Initio (GGA)')
 
 ax.set_xticks(x)
 ax.set_xticklabels(methods)
@@ -42,7 +42,7 @@ ax.set_ylabel('Thermal Conductivity (W/m/K)')
 ax.set_title('Al FCC — EMT: Serial vs Parallel Third-Order IFCs\n'
              '300 K, 7×7×7 k-mesh, 3×3×3 supercell')
 ax.legend()
-ax.set_ylim(0, max(kappa_serial.max(), kappa_parallel.max(), 237) * 1.25)
+ax.set_ylim(0, max(kappa_serial.max(), kappa_parallel.max()) * 1.25)
 
 plt.tight_layout()
 plt.savefig('conductivity_comparison.png', dpi=150)
@@ -59,6 +59,7 @@ ax2.set_title('Difference between Serial and Parallel Results')
 for i, d in enumerate(diffs):
     ax2.text(i, d + max(diffs) * 0.02, f'{d:.2e}', ha='center', va='bottom', fontsize=10)
 
+ax2.set_ylim([0, max(diffs)*1.1])
 plt.tight_layout()
 plt.savefig('conductivity_difference.png', dpi=150)
 plt.close()

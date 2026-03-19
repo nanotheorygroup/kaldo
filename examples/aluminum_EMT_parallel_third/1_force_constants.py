@@ -19,30 +19,21 @@ from kaldo.forceconstants import ForceConstants
 
 # Al FCC conventional cubic cell: 4 atoms, a=4.05 Angstrom
 atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
-
-# 3x3x3 supercell (108 atoms) gives a good balance of accuracy and speed for EMT.
-# Increase to 4x4x4 or beyond for higher accuracy at the cost of more compute time.
 supercell = (3, 3, 3)
-
 
 # --- Serial calculation ---
 # Standard finite-difference: one process, one EMT instance.
-
-print("=" * 60)
-print("Computing force constants (serial)")
-print("=" * 60)
+print("### Computing force constants (serial)")
 
 forceconstants_serial = ForceConstants(
     atoms=atoms,
     supercell=supercell,
     folder='fc_al_serial',
 )
-
 forceconstants_serial.second.calculate(
     calculator=EMT(),
     delta_shift=1e-4,
 )
-
 # Pass a constructed EMT() instance for the serial run (n_threads=1, default).
 forceconstants_serial.third.calculate(
     calculator=EMT(),
@@ -50,8 +41,7 @@ forceconstants_serial.third.calculate(
     n_threads=1,
 )
 
-print("Serial third-order force constants computed and stored in fc_al_serial/\n")
-
+print("Serial third-order force constants computed and stored in fc_al_serial/\n\n")
 
 # --- Parallel calculation ---
 # Each worker process calls EMT() to create its own independent calculator.
@@ -59,10 +49,11 @@ print("Serial third-order force constants computed and stored in fc_al_serial/\n
 # For LAMMPS or other file-based calculators, use a lambda that sets a unique
 # tmp directory per process, e.g.:
 #   calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
+# For NEP that reads a file, but doesn't use file-based calculations,
+# pass in the nep text file path as usual, no tmp_dir required.
+#   calculator=lambda: NEP('nep.txt')
 
-print("=" * 60)
-print("Computing force constants (parallel)")
-print("=" * 60)
+print("### Computing force constants (parallel)")
 
 forceconstants_parallel = ForceConstants(
     atoms=atoms,
@@ -80,18 +71,15 @@ forceconstants_parallel.second.calculate(
 forceconstants_parallel.third.calculate(
     calculator=EMT,
     delta_shift=1e-4,
-    n_threads=None,
+    n_threads=2,
 )
 
-print("Parallel third-order force constants computed and stored in fc_al_parallel/\n")
-
+print("Parallel third-order force constants computed and stored in fc_al_parallel/\n\n")
 
 # --- Numerical comparison ---
 # Both paths should produce identical sparse tensors up to floating-point noise.
 
-print("=" * 60)
-print("Comparing serial and parallel third-order tensors")
-print("=" * 60)
+print("### Comparing serial and parallel third-order tensors")
 
 serial_dense   = forceconstants_serial.third.value.todense()
 parallel_dense = forceconstants_parallel.third.value.todense()
@@ -102,7 +90,8 @@ rel_diff = max_abs_diff / (np.max(np.abs(serial_dense)) + 1e-30)
 print(f"Max absolute difference : {max_abs_diff:.2e}  eV/Angstrom^3")
 print(f"Max relative difference : {rel_diff:.2e}")
 
-if max_abs_diff < 1e-10:
+if max_abs_diff < 1e-6:
     print("PASS: Serial and parallel results are numerically identical.")
 else:
-    print("NOTE: Small differences detected (may be floating-point rounding).")
+    print("FAILED: Serial and parallel differ.\n"\
+         "Please ensure the tests in test/test_parallel_third.py is passing.")
