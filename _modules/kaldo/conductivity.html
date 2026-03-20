@@ -936,6 +936,7 @@
     <span class="c1"># Define storage formats for conductivity properties</span>
     <span class="n">_store_formats</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;conductivity&#39;</span><span class="p">:</span> <span class="s1">&#39;formatted&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;diffusivity&#39;</span><span class="p">:</span> <span class="s1">&#39;formatted&#39;</span><span class="p">,</span>
         <span class="s1">&#39;mean_free_path&#39;</span><span class="p">:</span> <span class="s1">&#39;formatted&#39;</span><span class="p">,</span>
         <span class="s1">&#39;_generalized_diffusivity&#39;</span><span class="p">:</span> <span class="s1">&#39;numpy&#39;</span>
     <span class="p">}</span>
@@ -1119,7 +1120,8 @@
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;The conductivity has an immaginary part. Sum(Im(k)) = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">mfp</span><span class="o">.</span><span class="n">real</span>
 
-    <span class="nd">@property</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;diffusivity_bandwidth&gt;/&lt;diffusivity_threshold&gt;/&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;include_isotopes&gt;/&lt;method&gt;/&lt;length&gt;/&lt;finite_length_method&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">diffusivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the diffusivity, for each k point in k_points and each mode.</span>
