@@ -202,7 +202,7 @@ class Conductivity(Storable):
             loaded = []
             for alpha in range(3):
                 loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1))
-            return np.array(loaded).transpose(1, 2, 0)
+            return np.array(loaded).T
         elif property_name == 'conductivity':
             loaded = []
             for alpha in range(3):
@@ -449,6 +449,16 @@ class Conductivity(Storable):
         velocity = phonons.velocity.real.reshape((phonons.n_phonons, 3))
         lambd = np.zeros_like(velocity, dtype=np.float32)  # Use float32 if precision allows
 
+        if finite_length_method == 'ballistic':
+            for alpha in range(3):
+                if (length[alpha] is not None) and (length[alpha] != 0):
+                    velocity_alpha = velocity[physical_mode, alpha]
+                    gamma_inv = np.zeros_like(velocity_alpha)
+                    nonzero_velocity = velocity_alpha != 0
+                    gamma_inv[nonzero_velocity] = length[alpha] / (2 * np.abs(velocity_alpha[nonzero_velocity]))
+                    lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity_alpha)
+            return lambd
+
         for alpha in range(3):
             scattering_matrix = self.calculate_scattering_matrix(
                 is_including_diagonal=False,
@@ -467,15 +477,6 @@ class Conductivity(Storable):
             lambd[physical_mode, alpha] = scattering_inverse.dot(velocity[physical_mode, alpha])
             del scattering_matrix, scattering_inverse, gamma
             gc.collect()
-
-            if finite_length_method == 'ballistic' and (self.length[alpha] is not None) and (self.length[alpha] != 0):
-                velocity_alpha = velocity[physical_mode, alpha]
-                gamma_inv = np.zeros_like(velocity_alpha)
-                nonzero_velocity = velocity_alpha != 0
-                gamma_inv[nonzero_velocity] = length[alpha] / (2 * np.abs(velocity_alpha[nonzero_velocity]))
-                lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity_alpha)
-                del gamma_inv, nonzero_velocity, velocity_alpha
-                gc.collect()
 
         return lambd
 
