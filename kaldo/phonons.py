@@ -312,6 +312,8 @@ class Phonons(Storable):
                  projection_output_dir: str | None = None,
                  **kwargs):
         self.forceconstants = forceconstants
+        if n_workers is not None and n_workers < 1:
+            raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
         self.n_workers = n_workers
         self.projection_output_dir = projection_output_dir
         self.is_classic = is_classic
