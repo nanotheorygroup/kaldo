@@ -703,6 +703,281 @@ class HarmonicWithQ(Observable, Storable):
         correction_matrix = 1j * correction_matrix
         return correction_matrix
 
+    def phonon_mode_second_derivative(self, mode_index, calculator, amplitude=0.1):
+        """
+        Compute the square phonon frequency ω² for mode `mode_index` at the
+        stored q-point by taking the finite difference of the forces projected
+        along the phonon eigenmode:
+
+            ω² ≈ -∂(F · e^s(q)) / ∂Q_s(q)
+               ≈ -(F_proj(+δ) - F_proj(-δ)) / (2δ)
+
+        where the projected force is
+
+            F_proj(Q) = Σ_{l,i,a} F_{l,i,a}(Q) · u_{l,i,a}
+
+        and u is the normalised real-space phonon displacement pattern
+
+            u_{l,i,a} = Re[ e^s_{i,a}(q) / (√m_i · ‖e^s/√m‖) · exp(i 2π q·R_l) ]
+
+        The identity F_proj = −dE/dQ means −dF_proj/dQ = d²E/dQ², so the same
+        two normalisation corrections that convert d²E/dQ² to the dynamical-matrix
+        eigenvalue (mass-weighting and cos² supercell factor) apply here unchanged.
+
+        Parameters
+        ----------
+        mode_index : int
+            Phonon branch index (0-based, ascending frequency).
+        calculator : ASE calculator
+            Force calculator (e.g. CPUNEP). Must implement get_forces().
+        amplitude : float
+            Displacement amplitude in Angstroms used for the finite difference.
+
+        Returns
+        -------
+        omega2 : float
+            Square phonon angular frequency ω² = (2πf)², in the same units as
+            the dynamical-matrix eigenvalues (eV Å⁻² amu⁻¹ normalised).
+        """
+        if not (0 <= mode_index < self.n_modes):
+            raise IndexError(
+                f"mode_index {mode_index} out of range [0, {self.n_modes - 1}]."
+            )
+
+        n_atoms = len(self.atoms)
+        n_replicas = int(np.prod(self.supercell))
+
+        # Build the normalised, mass-weighted displacement pattern (same as
+        # phonon_mode_frames at t=0, before the time-evolution phase).
+        eigvec = np.array(self._eigensystem)[1:, mode_index]
+        masses = np.repeat(self.atoms.get_masses(), 3)
+        disp_cell = eigvec / np.sqrt(masses)
+        norm = np.linalg.norm(disp_cell)
+        if norm > 0:
+            disp_cell /= norm
+        disp_cell = disp_cell.reshape(n_atoms, 3)
+
+        # Replica phase factors: exp(i * 2π * q · R_l)
+        rep_pos = self.second.replicated_atoms.positions.reshape(n_replicas, n_atoms, 3)
+        R_l = rep_pos[:, 0, :] - self.atoms.positions[0]
+        cell_inv = self.second.cell_inv
+        phase_l = R_l.dot(cell_inv.dot(self.q_point))
+        pf = np.exp(1j * 2.0 * np.pi * phase_l)
+
+        # Real-part displacement pattern over the full supercell (n_replicas*n_atoms, 3)
+        unit_displacement = ( #np.real(
+            disp_cell[np.newaxis, :, :] * pf[:, np.newaxis, np.newaxis]
+        ).reshape(n_replicas * n_atoms, 3)
+
+        eq_positions = self.second.replicated_atoms.positions.copy()
+        supercell_cell = self.second.replicated_atoms.cell
+        symbols = list(self.atoms.get_chemical_symbols()) * n_replicas
+
+        def _forces(disp_amplitude, part):
+            if part == 'real':
+                disp = np.real(unit_displacement)
+            elif part == 'imaginary':
+                disp = np.imag(unit_displacement)
+            frame = Atoms(
+                symbols=symbols,
+                positions=eq_positions + disp_amplitude * unit_displacement,
+                cell=supercell_cell,
+                pbc=True,
+            )
+            frame.calc = calculator
+            return frame.get_forces()
+
+        #f_plus = _forces(amplitude)
+        #f_minus = _forces(-amplitude)
+
+        # Project forces onto the normalised displacement direction and take the
+        # central finite difference: ω² = -∂(F·u)/∂Q
+        #f_proj_plus = np.sum(f_plus * unit_displacement)
+        #f_proj_minus = np.sum(f_minus * unit_displacement)
+        #omega2 = -(f_proj_plus - f_proj_minus) / (2.0 * amplitude)
+        f_pr = _forces(amplitude, 'real')
+        f_mr = _forces(-amplitude, 'real')
+        f_pi = _forces(amplitude, 'imaginary')
+        f_mi = _forces(-amplitude, 'imaginary')
+        omega2 = ( -1 / (2 * amplitude)) * (np.einsum('ia,ia->', f_pr - f_mr, np.real(unit_displacement)) 
+                                            - np.einsum('ia,ia->', f_pi - f_mi, np.imag(unit_displacement)))
+
+        # Correction 1 – mass-weighting: restores the ‖e^s/√m‖² factor that was
+        # absorbed by normalising disp_cell to a unit vector.
+        omega2 *= np.einsum('ia,ia->', (eigvec / np.sqrt(masses)).reshape(n_atoms, 3),
+                                       (np.conjugate(eigvec) / np.sqrt(masses)).reshape(n_atoms, 3)).real
+        # Correction 2 – cos² normalisation: ‖unit_displacement‖² = Σ_l cos²(2π q·R_l),
+        # which equals n_replicas only at Gamma and ≈ n_replicas/2 at interior q-points.
+        omega2 *= n_replicas / np.sum(unit_displacement ** 2)
+
+        return float(omega2)
+
+    def phonon_mode_second_derivative_matrix(self, mode_index, calculator, amplitude=0.1):
+        r"""
+        Compute the square phonon frequency ω²_μ for mode `mode_index` at the
+        stored q-point by evaluating the diagonal element of the second-order
+        frequency matrix M_{μμ} via finite differences.  All displacements
+        passed to the calculator are strictly real.
+
+        MATHEMATICAL DERIVATION
+        =======================
+        From the normal-mode transformation (ref. eq. 2)
+
+            u^l_{iα} = (1/√m_i) Σ_{qμ} Q_μ(q) e^μ_{iα}(q) e^{iq·R_l}
+
+        the second-order frequency matrix in the eigenmode basis is (ref. eq. 8)
+
+            M_{μμ'} ≡ ∂²V / (∂Q*_μ ∂Q_{μ'}) = ω²_μ δ_{μμ'}
+
+        Defining the complex supercell displacement vector for mode μ,
+
+            u^μ_sc[l,iα] = ê^μ_{iα}(q) · e^{i2πq·R_l},   ê^μ ≡ e^μ/√m/‖e^μ/√m‖
+
+        and splitting into real and imaginary parts in ℝ^{3N_sc},
+
+            u^μ_sc = u_R + i u_I   (u_R, u_I ∈ ℝ^{3N_sc}  ✓)
+
+        the diagonal element can be written as
+
+            M_{μμ} = (‖e^μ/√m‖² / N) · [u_sc^†  Φ^sc  u_sc]
+                   = (‖e^μ/√m‖² / N) · [u_R^T Φ^sc u_R  +  u_I^T Φ^sc u_I]
+
+        where N = n_replicas and Φ^sc is the real-space IFC matrix (Φ symmetric
+        → Im{u_sc^† Φ u_sc} = 0).
+
+        PROOF THAT ALL INPUT DISPLACEMENTS ARE REAL
+        ============================================
+        Using F = −Φ^sc u (harmonic) and central differences with step δ:
+
+            Φ^sc u_R  ≈  −ΔF_R / (2δ),
+                ΔF_R = F(eq + δ u_R) − F(eq − δ u_R)  ∈ ℝ^{3N_sc}  ✓
+
+            Φ^sc u_I  ≈  −ΔF_I / (2δ),
+                ΔF_I = F(eq + δ u_I) − F(eq − δ u_I)  ∈ ℝ^{3N_sc}  ✓
+
+        Since u_R and u_I are both real, the four displaced configurations
+        eq ± δ u_R and eq ± δ u_I contain only real atomic positions.
+
+        FINAL FORMULA
+        =============
+        Substituting the finite-difference estimates:
+
+            u_R^T Φ u_R ≈ −u_R · ΔF_R / (2δ)
+            u_I^T Φ u_I ≈ −u_I · ΔF_I / (2δ)
+
+            ω²_μ = M_{μμ} = −(‖e^μ/√m‖² / (2δ N))
+                             × (u_R · ΔF_R  +  u_I · ΔF_I)
+
+        DIAGONAL VERIFICATION (harmonic limit)
+        =======================================
+        At any q, [u_sc^† Φ^sc u_sc] = N · e^{μ†} D(q) e^μ = N ω²_μ (standard
+        result). Dividing by N and multiplying by ‖e^μ/√m‖²/‖e^μ/√m‖² = 1
+        recovers ω²_μ exactly. ✓
+
+        GAMMA-POINT CHECK
+        =================
+        At q = 0: pf = 1, e^μ(Γ) ∈ ℝ → u_I = 0.
+        The formula reduces to a single real central difference:
+            ω²_μ = −(‖e^μ/√m‖² / (2δ N)) · u_R · ΔF_R = ω²_μ  ✓
+
+        Parameters
+        ----------
+        mode_index : int
+            Phonon branch index (0-based, ascending frequency).
+        calculator : ASE calculator
+            Force calculator (e.g. CPUNEP). Must implement get_forces().
+        amplitude : float
+            Finite-difference step δ (Å).  The per-atom displacement is
+            δ · |ê^μ_{iα}(q) · e^{i2πq·R_l}|, the same scale as in
+            phonon_mode_second_derivative.
+
+        Returns
+        -------
+        omega2 : float
+            ω²_μ = (2π f_μ)² in dynamical-matrix units (eV Å⁻² amu⁻¹).
+        """
+        if not (0 <= mode_index < self.n_modes):
+            raise IndexError(
+                f"mode_index {mode_index} out of range [0, {self.n_modes - 1}]."
+            )
+
+        # Commensurability check: the Bloch displacement pattern
+        #   u_R[l, iα] = Re[ ê^μ_{iα} · exp(i 2π q · R_l) ]
+        # is periodic within the supercell only when
+        #   N_k · q_k ∈ ℤ  for each k = 0, 1, 2
+        # where N_k = supercell[k].  If this fails the periodic images of the
+        # supercell carry a different phase, the calculator sees an aliased
+        # force-constant matrix, and ω² is incorrect.
+        products = self.supercell * self.q_point
+        if not np.allclose(products, np.round(products), atol=1e-6):
+            raise ValueError(
+                f"q-point {self.q_point} is not commensurate with supercell "
+                f"{self.supercell}: N*q = {products} must be integers. "
+                f"Use q = m / N for integer m."
+            )
+
+        n_atoms    = len(self.atoms)
+        n_replicas = int(np.prod(self.supercell))
+
+        # ── unit-cell displacement vector ─────────────────────────────────────
+        # eigvec = e^μ(q), column `mode_index` of the eigensystem, complex
+        eigvec = np.array(self._eigensystem)[1:, mode_index]          # (n_modes,)
+        masses = np.repeat(self.atoms.get_masses(), 3)                  # (n_modes,)
+        disp_uc       = eigvec / np.sqrt(masses)                        # e^μ/√m
+        norm_uc       = np.linalg.norm(disp_uc)                        # ‖e^μ/√m‖, real
+        disp_uc_norm  = (disp_uc / norm_uc).reshape(n_atoms, 3)        # ê^μ, complex
+
+        # ── Bloch phase factors e^{i 2π q·R_l} for each replica ──────────────
+        rep_pos  = self.second.replicated_atoms.positions.reshape(n_replicas, n_atoms, 3)
+        R_l      = rep_pos[:, 0, :] - self.atoms.positions[0]          # (n_replicas, 3)
+        cell_inv = self.second.cell_inv
+        phase_l  = R_l.dot(cell_inv.dot(self.q_point))                  # (n_replicas,)
+        pf       = np.exp(1j * 2.0 * np.pi * phase_l)                  # complex
+
+        # ── complex supercell displacement  u_sc[l,iα] = ê^μ_{iα}·e^{i2πq·R_l} ─
+        u_sc = (disp_uc_norm[np.newaxis, :, :]                          # (1, n_at, 3)
+                * pf[:, np.newaxis, np.newaxis]                         # (n_rep, 1, 1)
+                ).reshape(n_replicas * n_atoms, 3)                      # (N_sc, 3), complex
+
+        # Split into real and imaginary parts — BOTH REAL ✓
+        u_R = np.real(u_sc)     # (N_sc, 3)  real atomic-displacement pattern
+        u_I = np.imag(u_sc)     # (N_sc, 3)  real atomic-displacement pattern
+
+        # ── supercell geometry for force calls ────────────────────────────────
+        eq_pos  = self.second.replicated_atoms.positions.copy()
+        sc_cell = self.second.replicated_atoms.cell
+        symbols = list(self.atoms.get_chemical_symbols()) * n_replicas
+
+        def _forces_real(disp):
+            """Return forces for a strictly real displacement `disp` (N_sc, 3)."""
+            frame = Atoms(
+                symbols=symbols,
+                positions=eq_pos + disp,    # disp is real ✓
+                cell=sc_cell,
+                pbc=True,
+            )
+            frame.calc = calculator
+            return frame.get_forces()       # (N_sc, 3), real
+
+        # ── central differences along u_R  (real displacement ✓) ─────────────
+        delta_F_R = _forces_real(+amplitude * u_R) - _forces_real(-amplitude * u_R)
+
+        # ── central differences along u_I  (real displacement ✓) ─────────────
+        #    At Γ (q=0) eigenvectors are real → u_I = 0; skip to save 2 calls.
+        norm_I = np.linalg.norm(u_I)
+        if norm_I > 1e-12:
+            delta_F_I = _forces_real(+amplitude * u_I) - _forces_real(-amplitude * u_I)
+        else:
+            delta_F_I = np.zeros_like(u_I)
+
+        # ── assemble ω²_μ ─────────────────────────────────────────────────────
+        #   ω²_μ = −(‖e^μ/√m‖² / (2δ N)) · (u_R·ΔF_R + u_I·ΔF_I)
+        proj_R  = np.einsum('ia,ia->', u_R, delta_F_R)   # u_R · ΔF_R
+        proj_I  = np.einsum('ia,ia->', u_I, delta_F_I)   # u_I · ΔF_I
+        omega2  = -(norm_uc ** 2 / (2.0 * amplitude * n_replicas)) * (proj_R + proj_I)
+
+        return float(omega2)
+
     def phonon_mode_frames(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100):
         """
         Generate frames animating a single phonon eigenmode over the
