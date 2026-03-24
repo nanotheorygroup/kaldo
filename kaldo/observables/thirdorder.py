@@ -262,35 +262,34 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_threads=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, n_threads=None):
         """Calculate the third order force constants.
 
         Parameters
         ----------
         calculator : ASE Calculator instance or callable
-            Serial (``n_threads == 1``): pass a constructed ASE calculator instance.
-            Parallel (``n_threads != 1``): pass a zero-argument callable (e.g. a class
-            or lambda) that each worker calls to create its own isolated instance.
-            For file-based calculators in parallel mode, configure a unique directory
-            per process via the factory::
+            A zero-argument callable (e.g. a class or lambda) that returns a fresh
+            ASE calculator instance. An already-constructed instance is also accepted
+            and will be wrapped internally.
+
+            For file-based calculators, configure a unique directory per process::
 
                 import os
                 calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
-                
-            Where the tmp_dir is the important feature (to prevent overwriting by each
-            process). For an argument-less class like ASE's EMT implementation use::
-        
+
+            For argument-less classes like ASE's EMT::
+
                 from ase.calculators.emt import EMT
                 calculator=EMT
 
             If None, replicated_atoms must already have a calculator attached.
-        n_threads : int or None
-            Number of parallel worker processes. ``1`` runs serially .
+        n_workers : int or None
+            Number of parallel worker processes. ``1`` runs serially.
             ``None`` uses all available CPUs.
             Default: 1 (serial)
         scratch_dir : str or None
             Directory for scratch chunk files written during calculation to keep
-            peak memory low. pass an explicit path to override. Pass an
+            peak memory low. Pass an explicit path to override. Pass an
             empty string ``''`` to disable scratch files and fall back to
             in-memory accumulation.
             Default: ``{folder}/third_order`` when ``self.folder`` is set
@@ -300,7 +299,13 @@ class ThirdOrder(ForceConstant):
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
+        n_threads : int or None
+            Deprecated alias for ``n_workers``.
         """
+        if n_threads is not None:
+            import warnings
+            warnings.warn("n_threads is deprecated, use n_workers instead.", DeprecationWarning, stacklevel=2)
+            n_workers = n_threads
         if calculator is None:
             raise ValueError("Provide a calculator")
         atoms = self.atoms
@@ -321,7 +326,7 @@ class ThirdOrder(ForceConstant):
                                              delta_shift,
                                              distance_threshold=distance_threshold,
                                              is_verbose=is_verbose,
-                                             n_threads=n_threads,
+                                             n_workers=n_workers,
                                              calculator=calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
@@ -336,7 +341,7 @@ class ThirdOrder(ForceConstant):
                                          delta_shift,
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose,
-                                         n_threads=n_threads,
+                                         n_workers=n_workers,
                                          calculator=calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,

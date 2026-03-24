@@ -1,18 +1,38 @@
-
+import functools
 import glob
-import multiprocessing
 import os
+import warnings
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
+from kaldo.parallel import get_executor
 from sparse import COO
 logging = get_logger()
 
-# Module-level stores for forked worker processes. Set in calculate_third before
-# creating the executor; cleared in the finally block afterwards.
-_calculator_store = None
-_scratch_dir_store = None
-_jat_flush_every_store = 50
+
+
+def _ensure_calculator_factory(calculator):
+    """Normalize calculator argument to always be a callable factory.
+
+    Accepts:
+    - A callable (class or lambda) → returned as-is
+    - An ASE Calculator instance → wrapped in a lambda that returns it
+    - None → returned as-is
+    """
+    if calculator is None:
+        return None
+    try:
+        from ase.calculators.calculator import Calculator as _ASECalc
+        if isinstance(calculator, _ASECalc):
+            return lambda c=calculator: c
+    except ImportError:
+        pass
+    if callable(calculator):
+        return calculator
+    raise TypeError(
+        f"calculator must be a callable factory or ASE Calculator instance, "
+        f"got {type(calculator).__name__}"
+    )
 
 
 def list_of_replicas(atoms, replicated_atoms):
@@ -80,8 +100,8 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
 
 
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
-                    n_threads=1, calculator=None, scratch_dir=None, keep_scratch=False,
-                    jat_flush_every=50):
+                    n_workers=1, calculator=None, scratch_dir=None, keep_scratch=False,
+                    jat_flush_every=50, n_threads=None):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -96,29 +116,30 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     	How far to move the atoms
     distance_threshold : float or None
     	When an argument is provided, the third order force constants are only
-    	calculated when the distance between atom i and atom j is less than 
+    	calculated when the distance between atom i and atom j is less than
     	the cutoff (in units of Angstrom)
-    n_threads : int or None
+    n_workers : int or None
         Number of parallel worker processes. ``1`` runs serially (default).
         ``None`` uses all available CPUs. Values > 1 launch that many workers
         via ``concurrent.futures.ProcessPoolExecutor``.
     calculator : ASE Calculator instance or callable or None
-        When ``n_threads == 1`` (serial): pass an already-constructed ASE
-        calculator instance; it is assigned directly to replicated_atoms.
-        When ``n_threads != 1`` (parallel): pass a zero-argument callable
-        (e.g. a class or lambda) that each thread calls to create its own
-        isolated instance.
-        For file-based calculators (like LAMMPS) in parallel mode, configure 
-        a unique working directory per process via the factory, e.g.::
+        A zero-argument callable (e.g. a class or lambda) that returns a fresh
+        ASE calculator instance. Each worker calls ``calculator()`` to create
+        its own isolated calculator.
+
+        For file-based calculators (like LAMMPS), configure a unique working
+        directory per process via the factory::
 
             import os
             calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
-            
-        Where the tmp_dir is the important feature. For an argument-less 
-        class like ASE's EMT implementation use::
-        
+
+        For argument-less classes like ASE's EMT::
+
             from ase.calculators.emt import EMT
             calculator=EMT
+
+        An already-constructed ASE calculator instance is also accepted and
+        will be wrapped internally.
 
         If None, replicated_atoms must already have a calculator attached.
     scratch_dir : str or None
@@ -134,7 +155,21 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     jat_flush_every : int
         Number of jat iterations to buffer before flushing to disk. Only used
         when ``scratch_dir`` is set. Default 50.
+    n_threads : int or None
+        Deprecated alias for ``n_workers``. If provided, overrides ``n_workers``.
     """
+    # Handle deprecated n_threads parameter
+    if n_threads is not None:
+        warnings.warn(
+            "n_threads is deprecated, use n_workers instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        n_workers = n_threads
+
+    # Normalize calculator to always be a callable factory (or None)
+    calculator = _ensure_calculator_factory(calculator)
+
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
@@ -152,71 +187,43 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_done = 0
     n_forces_skipped = 0
 
-    use_parallel = n_threads is None or n_threads > 1
+    use_parallel = n_workers is None or n_workers > 1
 
-    if use_parallel:
-        max_workers = None if n_threads is None else n_threads
-        if calculator is not None:
-            # Strip the calculator so atoms are picklable; threads will call it as needed.
-            # ASE Atoms.copy() does not copy the calculator.
-            replicated_atoms_workers = replicated_atoms.copy()
-        else:
-            replicated_atoms_workers = replicated_atoms
-        global _calculator_store, _scratch_dir_store, _jat_flush_every_store
-        _calculator_store = calculator
-        _scratch_dir_store = scratch_dir
-        _jat_flush_every_store = jat_flush_every
-        ctx = multiprocessing.get_context('fork')
-        if use_scratch:
-            # This list comprehension removes any atoms with sentinel files (empty files that track if
-            # a calculation is done) from the calculation queue
-            atoms_to_compute = [iat for iat in range(n_atoms)
-                                 if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))]
-            n_resumed = n_atoms - len(atoms_to_compute)
-            if n_resumed: # Inform user of progress
-                logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
-        else: # If no scratch directory, there is no progress - so prepare to iterate over every atom
-            atoms_to_compute = list(range(n_atoms))
-        try:
-            # Core parallelization happens here by setting up the individual threads
-            with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as executor: 
-                futures = {
-                    executor.submit(_compute_iat_forked, iat, atoms, replicated_atoms_workers,
-                                   third_order_delta, distance_threshold, is_verbose): iat
-                    for iat in atoms_to_compute
-                } # As these complete this next code block executes >>
-                for future in as_completed(futures): # Storing/Compiling the individually computed chunks into files/master list
-                    iat = futures[future]
-                    local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
-                    if not use_scratch:
-                        i_at_sparse.extend(local_i_at)
-                        i_coord_sparse.extend(local_i_coord)
-                        jat_sparse.extend(local_jat)
-                        j_coord_sparse.extend(local_j_coord)
-                        k_sparse.extend(local_k)
-                        value_sparse.extend(local_value)
-                    # else: workers wrote their own chunk files directly
-                    n_forces_done += n_done
-                    n_forces_skipped += n_skipped
-                    logging.info(f'Completed atom {iat}: '
-                                 f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
-        finally:
-            _calculator_store = None
-            _scratch_dir_store = None
-    else: # Original serial code
-        if calculator is not None:
-            # Serial: attach the provided calculator instance directly.
-            replicated_atoms = replicated_atoms.copy()
-            replicated_atoms.calc = calculator
-        for iat in range(n_atoms):
-            if use_scratch:
-                if os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done')):
-                    logging.info(f'Atom {iat}: already computed, skipping')
-                    continue
-            local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = \
-                _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                             calculator=None, scratch_dir=scratch_dir,
-                             jat_flush_every=jat_flush_every)
+    # Determine which atoms need computing (resume support via scratch sentinels)
+    if use_scratch:
+        atoms_to_compute = [iat for iat in range(n_atoms)
+                             if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))]
+        n_resumed = n_atoms - len(atoms_to_compute)
+        if n_resumed:
+            logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
+    else:
+        atoms_to_compute = list(range(n_atoms))
+
+    # Select backend: 'process' for parallel, 'serial' for single-threaded
+    backend = 'process' if use_parallel else 'serial'
+    executor_workers = n_workers if use_parallel else None
+
+    # Strip calculator from atoms for picklability in parallel mode.
+    # In serial mode, workers create their own calculator via the factory too.
+    replicated_atoms_workers = replicated_atoms.copy()
+
+    # Build a picklable worker function with config bound as arguments
+    worker_fn = functools.partial(
+        _compute_iat_worker if use_parallel else _compute_iat,
+        calculator=calculator,
+        scratch_dir=scratch_dir,
+        jat_flush_every=jat_flush_every,
+    )
+
+    with get_executor(backend=backend, n_workers=executor_workers) as executor:
+        futures = {
+            executor.submit(worker_fn, iat, atoms, replicated_atoms_workers,
+                           third_order_delta, distance_threshold, is_verbose): iat
+            for iat in atoms_to_compute
+        }
+        for future in as_completed(futures):
+            iat = futures[future]
+            local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
             if not use_scratch:
                 i_at_sparse.extend(local_i_at)
                 i_coord_sparse.extend(local_i_coord)
@@ -226,7 +233,10 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                 value_sparse.extend(local_value)
             n_forces_done += n_done
             n_forces_skipped += n_skipped
-            if (n_forces_done + n_forces_skipped) % 300 == 0:
+            if use_parallel:
+                logging.info(f'Completed atom {iat}: '
+                             f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
+            elif (n_forces_done + n_forces_skipped) % 300 == 0:
                 logging.info('Calculate third derivatives ' + str(
                     int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
 
@@ -268,14 +278,11 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
                  calculator=None, scratch_dir=None, jat_flush_every=50):
     """Compute all third-order force constant terms for a single unit cell atom index.
 
-    Module-level worker function used by calculate_third for parallel execution.
-
     Parameters
     ----------
     calculator : callable or None
         If provided, called as ``calculator()`` to create a fresh ASE calculator
-        instance that is attached to a copy of replicated_atoms. Used by forked
-        workers — replicated_atoms must not already have a calculator in this path.
+        instance that is attached to a copy of replicated_atoms.
         If None, replicated_atoms must already have a calculator attached.
     scratch_dir : str or None
         If provided, results are written directly to ``scratch_dir`` as a series of
@@ -369,12 +376,19 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
     return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
 
 
-def _compute_iat_forked(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose):
-    """Parallel worker: reads per-run settings from module globals inherited via fork."""
+def _compute_iat_worker(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
+                        calculator=None, scratch_dir=None, jat_flush_every=50):
+    """Parallel worker function. All configuration is passed explicitly as arguments
+    (via functools.partial), making this compatible with spawn/forkserver contexts."""
+    # Pin BLAS/OpenMP threads to 1 per worker to prevent oversubscription
+    # (e.g. 128 workers × 128 BLAS threads = catastrophic on HPC nodes)
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
     return _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                        calculator=_calculator_store,
-                        scratch_dir=_scratch_dir_store,
-                        jat_flush_every=_jat_flush_every_store)
+                        calculator=calculator,
+                        scratch_dir=scratch_dir,
+                        jat_flush_every=jat_flush_every)
 
 
 def _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
@@ -403,9 +417,8 @@ def _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch):
         with np.load(path) as f:
             total_nnz += f['values'].shape[0]
 
-    #TODO: exact choices of dtype here should be analyzed
-    coords = np.empty((5, total_nnz), dtype=np.int32)
-    values = np.empty(total_nnz, dtype=np.float32) 
+    coords = np.empty((5, total_nnz), dtype=np.int64)
+    values = np.empty(total_nnz, dtype=np.float64)
 
     # Pass 2: fill pre-allocated arrays, consuming each file as we go
     offset = 0
