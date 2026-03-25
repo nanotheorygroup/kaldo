@@ -167,6 +167,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         )
         n_workers = n_threads
 
+    if n_workers is not None and n_workers < 1:
+        raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
+
     # Normalize calculator to always be a callable factory (or None)
     calculator = _ensure_calculator_factory(calculator)
 
