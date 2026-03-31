@@ -31,7 +31,7 @@ def serial_result(al_atoms):
     atoms, replicated_atoms = al_atoms
     return calculate_third(
         atoms, replicated_atoms, 1e-5,
-        n_threads=1,
+        n_workers=1,
         calculator = EMT()
     )
 
@@ -43,7 +43,7 @@ def test_parallel_matches_serial(al_atoms, serial_result):
     replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
     result_parallel = calculate_third(
         atoms, replicated_atoms_no_calc, 1e-5,
-        n_threads=2,
+        n_workers=2,
         calculator=EMT,
     )
     np.testing.assert_allclose(
@@ -54,7 +54,7 @@ def test_parallel_matches_serial(al_atoms, serial_result):
     )
 
 
-def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
+def test_scratch_matches_serial(al_atoms, serial_result, tmp_path):
     """Check scratch calculations assemble to the same result as serial."""
     atoms, _ = al_atoms
     replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
@@ -62,7 +62,7 @@ def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
 
     result_full = calculate_third(
         atoms, replicated_atoms_no_calc, 1e-5,
-        n_threads=2,
+        n_workers=2,
         calculator=EMT,
         scratch_dir=scratch_dir,
         keep_scratch=True,
@@ -89,7 +89,7 @@ def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
     # --- Step 1: Run full calculation while keeping scratch files ---
     result_full = calculate_third(
         atoms, replicated_atoms_no_calc, 1e-5,
-        n_threads=2,
+        n_workers=2,
         calculator=EMT,
         scratch_dir=scratch_dir,
         keep_scratch=True,  # keep files so we can simulate interruption
@@ -105,7 +105,7 @@ def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
     # --- Step 3: resume run ---
     result_resumed = calculate_third(
         atoms, replicated_atoms_no_calc, 1e-5,
-        n_threads=2,
+        n_workers=2,
         calculator=EMT,
         scratch_dir=scratch_dir,
         keep_scratch=False,
