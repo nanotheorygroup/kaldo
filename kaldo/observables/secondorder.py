@@ -283,10 +283,17 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
+    def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False,
+                  n_workers=1, scratch_dir=None, keep_scratch=False):
+        if calculator is None:
+            raise ValueError("Provide a calculator")
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         replicated_atoms.calc = calculator
+        if scratch_dir is None and self.folder:
+            scratch_dir = os.path.join(self.folder, "second_order")
+        elif scratch_dir == "":
+            scratch_dir = None
 
         if is_storing:
             try:
@@ -296,14 +303,32 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 logging.info("Second order not found. Calculating.")
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+                self.value = calculate_second(
+                    atoms,
+                    replicated_atoms,
+                    delta_shift,
+                    is_verbose=is_verbose,
+                    n_workers=n_workers,
+                    calculator=calculator,
+                    scratch_dir=scratch_dir,
+                    keep_scratch=keep_scratch,
+                )
                 self.save("second")
                 self.replicated_atoms.get_forces()
                 ase.io.write(self.folder + "/replicated_atoms.xyz", self.replicated_atoms, "extxyz")
             else:
                 logging.info("Reading stored second")
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+            self.value = calculate_second(
+                atoms,
+                replicated_atoms,
+                delta_shift,
+                is_verbose=is_verbose,
+                n_workers=n_workers,
+                calculator=calculator,
+                scratch_dir=scratch_dir,
+                keep_scratch=keep_scratch,
+            )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 

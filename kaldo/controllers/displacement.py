@@ -1,7 +1,6 @@
 import functools
 import glob
 import os
-import warnings
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
@@ -75,23 +74,67 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
     return second_per_atom
 
 
-def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False):
+def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False,
+                     n_workers=1, calculator=None, scratch_dir=None, keep_scratch=False):
     # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
     using central difference formula
     """
+    calculator = _ensure_calculator_factory(calculator)
+
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
     n_replicated_atoms = len(replicated_atoms.numbers)
     n_atoms = n_unit_cell_atoms
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
     second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
-    for i in range(n_atoms):
-        if is_verbose:
-            logging.info('calculating forces on atom ' + str(i))
-        second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
+    use_scratch = scratch_dir is not None
+    if use_scratch:
+        os.makedirs(scratch_dir, exist_ok=True)
+        atoms_to_compute = [
+            iat for iat in range(n_atoms)
+            if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))
+        ]
+        n_resumed = n_atoms - len(atoms_to_compute)
+        if n_resumed:
+            logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
+    else:
+        atoms_to_compute = list(range(n_atoms))
+
+    use_parallel = n_workers is None or n_workers > 1
+    backend = 'process' if use_parallel else 'serial'
+    executor_workers = n_workers if use_parallel else None
+    replicated_atoms_workers = replicated_atoms.copy()
+
+    worker_fn = functools.partial(
+        _compute_second_iat_worker if use_parallel else _compute_second_iat,
+        calculator=calculator,
+        scratch_dir=scratch_dir,
+    )
+    n_completed = n_atoms - len(atoms_to_compute)
+
+    with get_executor(backend=backend, n_workers=executor_workers) as executor:
+        futures = {
+            executor.submit(worker_fn, iat, replicated_atoms_workers, second_order_delta, is_verbose): iat
+            for iat in atoms_to_compute
+        }
+        for future in as_completed(futures):
+            iat = futures[future]
+            block = future.result()
+            if not use_scratch:
+                second[iat] = block
+            n_completed += 1
+            if use_parallel:
+                logging.info(
+                    f'Completed atom {iat}: '
+                    f'{int(n_completed / n_atoms * 100)}% done'
+                )
+
+    if use_scratch:
+        second = _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
+
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
     asymmetry = np.sum(np.abs(second[0, :, :, 0, :, :] - np.transpose(second[0, :, :, 0, :, :], (2, 3, 0, 1))))
@@ -99,9 +142,60 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     return second
 
 
+def _compute_second_iat(iat, replicated_atoms, second_order_delta, is_verbose,
+                        calculator=None, scratch_dir=None):
+    if calculator is not None:
+        replicated_atoms = replicated_atoms.copy()
+        replicated_atoms.calc = calculator()
+    if is_verbose:
+        logging.info('calculating forces on atom ' + str(iat))
+    block = calculate_single_second(replicated_atoms, iat, second_order_delta)
+    if scratch_dir is not None:
+        path = os.path.join(scratch_dir, f'iat_{iat:05d}.npz')
+        np.savez_compressed(path, second=block.astype(np.float64))
+        open(os.path.join(scratch_dir, f'iat_{iat:05d}.done'), 'w').close()
+        return None
+    return block
+
+
+def _compute_second_iat_worker(iat, replicated_atoms, second_order_delta, is_verbose,
+                               calculator=None, scratch_dir=None):
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    return _compute_second_iat(
+        iat,
+        replicated_atoms,
+        second_order_delta,
+        is_verbose,
+        calculator=calculator,
+        scratch_dir=scratch_dir,
+    )
+
+
+def _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch):
+    second = np.empty((n_atoms, 3, n_replicated_atoms * 3), dtype=np.float64)
+    for iat in range(n_atoms):
+        path = os.path.join(scratch_dir, f'iat_{iat:05d}.npz')
+        with np.load(path) as f:
+            second[iat] = f['second']
+        if not keep_scratch:
+            os.remove(path)
+
+    if not keep_scratch:
+        for sentinel in glob.glob(os.path.join(scratch_dir, 'iat_*.done')):
+            os.remove(sentinel)
+        try:
+            os.rmdir(scratch_dir)
+        except OSError:
+            pass
+
+    return second
+
+
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
                     n_workers=1, calculator=None, scratch_dir=None, keep_scratch=False,
-                    jat_flush_every=50, n_threads=None):
+                    jat_flush_every=50):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -155,17 +249,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     jat_flush_every : int
         Number of jat iterations to buffer before flushing to disk. Only used
         when ``scratch_dir`` is set. Default 50.
-    n_threads : int or None
-        Deprecated alias for ``n_workers``. If provided, overrides ``n_workers``.
     """
-    # Handle deprecated n_threads parameter
-    if n_threads is not None:
-        warnings.warn(
-            "n_threads is deprecated, use n_workers instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        n_workers = n_threads
 
     # Normalize calculator to always be a callable factory (or None)
     calculator = _ensure_calculator_factory(calculator)
