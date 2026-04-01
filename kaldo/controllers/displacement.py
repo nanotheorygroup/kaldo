@@ -293,9 +293,14 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
         Number of jat iterations to accumulate (as compact numpy arrays) before
         flushing to disk. Only used when ``scratch_dir`` is set.
     """
+    # Prefer the explicitly passed calculator; fall back to the module-level
+    # global set by calculate_third before forking (used for non-picklable
+    # calculators like CPUNEP that can't be sent through the call queue).
     eff_calculator = calculator if calculator is not None else _worker_calculator
     if eff_calculator is not None:
         replicated_atoms = replicated_atoms.copy()
+        # Accept either a factory callable (called to produce an instance) or
+        # a pre-built instance passed directly.
         replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
