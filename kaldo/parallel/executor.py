@@ -44,34 +44,78 @@ class SerialExecutor:
         self.shutdown()
 
 
-def _get_safe_mp_context():
-    """Select a safe multiprocessing start method for the current platform.
+def _detect_fork_unsafe_signals():
+    """Return a list of reasons why forking would be unsafe, or [] if safe.
 
-    - macOS: ``'spawn'`` (fork is deprecated since Python 3.12).
-    - Linux: ``'forkserver'`` preferred, falls back to ``'fork'`` with a
-      warning if GPU/network state may be unsafe.
+    Checks for:
+    - Active non-daemon threads beyond the main thread (may hold locks)
+    - Initialized GPU context (CUDA is not fork-safe)
     """
-    if sys.platform == 'darwin':
-        return multiprocessing.get_context('spawn')
+    import threading
+    reasons = []
 
-    try:
-        return multiprocessing.get_context('forkserver')
-    except ValueError:
-        pass
+    # Non-daemon threads beyond main may hold mutexes that become deadlocked
+    # in a forked child. Daemon threads (e.g. Python's own GC) are excluded.
+    non_main_threads = [
+        t for t in threading.enumerate()
+        if t is not threading.main_thread() and not t.daemon
+    ]
+    if non_main_threads:
+        reasons.append(f"{len(non_main_threads)} active non-daemon thread(s)")
 
-    # Fallback to fork — warn if GPU context is live
     if 'tensorflow' in sys.modules:
         try:
             import tensorflow as tf
             if tf.config.list_physical_devices('GPU'):
-                warnings.warn(
-                    "Forking with initialized GPU context. This may cause crashes "
-                    "on HPC systems. Set KALDO_PARALLEL_BACKEND=serial to avoid.",
-                    RuntimeWarning,
-                    stacklevel=3,
-                )
+                reasons.append("TensorFlow GPU devices present")
         except Exception:
             pass
+
+    # Not typical kALDo imports, but possibly useful safeguards for
+    # users with custom/exotic calculators with GPU backends
+    if 'cupy' in sys.modules:
+        reasons.append("CuPy imported (GPU context likely initialized)")
+
+    if 'torch' in sys.modules:
+        try:
+            import torch
+            if torch.cuda.is_initialized():
+                reasons.append("PyTorch CUDA context initialized")
+        except Exception:
+            pass
+
+
+    return reasons
+
+
+def _get_safe_mp_context():
+    """Select a safe multiprocessing start method for the current platform.
+
+    - macOS: ``'spawn'`` (fork is deprecated since Python 3.12).
+    - Linux: ``'fork'`` by default. Automatically falls back to
+      ``'forkserver'`` if unsafe signals are detected (active non-daemon
+      threads or an initialized GPU context). When falling back, a warning
+      is emitted explaining the ``if __name__ == '__main__':`` requirement.
+    """
+    if sys.platform == 'darwin':
+        return multiprocessing.get_context('spawn')
+
+    unsafe_reasons = _detect_fork_unsafe_signals()
+    if unsafe_reasons:
+        warnings.warn(
+            "kaldo detected conditions that make fork() unsafe "
+            f"({'; '.join(unsafe_reasons)}), falling back to 'forkserver'. "
+            "Your script must guard parallel calls with "
+            "'if __name__ == \"__main__\":'. "
+            "Set KALDO_PARALLEL_BACKEND=serial to suppress this warning.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+        try:
+            return multiprocessing.get_context('forkserver')
+        except ValueError:
+            pass
+
     return multiprocessing.get_context('fork')
 
 
