@@ -42,33 +42,39 @@ class ThirdOrder(ForceConstant):
              third_energy_threshold: float = 0.,
              chunk_size: int = 100000):
         """
-        Load thrid order force constants from a folder in the given format, used for library internally.
+        Load third-order force constants from disk.
 
-        To load force constants data, ``ForceConstants.from_folder`` is recommended.
+        Most users should prefer ``ForceConstants.from_folder(...)`` when
+        constructing force constants from stored data. This lower-level
+        classmethod is useful when you are already working with ``fc.third``
+        directly, or when you need to load third-order data from a custom
+        workflow.
 
         Parameters
         ----------
         folder : str
-            Specifies where to load the data files.
+            Directory containing the third-order force constant data and the
+            associated replicated structure.
         supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+            Supercell used to build the stored third-order matrix.
             Default: (1, 1, 1)
         format : str
-            Format of the third order force constant information being loaded into ForceConstant object.
-            Default: 'sparse'
+            Format of the stored third-order data.
+            Default: ``"sparse"``
         third_energy_threshold : float, optional
-            When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: eV/A^3
-            Default: `None`
+            When importing sparse third-order matrices, values below this
+            threshold in magnitude are ignored. Units: eV/A^3.
+            Default: 0.
         chunk_size : int, optional
-            Number of entries to process per chunk when reading sparse third order files.
+            Number of entries to process per chunk when reading sparse third-
+            order files.
             Larger values use more memory but may be faster for very large files.
             Default: 100000
 
         Returns
         -------
         third_order : ThirdOrder object
-            A new instance of the ThirdOrder class
+            Loaded ``ThirdOrder`` instance.
         """
 
         match format:
@@ -264,6 +270,11 @@ class ThirdOrder(ForceConstant):
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
                   n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, n_threads=None):
         """Calculate the third order force constants.
+
+        This is the method typically reached through ``fc.third.calculate(...)``.
+        It can load an existing stored result from ``self.folder`` when
+        ``is_storing`` is enabled, or compute the anharmonic force constants
+        directly from finite-difference force evaluations.
 
         Parameters
         ----------
