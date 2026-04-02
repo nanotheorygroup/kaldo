@@ -283,7 +283,8 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1):
+    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
+                  scratch_dir=None, keep_scratch=False):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         if n_workers == 1:
@@ -304,6 +305,8 @@ class SecondOrder(ForceConstant):
                     is_verbose=is_verbose,
                     n_workers=n_workers,
                     calculator=calculator,
+                    scratch_dir=scratch_dir,
+                    keep_scratch=keep_scratch,
                 )
                 self.save("second")
                 self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
@@ -319,6 +322,8 @@ class SecondOrder(ForceConstant):
                 is_verbose=is_verbose,
                 n_workers=n_workers,
                 calculator=calculator,
+                scratch_dir=scratch_dir,
+                keep_scratch=keep_scratch,
             )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)

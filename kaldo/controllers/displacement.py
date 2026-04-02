@@ -63,19 +63,62 @@ def _compute_second_atom(atom_id, replicated_atoms, second_order_delta, calculat
     return atom_id, calculate_single_second(replicated_atoms, atom_id, second_order_delta)
 
 
-def _compute_second_atom_worker(atom_id, replicated_atoms, second_order_delta, calculator=None):
+def _compute_second_atom_worker(atom_id, replicated_atoms, second_order_delta, calculator=None,
+                                scratch_dir=None):
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['MKL_NUM_THREADS'] = '1'
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    return _compute_second_atom(
+    return _compute_second_atom_with_scratch(
+        atom_id,
+        replicated_atoms,
+        second_order_delta,
+        calculator=calculator,
+        scratch_dir=scratch_dir,
+    )
+
+
+def _compute_second_atom_with_scratch(atom_id, replicated_atoms, second_order_delta, calculator=None,
+                                      scratch_dir=None):
+    atom_id, second_per_atom = _compute_second_atom(
         atom_id,
         replicated_atoms,
         second_order_delta,
         calculator=calculator,
     )
+    if scratch_dir is not None:
+        np.save(_second_scratch_path(scratch_dir, atom_id), second_per_atom)
+        open(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'), 'w').close()
+        return atom_id, None
+    return atom_id, second_per_atom
 
 
-def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None):
+def _second_scratch_path(scratch_dir, atom_id):
+    return os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy')
+
+
+def _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch):
+    second = np.empty((n_atoms, 3, n_replicated_atoms * 3), dtype=np.float64)
+    for atom_id in range(n_atoms):
+        path = _second_scratch_path(scratch_dir, atom_id)
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'Missing scratch file for atom {atom_id}: {path}')
+        second[atom_id] = np.load(path)
+        if not keep_scratch:
+            os.remove(path)
+
+    if not keep_scratch:
+        for sentinel in glob.glob(os.path.join(scratch_dir, 'iat_*.done')):
+            os.remove(sentinel)
+        try:
+            os.rmdir(scratch_dir)
+        except OSError:
+            pass
+
+    return second
+
+
+def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
+                     scratch_dir=None, keep_scratch=False):
     # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
@@ -103,7 +146,19 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     n_replicated_atoms = len(replicated_atoms.numbers)
     n_atoms = n_unit_cell_atoms
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
-    second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
+    use_scratch = scratch_dir is not None
+    if use_scratch:
+        os.makedirs(scratch_dir, exist_ok=True)
+        atoms_to_compute = [
+            atom_id for atom_id in range(n_atoms)
+            if not os.path.exists(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'))
+        ]
+        n_resumed = n_atoms - len(atoms_to_compute)
+        if n_resumed:
+            logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
+    else:
+        second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
+        atoms_to_compute = list(range(n_atoms))
     use_parallel = n_workers is None or n_workers > 1
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
@@ -111,21 +166,28 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     global _worker_calculator
     _worker_calculator = calculator
 
-    worker_fn = _compute_second_atom_worker if use_parallel else _compute_second_atom
+    worker_fn = functools.partial(
+        _compute_second_atom_worker if use_parallel else _compute_second_atom_with_scratch,
+        scratch_dir=scratch_dir,
+    )
 
     try:
         with get_executor(backend=backend, n_workers=executor_workers) as executor:
             futures = {
                 executor.submit(worker_fn, i, replicated_atoms, second_order_delta): i
-                for i in range(n_atoms)
+                for i in atoms_to_compute
             }
             for future in as_completed(futures):
                 atom_id, second_per_atom = future.result()
                 if is_verbose:
                     logging.info('calculating forces on atom ' + str(atom_id))
-                second[atom_id] = second_per_atom
+                if not use_scratch:
+                    second[atom_id] = second_per_atom
     finally:
         _worker_calculator = None
+
+    if use_scratch:
+        second = _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
 
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
