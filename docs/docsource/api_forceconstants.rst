@@ -254,3 +254,42 @@ API Reference
 
 .. autoclass:: ForceConstants
         :members:
+
+
+Companion Objects
+=================
+
+Although :class:`ForceConstants` is the main user-facing entry point, it creates
+separate ``SecondOrder`` and ``ThirdOrder`` objects that many users interact
+with through ``fc.second`` and ``fc.third``. These classes are mostly internal
+containers, but users with non-standard input files or custom finite-difference
+workflows may still find their ``load(...)`` and ``calculate(...)`` methods
+useful.
+
+SecondOrder
+-----------
+
+The harmonic companion object is usually accessed as ``fc.second``. Direct use
+is most helpful when you want to load second-order data explicitly or run the
+harmonic finite-difference calculation without going back through a higher-level
+constructor.
+
+.. currentmodule:: kaldo.observables.secondorder
+
+.. automethod:: SecondOrder.load
+
+.. automethod:: SecondOrder.calculate
+
+ThirdOrder
+----------
+
+The anharmonic companion object is usually accessed as ``fc.third``. Direct use
+is most helpful when you need to load third-order data from a specific format or
+control the finite-difference calculation, including options such as parallel
+execution, scratch recovery, and interaction cutoffs.
+
+.. currentmodule:: kaldo.observables.thirdorder
+
+.. automethod:: ThirdOrder.load
+
+.. automethod:: ThirdOrder.calculate
