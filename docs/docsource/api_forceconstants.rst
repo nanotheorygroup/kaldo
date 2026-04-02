@@ -41,17 +41,27 @@ Should I use kALDo to calculate my IFCs?
 ========================================
 
 It's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs when possible. However, if
-your system is small ( hundreds to a few thousand atoms ), it may be tractable to calculate them here. The following are
-some general cases where you could calculate it all here without a significant performance hit:
+you want to calculate the IFCs directly from Python, kALDo is more practical now than it used to be because both second-
+and third-order finite-difference calculations can be parallelized with ``n_workers``. This parallel workflow has also
+been used successfully on HPC compute clusters, including multi-node runs. For third-order calculations in particular,
+the ``distance_threshold`` option can greatly reduce the amount of work by skipping interactions between atoms that are
+too far apart to matter, which is especially useful for large systems.
+
+Some general cases where calculating IFCs directly in kALDo is a good fit are:
 
 * You want to explore the effect of different potentials on only harmonic phonon properties (so no third order needed).
-* Small systems with short ranges of interactions
 * Users have a custom potential (particularly when it can be calculated within python)
 * Systems have no symmetry (which many of the compiled software packages exploit to greatly reduce total calculations)
+* Larger third-order calculations where a physically reasonable ``distance_threshold`` can be used to skip distant
+  interactions
 
-If you're not sure, :py:meth:`SecondOrder.calculate` prints to stdout the atom its currently working on so run the
-calculation and stop it after it prints a few atoms. Take the average time per atom and divide by 6 to get the time per
-frame :math:`t_{pf}` including overhead of I/O operations, launching tasks, etc. The total times are given by:
+Serial Runtime Estimate
+-----------------------
+
+If you're not sure, :py:meth:`SecondOrder.calculate` prints to stdout the atom it is currently working on, so run the
+calculation with ``n_workers=1`` and stop it after it prints a few atoms. Take the average time per atom and divide by
+6 to get the time per frame :math:`t_{pf}` including overhead from I/O operations and task setup. For serial runs, the
+total times are given by:
 
 .. math::
     t_{\text{2nd Order}} = t_{pf} \times {6N}
@@ -59,12 +69,39 @@ frame :math:`t_{pf}` including overhead of I/O operations, launching tasks, etc.
 .. math::
     t_{\text{3rd Order}} = t_{pf} \times {6N}^2
 
+Parallel Runtime Estimate
+-------------------------
+
+For parallel runs, kALDo distributes displaced-atom tasks across workers, so a useful first estimate for wall time is
+the serial estimate divided by ``n_workers``:
+
+.. math::
+    t_{\text{2nd Order, parallel}} \approx \frac{t_{pf} \times {6N}}{n_{\text{workers}}}
+
+.. math::
+    t_{\text{3rd Order, parallel}} \approx \frac{t_{pf} \times {6N}^2}{n_{\text{workers}}}
+
+This is only an approximate guide because real runs also include process startup, I/O, scratch traffic, load imbalance,
+and calculator-specific overhead. For third-order calculations, using a nonzero ``distance_threshold`` can reduce the
+effective amount of work even further by skipping distant interactions, so the actual runtime may be substantially lower
+than the no-cutoff estimate above.
+
 Calculation Workflow
 ====================
 
 .. hint::
    Be sure to minimize the potential energy of your atomic positions before calculating the IFCs. The steps here assume
    you have already done this.
+
+Both :py:meth:`SecondOrder.calculate` and :py:meth:`ThirdOrder.calculate` can distribute the finite-difference work
+across multiple worker processes with the ``n_workers`` argument. In both cases, kALDo parallelizes over displaced
+unit-cell atoms: second order assigns one atom's harmonic finite-difference block to each task, while third order
+assigns one first-index atom of the anharmonic tensor to each task. This keeps the workflow simple and makes it easy to
+resume interrupted runs.
+
+For third order, and now for optional second-order scratch runs as well, intermediate results can be written to a
+``scratch_dir``. Each completed atom writes its own scratch artifact together with a ``.done`` sentinel, so rerunning
+the calculation with the same scratch directory skips finished atoms and only recomputes missing work.
 
 #. Import required packages which will be kALDo, the ASE calculator you want to use, and either a function to build
    atoms (like ase.build.bulk) or their read tool (ase.io.read)::
