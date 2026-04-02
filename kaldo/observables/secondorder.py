@@ -283,10 +283,11 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
+    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1):
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        replicated_atoms.calc = calculator
+        if n_workers == 1:
+            replicated_atoms.calc = calculator
 
         if is_storing:
             try:
@@ -296,14 +297,29 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 logging.info("Second order not found. Calculating.")
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+                self.value = calculate_second(
+                    atoms,
+                    replicated_atoms,
+                    delta_shift,
+                    is_verbose=is_verbose,
+                    n_workers=n_workers,
+                    calculator=calculator,
+                )
                 self.save("second")
+                self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
                 self.replicated_atoms.get_forces()
                 ase.io.write(self.folder + "/replicated_atoms.xyz", self.replicated_atoms, "extxyz")
             else:
                 logging.info("Reading stored second")
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+            self.value = calculate_second(
+                atoms,
+                replicated_atoms,
+                delta_shift,
+                is_verbose=is_verbose,
+                n_workers=n_workers,
+                calculator=calculator,
+            )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 

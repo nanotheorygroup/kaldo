@@ -55,23 +55,78 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
     return second_per_atom
 
 
-def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False):
+def _compute_second_atom(atom_id, replicated_atoms, second_order_delta, calculator=None):
+    eff_calculator = calculator if calculator is not None else _worker_calculator
+    if eff_calculator is not None:
+        replicated_atoms = replicated_atoms.copy()
+        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
+    return atom_id, calculate_single_second(replicated_atoms, atom_id, second_order_delta)
+
+
+def _compute_second_atom_worker(atom_id, replicated_atoms, second_order_delta, calculator=None):
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    return _compute_second_atom(
+        atom_id,
+        replicated_atoms,
+        second_order_delta,
+        calculator=calculator,
+    )
+
+
+def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None):
     # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
     using central difference formula
     """
+    if n_workers is not None and n_workers < 1:
+        raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
+
+    if calculator is not None and not callable(calculator):
+        try:
+            from ase.calculators.calculator import Calculator as _ASECalc
+            if not isinstance(calculator, _ASECalc):
+                raise TypeError(
+                    f"calculator must be a callable or ASE Calculator instance, "
+                    f"got {type(calculator).__name__}"
+                )
+        except ImportError:
+            raise TypeError(
+                f"calculator must be a callable, got {type(calculator).__name__}"
+            )
+
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
     n_replicated_atoms = len(replicated_atoms.numbers)
     n_atoms = n_unit_cell_atoms
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
     second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
-    for i in range(n_atoms):
-        if is_verbose:
-            logging.info('calculating forces on atom ' + str(i))
-        second[i] = calculate_single_second(replicated_atoms, i, second_order_delta)
+    use_parallel = n_workers is None or n_workers > 1
+    backend = 'process' if use_parallel else 'serial'
+    executor_workers = n_workers if use_parallel else None
+
+    global _worker_calculator
+    _worker_calculator = calculator
+
+    worker_fn = _compute_second_atom_worker if use_parallel else _compute_second_atom
+
+    try:
+        with get_executor(backend=backend, n_workers=executor_workers) as executor:
+            futures = {
+                executor.submit(worker_fn, i, replicated_atoms, second_order_delta): i
+                for i in range(n_atoms)
+            }
+            for future in as_completed(futures):
+                atom_id, second_per_atom = future.result()
+                if is_verbose:
+                    logging.info('calculating forces on atom ' + str(atom_id))
+                second[atom_id] = second_per_atom
+    finally:
+        _worker_calculator = None
+
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
     asymmetry = np.sum(np.abs(second[0, :, :, 0, :, :] - np.transpose(second[0, :, :, 0, :, :], (2, 3, 0, 1))))
