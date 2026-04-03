@@ -40,18 +40,20 @@ of frames is :math:`2 \times 2 \times 3N \times 3N = (6N)^2`.
 Should I use kALDo to calculate my IFCs?
 ========================================
 
-It's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs when possible. However, if
-you want to calculate the IFCs directly from Python, kALDo is more practical now than it used to be because both second-
-and third-order finite-difference calculations can be parallelized with ``n_workers``. This parallel workflow has also
-been used successfully on HPC compute clusters, including multi-node runs. For third-order calculations in particular,
-the ``distance_threshold`` option can greatly reduce the amount of work by skipping interactions between atoms that are
-too far apart to matter, which is especially useful for large systems.
+It's generally faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs when possible.
+However, if you want to calculate the IFCs directly from Python, kALDo has some advantages because both second-
+and third-order finite-difference calculations can be parallelized with ``n_workers``. This parallel workflow has
+been used successfully on HPC compute clusters, including multi-node runs, with a near-linear speed up (for calculators
+that do not use thread-parallelization).
+The ``distance_threshold`` option can also greatly reduce the amount of work required for third order IFC generation,
+by skipping interactions between atoms that are too far apart. This is especially useful for large systems
+(like glasses, or clathrates).
 
 Some general cases where calculating IFCs directly in kALDo is a good fit are:
 
 * You want to explore the effect of different potentials on only harmonic phonon properties (so no third order needed).
-* Users have a custom potential (particularly when it can be calculated within python)
-* Systems have no symmetry (which many of the compiled software packages exploit to greatly reduce total calculations)
+* Users have a custom, or Python-based calculator
+* The system has no symmetry (which many of the compiled software packages exploit to reduce total calculations)
 * Larger third-order calculations where a physically reasonable ``distance_threshold`` can be used to skip distant
   interactions
 
@@ -86,6 +88,10 @@ and calculator-specific overhead. For third-order calculations, using a nonzero 
 effective amount of work even further by skipping distant interactions, so the actual runtime may be substantially lower
 than the no-cutoff estimate above.
 
+For calculators that use shared-memory parallelization (e.g. Orb), it's likely that the fastest route will be a blend
+of thread and process parallelization. Try out different combinations of ``n_workers`` and ``OMP_NUM_THREADS`` for the
+best results.
+
 Calculation Workflow
 ====================
 
@@ -99,9 +105,9 @@ unit-cell atoms: second order assigns one atom's harmonic finite-difference bloc
 assigns one first-index atom of the anharmonic tensor to each task. This keeps the workflow simple and makes it easy to
 resume interrupted runs.
 
-For third order, and now for optional second-order scratch runs as well, intermediate results can be written to a
-``scratch_dir``. Each completed atom writes its own scratch artifact together with a ``.done`` sentinel, so rerunning
-the calculation with the same scratch directory skips finished atoms and only recomputes missing work.
+For second- and third-order scratch runs, intermediate results can be written to a ``scratch_dir``. Each completed atom
+writes its own scratch artifact together with a ``.done`` sentinel file, so rerunning the calculation with the same
+scratch directory skips finished atoms and only recomputes missing work.
 
 #. Import required packages which will be kALDo, the ASE calculator you want to use, and either a function to build
    atoms (like ase.build.bulk) or their read tool (ase.io.read)::
@@ -137,9 +143,13 @@ the calculation with the same scratch directory skips finished atoms and only re
    The "delta_shift" argument is how far the atoms move.::
 
     # Second Order (for harmonic properties - phonon frequencies, velocities, heat capacity, etc.)
-    fc.second.calculate(calc)
+    fc.second.calculate(calc,
+                        delta_shift = 1e-5,
+                        n_workers = 2,)
     # Third Order (for anharmonic properties - phonon lifetimes, thermal conductivity, etc.)
-    fc.third.calculate(calc)
+    fc.third.calculate(calc
+                       delta_shift = 1e-5,
+                       n_workers = 2,)
 
 .. _carbon diamond example: https://github.com/nanotheorygroup/kaldo/blob/main/examples/carbon_diamond_Tersoff_ASE_LAMMPS/1_C_Tersoff_fc_and_harmonic_properties.py
 
@@ -269,10 +279,9 @@ useful.
 SecondOrder
 -----------
 
-The harmonic companion object is usually accessed as ``fc.second``. Direct use
-is most helpful when you want to load second-order data explicitly or run the
-harmonic finite-difference calculation without going back through a higher-level
-constructor.
+The harmonic companion object is usually accessed as ``ForceConstants.second``. Direct use
+is most helpful when you want to load second-order data in a non-standard way (e.g. not using the
+``ForceConstants.from_folder`` method) or to run the harmonic finite-difference calculation.
 
 .. currentmodule:: kaldo.observables.secondorder
 
@@ -283,10 +292,9 @@ constructor.
 ThirdOrder
 ----------
 
-The anharmonic companion object is usually accessed as ``fc.third``. Direct use
+The anharmonic companion object is usually accessed as ``ForceConstants.third``. Direct use
 is most helpful when you need to load third-order data from a specific format or
-control the finite-difference calculation, including options such as parallel
-execution, scratch recovery, and interaction cutoffs.
+when launching the finite-difference calculation.
 
 .. currentmodule:: kaldo.observables.thirdorder
 
