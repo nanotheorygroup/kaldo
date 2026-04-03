@@ -63,19 +63,6 @@ def _compute_second_atom(atom_id, replicated_atoms, second_order_delta, calculat
     return atom_id, calculate_single_second(replicated_atoms, atom_id, second_order_delta)
 
 
-def _compute_second_atom_worker(atom_id, replicated_atoms, second_order_delta, calculator=None,
-                                scratch_dir=None):
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    return _compute_second_atom_with_scratch(
-        atom_id,
-        replicated_atoms,
-        second_order_delta,
-        calculator=calculator,
-        scratch_dir=scratch_dir,
-    )
-
 
 def _compute_second_atom_with_scratch(atom_id, replicated_atoms, second_order_delta, calculator=None,
                                       scratch_dir=None):
@@ -86,20 +73,16 @@ def _compute_second_atom_with_scratch(atom_id, replicated_atoms, second_order_de
         calculator=calculator,
     )
     if scratch_dir is not None:
-        np.save(_second_scratch_path(scratch_dir, atom_id), second_per_atom)
+        np.save(os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy'), second_per_atom)
         open(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'), 'w').close()
         return atom_id, None
     return atom_id, second_per_atom
 
 
-def _second_scratch_path(scratch_dir, atom_id):
-    return os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy')
-
-
-def _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch):
+def _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch):
     second = np.empty((n_atoms, 3, n_replicated_atoms * 3), dtype=np.float64)
     for atom_id in range(n_atoms):
-        path = _second_scratch_path(scratch_dir, atom_id)
+        path = os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy')
         if not os.path.exists(path):
             raise FileNotFoundError(f'Missing scratch file for atom {atom_id}: {path}')
         second[atom_id] = np.load(path)
@@ -119,7 +102,6 @@ def _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep
 
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
                      scratch_dir=None, keep_scratch=False):
-    # TODO: remove supercell
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
@@ -167,27 +149,26 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     _worker_calculator = calculator
 
     worker_fn = functools.partial(
-        _compute_second_atom_worker if use_parallel else _compute_second_atom_with_scratch,
+        _compute_second_atom_with_scratch,
         scratch_dir=scratch_dir,
     )
 
-    try:
-        with get_executor(backend=backend, n_workers=executor_workers) as executor:
-            futures = {
-                executor.submit(worker_fn, i, replicated_atoms, second_order_delta): i
-                for i in atoms_to_compute
-            }
-            for future in as_completed(futures):
-                atom_id, second_per_atom = future.result()
-                if is_verbose:
-                    logging.info('calculating forces on atom ' + str(atom_id))
-                if not use_scratch:
-                    second[atom_id] = second_per_atom
-    finally:
-        _worker_calculator = None
+    with get_executor(backend=backend, n_workers=executor_workers) as executor:
+        futures = {
+            executor.submit(worker_fn, i, replicated_atoms, second_order_delta): i
+            for i in atoms_to_compute
+        }
+        for future in as_completed(futures):
+            atom_id, second_per_atom = future.result()
+            if is_verbose:
+                logging.info('calculating forces on atom ' + str(atom_id))
+            if not use_scratch:
+                second[atom_id] = second_per_atom
+    # Clean up module-level variable
+    _worker_calculator = None
 
     if use_scratch:
-        second = _assemble_second_from_scratch(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
+        second = _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
 
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
@@ -324,38 +305,36 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     # calculator is intentionally absent from the partial — workers read it
     # from _worker_calculator instead.
     worker_fn = functools.partial(
-        _compute_iat_worker if use_parallel else _compute_iat,
+        _compute_iat_third,
         scratch_dir=scratch_dir,
         jat_flush_every=jat_flush_every,
     )
 
-    try:
-        with get_executor(backend=backend, n_workers=executor_workers) as executor:
-            futures = {
-                executor.submit(worker_fn, iat, atoms, replicated_atoms_workers,
-                               third_order_delta, distance_threshold, is_verbose): iat
-                for iat in atoms_to_compute
-            }
-            for future in as_completed(futures):
-                iat = futures[future]
-                local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
-                if not use_scratch:
-                    i_at_sparse.extend(local_i_at)
-                    i_coord_sparse.extend(local_i_coord)
-                    jat_sparse.extend(local_jat)
-                    j_coord_sparse.extend(local_j_coord)
-                    k_sparse.extend(local_k)
-                    value_sparse.extend(local_value)
-                n_forces_done += n_done
-                n_forces_skipped += n_skipped
-                if use_parallel:
-                    logging.info(f'Completed atom {iat}: '
-                                 f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
-                elif (n_forces_done + n_forces_skipped) % 300 == 0:
-                    logging.info('Calculate third derivatives ' + str(
-                        int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
-    finally:
-        _worker_calculator = None
+    with get_executor(backend=backend, n_workers=executor_workers) as executor:
+        futures = {
+            executor.submit(worker_fn, iat, atoms, replicated_atoms_workers,
+                           third_order_delta, distance_threshold, is_verbose): iat
+            for iat in atoms_to_compute
+        }
+        for future in as_completed(futures):
+            iat = futures[future]
+            local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
+            if not use_scratch:
+                i_at_sparse.extend(local_i_at)
+                i_coord_sparse.extend(local_i_coord)
+                jat_sparse.extend(local_jat)
+                j_coord_sparse.extend(local_j_coord)
+                k_sparse.extend(local_k)
+                value_sparse.extend(local_value)
+            n_forces_done += n_done
+            n_forces_skipped += n_skipped
+            if use_parallel:
+                logging.info(f'Completed atom {iat}: '
+                             f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
+            elif (n_forces_done + n_forces_skipped) % 300 == 0:
+                logging.info('Calculate third derivatives ' + str(
+                    int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
+    _worker_calculator = None # clean up module-level variable
 
     logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
@@ -391,7 +370,7 @@ def calculate_single_third_with_shift(atoms, replicated_atoms, shift):
     return phi_partial
     
 
-def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
+def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
                  calculator=None, scratch_dir=None, jat_flush_every=50):
     """Compute all third-order force constant terms for a single unit cell atom index.
 
@@ -497,21 +476,6 @@ def _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_thres
                         local_value.append(value[id_k])
             n_done += 9
     return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
-
-
-def _compute_iat_worker(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                        calculator=None, scratch_dir=None, jat_flush_every=50):
-    """Parallel worker function. All configuration is passed explicitly as arguments
-    (via functools.partial), making this compatible with spawn/forkserver contexts."""
-    # Pin BLAS/OpenMP threads to 1 per worker to prevent oversubscription
-    # (e.g. 128 workers × 128 BLAS threads = catastrophic on HPC nodes)
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    return _compute_iat(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                        calculator=calculator,
-                        scratch_dir=scratch_dir,
-                        jat_flush_every=jat_flush_every)
 
 
 def _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
