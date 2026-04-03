@@ -380,62 +380,18 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
     eff_calculator = calculator if calculator is not None else _worker_calculator
     if eff_calculator is not None:
         replicated_atoms = replicated_atoms.copy()
-        # Accept either a factory callable (called to produce an instance) or
-        # a pre-built instance passed directly.
         replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
     n_done = 0
     n_skipped = 0
 
-    if scratch_dir is not None:
-        chunk_id = 0
-        jat_count_in_chunk = 0
-        chunk_coords = []   # list of (5, n_k) int64 arrays
-        chunk_values = []   # list of (n_k,) float64 arrays
-        for jat in range(n_replicas * n_atoms):
-            is_computing = True
-            if distance_threshold is not None:
-                dxij = replicated_atoms.get_distance(iat, jat, mic=True, vector=False)
-                if dxij > distance_threshold:
-                    is_computing = False
-                    n_skipped += 9
-            if is_computing:
-                if is_verbose:
-                    logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij) if distance_threshold is not None else None}')
-                for icoord in range(3):
-                    for jcoord in range(3):
-                        value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
-                                                       third_order_delta)
-                        n_k = value.shape[0]
-                        chunk_coords.append(np.array([
-                            np.full(n_k, iat,    dtype=np.int64),
-                            np.full(n_k, icoord, dtype=np.int64),
-                            np.full(n_k, jat,    dtype=np.int64),
-                            np.full(n_k, jcoord, dtype=np.int64),
-                            np.arange(n_k,       dtype=np.int64),
-                        ]))
-                        chunk_values.append(value.astype(np.float64))
-                n_done += 9
-            jat_count_in_chunk += 1
-            if jat_count_in_chunk >= jat_flush_every and chunk_values:
-                _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
-                chunk_id += 1
-                jat_count_in_chunk = 0
-                chunk_coords = []
-                chunk_values = []
-        if chunk_values:
-            _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
-        open(os.path.join(scratch_dir, f'iat_{iat:05d}.done'), 'w').close()
-        return [], [], [], [], [], [], n_done, n_skipped
+    use_scratch = scratch_dir is not None
+    chunk_id = 0
+    jat_count_in_chunk = 0
+    chunk_coords = []
+    chunk_values = []
 
-    # Original in-memory path
-    local_i_at = []
-    local_i_coord = []
-    local_jat = []
-    local_j_coord = []
-    local_k = []
-    local_value = []
     for jat in range(n_replicas * n_atoms):
         is_computing = True
         if distance_threshold is not None:
@@ -443,24 +399,45 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
             if dxij > distance_threshold:
                 is_computing = False
                 n_skipped += 9
-                if is_verbose:
-                    logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij)}')
         if is_computing:
             if is_verbose:
-                logging.info(f'calculating forces on atoms: {iat}, {jat}, {np.linalg.norm(dxij) if distance_threshold is not None else None}')
+                logging.info(f'calculating forces on atoms: {iat}, {jat}, '
+                             f'{dxij if distance_threshold is not None else None}')
             for icoord in range(3):
                 for jcoord in range(3):
                     value = calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord,
                                                    third_order_delta)
-                    for id_k in range(value.shape[0]):
-                        local_i_at.append(iat)
-                        local_i_coord.append(icoord)
-                        local_jat.append(jat)
-                        local_j_coord.append(jcoord)
-                        local_k.append(id_k)
-                        local_value.append(value[id_k])
+                    n_k = value.shape[0]
+                    chunk_coords.append(np.array([
+                        np.full(n_k, iat,    dtype=np.int64),
+                        np.full(n_k, icoord, dtype=np.int64),
+                        np.full(n_k, jat,    dtype=np.int64),
+                        np.full(n_k, jcoord, dtype=np.int64),
+                        np.arange(n_k,       dtype=np.int64),
+                    ]))
+                    chunk_values.append(value.astype(np.float64))
             n_done += 9
-    return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
+        if use_scratch:
+            jat_count_in_chunk += 1
+            if jat_count_in_chunk >= jat_flush_every and chunk_values:
+                _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
+                chunk_id += 1
+                jat_count_in_chunk = 0
+                chunk_coords = []
+                chunk_values = []
+
+    if use_scratch:
+        if chunk_values:
+            _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
+        open(os.path.join(scratch_dir, f'iat_{iat:05d}.done'), 'w').close()
+        return [], [], [], [], [], [], n_done, n_skipped
+
+    if not chunk_coords:
+        return [], [], [], [], [], [], n_done, n_skipped
+    coords = np.concatenate(chunk_coords, axis=1)
+    values = np.concatenate(chunk_values)
+    return (coords[0].tolist(), coords[1].tolist(), coords[2].tolist(),
+            coords[3].tolist(), coords[4].tolist(), values.tolist(), n_done, n_skipped)
 
 
 def _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
