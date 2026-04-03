@@ -38,6 +38,22 @@ def calculate_gradient(x, input_atoms):
     return grad
 
 
+def _validate_calculator(calculator):
+    """Raise TypeError if calculator is not a callable or ASE Calculator instance."""
+    if calculator is not None and not callable(calculator):
+        try:
+            from ase.calculators.calculator import Calculator as _ASECalc
+            if not isinstance(calculator, _ASECalc):
+                raise TypeError(
+                    f"calculator must be a callable or ASE Calculator instance, "
+                    f"got {type(calculator).__name__}"
+                )
+        except ImportError:
+            raise TypeError(
+                f"calculator must be a callable, got {type(calculator).__name__}"
+            )
+
+
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
                         scratch_dir=None):
     """Compute second-order force constants for a single unit cell atom.
@@ -94,19 +110,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-
-    if calculator is not None and not callable(calculator):
-        try:
-            from ase.calculators.calculator import Calculator as _ASECalc
-            if not isinstance(calculator, _ASECalc):
-                raise TypeError(
-                    f"calculator must be a callable or ASE Calculator instance, "
-                    f"got {type(calculator).__name__}"
-                )
-        except ImportError:
-            raise TypeError(
-                f"calculator must be a callable, got {type(calculator).__name__}"
-            )
+    _validate_calculator(calculator)
 
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
@@ -232,19 +236,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
 
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-
-    if calculator is not None and not callable(calculator):
-        try:
-            from ase.calculators.calculator import Calculator as _ASECalc
-            if not isinstance(calculator, _ASECalc):
-                raise TypeError(
-                    f"calculator must be a callable or ASE Calculator instance, "
-                    f"got {type(calculator).__name__}"
-                )
-        except ImportError:
-            raise TypeError(
-                f"calculator must be a callable, got {type(calculator).__name__}"
-            )
+    _validate_calculator(calculator)
 
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
@@ -295,7 +287,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
 
     with get_executor(backend=backend, n_workers=executor_workers) as executor:
         futures = {
-            executor.submit(worker_fn, iat, atoms, replicated_atoms_workers,
+            executor.submit(worker_fn, iat, atoms, replicated_atoms,
                            third_order_delta, distance_threshold, is_verbose): iat
             for iat in atoms_to_compute
         }
