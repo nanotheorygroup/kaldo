@@ -279,8 +279,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
 
-    replicated_atoms_workers = replicated_atoms.copy()
-
     # Stash calculator at module level so forked workers inherit it without
     # pickling. Calculators like CPUNEP wrap C extensions that are not
     # picklable, so we must not pass them through the call queue.
@@ -343,16 +341,8 @@ def calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord, th
             shift = np.zeros((n_replicated_atoms, 3))
             shift[iat, icoord] += isign * third_order_delta
             shift[jat, jcoord] += jsign * third_order_delta
-            phi_partial[:] += isign * jsign * calculate_single_third_with_shift(atoms, replicated_atoms, shift)
+            phi_partial[:] += isign * jsign * (-1. * calculate_gradient(replicated_atoms.positions + shift, replicated_atoms))
     return phi_partial / (4. * third_order_delta * third_order_delta)
-
-
-def calculate_single_third_with_shift(atoms, replicated_atoms, shift):
-    n_in_unit_cell = len(atoms.numbers)
-    n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-    phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
-    phi_partial[:] = (-1. * calculate_gradient(replicated_atoms.positions + shift, replicated_atoms))
-    return phi_partial
     
 
 def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
