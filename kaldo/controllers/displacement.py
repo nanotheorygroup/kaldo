@@ -54,53 +54,6 @@ def _validate_calculator(calculator):
             )
 
 
-def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
-                        scratch_dir=None):
-    """Compute second-order force constants for a single unit cell atom.
-
-    Uses central difference: (forward force - backward force) for each
-    Cartesian direction.
-    """
-    eff_calculator = calculator if calculator is not None else _worker_calculator
-    if eff_calculator is not None:
-        replicated_atoms = replicated_atoms.copy()
-        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
-    n_replicated_atoms = len(replicated_atoms.numbers)
-    second_per_atom = np.zeros((3, n_replicated_atoms * 3))
-    for alpha in range(3):
-        for move in (-1, 1):
-            shift = np.zeros((n_replicated_atoms, 3))
-            shift[atom_id, alpha] += move * second_order_delta
-            second_per_atom[alpha, :] += move * calculate_gradient(replicated_atoms.positions + shift,
-                                                                   replicated_atoms)
-    if scratch_dir is not None:
-        np.save(os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy'), second_per_atom)
-        open(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'), 'w').close()
-        return atom_id, None
-    return atom_id, second_per_atom
-
-
-def _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch):
-    second = np.empty((n_atoms, 3, n_replicated_atoms * 3), dtype=np.float64)
-    for atom_id in range(n_atoms):
-        path = os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy')
-        if not os.path.exists(path):
-            raise FileNotFoundError(f'Missing scratch file for atom {atom_id}: {path}')
-        second[atom_id] = np.load(path)
-        if not keep_scratch:
-            os.remove(path)
-
-    if not keep_scratch:
-        for sentinel in glob.glob(os.path.join(scratch_dir, 'iat_*.done')):
-            os.remove(sentinel)
-        try:
-            os.rmdir(scratch_dir)
-        except OSError:
-            pass
-
-    return second
-
-
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
                      scratch_dir=None, keep_scratch=False):
     """
@@ -163,6 +116,53 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     second = second / (2. * second_order_delta)
     asymmetry = np.sum(np.abs(second[0, :, :, 0, :, :] - np.transpose(second[0, :, :, 0, :, :], (2, 3, 0, 1))))
     logging.info('Symmetry of Dynamical Matrix ' + str(asymmetry))
+    return second
+
+
+def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
+                        scratch_dir=None):
+    """Compute second-order force constants for a single unit cell atom.
+
+    Uses central difference: (forward force - backward force) for each
+    Cartesian direction.
+    """
+    eff_calculator = calculator if calculator is not None else _worker_calculator
+    if eff_calculator is not None:
+        replicated_atoms = replicated_atoms.copy()
+        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
+    n_replicated_atoms = len(replicated_atoms.numbers)
+    second_per_atom = np.zeros((3, n_replicated_atoms * 3))
+    for alpha in range(3):
+        for move in (-1, 1):
+            shift = np.zeros((n_replicated_atoms, 3))
+            shift[atom_id, alpha] += move * second_order_delta
+            second_per_atom[alpha, :] += move * calculate_gradient(replicated_atoms.positions + shift,
+                                                                   replicated_atoms)
+    if scratch_dir is not None:
+        np.save(os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy'), second_per_atom)
+        open(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'), 'w').close()
+        return atom_id, None
+    return atom_id, second_per_atom
+
+
+def _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch):
+    second = np.empty((n_atoms, 3, n_replicated_atoms * 3), dtype=np.float64)
+    for atom_id in range(n_atoms):
+        path = os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy')
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'Missing scratch file for atom {atom_id}: {path}')
+        second[atom_id] = np.load(path)
+        if not keep_scratch:
+            os.remove(path)
+
+    if not keep_scratch:
+        for sentinel in glob.glob(os.path.join(scratch_dir, 'iat_*.done')):
+            os.remove(sentinel)
+        try:
+            os.rmdir(scratch_dir)
+        except OSError:
+            pass
+
     return second
 
 
@@ -321,20 +321,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     phifull = COO(coords, np.array(value_sparse), shape)
     phifull = phifull.reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
     return phifull
-
-
-def calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord, third_order_delta):
-    n_in_unit_cell = len(atoms.numbers)
-    n_replicated_atoms = len(replicated_atoms.numbers)
-    n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
-    phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
-    for isign in (1, -1):
-        for jsign in (1, -1):
-            shift = np.zeros((n_replicated_atoms, 3))
-            shift[iat, icoord] += isign * third_order_delta
-            shift[jat, jcoord] += jsign * third_order_delta
-            phi_partial[:] += isign * jsign * (-1. * calculate_gradient(replicated_atoms.positions + shift, replicated_atoms))
-    return phi_partial / (4. * third_order_delta * third_order_delta)
     
 
 def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
@@ -420,6 +406,20 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
     values = np.concatenate(chunk_values)
     return (coords[0].tolist(), coords[1].tolist(), coords[2].tolist(),
             coords[3].tolist(), coords[4].tolist(), values.tolist(), n_done, n_skipped)
+
+
+def calculate_single_third(atoms, replicated_atoms, iat, icoord, jat, jcoord, third_order_delta):
+    n_in_unit_cell = len(atoms.numbers)
+    n_replicated_atoms = len(replicated_atoms.numbers)
+    n_supercell = int(replicated_atoms.positions.shape[0] / n_in_unit_cell)
+    phi_partial = np.zeros((n_supercell * n_in_unit_cell * 3))
+    for isign in (1, -1):
+        for jsign in (1, -1):
+            shift = np.zeros((n_replicated_atoms, 3))
+            shift[iat, icoord] += isign * third_order_delta
+            shift[jat, jcoord] += jsign * third_order_delta
+            phi_partial[:] += isign * jsign * (-1. * calculate_gradient(replicated_atoms.positions + shift, replicated_atoms))
+    return phi_partial / (4. * third_order_delta * third_order_delta)
 
 
 def _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
