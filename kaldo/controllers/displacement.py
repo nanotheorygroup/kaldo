@@ -38,12 +38,17 @@ def calculate_gradient(x, input_atoms):
     return grad
 
 
-def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
+def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
+                        scratch_dir=None):
+    """Compute second-order force constants for a single unit cell atom.
+
+    Uses central difference: (forward force - backward force) for each
+    Cartesian direction.
     """
-    Compute the numerator of the approximated second matrices
-    (approximated force from forward difference -
-    approximated force from backward difference )
-     """
+    eff_calculator = calculator if calculator is not None else _worker_calculator
+    if eff_calculator is not None:
+        replicated_atoms = replicated_atoms.copy()
+        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
     n_replicated_atoms = len(replicated_atoms.numbers)
     second_per_atom = np.zeros((3, n_replicated_atoms * 3))
     for alpha in range(3):
@@ -52,26 +57,6 @@ def calculate_single_second(replicated_atoms, atom_id, second_order_delta):
             shift[atom_id, alpha] += move * second_order_delta
             second_per_atom[alpha, :] += move * calculate_gradient(replicated_atoms.positions + shift,
                                                                    replicated_atoms)
-    return second_per_atom
-
-
-def _compute_second_atom(atom_id, replicated_atoms, second_order_delta, calculator=None):
-    eff_calculator = calculator if calculator is not None else _worker_calculator
-    if eff_calculator is not None:
-        replicated_atoms = replicated_atoms.copy()
-        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
-    return atom_id, calculate_single_second(replicated_atoms, atom_id, second_order_delta)
-
-
-
-def _compute_second_atom_with_scratch(atom_id, replicated_atoms, second_order_delta, calculator=None,
-                                      scratch_dir=None):
-    atom_id, second_per_atom = _compute_second_atom(
-        atom_id,
-        replicated_atoms,
-        second_order_delta,
-        calculator=calculator,
-    )
     if scratch_dir is not None:
         np.save(os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy'), second_per_atom)
         open(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'), 'w').close()
@@ -149,7 +134,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     _worker_calculator = calculator
 
     worker_fn = functools.partial(
-        _compute_second_atom_with_scratch,
+        _compute_iat_second,
         scratch_dir=scratch_dir,
     )
 
@@ -340,7 +325,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     logging.info('forces calculated : ' + str(n_forces_done))
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
     if use_scratch:
-        return _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch)
+        return _assemble_from_scratch_third(scratch_dir, n_atoms, n_replicas, keep_scratch)
     coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
     shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
     phifull = COO(coords, np.array(value_sparse), shape)
@@ -434,13 +419,13 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
                 n_done += 9
             jat_count_in_chunk += 1
             if jat_count_in_chunk >= jat_flush_every and chunk_values:
-                _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
+                _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
                 chunk_id += 1
                 jat_count_in_chunk = 0
                 chunk_coords = []
                 chunk_values = []
         if chunk_values:
-            _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
+            _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
         open(os.path.join(scratch_dir, f'iat_{iat:05d}.done'), 'w').close()
         return [], [], [], [], [], [], n_done, n_skipped
 
@@ -478,7 +463,7 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
     return local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped
 
 
-def _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
+def _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
     """Concatenate buffered numpy arrays and write one chunk file to disk."""
     coords = np.concatenate(chunk_coords, axis=1)   # shape (5, total_k)
     values = np.concatenate(chunk_values)            # shape (total_k,)
@@ -486,7 +471,7 @@ def _flush_chunk(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
     np.savez_compressed(path, coords=coords, values=values)
 
 
-def _assemble_from_scratch(scratch_dir, n_atoms, n_replicas, keep_scratch):
+def _assemble_from_scratch_third(scratch_dir, n_atoms, n_replicas, keep_scratch):
     """Build the final COO tensor from per-jat-chunk scratch files using two passes.
 
     Pass 1 reads only array metadata to count total non-zeros, allowing a single
