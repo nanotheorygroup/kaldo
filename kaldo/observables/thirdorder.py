@@ -268,7 +268,7 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, n_threads=None):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -310,13 +310,7 @@ class ThirdOrder(ForceConstant):
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
-        n_threads : int or None
-            Deprecated alias for ``n_workers``.
         """
-        if n_threads is not None:
-            import warnings
-            warnings.warn("n_threads is deprecated, use n_workers instead.", DeprecationWarning, stacklevel=2)
-            n_workers = n_threads
         if calculator is None:
             raise ValueError("Provide a calculator")
         atoms = self.atoms

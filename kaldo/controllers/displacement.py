@@ -1,7 +1,6 @@
 import functools
 import glob
 import os
-import warnings
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
@@ -168,7 +167,7 @@ def _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep
 
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
                     n_workers=1, calculator=None, scratch_dir=None, keep_scratch=False,
-                    jat_flush_every=50, n_threads=None):
+                    jat_flush_every=50):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -222,18 +221,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     jat_flush_every : int
         Number of jat iterations to buffer before flushing to disk. Only used
         when ``scratch_dir`` is set. Default 50.
-    n_threads : int or None
-        Deprecated alias for ``n_workers``. If provided, overrides ``n_workers``.
     """
-    # Handle deprecated n_threads parameter
-    if n_threads is not None:
-        warnings.warn(
-            "n_threads is deprecated, use n_workers instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        n_workers = n_threads
-
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
     _validate_calculator(calculator)
