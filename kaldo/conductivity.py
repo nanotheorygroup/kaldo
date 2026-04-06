@@ -9,7 +9,6 @@ from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triang
 from kaldo.storable import lazy_property, Storable
 import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
-import gc
 
 logging = get_logger()
 
@@ -428,8 +427,6 @@ class Conductivity(Storable):
                     diffusivity_with_axis[k_index, :, alpha, beta] = np.sum(diffusivity, axis=-1).real
                 del sij_left, sij_right, diffusivity
             del phonon, heat_capacity_2d
-            if k_index % 10 == 0:
-                gc.collect()
 
         diffusivity = 1 / 3 * 1 / 100 * contract('knaa->kn', diffusivity_with_axis)
         return conductivity_per_mode.reshape((self.n_phonons, 3, 3)) * 1e22, diffusivity
@@ -462,13 +459,11 @@ class Conductivity(Storable):
 
             if finite_length_method == 'ms' and length is not None and length[alpha]:
                 gamma += 2 * np.abs(velocity[:, alpha]) / length[alpha]
-            gc.collect()
 
             np.add(scattering_matrix, np.diag(gamma[physical_mode]), out=scattering_matrix)
             scattering_inverse = np.linalg.inv(scattering_matrix)
             lambd[physical_mode, alpha] = scattering_inverse.dot(velocity[physical_mode, alpha])
             del scattering_matrix, scattering_inverse, gamma
-            gc.collect()
 
             if finite_length_method == 'ballistic' and (self.length[alpha] is not None) and (self.length[alpha] != 0):
                 velocity_alpha = velocity[physical_mode, alpha]
@@ -477,7 +472,6 @@ class Conductivity(Storable):
                 gamma_inv[nonzero_velocity] = length[alpha] / (2 * np.abs(velocity_alpha[nonzero_velocity]))
                 lambd[physical_mode, alpha] = np.diag(gamma_inv).dot(velocity_alpha)
                 del gamma_inv, nonzero_velocity, velocity_alpha
-                gc.collect()
 
         return lambd
 
