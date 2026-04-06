@@ -224,9 +224,6 @@ class Phonons(Storable):
         if property_name == 'physical_mode':
             loaded = np.loadtxt(name + '.dat', skiprows=1)
             return np.round(loaded, 0).astype(bool)
-        elif property_name == 'velocity':
-            loaded = [Storable._load_formatted_property(self, None, f"{name}_{alpha}") for alpha in range(3)]
-            return np.array(loaded).transpose(1, 2, 0)
         else:
             return super()._load_formatted_property(property_name, name)
     

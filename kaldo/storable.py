@@ -58,74 +58,42 @@ class Storable:
         else:
             raise ValueError(f'Storage format {format} not implemented')
     
-    def _load_formatted_property(self, property_name, name):
-        """
-        Load a property from formatted files. Handles split files for 3D arrays
-        with spatial coordinates (last dimension = 3).
-
-        Parameters
-        ----------
-        property_name : str
-            Name of the property
-        name : str
-            Full file path without extension
-
-        Returns
-        -------
-        loaded_data : any
-            The loaded property data
-        """
-        # Check if this is a split file (3D array with spatial last dim)
-        if os.path.exists(name + '_0.dat'):
-            loaded = []
-            for alpha in range(3):
-                filename = name + '_' + str(alpha) + '.dat'
-                with open(filename, 'r') as f:
-                    header = f.readline().strip()
-                dtype = complex if 'complex' in header.lower() else float
-                loaded.append(np.loadtxt(filename, skiprows=1, dtype=dtype))
-
-            # Reconstruct shape from header
-            shape = None
-            if '(' in header and ')' in header:
-                shape_str = header[header.find('(')+1:header.find(')')]
-                try:
-                    shape = tuple(int(x.strip()) for x in shape_str.split(',') if x.strip())
-                except ValueError:
-                    shape = None
-
-            # Stack and reshape if needed
-            data = np.array(loaded)
-            if shape is not None and np.prod(shape) == data[0].size:
-                # Reshape each slice, then stack along last axis
-                reshaped = [d.reshape(shape) for d in data]
-                data = np.stack(reshaped, axis=-1)
-            else:
-                # Transpose to move the split dimension back to last position
-                # Original shape was (..., 3), we loaded as (3, ...)
-                data = np.moveaxis(data, 0, -1)
-            return data
-
-        # Single file path (existing logic)
-        filename = name + '.dat'
+    @staticmethod
+    def _read_formatted_file(filename):
+        """Read a single .dat file, returning (data, shape) with dtype inferred from header."""
         with open(filename, 'r') as f:
             header = f.readline().strip()
-
         dtype = complex if 'complex' in header.lower() else float
-
+        data = np.loadtxt(filename, skiprows=1, dtype=dtype)
         shape = None
         if '(' in header and ')' in header:
-            shape_str = header[header.find('(')+1:header.find(')')]
+            shape_str = header[header.find('(') + 1:header.find(')')]
             try:
                 shape = tuple(int(x.strip()) for x in shape_str.split(',') if x.strip())
             except ValueError:
-                shape = None
+                pass
+        return data, shape
 
-        data = np.loadtxt(filename, skiprows=1, dtype=dtype)
+    def _load_formatted_property(self, property_name, name):
+        """Load a property from formatted .dat files.
 
+        Handles both single files and split files (3D arrays with spatial
+        last dimension stored as name_0.dat, name_1.dat, name_2.dat).
+        Restores original array shape from the header written by _save_formatted_property.
+        """
+        # Split files (3D array with last dim = 3)
+        if os.path.exists(name + '_0.dat'):
+            slices = [self._read_formatted_file(f'{name}_{a}.dat') for a in range(3)]
+            data = np.array([s[0] for s in slices])
+            shape = slices[0][1]
+            if shape is not None and np.prod(shape) == data[0].size:
+                return np.stack([d.reshape(shape) for d in data], axis=-1)
+            return np.moveaxis(data, 0, -1)
+
+        # Single file
+        data, shape = self._read_formatted_file(name + '.dat')
         if shape is not None and np.prod(shape) == data.size:
             data = data.reshape(shape)
-
         return data
     
     def _save_property(self, property_name, folder, data, format='formatted'):
