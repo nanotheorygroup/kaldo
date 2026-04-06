@@ -8,10 +8,6 @@ from kaldo.parallel import get_executor
 from sparse import COO
 logging = get_logger()
 
-# Module-level slot for the calculator when using fork-based parallelism.
-# set by calculate_third before the executor is created so that forked workers
-# inherit it without needing to pickle it through the call queue.
-_worker_calculator = None
 
 
 def list_of_replicas(atoms, replicated_atoms):
@@ -38,19 +34,21 @@ def calculate_gradient(x, input_atoms):
 
 
 def _validate_calculator(calculator):
-    """Raise TypeError if calculator is not a callable or ASE Calculator instance."""
-    if calculator is not None and not callable(calculator):
-        try:
-            from ase.calculators.calculator import Calculator as _ASECalc
-            if not isinstance(calculator, _ASECalc):
-                raise TypeError(
-                    f"calculator must be a callable or ASE Calculator instance, "
-                    f"got {type(calculator).__name__}"
-                )
-        except ImportError:
-            raise TypeError(
-                f"calculator must be a callable, got {type(calculator).__name__}"
-            )
+    """Raise TypeError if calculator is not a callable or ASE Calculator."""
+    if calculator is None:
+        return
+    if callable(calculator):
+        return
+    try:
+        from ase.calculators.calculator import Calculator
+        if isinstance(calculator, Calculator):
+            return
+    except ImportError:
+        pass
+    raise TypeError(
+        f"calculator must be a callable (e.g. EMT) or ASE Calculator instance, "
+        f"got {type(calculator).__name__}"
+    )
 
 
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
@@ -86,11 +84,9 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
 
-    global _worker_calculator
-    _worker_calculator = calculator
-
     worker_fn = functools.partial(
         _compute_iat_second,
+        calculator=calculator,
         scratch_dir=scratch_dir,
     )
 
@@ -105,8 +101,6 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
                 logging.info('calculating forces on atom ' + str(atom_id))
             if not use_scratch:
                 second[atom_id] = second_per_atom
-    # Clean up module-level variable
-    _worker_calculator = None
 
     if use_scratch:
         second = _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
@@ -125,10 +119,9 @@ def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculato
     Uses central difference: (forward force - backward force) for each
     Cartesian direction.
     """
-    eff_calculator = calculator if calculator is not None else _worker_calculator
-    if eff_calculator is not None:
+    if calculator is not None:
         replicated_atoms = replicated_atoms.copy()
-        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
+        replicated_atoms.calc = calculator() if callable(calculator) else calculator
     n_replicated_atoms = len(replicated_atoms.numbers)
     second_per_atom = np.zeros((3, n_replicated_atoms * 3))
     for alpha in range(3):
@@ -188,24 +181,13 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         Number of parallel worker processes. ``1`` runs serially (default).
         ``None`` uses all available CPUs. Values > 1 launch that many workers
         via ``concurrent.futures.ProcessPoolExecutor``.
-    calculator : ASE Calculator instance or callable or None
-        A zero-argument callable (e.g. a class or lambda) that returns a fresh
-        ASE calculator instance. Each worker calls ``calculator()`` to create
-        its own isolated calculator.
-
-        For file-based calculators (like LAMMPS), configure a unique working
-        directory per process via the factory::
-
-            import os
-            calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
-
-        For argument-less classes like ASE's EMT::
+    calculator : callable or ASE Calculator instance or None
+        Either an ASE calculator class or an already-constructed instance.
+        When running in parallel (``n_workers > 1``), pass a class so each
+        worker can create its own instance::
 
             from ase.calculators.emt import EMT
             calculator=EMT
-
-        An already-constructed ASE calculator instance is also accepted and
-        will be wrapped internally.
 
         If None, replicated_atoms must already have a calculator attached.
     scratch_dir : str or None
@@ -259,16 +241,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
 
-    # Stash calculator at module level so forked workers inherit it without
-    # pickling. Calculators like CPUNEP wrap C extensions that are not
-    # picklable, so we must not pass them through the call queue.
-    global _worker_calculator
-    _worker_calculator = calculator
-
-    # calculator is intentionally absent from the partial — workers read it
-    # from _worker_calculator instead.
     worker_fn = functools.partial(
         _compute_iat_third,
+        calculator=calculator,
         scratch_dir=scratch_dir,
         jat_flush_every=jat_flush_every,
     )
@@ -297,8 +272,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             elif (n_forces_done + n_forces_skipped) % 300 == 0:
                 logging.info('Calculate third derivatives ' + str(
                     int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
-    _worker_calculator = None # clean up module-level variable
-
     logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
@@ -330,13 +303,9 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
         Number of jat iterations to accumulate (as compact numpy arrays) before
         flushing to disk. Only used when ``scratch_dir`` is set.
     """
-    # Prefer the explicitly passed calculator; fall back to the module-level
-    # global set by calculate_third before forking (used for non-picklable
-    # calculators like CPUNEP that can't be sent through the call queue).
-    eff_calculator = calculator if calculator is not None else _worker_calculator
-    if eff_calculator is not None:
+    if calculator is not None:
         replicated_atoms = replicated_atoms.copy()
-        replicated_atoms.calc = eff_calculator() if callable(eff_calculator) else eff_calculator
+        replicated_atoms.calc = calculator() if callable(calculator) else calculator
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
     n_done = 0
