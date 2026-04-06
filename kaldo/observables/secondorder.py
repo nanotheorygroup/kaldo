@@ -299,10 +299,9 @@ class SecondOrder(ForceConstant):
 
         Parameters
         ----------
-        calculator : ASE Calculator instance or callable
-            Calculator used to evaluate forces for the finite-difference
-            displacements. A callable may be supplied to create a fresh
-            calculator per worker when running in parallel.
+        calculator : callable or ASE Calculator instance
+            An ASE calculator class or instance. When running in parallel,
+            pass a class so each worker can create its own instance.
         delta_shift : float, optional
             Finite-difference displacement in Angstrom.
             Default: 1e-3

@@ -278,17 +278,9 @@ class ThirdOrder(ForceConstant):
 
         Parameters
         ----------
-        calculator : ASE Calculator instance or callable
-            A zero-argument callable (e.g. a class or lambda) that returns a fresh
-            ASE calculator instance. An already-constructed instance is also accepted
-            and will be wrapped internally.
-
-            For file-based calculators, configure a unique directory per process::
-
-                import os
-                calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
-
-            For argument-less classes like ASE's EMT::
+        calculator : callable or ASE Calculator instance
+            An ASE calculator class or instance. When running in parallel,
+            pass a class so each worker can create its own instance::
 
                 from ase.calculators.emt import EMT
                 calculator=EMT

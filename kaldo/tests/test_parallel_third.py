@@ -32,7 +32,7 @@ def serial_result(al_atoms):
     return calculate_third(
         atoms, replicated_atoms, 1e-5,
         n_workers=1,
-        calculator = EMT()
+        calculator=EMT()
     )
 
 
