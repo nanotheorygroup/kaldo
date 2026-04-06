@@ -45,9 +45,13 @@ def test_lagacy_format():
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory").conductivity.sum(axis=0)
+    # Use constant diffusivity_bandwidth to ensure basis-invariant result.
+    # Per-mode bandwidth introduces eigenvector basis dependence for
+    # crystals with degenerate modes.
+    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
+                        diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_approx_equal(cond, 3, significant=2)
+    np.testing.assert_approx_equal(cond, 2.2, significant=2)
 
 
 def test_rta_conductivity(phonons):
