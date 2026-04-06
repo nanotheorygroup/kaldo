@@ -36,5 +36,8 @@ def test_frequency(phonons):
 
 
 def test_iso_bw(phonons):
-    freq = phonons.isotopic_bandwidth.flatten()
-    np.testing.assert_approx_equal(freq[3], 7.85 * 1e-3, significant=3)
+    iso_bw = phonons.isotopic_bandwidth.flatten()
+    # Modes 3,4,5 form a degenerate triplet. Individual values depend on
+    # the eigenvector basis; the mean over the group is basis-invariant.
+    degen_mean = np.mean(iso_bw[3:6])
+    np.testing.assert_approx_equal(degen_mean, 7.75 * 1e-3, significant=3)
