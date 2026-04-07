@@ -268,7 +268,8 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50,
+                  use_symmetry=False, symprec=1e-5):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -307,8 +308,10 @@ class ThirdOrder(ForceConstant):
             raise ValueError("Provide a calculator")
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        # Resolve scratch_dir default
-        if scratch_dir is None and self.folder:
+        # Resolve scratch_dir default; disable scratch when using symmetry
+        if use_symmetry:
+            scratch_dir = None
+        elif scratch_dir is None and self.folder:
             scratch_dir = os.path.join(self.folder, 'third_order')
         elif scratch_dir == '':
             scratch_dir = None
@@ -327,7 +330,10 @@ class ThirdOrder(ForceConstant):
                                              calculator=calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
-                                             jat_flush_every=jat_flush_every)
+                                             jat_flush_every=jat_flush_every,
+                                             use_symmetry=use_symmetry,
+                                             supercell=self.supercell,
+                                             symprec=symprec)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -342,7 +348,10 @@ class ThirdOrder(ForceConstant):
                                          calculator=calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
-                                         jat_flush_every=jat_flush_every)
+                                         jat_flush_every=jat_flush_every,
+                                         use_symmetry=use_symmetry,
+                                         supercell=self.supercell,
+                                         symprec=symprec)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
