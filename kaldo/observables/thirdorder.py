@@ -42,33 +42,39 @@ class ThirdOrder(ForceConstant):
              third_energy_threshold: float = 0.,
              chunk_size: int = 100000):
         """
-        Load thrid order force constants from a folder in the given format, used for library internally.
+        Load third-order force constants from disk.
 
-        To load force constants data, ``ForceConstants.from_folder`` is recommended.
+        Most users should prefer ``ForceConstants.from_folder(...)`` when
+        constructing force constants from stored data. This lower-level
+        classmethod is useful when you are already working with ``fc.third``
+        directly, or when you need to load third-order data from a custom
+        workflow.
 
         Parameters
         ----------
         folder : str
-            Specifies where to load the data files.
+            Directory containing the third-order force constant data and the
+            associated replicated structure.
         supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+            Supercell used to build the stored third-order matrix.
             Default: (1, 1, 1)
         format : str
-            Format of the third order force constant information being loaded into ForceConstant object.
-            Default: 'sparse'
+            Format of the stored third-order data.
+            Default: ``"sparse"``
         third_energy_threshold : float, optional
-            When importing sparse third order force constant matrices, energies below
-            the threshold value in magnitude are ignored. Units: eV/A^3
-            Default: `None`
+            When importing sparse third-order matrices, values below this
+            threshold in magnitude are ignored. Units: eV/A^3.
+            Default: 0.
         chunk_size : int, optional
-            Number of entries to process per chunk when reading sparse third order files.
+            Number of entries to process per chunk when reading sparse third-
+            order files.
             Larger values use more memory but may be faster for very large files.
             Default: 100000
 
         Returns
         -------
         third_order : ThirdOrder object
-            A new instance of the ThirdOrder class
+            Loaded ``ThirdOrder`` instance.
         """
 
         match format:
@@ -262,10 +268,54 @@ class ThirdOrder(ForceConstant):
 
 
 
-    def calculate(self, calculator, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False):
+    def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50,
+                  use_symmetry=False, symprec=1e-5):
+        """Calculate the third order force constants.
+
+        This is the method typically reached through ``fc.third.calculate(...)``.
+        It can load an existing stored result from ``self.folder`` when
+        ``is_storing`` is enabled, or compute the anharmonic force constants
+        directly from finite-difference force evaluations.
+
+        Parameters
+        ----------
+        calculator : callable or ASE Calculator instance
+            An ASE calculator class or instance. When running in parallel,
+            pass a class so each worker can create its own instance::
+
+                from ase.calculators.emt import EMT
+                calculator=EMT
+
+            If None, replicated_atoms must already have a calculator attached.
+        n_workers : int or None
+            Number of parallel worker processes. ``1`` runs serially.
+            ``None`` uses all available CPUs.
+            Default: 1 (serial)
+        scratch_dir : str or None
+            Directory for scratch chunk files written during calculation to keep
+            peak memory low. Pass an explicit path to override. Pass an
+            empty string ``''`` to disable scratch files and fall back to
+            in-memory accumulation.
+            Default: ``{folder}/third_order`` when ``self.folder`` is set
+        keep_scratch : bool
+            If True, scratch files are kept after assembly.
+            Default: False
+        jat_flush_every : int
+            Number of jat iterations each worker buffers before flushing to disk.
+            Smaller values use less memory at the cost of more I/O. Default 50.
+        """
+        if calculator is None:
+            raise ValueError("Provide a calculator")
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        replicated_atoms.calc = calculator
+        # Resolve scratch_dir default; disable scratch when using symmetry
+        if use_symmetry:
+            scratch_dir = None
+        elif scratch_dir is None and self.folder:
+            scratch_dir = os.path.join(self.folder, 'third_order')
+        elif scratch_dir == '':
+            scratch_dir = None
         if is_storing:
             try:
                 self.value = ThirdOrder.load(folder=self.folder, supercell=self.supercell).value
@@ -276,7 +326,15 @@ class ThirdOrder(ForceConstant):
                                              replicated_atoms,
                                              delta_shift,
                                              distance_threshold=distance_threshold,
-                                             is_verbose=is_verbose)
+                                             is_verbose=is_verbose,
+                                             n_workers=n_workers,
+                                             calculator=calculator,
+                                             scratch_dir=scratch_dir,
+                                             keep_scratch=keep_scratch,
+                                             jat_flush_every=jat_flush_every,
+                                             use_symmetry=use_symmetry,
+                                             supercell=self.supercell,
+                                             symprec=symprec)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -286,7 +344,15 @@ class ThirdOrder(ForceConstant):
                                          replicated_atoms,
                                          delta_shift,
                                          distance_threshold=distance_threshold,
-                                         is_verbose=is_verbose)
+                                         is_verbose=is_verbose,
+                                         n_workers=n_workers,
+                                         calculator=calculator,
+                                         scratch_dir=scratch_dir,
+                                         keep_scratch=keep_scratch,
+                                         jat_flush_every=jat_flush_every,
+                                         use_symmetry=use_symmetry,
+                                         supercell=self.supercell,
+                                         symprec=symprec)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
