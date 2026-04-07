@@ -92,7 +92,8 @@ class ThirdOrder(ForceConstant):
                               pbc=[1, 1, 1])
 
                 _third_order = COO.from_scipy_sparse(load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))) \
-                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)) \
+                    .astype(np.float64)
                 third_order = ThirdOrder(atoms=atoms,
                                          replicated_positions=replicated_atoms.positions,
                                          supercell=supercell,
