@@ -3,6 +3,9 @@ kaldo
 Anharmonic Lattice Dynamics
 
 """
+import functools
+import os
+
 from kaldo.storable import is_calculated
 from kaldo.storable import lazy_property, Storable
 from kaldo.helpers.logger import log_size
@@ -14,6 +17,8 @@ from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
+from concurrent.futures import as_completed
+from kaldo.parallel import get_executor
 from scipy import stats
 import numpy as np
 from numpy.typing import ArrayLike
@@ -26,6 +31,145 @@ logging = get_logger()
 # Constants
 GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 THZ_TO_MEV = units.J * units._hbar * 2 * np.pi * 1e15
+
+def _sparse_tensor_to_numpy(st):
+    """Convert a tf.SparseTensor to a picklable (indices, values, dense_shape) tuple."""
+    if st is None:
+        return None
+    return (st.indices.numpy(), st.values.numpy(), tuple(st.dense_shape.numpy()))
+
+
+def _numpy_to_sparse_tensor(data):
+    """Reconstruct a tf.SparseTensor from a (indices, values, dense_shape) tuple."""
+    if data is None:
+        return None
+    indices, values, dense_shape = data
+    return tf.SparseTensor(indices=indices, values=values, dense_shape=dense_shape)
+
+
+def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mode,
+                                evect_np, third_sparse_data, chi_k_np, velocity_np,
+                                cell_inv, kpts, broadening_shape, third_bandwidth,
+                                hbar, n_replicas, is_sparse, kpoint_maps):
+    """Compute sparse_phase and sparse_potential for all modes at one k-point.
+
+    All inputs are numpy arrays (picklable). TF tensors are created internally.
+    Returns a list of n_modes entries, each being:
+        (phase_data_list, potential_data_list)
+    where each *_data_list is [is_plus_0, is_plus_1] with entries as
+    (indices, values, dense_shape) numpy tuples or None.
+    """
+    # Pin BLAS threads in worker processes
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+
+    # Reconstruct TF tensors from numpy
+    evect_tf = tf.cast(tf.convert_to_tensor(evect_np), dtype=tf.complex128)
+    second_minus = tf.math.conj(evect_tf)
+    _chi_k = tf.cast(tf.convert_to_tensor(chi_k_np), dtype=tf.complex128)
+    second_minus_chi = tf.math.conj(_chi_k)
+    velocity_tf = tf.convert_to_tensor(velocity_np)
+
+    if is_sparse:
+        coords, data, shape = third_sparse_data
+        third_tf = tf.SparseTensor(
+            tf.cast(coords, dtype=tf.int64), data, shape
+        )
+    else:
+        third_tf = tf.convert_to_tensor(third_sparse_data)
+    third_tf = tf.cast(third_tf, dtype=tf.complex128)
+
+    results = []
+    for mu in range(n_modes):
+        nu_single = index_k * n_modes + mu
+        if not physical_mode[index_k, mu]:
+            results.append(([None, None], [None, None]))
+            continue
+
+        phase_list = []
+        potential_list = []
+        for is_plus in (0, 1):
+            index_kpp_full = tf.cast(kpoint_maps[(index_k, is_plus)], dtype=tf.int32)
+            if third_bandwidth:
+                sigma_tf = tf.constant(third_bandwidth, dtype=tf.float64)
+            else:
+                sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+
+            dirac_delta_result = aha.calculate_dirac_delta_crystal(
+                omega, physical_mode, sigma_tf, broadening_shape,
+                index_kpp_full, index_k, mu, is_plus, n_k_points, n_modes,
+            )
+            if not dirac_delta_result:
+                phase_list.append(None)
+                potential_list.append(None)
+                continue
+
+            potential_result = aha.sparse_potential_mu(
+                nu_single, evect_tf, dirac_delta_result, index_k, mu,
+                n_k_points, n_modes, is_plus, is_sparse, index_kpp_full,
+                _chi_k, second_minus, second_minus_chi, third_tf,
+                n_replicas, omega, hbar,
+            )
+            phase_list.append(_sparse_tensor_to_numpy(dirac_delta_result))
+            potential_list.append(_sparse_tensor_to_numpy(potential_result))
+
+        results.append((phase_list, potential_list))
+    return results
+
+
+def _save_kpoint_projection(output_dir, index_k, results):
+    """Save per-k-point projection results to disk."""
+    save_dict = {}
+    for mu, (phase_list, pot_list) in enumerate(results):
+        for ip, (phase, pot) in enumerate(zip(phase_list, pot_list)):
+            prefix = f'mu{mu}_ip{ip}'
+            if phase is not None:
+                indices, values, dense_shape = phase
+                save_dict[f'{prefix}_phase_indices'] = indices
+                save_dict[f'{prefix}_phase_values'] = values
+                save_dict[f'{prefix}_phase_shape'] = np.array(dense_shape)
+            if pot is not None:
+                indices, values, dense_shape = pot
+                save_dict[f'{prefix}_pot_indices'] = indices
+                save_dict[f'{prefix}_pot_values'] = values
+                save_dict[f'{prefix}_pot_shape'] = np.array(dense_shape)
+    save_dict['n_modes'] = np.array(len(results))
+    np.savez(os.path.join(output_dir, f'kpt_{index_k:05d}.npz'), **save_dict)
+    open(os.path.join(output_dir, f'kpt_{index_k:05d}.done'), 'w').close()
+
+
+def _load_kpoint_projection(output_dir, index_k, n_modes):
+    """Load per-k-point projection results from disk."""
+    path = os.path.join(output_dir, f'kpt_{index_k:05d}.npz')
+    data = np.load(path, allow_pickle=False)
+    results = []
+    for mu in range(n_modes):
+        phase_list = []
+        pot_list = []
+        for ip in range(2):
+            prefix = f'mu{mu}_ip{ip}'
+            phase_key = f'{prefix}_phase_indices'
+            if phase_key in data:
+                phase_list.append((
+                    data[f'{prefix}_phase_indices'],
+                    data[f'{prefix}_phase_values'],
+                    tuple(data[f'{prefix}_phase_shape']),
+                ))
+            else:
+                phase_list.append(None)
+            pot_key = f'{prefix}_pot_indices'
+            if pot_key in data:
+                pot_list.append((
+                    data[f'{prefix}_pot_indices'],
+                    data[f'{prefix}_pot_values'],
+                    tuple(data[f'{prefix}_pot_shape']),
+                ))
+            else:
+                pot_list.append(None)
+        results.append((phase_list, pot_list))
+    return results
+
 
 class Phonons(Storable):
     """
@@ -164,8 +308,14 @@ class Phonons(Storable):
                  include_isotopes: bool = False,
                  iso_speed_up: bool = True,
                  is_nw: bool = False,
+                 n_workers: int = 1,
+                 projection_output_dir: str | None = None,
                  **kwargs):
         self.forceconstants = forceconstants
+        if n_workers is not None and n_workers < 1:
+            raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
+        self.n_workers = n_workers
+        self.projection_output_dir = projection_output_dir
         self.is_classic = is_classic
         if temperature is not None:
             self.temperature = float(temperature)
@@ -1117,86 +1267,105 @@ class Phonons(Storable):
             sparse_third = self.forceconstants.third.value.reshape((self.n_modes, -1))
             sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
             sparse_coords = tf.cast(sparse_coords, dtype=tf.int64)
-            third_tf = tf.SparseTensor(
-                sparse_coords, sparse_third.data, ((self.n_modes * n_replicas) ** 2, self.n_modes)
+            third_sparse_data = (
+                sparse_coords.numpy(),
+                sparse_third.data.astype(np.complex128) if sparse_third.data.dtype != np.complex128 else sparse_third.data,
+                ((self.n_modes * n_replicas) ** 2, self.n_modes),
             )
             is_sparse = True
         except AttributeError:
-            third_tf = tf.convert_to_tensor(self.forceconstants.third.value)
+            third_sparse_data = np.array(self.forceconstants.third.value)
             is_sparse = False
-        third_tf = tf.cast(third_tf, dtype=tf.complex128)
+
         k_mesh = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         n_k_points = k_mesh.shape[0]
-        _chi_k = tf.convert_to_tensor(self.forceconstants.third._chi_k(k_mesh))
-        _chi_k = tf.cast(_chi_k, dtype=tf.complex128)
-        evect_tf = tf.convert_to_tensor(self._rescaled_eigenvectors)
-        evect_tf = tf.cast(evect_tf, dtype=tf.complex128)
-        second_minus = tf.math.conj(evect_tf)
-        second_minus_chi = tf.math.conj(_chi_k)
-        logging.info("Projection started")
-        broadening_shape = self.broadening_shape
+        chi_k_np = np.array(self.forceconstants.third._chi_k(k_mesh))
+        evect_np = np.array(self._rescaled_eigenvectors)
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         omega = self.omega
-        velocity_tf = tf.convert_to_tensor(self.velocity)
+        velocity_np = np.array(self.velocity)
         cell_inv = self.forceconstants.cell_inv
         kpts = self.kpts
         hbar = units._hbar
         n_modes = self.n_modes
-        n_phonons = self.n_phonons
+
+        # Pre-compute k-point mappings (avoids passing self to workers)
+        kpoint_maps = {}
+        for ik in range(n_k_points):
+            for is_plus in (0, 1):
+                kpoint_maps[(ik, is_plus)] = self._allowed_third_phonons_index(ik, is_plus)
+
+        logging.info("Projection started")
+
+        # Shared config for all k-point workers (all numpy, picklable)
+        shared = dict(
+            n_modes=n_modes, n_k_points=n_k_points, omega=omega,
+            physical_mode=physical_mode, evect_np=evect_np,
+            third_sparse_data=third_sparse_data, chi_k_np=chi_k_np,
+            velocity_np=velocity_np, cell_inv=cell_inv, kpts=kpts,
+            broadening_shape=self.broadening_shape,
+            third_bandwidth=self.third_bandwidth, hbar=hbar,
+            n_replicas=n_replicas, is_sparse=is_sparse,
+            kpoint_maps=kpoint_maps,
+        )
+
+        use_parallel = self.n_workers is None or self.n_workers > 1
+        backend = 'process' if use_parallel else 'serial'
+        n_workers = self.n_workers if use_parallel else None
+
+        # Determine which k-points to compute (resume support)
+        output_dir = self.projection_output_dir
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            kpoints_to_compute = [
+                ik for ik in range(n_k_points)
+                if not os.path.exists(os.path.join(output_dir, f'kpt_{ik:05d}.done'))
+            ]
+            n_resumed = n_k_points - len(kpoints_to_compute)
+            if n_resumed:
+                logging.info(f'Resuming projection: skipping {n_resumed} already-computed k-point(s)')
+        else:
+            kpoints_to_compute = list(range(n_k_points))
+
+        worker_fn = functools.partial(_compute_kpoint_projection, **shared)
+
+        # Collect results per k-point
+        kpoint_results = {}
+        with get_executor(backend=backend, n_workers=n_workers) as executor:
+            futures = {
+                executor.submit(worker_fn, ik): ik
+                for ik in kpoints_to_compute
+            }
+            for future in as_completed(futures):
+                ik = futures[future]
+                kpoint_results[ik] = future.result()
+                logging.info(f'Completed k-point {ik}/{n_k_points}: '
+                             f'{100 * len(kpoint_results) / len(kpoints_to_compute):.0f}%')
+
+                # Write to disk if output_dir is set
+                if output_dir:
+                    _save_kpoint_projection(output_dir, ik, kpoint_results[ik])
+
+        # Assemble into the flat sparse_phase / sparse_potential lists
         sparse_phase = []
         sparse_potential = []
-        for nu_single in range(n_phonons):
-            if nu_single % 200 == 0:
-                logging.info(f"calculating third {nu_single}: {100 * nu_single / self.n_phonons:.2f}%")
-            sparse_phase.append([])
-            sparse_potential.append([])
-            index_k, mu = np.unravel_index(nu_single, (n_k_points, self.n_modes))
-            if not physical_mode[index_k, mu]:
-                sparse_phase[nu_single].extend([None, None])
-                sparse_potential[nu_single].extend([None, None])
-                continue
-            for is_plus in (0, 1):
-                index_kpp_full = tf.cast(self._allowed_third_phonons_index(index_k, is_plus), dtype=tf.int32)
-                if self.third_bandwidth:
-                    sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
-                else:
-                    sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
-                dirac_delta_result = aha.calculate_dirac_delta_crystal(
-                    omega,
-                    physical_mode,
-                    sigma_tf,
-                    broadening_shape,
-                    index_kpp_full,
-                    index_k,
-                    mu,
-                    is_plus,
-                    n_k_points,
-                    n_modes,
-                )
-                if not dirac_delta_result:
-                    sparse_phase[nu_single].append(None)
-                    sparse_potential[nu_single].append(None)
-                    continue
-                sparse_phase[nu_single].append(dirac_delta_result)
-                sparse_potential[nu_single].append(
-                    aha.sparse_potential_mu(
-                        nu_single,
-                        evect_tf,
-                        dirac_delta_result,
-                        index_k,
-                        mu,
-                        n_k_points,
-                        n_modes,
-                        is_plus,
-                        is_sparse,
-                        index_kpp_full,
-                        _chi_k,
-                        second_minus,
-                        second_minus_chi,
-                        third_tf,
-                        n_replicas,
-                        omega,
-                        hbar,
-                    )
-                )
+        for ik in range(n_k_points):
+            if ik in kpoint_results:
+                results = kpoint_results[ik]
+            elif output_dir:
+                results = _load_kpoint_projection(output_dir, ik, n_modes)
+            else:
+                raise RuntimeError(f'Missing results for k-point {ik}')
+
+            for mu in range(n_modes):
+                phase_list, pot_list = results[mu]
+                sparse_phase.append([
+                    _numpy_to_sparse_tensor(phase_list[0]),
+                    _numpy_to_sparse_tensor(phase_list[1]),
+                ])
+                sparse_potential.append([
+                    _numpy_to_sparse_tensor(pot_list[0]),
+                    _numpy_to_sparse_tensor(pot_list[1]),
+                ])
+
         return sparse_phase, sparse_potential
