@@ -5,7 +5,9 @@ import warnings
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
+from kaldo.helpers.memory import cap_workers
 from kaldo.parallel import get_executor
+from kaldo.parallel.executor import _get_safe_mp_context
 from sparse import COO
 logging = get_logger()
 
@@ -179,6 +181,22 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
     n_forces_done = 0
     n_forces_skipped = 0
+
+    # Memory-based worker capping
+    if (n_workers is None or n_workers > 1) and os.environ.get('KALDO_SKIP_MEMORY_CHECK') != '1':
+        max_workers_env = os.environ.get('KALDO_MAX_WORKERS')
+        if max_workers_env is not None:
+            n_workers = min(n_workers or (os.cpu_count() or 1), int(max_workers_env))
+        else:
+            start_method = _get_safe_mp_context().get_start_method()
+            safe_workers, estimate_mb, warning_msg = cap_workers(
+                n_workers, n_atoms, n_replicas, use_scratch,
+                jat_flush_every, calculator, replicated_atoms, start_method,
+            )
+            if warning_msg is not None:
+                warnings.warn(warning_msg, ResourceWarning, stacklevel=2)
+                logging.warning(warning_msg)
+            n_workers = safe_workers
 
     use_parallel = n_workers is None or n_workers > 1
 
