@@ -278,14 +278,36 @@ class ThirdOrder(ForceConstant):
 
         Parameters
         ----------
-        calculator : callable or ASE Calculator instance
-            An ASE calculator class or instance. When running in parallel,
-            pass a class so each worker can create its own instance::
+        calculator : ASE Calculator instance, zero-arg factory, or functools.partial
+            One of three forms is accepted:
 
-                from ase.calculators.emt import EMT
-                calculator=EMT
+            1. A pure-Python ASE ``Calculator`` instance (e.g. ``LennardJones()``).
+               Safe when the instance can be pickled, which generally requires
+               that it holds no C-extension state, open file handles, or GPU
+               context. Used as-is in serial and parallel runs.
+            2. A zero-argument factory (a class or function) that constructs a
+               fresh calculator when called, e.g.::
 
-            If None, replicated_atoms must already have a calculator attached.
+                   from ase.calculators.emt import EMT
+                   calculator=EMT
+
+               Each worker invokes the factory locally to obtain its own
+               instance, which sidesteps pickling entirely.
+            3. A ``functools.partial`` that binds the constructor arguments of
+               a file-based or C++-backed calculator. This is the recommended
+               pattern for calculators like PyNEP whose instances cannot be
+               pickled::
+
+                   from functools import partial
+                   from pynep.calculate import NEP
+                   calculator=partial(NEP, 'nep.txt')
+
+               The partial itself is picklable (it references the class by
+               import path plus the stored args), so each worker rebuilds a
+               fresh ``NEP('nep.txt')`` in its own process.
+
+            When running with ``n_workers > 1``, prefer forms 2 or 3 unless you
+            are certain the instance is picklable.
         n_workers : int or None
             Number of parallel worker processes. ``1`` runs serially.
             ``None`` uses all available CPUs.
