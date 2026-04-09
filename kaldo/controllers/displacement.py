@@ -1,6 +1,7 @@
 import functools
 import glob
 import os
+import warnings
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
@@ -8,7 +9,6 @@ from kaldo.helpers.memory import cap_workers
 from kaldo.parallel import get_executor
 from sparse import COO
 logging = get_logger()
-
 
 
 def list_of_replicas(atoms, replicated_atoms):
@@ -52,6 +52,33 @@ def _validate_calculator(calculator):
     )
 
 
+def _apply_memory_cap(n_workers, n_atoms, n_replicas, use_scratch,
+                      calculator, replicated_atoms, mode, jat_flush_every=0):
+    """Return a memory-safe ``n_workers``, applying ``KALDO_*`` env overrides.
+
+    Shared helper for ``calculate_second`` and ``calculate_third``. Honors
+    ``KALDO_SKIP_MEMORY_CHECK`` and ``KALDO_MAX_WORKERS``; otherwise probes
+    the calculator and delegates to :func:`cap_workers`. Assumes a ``fork``
+    start method (kaldo's executor default on Linux).
+    """
+    if n_workers is not None and n_workers <= 1:
+        return n_workers
+    if os.environ.get('KALDO_SKIP_MEMORY_CHECK') == '1':
+        return n_workers
+    max_workers_env = os.environ.get('KALDO_MAX_WORKERS')
+    if max_workers_env is not None:
+        return min(n_workers or (os.cpu_count() or 1), int(max_workers_env))
+    safe_workers, _estimate_mb, warning_msg = cap_workers(
+        n_workers, n_atoms, n_replicas, use_scratch,
+        jat_flush_every, calculator, replicated_atoms,
+        start_method='fork', mode=mode,
+    )
+    if warning_msg is not None:
+        warnings.warn(warning_msg, ResourceWarning, stacklevel=2)
+        logging.warning(warning_msg)
+    return safe_workers
+
+
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
                      scratch_dir=None, keep_scratch=False):
     """
@@ -81,6 +108,12 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     else:
         second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
         atoms_to_compute = list(range(n_atoms))
+
+    n_workers = _apply_memory_cap(
+        n_workers, n_atoms, n_replicas, use_scratch,
+        calculator, replicated_atoms, mode='second',
+    )
+
     use_parallel = n_workers is None or n_workers > 1
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
@@ -239,21 +272,11 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_done = 0
     n_forces_skipped = 0
 
-    # Memory-based worker capping
-    if (n_workers is None or n_workers > 1) and os.environ.get('KALDO_SKIP_MEMORY_CHECK') != '1':
-        max_workers_env = os.environ.get('KALDO_MAX_WORKERS')
-        if max_workers_env is not None:
-            n_workers = min(n_workers or (os.cpu_count() or 1), int(max_workers_env))
-        else:
-            start_method = _get_safe_mp_context().get_start_method()
-            safe_workers, estimate_mb, warning_msg = cap_workers(
-                n_workers, n_atoms, n_replicas, use_scratch,
-                jat_flush_every, calculator, replicated_atoms, start_method,
-            )
-            if warning_msg is not None:
-                warnings.warn(warning_msg, ResourceWarning, stacklevel=2)
-                logging.warning(warning_msg)
-            n_workers = safe_workers
+    n_workers = _apply_memory_cap(
+        n_workers, n_atoms, n_replicas, use_scratch,
+        calculator, replicated_atoms, mode='third',
+        jat_flush_every=jat_flush_every,
+    )
 
     use_parallel = n_workers is None or n_workers > 1
 

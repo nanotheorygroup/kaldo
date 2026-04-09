@@ -15,7 +15,7 @@ from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
 
-# Memory estimation constants (MB unless noted)
+# Memory estimation constants
 #
 # FORK_BASE_OVERHEAD_MB: With Linux fork+CoW, a child inherits parent memory
 #   by sharing pages; only dirtied pages count against the child. For a Python
@@ -85,7 +85,7 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
 
 
 def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
-                              start_method, calculator_memory_mb):
+                              start_method, calculator_memory_mb, mode='third'):
     """Estimate peak memory per worker in MB.
 
     Parameters
@@ -102,6 +102,10 @@ def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
         Multiprocessing start method: 'fork', 'spawn', or 'forkserver'.
     calculator_memory_mb : float
         Calculator memory cost in MB (from probe or default).
+    mode : {'third', 'second'}
+        Which calculation the estimate applies to. Second order has no
+        per-worker accumulation buffer (each worker only holds a
+        ``(3, n_replicas*n_atoms*3)`` array), so the buffer term is dropped.
 
     Returns
     -------
@@ -131,27 +135,32 @@ def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
     peak_temp_bytes = 5 * n_total * 3 * 8
     peak_temp_mb = peak_temp_bytes / (1024 * 1024)
 
-    # Accumulation buffer
-    n_k = n_total * 3  # length of force vector per computation
-    if use_scratch:
-        # Bounded by flush window: jat_flush_every jats × 9 (icoord,jcoord) pairs
-        # Each entry: 5 int64 coords (40B) + 1 float64 value (8B) = 48B per k-index
-        buffer_bytes = (jat_flush_every * 9 * n_k * 48
-                        * ACCUMULATION_SAFETY_FACTOR)
+    # Accumulation buffer (third-order only). Second-order workers just
+    # hold a (3, n_total*3) array which is trivial compared to peak_temp.
+    if mode == 'second':
+        buffer_mb = 0.0
     else:
-        # In-memory: worst-case all jat pairs for one iat
-        # Each scalar entry in Python lists: ~80B overhead (int/float objects + list pointers)
-        n_entries = n_total * 9 * n_k
-        buffer_bytes = n_entries * 80 * ACCUMULATION_SAFETY_FACTOR
+        n_k = n_total * 3  # length of force vector per computation
+        if use_scratch:
+            # Bounded by flush window: jat_flush_every jats × 9 (icoord,jcoord) pairs
+            # Each entry: 5 int64 coords (40B) + 1 float64 value (8B) = 48B per k-index
+            buffer_bytes = (jat_flush_every * 9 * n_k * 48
+                            * ACCUMULATION_SAFETY_FACTOR)
+        else:
+            # In-memory: worst-case all jat pairs for one iat
+            # Each scalar entry in Python lists: ~80B overhead (int/float objects + list pointers)
+            n_entries = n_total * 9 * n_k
+            buffer_bytes = n_entries * 80 * ACCUMULATION_SAFETY_FACTOR
 
-    buffer_mb = buffer_bytes / (1024 * 1024)
+        buffer_mb = buffer_bytes / (1024 * 1024)
 
     total = base_overhead + atoms_copy_mb + calculator_memory_mb + peak_temp_mb + buffer_mb
     return total
 
 
 def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
-                jat_flush_every, calculator, replicated_atoms, start_method):
+                jat_flush_every, calculator, replicated_atoms, start_method,
+                mode='third'):
     """Determine safe number of workers based on available memory.
 
     Parameters
@@ -172,6 +181,9 @@ def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
         Supercell atoms for probing.
     start_method : str
         Multiprocessing start method.
+    mode : {'third', 'second'}
+        Which calculation the estimate applies to (see
+        ``estimate_worker_memory_mb``).
 
     Returns
     -------
@@ -199,7 +211,7 @@ def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
 
     estimate_mb = estimate_worker_memory_mb(
         n_atoms, n_replicas, use_scratch, jat_flush_every,
-        start_method, calc_mb,
+        start_method, calc_mb, mode=mode,
     )
 
     vm = psutil.virtual_memory()
