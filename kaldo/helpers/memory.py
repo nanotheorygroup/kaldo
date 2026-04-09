@@ -8,7 +8,6 @@ thrashing (Linux fork+overcommit hides the true cost from the OOM killer).
 import gc
 import math
 import os
-import warnings
 
 import psutil
 
@@ -29,8 +28,8 @@ logging = get_logger()
 #   allocation noise; in-memory result lists are already covered by the
 #   per-worker accumulation_buffer on the worker side).
 # DEFAULT_HEADROOM_FRACTION: The amount of memory that should be reserved
-#   for other processes. We assume you're ONLY launching kALDo so we just
-#   leave a buffer of 10% of total RAM (e.g. for 32 Gb it leaves 3.2 Gb unused).
+#   for other processes. We leave a buffer of 10% of the available
+#   (not total) RAM. Example: if there's 30 Gb available it leaves 3.0 Gb unused
 FORK_BASE_OVERHEAD_MB = 15
 SPAWN_BASE_OVERHEAD_MB = 60
 PARENT_RESERVE_MB = 50
@@ -76,7 +75,6 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
         delta_mb = max(0.0, delta_mb)
 
         del atoms_copy
-        gc.collect()
 
         logging.info(f'Memory probe: calculator + one force evaluation = {delta_mb:.1f} MB')
         return delta_mb
@@ -127,10 +125,10 @@ def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
     )
     atoms_copy_mb = atoms_copy_bytes / (1024 * 1024)
 
-    # Peak temporaries during calculate_gradient: ~6 concurrent arrays
-    # (shift, phi_partial inner, phi_partial outer, atoms copy positions,
+    # Peak temporaries during calculate_gradient: ~5 concurrent arrays
+    # (shift, phi_partial inner, phi_partial outer,
     #  forces from get_forces, reshaped grad)
-    peak_temp_bytes = 6 * n_total * 3 * 8
+    peak_temp_bytes = 5 * n_total * 3 * 8
     peak_temp_mb = peak_temp_bytes / (1024 * 1024)
 
     # Accumulation buffer
@@ -204,13 +202,9 @@ def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
         start_method, calc_mb,
     )
 
-    try:
-        vm = psutil.virtual_memory()
-        available_mb = vm.available / (1024 * 1024)
-        total_mb = vm.total / (1024 * 1024)
-    except Exception:
-        logging.warning('Could not query system memory; skipping worker cap')
-        return requested_workers, estimate_mb, None
+    vm = psutil.virtual_memory()
+    available_mb = vm.available / (1024 * 1024)
+    total_mb = vm.total / (1024 * 1024)
 
     headroom = float(os.environ.get('KALDO_MEMORY_HEADROOM', DEFAULT_HEADROOM_FRACTION))
     usable_mb = available_mb * (1 - headroom)
