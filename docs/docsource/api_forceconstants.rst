@@ -115,6 +115,49 @@ calculations.
    the bottleneck is the I/O of data back to python. This is part of the reason our examples use the python wrapper,
    which offers more flexibility without losing access to the full LAMMPS functionality.
 
+.. _parallelism-and-memory-safety:
+
+Parallelism and Memory Safety
+=============================
+
+Third-order force constant calculations can run in parallel via the ``n_workers`` argument to
+:py:meth:`ThirdOrder.calculate`. kALDo will probe the calculator memory once before launching workers
+and caps ``n_workers`` if the estimated per-worker cost would exhaust RAM. This guards against a failure mode where
+the OS will let all workers start and then collectively exhaust memory through silent swap thrashing
+without triggering the OOM killer. When workers are reduced a ``ResourceWarning`` is emitted.
+
+The memory check and parallel backend selection can be controlled via environment variables:
+
+.. list-table:: kALDo Environment Variables
+   :widths: 30 15 55
+   :header-rows: 1
+
+   * - Variable
+     - Default
+     - Description
+   * - ``KALDO_SKIP_MEMORY_CHECK``
+     - unset
+     - If set to ``1``, disable the pre-parallel memory probe and worker cap. Workers launch exactly as requested.
+   * - ``KALDO_MAX_WORKERS``
+     - unset
+     - Integer hard cap on ``n_workers``. Bypasses memory probing and estimation entirely. Use when you already
+       know your memory budget.
+   * - ``KALDO_MEMORY_HEADROOM``
+     - ``0.10``
+     - Float in ``[0, 1]``. Fraction of total RAM reserved for the OS and other processes. The remainder is
+       treated as usable for kALDo workers.
+   * - ``KALDO_PARALLEL_BACKEND``
+     - unset
+     - Override the multiprocessing backend. Valid values: ``serial``, ``process``, ``mpi``.
+
+Example — disable the memory check and run with as many workers as the script requests::
+
+    KALDO_SKIP_MEMORY_CHECK=1 python run_thirdorder.py
+
+Example — hard-cap workers to 8 regardless of what the script requests::
+
+    KALDO_MAX_WORKERS=8 python run_thirdorder.py
+
 .. _loading IFCs:
 
 **************************

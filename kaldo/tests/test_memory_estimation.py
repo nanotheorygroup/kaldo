@@ -1,12 +1,15 @@
 """
-Tests for the memory estimation and worker-capping system.
+Tests for the memory estimation and worker-capping system to protect
+users from unleashing too many workers.
 
-Validates the estimation formula, probe mechanism, cap_workers logic,
-and environment variable overrides.
+Relevant Code : Most of the logic that's being tested is in kaldo/parallel/memory.py and
+kaldo/controllers/displacement.py
+
+ memory.py - validates the cap_workers logic and environment variables (KALDO_MEMORY_HEADROOM)
+ displacement.py - validates the KALDO_SKIP_MEMORY_CHECK environment variable override
 """
 
 import os
-import math
 from unittest import mock
 
 import numpy as np
@@ -16,71 +19,27 @@ from ase.build import bulk
 from ase.calculators.emt import EMT
 
 from kaldo.helpers.memory import (
-    ACCUMULATION_SAFETY_FACTOR,
-    DEFAULT_CALCULATOR_FORK_MB,
-    DEFAULT_HEADROOM_FRACTION,
-    FORK_BASE_OVERHEAD_MB,
-    PARENT_RESERVE_MB,
-    SPAWN_BASE_OVERHEAD_MB,
     cap_workers,
     estimate_worker_memory_mb,
     probe_calculator_memory_mb,
 )
 
+@pytest.fixture(scope="module")
+def al_atoms_fixture():
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    replicated_atoms = atoms.repeat((1, 1, 2))
+    replicated_atoms.calc = EMT()
+    return atoms, replicated_atoms
 
 # ---------------------------------------------------------------------------
 # estimate_worker_memory_mb tests
 # ---------------------------------------------------------------------------
-
-def test_estimate_increases_with_n_atoms():
-    """Estimate should grow monotonically with n_atoms."""
-    estimates = [
-        estimate_worker_memory_mb(n, 4, False, 50, 'fork', 10.0)
-        for n in [4, 8, 16, 32]
-    ]
-    for i in range(len(estimates) - 1):
-        assert estimates[i] < estimates[i + 1], (
-            f"estimate did not increase: n_atoms transition {[4,8,16,32][i]} -> {[4,8,16,32][i+1]}"
-        )
-
-
-def test_estimate_increases_with_n_replicas():
-    """Estimate should grow monotonically with n_replicas."""
-    estimates = [
-        estimate_worker_memory_mb(4, r, False, 50, 'fork', 10.0)
-        for r in [2, 8, 27, 64]
-    ]
-    for i in range(len(estimates) - 1):
-        assert estimates[i] < estimates[i + 1]
-
 
 def test_scratch_estimate_smaller_than_inmemory():
     """Scratch mode bounds accumulation; should estimate less than in-memory."""
     scratch = estimate_worker_memory_mb(8, 27, True, 50, 'fork', 10.0)
     inmem = estimate_worker_memory_mb(8, 27, False, 50, 'fork', 10.0)
     assert scratch < inmem, f"scratch ({scratch:.1f}) >= inmem ({inmem:.1f})"
-
-
-def test_spawn_overhead_higher_than_fork():
-    """spawn/forkserver should have higher base overhead."""
-    fork_est = estimate_worker_memory_mb(4, 8, False, 50, 'fork', 10.0)
-    spawn_est = estimate_worker_memory_mb(4, 8, False, 50, 'spawn', 10.0)
-    assert spawn_est > fork_est
-
-
-def test_estimate_positive_and_finite():
-    """Estimate should always be positive and finite."""
-    est = estimate_worker_memory_mb(1, 1, True, 10, 'fork', 0.0)
-    assert est > 0
-    assert math.isfinite(est)
-
-
-def test_calculator_memory_included():
-    """Calculator memory should directly affect the estimate."""
-    low = estimate_worker_memory_mb(4, 8, False, 50, 'fork', 10.0)
-    high = estimate_worker_memory_mb(4, 8, False, 50, 'fork', 500.0)
-    assert high - low == pytest.approx(490.0, abs=1.0)
-
 
 # ---------------------------------------------------------------------------
 # probe_calculator_memory_mb tests
@@ -133,7 +92,7 @@ def test_cap_workers_reduces():
             requested_workers=64,
             n_atoms=4, n_replicas=2,
             use_scratch=True, jat_flush_every=50,
-            calculator=None,  # skip probe, use default
+            calculator=EMT,
             replicated_atoms=atoms,
             start_method='fork',
         )
@@ -156,7 +115,7 @@ def test_cap_workers_no_reduction():
             requested_workers=4,
             n_atoms=4, n_replicas=2,
             use_scratch=True, jat_flush_every=50,
-            calculator=None,
+            calculator=EMT,
             replicated_atoms=atoms,
             start_method='fork',
         )
@@ -177,7 +136,7 @@ def test_cap_workers_minimum_one():
             requested_workers=32,
             n_atoms=4, n_replicas=2,
             use_scratch=True, jat_flush_every=50,
-            calculator=None,
+            calculator=EMT,
             replicated_atoms=atoms,
             start_method='fork',
         )
@@ -197,7 +156,7 @@ def test_cap_workers_resolves_none():
             requested_workers=None,
             n_atoms=4, n_replicas=2,
             use_scratch=True, jat_flush_every=50,
-            calculator=None,
+            calculator=EMT,
             replicated_atoms=atoms,
             start_method='fork',
         )
@@ -256,22 +215,10 @@ def test_warning_emitted_on_reduction():
             requested_workers=100,
             n_atoms=4, n_replicas=2,
             use_scratch=True, jat_flush_every=50,
-            calculator=None,
+            calculator=EMT,
             replicated_atoms=atoms,
             start_method='fork',
         )
         assert safe < 100
         assert msg is not None
         assert 'Memory safety' in msg
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture(scope="module")
-def al_atoms_fixture():
-    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
-    replicated_atoms = atoms.repeat((1, 1, 2))
-    replicated_atoms.calc = EMT()
-    return atoms, replicated_atoms

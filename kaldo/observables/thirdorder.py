@@ -301,6 +301,17 @@ class ThirdOrder(ForceConstant):
             Smaller values use less memory at the cost of more I/O. Default 50.
         n_threads : int or None
             Deprecated alias for ``n_workers``.
+
+        Notes
+        -----
+        Memory safety: when ``n_workers > 1``, kaldo probes the calculator
+        once and caps workers if the estimated per-worker memory exceeds
+        available RAM. Override via environment variables:
+        ``KALDO_SKIP_MEMORY_CHECK=1`` disables the check,
+        ``KALDO_MAX_WORKERS=N`` applies a hard cap, and
+        ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
+        (default 0.10). Use ``KALDO_PARALLEL_BACKEND=serial|process|mpi``
+        to override the multiprocessing backend selection.
         """
         if n_threads is not None:
             import warnings

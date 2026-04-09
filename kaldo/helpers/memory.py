@@ -1,4 +1,4 @@
-"""Memory estimation and worker-capping for parallel third-order calculations.
+"""Memory estimation and worker-capping for parallel second- and third-order calculations.
 
 Estimates per-worker memory cost before parallelizing and reduces n_workers
 to a safe level when the system would otherwise exhaust memory through swap
@@ -17,13 +17,25 @@ from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 # Memory estimation constants (MB unless noted)
-FORK_BASE_OVERHEAD_MB = 50
-SPAWN_BASE_OVERHEAD_MB = 80
-PARENT_RESERVE_MB = 100
-DEFAULT_CALCULATOR_FORK_MB = 10
-DEFAULT_CALCULATOR_SPAWN_MB = 200
-DEFAULT_HEADROOM_FRACTION = 0.80
-ACCUMULATION_SAFETY_FACTOR = 1.5
+#
+# FORK_BASE_OVERHEAD_MB: With Linux fork+CoW, a child inherits parent memory
+#   by sharing pages; only dirtied pages count against the child. For a Python
+#   worker that mostly runs numpy on pre-existing arrays, dirty pages are
+#   typically 5-20 MB of process-private state.
+# SPAWN_BASE_OVERHEAD_MB: A spawned worker is a fresh interpreter and must
+#   re-import numpy, scipy, ase, sparse, kaldo, etc. ~60 MB covers the
+#   scientific stack.
+# PARENT_RESERVE_MB: Headroom for parent process growth (mostly general
+#   allocation noise; in-memory result lists are already covered by the
+#   per-worker accumulation_buffer on the worker side).
+# DEFAULT_HEADROOM_FRACTION: The amount of memory that should be reserved
+#   for other processes. We assume you're ONLY launching kALDo so we just
+#   leave a buffer of 10% of total RAM (e.g. for 32 Gb it leaves 3.2 Gb unused).
+FORK_BASE_OVERHEAD_MB = 15
+SPAWN_BASE_OVERHEAD_MB = 60
+PARENT_RESERVE_MB = 50
+DEFAULT_HEADROOM_FRACTION = 0.10
+ACCUMULATION_SAFETY_FACTOR = 1.15
 ASE_ATOMS_METADATA_BYTES = 4096
 
 
@@ -32,9 +44,11 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
 
     Parameters
     ----------
-    calculator : callable or ASE Calculator instance
+    calculator : callable or ASE Calculator instance or None
         The calculator factory or instance. If callable, called with no
-        arguments to produce a calculator.
+        arguments to produce a calculator. If None, probes using whatever
+        calculator is already attached to ``replicated_atoms`` (matching
+        how workers behave when ``calculator=None`` in ``calculate_third``).
     replicated_atoms : ASE Atoms
         The supercell atoms object used for the probe force evaluation.
 
@@ -49,7 +63,9 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
         rss_before = process.memory_info().rss
 
         atoms_copy = replicated_atoms.copy()
-        atoms_copy.calc = calculator() if callable(calculator) else calculator
+        if calculator is not None:
+            atoms_copy.calc = calculator() if callable(calculator) else calculator
+        # else: rely on whatever calc was already attached to replicated_atoms
         atoms_copy.get_forces()
 
         gc.collect()
@@ -66,7 +82,7 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
         return delta_mb
 
     except Exception as exc:
-        logging.warning(f'Memory probe failed ({exc}); using conservative default')
+        logging.warning(f'Memory probe failed ({exc}); skipping memory-based worker cap')
         return None
 
 
@@ -171,20 +187,17 @@ def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
     if requested_workers is None:
         requested_workers = os.cpu_count() or 1
 
-    # Probe calculator memory
-    calc_mb = None
-    if calculator is not None:
-        calc_mb = probe_calculator_memory_mb(calculator, replicated_atoms)
-
+    # Probe calculator memory. A calculator is required to compute force
+    # constants, so we can always measure its real cost rather than guess.
+    # If the probe fails (e.g., broken calculator), skip the memory check
+    # and let the actual calculation surface the underlying error.
+    calc_mb = probe_calculator_memory_mb(calculator, replicated_atoms)
     if calc_mb is None:
-        if start_method == 'fork':
-            calc_mb = DEFAULT_CALCULATOR_FORK_MB
-        else:
-            calc_mb = DEFAULT_CALCULATOR_SPAWN_MB
-            logging.warning(
-                f'Using conservative default calculator memory estimate '
-                f'({calc_mb} MB) for {start_method} start method.'
-            )
+        warning_msg = (
+            'Memory probe failed; skipping worker cap. '
+            f'Proceeding with {requested_workers} workers as requested.'
+        )
+        return requested_workers, 0.0, warning_msg
 
     estimate_mb = estimate_worker_memory_mb(
         n_atoms, n_replicas, use_scratch, jat_flush_every,
@@ -200,7 +213,7 @@ def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
         return requested_workers, estimate_mb, None
 
     headroom = float(os.environ.get('KALDO_MEMORY_HEADROOM', DEFAULT_HEADROOM_FRACTION))
-    usable_mb = available_mb * headroom
+    usable_mb = available_mb * (1 - headroom)
 
     safe_workers = max(1, math.floor((usable_mb - PARENT_RESERVE_MB) / estimate_mb))
     safe_workers = min(safe_workers, requested_workers)
