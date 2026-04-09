@@ -64,28 +64,32 @@ class SecondOrder(ForceConstant):
              format: str = "numpy",
              is_acoustic_sum: bool = False):
         """
-        Load second order force constants from a folder in the given format, used for library internally.
+        Load second-order force constants from disk.
 
-        To load force constants data, ``ForceConstants.from_folder`` is recommended.
+        Most users should prefer ``ForceConstants.from_folder(...)`` to construct
+        force constants in one step. This lower-level classmethod is useful when
+        you are already working with ``fc.second`` directly, or when you need to
+        load second-order data from a non-standard workflow.
 
         Parameters
         ----------
         folder : str
-            Specifies where to load the data files.
+            Directory containing the second-order force constant data and the
+            associated replicated structure.
         supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+            Supercell used to build the stored second-order matrix.
             Default: (1, 1, 1)
         format : str
-            Format of the second order force constant information being loaded into SecondOrder object.
-            Default: 'sparse'
+            Format of the stored second-order data.
+            Default: ``"numpy"``
         is_acoustic_sum : bool, optional
-            If true, the acoustic sum rule is applied to the dynamical matrix.
+            If True, apply the acoustic sum rule after loading.
             Default: False
 
         Returns
         -------
         second_order : SecondOrder object
-            A new instance of the SecondOrder class
+            Loaded ``SecondOrder`` instance.
         """
 
         match format:
@@ -283,10 +287,60 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
+    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
+                  scratch_dir=None, keep_scratch=False):
+        """
+        Calculate second-order force constants with finite differences.
+
+        This is the method typically reached through ``fc.second.calculate(...)``.
+        It can either load an existing ``second.npy`` from ``self.folder`` when
+        ``is_storing`` is enabled, or compute the harmonic force constants from
+        the current structure and calculator.
+
+        Parameters
+        ----------
+        calculator : callable or ASE Calculator instance
+            An ASE calculator class or instance. When running in parallel,
+            pass a class so each worker can create its own instance.
+        delta_shift : float, optional
+            Finite-difference displacement in Angstrom.
+            Default: 1e-3
+        is_storing : bool, optional
+            If True, try to load an existing result from ``self.folder`` first
+            and save newly computed data after the calculation.
+            Default: True
+        is_verbose : bool, optional
+            If True, log per-atom progress information.
+            Default: False
+        n_workers : int or None, optional
+            Number of worker processes used for the displaced-atom finite-
+            difference tasks. ``1`` runs serially, ``None`` uses all available
+            workers. If n_workers > n_atoms, n_workers - n_atoms processes
+            will launch, but do no work.
+            Default: 1
+        scratch_dir : str or None, optional
+            Optional scratch directory for atom-by-atom intermediate files used
+            for recovery of interrupted calculations.
+            Default: None
+        keep_scratch : bool, optional
+            If True, keep scratch files after successful assembly.
+            Default: False
+
+        Notes
+        -----
+        Memory safety: when ``n_workers > 1``, kaldo probes the calculator
+        once and caps workers if the estimated per-worker memory exceeds
+        available RAM. Override via environment variables:
+        ``KALDO_SKIP_MEMORY_CHECK=1`` disables the check,
+        ``KALDO_MAX_WORKERS=N`` applies a hard cap, and
+        ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
+        (default 0.10). Use ``KALDO_PARALLEL_BACKEND=serial|process|mpi``
+        to override the multiprocessing backend selection.
+        """
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        replicated_atoms.calc = calculator
+        if n_workers == 1:
+            replicated_atoms.calc = calculator
 
         if is_storing:
             try:
@@ -296,14 +350,33 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 logging.info("Second order not found. Calculating.")
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+                self.value = calculate_second(
+                    atoms,
+                    replicated_atoms,
+                    delta_shift,
+                    is_verbose=is_verbose,
+                    n_workers=n_workers,
+                    calculator=calculator,
+                    scratch_dir=scratch_dir,
+                    keep_scratch=keep_scratch,
+                )
                 self.save("second")
+                self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
                 self.replicated_atoms.get_forces()
                 ase.io.write(self.folder + "/replicated_atoms.xyz", self.replicated_atoms, "extxyz")
             else:
                 logging.info("Reading stored second")
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+            self.value = calculate_second(
+                atoms,
+                replicated_atoms,
+                delta_shift,
+                is_verbose=is_verbose,
+                n_workers=n_workers,
+                calculator=calculator,
+                scratch_dir=scratch_dir,
+                keep_scratch=keep_scratch,
+            )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
