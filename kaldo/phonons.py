@@ -32,6 +32,157 @@ logging = get_logger()
 GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 THZ_TO_MEV = units.J * units._hbar * 2 * np.pi * 1e15
 
+
+def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
+    """
+    Compute the IBZ mapping and per-equivalent-kpoint column-permutation tables
+    using spglib, aligned with kALDo's k-point ordering.
+
+    Parameters
+    ----------
+    atoms : ASE Atoms
+        Primitive unit cell.
+    kpts : array-like (3,)
+        k-point mesh dimensions.
+    grid_type : str
+        kALDo grid ordering ('C' or 'F').
+
+    Returns
+    -------
+    ir_mapping : np.ndarray (n_k_points,)
+        ir_mapping[ik] = index of the IBZ representative for k-point ik.
+    krot_perm : list of (np.ndarray or None), length n_k_points
+        For IBZ representatives: None.
+        For non-IBZ ik: int array (n_k_points,) where krot_perm[ik][ik']
+        is the index of S^{-1}·q_{ik'}, where S is the rotation mapping
+        q_{ir_mapping[ik]} to q_{ik}.
+    ibz_indices : list of int
+        Sorted list of IBZ representative k-point indices.
+    krot_cart : list of (np.ndarray or None), length n_k_points
+        For IBZ representatives: None.
+        For non-IBZ ik: (3, 3) float array, the Cartesian rotation matrix R
+        such that v(q_ik) = R @ v(q_irr) for any vector quantity (e.g. velocity).
+    """
+    try:
+        import spglib
+    except ImportError:
+        raise ImportError(
+            "spglib is required for q-space symmetry reduction. "
+            "Install with: pip install spglib"
+        )
+
+    kpts_arr = np.asarray(kpts, dtype=int)
+    n_k_points = int(np.prod(kpts_arr))
+    grid = Grid(kpts_arr, order=grid_type)
+
+    # Integer grid coordinates (0..Ni-1) and fractional equivalents.
+    k_indices = grid.generate_index_grid()   # (n_k_points, 3) int
+    q_fracs = k_indices / kpts_arr.astype(float)  # (n_k_points, 3) in [0,1)
+
+    # Build spglib structure tuple.
+    cell = atoms.cell[:]
+    scaled_pos = atoms.get_scaled_positions()
+    numbers = atoms.get_atomic_numbers()
+    spg_struct = (cell, scaled_pos, numbers)
+
+    # --- IBZ mapping via spglib -------------------------------------------
+    spg_mapping, spg_grid_address = spglib.get_ir_reciprocal_mesh(
+        kpts_arr.tolist(), spg_struct, is_shift=[0, 0, 0], is_time_reversal=True)
+
+    # spg_grid_address[i] contains integer coords in [0, Ni).
+    # Build a map from spglib's linear index to kALDo's linear index.
+    spg_to_kaldo = np.empty(n_k_points, dtype=int)
+    for i_spg, addr in enumerate(spg_grid_address):
+        addr_w = np.asarray(addr, dtype=int) % kpts_arr
+        spg_to_kaldo[i_spg] = int(np.ravel_multi_index(addr_w, kpts_arr.tolist(), order=grid_type))
+
+    ir_mapping = np.empty(n_k_points, dtype=int)
+    for i_spg in range(n_k_points):
+        ik = spg_to_kaldo[i_spg]
+        ik_irr = spg_to_kaldo[int(spg_mapping[i_spg])]
+        ir_mapping[ik] = ik_irr
+
+    ibz_indices = sorted(set(ir_mapping.tolist()))
+
+    # --- Rotation permutation tables for gamma-tensor replication -----------
+    # Symmetry operations: R is a (3,3) integer matrix in fractional real-space.
+    # Action on fractional reciprocal-space coords: k' = (R^{-1})^T k.
+    # Inverse of that action: k = R^T k'.  (since ((R^{-1})^T)^{-1} = R^T)
+    sym = spglib.get_symmetry(spg_struct)
+    rotations_frac = sym['rotations']   # (n_ops, 3, 3) integer
+
+    def _apply_rot_to_mesh(R_mat):
+        """
+        Apply integer rotation matrix R_mat (3,3) to every fractional k-point
+        and return the array of resulting mesh indices.
+        """
+        # (R_mat @ q.T).T = q @ R_mat.T for each row-vector q.
+        q_rot = q_fracs @ R_mat.T        # (n_k_points, 3)
+        q_rot = q_rot % 1.0
+        # Collapse floating-point values sitting just below 1.0 to 0.
+        q_rot[np.abs(q_rot - 1.0) < 1e-9] = 0.0
+        q_int = np.round(q_rot * kpts_arr).astype(int) % kpts_arr
+        return np.ravel_multi_index(q_int.T, kpts_arr.tolist(), order=grid_type)
+
+    # For each non-IBZ k-point ik, find the rotation S in reciprocal space
+    # (= (R^{-1})^T) that maps q_{ir_mapping[ik]} to q_{ik}, then store:
+    #   krot_perm : permutation of the full mesh by S^{-1} = R^T (for gamma tensor)
+    #   krot_cart : 3x3 Cartesian rotation matrix R_cart = A @ R @ A^{-1}
+    #               where A = cell.T, for rotating vector quantities (e.g. velocity).
+    krot_perm = [None] * n_k_points
+    krot_cart = [None] * n_k_points
+    A = cell.T                      # columns are lattice vectors
+    A_inv = np.linalg.inv(A)
+
+    for ik in range(n_k_points):
+        ik_irr = ir_mapping[ik]
+        if ik == ik_irr:
+            continue
+
+        q_irr = q_fracs[ik_irr]
+        q_target = q_fracs[ik]
+
+        found = False
+        for R in rotations_frac:
+            # Compute (R^{-1})^T = round(inv(R))^T acting on q_irr.
+            R_inv = np.round(np.linalg.inv(R)).astype(int)
+            R_recip = R_inv.T  # (R^{-1})^T
+            q_test = R_recip @ q_irr
+            q_test = q_test % 1.0
+            q_test[np.abs(q_test - 1.0) < 1e-9] = 0.0
+            if np.allclose(q_test, q_target, atol=1e-9):
+                # S^{-1} = R^T applied to the full mesh gives the permutation.
+                krot_perm[ik] = _apply_rot_to_mesh(R.T)
+                # Cartesian rotation: R acts on fractional real-space coords,
+                # so R_cart = A @ R @ A^{-1} transforms Cartesian vectors.
+                krot_cart[ik] = A @ R @ A_inv
+                found = True
+                break
+
+        if not found:
+            # Time-reversal fallback: q_ik = -q_irr (mod 1).
+            # This arises for non-centrosymmetric crystals where -I is not a
+            # point group rotation but is_time_reversal=True in get_ir_reciprocal_mesh
+            # still identifies q and -q as equivalent.
+            # Γ(-q,μ;q',μ') = Γ(q,μ;-q',μ'), so permuting the k'-axis by
+            # q'→-q' (R_mat=-I) correctly replicates the gamma tensor.
+            # Velocity is odd under inversion: v(-q) = -v(q), so R_cart = -I.
+            q_neg = (-q_irr) % 1.0
+            q_neg[np.abs(q_neg - 1.0) < 1e-9] = 0.0
+            if np.allclose(q_neg, q_target, atol=1e-9):
+                krot_perm[ik] = _apply_rot_to_mesh(-np.eye(3, dtype=int))
+                krot_cart[ik] = -np.eye(3, dtype=float)
+                found = True
+
+        if not found:
+            raise RuntimeError(
+                f"No spglib symmetry operation found mapping IBZ k-point "
+                f"{ik_irr} to k-point {ik}. "
+                "Ensure the k-mesh is commensurate with the crystal symmetry."
+            )
+
+    return ir_mapping, krot_perm, ibz_indices, krot_cart
+
 def _sparse_tensor_to_numpy(st):
     """Convert a tf.SparseTensor to a picklable (indices, values, dense_shape) tuple."""
     if st is None:
@@ -310,6 +461,7 @@ class Phonons(Storable):
                  is_nw: bool = False,
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
+                 use_q_symmetry: bool = False,
                  **kwargs):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
@@ -347,6 +499,7 @@ class Phonons(Storable):
         self.g_factor = g_factor
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
+        self.use_q_symmetry = use_q_symmetry
 
     def _get_folder_path_components(self, label):
         """Get folder path components for Phonons-specific attributes."""
@@ -443,6 +596,7 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
+
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -453,7 +607,6 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous)
-
             frequency[ik] = phonon.frequency
 
         return frequency
@@ -502,6 +655,7 @@ class Phonons(Storable):
 
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
+
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -512,8 +666,8 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous)
-
             velocity[ik] = phonon.velocity
+
         return velocity
 
 
@@ -1159,6 +1313,21 @@ class Phonons(Storable):
         return index_qpp_full
 
 
+    @property
+    def _ir_kgrid_data(self):
+        """Cached (ir_mapping, krot_perm, ibz_indices) from spglib."""
+        try:
+            return self.__ir_kgrid_data
+        except AttributeError:
+            self.__ir_kgrid_data = _get_ir_kgrid_data(
+                self.atoms, self.kpts, self._grid_type)
+            n_irr = len(self.__ir_kgrid_data[2])
+            logging.info(
+                f'q-symmetry: IBZ has {n_irr} of {self.n_k_points} k-points '
+                f'(reduction factor {self.n_k_points / n_irr:.1f}x)'
+            )
+            return self.__ir_kgrid_data
+
     def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
@@ -1181,6 +1350,25 @@ class Phonons(Storable):
         )
         if not self._is_amorphous:
             ps_and_gamma[:, 0] /= self.n_k_points
+
+        # Replicate IBZ results to symmetry-equivalent k-points.
+        if self.use_q_symmetry and not self._is_amorphous:
+            ir_mapping, krot_perm, _, _ = self._ir_kgrid_data
+            n_k = self.n_k_points
+            n_m = self.n_modes
+            for ik in range(n_k):
+                ik_irr = ir_mapping[ik]
+                if ik == ik_irr:
+                    continue
+                # Scalar columns (phase space, bandwidth): direct copy.
+                ps_and_gamma[ik * n_m:(ik + 1) * n_m, :2] = \
+                    ps_and_gamma[ik_irr * n_m:(ik_irr + 1) * n_m, :2]
+                # Gamma-tensor columns: replicate with k-index permutation.
+                if is_gamma_tensor_enabled:
+                    perm = krot_perm[ik]   # (n_k,) int array
+                    for mu in range(n_m):
+                        row_irr = ps_and_gamma[ik_irr * n_m + mu, 2:].reshape(n_k, n_m)
+                        ps_and_gamma[ik * n_m + mu, 2:] = row_irr[perm, :].reshape(n_k * n_m)
 
         return ps_and_gamma
 
@@ -1289,9 +1477,17 @@ class Phonons(Storable):
         hbar = units._hbar
         n_modes = self.n_modes
 
+        # Determine which k-points to compute.  When q-symmetry is enabled
+        # only IBZ representatives need full projection; equivalents are
+        # skipped here and replicated in _select_algorithm_for_phase_space_and_gamma.
+        if self.use_q_symmetry:
+            _, _, ibz_compute, _ = self._ir_kgrid_data
+        else:
+            ibz_compute = list(range(n_k_points))
+
         # Pre-compute k-point mappings (avoids passing self to workers)
         kpoint_maps = {}
-        for ik in range(n_k_points):
+        for ik in ibz_compute:
             for is_plus in (0, 1):
                 kpoint_maps[(ik, is_plus)] = self._allowed_third_phonons_index(ik, is_plus)
 
@@ -1313,19 +1509,21 @@ class Phonons(Storable):
         backend = 'process' if use_parallel else 'serial'
         n_workers = self.n_workers if use_parallel else None
 
-        # Determine which k-points to compute (resume support)
+        # Determine which k-points to compute (resume support + q-symmetry).
+        # When use_q_symmetry is True, ibz_compute already limits to IBZ reps;
+        # non-IBZ k-points are assembled as all-None tensors below.
         output_dir = self.projection_output_dir
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
             kpoints_to_compute = [
-                ik for ik in range(n_k_points)
+                ik for ik in ibz_compute
                 if not os.path.exists(os.path.join(output_dir, f'kpt_{ik:05d}.done'))
             ]
-            n_resumed = n_k_points - len(kpoints_to_compute)
+            n_resumed = len(ibz_compute) - len(kpoints_to_compute)
             if n_resumed:
                 logging.info(f'Resuming projection: skipping {n_resumed} already-computed k-point(s)')
         else:
-            kpoints_to_compute = list(range(n_k_points))
+            kpoints_to_compute = list(ibz_compute)
 
         worker_fn = functools.partial(_compute_kpoint_projection, **shared)
 
@@ -1346,14 +1544,23 @@ class Phonons(Storable):
                 if output_dir:
                     _save_kpoint_projection(output_dir, ik, kpoint_results[ik])
 
-        # Assemble into the flat sparse_phase / sparse_potential lists
+        # All-None placeholder used for non-IBZ k-points under q-symmetry.
+        _null_results = [([None, None], [None, None])] * n_modes
+
+        # Assemble into the flat sparse_phase / sparse_potential lists.
+        # Non-IBZ k-points get all-None tensors; their ps_and_gamma rows are
+        # filled by replication in _select_algorithm_for_phase_space_and_gamma.
         sparse_phase = []
         sparse_potential = []
+        ibz_set = set(ibz_compute)
         for ik in range(n_k_points):
             if ik in kpoint_results:
                 results = kpoint_results[ik]
-            elif output_dir:
+            elif output_dir and ik in ibz_set:
                 results = _load_kpoint_projection(output_dir, ik, n_modes)
+            elif ik not in ibz_set:
+                # Non-IBZ k-point: placeholder (replicated later)
+                results = _null_results
             else:
                 raise RuntimeError(f'Missing results for k-point {ik}')
 
