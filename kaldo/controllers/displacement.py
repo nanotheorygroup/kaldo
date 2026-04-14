@@ -4,7 +4,7 @@ import os
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
-from kaldo.helpers.memory import resolve_n_workers
+from kaldo.parallel.memory import resolve_n_workers
 from kaldo.parallel import get_executor
 from sparse import COO
 logging = get_logger()

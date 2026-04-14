@@ -2,7 +2,7 @@
 Tests for the memory estimation and worker-resolution system.
 
 Relevant code:
- kaldo/helpers/memory.py - resolve_n_workers, estimate_worker_memory_mb,
+ kaldo/parallel/memory.py - resolve_n_workers, estimate_worker_memory_mb,
                            probe_calculator_memory_mb
 """
 
@@ -14,7 +14,7 @@ import pytest
 from ase.build import bulk
 from ase.calculators.emt import EMT
 
-from kaldo.helpers.memory import (
+from kaldo.parallel.memory import (
     estimate_worker_memory_mb,
     probe_calculator_memory_mb,
     resolve_n_workers,
@@ -79,7 +79,7 @@ def test_resolve_returns_request_when_safe():
     """Explicit request within the safe limit should pass through unchanged."""
     atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
 
-    with mock.patch('kaldo.helpers.memory.psutil') as mock_psutil:
+    with mock.patch('kaldo.parallel.memory.psutil') as mock_psutil:
         mock_psutil.virtual_memory.return_value = _mock_virtual_memory(100_000, 128_000)
         mock_psutil.Process.return_value.memory_info.return_value.rss = 100 * 1024 * 1024
 
@@ -97,7 +97,7 @@ def test_resolve_raises_when_explicit_exceeds_safe():
     """Explicit request above the safe limit must raise MemoryError."""
     atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
 
-    with mock.patch('kaldo.helpers.memory.psutil') as mock_psutil:
+    with mock.patch('kaldo.parallel.memory.psutil') as mock_psutil:
         mock_psutil.virtual_memory.return_value = _mock_virtual_memory(1000, 2000)
         mock_psutil.Process.return_value.memory_info.return_value.rss = 100 * 1024 * 1024
 
@@ -120,7 +120,7 @@ def test_resolve_raises_in_tight_memory():
     """Even very low memory with a large request should raise MemoryError."""
     atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
 
-    with mock.patch('kaldo.helpers.memory.psutil') as mock_psutil:
+    with mock.patch('kaldo.parallel.memory.psutil') as mock_psutil:
         mock_psutil.virtual_memory.return_value = _mock_virtual_memory(10, 10)
         mock_psutil.Process.return_value.memory_info.return_value.rss = 5 * 1024 * 1024
 
@@ -138,7 +138,7 @@ def test_resolve_auto_selects_when_none(caplog):
     """n_workers=None should auto-pick and log the choice with atom count."""
     atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
 
-    with mock.patch('kaldo.helpers.memory.psutil') as mock_psutil:
+    with mock.patch('kaldo.parallel.memory.psutil') as mock_psutil:
         mock_psutil.virtual_memory.return_value = _mock_virtual_memory(100_000, 128_000)
         mock_psutil.Process.return_value.memory_info.return_value.rss = 100 * 1024 * 1024
 
