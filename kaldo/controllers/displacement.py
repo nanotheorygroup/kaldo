@@ -1,11 +1,10 @@
 import functools
 import glob
 import os
-import warnings
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
-from kaldo.helpers.memory import cap_workers
+from kaldo.helpers.memory import resolve_n_workers
 from kaldo.parallel import get_executor
 from sparse import COO
 logging = get_logger()
@@ -52,39 +51,19 @@ def _validate_calculator(calculator):
     )
 
 
-def _apply_memory_cap(n_workers, n_atoms, n_replicas, use_scratch,
-                      calculator, replicated_atoms, mode, jat_flush_every=0):
-    """Return a memory-safe ``n_workers``, applying ``KALDO_*`` env overrides.
-
-    Shared helper for ``calculate_second`` and ``calculate_third``. Honors
-    ``KALDO_SKIP_MEMORY_CHECK`` and ``KALDO_MAX_WORKERS``; otherwise probes
-    the calculator and delegates to :func:`cap_workers`. Assumes a ``fork``
-    start method (kaldo's executor default on Linux).
-    """
-    if n_workers is not None and n_workers <= 1:
-        return n_workers
-    if os.environ.get('KALDO_SKIP_MEMORY_CHECK') == '1':
-        return n_workers
-    max_workers_env = os.environ.get('KALDO_MAX_WORKERS')
-    if max_workers_env is not None:
-        return min(n_workers or (os.cpu_count() or 1), int(max_workers_env))
-    safe_workers, _estimate_mb, warning_msg = cap_workers(
-        n_workers, n_atoms, n_replicas, use_scratch,
-        jat_flush_every, calculator, replicated_atoms,
-        start_method='fork', mode=mode,
-    )
-    if warning_msg is not None:
-        warnings.warn(warning_msg, ResourceWarning, stacklevel=2)
-        logging.warning(warning_msg)
-    return safe_workers
-
-
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
                      scratch_dir=None, keep_scratch=False):
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
-    using central difference formula
+    using central difference formula.
+
+    Memory safety: when ``n_workers > 1``, kaldo probes the calculator once
+    and crashes if the estimated per-worker memory times the requested worker count
+    would exceed available RAM. When ``n_workers=None``, kaldo auto-selects the
+    largest safe value (bounded by ``cpu_count``) and logs the choice.
+    ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
+    (default 0.05 = 5% of RAM).
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
@@ -109,12 +88,16 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
         second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
         atoms_to_compute = list(range(n_atoms))
 
-    n_workers = _apply_memory_cap(
+    # Crash if n_workers if going to result in memory-thrashing
+    n_workers = resolve_n_workers(
         n_workers, n_atoms, n_replicas, use_scratch,
         calculator, replicated_atoms, mode='second',
     )
+    if n_workers > len(atoms_to_compute):
+        logging.info(f'{n_workers=} is reduced to {len(atoms_to_compute)} to prevent idle threads')
+        n_workers = n_atoms
 
-    use_parallel = n_workers is None or n_workers > 1
+    use_parallel = n_workers > 1
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
 
@@ -213,8 +196,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     	the cutoff (in units of Angstrom)
     n_workers : int or None
         Number of parallel worker processes. ``1`` runs serially (default).
-        ``None`` uses all available CPUs. Values > 1 launch that many workers
-        via ``concurrent.futures.ProcessPoolExecutor``.
+        ``None`` asks kaldo to auto-select the largest memory-safe value
+        (logged at INFO so you can see what was chosen). Values > 1 launch
+        that many workers via ``concurrent.futures.ProcessPoolExecutor``;
     calculator : callable or ASE Calculator instance or None
         Either an ASE calculator class or an already-constructed instance.
         When running in parallel (``n_workers > 1``), pass a class so each
@@ -237,19 +221,15 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     jat_flush_every : int
         Number of jat iterations to buffer before flushing to disk. Only used
         when ``scratch_dir`` is set. Default 50.
-    n_threads : int or None
-        Deprecated alias for ``n_workers``. If provided, overrides ``n_workers``.
 
     Notes
     -----
     Memory safety: when ``n_workers > 1``, kaldo probes the calculator once
-    and caps workers if the estimated per-worker memory exceeds available
-    RAM. Override via environment variables:
-    ``KALDO_SKIP_MEMORY_CHECK=1`` disables the check,
-    ``KALDO_MAX_WORKERS=N`` applies a hard cap, and
+    and crashes if the estimated per-worker memory times the requested worker count
+    would exceed available RAM. When ``n_workers=None``, kaldo auto-selects the
+    largest safe value (bounded by ``cpu_count``) and logs the choice.
     ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
-    (default 0.10). Use ``KALDO_PARALLEL_BACKEND=serial|process|mpi`` to
-    override the multiprocessing backend selection.
+    (default 0.05 = 5% of RAM).
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
@@ -272,13 +252,13 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_done = 0
     n_forces_skipped = 0
 
-    n_workers = _apply_memory_cap(
+    n_workers = resolve_n_workers(
         n_workers, n_atoms, n_replicas, use_scratch,
-        calculator, replicated_atoms, mode='third',
-        jat_flush_every=jat_flush_every,
+        calculator, replicated_atoms,
+        jat_flush_every=jat_flush_every, mode='third',
     )
 
-    use_parallel = n_workers is None or n_workers > 1
+    use_parallel = n_workers > 1
 
     # Determine which atoms need computing (resume support via scratch sentinels)
     if use_scratch:
@@ -290,6 +270,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     else:
         atoms_to_compute = list(range(n_atoms))
 
+    if n_workers > len(atoms_to_compute):
+        logging.info(f'{n_workers=} is reduced to {len(atoms_to_compute)} to prevent idle threads')
+        n_workers = n_atoms
     # Select backend: 'process' for parallel, 'serial' for single-threaded
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None

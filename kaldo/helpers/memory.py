@@ -1,16 +1,14 @@
-"""Memory estimation and worker-capping for parallel second- and third-order calculations.
+"""Memory estimation for parallel second- and third-order calculations.
 
-Estimates per-worker memory cost before parallelizing and reduces n_workers
-to a safe level when the system would otherwise exhaust memory through swap
-thrashing (Linux fork+overcommit hides the true cost from the OOM killer).
+Estimates per-worker memory cost before parallelizing and crashes if n_workers
+would otherwise exhaust memory through swap thrashing (Linux fork+overcommit
+hides the true cost from the OOM killer).
 """
 
 import gc
 import math
 import os
-
 import psutil
-
 from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
@@ -21,9 +19,6 @@ logging = get_logger()
 #   by sharing pages; only dirtied pages count against the child. For a Python
 #   worker that mostly runs numpy on pre-existing arrays, dirty pages are
 #   typically 5-20 MB of process-private state.
-# SPAWN_BASE_OVERHEAD_MB: A spawned worker is a fresh interpreter and must
-#   re-import numpy, scipy, ase, sparse, kaldo, etc. ~60 MB covers the
-#   scientific stack.
 # PARENT_RESERVE_MB: Headroom for parent process growth (mostly general
 #   allocation noise; in-memory result lists are already covered by the
 #   per-worker accumulation_buffer on the worker side).
@@ -31,9 +26,8 @@ logging = get_logger()
 #   for other processes. We leave a buffer of 10% of the available
 #   (not total) RAM. Example: if there's 30 Gb available it leaves 3.0 Gb unused
 FORK_BASE_OVERHEAD_MB = 15
-SPAWN_BASE_OVERHEAD_MB = 60
 PARENT_RESERVE_MB = 50
-DEFAULT_HEADROOM_FRACTION = 0.10
+DEFAULT_HEADROOM_FRACTION = 0.05
 ACCUMULATION_SAFETY_FACTOR = 1.15
 ASE_ATOMS_METADATA_BYTES = 4096
 
@@ -53,39 +47,39 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
 
     Returns
     -------
-    float or None
-        Measured RSS delta in MB, or None if the probe failed.
+    float
+        Measured RSS delta in MB, floored at 0.
+
+    Notes
+    -----
+    Exceptions from the calculator propagate — if the calculator is broken,
+    the probe surfaces the same error the real calculation would hit.
     """
-    try:
-        process = psutil.Process()
-        gc.collect()
-        rss_before = process.memory_info().rss
+    process = psutil.Process()
+    gc.collect()
+    rss_before = process.memory_info().rss
 
-        atoms_copy = replicated_atoms.copy()
-        if calculator is not None:
-            atoms_copy.calc = calculator() if callable(calculator) else calculator
-        # else: rely on whatever calc was already attached to replicated_atoms
-        atoms_copy.get_forces()
+    atoms_copy = replicated_atoms.copy()
+    if calculator is not None:
+        atoms_copy.calc = calculator() if callable(calculator) else calculator
+    # else: rely on whatever calc was already attached to replicated_atoms
+    atoms_copy.get_forces()
 
-        gc.collect()
-        rss_after = process.memory_info().rss
+    gc.collect()
+    rss_after = process.memory_info().rss
 
-        delta_mb = (rss_after - rss_before) / (1024 * 1024)
-        # RSS can decrease due to GC of other objects; floor at 0
-        delta_mb = max(0.0, delta_mb)
+    delta_mb = (rss_after - rss_before) / (1024 * 1024)
+    # RSS can decrease due to GC of other objects; floor at 0
+    delta_mb = max(0.0, delta_mb)
 
-        del atoms_copy
+    del atoms_copy
 
-        logging.info(f'Memory probe: calculator + one force evaluation = {delta_mb:.1f} MB')
-        return delta_mb
-
-    except Exception as exc:
-        logging.warning(f'Memory probe failed ({exc}); skipping memory-based worker cap')
-        return None
+    logging.info(f'Memory probe: calculator + one force evaluation = {delta_mb:.1f} MB')
+    return delta_mb
 
 
-def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
-                              start_method, calculator_memory_mb, mode='third'):
+def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch,
+                              calculator_memory_mb, jat_flush_every, mode='third'):
     """Estimate peak memory per worker in MB.
 
     Parameters
@@ -96,12 +90,11 @@ def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
         Supercell multiplicity (product of supercell dimensions).
     use_scratch : bool
         Whether scratch_dir is set (bounds accumulation buffer).
-    jat_flush_every : int
-        Flush window size for scratch mode.
-    start_method : str
-        Multiprocessing start method: 'fork', 'spawn', or 'forkserver'.
     calculator_memory_mb : float
         Calculator memory cost in MB (from probe or default).
+    jat_flush_every : int
+        Flush window size for scratch mode. Only matters for third order calculations
+        as second order does not flush partial contributions unlike third order.
     mode : {'third', 'second'}
         Which calculation the estimate applies to. Second order has no
         per-worker accumulation buffer (each worker only holds a
@@ -114,11 +107,7 @@ def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
     """
     n_total = n_replicas * n_atoms
 
-    # Base Python interpreter overhead
-    if start_method == 'fork':
-        base_overhead = FORK_BASE_OVERHEAD_MB
-    else:
-        base_overhead = SPAWN_BASE_OVERHEAD_MB
+    base_overhead = FORK_BASE_OVERHEAD_MB
 
     # replicated_atoms.copy(): positions + numbers + cell + ASE metadata
     atoms_copy_bytes = (
@@ -158,60 +147,52 @@ def estimate_worker_memory_mb(n_atoms, n_replicas, use_scratch, jat_flush_every,
     return total
 
 
-def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
-                jat_flush_every, calculator, replicated_atoms, start_method,
-                mode='third'):
-    """Determine safe number of workers based on available memory.
+def resolve_n_workers(requested_workers, n_atoms, n_replicas, use_scratch,
+                      calculator, replicated_atoms, jat_flush_every=50,
+                      mode='third'):
+    """Return a memory-safe ``n_workers``, raising if an explicit request is unsafe.
 
     Parameters
     ----------
     requested_workers : int or None
-        User-requested n_workers. None means auto-detect (all CPUs).
+        User-requested ``n_workers``. ``None`` means kaldo chooses the
+        largest safe value based on memory profiling and ``cpu_count``.
     n_atoms : int
         Unit cell atom count.
     n_replicas : int
         Supercell multiplicity.
     use_scratch : bool
-        Whether scratch_dir is set.
-    jat_flush_every : int
-        Flush window size for scratch mode.
+        Whether ``scratch_dir`` is set.
     calculator : callable or ASE Calculator instance or None
         The calculator factory/instance for probing.
     replicated_atoms : ASE Atoms
         Supercell atoms for probing.
-    start_method : str
-        Multiprocessing start method.
+    jat_flush_every : int
+        Flush window size for scratch mode.
+        Default: 50
     mode : {'third', 'second'}
         Which calculation the estimate applies to (see
         ``estimate_worker_memory_mb``).
+        Default: 'third'
 
     Returns
     -------
-    safe_workers : int
-        Safe number of workers (>= 1, <= requested_workers).
-    estimate_mb : float
-        Estimated peak memory per worker in MB.
-    warning_msg : str or None
-        Warning message if workers were reduced, None otherwise.
+    int
+        Safe number of workers (``>= 1``).
+
+    Raises
+    ------
+    MemoryError
+        If ``requested_workers`` is explicit and exceeds the value that
+        memory profiling says is safe for this system.
     """
-    if requested_workers is None:
-        requested_workers = os.cpu_count() or 1
+    if requested_workers == 1:
+        return 1
 
-    # Probe calculator memory. A calculator is required to compute force
-    # constants, so we can always measure its real cost rather than guess.
-    # If the probe fails (e.g., broken calculator), skip the memory check
-    # and let the actual calculation surface the underlying error.
     calc_mb = probe_calculator_memory_mb(calculator, replicated_atoms)
-    if calc_mb is None:
-        warning_msg = (
-            'Memory probe failed; skipping worker cap. '
-            f'Proceeding with {requested_workers} workers as requested.'
-        )
-        return requested_workers, 0.0, warning_msg
-
     estimate_mb = estimate_worker_memory_mb(
-        n_atoms, n_replicas, use_scratch, jat_flush_every,
-        start_method, calc_mb, mode=mode,
+        n_atoms, n_replicas, use_scratch,
+        calc_mb, jat_flush_every, mode=mode,
     )
 
     vm = psutil.virtual_memory()
@@ -222,15 +203,26 @@ def cap_workers(requested_workers, n_atoms, n_replicas, use_scratch,
     usable_mb = available_mb * (1 - headroom)
 
     safe_workers = max(1, math.floor((usable_mb - PARENT_RESERVE_MB) / estimate_mb))
-    safe_workers = min(safe_workers, requested_workers)
 
-    warning_msg = None
-    if safe_workers < requested_workers:
-        warning_msg = (
-            f'Memory safety: reducing n_workers from {requested_workers} to {safe_workers}. '
-            f'Estimated {estimate_mb:.0f} MB per worker; '
+    if requested_workers is None:
+        auto = min(os.cpu_count() or 1, safe_workers)
+        logging.info(
+            f'Auto-selecting n_workers={auto} '
+            f'(memory-safe cap={safe_workers}, cpu_count={os.cpu_count() or 1}). '
+            f'n_atoms={n_atoms}, n_replicas={n_replicas}, mode={mode}; '
+            f'est. {estimate_mb:.0f} MB/worker; '
+            f'{usable_mb:.0f} MB usable of {total_mb:.0f} MB total.'
+        )
+        return auto
+
+    if requested_workers > safe_workers:
+        raise MemoryError(
+            f'Requested n_workers={requested_workers} exceeds the memory-safe '
+            f'limit of {safe_workers} for this system. '
+            f'n_atoms={n_atoms}, n_replicas={n_replicas}, mode={mode}; '
+            f'est. {estimate_mb:.0f} MB/worker; '
             f'{usable_mb:.0f} MB usable of {total_mb:.0f} MB total. '
-            f'Set KALDO_SKIP_MEMORY_CHECK=1 to disable this check.'
+            f'Reduce n_workers or set n_workers=None for auto-selection. '
         )
 
-    return safe_workers, estimate_mb, warning_msg
+    return requested_workers

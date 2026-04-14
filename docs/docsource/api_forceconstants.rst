@@ -164,48 +164,22 @@ calculations.
 
 .. _parallelism-and-memory-safety:
 
+*****************************
 Parallelism and Memory Safety
-=============================
+*****************************
 
 Second- and Third-order force constant calculations can run in parallel via the ``n_workers`` argument to
 :py:meth:`ThirdOrder.calculate` (or :py:meth:`SecondOrder.calculate`). kALDo will probe the calculator
-memory once before launching workers and caps ``n_workers`` if the estimated per-worker cost would exhaust RAM.
-This guards against a failure mode where the OS will let all workers start and then collectively exhaust memory through
-silent swap thrashing without triggering the OOM killer. When workers are reduced a ``ResourceWarning`` is emitted.
+memory once before launching workers and if the estimated per-worker cost would exhaust RAM, it crashes with an
+estimate of the maximum number of workers you can launch safely on your hardware. This guards against a failure mode
+where the OS will let all workers start and then collectively exhaust memory through silent swap thrashing without
+triggering the OOM killer.
 
-The maximum number of workers that can be launched is equal to $
+The maximum number of workers that can be launched is equal to :math:`N_{atoms}` - any
 
-The memory check and parallel backend selection can be controlled via environment variables:
-
-.. list-table:: kALDo Environment Variables
-   :widths: 30 15 55
-   :header-rows: 1
-
-   * - Variable
-     - Default
-     - Description
-   * - ``KALDO_SKIP_MEMORY_CHECK``
-     - unset
-     - If set to ``1``, disable the pre-parallel memory probe and worker cap. Workers launch exactly as requested.
-   * - ``KALDO_MAX_WORKERS``
-     - unset
-     - Integer hard cap on ``n_workers``. Bypasses memory probing and estimation entirely. Use when you already
-       know your memory budget.
-   * - ``KALDO_MEMORY_HEADROOM``
-     - ``0.10``
-     - Float in ``[0, 1]``. Fraction of total RAM reserved for the OS and other processes. The remainder is
-       treated as usable for kALDo workers.
-   * - ``KALDO_PARALLEL_BACKEND``
-     - unset
-     - Override the multiprocessing backend. Valid values: ``serial``, ``process``, ``mpi``.
-
-Example — disable the memory check and run with as many workers as the script requests::
-
-    KALDO_SKIP_MEMORY_CHECK=1 python run_thirdorder.py
-
-Example — hard-cap workers to 8 regardless of what the script requests::
-
-    KALDO_MAX_WORKERS=8 python run_thirdorder.py
+By default, kALDo tries to reserve 5% of memory as a safety-net in case our estimation was off. You can adjust this
+with the environment variable ``KALDO_PARALLEL_BACKEND`` - a float in ``[0, 1]`` which represents the fraction of total
+RAM detected at runtime. The remainder is treated as usable for kALDo workers.
 
 .. _loading IFCs:
 
