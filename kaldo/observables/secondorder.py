@@ -315,7 +315,8 @@ class SecondOrder(ForceConstant):
         n_workers : int or None, optional
             Number of worker processes used for the displaced-atom finite-
             difference tasks. ``1`` runs serially, ``None`` uses all available
-            workers.
+            workers. If n_workers > n_atoms, n_workers - n_atoms processes
+            will launch, but do no work.
             Default: 1
         scratch_dir : str or None, optional
             Optional scratch directory for atom-by-atom intermediate files used
@@ -324,6 +325,17 @@ class SecondOrder(ForceConstant):
         keep_scratch : bool, optional
             If True, keep scratch files after successful assembly.
             Default: False
+
+        Notes
+        -----
+        Memory safety: when ``n_workers > 1``, kaldo probes the calculator
+        once and caps workers if the estimated per-worker memory exceeds
+        available RAM. Override via environment variables:
+        ``KALDO_SKIP_MEMORY_CHECK=1`` disables the check,
+        ``KALDO_MAX_WORKERS=N`` applies a hard cap, and
+        ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
+        (default 0.10). Use ``KALDO_PARALLEL_BACKEND=serial|process|mpi``
+        to override the multiprocessing backend selection.
         """
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms

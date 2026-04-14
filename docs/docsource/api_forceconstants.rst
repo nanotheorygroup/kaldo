@@ -162,6 +162,25 @@ calculations.
    the bottleneck is the I/O of data back to python. This is part of the reason our examples use the python wrapper,
    which offers more flexibility without losing access to the full LAMMPS functionality.
 
+.. _parallelism-and-memory-safety:
+
+*****************************
+Parallelism and Memory Safety
+*****************************
+
+Second- and Third-order force constant calculations can run in parallel via the ``n_workers`` argument to
+:py:meth:`ThirdOrder.calculate` (or :py:meth:`SecondOrder.calculate`). kALDo will probe the calculator
+memory once before launching workers and if the estimated per-worker cost would exhaust RAM, it crashes with an
+estimate of the maximum number of workers you can launch safely on your hardware. This guards against a failure mode
+where the OS will let all workers start and then collectively exhaust memory through silent swap thrashing without
+triggering the OOM killer.
+
+The maximum number of workers that can be launched is equal to :math:`N_{atoms}` - any
+
+By default, kALDo tries to reserve 5% of memory as a safety-net in case our estimation was off. You can adjust this
+with the environment variable ``KALDO_PARALLEL_BACKEND`` - a float in ``[0, 1]`` which represents the fraction of total
+RAM detected at runtime. The remainder is treated as usable for kALDo workers.
+
 .. _loading IFCs:
 
 **************************
@@ -177,13 +196,9 @@ ForceConstants object and then use the :py:meth:`load` method of the SecondOrder
 needed.
 
 .. hint::
-   If you just want to check harmonic data first, use the "is_harmonic" argument when creating the ForceConstants object
-   to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just need to
-   generate a phonon dispersion along a new path.
-
-
-.. hint::
-   TDEP with kaldo will only work for bulk materials (3D) materials
+   If you just want to check harmonic data first, use the ``only_second`` argument when running the :py:meth:`from_folder`
+   command to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just
+   need to generate a phonon dispersion along a new path.
 
 
 .. _input-files:
@@ -241,7 +256,7 @@ Input Files and Formats
      - xyz
      - model2.fcs
      - model3.fcs
-   * - tdep
+   * - tdep [#f3]_
      - POSCAR/UCPOSCAR/SSPOSCAR
      - xyz
      - second.npy
@@ -254,6 +269,7 @@ Input Files and Formats
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
 .. [#f2] ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
          use the ``kaldo.interfaces.shegbte_io.import_control_file`` method.
+.. [#f3] TDEP with kaldo will only work for bulk materials (3D) materials
 
 .. _forceconstants-api:
 
@@ -293,8 +309,8 @@ ThirdOrder
 ----------
 
 The anharmonic companion object is usually accessed as ``ForceConstants.third``. Direct use
-is most helpful when you need to load third-order data from a specific format or
-when launching the finite-difference calculation.
+is most helpful when you need to load third-order data from a specific format or when launching
+the finite-difference calculation.
 
 .. currentmodule:: kaldo.observables.thirdorder
 

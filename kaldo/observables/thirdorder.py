@@ -98,7 +98,8 @@ class ThirdOrder(ForceConstant):
                               pbc=[1, 1, 1])
 
                 _third_order = COO.from_scipy_sparse(load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))) \
-                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)) \
+                    .astype(np.float64)
                 third_order = ThirdOrder(atoms=atoms,
                                          replicated_positions=replicated_atoms.positions,
                                          supercell=supercell,
@@ -288,7 +289,8 @@ class ThirdOrder(ForceConstant):
             If None, replicated_atoms must already have a calculator attached.
         n_workers : int or None
             Number of parallel worker processes. ``1`` runs serially.
-            ``None`` uses all available CPUs.
+            ``None`` uses all available CPUs. If n_workers > n_atoms,
+            n_workers - n_atoms processes will launch, but do no work.
             Default: 1 (serial)
         scratch_dir : str or None
             Directory for scratch chunk files written during calculation to keep
@@ -302,6 +304,11 @@ class ThirdOrder(ForceConstant):
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
+
+        Notes
+        -----
+        Memory safety: when ``n_workers > 1``, kaldo probes the calculator
+        once and crashes if the estimated per-worker memory exceeds available RAM.
         """
         if calculator is None:
             raise ValueError("Provide a calculator")

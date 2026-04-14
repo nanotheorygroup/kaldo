@@ -4,10 +4,10 @@ import os
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
+from kaldo.parallel.memory import resolve_n_workers
 from kaldo.parallel import get_executor
 from sparse import COO
 logging = get_logger()
-
 
 
 def list_of_replicas(atoms, replicated_atoms):
@@ -56,7 +56,14 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
-    using central difference formula
+    using central difference formula.
+
+    Memory safety: when ``n_workers > 1``, kaldo probes the calculator once
+    and crashes if the estimated per-worker memory times the requested worker count
+    would exceed available RAM. When ``n_workers=None``, kaldo auto-selects the
+    largest safe value (bounded by ``cpu_count``) and logs the choice.
+    ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
+    (default 0.05 = 5% of RAM).
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
@@ -80,7 +87,17 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     else:
         second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
         atoms_to_compute = list(range(n_atoms))
-    use_parallel = n_workers is None or n_workers > 1
+
+    # Crash if n_workers if going to result in memory-thrashing
+    n_workers = resolve_n_workers(
+        n_workers, n_atoms, n_replicas, use_scratch,
+        calculator, replicated_atoms, mode='second',
+    )
+    if n_workers > len(atoms_to_compute):
+        logging.info(f'{n_workers=} is reduced to {len(atoms_to_compute)} to prevent idle threads')
+        n_workers = n_atoms
+
+    use_parallel = n_workers > 1
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
 
@@ -179,8 +196,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     	the cutoff (in units of Angstrom)
     n_workers : int or None
         Number of parallel worker processes. ``1`` runs serially (default).
-        ``None`` uses all available CPUs. Values > 1 launch that many workers
-        via ``concurrent.futures.ProcessPoolExecutor``.
+        ``None`` asks kaldo to auto-select the largest memory-safe value
+        (logged at INFO so you can see what was chosen). Values > 1 launch
+        that many workers via ``concurrent.futures.ProcessPoolExecutor``;
     calculator : callable or ASE Calculator instance or None
         Either an ASE calculator class or an already-constructed instance.
         When running in parallel (``n_workers > 1``), pass a class so each
@@ -203,6 +221,15 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     jat_flush_every : int
         Number of jat iterations to buffer before flushing to disk. Only used
         when ``scratch_dir`` is set. Default 50.
+
+    Notes
+    -----
+    Memory safety: when ``n_workers > 1``, kaldo probes the calculator once
+    and crashes if the estimated per-worker memory times the requested worker count
+    would exceed available RAM. When ``n_workers=None``, kaldo auto-selects the
+    largest safe value (bounded by ``cpu_count``) and logs the choice.
+    ``KALDO_MEMORY_HEADROOM=<float>`` adjusts the OS reserve fraction
+    (default 0.05 = 5% of RAM).
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
@@ -225,7 +252,13 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_done = 0
     n_forces_skipped = 0
 
-    use_parallel = n_workers is None or n_workers > 1
+    n_workers = resolve_n_workers(
+        n_workers, n_atoms, n_replicas, use_scratch,
+        calculator, replicated_atoms,
+        jat_flush_every=jat_flush_every, mode='third',
+    )
+
+    use_parallel = n_workers > 1
 
     # Determine which atoms need computing (resume support via scratch sentinels)
     if use_scratch:
@@ -237,6 +270,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     else:
         atoms_to_compute = list(range(n_atoms))
 
+    if n_workers > len(atoms_to_compute):
+        logging.info(f'{n_workers=} is reduced to {len(atoms_to_compute)} to prevent idle threads')
+        n_workers = n_atoms
     # Select backend: 'process' for parallel, 'serial' for single-threaded
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
