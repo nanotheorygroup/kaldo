@@ -88,6 +88,10 @@ def _make_gpu_process_pool(n_workers, gpu_ids, **kwargs):
     This is critical: forked workers inherit parent CUDA state, and setting
     CUDA_VISIBLE_DEVICES after CUDA is initialized is a silent no-op.
     """
+    logging.info(
+        f"Created GPU-pinned process pool: {n_workers} workers, "
+        f"gpu_ids={list(gpu_ids)}"
+    )
     ctx = multiprocessing.get_context('spawn')
     queue = ctx.Queue()
     for gpu_id in gpu_ids:

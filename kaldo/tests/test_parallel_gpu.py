@@ -136,3 +136,14 @@ def test_worker_four_gpus_distinct():
     with get_executor(backend='process', gpu_ids=[0, 1, 2, 3]) as exe:
         results = list(exe.map(_return_cuda_visible_devices, range(40)))
     assert set(results) == {'0', '1', '2', '3'}
+
+
+def test_gpu_pool_logs_info(caplog):
+    import logging as std_logging
+    with caplog.at_level(std_logging.INFO):
+        exe = get_executor(backend='process', gpu_ids=[0, 1])
+        exe.shutdown(wait=True)
+    assert any(
+        'GPU-pinned process pool' in rec.message and 'gpu_ids=[0, 1]' in rec.message
+        for rec in caplog.records
+    ), f"Expected log line not found. Records: {[r.message for r in caplog.records]}"
