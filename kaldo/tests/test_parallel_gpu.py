@@ -201,3 +201,12 @@ def test_secondorder_calculate_accepts_gpu_ids():
     sig = inspect.signature(SecondOrder.calculate)
     assert 'gpu_ids' in sig.parameters
     assert sig.parameters['gpu_ids'].default is None
+
+
+def test_thirdorder_calculate_accepts_gpu_ids():
+    """ThirdOrder.calculate exposes gpu_ids and forwards it to calculate_third."""
+    import inspect
+    from kaldo.observables.thirdorder import ThirdOrder
+    sig = inspect.signature(ThirdOrder.calculate)
+    assert 'gpu_ids' in sig.parameters
+    assert sig.parameters['gpu_ids'].default is None

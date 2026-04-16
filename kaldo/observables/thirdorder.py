@@ -268,7 +268,7 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, gpu_ids=None):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -325,6 +325,12 @@ class ThirdOrder(ForceConstant):
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
+        gpu_ids : list of int or None
+            If provided, pin each worker process to exactly one GPU ID via
+            CUDA_VISIBLE_DEVICES. Requires ``n_workers >= 1`` with a process
+            backend; ``len(gpu_ids)`` must equal ``n_workers`` (or
+            ``n_workers`` may be omitted to default to ``len(gpu_ids)``).
+            Default: None (CPU workers).
         """
         if calculator is None:
             raise ValueError("Provide a calculator")
@@ -350,7 +356,8 @@ class ThirdOrder(ForceConstant):
                                              calculator=calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
-                                             jat_flush_every=jat_flush_every)
+                                             jat_flush_every=jat_flush_every,
+                                             gpu_ids=gpu_ids)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -365,7 +372,8 @@ class ThirdOrder(ForceConstant):
                                          calculator=calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
-                                         jat_flush_every=jat_flush_every)
+                                         jat_flush_every=jat_flush_every,
+                                         gpu_ids=gpu_ids)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
