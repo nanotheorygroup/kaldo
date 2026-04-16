@@ -108,33 +108,42 @@ def test_nworkers_mismatch_rejected():
 
 
 # Module-level function so ProcessPoolExecutor can pickle it.
-def _return_cuda_visible_devices(_):
-    # Small sleep forces the pool to spawn all workers rather than reusing
-    # a single fast worker for every task.
-    import time
-    time.sleep(0.05)
+# A Barrier blocks each worker until all n_workers have arrived, guaranteeing
+# every worker spawns (and thus runs the GPU-pinning initializer) before any
+# result comes back. Deterministic — no sleeps, no queue-ordering flakes.
+def _barrier_wait_and_return_cuda(barrier):
+    barrier.wait(timeout=10)
     return os.environ.get('CUDA_VISIBLE_DEVICES')
 
 
 def test_worker_receives_cuda_visible_devices():
     """Each worker must see a distinct CUDA_VISIBLE_DEVICES.
 
-    Submits many tasks to ensure every worker processes at least one. The
-    returned set must equal the provided gpu_ids (as strings). Repeated to
-    catch queue-ordering flakes.
+    Submits exactly n_workers tasks, each blocking on a Barrier(n_workers).
+    All workers must run concurrently (otherwise the barrier deadlocks), so
+    every worker is guaranteed to execute the GPU-pinning initializer.
     """
-    for _ in range(5):
+    import multiprocessing
+    with multiprocessing.Manager() as manager:
+        barrier = manager.Barrier(2)
         with get_executor(backend='process', gpu_ids=[7, 42]) as exe:
-            results = list(exe.map(_return_cuda_visible_devices, range(20)))
-        assert set(results) == {'7', '42'}, (
-            f"Expected {{'7', '42'}}, got {set(results)} (raw: {results})"
-        )
+            futures = [exe.submit(_barrier_wait_and_return_cuda, barrier)
+                       for _ in range(2)]
+            results = [f.result() for f in futures]
+    assert set(results) == {'7', '42'}, (
+        f"Expected {{'7', '42'}}, got {set(results)} (raw: {results})"
+    )
 
 
 def test_worker_four_gpus_distinct():
     """Four workers must each pin a distinct GPU ID."""
-    with get_executor(backend='process', gpu_ids=[0, 1, 2, 3]) as exe:
-        results = list(exe.map(_return_cuda_visible_devices, range(40)))
+    import multiprocessing
+    with multiprocessing.Manager() as manager:
+        barrier = manager.Barrier(4)
+        with get_executor(backend='process', gpu_ids=[0, 1, 2, 3]) as exe:
+            futures = [exe.submit(_barrier_wait_and_return_cuda, barrier)
+                       for _ in range(4)]
+            results = [f.result() for f in futures]
     assert set(results) == {'0', '1', '2', '3'}
 
 
@@ -194,19 +203,54 @@ def test_calculate_third_accepts_gpu_ids(_al_fixture, tmp_path):
     np.testing.assert_allclose(parallel.todense(), serial.todense(), rtol=1e-7, atol=1e-9)
 
 
-def test_secondorder_calculate_accepts_gpu_ids():
-    """SecondOrder.calculate exposes gpu_ids and forwards it to calculate_second."""
-    import inspect
+def test_secondorder_calculate_forwards_gpu_ids(tmp_path):
+    """SecondOrder.calculate must pass gpu_ids through to calculate_second.
+
+    A pure signature check is insufficient: a copy/paste slip at either of
+    the two call sites in the try/except would go undetected. Patch the
+    imported callable and assert on the recorded kwargs.
+    """
+    import numpy as np
+    from ase.build import bulk
+    from ase.calculators.emt import EMT
+    from unittest.mock import patch
     from kaldo.observables.secondorder import SecondOrder
-    sig = inspect.signature(SecondOrder.calculate)
-    assert 'gpu_ids' in sig.parameters
-    assert sig.parameters['gpu_ids'].default is None
+
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    ifc = SecondOrder.from_supercell(
+        atoms=atoms, supercell=(1, 1, 2), grid_type='C',
+        folder=str(tmp_path / 'kALDo'),
+    )
+    n_atoms = len(atoms.numbers)
+    n_replicated = n_atoms * 2
+    fake_second = np.zeros((n_atoms, 3, n_replicated * 3))
+
+    with patch('kaldo.observables.secondorder.calculate_second',
+               return_value=fake_second) as mock_cs:
+        ifc.calculate(calculator=EMT, n_workers=2, gpu_ids=[0, 1],
+                      is_storing=False)
+
+    mock_cs.assert_called_once()
+    assert mock_cs.call_args.kwargs.get('gpu_ids') == [0, 1]
 
 
-def test_thirdorder_calculate_accepts_gpu_ids():
-    """ThirdOrder.calculate exposes gpu_ids and forwards it to calculate_third."""
-    import inspect
+def test_thirdorder_calculate_forwards_gpu_ids(tmp_path):
+    """ThirdOrder.calculate must pass gpu_ids through to calculate_third."""
+    from ase.build import bulk
+    from ase.calculators.emt import EMT
+    from unittest.mock import patch, MagicMock
     from kaldo.observables.thirdorder import ThirdOrder
-    sig = inspect.signature(ThirdOrder.calculate)
-    assert 'gpu_ids' in sig.parameters
-    assert sig.parameters['gpu_ids'].default is None
+
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    ifc = ThirdOrder.from_supercell(
+        atoms=atoms, supercell=(1, 1, 2), grid_type='C',
+        folder=str(tmp_path / 'kALDo'),
+    )
+
+    with patch('kaldo.observables.thirdorder.calculate_third',
+               return_value=MagicMock()) as mock_ct:
+        ifc.calculate(calculator=EMT, n_workers=2, gpu_ids=[0, 1],
+                      is_storing=False)
+
+    mock_ct.assert_called_once()
+    assert mock_ct.call_args.kwargs.get('gpu_ids') == [0, 1]
