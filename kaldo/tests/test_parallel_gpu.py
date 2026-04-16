@@ -178,3 +178,17 @@ def test_calculate_second_accepts_gpu_ids(_al_fixture):
                                 n_workers=2, calculator=EMT,
                                 gpu_ids=[0, 1])
     np.testing.assert_allclose(parallel, serial, rtol=1e-7, atol=1e-9)
+
+
+def test_calculate_third_accepts_gpu_ids(_al_fixture, tmp_path):
+    import numpy as np
+    from ase.calculators.emt import EMT
+    from kaldo.controllers.displacement import calculate_third
+
+    atoms, replicated_atoms = _al_fixture
+    serial = calculate_third(atoms, replicated_atoms, 1e-5,
+                             n_workers=1, calculator=EMT())
+    parallel = calculate_third(atoms, replicated_atoms, 1e-5,
+                               n_workers=2, calculator=EMT,
+                               gpu_ids=[0, 1])
+    np.testing.assert_allclose(parallel.todense(), serial.todense(), rtol=1e-7, atol=1e-9)

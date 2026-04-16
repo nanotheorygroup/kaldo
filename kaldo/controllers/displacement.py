@@ -176,7 +176,7 @@ def _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep
 
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
                     n_workers=1, calculator=None, scratch_dir=None, keep_scratch=False,
-                    jat_flush_every=50):
+                    jat_flush_every=50, gpu_ids=None):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -267,7 +267,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         jat_flush_every=jat_flush_every,
     )
 
-    with get_executor(backend=backend, n_workers=executor_workers) as executor:
+    with get_executor(backend=backend, n_workers=executor_workers, gpu_ids=gpu_ids) as executor:
         futures = {
             executor.submit(worker_fn, iat, atoms, replicated_atoms,
                            third_order_delta, distance_threshold, is_verbose): iat
