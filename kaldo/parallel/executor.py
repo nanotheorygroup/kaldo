@@ -133,6 +133,13 @@ def get_executor(backend='process', n_workers=None, gpu_ids=None, **kwargs):
                 raise ValueError(
                     "gpu_ids must be non-empty when specified for process backend"
                 )
+            if n_workers is None:
+                n_workers = len(gpu_ids)
+            elif n_workers != len(gpu_ids):
+                raise ValueError(
+                    f"n_workers ({n_workers}) must equal len(gpu_ids) "
+                    f"({len(gpu_ids)}) when both are given"
+                )
         return ProcessPoolExecutor(max_workers=n_workers, **kwargs)
 
     elif backend == 'mpi':

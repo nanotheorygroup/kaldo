@@ -84,3 +84,24 @@ def test_serial_single_gpu_warns_when_tensorflow_imported(monkeypatch):
     monkeypatch.setitem(sys.modules, 'tensorflow', object())
     with pytest.warns(RuntimeWarning, match="may be too late"):
         get_executor(backend='serial', gpu_ids=[2])
+
+
+def test_nworkers_defaults_to_gpu_count():
+    exe = get_executor(backend='process', gpu_ids=[0, 1, 2])
+    try:
+        assert exe._max_workers == 3
+    finally:
+        exe.shutdown(wait=True)
+
+
+def test_nworkers_matches_gpu_count_explicit():
+    exe = get_executor(backend='process', n_workers=2, gpu_ids=[0, 1])
+    try:
+        assert exe._max_workers == 2
+    finally:
+        exe.shutdown(wait=True)
+
+
+def test_nworkers_mismatch_rejected():
+    with pytest.raises(ValueError, match="n_workers .* must equal len"):
+        get_executor(backend='process', n_workers=4, gpu_ids=[0, 1])
