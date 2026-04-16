@@ -68,7 +68,7 @@ def _validate_calculator(calculator, picklable=False):
 
 
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
-                     scratch_dir=None, keep_scratch=False):
+                     scratch_dir=None, keep_scratch=False, gpu_ids=None):
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
@@ -106,7 +106,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
         scratch_dir=scratch_dir,
     )
 
-    with get_executor(backend=backend, n_workers=executor_workers) as executor:
+    with get_executor(backend=backend, n_workers=executor_workers, gpu_ids=gpu_ids) as executor:
         futures = {
             executor.submit(worker_fn, i, replicated_atoms, second_order_delta): i
             for i in atoms_to_compute

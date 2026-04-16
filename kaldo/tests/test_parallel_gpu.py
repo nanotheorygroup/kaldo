@@ -147,3 +147,34 @@ def test_gpu_pool_logs_info(caplog):
         'GPU-pinned process pool' in rec.message and 'gpu_ids=[0, 1]' in rec.message
         for rec in caplog.records
     ), f"Expected log line not found. Records: {[r.message for r in caplog.records]}"
+
+
+# Fixture and helper live at module scope so ProcessPoolExecutor can pickle.
+@pytest.fixture(scope="module")
+def _al_fixture():
+    from ase.build import bulk
+    from ase.calculators.emt import EMT
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    replicated_atoms = atoms.repeat((1, 1, 2))
+    replicated_atoms.calc = EMT()
+    return atoms, replicated_atoms
+
+
+def test_calculate_second_accepts_gpu_ids(_al_fixture):
+    """calculate_second with gpu_ids=[0, 1] + EMT runs and matches serial.
+
+    EMT doesn't care about CUDA_VISIBLE_DEVICES, but the plumbing path must
+    still work end-to-end: the gpu_ids parameter is accepted, forwarded to
+    get_executor, and workers spawn with the env var set.
+    """
+    import numpy as np
+    from ase.calculators.emt import EMT
+    from kaldo.controllers.displacement import calculate_second
+
+    atoms, replicated_atoms = _al_fixture
+    serial = calculate_second(atoms, replicated_atoms, 1e-5,
+                              n_workers=1, calculator=EMT())
+    parallel = calculate_second(atoms, replicated_atoms, 1e-5,
+                                n_workers=2, calculator=EMT,
+                                gpu_ids=[0, 1])
+    np.testing.assert_allclose(parallel, serial, rtol=1e-7, atol=1e-9)
