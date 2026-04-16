@@ -47,3 +47,40 @@ def test_mpi_rejects_gpu_ids():
 def test_mpi_rejects_empty_gpu_ids():
     with pytest.raises(NotImplementedError, match="gpu_ids is not supported"):
         get_executor(backend='mpi', gpu_ids=[])
+
+
+def test_serial_multi_gpu_rejected():
+    with pytest.raises(ValueError, match="at most one GPU"):
+        get_executor(backend='serial', gpu_ids=[0, 1])
+
+
+def test_serial_empty_gpu_ids_is_noop(monkeypatch):
+    # Remove CUDA_VISIBLE_DEVICES if present, assert it stays removed.
+    monkeypatch.delenv('CUDA_VISIBLE_DEVICES', raising=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')  # any warning becomes an exception
+        get_executor(backend='serial', gpu_ids=[])
+    assert 'CUDA_VISIBLE_DEVICES' not in os.environ
+
+
+def test_serial_single_gpu_sets_env_var(monkeypatch):
+    monkeypatch.delenv('CUDA_VISIBLE_DEVICES', raising=False)
+    # Ensure torch/tensorflow aren't in sys.modules so we don't warn.
+    monkeypatch.delitem(sys.modules, 'torch', raising=False)
+    monkeypatch.delitem(sys.modules, 'tensorflow', raising=False)
+    get_executor(backend='serial', gpu_ids=[3])
+    assert os.environ['CUDA_VISIBLE_DEVICES'] == '3'
+
+
+def test_serial_single_gpu_warns_when_torch_imported(monkeypatch):
+    monkeypatch.delenv('CUDA_VISIBLE_DEVICES', raising=False)
+    monkeypatch.setitem(sys.modules, 'torch', object())
+    with pytest.warns(RuntimeWarning, match="may be too late"):
+        get_executor(backend='serial', gpu_ids=[2])
+
+
+def test_serial_single_gpu_warns_when_tensorflow_imported(monkeypatch):
+    monkeypatch.delenv('CUDA_VISIBLE_DEVICES', raising=False)
+    monkeypatch.setitem(sys.modules, 'tensorflow', object())
+    with pytest.warns(RuntimeWarning, match="may be too late"):
+        get_executor(backend='serial', gpu_ids=[2])

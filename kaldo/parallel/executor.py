@@ -103,6 +103,28 @@ def get_executor(backend='process', n_workers=None, gpu_ids=None, **kwargs):
     _validate_gpu_ids(gpu_ids)
 
     if backend == 'serial':
+        if gpu_ids is not None:
+            if len(gpu_ids) > 1:
+                raise ValueError(
+                    f"serial backend can use at most one GPU; got "
+                    f"{len(gpu_ids)}. Use backend='process' for multi-GPU "
+                    "parallelism."
+                )
+            if len(gpu_ids) == 1:
+                gpu_id = gpu_ids[0]
+                if 'torch' in sys.modules or 'tensorflow' in sys.modules:
+                    warnings.warn(
+                        "Setting CUDA_VISIBLE_DEVICES after torch/tensorflow "
+                        "has been imported may be too late: the CUDA runtime "
+                        "is already initialized and env-var changes are "
+                        "silently ignored. For reliable serial GPU pinning, "
+                        "export CUDA_VISIBLE_DEVICES in your shell before "
+                        "starting Python.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
+                os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+            # len(gpu_ids) == 0: explicit "no GPU"; no-op
         return SerialExecutor()
 
     elif backend == 'process':
