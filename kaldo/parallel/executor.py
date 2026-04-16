@@ -114,6 +114,13 @@ def get_executor(backend='process', n_workers=None, gpu_ids=None, **kwargs):
         return ProcessPoolExecutor(max_workers=n_workers, **kwargs)
 
     elif backend == 'mpi':
+        if gpu_ids is not None:
+            raise NotImplementedError(
+                "gpu_ids is not supported with backend='mpi'. MPI launchers "
+                "own GPU binding on HPC clusters; use your launcher's flags "
+                "(e.g. `srun --gpus-per-task=1` or `mpirun --map-by ppr:1:gpu`) "
+                "instead."
+            )
         try:
             from mpi4py.futures import MPIPoolExecutor
         except ImportError:

@@ -37,3 +37,13 @@ def test_gpu_ids_validates_negative():
 def test_process_empty_gpu_ids_rejected():
     with pytest.raises(ValueError, match="non-empty"):
         get_executor(backend='process', gpu_ids=[])
+
+
+def test_mpi_rejects_gpu_ids():
+    with pytest.raises(NotImplementedError, match="gpu_ids is not supported"):
+        get_executor(backend='mpi', gpu_ids=[0])
+
+
+def test_mpi_rejects_empty_gpu_ids():
+    with pytest.raises(NotImplementedError, match="gpu_ids is not supported"):
+        get_executor(backend='mpi', gpu_ids=[])
