@@ -19,6 +19,26 @@ It drops into `calculate_second` / `calculate_third`'s existing
 Best practice is to fit all your arguments into the kwarg dictionary,
 but if you know the argument order exactly you can put them in the args
 list.
+
+GPU parallelization
+-------------------
+Combine with ``gpu_ids`` on the calculate call to pin each worker to a
+distinct GPU. ``CUDA_VISIBLE_DEVICES`` is set in each worker before the
+calculator is constructed, so ``device='cuda'`` binds correctly::
+
+    from kaldo.parallel import CalculatorFactory
+    from mace.calculators import MACECalculator
+
+    calculator = CalculatorFactory(
+        MACECalculator,
+        kwargs={'model_paths': 'model.pt', 'device': 'cuda'},
+        validate=False,  # defer GPU allocation to workers
+    )
+    second_order.calculate(
+        calculator=calculator,
+        n_workers=4,
+        gpu_ids=[0, 1, 2, 3],
+    )
 """
 
 
