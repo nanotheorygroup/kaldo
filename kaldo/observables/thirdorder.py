@@ -278,7 +278,7 @@ class ThirdOrder(ForceConstant):
 
         Parameters
         ----------
-        calculator : ASE Calculator instance, zero-arg factory, or functools.partial
+        calculator : ASE Calculator instance, zero-arg factory, or CalculatorFactory
             One of three forms is accepted:
 
             1. A pure-Python ASE ``Calculator`` instance (e.g. ``LennardJones()``).
@@ -293,21 +293,22 @@ class ThirdOrder(ForceConstant):
 
                Each worker invokes the factory locally to obtain its own
                instance, which sidesteps pickling entirely.
-            3. A ``functools.partial`` that binds the constructor arguments of
-               a file-based or C++-backed calculator. This is the recommended
-               pattern for calculators like PyNEP whose instances cannot be
-               pickled::
+            3. A ``CalculatorFactory`` that binds constructor arguments of a
+               file-based or C++-backed calculator. Recommended for calculators
+               like PyNEP whose instances cannot be pickled::
 
-                   from functools import partial
+                   from kaldo.parallel import CalculatorFactory
                    from pynep.calculate import NEP
-                   calculator=partial(NEP, 'nep.txt')
+                   calculator=CalculatorFactory(NEP, args=('nep.txt',))
 
-               The partial itself is picklable (it references the class by
-               import path plus the stored args), so each worker rebuilds a
-               fresh ``NEP('nep.txt')`` in its own process.
+               The factory is picklable, so each worker rebuilds a fresh
+               ``NEP('nep.txt')`` in its own process. Pass ``validate=False``
+               to defer construction to workers when the calculator is slow
+               to initialize or allocates GPU resources. ``functools.partial``
+               also works and is retained for backward compatibility.
 
-            When running with ``n_workers > 1``, prefer forms 2 or 3 unless you
-            are certain the instance is picklable.
+            When running with ``n_workers > 1``, prefer forms 2 or 3 unless
+            you are certain the instance is picklable.
         n_workers : int or None
             Number of parallel worker processes. ``1`` runs serially.
             ``None`` uses all available CPUs.

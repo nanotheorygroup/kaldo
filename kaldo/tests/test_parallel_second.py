@@ -12,6 +12,7 @@ import pytest
 from ase.build import bulk
 from ase.calculators.emt import EMT
 from kaldo.controllers.displacement import calculate_second
+from kaldo.parallel import CalculatorFactory
 
 
 @pytest.fixture(scope="module")
@@ -53,6 +54,26 @@ def test_parallel_matches_serial(al_atoms, serial_result):
         rtol=1e-7,
         atol=1e-9,
         err_msg="Parallel second order calculation results differ from serial.",
+    )
+
+
+def test_factory_matches_serial(al_atoms, serial_result):
+    """CalculatorFactory must produce the same tensor as a pre-built EMT."""
+    atoms, _ = al_atoms
+    replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
+    result_factory = calculate_second(
+        atoms,
+        replicated_atoms_no_calc,
+        1e-5,
+        n_workers=2,
+        calculator=CalculatorFactory(EMT),
+    )
+    np.testing.assert_allclose(
+        serial_result,
+        result_factory,
+        rtol=1e-7,
+        atol=1e-9,
+        err_msg="CalculatorFactory-based second order differs from serial.",
     )
 
 

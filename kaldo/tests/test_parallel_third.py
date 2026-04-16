@@ -12,6 +12,7 @@ import pytest
 from ase.build import bulk
 from ase.calculators.emt import EMT
 from kaldo.controllers.displacement import calculate_third
+from kaldo.parallel import CalculatorFactory
 
 
 
@@ -51,6 +52,23 @@ def test_parallel_matches_serial(al_atoms, serial_result):
         result_parallel.todense(),
         rtol=1e-7,
         err_msg="Parallel third order calculation results differ from serial.",
+    )
+
+
+def test_factory_matches_serial(al_atoms, serial_result):
+    """CalculatorFactory must produce the same tensor as a pre-built EMT."""
+    atoms, _ = al_atoms
+    replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
+    result_factory = calculate_third(
+        atoms, replicated_atoms_no_calc, 1e-5,
+        n_workers=2,
+        calculator=CalculatorFactory(EMT),
+    )
+    np.testing.assert_allclose(
+        serial_result.todense(),
+        result_factory.todense(),
+        rtol=1e-7,
+        err_msg="CalculatorFactory-based third order differs from serial.",
     )
 
 

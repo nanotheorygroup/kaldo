@@ -181,13 +181,17 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         Number of parallel worker processes. ``1`` runs serially (default).
         ``None`` uses all available CPUs. Values > 1 launch that many workers
         via ``concurrent.futures.ProcessPoolExecutor``.
-    calculator : callable or ASE Calculator instance or None
-        Either an ASE calculator class or an already-constructed instance.
-        When running in parallel (``n_workers > 1``), pass a class so each
-        worker can create its own instance::
+    calculator : callable or ASE Calculator instance or CalculatorFactory
+        Either an ASE calculator class, a ``CalculatorFactory``, a
+        ``functools.partial``, or an already-constructed instance. When
+        running in parallel (``n_workers > 1``), pass a class or factory so
+        each worker can create its own instance::
 
             from ase.calculators.emt import EMT
             calculator=EMT
+
+            from kaldo.parallel import CalculatorFactory
+            calculator=CalculatorFactory(NEP, args=('nep.txt',))
 
         If None, replicated_atoms must already have a calculator attached.
     scratch_dir : str or None

@@ -15,5 +15,6 @@ Usage::
 """
 
 from kaldo.parallel.executor import get_executor, SerialExecutor
+from kaldo.parallel.calculator import CalculatorFactory
 
-__all__ = ['get_executor', 'SerialExecutor']
+__all__ = ['get_executor', 'SerialExecutor', 'CalculatorFactory']
