@@ -105,3 +105,34 @@ def test_nworkers_matches_gpu_count_explicit():
 def test_nworkers_mismatch_rejected():
     with pytest.raises(ValueError, match="n_workers .* must equal len"):
         get_executor(backend='process', n_workers=4, gpu_ids=[0, 1])
+
+
+# Module-level function so ProcessPoolExecutor can pickle it.
+def _return_cuda_visible_devices(_):
+    # Small sleep forces the pool to spawn all workers rather than reusing
+    # a single fast worker for every task.
+    import time
+    time.sleep(0.05)
+    return os.environ.get('CUDA_VISIBLE_DEVICES')
+
+
+def test_worker_receives_cuda_visible_devices():
+    """Each worker must see a distinct CUDA_VISIBLE_DEVICES.
+
+    Submits many tasks to ensure every worker processes at least one. The
+    returned set must equal the provided gpu_ids (as strings). Repeated to
+    catch queue-ordering flakes.
+    """
+    for _ in range(5):
+        with get_executor(backend='process', gpu_ids=[7, 42]) as exe:
+            results = list(exe.map(_return_cuda_visible_devices, range(20)))
+        assert set(results) == {'7', '42'}, (
+            f"Expected {{'7', '42'}}, got {set(results)} (raw: {results})"
+        )
+
+
+def test_worker_four_gpus_distinct():
+    """Four workers must each pin a distinct GPU ID."""
+    with get_executor(backend='process', gpu_ids=[0, 1, 2, 3]) as exe:
+        results = list(exe.map(_return_cuda_visible_devices, range(40)))
+    assert set(results) == {'0', '1', '2', '3'}

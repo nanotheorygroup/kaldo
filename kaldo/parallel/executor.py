@@ -68,6 +68,39 @@ def _validate_gpu_ids(gpu_ids):
         )
 
 
+def _gpu_worker_initializer(gpu_id_queue):
+    """Set CUDA_VISIBLE_DEVICES for this worker from a shared queue.
+
+    Runs exactly once per worker process, before any submitted task. Blocks
+    on the queue with a 30s timeout — if the queue is empty (which only
+    happens on bugs, since we pre-fill it with exactly n_workers entries),
+    the worker raises queue.Empty and ProcessPoolExecutor surfaces a
+    BrokenProcessPool on the first task result.
+    """
+    gpu_id = gpu_id_queue.get(block=True, timeout=30)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+
+
+def _make_gpu_process_pool(n_workers, gpu_ids, **kwargs):
+    """Create a ProcessPoolExecutor that pins each worker to one GPU.
+
+    Uses spawn context so workers start with a pristine Python interpreter.
+    This is critical: forked workers inherit parent CUDA state, and setting
+    CUDA_VISIBLE_DEVICES after CUDA is initialized is a silent no-op.
+    """
+    ctx = multiprocessing.get_context('spawn')
+    queue = ctx.Queue()
+    for gpu_id in gpu_ids:
+        queue.put(gpu_id)
+    return ProcessPoolExecutor(
+        max_workers=n_workers,
+        mp_context=ctx,
+        initializer=_gpu_worker_initializer,
+        initargs=(queue,),
+        **kwargs,
+    )
+
+
 def get_executor(backend='process', n_workers=None, gpu_ids=None, **kwargs):
     """Create a parallel executor.
 
@@ -140,6 +173,7 @@ def get_executor(backend='process', n_workers=None, gpu_ids=None, **kwargs):
                     f"n_workers ({n_workers}) must equal len(gpu_ids) "
                     f"({len(gpu_ids)}) when both are given"
                 )
+            return _make_gpu_process_pool(n_workers, list(gpu_ids), **kwargs)
         return ProcessPoolExecutor(max_workers=n_workers, **kwargs)
 
     elif backend == 'mpi':
