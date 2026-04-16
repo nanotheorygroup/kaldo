@@ -192,3 +192,12 @@ def test_calculate_third_accepts_gpu_ids(_al_fixture, tmp_path):
                                n_workers=2, calculator=EMT,
                                gpu_ids=[0, 1])
     np.testing.assert_allclose(parallel.todense(), serial.todense(), rtol=1e-7, atol=1e-9)
+
+
+def test_secondorder_calculate_accepts_gpu_ids():
+    """SecondOrder.calculate exposes gpu_ids and forwards it to calculate_second."""
+    import inspect
+    from kaldo.observables.secondorder import SecondOrder
+    sig = inspect.signature(SecondOrder.calculate)
+    assert 'gpu_ids' in sig.parameters
+    assert sig.parameters['gpu_ids'].default is None

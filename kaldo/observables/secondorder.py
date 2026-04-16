@@ -288,7 +288,7 @@ class SecondOrder(ForceConstant):
             return self._dynmat
 
     def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
-                  scratch_dir=None, keep_scratch=False):
+                  scratch_dir=None, keep_scratch=False, gpu_ids=None):
         """
         Calculate second-order force constants with finite differences.
 
@@ -352,6 +352,12 @@ class SecondOrder(ForceConstant):
         keep_scratch : bool, optional
             If True, keep scratch files after successful assembly.
             Default: False
+        gpu_ids : list of int or None, optional
+            If provided, pin each worker process to exactly one GPU ID via
+            CUDA_VISIBLE_DEVICES. Requires ``n_workers >= 1`` with a process
+            backend; ``len(gpu_ids)`` must equal ``n_workers`` (or
+            ``n_workers`` may be omitted to default to ``len(gpu_ids)``).
+            Default: None (CPU workers).
         """
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
@@ -373,6 +379,7 @@ class SecondOrder(ForceConstant):
                     calculator=calculator,
                     scratch_dir=scratch_dir,
                     keep_scratch=keep_scratch,
+                    gpu_ids=gpu_ids,
                 )
                 self.save("second")
                 self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
@@ -390,6 +397,7 @@ class SecondOrder(ForceConstant):
                 calculator=calculator,
                 scratch_dir=scratch_dir,
                 keep_scratch=keep_scratch,
+                gpu_ids=gpu_ids,
             )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
