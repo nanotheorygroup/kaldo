@@ -1,6 +1,7 @@
 import functools
 import glob
 import os
+import pickle
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
@@ -33,22 +34,37 @@ def calculate_gradient(x, input_atoms):
     return grad
 
 
-def _validate_calculator(calculator):
-    """Raise TypeError if calculator is not a callable or ASE Calculator."""
+def _validate_calculator(calculator, picklable=False):
+    """Raise TypeError if calculator is not a callable or ASE Calculator.
+
+    When ``picklable=True``, also verify that the calculator can be pickled,
+    since parallel execution ships it across process boundaries.
+    """
     if calculator is None:
         return
     if callable(calculator):
-        return
-    try:
-        from ase.calculators.calculator import Calculator
-        if isinstance(calculator, Calculator):
-            return
-    except ImportError:
         pass
-    raise TypeError(
-        f"calculator must be a callable (e.g. EMT) or ASE Calculator instance, "
-        f"got {type(calculator).__name__}"
-    )
+    else:
+        try:
+            from ase.calculators.calculator import Calculator
+            is_ase_calc = isinstance(calculator, Calculator)
+        except ImportError:
+            is_ase_calc = False
+        if not is_ase_calc:
+            raise TypeError(
+                f"calculator must be a callable (e.g. EMT) or ASE Calculator instance, "
+                f"got {type(calculator).__name__}"
+            )
+    if picklable:
+        try:
+            pickle.dumps(calculator)
+        except Exception as e:
+            raise TypeError(
+                f"calculator of type {type(calculator).__name__} is not picklable, "
+                f"which is required for parallel execution. Wrap the class in "
+                f"kaldo.parallel.CalculatorFactory or pass the class itself "
+                f"(not an instance). Underlying error: {e}"
+            ) from e
 
 
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
@@ -60,7 +76,8 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-    _validate_calculator(calculator)
+    use_parallel = n_workers is None or n_workers > 1
+    _validate_calculator(calculator, picklable=use_parallel)
 
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
@@ -80,7 +97,6 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     else:
         second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
         atoms_to_compute = list(range(n_atoms))
-    use_parallel = n_workers is None or n_workers > 1
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
 
@@ -210,7 +226,8 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-    _validate_calculator(calculator)
+    use_parallel = n_workers is None or n_workers > 1
+    _validate_calculator(calculator, picklable=use_parallel)
 
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
@@ -228,8 +245,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_to_calculate = n_replicas * (n_atoms * 3) ** 2
     n_forces_done = 0
     n_forces_skipped = 0
-
-    use_parallel = n_workers is None or n_workers > 1
 
     # Determine which atoms need computing (resume support via scratch sentinels)
     if use_scratch:
@@ -294,10 +309,12 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
 
     Parameters
     ----------
-    calculator : callable or None
-        If provided, called as ``calculator()`` to create a fresh ASE calculator
-        instance that is attached to a copy of replicated_atoms.
-        If None, replicated_atoms must already have a calculator attached.
+    calculator : callable, ASE Calculator instance, or None
+        If a callable (class, CalculatorFactory, or functools.partial), it is
+        called with no arguments to create a fresh ASE calculator instance,
+        which is attached to a copy of replicated_atoms. If an ASE Calculator
+        instance, it is attached to the copy directly. If None,
+        replicated_atoms must already have a calculator attached.
     scratch_dir : str or None
         If provided, results are written directly to ``scratch_dir`` as a series of
         ``iat_NNNNN_chunk_MMMM.npz`` files. A ``iat_NNNNN.done`` sentinel is written

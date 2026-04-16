@@ -355,8 +355,6 @@ class SecondOrder(ForceConstant):
         """
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        if n_workers == 1:
-            replicated_atoms.calc = calculator() if callable(calculator) else calculator
 
         if is_storing:
             try:

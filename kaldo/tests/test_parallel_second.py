@@ -77,6 +77,41 @@ def test_factory_matches_serial(al_atoms, serial_result):
     )
 
 
+def test_parallel_rejects_unpicklable_calculator(al_atoms):
+    """Unpicklable callables must be rejected up-front with a clear TypeError."""
+    atoms, _ = al_atoms
+    replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
+
+    def local_factory():  # nested, not picklable by name
+        return EMT()
+
+    with pytest.raises(TypeError, match="not picklable"):
+        calculate_second(
+            atoms,
+            replicated_atoms_no_calc,
+            1e-5,
+            n_workers=2,
+            calculator=local_factory,
+        )
+
+
+def test_serial_accepts_unpicklable_calculator(al_atoms):
+    """Serial runs don't pickle, so unpicklable callables must still work."""
+    atoms, _ = al_atoms
+    replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
+
+    def local_factory():  # nested, not picklable by name
+        return EMT()
+
+    calculate_second(
+        atoms,
+        replicated_atoms_no_calc,
+        1e-5,
+        n_workers=1,
+        calculator=local_factory,
+    )
+
+
 def test_scratch_matches_serial(al_atoms, serial_result, tmp_path):
     """Scratch-backed second-order assembly must match the serial baseline."""
     atoms, _ = al_atoms
