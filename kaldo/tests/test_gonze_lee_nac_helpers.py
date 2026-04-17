@@ -117,3 +117,19 @@ def test_gonze_recip_real_and_mass_weight_terms_match_nacl_debug_reference():
     np.testing.assert_allclose(
         mass_weighted, np.load(q_dir / "dd_total_mass_weighted.npy"), atol=1e-12, rtol=0.0
     )
+
+
+def test_gonze_short_range_dynamical_matrix_matches_debug_reference():
+    debug_dir = require_nacl_debug()
+    static = debug_dir / "static"
+    q_dir = debug_dir / "q-00013"
+    actual = hwq._gonze_short_range_dynamical_matrix(
+        np.load(static / "short_range_force_constants.npy"),
+        np.load(q_dir / "q_red.npy"),
+        np.load(static / "svecs.npy"),
+        np.load(static / "multi.npy"),
+        np.load(static / "masses.npy"),
+        np.load(static / "s2p_map.npy"),
+        np.load(static / "p2s_map.npy"),
+    )
+    np.testing.assert_allclose(actual, np.load(q_dir / "dm_short.npy"), atol=1e-10, rtol=0.0)

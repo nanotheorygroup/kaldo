@@ -181,6 +181,33 @@ def _gonze_mass_weight(fc_term, masses):
     return out.reshape(len(masses) * 3, len(masses) * 3)
 
 
+def _gonze_short_range_dynamical_matrix(
+    fc, q_red, svecs, multi, masses, s2p_map, p2s_map
+):
+    num_patom = len(p2s_map)
+    num_satom = len(s2p_map)
+    dm = np.zeros((num_patom * 3, num_patom * 3), dtype=np.complex128)
+    is_compact_fc = fc.shape[0] != fc.shape[1]
+    for i in range(num_patom):
+        for j in range(num_patom):
+            local = np.zeros((3, 3), dtype=np.complex128)
+            for k in range(num_satom):
+                if s2p_map[k] != p2s_map[j]:
+                    continue
+                multiplicity = int(multi[k, i, 0])
+                start = int(multi[k, i, 1])
+                phase_factor = 0.0j
+                for ll in range(multiplicity):
+                    phase = float(np.dot(q_red, svecs[start + ll]) * 2 * np.pi)
+                    phase_factor += np.cos(phase) + 1j * np.sin(phase)
+                phase_factor /= multiplicity
+                fc_i = i if is_compact_fc else p2s_map[i]
+                local += fc[fc_i, k] * phase_factor
+            local /= np.sqrt(masses[i] * masses[j])
+            dm[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] = local
+    return (dm + dm.conj().T) / 2
+
+
 class HarmonicWithQ(Observable, Storable):
     
     # Define storage formats for harmonic properties
@@ -336,6 +363,48 @@ class HarmonicWithQ(Observable, Storable):
             {name: value for name, value in data.items() if name != "q_direction_tolerance"},
         )
         return data
+
+    def _build_gonze_short_range_inputs(self, static_data):
+        atoms = self.second.atoms
+        n_atom = len(atoms)
+        replica_indices = self.second._direct_grid.grid(is_wrapping=False)
+        wrapped_indices = self.second._direct_grid.grid(is_wrapping=True)
+        s2p_map = np.tile(np.arange(n_atom, dtype=int), len(replica_indices))
+        p2s_map = np.arange(n_atom, dtype=int)
+        s2pp_map = s2p_map.copy()
+        supercell = np.array(self.second.supercell, dtype=float)
+        svecs = []
+        multi = np.zeros((len(s2p_map), n_atom, 2), dtype=np.int64)
+        primitive_scaled = atoms.get_scaled_positions(wrap=False)
+        for i_s, wrapped_index in enumerate(wrapped_indices):
+            atom_j = s2p_map[i_s]
+            super_scaled_j = (primitive_scaled[atom_j] + wrapped_index) / supercell
+            for i_p in range(n_atom):
+                primitive_scaled_i = primitive_scaled[i_p] / supercell
+                candidates = []
+                distances = []
+                for a in (-1, 0, 1):
+                    for b in (-1, 0, 1):
+                        for c in (-1, 0, 1):
+                            shift = np.array([a, b, c], dtype=float)
+                            vec = super_scaled_j - primitive_scaled_i + shift
+                            cart = vec @ static_data["supercell_cell"]
+                            candidates.append(vec)
+                            distances.append(np.linalg.norm(cart))
+                min_distance = min(distances)
+                start = len(svecs)
+                for vec, distance in zip(candidates, distances):
+                    if abs(distance - min_distance) < 1e-8:
+                        svecs.append(vec)
+                multi[i_s, i_p, 0] = len(svecs) - start
+                multi[i_s, i_p, 1] = start
+        return {
+            "svecs": np.array(svecs, dtype=float),
+            "multi": multi,
+            "s2p_map": s2p_map,
+            "p2s_map": p2s_map,
+            "s2pp_map": s2pp_map,
+        }
 
     @lazy_property(label='<q_point>')
     def frequency(self):
