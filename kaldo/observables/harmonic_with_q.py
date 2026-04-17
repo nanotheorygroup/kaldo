@@ -203,6 +203,10 @@ class HarmonicWithQ(Observable, Storable):
                  is_nw=False,
                  is_unfolding=False,
                  is_amorphous=False,
+                 nac_method='legacy',
+                 nac_debug=False,
+                 nac_debug_folder='debug',
+                 q_index=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -218,6 +222,20 @@ class HarmonicWithQ(Observable, Storable):
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
         self.is_nac = True if 'dielectric' in self.atoms.info else False
+        supported_nac_methods = ('legacy', 'gonze')
+        if nac_method not in supported_nac_methods:
+            raise ValueError(
+                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
+            )
+        if nac_method == 'gonze':
+            if not self.is_nac or 'charges' not in self.atoms.arrays:
+                raise ValueError(
+                    "nac_method='gonze' requires atoms.info['dielectric'] and atoms.arrays['charges']."
+                )
+        self.nac_method = nac_method
+        self.nac_debug = bool(nac_debug)
+        self.nac_debug_folder = nac_debug_folder
+        self.q_index = q_index
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
@@ -416,6 +434,11 @@ class HarmonicWithQ(Observable, Storable):
         return sij
 
     def calculate_velocity(self):
+        if self.nac_method == 'gonze':
+            raise NotImplementedError(
+                "Gonze-Lee velocity derivatives are not implemented yet; "
+                "use nac_method='legacy' for velocity calculations."
+            )
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
