@@ -164,6 +164,9 @@ class Phonons(Storable):
                  include_isotopes: bool = False,
                  iso_speed_up: bool = True,
                  is_nw: bool = False,
+                 nac_method: str = "legacy",
+                 nac_debug: bool = False,
+                 nac_debug_folder: str = "debug",
                  **kwargs):
         self.forceconstants = forceconstants
         self.is_classic = is_classic
@@ -185,6 +188,14 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
+        supported_nac_methods = ("legacy", "gonze")
+        if nac_method not in supported_nac_methods:
+            raise ValueError(
+                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
+            )
+        self.nac_method = nac_method
+        self.nac_debug = bool(nac_debug)
+        self.nac_debug_folder = nac_debug_folder
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -272,7 +283,11 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   q_index=ik)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -302,7 +317,11 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   q_index=ik)
 
             frequency[ik] = phonon.frequency
 
@@ -332,7 +351,11 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   q_index=ik)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -361,7 +384,11 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   q_index=ik)
 
             velocity[ik] = phonon.velocity
         return velocity
@@ -394,7 +421,11 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   q_index=ik)
 
             eigensystem[ik] = phonon._eigensystem
 

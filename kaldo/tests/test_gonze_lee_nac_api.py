@@ -1,0 +1,180 @@
+import numpy as np
+import pytest
+
+from kaldo.forceconstants import ForceConstants
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.phonons import Phonons
+from kaldo.tests.test_gonze_lee_nac_helpers import require_nacl_debug
+
+
+@pytest.fixture(scope="module")
+def nac_second_order():
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    return forceconstants.second
+
+
+def test_harmonic_with_q_accepts_nac_options(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder="debug",
+        q_index=7,
+    )
+    assert phonon.nac_method == "gonze"
+    assert phonon.nac_debug is True
+    assert phonon.nac_debug_folder == "debug"
+    assert phonon.q_index == 7
+
+
+def test_unknown_nac_method_raises_value_error(nac_second_order):
+    with pytest.raises(ValueError, match="Unknown nac_method"):
+        HarmonicWithQ(
+            q_point=np.array([0.1, 0.0, 0.1]),
+            second=nac_second_order,
+            storage="memory",
+            nac_method="bad-method",
+        )
+
+
+def test_gonze_velocity_raises_not_implemented(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+    )
+    with pytest.raises(NotImplementedError, match="Gonze-Lee velocity"):
+        _ = phonon.velocity
+
+
+def test_phonons_stores_nac_options():
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    phonons = Phonons(
+        forceconstants=forceconstants,
+        kpts=[1, 1, 1],
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder="debug",
+    )
+    assert phonons.nac_method == "gonze"
+    assert phonons.nac_debug is True
+    assert phonons.nac_debug_folder == "debug"
+
+
+def test_gonze_debug_folder_for_index(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder="debug",
+        q_index=3,
+    )
+    assert phonon._gonze_debug_q_folder().as_posix() == "debug/q-00003"
+
+
+def test_gonze_debug_folder_for_single_q(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder="debug",
+    )
+    assert phonon._gonze_debug_q_folder().as_posix() == "debug/q_0p1_0p0_0p1"
+
+
+def test_gonze_static_data_contains_expected_nacl_shapes(nac_second_order, tmp_path):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=0,
+    )
+    data = phonon._build_gonze_static_data()
+    assert data["born"].shape == (2, 3, 3)
+    assert data["dielectric"].shape == (3, 3)
+    assert data["primitive_cell"].shape == (3, 3)
+    assert data["primitive_positions"].shape == (2, 3)
+    assert data["reciprocal_lattice"].shape == (3, 3)
+    assert data["masses"].shape == (2,)
+    assert data["G_list"].ndim == 2
+    assert data["G_list"].shape[1] == 3
+    assert data["dd_q0"].shape == (2, 3, 3)
+    assert data["dd_limiting"].shape == (3, 3)
+
+
+def test_gonze_full_dynamical_matrix_returns_hermitian_matrix(nac_second_order, tmp_path):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=4,
+    )
+    dm = phonon._calculate_gonze_dynamical_matrix()
+    assert dm.shape == (6, 6)
+    np.testing.assert_allclose(dm, dm.conj().T, atol=1e-8, rtol=0.0)
+    assert (tmp_path / "debug" / "q-00004" / "dm_final.npy").exists()
+
+
+def test_gonze_frequency_calculation_returns_real_frequencies(nac_second_order, tmp_path):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=5,
+    )
+    frequency = phonon.frequency.flatten()
+    assert frequency.shape == (6,)
+    assert np.isfinite(frequency).all()
+    assert (tmp_path / "debug" / "q-00005" / "frequencies.npy").exists()
+
+
+@pytest.mark.parametrize("q_name", ["q-00000", "q-00013", "q-00030"])
+def test_gonze_nacl_frequencies_match_reference_within_two_percent(
+    nac_second_order, tmp_path, q_name
+):
+    debug_dir = require_nacl_debug()
+    q_dir = debug_dir / q_name
+    q_point = np.load(q_dir / "q_red.npy")
+    q_index = int(q_name.split("-")[1])
+    phonon = HarmonicWithQ(
+        q_point=q_point,
+        second=nac_second_order,
+        storage="memory",
+        is_unfolding=True,
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=q_index,
+    )
+    actual = phonon.frequency.flatten()
+    expected = np.load(q_dir / "frequencies.npy")
+    np.testing.assert_allclose(actual[3:], expected[3:], rtol=0.02, atol=0.05)

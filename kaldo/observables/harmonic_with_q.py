@@ -1,7 +1,9 @@
 from kaldo.grid import wrap_coordinates, Grid
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
+import math
 import numpy as np
+from pathlib import Path
 from ase import units
 import ase.io
 from ase import Atoms
@@ -15,6 +17,195 @@ from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
+
+
+def _gonze_dielectric_part(q_cart, dielectric):
+    return float(np.einsum("i,ij,j->", q_cart, dielectric, q_cart))
+
+
+def _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
+    for trial_g_rad in range(g_rad, 0, -1):
+        for a in (-1, 0, 1):
+            for b in (-1, 0, 1):
+                for c in (-1, 0, 1):
+                    if (a, b, c) == (0, 0, 0):
+                        continue
+                    norm = np.linalg.norm(
+                        reciprocal_lattice @ np.array([a, b, c], dtype=float)
+                    )
+                    if norm * trial_g_rad < g_cutoff:
+                        return trial_g_rad + 1
+    return g_rad
+
+
+def _gonze_get_g_vec_list(reciprocal_lattice, g_rad):
+    npts = g_rad * 2 + 1
+    grid = np.array(list(np.ndindex((npts, npts, npts))), dtype=np.int64) - g_rad
+    return np.array(grid @ reciprocal_lattice.T, dtype="double", order="C")
+
+
+def _gonze_get_g_list(reciprocal_lattice, g_cutoff):
+    g_rad = _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff)
+    g_vec_list = _gonze_get_g_vec_list(reciprocal_lattice, g_rad)
+    g_norm2 = (g_vec_list ** 2).sum(axis=1)
+    return np.array(g_vec_list[g_norm2 < g_cutoff ** 2], dtype="double", order="C")
+
+
+def _gonze_multiply_borns(dd_in, born):
+    num_atom = born.shape[0]
+    dd = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
+    for i in range(num_atom):
+        for j in range(num_atom):
+            dd[i, :, j, :] = born[i].T @ dd_in[i, :, j, :] @ born[j]
+    return dd
+
+
+def _gonze_get_dd_base(
+    g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+):
+    num_atom = positions.shape[0]
+    dd_part = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
+    l2 = 4 * lambda_ * lambda_
+    for g_vec in g_list:
+        q_k = g_vec + q_cart
+        norm = np.linalg.norm(q_k)
+        if norm < tolerance:
+            if q_direction_cart is None:
+                continue
+            denom = _gonze_dielectric_part(q_direction_cart, dielectric)
+            kk = np.outer(q_direction_cart, q_direction_cart) / denom
+        else:
+            denom = _gonze_dielectric_part(q_k, dielectric)
+            kk = np.outer(q_k, q_k) / denom * np.exp(-denom / l2)
+        for i in range(num_atom):
+            for j in range(num_atom):
+                phase = float(np.dot(positions[i] - positions[j], g_vec) * 2 * np.pi)
+                dd_part[i, :, j, :] += kk * (np.cos(phase) + 1j * np.sin(phase))
+    return dd_part
+
+
+def _gonze_recip_dipole_dipole_q0(
+    g_list, born, dielectric, positions, lambda_, tolerance
+):
+    zero = np.zeros(3, dtype="double")
+    dd_tmp1 = _gonze_get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
+    dd_tmp2 = _gonze_multiply_borns(dd_tmp1, born)
+    num_atom = positions.shape[0]
+    dd_q0 = np.zeros((num_atom, 3, 3), dtype=np.complex128)
+    for i in range(num_atom):
+        dd_q0[i] = dd_tmp2[i, :, :, :].sum(axis=1)
+    for i in range(num_atom):
+        dd_q0[i] = (dd_q0[i] + dd_q0[i].conj().T) / 2
+    return dd_q0
+
+
+def _gonze_limiting_dipole_dipole(dielectric, lambda_):
+    inv_eps = np.linalg.inv(dielectric)
+    sqrt_det_eps = np.sqrt(np.linalg.det(dielectric))
+    return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_ ** 3
+
+
+def _gonze_recip_dipole_dipole(
+    dd_q0,
+    g_list,
+    q_cart,
+    q_direction_cart,
+    born,
+    dielectric,
+    positions,
+    factor,
+    lambda_,
+    tolerance,
+):
+    dd_tmp = _gonze_get_dd_base(
+        g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+    )
+    dd = _gonze_multiply_borns(dd_tmp, born)
+    num_atom = positions.shape[0]
+    for i in range(num_atom):
+        dd[i, :, i, :] -= dd_q0[i]
+    return dd * factor
+
+
+def _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_):
+    cart_vecs = svecs @ supercell_cell
+    eps_inv = np.linalg.inv(dielectric)
+    delta = cart_vecs @ eps_inv.T
+    d_norm = np.sqrt((cart_vecs * delta).sum(axis=1))
+    x = lambda_ * delta
+    y = lambda_ * d_norm
+    condition = y < 1e-10
+    y_safe = y.copy()
+    y_safe[condition] = 1.0
+    y2 = y_safe ** 2
+    y3 = y_safe ** 3
+    exp_y2 = np.exp(-y2)
+    erfc_y = np.vectorize(math.erfc)(y_safe)
+    a = np.where(
+        condition,
+        0.0,
+        (3 * erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 * (3 / y2 + 2)) / y2,
+    )
+    b = np.where(condition, 0.0, erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 / y2)
+    h = np.zeros((3, 3, len(y_safe)), dtype="double", order="C")
+    for i in range(3):
+        for j in range(3):
+            h[i, j, :] = x[:, i] * x[:, j] * a - eps_inv[i, j] * b
+    return h
+
+
+def _gonze_real_dipole_dipole(
+    q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+):
+    num_satom, num_patom = multi.shape[:2]
+    phase_all = np.exp(2j * np.pi * (svecs @ q_red))
+    h = _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_)
+    vals = -(lambda_ ** 3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
+    c_real = np.zeros((num_patom, 3, num_patom, 3), dtype=np.complex128)
+    for i_s in range(num_satom):
+        for i_p in range(num_patom):
+            multiplicity = int(multi[i_s, i_p, 0])
+            start = int(multi[i_s, i_p, 1])
+            block = vals[:, :, start]
+            c_real[s2pp_map[i_s], :, i_p, :] += (
+                block + block.conj().T
+            ) / 2 / multiplicity
+    return c_real
+
+
+def _gonze_mass_weight(fc_term, masses):
+    out = np.array(fc_term, dtype=np.complex128, copy=True)
+    for i in range(len(masses)):
+        for j in range(len(masses)):
+            out[i, :, j, :] /= np.sqrt(masses[i] * masses[j])
+    return out.reshape(len(masses) * 3, len(masses) * 3)
+
+
+def _gonze_short_range_dynamical_matrix(
+    fc, q_red, svecs, multi, masses, s2p_map, p2s_map
+):
+    num_patom = len(p2s_map)
+    num_satom = len(s2p_map)
+    dm = np.zeros((num_patom * 3, num_patom * 3), dtype=np.complex128)
+    is_compact_fc = fc.shape[0] != fc.shape[1]
+    for i in range(num_patom):
+        for j in range(num_patom):
+            local = np.zeros((3, 3), dtype=np.complex128)
+            for k in range(num_satom):
+                if s2p_map[k] != p2s_map[j]:
+                    continue
+                multiplicity = int(multi[k, i, 0])
+                start = int(multi[k, i, 1])
+                phase_factor = 0.0j
+                for ll in range(multiplicity):
+                    phase = float(np.dot(q_red, svecs[start + ll]) * 2 * np.pi)
+                    phase_factor += np.cos(phase) + 1j * np.sin(phase)
+                phase_factor /= multiplicity
+                fc_i = i if is_compact_fc else p2s_map[i]
+                local += fc[fc_i, k] * phase_factor
+            local /= np.sqrt(masses[i] * masses[j])
+            dm[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] = local
+    return (dm + dm.conj().T) / 2
 
 
 class HarmonicWithQ(Observable, Storable):
@@ -40,6 +231,10 @@ class HarmonicWithQ(Observable, Storable):
                  is_nw=False,
                  is_unfolding=False,
                  is_amorphous=False,
+                 nac_method='legacy',
+                 nac_debug=False,
+                 nac_debug_folder='debug',
+                 q_index=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -55,6 +250,20 @@ class HarmonicWithQ(Observable, Storable):
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
         self.is_nac = True if 'dielectric' in self.atoms.info else False
+        supported_nac_methods = ('legacy', 'gonze')
+        if nac_method not in supported_nac_methods:
+            raise ValueError(
+                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
+            )
+        if nac_method == 'gonze':
+            if not self.is_nac or 'charges' not in self.atoms.arrays:
+                raise ValueError(
+                    "nac_method='gonze' requires atoms.info['dielectric'] and atoms.arrays['charges']."
+                )
+        self.nac_method = nac_method
+        self.nac_debug = bool(nac_debug)
+        self.nac_debug_folder = nac_debug_folder
+        self.q_index = q_index
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
@@ -87,6 +296,224 @@ class HarmonicWithQ(Observable, Storable):
         else:
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
+
+    def _gonze_debug_static_folder(self):
+        return Path(self.nac_debug_folder) / "static"
+
+    def _gonze_debug_q_folder(self):
+        if self.q_index is not None:
+            return Path(self.nac_debug_folder) / f"q-{int(self.q_index):05d}"
+        label_parts = []
+        for value in np.asarray(self.q_point, dtype=float):
+            text = f"{value:.12g}"
+            if "." not in text:
+                text += ".0"
+            text = text.replace("-", "m").replace(".", "p")
+            label_parts.append(text)
+        return Path(self.nac_debug_folder) / ("q_" + "_".join(label_parts))
+
+    def _gonze_save_debug(self, folder, arrays):
+        if not self.nac_debug:
+            return
+        folder = Path(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, value in arrays.items():
+            np.save(folder / f"{name}.npy", value)
+
+    def _build_gonze_static_data(self):
+        atoms = self.second.atoms
+        born = np.array(atoms.get_array('charges'), dtype=float, copy=True)
+        dielectric = np.array(atoms.info['dielectric'], dtype=float, copy=True)
+        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
+        primitive_positions = np.array(atoms.positions, dtype=float, copy=True)
+        reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True)
+        masses = np.array(atoms.get_masses(), dtype=float, copy=True)
+        supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True)
+        volume = float(abs(np.linalg.det(primitive_cell)))
+        num_g_points = 300
+        g_cutoff = float((3 * num_g_points / (4 * np.pi) / volume) ** (1.0 / 3))
+        exp_cutoff = 1e-10
+        geg = g_cutoff ** 2 * np.trace(dielectric) / 3
+        lambda_ = float(np.sqrt(-geg / 4 / np.log(exp_cutoff)))
+        unit_conversion_factor = 14.4
+        nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
+        tolerance = 1e-5
+        g_list = _gonze_get_g_list(reciprocal_lattice, g_cutoff)
+        dd_q0 = _gonze_recip_dipole_dipole_q0(
+            g_list, born, dielectric, primitive_positions, lambda_, tolerance
+        )
+        dd_limiting = _gonze_limiting_dipole_dipole(dielectric, lambda_)
+        data = {
+            "born": born,
+            "dielectric": dielectric,
+            "primitive_cell": primitive_cell,
+            "primitive_positions": primitive_positions,
+            "reciprocal_lattice": reciprocal_lattice,
+            "masses": masses,
+            "supercell_cell": supercell_cell,
+            "volume": np.array(volume),
+            "Lambda": np.array(lambda_),
+            "G_cutoff": np.array(g_cutoff),
+            "G_list": g_list,
+            "unit_conversion_factor": np.array(unit_conversion_factor),
+            "nac_factor": np.array(nac_factor),
+            "q_direction_tolerance": np.array(tolerance),
+            "dd_q0": dd_q0,
+            "dd_limiting": dd_limiting,
+        }
+        self._gonze_save_debug(
+            self._gonze_debug_static_folder(),
+            {name: value for name, value in data.items() if name != "q_direction_tolerance"},
+        )
+        return data
+
+    def _build_gonze_short_range_inputs(self, static_data):
+        atoms = self.second.atoms
+        n_atom = len(atoms)
+        wrapped_indices = self.second._direct_grid.grid(is_wrapping=True)
+        s2p_map = np.tile(np.arange(n_atom, dtype=int), len(wrapped_indices))
+        p2s_map = np.arange(n_atom, dtype=int)
+        s2pp_map = s2p_map.copy()
+        supercell = np.array(self.second.supercell, dtype=float)
+        svecs = []
+        multi = np.zeros((len(s2p_map), n_atom, 2), dtype=np.int64)
+        primitive_scaled = atoms.get_scaled_positions(wrap=False)
+        for i_s, atom_j in enumerate(s2p_map):
+            wrapped_index = wrapped_indices[i_s // n_atom]
+            super_scaled_j = (primitive_scaled[atom_j] + wrapped_index) / supercell
+            for i_p in range(n_atom):
+                primitive_scaled_i = primitive_scaled[i_p] / supercell
+                candidates = []
+                distances = []
+                for a in (-1, 0, 1):
+                    for b in (-1, 0, 1):
+                        for c in (-1, 0, 1):
+                            shift = np.array([a, b, c], dtype=float)
+                            vec = super_scaled_j - primitive_scaled_i + shift
+                            cart = vec @ static_data["supercell_cell"]
+                            candidates.append(vec)
+                            distances.append(np.linalg.norm(cart))
+                min_distance = min(distances)
+                start = len(svecs)
+                for vec, distance in zip(candidates, distances):
+                    if abs(distance - min_distance) < 1e-8:
+                        svecs.append(vec)
+                multi[i_s, i_p, 0] = len(svecs) - start
+                multi[i_s, i_p, 1] = start
+        return {
+            "svecs": np.array(svecs, dtype=float),
+            "multi": multi,
+            "s2p_map": s2p_map,
+            "p2s_map": p2s_map,
+            "s2pp_map": s2pp_map,
+        }
+
+    def _calculate_gonze_dynamical_matrix(self):
+        static_data = self._build_gonze_static_data()
+        mapping = self._build_gonze_short_range_inputs(static_data)
+        masses = static_data["masses"]
+        q_red = np.array(self.q_point, dtype=float, copy=True)
+        q_cart = static_data["reciprocal_lattice"] @ q_red
+        q_direction_cart = None
+        if np.linalg.norm(q_cart) < static_data["q_direction_tolerance"]:
+            q_direction_cart = static_data["reciprocal_lattice"] @ np.array([-0.5, 0.0, -0.5])
+        else:
+            q_direction_cart = q_cart
+
+        recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
+        dd_recip = _gonze_recip_dipole_dipole(
+            recip_dd_q0,
+            static_data["G_list"],
+            q_cart,
+            q_direction_cart,
+            static_data["born"],
+            static_data["dielectric"],
+            static_data["primitive_positions"],
+            float(static_data["nac_factor"]),
+            float(static_data["Lambda"]),
+            float(static_data["q_direction_tolerance"]),
+        )
+        dd_real = _gonze_real_dipole_dipole(
+            q_red,
+            mapping["svecs"],
+            mapping["multi"],
+            mapping["s2pp_map"],
+            static_data["dielectric"],
+            float(static_data["Lambda"]),
+            static_data["supercell_cell"],
+        )
+        dd_limiting_expanded = np.zeros_like(dd_recip)
+        for i in range(len(masses)):
+            dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
+        dd_real_q0_full = _gonze_real_dipole_dipole(
+            np.zeros(3, dtype=float),
+            mapping["svecs"],
+            mapping["multi"],
+            mapping["s2pp_map"],
+            static_data["dielectric"],
+            float(static_data["Lambda"]),
+            static_data["supercell_cell"],
+        )
+        dd_real_q0 = dd_real_q0_full.sum(axis=2)
+        dd_drift = (
+            static_data["dd_q0"]
+            + static_data["dd_limiting"] * len(masses)
+            + dd_real_q0
+        )
+        dd_total = dd_recip + dd_limiting_expanded + dd_real
+        for i in range(len(masses)):
+            dd_total[i, :, i, :] -= dd_drift[i]
+        conversion = units.mol / (10 * units.J)
+        dd_total_mass_weighted = _gonze_mass_weight(dd_total * conversion, masses)
+
+        n_atom = len(masses)
+        fc_full = np.array(self.second.value[0], dtype=np.complex128, copy=True)
+        fc_full = np.transpose(fc_full, (0, 2, 3, 1, 4))
+        fc_full = fc_full.reshape(n_atom, len(mapping["s2p_map"]), 3, 3)
+        fc_short = fc_full.copy()
+        dm_short = _gonze_short_range_dynamical_matrix(
+            fc_short * conversion,
+            q_red,
+            mapping["svecs"],
+            mapping["multi"],
+            masses,
+            mapping["s2p_map"],
+            mapping["p2s_map"],
+        )
+        dm_final = dm_short + dd_total_mass_weighted
+        dm_final = (dm_final + dm_final.conj().T) / 2
+        eigvals = np.linalg.eigvalsh(dm_final).real
+        frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
+        self._gonze_save_debug(
+            self._gonze_debug_static_folder(),
+            {
+                "svecs": mapping["svecs"],
+                "multi": mapping["multi"],
+                "s2p_map": mapping["s2p_map"],
+                "p2s_map": mapping["p2s_map"],
+                "s2pp_map": mapping["s2pp_map"],
+                "dd_real_q0": dd_real_q0,
+                "short_range_force_constants": fc_short,
+            },
+        )
+        self._gonze_save_debug(
+            self._gonze_debug_q_folder(),
+            {
+                "q_red": q_red,
+                "q_cart": q_cart,
+                "q_direction_cart": q_direction_cart,
+                "dd_recip": dd_recip,
+                "dd_real": dd_real,
+                "dd_limiting_expanded": dd_limiting_expanded,
+                "dd_drift": dd_drift,
+                "dd_total_mass_weighted": dd_total_mass_weighted,
+                "dm_short": dm_short,
+                "dm_final": dm_final,
+                "eigenvalues": eigvals,
+                "frequencies": frequencies,
+            },
+        )
+        return dm_final
 
     @lazy_property(label='<q_point>')
     def frequency(self):
@@ -253,6 +680,11 @@ class HarmonicWithQ(Observable, Storable):
         return sij
 
     def calculate_velocity(self):
+        if self.nac_method == 'gonze':
+            raise NotImplementedError(
+                "Gonze-Lee velocity derivatives are not implemented yet; "
+                "use nac_method='legacy' for velocity calculations."
+            )
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
@@ -314,6 +746,14 @@ class HarmonicWithQ(Observable, Storable):
         return dyn_s
 
     def calculate_eigensystem(self, only_eigenvals):
+        if self.nac_method == 'gonze':
+            dyn_s = self._calculate_gonze_dynamical_matrix()
+            if only_eigenvals:
+                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
+            log_size(dyn_s.shape, type=complex, name='eigensystem')
+            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
+            return tf.convert_to_tensor(esystem)
         dyn_s = self._dynmat_fourier
         if self.is_nac:
             dyn_lr = self.nac_dynmat(qpoint=None)
@@ -344,6 +784,13 @@ class HarmonicWithQ(Observable, Storable):
         return participation_ratio
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
+        if self.nac_method == 'gonze':
+            dyn_s = self._calculate_gonze_dynamical_matrix()
+            if only_eigenvals:
+                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
+            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
+            return tf.convert_to_tensor(esystem)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms
