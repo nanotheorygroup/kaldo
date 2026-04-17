@@ -3,6 +3,7 @@ from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import math
 import numpy as np
+from pathlib import Path
 from ase import units
 import ase.io
 from ase import Atoms
@@ -268,6 +269,29 @@ class HarmonicWithQ(Observable, Storable):
         else:
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
+
+    def _gonze_debug_static_folder(self):
+        return Path(self.nac_debug_folder) / "static"
+
+    def _gonze_debug_q_folder(self):
+        if self.q_index is not None:
+            return Path(self.nac_debug_folder) / f"q-{int(self.q_index):05d}"
+        label_parts = []
+        for value in np.asarray(self.q_point, dtype=float):
+            text = f"{value:.12g}"
+            if "." not in text:
+                text += ".0"
+            text = text.replace("-", "m").replace(".", "p")
+            label_parts.append(text)
+        return Path(self.nac_debug_folder) / ("q_" + "_".join(label_parts))
+
+    def _gonze_save_debug(self, folder, arrays):
+        if not self.nac_debug:
+            return
+        folder = Path(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, value in arrays.items():
+            np.save(folder / f"{name}.npy", value)
 
     @lazy_property(label='<q_point>')
     def frequency(self):

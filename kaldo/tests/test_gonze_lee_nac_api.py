@@ -74,3 +74,28 @@ def test_phonons_stores_nac_options():
     assert phonons.nac_method == "gonze"
     assert phonons.nac_debug is True
     assert phonons.nac_debug_folder == "debug"
+
+
+def test_gonze_debug_folder_for_index(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder="debug",
+        q_index=3,
+    )
+    assert phonon._gonze_debug_q_folder().as_posix() == "debug/q-00003"
+
+
+def test_gonze_debug_folder_for_single_q(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder="debug",
+    )
+    assert phonon._gonze_debug_q_folder().as_posix() == "debug/q_0p1_0p0_0p1"
