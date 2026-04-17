@@ -743,6 +743,14 @@ class HarmonicWithQ(Observable, Storable):
         return dyn_s
 
     def calculate_eigensystem(self, only_eigenvals):
+        if self.nac_method == 'gonze':
+            dyn_s = self._calculate_gonze_dynamical_matrix()
+            if only_eigenvals:
+                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
+            log_size(dyn_s.shape, type=complex, name='eigensystem')
+            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
+            return tf.convert_to_tensor(esystem)
         dyn_s = self._dynmat_fourier
         if self.is_nac:
             dyn_lr = self.nac_dynmat(qpoint=None)
@@ -773,6 +781,13 @@ class HarmonicWithQ(Observable, Storable):
         return participation_ratio
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
+        if self.nac_method == 'gonze':
+            dyn_s = self._calculate_gonze_dynamical_matrix()
+            if only_eigenvals:
+                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
+            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
+            return tf.convert_to_tensor(esystem)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms

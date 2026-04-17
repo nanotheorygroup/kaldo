@@ -138,3 +138,19 @@ def test_gonze_full_dynamical_matrix_returns_hermitian_matrix(nac_second_order, 
     assert dm.shape == (6, 6)
     np.testing.assert_allclose(dm, dm.conj().T, atol=1e-8, rtol=0.0)
     assert (tmp_path / "debug" / "q-00004" / "dm_final.npy").exists()
+
+
+def test_gonze_frequency_calculation_returns_real_frequencies(nac_second_order, tmp_path):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=5,
+    )
+    frequency = phonon.frequency.flatten()
+    assert frequency.shape == (6,)
+    assert np.isfinite(frequency).all()
+    assert (tmp_path / "debug" / "q-00005" / "frequencies.npy").exists()
