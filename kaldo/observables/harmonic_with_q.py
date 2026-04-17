@@ -1,6 +1,7 @@
 from kaldo.grid import wrap_coordinates, Grid
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
+import math
 import numpy as np
 from ase import units
 import ase.io
@@ -15,6 +16,92 @@ from kaldo.helpers.logger import get_logger, log_size
 logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
+
+
+def _gonze_dielectric_part(q_cart, dielectric):
+    return float(np.einsum("i,ij,j->", q_cart, dielectric, q_cart))
+
+
+def _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
+    for trial_g_rad in range(g_rad, 0, -1):
+        for a in (-1, 0, 1):
+            for b in (-1, 0, 1):
+                for c in (-1, 0, 1):
+                    if (a, b, c) == (0, 0, 0):
+                        continue
+                    norm = np.linalg.norm(
+                        reciprocal_lattice @ np.array([a, b, c], dtype=float)
+                    )
+                    if norm * trial_g_rad < g_cutoff:
+                        return trial_g_rad + 1
+    return g_rad
+
+
+def _gonze_get_g_vec_list(reciprocal_lattice, g_rad):
+    npts = g_rad * 2 + 1
+    grid = np.array(list(np.ndindex((npts, npts, npts))), dtype=np.int64) - g_rad
+    return np.array(grid @ reciprocal_lattice.T, dtype="double", order="C")
+
+
+def _gonze_get_g_list(reciprocal_lattice, g_cutoff):
+    g_rad = _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff)
+    g_vec_list = _gonze_get_g_vec_list(reciprocal_lattice, g_rad)
+    g_norm2 = (g_vec_list ** 2).sum(axis=1)
+    return np.array(g_vec_list[g_norm2 < g_cutoff ** 2], dtype="double", order="C")
+
+
+def _gonze_multiply_borns(dd_in, born):
+    num_atom = born.shape[0]
+    dd = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
+    for i in range(num_atom):
+        for j in range(num_atom):
+            dd[i, :, j, :] = born[i].T @ dd_in[i, :, j, :] @ born[j]
+    return dd
+
+
+def _gonze_get_dd_base(
+    g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+):
+    num_atom = positions.shape[0]
+    dd_part = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
+    l2 = 4 * lambda_ * lambda_
+    for g_vec in g_list:
+        q_k = g_vec + q_cart
+        norm = np.linalg.norm(q_k)
+        if norm < tolerance:
+            if q_direction_cart is None:
+                continue
+            denom = _gonze_dielectric_part(q_direction_cart, dielectric)
+            kk = np.outer(q_direction_cart, q_direction_cart) / denom
+        else:
+            denom = _gonze_dielectric_part(q_k, dielectric)
+            kk = np.outer(q_k, q_k) / denom * np.exp(-denom / l2)
+        for i in range(num_atom):
+            for j in range(num_atom):
+                phase = float(np.dot(positions[i] - positions[j], g_vec) * 2 * np.pi)
+                dd_part[i, :, j, :] += kk * (np.cos(phase) + 1j * np.sin(phase))
+    return dd_part
+
+
+def _gonze_recip_dipole_dipole_q0(
+    g_list, born, dielectric, positions, lambda_, tolerance
+):
+    zero = np.zeros(3, dtype="double")
+    dd_tmp1 = _gonze_get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
+    dd_tmp2 = _gonze_multiply_borns(dd_tmp1, born)
+    num_atom = positions.shape[0]
+    dd_q0 = np.zeros((num_atom, 3, 3), dtype=np.complex128)
+    for i in range(num_atom):
+        dd_q0[i] = dd_tmp2[i, :, :, :].sum(axis=1)
+    for i in range(num_atom):
+        dd_q0[i] = (dd_q0[i] + dd_q0[i].conj().T) / 2
+    return dd_q0
+
+
+def _gonze_limiting_dipole_dipole(dielectric, lambda_):
+    inv_eps = np.linalg.inv(dielectric)
+    sqrt_det_eps = np.sqrt(np.linalg.det(dielectric))
+    return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_ ** 3
 
 
 class HarmonicWithQ(Observable, Storable):
