@@ -68,3 +68,52 @@ def test_gonze_q0_and_limiting_terms_match_nacl_debug_reference():
     np.testing.assert_allclose(
         actual_limiting, np.load(static / "dd_limiting.npy"), atol=1e-14, rtol=0.0
     )
+
+
+def test_gonze_recip_real_and_mass_weight_terms_match_nacl_debug_reference():
+    debug_dir = require_nacl_debug()
+    static = debug_dir / "static"
+    q_dir = debug_dir / "q-00013"
+    g_list = np.load(static / "G_list.npy")
+    born = np.load(static / "born.npy")
+    dielectric = np.load(static / "dielectric.npy")
+    positions = np.load(static / "primitive_positions.npy")
+    lambda_ = float(np.load(static / "Lambda.npy"))
+    tolerance = 1e-5
+    nac_factor = float(np.load(static / "nac_factor.npy"))
+    q_red = np.load(q_dir / "q_red.npy")
+    q_cart = np.load(q_dir / "q_cart.npy")
+    q_direction_cart = np.load(q_dir / "q_direction_cart.npy")
+    masses = np.load(static / "masses.npy")
+    svecs = np.load(static / "svecs.npy")
+    multi = np.load(static / "multi.npy")
+    s2pp_map = np.load(static / "s2pp_map.npy")
+    supercell_cell = np.load(static / "supercell_cell.npy")
+
+    recip_dd_q0 = np.zeros((len(masses), 3, 3), dtype=np.complex128)
+    dd_recip = hwq._gonze_recip_dipole_dipole(
+        recip_dd_q0,
+        g_list,
+        q_cart,
+        q_direction_cart,
+        born,
+        dielectric,
+        positions,
+        nac_factor,
+        lambda_,
+        tolerance,
+    )
+    dd_real = hwq._gonze_real_dipole_dipole(
+        q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+    )
+    dd_total = np.load(q_dir / "dd_total_mass_weighted.npy").reshape(2, 3, 2, 3).copy()
+    for i in range(len(masses)):
+        for j in range(len(masses)):
+            dd_total[i, :, j, :] *= np.sqrt(masses[i] * masses[j])
+    mass_weighted = hwq._gonze_mass_weight(dd_total, masses)
+
+    np.testing.assert_allclose(dd_recip, np.load(q_dir / "dd_recip.npy"), atol=1e-12, rtol=0.0)
+    np.testing.assert_allclose(dd_real, np.load(q_dir / "dd_real.npy"), atol=1e-12, rtol=0.0)
+    np.testing.assert_allclose(
+        mass_weighted, np.load(q_dir / "dd_total_mass_weighted.npy"), atol=1e-12, rtol=0.0
+    )

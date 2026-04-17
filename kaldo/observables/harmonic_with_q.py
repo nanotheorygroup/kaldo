@@ -104,6 +104,82 @@ def _gonze_limiting_dipole_dipole(dielectric, lambda_):
     return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_ ** 3
 
 
+def _gonze_recip_dipole_dipole(
+    dd_q0,
+    g_list,
+    q_cart,
+    q_direction_cart,
+    born,
+    dielectric,
+    positions,
+    factor,
+    lambda_,
+    tolerance,
+):
+    dd_tmp = _gonze_get_dd_base(
+        g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+    )
+    dd = _gonze_multiply_borns(dd_tmp, born)
+    num_atom = positions.shape[0]
+    for i in range(num_atom):
+        dd[i, :, i, :] -= dd_q0[i]
+    return dd * factor
+
+
+def _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_):
+    cart_vecs = svecs @ supercell_cell
+    eps_inv = np.linalg.inv(dielectric)
+    delta = cart_vecs @ eps_inv.T
+    d_norm = np.sqrt((cart_vecs * delta).sum(axis=1))
+    x = lambda_ * delta
+    y = lambda_ * d_norm
+    condition = y < 1e-10
+    y_safe = y.copy()
+    y_safe[condition] = 1.0
+    y2 = y_safe ** 2
+    y3 = y_safe ** 3
+    exp_y2 = np.exp(-y2)
+    erfc_y = np.vectorize(math.erfc)(y_safe)
+    a = np.where(
+        condition,
+        0.0,
+        (3 * erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 * (3 / y2 + 2)) / y2,
+    )
+    b = np.where(condition, 0.0, erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 / y2)
+    h = np.zeros((3, 3, len(y_safe)), dtype="double", order="C")
+    for i in range(3):
+        for j in range(3):
+            h[i, j, :] = x[:, i] * x[:, j] * a - eps_inv[i, j] * b
+    return h
+
+
+def _gonze_real_dipole_dipole(
+    q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+):
+    num_satom, num_patom = multi.shape[:2]
+    phase_all = np.exp(2j * np.pi * (svecs @ q_red))
+    h = _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_)
+    vals = -(lambda_ ** 3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
+    c_real = np.zeros((num_patom, 3, num_patom, 3), dtype=np.complex128)
+    for i_s in range(num_satom):
+        for i_p in range(num_patom):
+            multiplicity = int(multi[i_s, i_p, 0])
+            start = int(multi[i_s, i_p, 1])
+            block = vals[:, :, start]
+            c_real[s2pp_map[i_s], :, i_p, :] += (
+                block + block.conj().T
+            ) / 2 / multiplicity
+    return c_real
+
+
+def _gonze_mass_weight(fc_term, masses):
+    out = np.array(fc_term, dtype=np.complex128, copy=True)
+    for i in range(len(masses)):
+        for j in range(len(masses)):
+            out[i, :, j, :] /= np.sqrt(masses[i] * masses[j])
+    return out.reshape(len(masses) * 3, len(masses) * 3)
+
+
 class HarmonicWithQ(Observable, Storable):
     
     # Define storage formats for harmonic properties
