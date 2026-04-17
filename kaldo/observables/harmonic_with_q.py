@@ -293,6 +293,50 @@ class HarmonicWithQ(Observable, Storable):
         for name, value in arrays.items():
             np.save(folder / f"{name}.npy", value)
 
+    def _build_gonze_static_data(self):
+        atoms = self.second.atoms
+        born = np.array(atoms.get_array('charges'), dtype=float, copy=True)
+        dielectric = np.array(atoms.info['dielectric'], dtype=float, copy=True)
+        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
+        primitive_positions = np.array(atoms.positions, dtype=float, copy=True)
+        reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True)
+        masses = np.array(atoms.get_masses(), dtype=float, copy=True)
+        supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True)
+        volume = float(abs(np.linalg.det(primitive_cell)))
+        lambda_ = float(1.0 / np.sqrt(abs(np.linalg.det(primitive_cell))) ** (1.0 / 3.0))
+        g_cutoff = float(np.sqrt(4 * lambda_ * lambda_ * 14.0))
+        unit_conversion_factor = 14.4
+        nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
+        tolerance = 1e-5
+        g_list = _gonze_get_g_list(reciprocal_lattice, g_cutoff)
+        dd_q0 = _gonze_recip_dipole_dipole_q0(
+            g_list, born, dielectric, primitive_positions, lambda_, tolerance
+        )
+        dd_limiting = _gonze_limiting_dipole_dipole(dielectric, lambda_)
+        data = {
+            "born": born,
+            "dielectric": dielectric,
+            "primitive_cell": primitive_cell,
+            "primitive_positions": primitive_positions,
+            "reciprocal_lattice": reciprocal_lattice,
+            "masses": masses,
+            "supercell_cell": supercell_cell,
+            "volume": np.array(volume),
+            "Lambda": np.array(lambda_),
+            "G_cutoff": np.array(g_cutoff),
+            "G_list": g_list,
+            "unit_conversion_factor": np.array(unit_conversion_factor),
+            "nac_factor": np.array(nac_factor),
+            "q_direction_tolerance": np.array(tolerance),
+            "dd_q0": dd_q0,
+            "dd_limiting": dd_limiting,
+        }
+        self._gonze_save_debug(
+            self._gonze_debug_static_folder(),
+            {name: value for name, value in data.items() if name != "q_direction_tolerance"},
+        )
+        return data
+
     @lazy_property(label='<q_point>')
     def frequency(self):
         frequency = self.calculate_frequency()[np.newaxis, :]

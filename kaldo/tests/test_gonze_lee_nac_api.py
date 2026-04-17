@@ -99,3 +99,26 @@ def test_gonze_debug_folder_for_single_q(nac_second_order):
         nac_debug_folder="debug",
     )
     assert phonon._gonze_debug_q_folder().as_posix() == "debug/q_0p1_0p0_0p1"
+
+
+def test_gonze_static_data_contains_expected_nacl_shapes(nac_second_order, tmp_path):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=0,
+    )
+    data = phonon._build_gonze_static_data()
+    assert data["born"].shape == (2, 3, 3)
+    assert data["dielectric"].shape == (3, 3)
+    assert data["primitive_cell"].shape == (3, 3)
+    assert data["primitive_positions"].shape == (2, 3)
+    assert data["reciprocal_lattice"].shape == (3, 3)
+    assert data["masses"].shape == (2,)
+    assert data["G_list"].ndim == 2
+    assert data["G_list"].shape[1] == 3
+    assert data["dd_q0"].shape == (2, 3, 3)
+    assert data["dd_limiting"].shape == (3, 3)
