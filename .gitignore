@@ -1,5 +1,6 @@
 # Test temporary folders
 examples_local
+.worktrees
 
 .DS_Store
 *.pyc
