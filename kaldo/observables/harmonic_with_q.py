@@ -367,17 +367,16 @@ class HarmonicWithQ(Observable, Storable):
     def _build_gonze_short_range_inputs(self, static_data):
         atoms = self.second.atoms
         n_atom = len(atoms)
-        replica_indices = self.second._direct_grid.grid(is_wrapping=False)
         wrapped_indices = self.second._direct_grid.grid(is_wrapping=True)
-        s2p_map = np.tile(np.arange(n_atom, dtype=int), len(replica_indices))
+        s2p_map = np.tile(np.arange(n_atom, dtype=int), len(wrapped_indices))
         p2s_map = np.arange(n_atom, dtype=int)
         s2pp_map = s2p_map.copy()
         supercell = np.array(self.second.supercell, dtype=float)
         svecs = []
         multi = np.zeros((len(s2p_map), n_atom, 2), dtype=np.int64)
         primitive_scaled = atoms.get_scaled_positions(wrap=False)
-        for i_s, wrapped_index in enumerate(wrapped_indices):
-            atom_j = s2p_map[i_s]
+        for i_s, atom_j in enumerate(s2p_map):
+            wrapped_index = wrapped_indices[i_s // n_atom]
             super_scaled_j = (primitive_scaled[atom_j] + wrapped_index) / supercell
             for i_p in range(n_atom):
                 primitive_scaled_i = primitive_scaled[i_p] / supercell
@@ -405,6 +404,113 @@ class HarmonicWithQ(Observable, Storable):
             "p2s_map": p2s_map,
             "s2pp_map": s2pp_map,
         }
+
+    def _calculate_gonze_dynamical_matrix(self):
+        static_data = self._build_gonze_static_data()
+        mapping = self._build_gonze_short_range_inputs(static_data)
+        masses = static_data["masses"]
+        q_red = np.array(self.q_point, dtype=float, copy=True)
+        q_cart = static_data["reciprocal_lattice"] @ q_red
+        q_direction_cart = None
+        if np.linalg.norm(q_cart) < static_data["q_direction_tolerance"]:
+            q_direction_cart = static_data["reciprocal_lattice"] @ np.array([-0.5, 0.0, -0.5])
+        else:
+            q_direction_cart = q_cart
+
+        recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
+        dd_recip = _gonze_recip_dipole_dipole(
+            recip_dd_q0,
+            static_data["G_list"],
+            q_cart,
+            q_direction_cart,
+            static_data["born"],
+            static_data["dielectric"],
+            static_data["primitive_positions"],
+            float(static_data["nac_factor"]),
+            float(static_data["Lambda"]),
+            float(static_data["q_direction_tolerance"]),
+        )
+        dd_real = _gonze_real_dipole_dipole(
+            q_red,
+            mapping["svecs"],
+            mapping["multi"],
+            mapping["s2pp_map"],
+            static_data["dielectric"],
+            float(static_data["Lambda"]),
+            static_data["supercell_cell"],
+        )
+        dd_limiting_expanded = np.zeros_like(dd_recip)
+        for i in range(len(masses)):
+            dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
+        dd_real_q0_full = _gonze_real_dipole_dipole(
+            np.zeros(3, dtype=float),
+            mapping["svecs"],
+            mapping["multi"],
+            mapping["s2pp_map"],
+            static_data["dielectric"],
+            float(static_data["Lambda"]),
+            static_data["supercell_cell"],
+        )
+        dd_real_q0 = dd_real_q0_full.sum(axis=2)
+        dd_drift = (
+            static_data["dd_q0"]
+            + static_data["dd_limiting"] * len(masses)
+            + dd_real_q0
+        )
+        dd_total = dd_recip + dd_limiting_expanded + dd_real
+        for i in range(len(masses)):
+            dd_total[i, :, i, :] -= dd_drift[i]
+        conversion = units.mol / (10 * units.J)
+        dd_total_mass_weighted = _gonze_mass_weight(dd_total * conversion, masses)
+
+        n_atom = len(masses)
+        fc_full = np.array(self.second.value[0], dtype=np.complex128, copy=True)
+        fc_full = np.transpose(fc_full, (0, 2, 3, 1, 4))
+        fc_full = fc_full.reshape(n_atom, len(mapping["s2p_map"]), 3, 3)
+        fc_short = fc_full.copy()
+        dm_short = _gonze_short_range_dynamical_matrix(
+            fc_short * conversion,
+            q_red,
+            mapping["svecs"],
+            mapping["multi"],
+            masses,
+            mapping["s2p_map"],
+            mapping["p2s_map"],
+        )
+        dm_final = dm_short + dd_total_mass_weighted
+        dm_final = (dm_final + dm_final.conj().T) / 2
+        eigvals = np.linalg.eigvalsh(dm_final).real
+        frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
+        self._gonze_save_debug(
+            self._gonze_debug_static_folder(),
+            {
+                "svecs": mapping["svecs"],
+                "multi": mapping["multi"],
+                "s2p_map": mapping["s2p_map"],
+                "p2s_map": mapping["p2s_map"],
+                "s2pp_map": mapping["s2pp_map"],
+                "dd_real_q0": dd_real_q0,
+                "short_range_force_constants": fc_short,
+            },
+        )
+        self._gonze_save_debug(
+            self._gonze_debug_q_folder(),
+            {
+                "q_red": q_red,
+                "q_cart": q_cart,
+                "q_direction_cart": q_direction_cart,
+                "dd_recip": dd_recip,
+                "dd_real": dd_real,
+                "dd_limiting_expanded": dd_limiting_expanded,
+                "dd_drift": dd_drift,
+                "dd_total_mass_weighted": dd_total_mass_weighted,
+                "dm_short": dm_short,
+                "dm_final": dm_final,
+                "eigenvalues": eigvals,
+                "frequencies": frequencies,
+            },
+        )
+        return dm_final
 
     @lazy_property(label='<q_point>')
     def frequency(self):

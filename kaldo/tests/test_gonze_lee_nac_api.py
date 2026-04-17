@@ -122,3 +122,19 @@ def test_gonze_static_data_contains_expected_nacl_shapes(nac_second_order, tmp_p
     assert data["G_list"].shape[1] == 3
     assert data["dd_q0"].shape == (2, 3, 3)
     assert data["dd_limiting"].shape == (3, 3)
+
+
+def test_gonze_full_dynamical_matrix_returns_hermitian_matrix(nac_second_order, tmp_path):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=4,
+    )
+    dm = phonon._calculate_gonze_dynamical_matrix()
+    assert dm.shape == (6, 6)
+    np.testing.assert_allclose(dm, dm.conj().T, atol=1e-8, rtol=0.0)
+    assert (tmp_path / "debug" / "q-00004" / "dm_final.npy").exists()
