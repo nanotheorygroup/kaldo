@@ -9,6 +9,7 @@ from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
 from kaldo.controllers.displacement import calculate_second
+from kaldo.parallel import is_parallel, validate_parallel_calculator
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 
@@ -325,10 +326,18 @@ class SecondOrder(ForceConstant):
             If True, keep scratch files after successful assembly.
             Default: False
         """
+        if is_parallel(n_workers):
+            validate_parallel_calculator(calculator, method='SecondOrder.calculate')
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        if n_workers == 1:
+        # Attach the calculator instance to replicated_atoms once and skip the
+        # per-atom rebind in _compute_iat_second. Some calculator libraries
+        # require a calculator to stay bound to a single atoms object.
+        if n_workers == 1 and calculator is not None and not callable(calculator):
             replicated_atoms.calc = calculator
+            worker_calculator = None
+        else:
+            worker_calculator = calculator
 
         if is_storing:
             try:
@@ -344,7 +353,7 @@ class SecondOrder(ForceConstant):
                     delta_shift,
                     is_verbose=is_verbose,
                     n_workers=n_workers,
-                    calculator=calculator,
+                    calculator=worker_calculator,
                     scratch_dir=scratch_dir,
                     keep_scratch=keep_scratch,
                 )
@@ -361,7 +370,7 @@ class SecondOrder(ForceConstant):
                 delta_shift,
                 is_verbose=is_verbose,
                 n_workers=n_workers,
-                calculator=calculator,
+                calculator=worker_calculator,
                 scratch_dir=scratch_dir,
                 keep_scratch=keep_scratch,
             )

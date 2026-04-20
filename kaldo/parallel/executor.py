@@ -4,7 +4,27 @@ All executors conform to the ``concurrent.futures.Executor`` interface,
 so computation code is identical regardless of backend.
 """
 
+import multiprocessing
 from concurrent.futures import Future, ProcessPoolExecutor
+
+
+def _default_mp_context():
+    """Return a multiprocessing context safe for CUDA calculators.
+
+    Fork (Linux default) cannot be used once CUDA is initialized in the parent:
+    torch refuses to re-initialize CUDA in a forked child (BrokenProcessPool /
+    'Cannot re-initialize CUDA in forked subprocess'). Spawn avoids this at a
+    small cold-start cost per worker and is the default on macOS.
+
+    Priority: spawn if torch+CUDA is initialized here, else the platform default.
+    """
+    try:
+        import torch  # lazy: don't force-import torch for non-ML users
+        if torch.cuda.is_available() and torch.cuda.is_initialized():
+            return multiprocessing.get_context('spawn')
+    except ImportError:
+        pass
+    return multiprocessing.get_context()  # platform default
 
 
 class SerialExecutor:
@@ -36,7 +56,7 @@ class SerialExecutor:
         self.shutdown()
 
 
-def get_executor(backend='process', n_workers=None, **kwargs):
+def get_executor(backend='process', n_workers=None, mp_context=None, **kwargs):
     """Create a parallel executor.
 
     Parameters
@@ -45,6 +65,11 @@ def get_executor(backend='process', n_workers=None, **kwargs):
         One of ``'serial'``, ``'process'``, or ``'mpi'``.
     n_workers : int or None
         Number of worker processes. ``None`` uses all available CPUs.
+    mp_context : multiprocessing context or None
+        Start method for worker processes. If ``None`` (default), picks ``spawn``
+        when CUDA is active in this process (required for torch/GPU calculators)
+        and the platform default otherwise. Only used by the ``'process'``
+        backend.
     **kwargs
         Passed to the underlying executor constructor.
 
@@ -56,7 +81,9 @@ def get_executor(backend='process', n_workers=None, **kwargs):
         return SerialExecutor()
 
     elif backend == 'process':
-        return ProcessPoolExecutor(max_workers=n_workers, **kwargs)
+        if mp_context is None:
+            mp_context = _default_mp_context()
+        return ProcessPoolExecutor(max_workers=n_workers, mp_context=mp_context, **kwargs)
 
     elif backend == 'mpi':
         try:

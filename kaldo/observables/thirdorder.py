@@ -10,6 +10,7 @@ from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third
+from kaldo.parallel import is_parallel, validate_parallel_calculator
 from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
@@ -305,10 +306,21 @@ class ThirdOrder(ForceConstant):
         """
         if calculator is None:
             raise ValueError("Provide a calculator")
+        if is_parallel(n_workers):
+            validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        # Resolve scratch_dir default
-        if scratch_dir is None and self.folder:
+        # Attach the calculator instance to replicated_atoms once and skip the
+        # per-atom rebind in _compute_iat_third. Some calculator libraries
+        # require a calculator to stay bound to a single atoms object.
+        if n_workers == 1 and not callable(calculator):
+            replicated_atoms.calc = calculator
+            worker_calculator = None
+        else:
+            worker_calculator = calculator
+        # Auto-resolve the default scratch directory only for parallel runs;
+        # serial stays in memory to avoid creating unexpected directories.
+        if scratch_dir is None and self.folder and is_parallel(n_workers):
             scratch_dir = os.path.join(self.folder, 'third_order')
         elif scratch_dir == '':
             scratch_dir = None
@@ -324,7 +336,7 @@ class ThirdOrder(ForceConstant):
                                              distance_threshold=distance_threshold,
                                              is_verbose=is_verbose,
                                              n_workers=n_workers,
-                                             calculator=calculator,
+                                             calculator=worker_calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
                                              jat_flush_every=jat_flush_every)
@@ -339,7 +351,7 @@ class ThirdOrder(ForceConstant):
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose,
                                          n_workers=n_workers,
-                                         calculator=calculator,
+                                         calculator=worker_calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
                                          jat_flush_every=jat_flush_every)

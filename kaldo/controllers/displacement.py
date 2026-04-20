@@ -4,7 +4,7 @@ import os
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
-from kaldo.parallel import get_executor
+from kaldo.parallel import get_executor, is_parallel, validate_parallel_calculator
 from sparse import COO
 logging = get_logger()
 
@@ -61,6 +61,11 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
     _validate_calculator(calculator)
+    if is_parallel(n_workers):
+        if calculator is not None:
+            validate_parallel_calculator(calculator, method='calculate_second')
+        elif getattr(replicated_atoms, 'calc', None) is not None:
+            validate_parallel_calculator(replicated_atoms.calc, method='calculate_second')
 
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
@@ -207,6 +212,11 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
     _validate_calculator(calculator)
+    if is_parallel(n_workers):
+        if calculator is not None:
+            validate_parallel_calculator(calculator, method='calculate_third')
+        elif getattr(replicated_atoms, 'calc', None) is not None:
+            validate_parallel_calculator(replicated_atoms.calc, method='calculate_third')
 
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
