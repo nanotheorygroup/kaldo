@@ -43,39 +43,33 @@ class ThirdOrder(ForceConstant):
              third_energy_threshold: float = 0.,
              chunk_size: int = 100000):
         """
-        Load third-order force constants from disk.
+        Load thrid order force constants from a folder in the given format, used for library internally.
 
-        Most users should prefer ``ForceConstants.from_folder(...)`` when
-        constructing force constants from stored data. This lower-level
-        classmethod is useful when you are already working with ``fc.third``
-        directly, or when you need to load third-order data from a custom
-        workflow.
+        To load force constants data, ``ForceConstants.from_folder`` is recommended.
 
         Parameters
         ----------
         folder : str
-            Directory containing the third-order force constant data and the
-            associated replicated structure.
+            Specifies where to load the data files.
         supercell : tuple[int, int, int]
-            Supercell used to build the stored third-order matrix.
+            The supercell for the third order force constant matrix.
             Default: (1, 1, 1)
         format : str
-            Format of the stored third-order data.
-            Default: ``"sparse"``
+            Format of the third order force constant information being loaded into ForceConstant object.
+            Default: 'sparse'
         third_energy_threshold : float, optional
-            When importing sparse third-order matrices, values below this
-            threshold in magnitude are ignored. Units: eV/A^3.
-            Default: 0.
+            When importing sparse third order force constant matrices, energies below
+            the threshold value in magnitude are ignored. Units: eV/A^3
+            Default: `None`
         chunk_size : int, optional
-            Number of entries to process per chunk when reading sparse third-
-            order files.
+            Number of entries to process per chunk when reading sparse third order files.
             Larger values use more memory but may be faster for very large files.
             Default: 100000
 
         Returns
         -------
         third_order : ThirdOrder object
-            Loaded ``ThirdOrder`` instance.
+            A new instance of the ThirdOrder class
         """
 
         match format:

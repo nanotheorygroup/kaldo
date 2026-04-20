@@ -65,32 +65,28 @@ class SecondOrder(ForceConstant):
              format: str = "numpy",
              is_acoustic_sum: bool = False):
         """
-        Load second-order force constants from disk.
+        Load second order force constants from a folder in the given format, used for library internally.
 
-        Most users should prefer ``ForceConstants.from_folder(...)`` to construct
-        force constants in one step. This lower-level classmethod is useful when
-        you are already working with ``fc.second`` directly, or when you need to
-        load second-order data from a non-standard workflow.
+        To load force constants data, ``ForceConstants.from_folder`` is recommended.
 
         Parameters
         ----------
         folder : str
-            Directory containing the second-order force constant data and the
-            associated replicated structure.
+            Specifies where to load the data files.
         supercell : tuple[int, int, int]
-            Supercell used to build the stored second-order matrix.
+            The supercell for the third order force constant matrix.
             Default: (1, 1, 1)
         format : str
-            Format of the stored second-order data.
-            Default: ``"numpy"``
+            Format of the second order force constant information being loaded into SecondOrder object.
+            Default: 'sparse'
         is_acoustic_sum : bool, optional
-            If True, apply the acoustic sum rule after loading.
+            If true, the acoustic sum rule is applied to the dynamical matrix.
             Default: False
 
         Returns
         -------
         second_order : SecondOrder object
-            Loaded ``SecondOrder`` instance.
+            A new instance of the SecondOrder class
         """
 
         match format:
