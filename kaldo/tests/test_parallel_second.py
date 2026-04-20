@@ -1,6 +1,6 @@
 """
-Tests verifying that parallel second-order finite differences return
-numerically identical results to the serial baseline.
+Tests verifying that parallel and scratch/resume execution of calculate_second
+return numerically identical results to the serial baseline.
 
 System: Al FCC conventional cell (4 atoms) with ASE's built-in EMT calculator.
 """
@@ -16,7 +16,6 @@ from kaldo.controllers.displacement import calculate_second
 
 @pytest.fixture(scope="module")
 def al_atoms():
-    print("Preparing Al Object")
     atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
     replicated_atoms = atoms.repeat((1, 1, 2))
     replicated_atoms.calc = EMT()
@@ -25,14 +24,9 @@ def al_atoms():
 
 @pytest.fixture(scope="module")
 def serial_result(al_atoms):
-    print("Preparing second order force constants in serial")
     atoms, replicated_atoms = al_atoms
     return calculate_second(
-        atoms,
-        replicated_atoms,
-        1e-5,
-        n_workers=1,
-        calculator=EMT(),
+        atoms, replicated_atoms, 1e-5, n_workers=1, calculator=EMT(),
     )
 
 
@@ -41,74 +35,39 @@ def test_parallel_matches_serial(al_atoms, serial_result):
     atoms, _ = al_atoms
     replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
     result_parallel = calculate_second(
-        atoms,
-        replicated_atoms_no_calc,
-        1e-5,
-        n_workers=2,
-        calculator=EMT,
+        atoms, replicated_atoms_no_calc, 1e-5, n_workers=2, calculator=EMT,
     )
     np.testing.assert_allclose(
-        serial_result,
-        result_parallel,
-        rtol=1e-7,
-        atol=1e-9,
+        serial_result, result_parallel, rtol=1e-7, atol=1e-9,
         err_msg="Parallel second order calculation results differ from serial.",
-    )
-
-
-def test_scratch_matches_serial(al_atoms, serial_result, tmp_path):
-    """Scratch-backed second-order assembly must match the serial baseline."""
-    atoms, _ = al_atoms
-    replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
-    scratch_dir = str(tmp_path / "scratch")
-
-    result_scratch = calculate_second(
-        atoms,
-        replicated_atoms_no_calc,
-        1e-5,
-        n_workers=2,
-        calculator=EMT,
-        scratch_dir=scratch_dir,
-        keep_scratch=True,
-    )
-    np.testing.assert_allclose(
-        serial_result,
-        result_scratch,
-        rtol=1e-7,
-        atol=1e-9,
-        err_msg="Scratch-backed second order calculation differs from serial.",
     )
 
 
 def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
     """
     Procedure:
-    1. Full scratch-backed run while keeping scratch files.
-    2. Delete atom-0 sentinel + dense scratch file to simulate interruption.
-    3. Re-run with the same scratch_dir.
-    4. Assert result matches serial and scratch files are cleaned up.
+    1. Full scratch-backed run while keeping scratch files → matches serial.
+    2. Delete atom-0 sentinel + scratch file to simulate interruption.
+    3. Re-run with the same scratch_dir → atom 0 is recomputed; rest resumed.
+    4. Resumed result matches serial; scratch is cleaned up.
+
+    Step 1 subsumes a plain ``test_scratch_matches_serial`` test.
     """
     atoms, _ = al_atoms
     replicated_atoms_no_calc = atoms.repeat((1, 1, 2))
     scratch_dir = str(tmp_path / "scratch")
 
+    # --- Step 1: full scratch-backed run, keeping files ---
     result_full = calculate_second(
-        atoms,
-        replicated_atoms_no_calc,
-        1e-5,
-        n_workers=2,
-        calculator=EMT,
-        scratch_dir=scratch_dir,
-        keep_scratch=True,
+        atoms, replicated_atoms_no_calc, 1e-5, n_workers=2, calculator=EMT,
+        scratch_dir=scratch_dir, keep_scratch=True,
     )
     np.testing.assert_allclose(
-        serial_result,
-        result_full,
-        rtol=1e-7,
-        atol=1e-9,
+        serial_result, result_full, rtol=1e-7, atol=1e-9,
         err_msg="Initial scratch-backed second order calculation differs from serial.",
     )
 
+    # --- Step 2: simulate interruption by removing atom-0 output ---
     sentinel = os.path.join(scratch_dir, "iat_00000.done")
     scratch_file = os.path.join(scratch_dir, "iat_00000.npy")
     assert os.path.exists(sentinel), "Expected sentinel file for atom 0"
@@ -116,20 +75,15 @@ def test_scratch_resume_matches_serial(al_atoms, serial_result, tmp_path):
     os.remove(sentinel)
     os.remove(scratch_file)
 
+    # --- Step 3: resume run ---
     result_resumed = calculate_second(
-        atoms,
-        replicated_atoms_no_calc,
-        1e-5,
-        n_workers=2,
-        calculator=EMT,
-        scratch_dir=scratch_dir,
-        keep_scratch=False,
+        atoms, replicated_atoms_no_calc, 1e-5, n_workers=2, calculator=EMT,
+        scratch_dir=scratch_dir, keep_scratch=False,
     )
+
+    # --- Step 4: resumed result must match serial and scratch is cleaned up ---
     np.testing.assert_allclose(
-        serial_result,
-        result_resumed,
-        rtol=1e-7,
-        atol=1e-9,
+        serial_result, result_resumed, rtol=1e-7, atol=1e-9,
         err_msg="Resumed scratch-backed second order calculation differs from serial.",
     )
     assert not glob.glob(os.path.join(scratch_dir, "iat_*.npy"))
