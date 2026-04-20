@@ -284,7 +284,7 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
+    def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
                   scratch_dir=None, keep_scratch=False):
         """
         Calculate second-order force constants with finite differences.
@@ -296,9 +296,11 @@ class SecondOrder(ForceConstant):
 
         Parameters
         ----------
-        calculator : callable or ASE Calculator instance
+        calculator : callable or ASE Calculator instance or None
             An ASE calculator class or instance. When running in parallel,
             pass a class so each worker can create its own instance.
+            If None, ``replicated_atoms`` must already have a calculator
+            attached.
         delta_shift : float, optional
             Finite-difference displacement in Angstrom.
             Default: 1e-3
@@ -316,8 +318,11 @@ class SecondOrder(ForceConstant):
             Default: 1
         scratch_dir : str or None, optional
             Optional scratch directory for atom-by-atom intermediate files used
-            for recovery of interrupted calculations.
-            Default: None
+            for recovery of interrupted calculations. Pass an explicit path to
+            override. Pass an empty string ``''`` to disable scratch files and
+            fall back to in-memory accumulation.
+            Default: ``{folder}/second_order`` when ``self.folder`` is set and
+            ``n_workers > 1``
         keep_scratch : bool, optional
             If True, keep scratch files after successful assembly.
             Default: False
@@ -334,6 +339,12 @@ class SecondOrder(ForceConstant):
             worker_calculator = None
         else:
             worker_calculator = calculator
+        # Auto-resolve the default scratch directory only for parallel runs;
+        # serial stays in memory to avoid creating unexpected directories.
+        if scratch_dir is None and self.folder and is_parallel(n_workers):
+            scratch_dir = os.path.join(self.folder, 'second_order')
+        elif scratch_dir == '':
+            scratch_dir = None
 
         if is_storing:
             try:
@@ -354,7 +365,8 @@ class SecondOrder(ForceConstant):
                     keep_scratch=keep_scratch,
                 )
                 self.save("second")
-                self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
+                if calculator is not None:
+                    self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
                 self.replicated_atoms.get_forces()
                 ase.io.write(self.folder + "/replicated_atoms.xyz", self.replicated_atoms, "extxyz")
             else:

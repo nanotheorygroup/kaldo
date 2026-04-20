@@ -287,3 +287,103 @@ def test_third_order_parallel_auto_resolves_scratch_dir(monkeypatch, tmp_path):
         n_workers=2,
     )
     assert captured['scratch_dir'] == os.path.join(str(folder), 'third_order')
+
+
+def test_second_order_parallel_auto_resolves_scratch_dir(monkeypatch, tmp_path):
+    """Parallel-mode ``SecondOrder.calculate`` must auto-resolve ``scratch_dir``
+    to ``{folder}/second_order`` for symmetry with the third-order API."""
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables import secondorder as secondorder_mod
+
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    folder = tmp_path / "kaldo_out"
+    fc = ForceConstants(atoms=atoms, supercell=(1, 1, 2), folder=str(folder))
+
+    captured = {}
+
+    def fake_calc_second(*args, **kwargs):
+        captured['scratch_dir'] = kwargs.get('scratch_dir')
+        n_atoms = len(atoms.numbers)
+        return np.zeros((1, n_atoms, 3, 2, n_atoms, 3))
+
+    monkeypatch.setattr(secondorder_mod, 'calculate_second', fake_calc_second)
+
+    fc.second.calculate(
+        calculator=EMT,
+        delta_shift=1e-5,
+        is_storing=False,
+        n_workers=2,
+    )
+    assert captured['scratch_dir'] == os.path.join(str(folder), 'second_order')
+
+
+def test_second_order_serial_does_not_auto_resolve_scratch_dir(monkeypatch, tmp_path):
+    """Serial-mode ``SecondOrder.calculate`` must not silently pass a
+    ``{folder}/second_order/`` path to ``calculate_second``, matching the
+    third-order behaviour."""
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables import secondorder as secondorder_mod
+
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    folder = tmp_path / "kaldo_out"
+    fc = ForceConstants(atoms=atoms, supercell=(1, 1, 2), folder=str(folder))
+
+    captured = {}
+
+    def fake_calc_second(*args, **kwargs):
+        captured['scratch_dir'] = kwargs.get('scratch_dir')
+        n_atoms = len(atoms.numbers)
+        return np.zeros((1, n_atoms, 3, 2, n_atoms, 3))
+
+    monkeypatch.setattr(secondorder_mod, 'calculate_second', fake_calc_second)
+
+    fc.second.calculate(
+        calculator=EMT(),
+        delta_shift=1e-5,
+        is_storing=False,
+        n_workers=1,
+    )
+    assert captured['scratch_dir'] is None
+
+
+def test_third_order_accepts_calculator_none():
+    """``ThirdOrder.calculate(calculator=None)`` must not raise. When None,
+    ``replicated_atoms.calc`` supplies the calculator — consistent with how
+    ``SecondOrder.calculate`` behaves and how ``calculate_third`` works."""
+    from kaldo.forceconstants import ForceConstants
+    import tempfile
+
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    with tempfile.TemporaryDirectory() as folder:
+        fc = ForceConstants(atoms=atoms, supercell=(1, 1, 2), folder=folder)
+        fc.third.replicated_atoms.calc = EMT()
+        # Must not raise; result correctness is covered elsewhere.
+        fc.third.calculate(
+            calculator=None,
+            delta_shift=1e-4,
+            is_storing=False,
+            n_workers=1,
+        )
+
+
+def test_second_order_accepts_calculator_none():
+    """``SecondOrder.calculate(calculator=None)`` with a pre-attached
+    ``replicated_atoms.calc`` must complete and write ``replicated_atoms.xyz``
+    without crashing in the post-calc ``get_forces()`` step.
+    """
+    from kaldo.forceconstants import ForceConstants
+    import tempfile
+
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+    with tempfile.TemporaryDirectory() as folder:
+        fc = ForceConstants(atoms=atoms, supercell=(1, 1, 2), folder=folder)
+        fc.second.replicated_atoms.calc = EMT()
+        # Must not raise; previously this re-attached ``None`` to ``.calc`` and
+        # then called ``get_forces()`` on an empty calculator.
+        fc.second.calculate(
+            calculator=None,
+            delta_shift=1e-5,
+            is_storing=True,
+            n_workers=1,
+        )
+        assert os.path.exists(os.path.join(folder, 'replicated_atoms.xyz'))

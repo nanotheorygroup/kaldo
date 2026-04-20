@@ -43,7 +43,7 @@ class ThirdOrder(ForceConstant):
              third_energy_threshold: float = 0.,
              chunk_size: int = 100000):
         """
-        Load thrid order force constants from a folder in the given format, used for library internally.
+        Load third order force constants from a folder in the given format, used for library internally.
 
         To load force constants data, ``ForceConstants.from_folder`` is recommended.
 
@@ -298,8 +298,6 @@ class ThirdOrder(ForceConstant):
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
         """
-        if calculator is None:
-            raise ValueError("Provide a calculator")
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
         atoms = self.atoms
@@ -307,7 +305,7 @@ class ThirdOrder(ForceConstant):
         # Attach the calculator instance to replicated_atoms once and skip the
         # per-atom rebind in _compute_iat_third. Some calculator libraries
         # require a calculator to stay bound to a single atoms object.
-        if n_workers == 1 and not callable(calculator):
+        if n_workers == 1 and calculator is not None and not callable(calculator):
             replicated_atoms.calc = calculator
             worker_calculator = None
         else:

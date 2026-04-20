@@ -33,24 +33,6 @@ def calculate_gradient(x, input_atoms):
     return grad
 
 
-def _validate_calculator(calculator):
-    """Raise TypeError if calculator is not a callable or ASE Calculator."""
-    if calculator is None:
-        return
-    if callable(calculator):
-        return
-    try:
-        from ase.calculators.calculator import Calculator
-        if isinstance(calculator, Calculator):
-            return
-    except ImportError:
-        pass
-    raise TypeError(
-        f"calculator must be a callable (e.g. EMT) or ASE Calculator instance, "
-        f"got {type(calculator).__name__}"
-    )
-
-
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
                      scratch_dir=None, keep_scratch=False):
     """
@@ -60,7 +42,6 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-    _validate_calculator(calculator)
     if is_parallel(n_workers):
         if calculator is not None:
             validate_parallel_calculator(calculator, method='calculate_second')
@@ -211,7 +192,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-    _validate_calculator(calculator)
     if is_parallel(n_workers):
         if calculator is not None:
             validate_parallel_calculator(calculator, method='calculate_third')
