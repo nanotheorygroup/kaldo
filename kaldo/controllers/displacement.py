@@ -166,7 +166,10 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_workers : int or None
         Number of parallel worker processes. ``1`` runs serially (default).
         ``None`` uses all available CPUs. Values > 1 launch that many workers
-        via ``concurrent.futures.ProcessPoolExecutor``.
+        via ``concurrent.futures.ProcessPoolExecutor``. Each worker is capped
+        to one OpenMP / MKL / OpenBLAS thread so calculators with internal
+        multithreading don't oversubscribe; override by setting
+        ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in the environment.
     calculator : callable or ASE Calculator instance or None
         Either an ASE calculator class or an already-constructed instance.
         When running in parallel (``n_workers > 1``), pass a class so each

@@ -284,7 +284,11 @@ class ThirdOrder(ForceConstant):
             If None, replicated_atoms must already have a calculator attached.
         n_workers : int or None
             Number of parallel worker processes. ``1`` runs serially.
-            ``None`` uses all available CPUs.
+            ``None`` uses all available CPUs. Each worker is capped to one
+            OpenMP / MKL / OpenBLAS thread so calculators with internal
+            multithreading (PyNEP, torch CPU, numpy+MKL) don't oversubscribe.
+            Override by setting ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in
+            the environment before invoking.
             Default: 1 (serial)
         scratch_dir : str or None
             Directory for scratch chunk files written during calculation to keep

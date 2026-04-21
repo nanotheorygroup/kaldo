@@ -314,7 +314,11 @@ class SecondOrder(ForceConstant):
         n_workers : int or None, optional
             Number of worker processes used for the displaced-atom finite-
             difference tasks. ``1`` runs serially, ``None`` uses all available
-            workers.
+            workers. Each worker is capped to one OpenMP / MKL / OpenBLAS
+            thread so that calculators with internal multithreading (PyNEP,
+            torch CPU, numpy+MKL) don't oversubscribe. Override by setting
+            ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in the environment
+            before invoking.
             Default: 1
         scratch_dir : str or None, optional
             Optional scratch directory for atom-by-atom intermediate files used
