@@ -1,22 +1,38 @@
 import numpy as np
 import pytest
+from ase import units
 
 from kaldo.forceconstants import ForceConstants
+from kaldo.interfaces import shengbte_io
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.observables import harmonic_with_q as hwq
 from kaldo.phonons import Phonons
-from kaldo.tests.test_gonze_lee_nac_helpers import require_nacl_debug
+from kaldo.tests.gonze_debug_reference import require_nacl_att3_debug, load_q_tensor, load_static_tensor
+
+
+def attach_reference_nac(second_order, nac_file="examples/nacl_phonopy/espresso.ifc2"):
+    _, _, charges = shengbte_io.read_second_order_qe_matrix(nac_file)
+    if charges is None:
+        raise ValueError(f"No NAC data found in {nac_file}")
+    second_order.atoms.info["dielectric"] = charges[0, :, :]
+    second_order.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
+    return second_order
 
 
 @pytest.fixture(scope="module")
 def nac_second_order():
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy",
+        folder="examples/nacl_phonopy_v2",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
-    return forceconstants.second
+    return attach_reference_nac(forceconstants.second)
+
+
+def test_att3_fixture_uses_v2_example(nac_second_order):
+    assert list(nac_second_order.supercell) == [8, 8, 8]
 
 
 def test_harmonic_with_q_accepts_nac_options(nac_second_order):
@@ -58,12 +74,13 @@ def test_gonze_velocity_raises_not_implemented(nac_second_order):
 
 def test_phonons_stores_nac_options():
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy",
+        folder="examples/nacl_phonopy_v2",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
+    attach_reference_nac(forceconstants.second)
     phonons = Phonons(
         forceconstants=forceconstants,
         kpts=[1, 1, 1],
@@ -158,10 +175,47 @@ def test_gonze_frequency_calculation_returns_real_frequencies(nac_second_order, 
 
 
 @pytest.mark.parametrize("q_name", ["q-00000", "q-00013", "q-00030"])
+def test_gonze_dd_total_mass_weighted_matches_full_reference_assembly(
+    nac_second_order, tmp_path, q_name
+):
+    debug_dir = require_nacl_att3_debug()
+    q_dir = debug_dir / q_name
+    q_point = np.load(q_dir / "q_red.npy")
+    q_index = int(q_name.split("-")[1])
+    phonon = HarmonicWithQ(
+        q_point=q_point,
+        second=nac_second_order,
+        storage="memory",
+        is_unfolding=True,
+        nac_method="gonze",
+        nac_debug=True,
+        nac_debug_folder=str(tmp_path / "debug"),
+        q_index=q_index,
+    )
+    _ = phonon._calculate_gonze_dynamical_matrix()
+
+    masses = load_static_tensor(debug_dir, "masses")
+    nac_factor = float(load_static_tensor(debug_dir, "nac_factor"))
+    dd_total = load_q_tensor(debug_dir, q_name, "dd_recip") + nac_factor * load_q_tensor(debug_dir, q_name, "dd_real")
+    dd_drift = (
+        load_static_tensor(debug_dir, "dd_q0")
+        + len(masses) * load_static_tensor(debug_dir, "dd_limiting")
+        + load_static_tensor(debug_dir, "dd_real_q0")
+    )
+    for i in range(len(masses)):
+        dd_total[i, :, i, :] += nac_factor * load_static_tensor(debug_dir, "dd_limiting")
+        dd_total[i, :, i, :] -= nac_factor * dd_drift[i]
+
+    expected = hwq._gonze_mass_weight(dd_total * (units.mol / (10 * units.J)), masses)
+    actual = np.load(tmp_path / "debug" / q_name / "dd_total_mass_weighted.npy")
+    np.testing.assert_allclose(actual, expected, atol=1e-3, rtol=0.0)
+
+
+@pytest.mark.parametrize("q_name", ["q-00000", "q-00013", "q-00030"])
 def test_gonze_nacl_frequencies_match_reference_within_two_percent(
     nac_second_order, tmp_path, q_name
 ):
-    debug_dir = require_nacl_debug()
+    debug_dir = require_nacl_att3_debug()
     q_dir = debug_dir / q_name
     q_point = np.load(q_dir / "q_red.npy")
     q_index = int(q_name.split("-")[1])

@@ -181,6 +181,45 @@ def _gonze_mass_weight(fc_term, masses):
     return out.reshape(len(masses) * 3, len(masses) * 3)
 
 
+def _gonze_compute_fc_long_range_correction(
+    g_list, born, dielectric, prim_positions, super_positions, s2p_map, lambda_, nac_factor, tolerance
+):
+    """
+    Real-space long-range dipole-dipole correction to force constants.
+
+    correction[i_prim, k_super, α, β] = nac_factor × Σ_{G≠0} born[i].T @ kk(G) @ born[j] × exp(2πi G·(τ_i−τ_k))
+
+    Units match nac_factor × Born² = eV/Å² (same units as kALDo force constants).
+    """
+    n_prim = prim_positions.shape[0]
+    n_super = super_positions.shape[0]
+    correction = np.zeros((n_prim, n_super, 3, 3), dtype=np.complex128)
+    l2 = 4.0 * lambda_ * lambda_
+
+    # Precompute position differences (n_prim, n_super, 3)
+    diff = prim_positions[:, np.newaxis, :] - super_positions[np.newaxis, :, :]
+
+    for g_vec in g_list:
+        norm = np.linalg.norm(g_vec)
+        if norm < tolerance:
+            continue
+        denom = _gonze_dielectric_part(g_vec, dielectric)
+        kk = np.outer(g_vec, g_vec) / denom * np.exp(-denom / l2)
+
+        # born_t_kk[i, γ, δ] = Σ_α born[i, α, γ] × kk[α, δ]  (i.e., born[i].T @ kk)
+        born_t_kk = np.einsum('iag,ad->igd', born, kk)
+        # block_ij[i, j, γ, β] = Σ_δ born_t_kk[i, γ, δ] × born[j, δ, β]
+        block_ij = np.einsum('igd,jdb->ijgb', born_t_kk, born)
+
+        # phases[i_prim, k_super] = exp(2πi G·(τ_i − τ_k))
+        phases = np.exp(2j * np.pi * (diff @ g_vec))
+
+        # correction[i, k] += block_ij[i, s2p_map[k]] * phases[i, k]
+        correction += block_ij[:, s2p_map, :, :] * phases[:, :, np.newaxis, np.newaxis]
+
+    return (correction * nac_factor).real
+
+
 def _gonze_short_range_dynamical_matrix(
     fc, q_red, svecs, multi, masses, s2p_map, p2s_map
 ):
@@ -322,20 +361,21 @@ class HarmonicWithQ(Observable, Storable):
 
     def _build_gonze_static_data(self):
         atoms = self.second.atoms
+        bohr = units.Bohr
         born = np.array(atoms.get_array('charges'), dtype=float, copy=True)
         dielectric = np.array(atoms.info['dielectric'], dtype=float, copy=True)
-        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
-        primitive_positions = np.array(atoms.positions, dtype=float, copy=True)
-        reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True)
+        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True) / bohr
+        primitive_positions = np.array(atoms.positions, dtype=float, copy=True) / bohr
+        reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True) * bohr
         masses = np.array(atoms.get_masses(), dtype=float, copy=True)
-        supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True)
+        supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True) / bohr
         volume = float(abs(np.linalg.det(primitive_cell)))
         num_g_points = 300
         g_cutoff = float((3 * num_g_points / (4 * np.pi) / volume) ** (1.0 / 3))
         exp_cutoff = 1e-10
         geg = g_cutoff ** 2 * np.trace(dielectric) / 3
         lambda_ = float(np.sqrt(-geg / 4 / np.log(exp_cutoff)))
-        unit_conversion_factor = 14.4
+        unit_conversion_factor = 2.0
         nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
         tolerance = 1e-5
         g_list = _gonze_get_g_list(reciprocal_lattice, g_cutoff)
@@ -368,45 +408,9 @@ class HarmonicWithQ(Observable, Storable):
         return data
 
     def _build_gonze_short_range_inputs(self, static_data):
-        atoms = self.second.atoms
-        n_atom = len(atoms)
-        wrapped_indices = self.second._direct_grid.grid(is_wrapping=True)
-        s2p_map = np.tile(np.arange(n_atom, dtype=int), len(wrapped_indices))
-        p2s_map = np.arange(n_atom, dtype=int)
-        s2pp_map = s2p_map.copy()
-        supercell = np.array(self.second.supercell, dtype=float)
-        svecs = []
-        multi = np.zeros((len(s2p_map), n_atom, 2), dtype=np.int64)
-        primitive_scaled = atoms.get_scaled_positions(wrap=False)
-        for i_s, atom_j in enumerate(s2p_map):
-            wrapped_index = wrapped_indices[i_s // n_atom]
-            super_scaled_j = (primitive_scaled[atom_j] + wrapped_index) / supercell
-            for i_p in range(n_atom):
-                primitive_scaled_i = primitive_scaled[i_p] / supercell
-                candidates = []
-                distances = []
-                for a in (-1, 0, 1):
-                    for b in (-1, 0, 1):
-                        for c in (-1, 0, 1):
-                            shift = np.array([a, b, c], dtype=float)
-                            vec = super_scaled_j - primitive_scaled_i + shift
-                            cart = vec @ static_data["supercell_cell"]
-                            candidates.append(vec)
-                            distances.append(np.linalg.norm(cart))
-                min_distance = min(distances)
-                start = len(svecs)
-                for vec, distance in zip(candidates, distances):
-                    if abs(distance - min_distance) < 1e-8:
-                        svecs.append(vec)
-                multi[i_s, i_p, 0] = len(svecs) - start
-                multi[i_s, i_p, 1] = start
-        return {
-            "svecs": np.array(svecs, dtype=float),
-            "multi": multi,
-            "s2p_map": s2p_map,
-            "p2s_map": p2s_map,
-            "s2pp_map": s2pp_map,
-        }
+        from kaldo.observables.secondorder import _gonze_build_short_range_inputs
+
+        return _gonze_build_short_range_inputs(self.second, static_data)
 
     def _calculate_gonze_dynamical_matrix(self):
         static_data = self._build_gonze_static_data()
@@ -414,25 +418,29 @@ class HarmonicWithQ(Observable, Storable):
         masses = static_data["masses"]
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
-        q_direction_cart = None
-        if np.linalg.norm(q_cart) < static_data["q_direction_tolerance"]:
-            q_direction_cart = static_data["reciprocal_lattice"] @ np.array([-0.5, 0.0, -0.5])
-        else:
-            q_direction_cart = q_cart
+        q_direction_red = np.array([-0.5, 0.0, -0.5], dtype=float)
+        q_direction_cart = static_data["reciprocal_lattice"] @ q_direction_red
 
         recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
-        dd_recip = _gonze_recip_dipole_dipole(
-            recip_dd_q0,
+        dd_recip_tmp_after_get_dd = _gonze_get_dd_base(
             static_data["G_list"],
             q_cart,
             q_direction_cart,
-            static_data["born"],
             static_data["dielectric"],
             static_data["primitive_positions"],
-            float(static_data["nac_factor"]),
             float(static_data["Lambda"]),
             float(static_data["q_direction_tolerance"]),
         )
+        dd_recip_after_multiply_borns = _gonze_multiply_borns(
+            dd_recip_tmp_after_get_dd,
+            static_data["born"],
+        )
+        dd_recip_after_subtract_dd_q0 = np.array(dd_recip_after_multiply_borns, copy=True)
+        for i in range(len(masses)):
+            dd_recip_after_subtract_dd_q0[i, :, i, :] -= recip_dd_q0[i]
+        dd_recip = dd_recip_after_subtract_dd_q0 * float(static_data["nac_factor"])
+        nac_factor = float(static_data["nac_factor"])
+        n_atom = len(masses)
         dd_real = _gonze_real_dipole_dipole(
             q_red,
             mapping["svecs"],
@@ -442,9 +450,6 @@ class HarmonicWithQ(Observable, Storable):
             float(static_data["Lambda"]),
             static_data["supercell_cell"],
         )
-        dd_limiting_expanded = np.zeros_like(dd_recip)
-        for i in range(len(masses)):
-            dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
         dd_real_q0_full = _gonze_real_dipole_dipole(
             np.zeros(3, dtype=float),
             mapping["svecs"],
@@ -455,22 +460,30 @@ class HarmonicWithQ(Observable, Storable):
             static_data["supercell_cell"],
         )
         dd_real_q0 = dd_real_q0_full.sum(axis=2)
-        dd_drift = (
-            static_data["dd_q0"]
-            + static_data["dd_limiting"] * len(masses)
-            + dd_real_q0
-        )
-        dd_total = dd_recip + dd_limiting_expanded + dd_real
-        for i in range(len(masses)):
-            dd_total[i, :, i, :] -= dd_drift[i]
+        dd_limiting_expanded = np.zeros_like(dd_recip)
+        dd_drift_expanded = np.zeros_like(dd_recip)
+        for i in range(n_atom):
+            dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
+            dd_drift_expanded[i, :, i, :] = (
+                static_data["dd_q0"][i]
+                + n_atom * static_data["dd_limiting"]
+                + dd_real_q0[i]
+            )
+        dd_total = dd_recip + nac_factor * (dd_limiting_expanded + dd_real - dd_drift_expanded)
         conversion = units.mol / (10 * units.J)
         dd_total_mass_weighted = _gonze_mass_weight(dd_total * conversion, masses)
 
-        n_atom = len(masses)
-        fc_full = np.array(self.second.value[0], dtype=np.complex128, copy=True)
-        fc_full = np.transpose(fc_full, (0, 2, 3, 1, 4))
-        fc_full = fc_full.reshape(n_atom, len(mapping["s2p_map"]), 3, 3)
-        fc_short = fc_full.copy()
+        from kaldo.observables.secondorder import _calculate_gonze_short_range_force_constants
+
+        if self.nac_debug:
+            fc_short = _calculate_gonze_short_range_force_constants(
+                self.second,
+                nac_debug=True,
+                nac_debug_folder=self.nac_debug_folder,
+            )
+        else:
+            fc_short = self.second.gonze_short_range_force_constants
+
         dm_short = _gonze_short_range_dynamical_matrix(
             fc_short * conversion,
             q_red,
@@ -492,7 +505,7 @@ class HarmonicWithQ(Observable, Storable):
                 "s2p_map": mapping["s2p_map"],
                 "p2s_map": mapping["p2s_map"],
                 "s2pp_map": mapping["s2pp_map"],
-                "dd_real_q0": dd_real_q0,
+                "p2p_map": mapping.get("p2p_map"),
                 "short_range_force_constants": fc_short,
             },
         )
@@ -501,11 +514,16 @@ class HarmonicWithQ(Observable, Storable):
             {
                 "q_red": q_red,
                 "q_cart": q_cart,
+                "q_direction_red": q_direction_red,
                 "q_direction_cart": q_direction_cart,
+                "dd_recip_tmp_after_get_dd": dd_recip_tmp_after_get_dd,
+                "dd_recip_after_multiply_borns": dd_recip_after_multiply_borns,
+                "dd_recip_after_subtract_dd_q0": dd_recip_after_subtract_dd_q0,
                 "dd_recip": dd_recip,
                 "dd_real": dd_real,
+                "dd_real_q0": dd_real_q0,
                 "dd_limiting_expanded": dd_limiting_expanded,
-                "dd_drift": dd_drift,
+                "dd_drift_expanded": dd_drift_expanded,
                 "dd_total_mass_weighted": dd_total_mass_weighted,
                 "dm_short": dm_short,
                 "dm_final": dm_final,
