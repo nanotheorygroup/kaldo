@@ -26,6 +26,10 @@ MIN_N_MODES_TO_STORE = 1000
 GONZE_VELOCITY_Q_LENGTH = 1e-5
 GONZE_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
 GONZE_VELOCITY_CUTOFF_FREQUENCY = 1e-4
+# DM conversion: 1 Ry/bohr²/amu in (rad/ps)² = (Ry_to_eV/Å²) × eV_to_10Jmol
+# = (units.Ry/units.Bohr²) × (units.mol/(10*units.J))
+# Used to convert kALDo-unit DM to phonopy-unit DM for cross-validation.
+_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr ** 2) * (units.mol / (10 * units.J))
 GONZE_VELOCITY_DIRECTIONS_CART = np.array(
     [
         np.array([1.0, 2.0, 3.0], dtype=float) / np.sqrt(14.0),
@@ -48,6 +52,35 @@ def _gonze_degenerate_sets(frequencies, tolerance=GONZE_VELOCITY_DEGENERACY_TOLE
             current = [index]
     sets.append(current)
     return sets
+
+
+def _gonze_to_phonopy_q_cart(q_cart):
+    return np.array(q_cart, dtype=float, copy=True) * units.Bohr
+
+
+def _gonze_to_phonopy_dm(dm):
+    return np.array(dm, copy=True) / _PHONOPY_TO_KALDO_DM
+
+
+def _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues):
+    factor = np.sqrt(_PHONOPY_TO_KALDO_DM) / (2 * np.pi)
+    return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
+
+
+def _gonze_velocity_debug_nac_branch(q_red, reciprocal_lattice, tolerance):
+    q_red = np.array(q_red, dtype=float, copy=True)
+    direction_cart = np.array(GONZE_VELOCITY_DIRECTIONS_CART[3], dtype=float, copy=True)
+    q_floor_cart = direction_cart / np.linalg.norm(direction_cart) * tolerance
+    dq_red = np.linalg.solve(reciprocal_lattice, q_floor_cart)
+    q_red_nac = q_red + dq_red
+    q_norm = max(float(np.linalg.norm(reciprocal_lattice @ q_red_nac)), tolerance)
+    return {
+        "nac_applied": bool(q_norm >= tolerance),
+        "q_direction_red": None,
+        "q_norm": q_norm,
+        "q_red": q_red_nac.tolist(),
+        "tolerance": tolerance,
+    }
 
 
 def _gonze_dielectric_part(q_cart, dielectric):
@@ -367,22 +400,51 @@ class HarmonicWithQ(Observable, Storable):
         static_data = self._build_gonze_static_data()
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
-        dm_q = self._calculate_gonze_dynamical_matrix()
+        dm_q_kaldo = self._calculate_gonze_dynamical_matrix()
+        dm_q = _gonze_to_phonopy_dm(dm_q_kaldo)
         eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
         eigenvalues = eigenvalues.real
-        frequencies = np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) / (2 * np.pi)
-        return {
+        frequencies = _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues)
+        degenerate_sets = _gonze_degenerate_sets(frequencies)
+        q_cart = _gonze_to_phonopy_q_cart(q_cart)
+        nac_branch = _gonze_velocity_debug_nac_branch(
+            q_red,
+            _gonze_to_phonopy_q_cart(static_data["reciprocal_lattice"]),
+            GONZE_VELOCITY_Q_LENGTH,
+        )
+        data = {
             "q_red": q_red,
             "q_cart": q_cart,
             "dm_q": dm_q,
             "eigenvalues": eigenvalues,
             "eigenvectors": eigenvectors,
             "frequencies": frequencies,
+            "degenerate_sets": {"sets": degenerate_sets},
+            "nac_branch": nac_branch,
             "directions": {
                 f"d{index}": {"direction_cart": direction.copy()}
                 for index, direction in enumerate(GONZE_VELOCITY_DIRECTIONS_CART)
             },
         }
+        self._gonze_save_debug(
+            self._gonze_debug_q_folder(),
+            {
+                "q_red": q_red,
+                "q_cart": q_cart,
+                "dm_q": dm_q,
+                "eigenvalues": eigenvalues,
+                "eigenvectors": eigenvectors,
+                "frequencies": frequencies,
+            },
+        )
+        self._gonze_save_debug_json(
+            self._gonze_debug_q_folder(),
+            {
+                "degenerate_sets": {"sets": degenerate_sets},
+                "nac_branch": nac_branch,
+            },
+        )
+        return data
 
     def _build_gonze_static_data(self):
         atoms = self.second.atoms
@@ -451,9 +513,7 @@ class HarmonicWithQ(Observable, Storable):
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
         q_direction_cart = None
-        if np.linalg.norm(q_cart) < static_data["q_direction_tolerance"]:
-            q_direction_cart = static_data["reciprocal_lattice"] @ np.array([-0.5, 0.0, -0.5])
-        else:
+        if np.linalg.norm(q_cart) >= static_data["q_direction_tolerance"]:
             q_direction_cart = q_cart
 
         recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
