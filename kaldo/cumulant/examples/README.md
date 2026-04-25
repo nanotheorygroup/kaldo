@@ -9,10 +9,9 @@ pipeline on TDEP-format inputs.
 | [`lj_argon.py`](lj_argon.py) | Lennard-Jones Ar @ 80 K | n_uc=1 single-atom primitive (centrosymmetric), large supercell (det M=256) |
 | [`gate6_ne_25cubed_from_cache.py`](gate6_ne_25cubed_from_cache.py) | Solid Neon @ 24 K (cached) | Full Gate-6 cumulant thermodynamics from pre-computed Phase 5 samples |
 
-All three scripts assume the Julia
-[LatticeDynamicsToolkit](https://github.com/emeitz/LatticeDynamicsToolkit)
-package is installed (it ships TDEP fixtures under
-`~/.julia/packages/LatticeDynamicsToolkit/*/data/`). Replace the input
+All three scripts assume the Julia `LatticeDynamicsToolkit.jl` package
+(Ethan Meitz, CMU) is installed — it ships TDEP fixtures under
+`~/.julia/packages/LatticeDynamicsToolkit/*/data/`. Replace the input
 paths with your own TDEP output folder to run the same analysis on
 arbitrary materials.
 
@@ -50,6 +49,9 @@ tuple instead of `supercell_matrix=`.
 ## Implementation reference
 
 The implementation closely follows
-[`LatticeDynamicsToolkit.jl`](https://github.com/emeitz/LatticeDynamicsToolkit)
-(Ethan Meitz). On the Stillinger-Weber Si test fixture, our F1 and F2
-values agree with Julia LDT to ~5e-5 relative across mesh sizes 2³–5³.
+[`CumulantAnalysis.jl`](https://github.com/ejmeitz/CumulantAnalysis.jl)
+(reference paper code in
+[`paper/`](https://github.com/ejmeitz/CumulantAnalysis.jl/tree/main/paper))
+and `LatticeDynamicsToolkit.jl` by Ethan Meitz (CMU). On the
+Stillinger-Weber Si test fixture our F1 and F2 values agree with Julia
+LDT to ~5e-5 relative across mesh sizes 2³–5³.
