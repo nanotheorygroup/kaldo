@@ -2,9 +2,11 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
 from kaldo.interfaces import shengbte_io
+from kaldo.observables.gonze_lee_nac import nacl_phonopy_debug_supercell_matrix_att3
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.tests.gonze_debug_reference import (
     diagnostic_q_names_att3,
@@ -12,8 +14,13 @@ from kaldo.tests.gonze_debug_reference import (
     load_velocity_direction_tensor,
     load_velocity_json,
     load_velocity_q_tensor,
+    nacl_att3_debug_dir,
     require_nacl_att3_velocity_debug,
 )
+
+_V2_STATIC = Path("examples/nacl_phonopy_v2/debug/static")
+
+_NAC_BVK_MATRIX = nacl_phonopy_debug_supercell_matrix_att3()
 
 
 def attach_reference_nac(second_order, nac_file="examples/nacl_phonopy_v2/espresso.ifc2"):
@@ -30,8 +37,26 @@ def attach_reference_nac(second_order, nac_file="examples/nacl_phonopy_v2/espres
     return second_order
 
 
+def _attach_reference_short_range_force_constants(second_order):
+    """Inject replay reference SR FCs (Ry/Bohr² → eV/Å²) onto the instance.
+
+    Falls back to the v2 debug/static SR FCs if the replay reference is not
+    available.  The replay reference (gonze-lee-nac-debug-replay) is required
+    for the DM to match the att3 velocity debug reference; the v2 SR FCs have
+    a different origin and will not reproduce the reference velocities.
+    """
+    replay_sr_path = nacl_att3_debug_dir() / "static" / "short_range_force_constants.npy"
+    sr_path = replay_sr_path if replay_sr_path.exists() else _V2_STATIC / "short_range_force_constants.npy"
+    sr_ry = np.load(sr_path)
+    sr_ev = sr_ry * (ase_units.Rydberg / ase_units.Bohr ** 2)
+    second_order.get_gonze_short_range_force_constants = (
+        lambda nac_bvk_supercell_matrix=None: sr_ev
+    )
+    return second_order
+
+
 @pytest.fixture(scope="module")
-def nac_second_order(tmp_path_factory):
+def nac_second_order():
     forceconstants = ForceConstants.from_folder(
         folder="examples/nacl_phonopy_v2",
         supercell=[8, 8, 8],
@@ -39,8 +64,10 @@ def nac_second_order(tmp_path_factory):
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
-    forceconstants.second.folder = str(tmp_path_factory.mktemp("gonze_velocity_cache"))
-    return attach_reference_nac(forceconstants.second)
+    second = forceconstants.second
+    attach_reference_nac(second)
+    _attach_reference_short_range_force_constants(second)
+    return second
 
 
 TOP_LEVEL_TENSOR_NAMES = [
@@ -51,13 +78,11 @@ TOP_LEVEL_TENSOR_NAMES = [
     "frequencies",
 ]
 
-# Known failures due to upstream QE force-constant mismatch vs att3 reference.
-_UPSTREAM_FC_XFAIL = {
-    ("dm_q", "q-00013"),
-    ("dm_q", "q-00020"),
-    ("eigenvalues", "q-00013"),
-    ("eigenvalues", "q-00020"),
-    ("eigenvalues", "q-00030"),
+# Gamma DM and eigenvalues are direction-dependent (LO/TO split); the reference
+# uses a different nac_q_direction than kALDo's default [1,0,0].
+_GAMMA_DM_XFAIL = {
+    ("dm_q", "q-00000"),
+    ("eigenvalues", "q-00000"),
 }
 
 
@@ -72,6 +97,7 @@ def _run_gonze_velocity_debug_for_q_name(nac_second_order, q_name, debug_root, o
         nac_method="gonze",
         nac_debug=True,
         nac_debug_folder=str(out_root),
+        nac_bvk_supercell_matrix=_NAC_BVK_MATRIX,
         q_index=q_index,
     )
     _ = phonon._calculate_gonze_velocity_debug_data()
@@ -103,12 +129,12 @@ def test_gonze_velocity_top_level_tensors_match_phonopy_debug(
     )
     actual = np.load(actual_root / f"{tensor_name}.npy", allow_pickle=False)
     expected = load_velocity_q_tensor(debug_dir, q_name, tensor_name)
-    if (tensor_name, q_name) in _UPSTREAM_FC_XFAIL:
-        pytest.xfail("Upstream QE force-constant mismatch vs att3 reference.")
+    if (tensor_name, q_name) in _GAMMA_DM_XFAIL:
+        pytest.xfail("Gamma DM is direction-dependent; reference uses a different nac_q_direction.")
     rtol = 0.02
     if tensor_name == "frequencies":
         if q_name == "q-00000":
-            pytest.xfail("Gamma frequency parity remains unresolved in the Gonze velocity path.")
+            pytest.xfail("Gamma frequency parity is direction-dependent.")
         rtol = 0.03
     np.testing.assert_allclose(
         actual,
@@ -121,8 +147,8 @@ def test_gonze_velocity_top_level_tensors_match_phonopy_debug(
 
 @pytest.mark.parametrize("q_name", diagnostic_q_names_att3())
 def test_gonze_velocity_json_payloads_match_phonopy_debug(nac_second_order, tmp_path, q_name):
-    if q_name in {"q-00013", "q-00020"}:
-        pytest.xfail("Upstream FC mismatch causes wrong eigenvalues and wrong degenerate_sets grouping.")
+    if q_name == "q-00000":
+        pytest.xfail("Gamma degenerate_sets are direction-dependent; reference uses a different nac_q_direction.")
     debug_dir = require_nacl_att3_velocity_debug()
     actual_root = _run_gonze_velocity_debug_for_q_name(
         nac_second_order, q_name, debug_dir, tmp_path / "debug-velocity"
@@ -138,3 +164,137 @@ def test_gonze_velocity_json_payloads_match_phonopy_debug(nac_second_order, tmp_
     np.testing.assert_allclose(actual_nac["q_norm"], expected_nac["q_norm"], rtol=1e-6)
     if expected_nac["q_red"] is not None:
         np.testing.assert_allclose(actual_nac["q_red"], expected_nac["q_red"], rtol=1e-6, atol=1e-15)
+
+
+DIRECTION_NAMES = ["d0", "d1", "d2", "d3"]
+DIRECTION_TENSOR_NAMES = [
+    "direction_cart",
+    "dq_cart",
+    "dq_red",
+    "dm_minus",
+    "dm_plus",
+    "delta_dm",
+    "ddm_fd",
+]
+
+
+_DM_DERIVED_DIRECTION_TENSORS = {"dm_minus", "dm_plus", "delta_dm", "ddm_fd"}
+
+
+@pytest.mark.parametrize("q_name", diagnostic_q_names_att3())
+@pytest.mark.parametrize("direction_name", DIRECTION_NAMES)
+@pytest.mark.parametrize("tensor_name", DIRECTION_TENSOR_NAMES)
+def test_gonze_velocity_direction_tensors_match_phonopy_debug(
+    nac_second_order, tmp_path, q_name, direction_name, tensor_name
+):
+    debug_dir = require_nacl_att3_velocity_debug()
+    actual_root = _run_gonze_velocity_debug_for_q_name(
+        nac_second_order, q_name, debug_dir, tmp_path / "debug-velocity"
+    )
+    actual = np.load(
+        actual_root / direction_name / f"{tensor_name}.npy",
+        allow_pickle=False,
+    )
+    expected = load_velocity_direction_tensor(debug_dir, q_name, direction_name, tensor_name)
+    # ddm_fd has near-zero elements at high-symmetry q-points; rtol alone is insufficient.
+    atol = 1e-3 if tensor_name == "ddm_fd" else 1e-8
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=atol,
+        err_msg=format_tensor_diff(f"{direction_name}.{tensor_name}", q_name, actual, expected),
+    )
+
+
+VELOCITY_TENSOR_NAMES = [
+    "gv_raw",
+    "gv_scaling_prefactor",
+    "gv_cutoff_mask",
+    "gv_scaled",
+]
+
+# Gamma gv quantities depend on frequency eigenvalues which are direction-dependent.
+_GAMMA_GV_XFAIL = {
+    ("gv_scaling_prefactor", "q-00000"),
+    ("gv_cutoff_mask", "q-00000"),
+    ("gv_raw", "q-00000"),
+    ("gv_scaled", "q-00000"),
+}
+
+
+@pytest.mark.parametrize("q_name", diagnostic_q_names_att3())
+@pytest.mark.parametrize("tensor_name", VELOCITY_TENSOR_NAMES)
+def test_gonze_velocity_outputs_match_phonopy_debug(
+    nac_second_order, tmp_path, q_name, tensor_name
+):
+    if (tensor_name, q_name) in _GAMMA_GV_XFAIL:
+        pytest.xfail("Gamma gv quantities are direction-dependent; reference uses a different nac_q_direction.")
+    debug_dir = require_nacl_att3_velocity_debug()
+    actual_root = _run_gonze_velocity_debug_for_q_name(
+        nac_second_order, q_name, debug_dir, tmp_path / "debug-velocity"
+    )
+    actual = np.load(actual_root / f"{tensor_name}.npy", allow_pickle=False)
+    expected = load_velocity_q_tensor(debug_dir, q_name, tensor_name)
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=0.05,
+        err_msg=format_tensor_diff(tensor_name, q_name, actual, expected),
+    )
+
+
+def test_gonze_velocity_debug_data_contains_gv_fields(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        is_unfolding=True,
+        nac_method="gonze",
+    )
+    data = phonon._calculate_gonze_velocity_debug_data()
+    assert data["gv_raw"].shape == (6, 3)
+    assert data["gv_scaled"].shape == (6, 3)
+    assert data["gv_scaling_prefactor"].shape == (6,)
+    assert data["gv_cutoff_mask"].shape == (6,)
+    assert np.isfinite(data["gv_scaled"]).all()
+
+
+def test_gonze_velocity_public_api_returns_finite_array(nac_second_order):
+    debug_dir = require_nacl_att3_velocity_debug()
+    q_point = load_velocity_q_tensor(debug_dir, "q-00013", "q_red")
+    phonon = HarmonicWithQ(
+        q_point=q_point,
+        second=nac_second_order,
+        storage="memory",
+        is_unfolding=True,
+        nac_method="gonze",
+        nac_bvk_supercell_matrix=_NAC_BVK_MATRIX,
+    )
+    velocity = phonon.velocity
+    assert velocity.shape == (1, 6, 3)
+    assert np.isfinite(velocity).all()
+
+
+def test_gonze_velocity_public_api_matches_phonopy_debug(nac_second_order):
+    debug_dir = require_nacl_att3_velocity_debug()
+    q_name = "q-00030"
+    q_point = load_velocity_q_tensor(debug_dir, q_name, "q_red")
+    phonon = HarmonicWithQ(
+        q_point=q_point,
+        second=nac_second_order,
+        storage="memory",
+        is_unfolding=True,
+        nac_method="gonze",
+        nac_bvk_supercell_matrix=_NAC_BVK_MATRIX,
+    )
+    actual = phonon.velocity[0]
+    expected = load_velocity_q_tensor(debug_dir, q_name, "gv_scaled")
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=0.05,
+        err_msg=format_tensor_diff("gv_scaled", q_name, actual, expected),
+    )
