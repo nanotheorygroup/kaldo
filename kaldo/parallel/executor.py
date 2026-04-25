@@ -18,15 +18,55 @@ def _default_mp_context():
     'Cannot re-initialize CUDA in forked subprocess'). Spawn avoids this at a
     small cold-start cost per worker and is the default on macOS.
 
-    Priority: spawn if torch+CUDA is initialized here, else the platform default.
+    We pick spawn whenever CUDA is *available*, not only when it has been
+    initialized. Torch lazy-loads CUDA: ``is_initialized()`` returns False
+    until a tensor or model touches the device. By the time the calculator
+    runs in a worker it will initialize CUDA, so anticipating that here is
+    the correct choice. The cold-start cost of spawn (~1s/worker) is
+    negligible next to a single force evaluation.
     """
     try:
         import torch  # lazy: don't force-import torch for non-ML users
-        if torch.cuda.is_available() and torch.cuda.is_initialized():
+        if torch.cuda.is_available():
             return multiprocessing.get_context('spawn')
     except ImportError:
         pass
     return multiprocessing.get_context()  # platform default
+
+
+def _require_main_process(n_workers):
+    """Raise a clear error when a parallel call is fired from a worker.
+
+    Spawn-based multiprocessing re-imports the entry-point module in every
+    worker. Top-level kaldo calls re-execute on import and try to spawn
+    their own pool, which Python rejects (``RuntimeError: An attempt has
+    been made to start a new process before the current process has
+    finished its bootstrapping phase``) with a message users find cryptic.
+
+    Catch it earlier and tell users exactly what to fix: wrap their kaldo
+    calls in ``if __name__ == '__main__':`` so the worker's re-import
+    skips them.
+
+    No-op for serial calls (``n_workers in (None, 1)`` only when the
+    parent explicitly opted into a single worker; ``None`` here means the
+    auto path which is parallel).
+    """
+    if n_workers is not None and n_workers <= 1:
+        return
+    if multiprocessing.current_process().name == 'MainProcess':
+        return
+    raise RuntimeError(
+        "Parallel kaldo (n_workers > 1) was invoked inside a worker process.\n"
+        "This usually means your script's top-level code calls\n"
+        "    fc.second.calculate(..., n_workers=N)\n"
+        "without an ``if __name__ == '__main__':`` guard, and spawn-based\n"
+        "multiprocessing re-executed it in every worker.\n"
+        "\n"
+        "Fix: wrap the kaldo calls (and anything that depends on them) in\n"
+        "the standard guard:\n"
+        "    if __name__ == '__main__':\n"
+        "        fc.second.calculate(..., n_workers=N)\n"
+    )
 
 
 def _init_worker_thread_caps(n_threads):
@@ -117,6 +157,7 @@ def get_executor(backend='process', n_workers=None, mp_context=None,
         return SerialExecutor()
 
     elif backend == 'process':
+        _require_main_process(n_workers)
         if mp_context is None:
             mp_context = _default_mp_context()
         if worker_threads is not None:

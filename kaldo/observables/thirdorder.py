@@ -10,7 +10,7 @@ from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third
-from kaldo.parallel import is_parallel, validate_parallel_calculator
+from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
@@ -272,16 +272,35 @@ class ThirdOrder(ForceConstant):
         ``is_storing`` is enabled, or compute the anharmonic force constants
         directly from finite-difference force evaluations.
 
+        See the *Parallel runs with ML calculators* section of the
+        ForceConstants documentation for the recommended pattern when
+        running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in
+        parallel: define a no-arg factory function at module top level
+        and pass it (without parentheses) as ``calculator``.
+
         Parameters
         ----------
         calculator : callable or ASE Calculator instance
-            An ASE calculator class or instance. When running in parallel,
-            pass a class so each worker can create its own instance::
+            For serial runs, pass an ASE Calculator instance (the existing
+            kaldo idiom). For parallel runs, pass a callable that returns
+            a fresh ASE Calculator: a class with a no-arg constructor, a
+            top-level factory function, ``functools.partial``, etc. Each
+            worker invokes the callable once to build its own isolated
+            calculator::
 
                 from ase.calculators.emt import EMT
                 calculator=EMT
 
             If None, replicated_atoms must already have a calculator attached.
+        delta_shift : float
+            Finite-difference displacement in Angstrom. The default ``1e-4``
+            is tuned for analytical calculators (EMT, LAMMPS). ML potentials
+            in float32 (Orb, MACE, MatterSim, ...) need ``1e-2`` or larger
+            because float32 force noise (~1e-7 eV/Å) divided by a tiny
+            delta produces FC noise that swamps the physics. A warning
+            fires when ``delta_shift < 1e-2`` and the calculator looks
+            ML-based.
+            Default: 1e-4
         n_workers : int or None
             Number of parallel worker processes. ``1`` runs serially.
             ``None`` uses all available CPUs. Each worker is capped to one
@@ -305,6 +324,7 @@ class ThirdOrder(ForceConstant):
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
+        maybe_warn_ml_delta_shift(calculator, delta_shift, method='ThirdOrder.calculate')
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         # Attach the calculator instance to replicated_atoms once and skip the

@@ -1,11 +1,11 @@
 """
-Tests for ``validate_parallel_calculator`` and the API-compatibility
-guarantees around it.
+Tests for ``validate_parallel_calculator`` / ``maybe_warn_ml_delta_shift``
+and the API-compatibility guarantees around them.
 
 Covers:
 
 1. Picklable calculators (EMT classes, instances, and ``functools.partial``) pass the validator.
-2. Non-picklable instances raise ``TypeError`` with a ``functools.partial``
+2. Non-picklable instances raise ``TypeError`` with a top-level-factory
    hint when ``n_workers > 1``, at every user-facing API entry point.
 3. Serial-mode (``n_workers=1``, default) execution is validator-free and
    preserves the dominant kaldo-examples pattern
@@ -13,11 +13,14 @@ Covers:
 4. ``SecondOrder.calculate`` and ``ThirdOrder.calculate`` behave symmetrically:
    both accept ``calculator=None`` (relying on ``replicated_atoms.calc``),
    both auto-resolve ``scratch_dir`` in parallel runs only.
+5. ``maybe_warn_ml_delta_shift`` heuristic fires for orb/MACE/MatterSim/
+   calorine calculators below 1e-2 and stays silent for analytical ones.
 """
 
 import functools
 import os
 import tempfile
+import warnings
 
 import numpy as np
 import pytest
@@ -26,7 +29,10 @@ from ase.calculators.emt import EMT
 
 from kaldo.controllers.displacement import calculate_second, calculate_third
 from kaldo.forceconstants import ForceConstants
-from kaldo.parallel import validate_parallel_calculator
+from kaldo.parallel import (
+    validate_parallel_calculator, maybe_warn_ml_delta_shift,
+    _looks_like_ml_calculator,
+)
 
 
 class _UnpicklableCalculator(EMT):
@@ -64,7 +70,10 @@ def test_validator_rejects_non_picklable_instance():
         )
     msg = str(excinfo.value)
     assert 'SecondOrder.calculate' in msg
-    assert 'functools' in msg and 'partial' in msg
+    # The fix points at a top-level no-arg factory function and the
+    # ``__main__`` guard required for spawn-based multiprocessing.
+    assert 'make_calculator' in msg
+    assert "if __name__ == '__main__':" in msg
     assert '_UnpicklableCalculator' in msg
     assert 'n_workers=1' in msg
 
@@ -75,7 +84,7 @@ def test_validator_rejects_non_picklable_instance():
                          ids=['second', 'third'])
 def test_parallel_rejects_non_picklable_calculator(al_atoms, calculate_fn):
     atoms, replicated = al_atoms
-    with pytest.raises(TypeError, match='functools'):
+    with pytest.raises(TypeError, match='make_calculator'):
         calculate_fn(atoms, replicated, 1e-5,
                      n_workers=2,
                      calculator=_UnpicklableCalculator())
@@ -88,7 +97,7 @@ def test_parallel_rejects_non_picklable_atoms_calc(al_atoms):
     atoms, _ = al_atoms
     replicated = atoms.repeat((1, 1, 2))
     replicated.calc = _UnpicklableCalculator()
-    with pytest.raises(TypeError, match='functools'):
+    with pytest.raises(TypeError, match='make_calculator'):
         calculate_second(atoms, replicated, 1e-5, n_workers=2, calculator=None)
 
 
@@ -222,3 +231,61 @@ def test_third_calculate_accepts_calculator_none():
         fc.third.calculate(
             calculator=None, delta_shift=1e-4, is_storing=False, n_workers=1,
         )
+
+
+# -- ML delta_shift warning heuristic ----------------------------------------
+
+class _FakeORBCalculator(EMT):
+    """Stand-in: an EMT subclass whose ``__module__`` looks like an ML
+    calculator's. Lets us exercise the heuristic without depending on
+    orb-models / mace / etc. being installed."""
+
+
+_FakeORBCalculator.__module__ = 'orb_models.forcefield.calculator'
+
+
+def test_ml_warning_fires_below_threshold():
+    """Recognized ML calculator + small delta_shift triggers the warning."""
+    with pytest.warns(UserWarning, match='delta_shift'):
+        maybe_warn_ml_delta_shift(
+            _FakeORBCalculator(), delta_shift=1e-4, method='SecondOrder.calculate',
+        )
+
+
+def test_ml_warning_silent_at_recommended_delta():
+    """At ``delta_shift >= 1e-2`` the warning is suppressed even for ML calcs."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        maybe_warn_ml_delta_shift(
+            _FakeORBCalculator(), delta_shift=1e-2, method='x',
+        )
+
+
+def test_ml_warning_silent_for_emt():
+    """EMT is analytical — no float32 noise — so we shouldn't nag the user
+    even at very small delta."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        maybe_warn_ml_delta_shift(EMT(), delta_shift=1e-6, method='x')
+
+
+def test_ml_warning_silent_for_none():
+    """``calculator=None`` (taken from ``replicated_atoms.calc``) — skip."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        maybe_warn_ml_delta_shift(None, delta_shift=1e-6, method='x')
+
+
+def test_ml_warning_silent_for_plain_callable():
+    """Plain callables (lambdas, functions) skip the heuristic — we can't
+    cheaply tell whether they build an ML calc, so don't speculate."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        maybe_warn_ml_delta_shift(lambda: EMT(), delta_shift=1e-6, method='x')
+
+
+def test_ml_detection_recognizes_class_and_instance():
+    assert _looks_like_ml_calculator(_FakeORBCalculator())
+    assert _looks_like_ml_calculator(_FakeORBCalculator)   # class form
+    assert not _looks_like_ml_calculator(EMT())
+    assert not _looks_like_ml_calculator(None)
