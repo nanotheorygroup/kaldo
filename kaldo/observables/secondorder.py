@@ -12,6 +12,17 @@ from kaldo.controllers.displacement import calculate_second
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+from kaldo.storable import Storable, lazy_property
+from kaldo.observables.gonze_lee_nac import (
+    bvk_supercell_matrix_key,
+    build_short_range_inputs,
+    build_static_data,
+    commensurate_points,
+    dipole_dipole_dynamical_matrix,
+    dynamical_matrix_from_second_order,
+    inverse_transform_dynmats_to_force_constants,
+    normalize_bvk_supercell_matrix,
+)
 
 logging = get_logger()
 
@@ -27,7 +38,11 @@ def acoustic_sum_rule(dynmat):
     return dynmat
 
 
-class SecondOrder(ForceConstant):
+class SecondOrder(ForceConstant, Storable):
+    _store_formats = {
+        "gonze_short_range_force_constants": "numpy",
+    }
+
     def __init__(self, value: ArrayLike, is_acoustic_sum: bool = False, *kargs, **kwargs):
         # apply acoustic sum rule before initialize in forceconstnat
         self.is_acoustic_sum = is_acoustic_sum
@@ -39,6 +54,59 @@ class SecondOrder(ForceConstant):
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
         self.storage = "numpy"
+
+    @lazy_property(label="", format="numpy")
+    def gonze_short_range_force_constants(self):
+        return self.calculate_gonze_short_range_force_constants()
+
+    def get_gonze_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        if matrix is None:
+            return self.gonze_short_range_force_constants
+
+        property_name = "gonze_short_range_force_constants_" + bvk_supercell_matrix_key(matrix)
+        folder = self.get_folder_from_label("")
+        try:
+            loaded = self._load_property(property_name, folder, format="numpy")
+            logging.info("Loading " + folder + "/" + property_name)
+            return loaded
+        except (FileNotFoundError, OSError, KeyError):
+            logging.info(
+                folder + "/" + property_name
+                + " not found in numpy format, calculating "
+                + property_name
+            )
+            force_constants = self.calculate_gonze_short_range_force_constants(matrix)
+            self._save_property(property_name, folder, force_constants, format="numpy")
+            return force_constants
+
+    def calculate_gonze_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
+            raise ValueError(
+                "Gonze-Lee short-range force constants require atoms.info['dielectric'] "
+                "and atoms.arrays['charges']."
+            )
+        matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        supercell = self.supercell if matrix is None else matrix
+        static_data = build_static_data(self, matrix)
+        mapping = build_short_range_inputs(self, matrix)
+        qpoints = commensurate_points(supercell, static_data["reciprocal_lattice"])
+        dynmats = np.zeros(
+            (len(qpoints), len(self.atoms) * 3, len(self.atoms) * 3),
+            dtype=np.complex128,
+        )
+        logging.info(
+            "Calculating Gonze-Lee short-range force constants from "
+            + str(len(qpoints))
+            + " commensurate q-points."
+        )
+        for i_q, q_point in enumerate(qpoints):
+            dynmat = dynamical_matrix_from_second_order(self, q_point)
+            dynmat -= dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
+            dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
+        return inverse_transform_dynmats_to_force_constants(
+            dynmats, qpoints, mapping, static_data["masses"]
+        )
 
     @classmethod
     def from_supercell(cls,
@@ -193,7 +261,7 @@ class SecondOrder(ForceConstant):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
-                    is_acoustic_sum=True,
+                    is_acoustic_sum=is_acoustic_sum,
                     folder=folder,
                 )
 

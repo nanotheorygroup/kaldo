@@ -308,6 +308,7 @@ class Phonons(Storable):
                  nac_method: str = "legacy",
                  nac_debug: bool = False,
                  nac_debug_folder: str = "debug",
+                 nac_bvk_supercell_matrix=None,
                  **kwargs):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
@@ -341,6 +342,7 @@ class Phonons(Storable):
         self.nac_method = nac_method
         self.nac_debug = bool(nac_debug)
         self.nac_debug_folder = nac_debug_folder
+        self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -432,6 +434,7 @@ class Phonons(Storable):
                                    nac_method=self.nac_method,
                                    nac_debug=self.nac_debug,
                                    nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                                    q_index=ik)
 
             physical_mode[ik] = phonon.physical_mode
@@ -466,6 +469,7 @@ class Phonons(Storable):
                                    nac_method=self.nac_method,
                                    nac_debug=self.nac_debug,
                                    nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                                    q_index=ik)
 
             frequency[ik] = phonon.frequency
@@ -500,6 +504,7 @@ class Phonons(Storable):
                                    nac_method=self.nac_method,
                                    nac_debug=self.nac_debug,
                                    nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                                    q_index=ik)
 
             participation_ratio[ik] = phonon.participation_ratio
@@ -533,6 +538,7 @@ class Phonons(Storable):
                                    nac_method=self.nac_method,
                                    nac_debug=self.nac_debug,
                                    nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                                    q_index=ik)
 
             velocity[ik] = phonon.velocity
@@ -570,6 +576,7 @@ class Phonons(Storable):
                                    nac_method=self.nac_method,
                                    nac_debug=self.nac_debug,
                                    nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                                    q_index=ik)
 
             eigensystem[ik] = phonon._eigensystem

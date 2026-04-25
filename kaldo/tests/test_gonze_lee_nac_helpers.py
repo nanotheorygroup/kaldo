@@ -4,14 +4,21 @@ import os
 import numpy as np
 import pytest
 import ase.io
+from ase import units as ase_units
 
+from kaldo.forceconstants import ForceConstants
+from kaldo.interfaces import shengbte_io
 from kaldo.observables import harmonic_with_q as hwq
+from kaldo.observables import gonze_lee_nac as gln
 from kaldo.observables.gonze_lee_nac import (
     build_supercell_matrix_mapping,
     commensurate_points,
     nacl_phonopy_debug_supercell_matrix,
+    nacl_phonopy_debug_supercell_matrix_att3,
 )
 from kaldo.tests.gonze_debug_reference import (
+    compare_tensors,
+    format_tensor_diff,
     load_velocity_direction_tensor,
     load_velocity_json,
     load_velocity_q_tensor,
@@ -21,12 +28,12 @@ from kaldo.tests.gonze_debug_reference import (
 
 DEFAULT_NACL_DEBUG = Path(
     "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
-    "example/nacl-att2/debug"
+    "example/nacl-att3/debug"
 )
 
 
 def nacl_debug_dir() -> Path:
-    return Path(os.environ.get("NACL_ATT2_DEBUG_DIR", DEFAULT_NACL_DEBUG))
+    return Path(os.environ.get("NACL_ATT3_DEBUG_DIR", DEFAULT_NACL_DEBUG))
 
 
 def require_nacl_debug() -> Path:
@@ -51,6 +58,50 @@ def require_nacl_debug_worktree() -> Path:
     if not all((path / "static" / name).exists() for name in required):
         pytest.skip(f"NaCl Gonze-Lee mapping debug tree not found at {path}")
     return path
+
+
+def load_att3_second_order(storage_folder) -> object:
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    forceconstants.second.folder = str(storage_folder)
+    return forceconstants.second
+
+
+def load_att3_v2_second_order_with_reference_nac(storage_folder) -> object:
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    _, _, charges = shengbte_io.read_second_order_qe_matrix(
+        "examples/nacl_phonopy/espresso.ifc2"
+    )
+    forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
+    forceconstants.second.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
+    forceconstants.second.folder = str(storage_folder)
+    return forceconstants.second
+
+
+def input_force_constants_compact(second_order) -> np.ndarray:
+    n_atom = len(second_order.atoms)
+    n_replicas = int(np.prod(second_order.supercell))
+    force_constants = np.array(second_order.value[0], dtype=float)
+    force_constants = force_constants.transpose(0, 2, 3, 1, 4)
+    force_constants = force_constants.reshape(n_atom, n_replicas * n_atom, 3, 3)
+    permutation = np.concatenate(
+        [
+            np.arange(atom_j, n_replicas * n_atom, n_atom, dtype=int)
+            for atom_j in range(n_atom)
+        ]
+    )
+    return force_constants[:, permutation]
 
 
 def test_gonze_dielectric_part_matches_quadratic_form():
@@ -162,6 +213,233 @@ def test_gonze_short_range_dynamical_matrix_matches_debug_reference():
         np.load(static / "p2s_map.npy"),
     )
     np.testing.assert_allclose(actual, np.load(q_dir / "dm_short.npy"), atol=1e-10, rtol=0.0)
+
+
+def test_reconstructed_short_range_force_constants_match_att3_reference_up_to_unit_conversion(tmp_path):
+    debug_dir = require_nacl_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    actual = second_order.get_gonze_short_range_force_constants(
+        nacl_phonopy_debug_supercell_matrix_att3()
+    )
+    expected = np.load(debug_dir / "static" / "short_range_force_constants.npy") * (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=1e-8,
+        err_msg=format_tensor_diff(
+            "short_range_force_constants", "static", actual, expected
+        ),
+    )
+
+
+def test_input_total_force_constants_match_att3_reference_up_to_unit_conversion(tmp_path):
+    debug_dir = require_nacl_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    actual = input_force_constants_compact(second_order)
+    expected = np.load(debug_dir / "static" / "force_constants.npy") * (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=1e-8,
+        err_msg=format_tensor_diff("force_constants", "static", actual, expected),
+    )
+
+
+def test_v2_force_constants_are_closer_to_att3_short_range_reference_than_legacy_input(tmp_path):
+    debug_dir = require_nacl_debug()
+    matrix = nacl_phonopy_debug_supercell_matrix_att3()
+    expected = np.load(debug_dir / "static" / "short_range_force_constants.npy") * (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+
+    legacy_second = load_att3_second_order(tmp_path / "legacy")
+    legacy_actual = legacy_second.get_gonze_short_range_force_constants(matrix)
+    legacy_diff = compare_tensors(
+        "legacy_short_range_force_constants", legacy_actual, expected
+    )
+
+    v2_second = load_att3_v2_second_order_with_reference_nac(tmp_path / "v2")
+    v2_actual = v2_second.get_gonze_short_range_force_constants(matrix)
+    v2_diff = compare_tensors("v2_short_range_force_constants", v2_actual, expected)
+
+    assert v2_diff.rel_diff < legacy_diff.rel_diff, (
+        f"legacy rel_diff={legacy_diff.rel_diff:.8e}, "
+        f"v2 rel_diff={v2_diff.rel_diff:.8e}"
+    )
+
+
+@pytest.mark.parametrize(
+    "q_red",
+    [
+        np.array([0.0, 0.0, 0.0]),
+        np.array([0.125, 0.0, 0.0]),
+        np.array([0.25, 0.0, 0.0]),
+        np.array([0.5, 0.0, 0.0]),
+    ],
+)
+def test_commensurate_dm_short_assembly_matches_att3_reference_fc(q_red, tmp_path):
+    debug_dir = require_nacl_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    matrix = nacl_phonopy_debug_supercell_matrix_att3()
+    static_data = gln.build_static_data(second_order, matrix)
+    mapping = gln.build_short_range_inputs(second_order, matrix)
+    actual = gln.dynamical_matrix_from_second_order(second_order, q_red)
+    actual -= gln.dipole_dipole_dynamical_matrix(q_red, static_data, mapping)
+
+    expected_fc = np.load(debug_dir / "static" / "short_range_force_constants.npy") * (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+    conversion = ase_units.mol / (10 * ase_units.J)
+    expected = hwq._gonze_short_range_dynamical_matrix(
+        expected_fc * conversion,
+        q_red,
+        mapping.get("phase_svecs", mapping["svecs"]),
+        mapping["multi"],
+        static_data["masses"],
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+    )
+    q_name = f"q_{q_red[0]:.3f}_{q_red[1]:.3f}_{q_red[2]:.3f}"
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=1e-8,
+        err_msg=format_tensor_diff("dm_short_commensurate", q_name, actual, expected),
+    )
+
+
+def test_axis_commensurate_total_dynamical_matrix_from_input_force_constants_matches_att3_reference(
+    tmp_path,
+):
+    debug_dir = require_nacl_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    matrix = nacl_phonopy_debug_supercell_matrix_att3()
+    mapping = gln.build_short_range_inputs(second_order, matrix)
+    q_red = np.array([0.125, 0.0, 0.0])
+    actual = gln.dynamical_matrix_from_second_order(second_order, q_red)
+    expected_fc = np.load(debug_dir / "static" / "force_constants.npy") * (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+    expected = hwq._gonze_short_range_dynamical_matrix(
+        expected_fc * (ase_units.mol / (10 * ase_units.J)),
+        q_red,
+        mapping["svecs"],
+        mapping["multi"],
+        second_order.atoms.get_masses(),
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+    )
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=1e-8,
+        err_msg=format_tensor_diff("dm_total_from_input_fc", "q_0.125_0.000_0.000", actual, expected),
+    )
+
+
+@pytest.mark.parametrize(
+    "q_red",
+    [
+        np.array([0.0, 0.0, 0.0]),
+        np.array([0.125, 0.0, 0.0]),
+        np.array([0.125, 0.125, 0.125]),
+    ],
+)
+def test_matrix_specific_total_dynamical_matrix_matches_input_force_constants_forward_transform(
+    q_red, tmp_path
+):
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    matrix = nacl_phonopy_debug_supercell_matrix_att3()
+    mapping = gln.build_short_range_inputs(second_order, matrix)
+    actual = gln.dynamical_matrix_from_second_order(second_order, q_red)
+    expected = hwq._gonze_short_range_dynamical_matrix(
+        input_force_constants_compact(second_order)
+        * (ase_units.mol / (10 * ase_units.J)),
+        q_red,
+        mapping["svecs"],
+        mapping["multi"],
+        second_order.atoms.get_masses(),
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+    )
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        atol=1e-10,
+        rtol=1e-10,
+        err_msg=format_tensor_diff("dm_total_from_input_fc", str(q_red.tolist()), actual, expected),
+    )
+
+
+def test_axis_commensurate_long_range_subtraction_matches_reference_short_range_implied_difference(
+    tmp_path,
+):
+    debug_dir = require_nacl_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    matrix = nacl_phonopy_debug_supercell_matrix_att3()
+    static_data = gln.build_static_data(second_order, matrix)
+    mapping = gln.build_short_range_inputs(second_order, matrix)
+    q_red = np.array([0.125, 0.0, 0.0])
+
+    total_dynmat = gln.dynamical_matrix_from_second_order(second_order, q_red)
+    expected_fc = np.load(debug_dir / "static" / "short_range_force_constants.npy") * (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+    expected_short = hwq._gonze_short_range_dynamical_matrix(
+        expected_fc * (ase_units.mol / (10 * ase_units.J)),
+        q_red,
+        mapping["svecs"],
+        mapping["multi"],
+        static_data["masses"],
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+    )
+    actual = gln.dipole_dipole_dynamical_matrix(q_red, static_data, mapping)
+    expected = total_dynmat - expected_short
+
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=1e-8,
+        err_msg=format_tensor_diff("dd_total_mass_weighted", "q_0.125_0.000_0.000", actual, expected),
+    )
+
+
+@pytest.mark.parametrize("q_name", ["q-00000", "q-00013", "q-00020", "q-00030"])
+def test_reconstructed_short_range_force_constants_reproduce_att3_dm_short(q_name, tmp_path):
+    debug_dir = require_nacl_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    fc_short = second_order.get_gonze_short_range_force_constants(
+        nacl_phonopy_debug_supercell_matrix_att3()
+    )
+    fc_short_phonopy_units = fc_short / (ase_units.Rydberg / ase_units.Bohr ** 2)
+    q_dir = debug_dir / q_name
+    actual = hwq._gonze_short_range_dynamical_matrix(
+        fc_short_phonopy_units,
+        np.load(q_dir / "q_red.npy"),
+        np.load(debug_dir / "static" / "svecs.npy"),
+        np.load(debug_dir / "static" / "multi.npy"),
+        np.load(debug_dir / "static" / "masses.npy"),
+        np.load(debug_dir / "static" / "s2p_map.npy"),
+        np.load(debug_dir / "static" / "p2s_map.npy"),
+    )
+    expected = np.load(q_dir / "dm_short.npy")
+    np.testing.assert_allclose(
+        actual,
+        expected,
+        rtol=0.02,
+        atol=1e-8,
+        err_msg=format_tensor_diff("dm_short", q_name, actual, expected),
+    )
 
 
 def test_gonze_real_dipole_q0_matches_debug_reference():

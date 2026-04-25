@@ -299,6 +299,7 @@ class HarmonicWithQ(Observable, Storable):
                  nac_debug=False,
                  nac_debug_folder='debug',
                  nac_bvk_supercell_matrix=None,
+                 nac_q_direction=(1, 0, 0),
                  q_index=None,
                  *kargs,
                  **kwargs):
@@ -331,6 +332,7 @@ class HarmonicWithQ(Observable, Storable):
         self.nac_bvk_supercell_matrix = normalize_bvk_supercell_matrix(
             nac_bvk_supercell_matrix
         )
+        self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
         self.q_index = q_index
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
@@ -396,6 +398,73 @@ class HarmonicWithQ(Observable, Storable):
         for name, payload in payloads.items():
             (folder / f"{name}.json").write_text(json.dumps(payload, indent=2, sort_keys=True))
 
+    def _calculate_gonze_dynamical_matrix_for_q(self, q_red):
+        original_q_point = np.array(self.q_point, dtype=float, copy=True)
+        original_debug = self.nac_debug
+        self.q_point = np.array(q_red, dtype=float, copy=True)
+        self.nac_debug = False
+        try:
+            return self._calculate_gonze_dynamical_matrix()
+        finally:
+            self.q_point = original_q_point
+            self.nac_debug = original_debug
+
+    def _calculate_gonze_velocity_direction_data(self, direction_index, static_data):
+        if direction_index not in range(4):
+            raise ValueError(f"direction_index must be in 0..3, got {direction_index}")
+        direction_cart = np.array(
+            GONZE_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
+        )
+        dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
+        dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
+        q_red = np.array(self.q_point, dtype=float, copy=True)
+        dm_minus = _gonze_to_phonopy_dm(self._calculate_gonze_dynamical_matrix_for_q(q_red - dq_red))
+        dm_plus = _gonze_to_phonopy_dm(self._calculate_gonze_dynamical_matrix_for_q(q_red + dq_red))
+        delta_dm = dm_plus - dm_minus
+        ddm_fd = delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH)
+        return {
+            "direction_cart": direction_cart,
+            "dq_cart": dq_cart,
+            "dq_red": dq_red,
+            "dm_minus": dm_minus,
+            "dm_plus": dm_plus,
+            "delta_dm": delta_dm,
+            "ddm_fd": ddm_fd,
+        }
+
+    def _project_gonze_group_velocity_raw(self, ddms, eigenvectors, frequencies):
+        """Project ddm_fd tensors onto eigenmodes with degenerate perturbation theory.
+
+        ddms[0] is the d0 direction used to lift degeneracy.
+        ddms[1:] are the x/y/z axes (d1, d2, d3) for the velocity components.
+        Returns gv_raw of shape (n_modes, 3) in phonopy DM derivative units.
+        """
+        gv_raw = np.zeros((len(frequencies), 3), dtype=float)
+        degenerate_sets = _gonze_degenerate_sets(frequencies)
+        for indices in degenerate_sets:
+            subspace = eigenvectors[:, indices]
+            perturbation = subspace.conj().T @ ddms[0] @ subspace
+            _, rotation = np.linalg.eigh((perturbation + perturbation.conj().T) / 2)
+            rotated = subspace @ rotation
+            for axis, ddm in enumerate(ddms[1:]):
+                projected = rotated.conj().T @ ddm @ rotated
+                gv_raw[np.array(indices), axis] = np.real(np.diag(projected))
+        return gv_raw
+
+    def _scale_gonze_group_velocity_raw(self, gv_raw, frequencies):
+        """Scale raw projected derivatives to group velocity in Å×THz.
+
+        Applies gv = (1/2ω) × dω²/dk, expressed in phonopy units as
+        _PHONOPY_TO_KALDO_DM / (8π² × freq_THz).
+        """
+        scaling = np.zeros(len(frequencies), dtype=float)
+        cutoff_mask = (np.abs(frequencies) > GONZE_VELOCITY_CUTOFF_FREQUENCY).astype(np.int64)
+        active = cutoff_mask.astype(bool)
+        scaling[active] = _PHONOPY_TO_KALDO_DM / (8.0 * np.pi ** 2 * frequencies[active])
+        gv_scaled = gv_raw * scaling[:, np.newaxis]
+        gv_scaled[~active] = 0.0
+        return gv_scaled, scaling, cutoff_mask
+
     def _calculate_gonze_velocity_debug_data(self):
         static_data = self._build_gonze_static_data()
         q_red = np.array(self.q_point, dtype=float, copy=True)
@@ -412,6 +481,17 @@ class HarmonicWithQ(Observable, Storable):
             _gonze_to_phonopy_q_cart(static_data["reciprocal_lattice"]),
             GONZE_VELOCITY_Q_LENGTH,
         )
+        directions = {}
+        for index in range(4):
+            direction_name = f"d{index}"
+            direction_data = self._calculate_gonze_velocity_direction_data(index, static_data)
+            directions[direction_name] = direction_data
+            self._gonze_save_debug(self._gonze_debug_q_folder() / direction_name, direction_data)
+        ddms = [directions[f"d{i}"]["ddm_fd"] for i in range(4)]
+        gv_raw = self._project_gonze_group_velocity_raw(ddms, eigenvectors, frequencies)
+        gv_scaled, gv_scaling_prefactor, gv_cutoff_mask = self._scale_gonze_group_velocity_raw(
+            gv_raw, frequencies
+        )
         data = {
             "q_red": q_red,
             "q_cart": q_cart,
@@ -421,10 +501,11 @@ class HarmonicWithQ(Observable, Storable):
             "frequencies": frequencies,
             "degenerate_sets": {"sets": degenerate_sets},
             "nac_branch": nac_branch,
-            "directions": {
-                f"d{index}": {"direction_cart": direction.copy()}
-                for index, direction in enumerate(GONZE_VELOCITY_DIRECTIONS_CART)
-            },
+            "directions": directions,
+            "gv_raw": gv_raw,
+            "gv_scaling_prefactor": gv_scaling_prefactor,
+            "gv_cutoff_mask": gv_cutoff_mask,
+            "gv_scaled": gv_scaled,
         }
         self._gonze_save_debug(
             self._gonze_debug_q_folder(),
@@ -435,6 +516,10 @@ class HarmonicWithQ(Observable, Storable):
                 "eigenvalues": eigenvalues,
                 "eigenvectors": eigenvectors,
                 "frequencies": frequencies,
+                "gv_raw": gv_raw,
+                "gv_scaling_prefactor": gv_scaling_prefactor,
+                "gv_cutoff_mask": gv_cutoff_mask,
+                "gv_scaled": gv_scaled,
             },
         )
         self._gonze_save_debug_json(
@@ -512,9 +597,10 @@ class HarmonicWithQ(Observable, Storable):
         masses = static_data["masses"]
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
-        q_direction_cart = None
         if np.linalg.norm(q_cart) >= static_data["q_direction_tolerance"]:
             q_direction_cart = q_cart
+        else:
+            q_direction_cart = static_data["reciprocal_lattice"] @ self.nac_q_direction
 
         recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
         dd_recip = _gonze_recip_dipole_dipole(
@@ -552,7 +638,7 @@ class HarmonicWithQ(Observable, Storable):
         )
         dd_real_q0 = dd_real_q0_full.sum(axis=2)
         dd_drift = (
-            static_data["dd_q0"]
+            static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
             + static_data["dd_limiting"] * len(masses)
             + dd_real_q0
         )
@@ -786,10 +872,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_velocity(self):
         if self.nac_method == 'gonze':
-            raise NotImplementedError(
-                "Gonze-Lee velocity derivatives are not implemented yet; "
-                "use nac_method='legacy' for velocity calculations."
-            )
+            return self._calculate_gonze_velocity_debug_data()["gv_scaled"][np.newaxis, ...]
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
