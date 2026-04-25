@@ -62,7 +62,8 @@ class SecondOrder(ForceConstant):
              folder: str,
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = "numpy",
-             is_acoustic_sum: bool = False):
+             is_acoustic_sum: bool = False,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load second order force constants from a folder in the given format, used for library internally.
 
@@ -240,6 +241,31 @@ class SecondOrder(ForceConstant):
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 uc = ase.io.read(atom_prime_file, format="vasp")
                 sc = ase.io.read(replicated_atom_prime_file, format="vasp")
+                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+
+                from kaldo.interfaces.tdep_io import (
+                    validate_tdep_supercell_matrix,
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                    parse_tdep_forceconstant_nondiag,
+                )
+                M_int = validate_tdep_supercell_matrix(supercell_matrix, M, supercell)
+                if M_int is not None:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    d2 = parse_tdep_forceconstant_nondiag(
+                        fc_file=os.path.join(folder, "infile.forceconstant"),
+                        primitive=uc,
+                        replica_table=mapping["replica_table"],
+                        M=mapping["M"],
+                    )
+                    second_order = SecondOrder(
+                        value=d2, is_acoustic_sum=is_acoustic_sum,
+                        folder=folder, **kw,
+                    )
+                    return attach_snf_metadata(second_order, mapping)
+
+                # Diagonal path (unchanged)
                 d2 = parse_tdep_forceconstant(
                     fc_file=os.path.join(folder, "infile.forceconstant"),
                     primitive=atom_prime_file,

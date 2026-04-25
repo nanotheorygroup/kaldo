@@ -11,6 +11,416 @@ from sparse import COO
 logging = get_logger()
 
 
+# ---------------------------------------------------------------------------
+# SNF-style supercell enumeration (for non-diagonal primitive -> ssposcar)
+# ---------------------------------------------------------------------------
+
+def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
+    """Map TDEP ssposcar atoms to (primitive_atom_index, lattice_vector).
+
+    Given a primitive cell and a TDEP ``infile.ssposcar`` that may be a
+    non-diagonal tiling of the primitive (rhombo primitive + cubic
+    conventional supercell, etc.), compute:
+
+    * ``atom_of_sc``  : (n_sc,) int — which primitive atom each sc atom is.
+    * ``replica_vector_of_sc``  : (n_sc, 3) int — the integer lattice vector
+      R in the primitive basis of each sc atom.
+    * ``replica_table`` : (n_rep, 3) int — deduplicated list of unique
+      replica lattice vectors R.
+    * ``replica_id_of_sc`` : (n_sc,) int — index into replica_table for
+      each sc atom.
+
+    Wraps replica vectors to their minimum-image form under the supercell
+    lattice so the replica table covers only n_rep = n_sc / n_uc unique
+    lattice points.
+    """
+    uc_pos = np.asarray(primitive_atoms.positions)
+    uc_cell = np.asarray(primitive_atoms.cell)
+    sc_pos = np.asarray(supercell_atoms.positions)
+    sc_cell = np.asarray(supercell_atoms.cell)
+    n_uc = len(primitive_atoms)
+    n_sc = len(supercell_atoms)
+    if n_sc % n_uc != 0:
+        raise ValueError(
+            f"ssposcar n_atoms={n_sc} not divisible by primitive n_atoms={n_uc}"
+        )
+
+    inv_uc = np.linalg.inv(uc_cell)
+    inv_sc = np.linalg.inv(sc_cell)
+    # M_prim_to_sc satisfies sc_cell = M @ uc_cell (row-vector lattice matrices).
+    M = np.linalg.solve(uc_cell, sc_cell)
+
+    atom_of_sc = np.full(n_sc, -1, dtype=int)
+    replica_vector_of_sc = np.zeros((n_sc, 3), dtype=int)
+
+    for i, rsc in enumerate(sc_pos):
+        # Try each primitive atom: rsc = uc_pos[j] + R @ uc_cell + k @ sc_cell
+        # For each j, solve R = (rsc - uc_pos[j]) @ inv_uc in primitive basis;
+        # then wrap through the supercell lattice (R might point outside one
+        # period of the ssposcar). We want the R that lives inside the
+        # Wigner-Seitz cell of the supercell (min-image).
+        for j in range(n_uc):
+            R_frac_prim = (rsc - uc_pos[j]) @ inv_uc
+            # Wrap into the [0, 1)^3 Brillouin zone of the SUPERCELL lattice,
+            # expressed in primitive units. The supercell lattice points are
+            # integer linear combinations of M rows. So we express R in sc
+            # fractional coords and wrap those.
+            R_frac_sc = R_frac_prim @ np.linalg.inv(M)
+            R_frac_sc_wrap = R_frac_sc - np.floor(R_frac_sc + tol)
+            # Convert back to primitive basis
+            R_frac_prim_wrap = R_frac_sc_wrap @ M
+            R_int = np.round(R_frac_prim_wrap).astype(int)
+            residual = np.max(np.abs(R_frac_prim_wrap - R_int))
+            if residual < tol:
+                atom_of_sc[i] = j
+                replica_vector_of_sc[i] = R_int
+                break
+        if atom_of_sc[i] == -1:
+            raise ValueError(
+                f"sc atom {i} at {rsc} did not map to any primitive atom"
+            )
+
+    # Build deduplicated replica table (atom 0's replicas = all unique R)
+    uniq_rs, inverse = np.unique(
+        replica_vector_of_sc, axis=0, return_inverse=True,
+    )
+    n_rep_expected = n_sc // n_uc
+    if len(uniq_rs) != n_rep_expected:
+        raise ValueError(
+            f"expected {n_rep_expected} unique replicas, got {len(uniq_rs)}"
+        )
+    # Re-wrap each replica to the Cartesian-norm-minimal form under the
+    # supercell lattice. An entry R from the [0,1) sc-fractional wrap can
+    # equivalently be R - k @ M for any integer k; we pick k that minimizes
+    # ||R @ uc_cell||. This matches the TDEP IFC file convention (signed,
+    # small) and keeps exp(iq.R) phases correct on q-meshes smaller than the
+    # supercell.
+    uniq_rs_min = np.zeros_like(uniq_rs)
+    M_rows = M.astype(int)
+    shifts = np.array(
+        [[a, b, c] for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1)],
+        dtype=int,
+    )
+    for idx, R in enumerate(uniq_rs):
+        best_R = R
+        best_norm = np.linalg.norm(R @ uc_cell)
+        for s in shifts:
+            if not np.any(s):
+                continue
+            R_shift = R - s @ M_rows
+            norm = np.linalg.norm(R_shift @ uc_cell)
+            if norm < best_norm - 1e-8:
+                best_R = R_shift
+                best_norm = norm
+        uniq_rs_min[idx] = best_R
+    replica_table = uniq_rs_min.astype(int)
+    replica_id_of_sc = inverse
+
+    return dict(
+        atom_of_sc=atom_of_sc,
+        replica_vector_of_sc=replica_vector_of_sc,
+        replica_table=replica_table,
+        replica_id_of_sc=replica_id_of_sc,
+        M=M,
+    )
+
+
+# wrap_lattice_vector_to_replica was moved to kaldo.grid (it is pure SNF
+# math with no TDEP-format dependency). Re-export here for back-compat.
+from kaldo.grid import wrap_lattice_vector_to_replica  # noqa: E402, F401
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers for TDEP non-diagonal observable loaders
+# ---------------------------------------------------------------------------
+
+def validate_tdep_supercell_matrix(supercell_matrix, M_inferred, supercell, tol=1e-4):
+    """Cross-check a user-supplied ``supercell_matrix`` against ssposcar.
+
+    Returns ``M_int`` (integer ``np.ndarray``, shape (3, 3)) when valid.
+    Raises ``ValueError`` on:
+      * ``supercell_matrix`` not integer-valued (within ``tol``)
+      * mismatch with the M inferred from ``ucposcar`` / ``ssposcar``
+
+    If ``supercell_matrix`` is ``None``, validates the **diagonal** path
+    instead: M must be diagonal and its diagonal must match ``supercell``.
+    Returns ``None`` to signal "use the diagonal path".
+    """
+    if supercell_matrix is None:
+        M_diag = np.diag(np.diag(M_inferred))
+        if not np.allclose(M_inferred - M_diag, 0.0, atol=1e-6):
+            raise ValueError(
+                "format='tdep' requires a diagonal primitive-to-supercell"
+                " mapping, but the ssposcar is non-diagonal:\n"
+                f"  M = ucposcar^-1 * ssposcar =\n{M_inferred}\n"
+                "Pass supercell_matrix= (a 3x3 integer matrix) to enable"
+                " non-diagonal SNF support."
+            )
+        expected_diag = np.array(supercell, dtype=float)
+        if not np.allclose(np.diag(M_inferred), expected_diag, atol=1e-6):
+            raise ValueError(
+                f"format='tdep' supercell={tuple(supercell)} does not match"
+                f" the diagonal tiling M={np.diag(M_inferred).astype(int).tolist()}"
+                " implied by ucposcar/ssposcar. Pass the matching supercell"
+                " tuple."
+            )
+        return None
+
+    M_given = np.asarray(supercell_matrix, dtype=float)
+    M_given_round = np.round(M_given)
+    if not np.allclose(M_given, M_given_round, atol=tol):
+        raise ValueError(
+            f"supercell_matrix must be integer-valued, got\n{M_given}"
+        )
+    if not np.allclose(M_given_round, M_inferred, atol=tol):
+        raise ValueError(
+            f"supercell_matrix does not match ucposcar->ssposcar"
+            f" mapping:\n given M=\n{M_given_round.astype(int)}\n"
+            f" inferred M=\n{M_inferred}"
+        )
+    return M_given_round.astype(int)
+
+
+def build_nondiag_observable_kwargs(uc, sc):
+    """Build the shared kwargs SecondOrder/ThirdOrder/FourthOrder need to
+    construct themselves on a non-diagonal SNF replica mapping.
+
+    Returns a dict with keys::
+
+        {
+          "atoms": uc,
+          "replicated_positions": (n_rep * n_uc, 3) Cartesian,
+          "supercell": (n_rep, 1, 1)  (linearized; the real M is in mapping),
+          "folder": ...,                # caller fills
+          "grid": NonDiagonalGrid(...),
+          "_mapping": <SNF mapping dict>,
+        }
+
+    Caller appends ``value=`` plus any observable-specific kwargs
+    (``is_acoustic_sum`` for SecondOrder, etc.), constructs the observable,
+    then attaches ``_snf_mapping`` / ``_supercell_matrix`` / ``_replica_table``
+    metadata via :func:`attach_snf_metadata` below.
+    """
+    from kaldo.grid import NonDiagonalGrid
+    mapping = build_supercell_replica_mapping(uc, sc)
+    nd_grid = NonDiagonalGrid(
+        replica_table=mapping["replica_table"], M=mapping["M"],
+    )
+    rep_pos = (mapping["replica_table"] @ np.asarray(uc.cell))[:, None, :] \
+              + np.asarray(uc.positions)[None, :, :]
+    n_rep = len(mapping["replica_table"])
+    return dict(
+        atoms=uc,
+        replicated_positions=rep_pos.reshape(-1, 3),
+        supercell=(n_rep, 1, 1),
+        grid=nd_grid,
+        _mapping=mapping,
+    )
+
+
+def attach_snf_metadata(observable, mapping):
+    """Stamp the SNF mapping onto a freshly-built observable so downstream
+    code (cumulant helpers, future BTE on non-diagonal) can read it back."""
+    observable._snf_mapping = mapping
+    observable._supercell_matrix = mapping["M"].astype(int)
+    observable._replica_table = mapping["replica_table"]
+    return observable
+
+
+def parse_tdep_third_forceconstant_nondiag(
+    fc_filename, primitive, replica_table, M, tol=1e-4,
+):
+    """Non-diagonal TDEP IFC3 parser using the SNF replica table.
+
+    Returns a sparse COO of shape
+    ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``, same layout as the
+    diagonal :func:`parse_tdep_third_forceconstant`, but replica indices
+    come from :func:`wrap_lattice_vector_to_replica` so it works for any
+    primitive-to-supercell tiling.
+    """
+    if isinstance(primitive, str):
+        uc = ase.io.read(primitive, format="vasp")
+    else:
+        uc = primitive
+    n_uc = len(uc)
+    n_rep = len(replica_table)
+
+    dense = np.zeros(
+        (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
+    )
+    with open(fc_filename) as f:
+        na = int(f.readline().split()[0])
+        _cutoff = float(f.readline().split()[0])
+        if na != n_uc:
+            raise AssertionError(
+                f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}"
+            )
+        for a1 in range(n_uc):
+            n_trips = int(f.readline().split()[0])
+            for _ in range(n_trips):
+                i1 = int(f.readline().split()[0]) - 1
+                a2 = int(f.readline().split()[0]) - 1
+                a3 = int(f.readline().split()[0]) - 1
+                if i1 != a1:
+                    raise ValueError(
+                        f"IFC3 record at outer atom {a1} has central index"
+                        f" i1={i1} (expected {a1}); file is malformed."
+                    )
+                _lv1 = np.array(f.readline().split(), dtype=float)
+                if not np.allclose(_lv1, 0.0, atol=1e-6):
+                    raise ValueError(
+                        f"IFC3 R1 lattice vector for central atom {a1} is"
+                        f" {_lv1} (expected [0,0,0]); file is malformed."
+                    )
+                lv2 = np.array(f.readline().split(), dtype=float)
+                lv3 = np.array(f.readline().split(), dtype=float)
+                flat = np.empty(27); idx = 0
+                while idx < 27:
+                    for t in f.readline().split():
+                        flat[idx] = float(t); idx += 1
+                        if idx >= 27: break
+                phi = flat.reshape(3, 3, 3)
+
+                R2 = np.round(lv2).astype(int)
+                R3 = np.round(lv3).astype(int)
+                r2_id = wrap_lattice_vector_to_replica(
+                    R2, replica_table, M, tol=tol,
+                )
+                r3_id = wrap_lattice_vector_to_replica(
+                    R3, replica_table, M, tol=tol,
+                )
+                if r2_id < 0 or r3_id < 0:
+                    raise ValueError(
+                        f"IFC3 triplet (a1={a1}, a2={a2}, a3={a3}, R2={R2}, R3={R3})"
+                        " could not map to SNF replicas"
+                    )
+                dense[a1, :, r2_id, a2, :, r3_id, a3, :] += phi
+
+    return COO.from_numpy(dense)
+
+
+def parse_tdep_fourth_forceconstant_nondiag(
+    fc_filename, primitive, replica_table, M, tol=1e-4,
+):
+    """Non-diagonal TDEP IFC4 parser using the SNF replica table.
+
+    Returns a sparse COO of shape
+    ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``.
+    """
+    if isinstance(primitive, str):
+        uc = ase.io.read(primitive, format="vasp")
+    else:
+        uc = primitive
+    n_uc = len(uc)
+    n_rep = len(replica_table)
+
+    shape = (
+        n_uc, 3, n_rep,
+        n_uc, 3, n_rep,
+        n_uc, 3, n_rep,
+        n_uc, 3,
+    )
+    dense = np.zeros(shape, dtype=float)
+
+    with open(fc_filename) as f:
+        na = int(f.readline().split()[0])
+        _cutoff = float(f.readline().split()[0])
+        if na != n_uc:
+            raise AssertionError(
+                f"IFC4 file n_atoms={na} != primitive n_atoms={n_uc}"
+            )
+        for a1 in range(n_uc):
+            n_quartets = int(f.readline().split()[0])
+            for _ in range(n_quartets):
+                i1 = int(f.readline().split()[0]) - 1
+                a2 = int(f.readline().split()[0]) - 1
+                a3 = int(f.readline().split()[0]) - 1
+                a4 = int(f.readline().split()[0]) - 1
+                if i1 != a1:
+                    raise ValueError(
+                        f"IFC4 record at outer atom {a1} has central index"
+                        f" i1={i1} (expected {a1}); file is malformed."
+                    )
+                _lv1 = np.array(f.readline().split(), dtype=float)
+                if not np.allclose(_lv1, 0.0, atol=1e-6):
+                    raise ValueError(
+                        f"IFC4 R1 lattice vector for central atom {a1} is"
+                        f" {_lv1} (expected [0,0,0]); file is malformed."
+                    )
+                lv2 = np.array(f.readline().split(), dtype=float)
+                lv3 = np.array(f.readline().split(), dtype=float)
+                lv4 = np.array(f.readline().split(), dtype=float)
+                flat = np.empty(81); idx = 0
+                while idx < 81:
+                    for t in f.readline().split():
+                        flat[idx] = float(t); idx += 1
+                        if idx >= 81: break
+                phi = flat.reshape(3, 3, 3, 3)
+
+                R2 = np.round(lv2).astype(int)
+                R3 = np.round(lv3).astype(int)
+                R4 = np.round(lv4).astype(int)
+                r2_id = wrap_lattice_vector_to_replica(R2, replica_table, M, tol=tol)
+                r3_id = wrap_lattice_vector_to_replica(R3, replica_table, M, tol=tol)
+                r4_id = wrap_lattice_vector_to_replica(R4, replica_table, M, tol=tol)
+                if r2_id < 0 or r3_id < 0 or r4_id < 0:
+                    raise ValueError(
+                        f"IFC4 quartet (a1={a1}, a2={a2}, a3={a3}, a4={a4},"
+                        f" R2={R2}, R3={R3}, R4={R4}) could not map to SNF replicas"
+                    )
+                dense[a1, :, r2_id, a2, :, r3_id, a3, :, r4_id, a4, :] += phi
+
+    return COO.from_numpy(dense)
+
+
+def parse_tdep_forceconstant_nondiag(
+    fc_file, primitive, replica_table, M, tol=1e-4,
+):
+    """Non-diagonal TDEP IFC2 parser using the SNF replica table.
+
+    Returns an IFC2 tensor of shape ``(1, n_uc, 3, n_rep, n_uc, 3)`` where
+    ``n_rep = len(replica_table) = |det(M)|``. Unlike the diagonal-Grid
+    :func:`parse_tdep_forceconstant`, replica indices come from
+    :func:`wrap_lattice_vector_to_replica`, so the IFC placement is correct
+    for any primitive-to-supercell tiling.
+    """
+    if isinstance(primitive, str):
+        uc = ase.io.read(primitive, format="vasp")
+    else:
+        uc = primitive
+    n_uc = len(uc)
+    n_rep = len(replica_table)
+
+    tensor = np.zeros((1, n_uc, 3, n_rep, n_uc, 3), dtype=float)
+
+    with open(fc_file) as f:
+        na = int(f.readline().split()[0])
+        _cutoff = float(f.readline().split()[0])
+        if na != n_uc:
+            raise AssertionError(
+                f"IFC2 file n_atoms={na} != primitive n_atoms={n_uc}"
+            )
+        for i in range(n_uc):
+            n_nbr = int(f.readline().split()[0])
+            for _ in range(n_nbr):
+                j = int(f.readline().split()[0]) - 1
+                lv_frac_prim = np.array(f.readline().split(), dtype=float)
+                phi = np.array(
+                    [f.readline().split() for _ in range(3)], dtype=float,
+                )
+                R_int = np.round(lv_frac_prim).astype(int)
+                rep_idx = wrap_lattice_vector_to_replica(
+                    R_int, replica_table, M, tol=tol,
+                )
+                if rep_idx < 0:
+                    raise ValueError(
+                        f"IFC2 entry (i={i}, j={j}, R={R_int}) did not match"
+                        " any replica in the SNF table"
+                    )
+                tensor[0, i, :, rep_idx, j, :] += phi
+    return tensor
+
+
 # --------------------------------
 # Second order force constant method
 
@@ -458,3 +868,101 @@ def parse_tdep_third_forceconstant(
     ))
 
     return third_ifcs
+
+
+# --------------------------------
+# Fourth order force constant method
+
+def parse_tdep_fourth_forceconstant(
+    fc_filename: str,
+    primitive: str,
+    supercell: tuple[int, int, int],
+):
+    """Parse TDEP fourth order force constants.
+
+    Reads ``infile.forceconstant_fourthorder`` and returns a sparse rank-11
+    COO tensor in kaldo's storage convention, mirroring
+    :func:`parse_tdep_third_forceconstant`:
+
+      shape = (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)
+
+    The file format is:
+
+        n_atoms
+        cutoff
+        <per central atom a1 = 1..n_atoms>
+          n_quartets
+          <per quartet>
+            atom indices i1, i2, i3, i4 (one per line)
+            lattice vectors R1, R2, R3, R4 (3-vectors in fractional coords,
+              R1 is the central atom's cell and is unused)
+            81 floats of Phi (3x3x3x3), read across lines
+
+    The index conventions match ``kaldo.cumulant.common.read_tdep_ifc4``
+    but the output format is the kaldo sparse tensor.
+    """
+    uc = ase.io.read(primitive, format='vasp')
+    n_unit_atoms = uc.positions.shape[0]
+    n_replicas = np.prod(supercell)
+    order = 'C'
+    current_grid = Grid(supercell, order=order)
+
+    # Fill a dense array first, then convert to COO at the end.
+    # Rank-11 (n_uc, 3, n_rep) x 4.
+    shape = (
+        n_unit_atoms, 3, n_replicas,
+        n_unit_atoms, 3, n_replicas,
+        n_unit_atoms, 3, n_replicas,
+        n_unit_atoms, 3,
+    )
+
+    def _read_ints_one_per_line(fh, k):
+        return [int(fh.readline().split()[0]) for _ in range(k)]
+
+    def _read_vec3(fh):
+        return np.array(fh.readline().split(), dtype=float)
+
+    def _read_phi4(fh):
+        flat = np.empty(81)
+        idx = 0
+        while idx < 81:
+            for tok in fh.readline().split():
+                flat[idx] = float(tok)
+                idx += 1
+                if idx >= 81:
+                    break
+        return flat.reshape(3, 3, 3, 3)
+
+    fourth_dense = np.zeros(shape, dtype=float)
+    with open(fc_filename, 'r') as fh:
+        na = int(fh.readline().split()[0])
+        _cutoff = float(fh.readline().split()[0])
+        if na != n_unit_atoms:
+            raise AssertionError(
+                f"infile.forceconstant_fourthorder n_atoms={na} != n_unit_atoms={n_unit_atoms}"
+            )
+        for a1 in range(n_unit_atoms):
+            n_quartets = int(fh.readline().split()[0])
+            for _ in range(n_quartets):
+                i1 = int(fh.readline().split()[0]) - 1
+                i2 = int(fh.readline().split()[0]) - 1
+                i3 = int(fh.readline().split()[0]) - 1
+                i4 = int(fh.readline().split()[0]) - 1
+                _R1 = _read_vec3(fh)  # unused (central atom's cell)
+                R2 = _read_vec3(fh)
+                R3 = _read_vec3(fh)
+                R4 = _read_vec3(fh)
+                phi = _read_phi4(fh)
+
+                r2_id = current_grid.grid_index_to_id(R2, is_wrapping=True)[0]
+                r3_id = current_grid.grid_index_to_id(R3, is_wrapping=True)[0]
+                r4_id = current_grid.grid_index_to_id(R4, is_wrapping=True)[0]
+
+                # Use += so two quartets that PBC-wrap to the same replica
+                # slot accumulate (matches the IFC2/IFC3 convention).
+                fourth_dense[
+                    i1, :, r2_id, i2, :, r3_id, i3, :, r4_id, i4, :,
+                ] += phi
+
+    fourth_ifcs = COO.from_numpy(fourth_dense)
+    return fourth_ifcs
