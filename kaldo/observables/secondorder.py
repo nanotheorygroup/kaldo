@@ -413,7 +413,6 @@ class SecondOrder(ForceConstant):
                 scratch_dir=scratch_dir,
                 keep_scratch=keep_scratch,
                 use_symmetry=use_symmetry,
-                supercell=self.supercell,
                 symprec=symprec,
             )
         if self.is_acoustic_sum:
