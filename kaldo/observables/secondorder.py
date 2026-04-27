@@ -285,7 +285,7 @@ class SecondOrder(ForceConstant):
             return self._dynmat
 
     def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
-                  scratch_dir=None, keep_scratch=False):
+                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5):
         """
         Calculate second-order force constants with finite differences.
 
@@ -383,6 +383,8 @@ class SecondOrder(ForceConstant):
                     calculator=worker_calculator,
                     scratch_dir=scratch_dir,
                     keep_scratch=keep_scratch,
+                    use_symmetry=use_symmetry,
+                    symprec=symprec,
                 )
                 self.save("second")
                 if calculator is not None:
@@ -401,6 +403,9 @@ class SecondOrder(ForceConstant):
                 calculator=worker_calculator,
                 scratch_dir=scratch_dir,
                 keep_scratch=keep_scratch,
+                use_symmetry=use_symmetry,
+                supercell=self.supercell,
+                symprec=symprec,
             )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)

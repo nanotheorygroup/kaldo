@@ -264,7 +264,7 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, use_symmetry=False, symprec=1e-5):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -356,7 +356,9 @@ class ThirdOrder(ForceConstant):
                                              calculator=worker_calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
-                                             jat_flush_every=jat_flush_every)
+                                             jat_flush_every=jat_flush_every,
+                                             use_symmetry=use_symmetry,
+                                             symprec=symprec)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -371,7 +373,10 @@ class ThirdOrder(ForceConstant):
                                          calculator=worker_calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
-                                         jat_flush_every=jat_flush_every)
+                                         jat_flush_every=jat_flush_every,
+                                         use_symmetry=use_symmetry,
+                                         supercell=self.supercell,
+                                         symprec=symprec)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
