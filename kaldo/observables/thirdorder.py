@@ -384,7 +384,6 @@ class ThirdOrder(ForceConstant):
                                          keep_scratch=keep_scratch,
                                          jat_flush_every=jat_flush_every,
                                          use_symmetry=use_symmetry,
-                                         supercell=self.supercell,
                                          symprec=symprec)
             if is_storing:
                 self.save('third')
