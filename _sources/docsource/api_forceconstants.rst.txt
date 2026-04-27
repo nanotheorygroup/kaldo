@@ -40,18 +40,30 @@ of frames is :math:`2 \times 2 \times 3N \times 3N = (6N)^2`.
 Should I use kALDo to calculate my IFCs?
 ========================================
 
-It's faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs when possible. However, if
-your system is small ( hundreds to a few thousand atoms ), it may be tractable to calculate them here. The following are
-some general cases where you could calculate it all here without a significant performance hit:
+It's generally faster to use compiled software like LAMMPS or Quantum Espresso to generate the IFCs when possible.
+However, if you want to calculate the IFCs directly from Python, kALDo has some advantages because both second-
+and third-order finite-difference calculations can be parallelized with ``n_workers``. This parallel workflow has
+been used successfully on HPC compute clusters, including multi-node runs, with a near-linear speed up (for calculators
+that do not use thread-parallelization).
+The ``distance_threshold`` option can also greatly reduce the amount of work required for third order IFC generation,
+by skipping interactions between atoms that are too far apart. This is especially useful for large systems
+(like glasses, or clathrates).
+
+Some general cases where calculating IFCs directly in kALDo is a good fit are:
 
 * You want to explore the effect of different potentials on only harmonic phonon properties (so no third order needed).
-* Small systems with short ranges of interactions
-* Users have a custom potential (particularly when it can be calculated within python)
-* Systems have no symmetry (which many of the compiled software packages exploit to greatly reduce total calculations)
+* Users have a custom, or Python-based calculator
+* The system has no symmetry (which many of the compiled software packages exploit to reduce total calculations)
+* Larger third-order calculations where a physically reasonable ``distance_threshold`` can be used to skip distant
+  interactions
 
-If you're not sure, :py:meth:`SecondOrder.calculate` prints to stdout the atom its currently working on so run the
-calculation and stop it after it prints a few atoms. Take the average time per atom and divide by 6 to get the time per
-frame :math:`t_{pf}` including overhead of I/O operations, launching tasks, etc. The total times are given by:
+Serial Runtime Estimate
+-----------------------
+
+If you're not sure, :py:meth:`SecondOrder.calculate` prints to stdout the atom it is currently working on, so run the
+calculation with ``n_workers=1`` and stop it after it prints a few atoms. Take the average time per atom and divide by
+6 to get the time per frame :math:`t_{pf}` including overhead from I/O operations and task setup. For serial runs, the
+total times are given by:
 
 .. math::
     t_{\text{2nd Order}} = t_{pf} \times {6N}
@@ -59,12 +71,49 @@ frame :math:`t_{pf}` including overhead of I/O operations, launching tasks, etc.
 .. math::
     t_{\text{3rd Order}} = t_{pf} \times {6N}^2
 
+Parallel Runtime Estimate
+-------------------------
+
+For parallel runs, kALDo distributes displaced-atom tasks across workers, so a useful first estimate for wall time is
+the serial estimate divided by ``n_workers``:
+
+.. math::
+    t_{\text{2nd Order, parallel}} \approx \frac{t_{pf} \times {6N}}{n_{\text{workers}}}
+
+.. math::
+    t_{\text{3rd Order, parallel}} \approx \frac{t_{pf} \times {6N}^2}{n_{\text{workers}}}
+
+This is only an approximate guide because real runs also include process startup, I/O, scratch traffic, load imbalance,
+and calculator-specific overhead. For third-order calculations, using a nonzero ``distance_threshold`` can reduce the
+effective amount of work even further by skipping distant interactions, so the actual runtime may be substantially lower
+than the no-cutoff estimate above.
+
+For calculators that use shared-memory parallelization (e.g. Orb), it's likely that the fastest route will be a blend
+of thread and process parallelization. Try out different combinations of ``n_workers`` and ``OMP_NUM_THREADS`` for the
+best results.
+
+.. note::
+   ML potentials (Orb, MACE, MatterSim, CPUNEP, ...) need a small extra step for parallel runs because their
+   PyTorch-backed instances cannot be pickled across processes. See :ref:`parallel-ml-calculators` for the
+   recommended pattern (a top-level factory function plus an ``if __name__ == '__main__':`` guard) and the
+   ``delta_shift`` guidance for float32 calculators.
+
 Calculation Workflow
 ====================
 
 .. hint::
    Be sure to minimize the potential energy of your atomic positions before calculating the IFCs. The steps here assume
    you have already done this.
+
+Both :py:meth:`SecondOrder.calculate` and :py:meth:`ThirdOrder.calculate` can distribute the finite-difference work
+across multiple worker processes with the ``n_workers`` argument. In both cases, kALDo parallelizes over displaced
+unit-cell atoms: second order assigns one atom's harmonic finite-difference block to each task, while third order
+assigns one first-index atom of the anharmonic tensor to each task. This keeps the workflow simple and makes it easy to
+resume interrupted runs.
+
+For second- and third-order scratch runs, intermediate results can be written to a ``scratch_dir``. Each completed atom
+writes its own scratch artifact together with a ``.done`` sentinel file, so rerunning the calculation with the same
+scratch directory skips finished atoms and only recomputes missing work.
 
 #. Import required packages which will be kALDo, the ASE calculator you want to use, and either a function to build
    atoms (like ase.build.bulk) or their read tool (ase.io.read)::
@@ -100,9 +149,13 @@ Calculation Workflow
    The "delta_shift" argument is how far the atoms move.::
 
     # Second Order (for harmonic properties - phonon frequencies, velocities, heat capacity, etc.)
-    fc.second.calculate(calc)
+    fc.second.calculate(calc,
+                        delta_shift = 1e-5,
+                        n_workers = 2,)
     # Third Order (for anharmonic properties - phonon lifetimes, thermal conductivity, etc.)
-    fc.third.calculate(calc)
+    fc.third.calculate(calc
+                       delta_shift = 1e-5,
+                       n_workers = 2,)
 
 .. _carbon diamond example: https://github.com/nanotheorygroup/kaldo/blob/main/examples/carbon_diamond_Tersoff_ASE_LAMMPS/1_C_Tersoff_fc_and_harmonic_properties.py
 
@@ -114,6 +167,76 @@ calculations.
    executable (LAMMPSrun). We don't notice a significant performance increase by using the direct call method, because
    the bottleneck is the I/O of data back to python. This is part of the reason our examples use the python wrapper,
    which offers more flexibility without losing access to the full LAMMPS functionality.
+
+.. _parallel-ml-calculators:
+
+Parallel runs with ML calculators
+=================================
+
+The serial idiom shown above (``calc = LAMMPSlib(...); fc.second.calculate(calc, ...)``) keeps working for parallel
+runs as long as the calculator can be pickled and forked safely. That's true for analytical and shared-library
+calculators (EMT, Lennard-Jones, LAMMPS), but typically *not* for ML potentials (Orb, MACE, MatterSim, CPUNEP, ...)
+that hold PyTorch models, GPU contexts, or C handles. Two issues come up in that case:
+
+1. **The live calculator instance can't cross a process boundary.** Spawn-based multiprocessing pickles every
+   argument; non-picklable instances raise ``TypeError`` (kALDo's parallel validator catches this with a
+   copy-pasteable fix message) or, worse, fork into a worker that then crashes with ``BrokenProcessPool`` or
+   ``Cannot re-initialize CUDA in forked subprocess``.
+2. **Spawn re-imports your script.** On any host with CUDA available, kALDo's executor selects the spawn start
+   method to avoid fork-vs-CUDA crashes. Spawn re-executes the entry-point module in every worker, so any
+   top-level ``fc.second.calculate(...)`` call would re-fire inside the worker.
+
+The recommended pattern: define a no-argument factory function at module top level and pass the function (not its
+return value) as the ``calculator`` argument. Each worker calls the function once to build its own isolated
+calculator. Wrap your script's executable code in the standard ``if __name__ == '__main__':`` guard so the worker's
+re-import of the script doesn't re-fire your kaldo calls::
+
+    from ase.build import bulk
+    from orb_models.forcefield import pretrained
+    from orb_models.forcefield.calculator import ORBCalculator
+    from kaldo.forceconstants import ForceConstants
+
+
+    def make_calculator():
+        """Top-level so spawn-imported workers can reach it by name."""
+        orbff = pretrained.orb_v3_conservative_inf_omat(
+            device='cpu', precision='float32-highest',
+        )
+        return ORBCalculator(orbff, device='cpu')
+
+
+    if __name__ == '__main__':
+        atoms = bulk('Al', 'fcc', a=4.05, cubic=True)
+        fc = ForceConstants(atoms=atoms, supercell=(3, 3, 3), folder='fc_al')
+        fc.second.calculate(make_calculator, delta_shift=1e-2, n_workers=4)
+        fc.third.calculate(make_calculator, delta_shift=1e-2, n_workers=4)
+
+Notice that ``make_calculator`` is passed without parentheses. Calling it (``make_calculator()``) would build one
+instance in the parent process and try to ship it to workers — exactly the un-picklable case we're avoiding.
+
+Choosing ``delta_shift``
+------------------------
+
+Float32 ML calculators produce force noise on the order of ``1e-7 eV/Å``. Finite-difference second derivatives
+divide this by ``delta_shift``, so a too-small delta produces FC noise that overwhelms the physics. The kALDo default
+``delta_shift=1e-3`` is tuned for analytical calculators (EMT, LAMMPS) where forces are accurate to machine
+precision; for ML potentials, prefer ``delta_shift=1e-2`` to ``5e-2``. ``SecondOrder.calculate`` and
+``ThirdOrder.calculate`` warn once when ``delta_shift < 1e-2`` and the calculator looks ML-based.
+
+Common pitfalls
+---------------
+
+* **Passing the constructed instance instead of the factory.** ``calc = ORBCalculator(...)`` followed by
+  ``fc.second.calculate(calc, n_workers=4)`` will fail validation on torch-based calculators. Pass the factory
+  function (without parentheses) instead.
+* **Forgetting the** ``if __name__ == '__main__':`` **guard.** Without the guard, spawn re-imports your script and
+  every worker tries to spawn its own pool, which Python rejects (``RuntimeError: An attempt has been made to
+  start a new process before the current process has finished its bootstrapping phase``). kALDo detects this
+  before workers spawn and raises with a guard-fix message.
+* **Defining the factory inside another function or class.** Closures don't pickle and aren't reachable by name
+  from spawn-imported workers. Move the ``def`` to module top level.
+* **Setting ``delta_shift=1e-4`` (or smaller) for ML.** This is the right delta for analytical potentials, but
+  produces ~1e-3 FC noise on float32 ML potentials, swamping the real signal. Use ``1e-2`` instead.
 
 .. _loading IFCs:
 
@@ -217,3 +340,40 @@ API Reference
 
 .. autoclass:: ForceConstants
         :members:
+
+
+Companion Objects
+=================
+
+Although :class:`ForceConstants` is the main user-facing entry point, it creates
+separate ``SecondOrder`` and ``ThirdOrder`` objects that many users interact
+with through ``fc.second`` and ``fc.third``. These classes are mostly internal
+containers, but users with non-standard input files or custom finite-difference
+workflows may still find their ``load(...)`` and ``calculate(...)`` methods
+useful.
+
+SecondOrder
+-----------
+
+The harmonic companion object is usually accessed as ``ForceConstants.second``. Direct use
+is most helpful when you want to load second-order data in a non-standard way (e.g. not using the
+``ForceConstants.from_folder`` method) or to run the harmonic finite-difference calculation.
+
+.. currentmodule:: kaldo.observables.secondorder
+
+.. automethod:: SecondOrder.load
+
+.. automethod:: SecondOrder.calculate
+
+ThirdOrder
+----------
+
+The anharmonic companion object is usually accessed as ``ForceConstants.third``. Direct use
+is most helpful when you need to load third-order data from a specific format or
+when launching the finite-difference calculation.
+
+.. currentmodule:: kaldo.observables.thirdorder
+
+.. automethod:: ThirdOrder.load
+
+.. automethod:: ThirdOrder.calculate

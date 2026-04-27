@@ -1,0 +1,1354 @@
+
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+      <link rel="icon" href="../../../_static/logo.ico">
+    
+    
+      
+        <title>kaldo.observables.secondorder - </title>
+      
+    
+    
+      
+        
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+        <link rel="stylesheet" type="text/css" href="../../../_static/sphinx_immaterial_theme.cf2c65c97ee1b6f01.min.css?v=0a68cab4" />
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-HQHR3LWX3F"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-HQHR3LWX3F",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-HQHR3LWX3F",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../index.html" title="" class="md-header__button md-logo" aria-label="" data-md-component="logo">
+      <img src="../../../_static/logo.png" alt="logo">
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              kaldo.observables.secondorder
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kALDo
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../index.html" title="" class="md-nav__button md-logo" aria-label="" data-md-component="logo">
+      <img src="../../../_static/logo.png" alt="logo">
+    </a>
+    
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nanotheorygroup/kaldo" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kALDo
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Getting Started</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Getting Started</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/getting_started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/getting_started.md (reference label)"><span>Quick Install</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/getting_started.html#examples-repository" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/getting_started.md#examples-repository (reference label)"><span>Examples Repository</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/getting_started.html#docker" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/getting_started.md#docker (reference label)"><span>Docker</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb (reference label)"><span>Introduction</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/introduction.html#Theory" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb#theory (reference label)"><span>Theory</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/introduction.html#User-Guide" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/introduction.ipynb#user-guide (reference label)"><span>User Guide</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Tutorials</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Tutorials</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/crystal_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/crystal_presentation.ipynb (reference label)"><span>Silicon diamond tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/amorphous_presentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/amorphous_presentation.ipynb (reference label)"><span>Amorphous silicon tutorial</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>API Reference</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            <span>API Reference</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/api_forceconstants.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_forceconstants.rst (reference label)"><span>Force<wbr>Constants</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/api_phonons.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_phonons.rst (reference label)"><span>Phonons</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/api_conductivity.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/api_conductivity.rst (reference label)"><span>Conductivity</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Citations</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Citations</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/citations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md (reference label)"><span>How to cite</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/citations.html#references" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/citations.md#references (reference label)"><span>References</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../publications/readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/publications/readme.md (reference label)"><span>Publications using k<wbr>ALDo</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    <span>Developer Guide</span>
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            <span>Developer Guide</span>
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docsource/contributing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    <span title="/docsource/contributing.md (reference label)"><span>Contributing</span></span>
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary">
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset" role="main">
+                
+                
+                  
+
+
+<h1>Source code for kaldo.observables.secondorder</h1><div class="highlight"><pre>
+<span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.forceconstant</span><span class="w"> </span><span class="kn">import</span> <span class="n">ForceConstant</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ase.io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArrayLike</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces.eskm_io</span><span class="w"> </span><span class="kn">import</span> <span class="n">import_from_files</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.interfaces.shengbte_io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">shengbte_io</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces.tdep_io</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_tdep_forceconstant</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.controllers.displacement</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_second</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.parallel</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_parallel</span><span class="p">,</span> <span class="n">validate_parallel_calculator</span><span class="p">,</span> <span class="n">maybe_warn_ml_delta_shift</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ase.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">units</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.helpers.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
+
+<span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">acoustic_sum_rule</span><span class="p">(</span><span class="n">dynmat</span><span class="p">):</span>
+    <span class="n">n_unit</span> <span class="o">=</span> <span class="n">dynmat</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">sumrulecorr</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unit</span><span class="p">):</span>
+        <span class="n">off_diag_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dynmat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">))</span>
+        <span class="n">dynmat</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-=</span> <span class="n">off_diag_sum</span>
+        <span class="n">sumrulecorr</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">off_diag_sum</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;error sum rule: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">sumrulecorr</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">dynmat</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SecondOrder</span><span class="p">(</span><span class="n">ForceConstant</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">kargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># apply acoustic sum rule before initialize in forceconstnat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_acoustic_sum</span> <span class="o">=</span> <span class="n">is_acoustic_sum</span>
+        <span class="k">if</span> <span class="n">is_acoustic_sum</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">acoustic_sum_rule</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="o">*</span><span class="n">kargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_list_of_replicas</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># TODO: why overwrite _list_of_replicas here?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="s2">&quot;numpy&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_supercell</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                       <span class="n">atoms</span><span class="p">:</span> <span class="n">Atoms</span><span class="p">,</span>
+                       <span class="n">grid_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                       <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="n">value</span><span class="p">:</span> <span class="n">ArrayLike</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                       <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;kALDo&quot;</span><span class="p">):</span>
+        <span class="c1"># acoustic sum rule will be applied later in SecondOrder.__init__ if applicable</span>
+        <span class="n">ifc</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span>
+            <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+            <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+            <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span>
+            <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span>
+            <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ifc</span>
+
+<div class="viewcode-block" id="SecondOrder.load">
+<a class="viewcode-back" href="../../../docsource/api_forceconstants.html#kaldo.observables.secondorder.SecondOrder.load">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+             <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+             <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+             <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;numpy&quot;</span><span class="p">,</span>
+             <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load second order force constants from a folder in the given format, used for library internally.</span>
+
+<span class="sd">        To load force constants data, ``ForceConstants.from_folder`` is recommended.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        folder : str</span>
+<span class="sd">            Specifies where to load the data files.</span>
+<span class="sd">        supercell : tuple[int, int, int]</span>
+<span class="sd">            The supercell for the third order force constant matrix.</span>
+<span class="sd">            Default: (1, 1, 1)</span>
+<span class="sd">        format : str</span>
+<span class="sd">            Format of the second order force constant information being loaded into SecondOrder object.</span>
+<span class="sd">            Default: &#39;sparse&#39;</span>
+<span class="sd">        is_acoustic_sum : bool, optional</span>
+<span class="sd">            If true, the acoustic sum rule is applied to the dynamical matrix.</span>
+<span class="sd">            Default: False</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        second_order : SecondOrder object</span>
+<span class="sd">            A new instance of the SecondOrder class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">match</span> <span class="nb">format</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s2">&quot;numpy&quot;</span><span class="p">:</span>
+                <span class="n">replicated_atoms_file</span> <span class="o">=</span> <span class="s2">&quot;replicated_atoms.xyz&quot;</span>
+                <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">replicated_atoms_file</span><span class="p">)</span>
+                <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;extxyz&quot;</span><span class="p">)</span>
+
+                <span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+                <span class="n">n_total_atoms</span> <span class="o">=</span> <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">n_unit_atoms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_total_atoms</span> <span class="o">/</span> <span class="n">n_replicas</span><span class="p">)</span>
+                <span class="n">unit_symbols</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">unit_positions</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unit_atoms</span><span class="p">):</span>
+                    <span class="n">unit_symbols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">get_chemical_symbols</span><span class="p">()[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">unit_positions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">cell</span> <span class="o">/</span> <span class="n">supercell</span>
+
+                <span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">unit_symbols</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">unit_positions</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">,</span> <span class="n">pbc</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+                <span class="n">_second_order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;second.npy&quot;</span><span class="p">),</span> <span class="n">allow_pickle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">replicated_positions</span><span class="o">=</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">_second_order</span><span class="p">,</span>
+                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">case</span> <span class="s2">&quot;eskm&quot;</span> <span class="o">|</span> <span class="s2">&quot;lammps&quot;</span><span class="p">:</span>
+                <span class="n">dynmat_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;Dyn.form&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s2">&quot;eskm&quot;</span><span class="p">:</span>
+                    <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;CONFIG&quot;</span><span class="p">)</span>
+                    <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;dlp4&quot;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">format</span> <span class="o">==</span> <span class="s2">&quot;lammps&quot;</span><span class="p">:</span>
+                    <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;replicated_atoms.xyz&quot;</span><span class="p">)</span>
+                    <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;extxyz&quot;</span><span class="p">)</span>
+                <span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+                <span class="n">n_total_atoms</span> <span class="o">=</span> <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">n_unit_atoms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_total_atoms</span> <span class="o">/</span> <span class="n">n_replicas</span><span class="p">)</span>
+                <span class="n">unit_symbols</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">unit_positions</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unit_atoms</span><span class="p">):</span>
+                    <span class="n">unit_symbols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">get_chemical_symbols</span><span class="p">()[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">unit_positions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">cell</span> <span class="o">/</span> <span class="n">supercell</span>
+
+                <span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">unit_symbols</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">unit_positions</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">,</span> <span class="n">pbc</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+                <span class="n">_second_order</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">import_from_files</span><span class="p">(</span>
+                    <span class="n">replicated_atoms</span><span class="o">=</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="n">dynmat_file</span><span class="o">=</span><span class="n">dynmat_file</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span>
+                <span class="p">)</span>
+                <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">replicated_positions</span><span class="o">=</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">_second_order</span><span class="p">,</span>
+                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">case</span> <span class="p">(</span><span class="s2">&quot;vasp-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-d3q&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-d3q&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="s2">&quot;vasp-d3q&quot;</span><span class="p">:</span>
+                <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;CONTROL&quot;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">atoms</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">charges</span> <span class="o">=</span> <span class="n">shengbte_io</span><span class="o">.</span><span class="n">import_control_file</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">charges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;dielectric&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">charges</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+                        <span class="n">atoms</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="s1">&#39;charges&#39;</span><span class="p">,</span> <span class="n">charges</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+                    <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;POSCAR&quot;</span><span class="p">)</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trying to open POSCAR&quot;</span><span class="p">)</span>
+                    <span class="n">atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+
+                <span class="c1"># Create a finite difference object</span>
+                <span class="c1"># TODO: we need to read the grid type here</span>
+                <span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+                <span class="n">n_unit_atoms</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">match</span> <span class="nb">format</span><span class="p">:</span>
+                    <span class="k">case</span> <span class="p">(</span><span class="s2">&quot;qe-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-d3q&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-d3q&quot;</span><span class="p">):</span>
+                        <span class="c1"># load QE second order force constant</span>
+                        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;espresso.ifc2&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> not found.&quot;</span><span class="p">)</span>
+                        <span class="n">_second_order</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">charges</span> <span class="o">=</span> <span class="n">shengbte_io</span><span class="o">.</span><span class="n">read_second_order_qe_matrix</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">charges</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+                            <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;dielectric&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">charges</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+                            <span class="n">atoms</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="s1">&#39;charges&#39;</span><span class="p">,</span> <span class="n">charges</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                        <span class="n">_second_order</span> <span class="o">=</span> <span class="n">_second_order</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                        <span class="n">_second_order</span> <span class="o">=</span> <span class="n">_second_order</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                        <span class="n">grid_type</span> <span class="o">=</span> <span class="s2">&quot;F&quot;</span>
+                    <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                        <span class="c1"># load VASP second order force constant</span>
+                        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;FORCE_CONSTANTS_2ND&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                            <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;FORCE_CONSTANTS&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> not found.&quot;</span><span class="p">)</span>
+                        <span class="n">_second_order</span> <span class="o">=</span> <span class="n">shengbte_io</span><span class="o">.</span><span class="n">read_second_order_matrix</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">supercell</span><span class="p">)</span>
+                        <span class="n">_second_order</span> <span class="o">=</span> <span class="n">_second_order</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                        <span class="n">grid_type</span> <span class="o">=</span> <span class="s2">&quot;F&quot;</span>
+                <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">_second_order</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">case</span> <span class="s2">&quot;hiphive&quot;</span><span class="p">:</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;atom_prim.xyz&quot;</span>
+                <span class="c1"># TODO: add replicated filename in example</span>
+                <span class="n">replicated_filename</span> <span class="o">=</span> <span class="s2">&quot;replicated_atoms.xyz&quot;</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.interfaces.hiphive_io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">hiphive_io</span>
+                <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;In order to use hiphive along with kaldo, hiphive is required. </span><span class="se">\</span>
+<span class="s2">                        Please consider installing hihphive. More info can be found at: </span><span class="se">\</span>
+<span class="s2">                        https://hiphive.materialsmodeling.org/&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="n">atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="n">replicated_atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">replicated_filename</span><span class="p">)</span>
+                <span class="c1"># TODO: Make this independent of replicated file</span>
+                <span class="n">atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">atom_prime_file</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">replicated_atom_prime_file</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead.&quot;</span>
+                    <span class="p">)</span>
+                    <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="n">atoms</span> <span class="o">*</span> <span class="p">(</span><span class="n">supercell</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">supercell</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">supercell</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="c1"># Create a finite difference object</span>
+                <span class="k">if</span> <span class="s2">&quot;model2.fcs&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">folder</span><span class="p">):</span>
+                    <span class="n">_second_order</span> <span class="o">=</span> <span class="n">hiphive_io</span><span class="o">.</span><span class="n">import_second_from_hiphive</span><span class="p">(</span>
+                        <span class="n">folder</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">),</span> <span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                    <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span>
+                        <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                        <span class="n">replicated_positions</span><span class="o">=</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span>
+                        <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                        <span class="n">value</span><span class="o">=</span><span class="n">_second_order</span><span class="p">,</span>
+                        <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                    <span class="p">)</span>
+
+            <span class="k">case</span> <span class="s2">&quot;tdep&quot;</span><span class="p">:</span>
+                <span class="n">uc_filename</span> <span class="o">=</span> <span class="s2">&quot;infile.ucposcar&quot;</span>
+                <span class="n">replicated_filename</span> <span class="o">=</span> <span class="s2">&quot;infile.ssposcar&quot;</span>
+                <span class="n">atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">uc_filename</span><span class="p">)</span>
+                <span class="n">replicated_atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">replicated_filename</span><span class="p">)</span>
+                <span class="n">uc</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">atom_prime_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;vasp&quot;</span><span class="p">)</span>
+                <span class="n">sc</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">replicated_atom_prime_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;vasp&quot;</span><span class="p">)</span>
+                <span class="n">d2</span> <span class="o">=</span> <span class="n">parse_tdep_forceconstant</span><span class="p">(</span>
+                    <span class="n">fc_file</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;infile.forceconstant&quot;</span><span class="p">),</span>
+                    <span class="n">primitive</span><span class="o">=</span><span class="n">atom_prime_file</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">replicated_atom_prime_file</span><span class="p">,</span>
+                    <span class="n">reduce_fc</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">n_unit_atoms</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+                <span class="n">d2</span> <span class="o">=</span> <span class="n">d2</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                <span class="n">d2</span> <span class="o">=</span> <span class="n">d2</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+                <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">replicated_positions</span><span class="o">=</span><span class="n">sc</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span>
+                <span class="p">)</span>
+
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">format</span><span class="si">}</span><span class="s2"> is not a valid format&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">second_order</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">supercell_replicas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell_replicas</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_supercell_replicas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_super_replicas</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell_replicas</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">supercell_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell_positions</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_supercell_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_supercell_positions</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell_positions</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dynmat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynmat</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dynmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_dynmat</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynmat</span>
+
+<div class="viewcode-block" id="SecondOrder.calculate">
+<a class="viewcode-back" href="../../../docsource/api_forceconstants.html#kaldo.observables.secondorder.SecondOrder.calculate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calculator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delta_shift</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">is_storing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">is_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">n_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                  <span class="n">scratch_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keep_scratch</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate second-order force constants with finite differences.</span>
+
+<span class="sd">        This is the method typically reached through ``fc.second.calculate(...)``.</span>
+<span class="sd">        It can either load an existing ``second.npy`` from ``self.folder`` when</span>
+<span class="sd">        ``is_storing`` is enabled, or compute the harmonic force constants from</span>
+<span class="sd">        the current structure and calculator.</span>
+
+<span class="sd">        See the *Parallel runs with ML calculators* section of the</span>
+<span class="sd">        ForceConstants documentation for the recommended pattern when</span>
+<span class="sd">        running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in</span>
+<span class="sd">        parallel: define a no-arg factory function at module top level</span>
+<span class="sd">        and pass it (without parentheses) as ``calculator``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        calculator : callable or ASE Calculator instance or None</span>
+<span class="sd">            For serial runs, pass an ASE Calculator instance (the existing</span>
+<span class="sd">            kaldo idiom). For parallel runs, pass a callable that returns</span>
+<span class="sd">            a fresh ASE Calculator: a class with a no-arg constructor, a</span>
+<span class="sd">            top-level factory function, ``functools.partial``, etc. Each</span>
+<span class="sd">            worker invokes the callable once to build its own isolated</span>
+<span class="sd">            calculator. If None, ``replicated_atoms`` must already have</span>
+<span class="sd">            a calculator attached.</span>
+<span class="sd">        delta_shift : float, optional</span>
+<span class="sd">            Finite-difference displacement in Angstrom. The default</span>
+<span class="sd">            ``1e-3`` is tuned for analytical calculators (EMT, LAMMPS).</span>
+<span class="sd">            ML potentials in float32 (Orb, MACE, MatterSim, ...) need</span>
+<span class="sd">            ``1e-2`` or larger because float32 force noise (~1e-7 eV/Å)</span>
+<span class="sd">            divided by a tiny delta produces FC noise that swamps the</span>
+<span class="sd">            physics. A warning fires when ``delta_shift &lt; 1e-2`` and the</span>
+<span class="sd">            calculator looks ML-based.</span>
+<span class="sd">            Default: 1e-3</span>
+<span class="sd">        is_storing : bool, optional</span>
+<span class="sd">            If True, try to load an existing result from ``self.folder`` first</span>
+<span class="sd">            and save newly computed data after the calculation.</span>
+<span class="sd">            Default: True</span>
+<span class="sd">        is_verbose : bool, optional</span>
+<span class="sd">            If True, log per-atom progress information.</span>
+<span class="sd">            Default: False</span>
+<span class="sd">        n_workers : int or None, optional</span>
+<span class="sd">            Number of worker processes used for the displaced-atom finite-</span>
+<span class="sd">            difference tasks. ``1`` runs serially, ``None`` uses all available</span>
+<span class="sd">            workers. Each worker is capped to one OpenMP / MKL / OpenBLAS</span>
+<span class="sd">            thread so that calculators with internal multithreading (PyNEP,</span>
+<span class="sd">            torch CPU, numpy+MKL) don&#39;t oversubscribe. Override by setting</span>
+<span class="sd">            ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in the environment</span>
+<span class="sd">            before invoking.</span>
+<span class="sd">            Default: 1</span>
+<span class="sd">        scratch_dir : str or None, optional</span>
+<span class="sd">            Optional scratch directory for atom-by-atom intermediate files used</span>
+<span class="sd">            for recovery of interrupted calculations. Pass an explicit path to</span>
+<span class="sd">            override. Pass an empty string ``&#39;&#39;`` to disable scratch files and</span>
+<span class="sd">            fall back to in-memory accumulation.</span>
+<span class="sd">            Default: ``{folder}/second_order`` when ``self.folder`` is set and</span>
+<span class="sd">            ``n_workers &gt; 1``</span>
+<span class="sd">        keep_scratch : bool, optional</span>
+<span class="sd">            If True, keep scratch files after successful assembly.</span>
+<span class="sd">            Default: False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">is_parallel</span><span class="p">(</span><span class="n">n_workers</span><span class="p">):</span>
+            <span class="n">validate_parallel_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;SecondOrder.calculate&#39;</span><span class="p">)</span>
+        <span class="n">maybe_warn_ml_delta_shift</span><span class="p">(</span><span class="n">calculator</span><span class="p">,</span> <span class="n">delta_shift</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;SecondOrder.calculate&#39;</span><span class="p">)</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">replicated_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span>
+        <span class="c1"># Attach the calculator instance to replicated_atoms once and skip the</span>
+        <span class="c1"># per-atom rebind in _compute_iat_second. Some calculator libraries</span>
+        <span class="c1"># require a calculator to stay bound to a single atoms object.</span>
+        <span class="k">if</span> <span class="n">n_workers</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">calculator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">calculator</span><span class="p">):</span>
+            <span class="n">replicated_atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calculator</span>
+            <span class="n">worker_calculator</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">worker_calculator</span> <span class="o">=</span> <span class="n">calculator</span>
+        <span class="c1"># Auto-resolve the default scratch directory only for parallel runs;</span>
+        <span class="c1"># serial stays in memory to avoid creating unexpected directories.</span>
+        <span class="k">if</span> <span class="n">scratch_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="ow">and</span> <span class="n">is_parallel</span><span class="p">(</span><span class="n">n_workers</span><span class="p">):</span>
+            <span class="n">scratch_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;second_order&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">scratch_dir</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+            <span class="n">scratch_dir</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">is_storing</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span> <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_acoustic_sum</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">value</span>
+
+            <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Second order not found. Calculating.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">calculate_second</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">replicated_atoms</span><span class="p">,</span>
+                    <span class="n">delta_shift</span><span class="p">,</span>
+                    <span class="n">is_verbose</span><span class="o">=</span><span class="n">is_verbose</span><span class="p">,</span>
+                    <span class="n">n_workers</span><span class="o">=</span><span class="n">n_workers</span><span class="p">,</span>
+                    <span class="n">calculator</span><span class="o">=</span><span class="n">worker_calculator</span><span class="p">,</span>
+                    <span class="n">scratch_dir</span><span class="o">=</span><span class="n">scratch_dir</span><span class="p">,</span>
+                    <span class="n">keep_scratch</span><span class="o">=</span><span class="n">keep_scratch</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;second&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">calculator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calculator</span><span class="p">()</span> <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">calculator</span><span class="p">)</span> <span class="k">else</span> <span class="n">calculator</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">get_forces</span><span class="p">()</span>
+                <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">+</span> <span class="s2">&quot;/replicated_atoms.xyz&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="s2">&quot;extxyz&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reading stored second&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">calculate_second</span><span class="p">(</span>
+                <span class="n">atoms</span><span class="p">,</span>
+                <span class="n">replicated_atoms</span><span class="p">,</span>
+                <span class="n">delta_shift</span><span class="p">,</span>
+                <span class="n">is_verbose</span><span class="o">=</span><span class="n">is_verbose</span><span class="p">,</span>
+                <span class="n">n_workers</span><span class="o">=</span><span class="n">n_workers</span><span class="p">,</span>
+                <span class="n">calculator</span><span class="o">=</span><span class="n">worker_calculator</span><span class="p">,</span>
+                <span class="n">scratch_dir</span><span class="o">=</span><span class="n">scratch_dir</span><span class="p">,</span>
+                <span class="n">keep_scratch</span><span class="o">=</span><span class="n">keep_scratch</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_acoustic_sum</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">acoustic_sum_rule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_dynmat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">evtotenjovermol</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span> <span class="o">/</span> <span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span><span class="p">)</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_masses</span><span class="p">()</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">log_size</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;dynmat&quot;</span><span class="p">)</span>
+        <span class="n">dynmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mass</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
+        <span class="n">dynmat</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mass</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">dynmat</span> <span class="o">*</span> <span class="n">evtotenjovermol</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_super_replicas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">scell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span>
+        <span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">scell</span><span class="p">)</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">cell</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">cell</span>
+        <span class="n">n_unit_cell</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">replicated_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_cell</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+
+        <span class="n">list_of_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">((</span><span class="n">replicated_positions</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="nb">int</span>
+        <span class="p">)</span>
+        <span class="n">list_of_index</span> <span class="o">=</span> <span class="n">list_of_index</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="n">tt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rreplica</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ix2</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">iy2</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">iz2</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">list_of_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                        <span class="n">scell_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ix2</span> <span class="o">*</span> <span class="n">scell</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">iy2</span> <span class="o">*</span> <span class="n">scell</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">iz2</span> <span class="o">*</span> <span class="n">scell</span><span class="p">[</span><span class="mi">2</span><span class="p">]])</span>
+                        <span class="n">replica_id</span> <span class="o">=</span> <span class="n">list_of_index</span><span class="p">[</span><span class="n">f</span><span class="p">]</span>
+                        <span class="n">t</span> <span class="o">=</span> <span class="n">replica_id</span> <span class="o">+</span> <span class="n">scell_id</span>
+                        <span class="n">replica_position</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tensordot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">cell</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+                        <span class="n">tt</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                        <span class="n">rreplica</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replica_position</span><span class="p">)</span>
+
+        <span class="n">tt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tt</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tt</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_supercell_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">supercell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">cell</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">cell</span>
+        <span class="n">replicated_cell</span> <span class="o">=</span> <span class="n">cell</span> <span class="o">*</span> <span class="n">supercell</span>
+        <span class="n">sc_r_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="o">**</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">ir</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">ix2</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">iy2</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">iz2</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                        <span class="n">sc_r_pos</span><span class="p">[</span><span class="n">ir</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">replicated_cell</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ix2</span><span class="p">,</span> <span class="n">iy2</span><span class="p">,</span> <span class="n">iz2</span><span class="p">]))</span>
+                    <span class="n">ir</span> <span class="o">=</span> <span class="n">ir</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">sc_r_pos</span>
+</code></pre></div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  
+  
+  <div class="md-footer-meta md-typeset">
+    
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-footer-copyright__highlight">
+        &#169; Copyright 2022-2025, The kALDo Developers.
+        
+    </div>
+  
+    Created using
+    <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+    8.1.3.
+     and
+    <a href="https://github.com/jbms/sphinx-immaterial/" target="_blank" rel="noopener">Sphinx-Immaterial</a>
+  
+</div>
+      
+    </div>
+    
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="../../../_static/sphinx_immaterial_theme.32136f45f91ae6956.min.js?v=a7a9472a"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+  </body>
+</html>
