@@ -9,6 +9,235 @@ from sparse import COO
 logging = get_logger()
 
 
+def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
+    """Determine symmetrically equivalent IFC block indices for 2nd and 3rd order.
+
+    Groups every (i, l_j, j) second-order and (i, l_j, j, l_k, k) third-order
+    atom-tuple into equivalence classes under the crystal spacegroup. Two blocks
+    belong to the same class when a spacegroup operation maps one to the other;
+    their IFC tensors are then related by a Cartesian similarity transform:
+
+        2nd order:  Phi[i,:,l_j,j,:]         = R @ Phi[canonical] @ R.T
+        3rd order:  Phi[i,:,l_j,j,:,l_k,k,:] = einsum('ai,bj,ck,ijk', R, R, R, Phi[canonical])
+
+    where (canonical) is the lowest flat-index representative of the class and
+    R is the Cartesian rotation stored in the corresponding rot_map.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Unit cell with valid cell vectors and periodic boundary conditions.
+    supercell : tuple of int, length 3
+        Supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+    order : int, optional
+        2 or 3 (default 2). Passing 2 skips all third-order work.
+
+    Returns
+    -------
+    irr_map_2 : ndarray, shape (n_unit, n_replicas, n_unit)
+        Flat canonical index for each 2nd-order block.
+    rot_map_2 : ndarray, shape (n_unit, n_replicas, n_unit, 3, 3)
+        Cartesian rotation R such that Phi2[i,:,l,j,:] = R @ Phi2[canonical] @ R.T.
+    irr_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit)
+        Flat canonical index for each 3rd-order block (None when order < 3).
+    rot_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit, 3, 3)
+        Cartesian rotation for each 3rd-order block (None when order < 3).
+    """
+    try:
+        import spglib
+    except ImportError as exc:
+        raise ImportError("spglib is required. Install with: pip install spglib") from exc
+
+    n_unit = len(atoms)
+    nx, ny, nz = supercell
+    n_replicas = nx * ny * nz
+    supercell_shape = np.array([nx, ny, nz], dtype=int)
+    grid = np.array(list(np.ndindex(nx, ny, nz)), dtype=int)
+
+    n_blocks_2 = n_unit * n_replicas * n_unit
+    n_blocks_3 = n_unit * n_replicas * n_unit * n_replicas * n_unit if order >= 3 else 0
+
+    s3_i  = n_replicas * n_unit * n_replicas * n_unit
+    s3_lj = n_unit * n_replicas * n_unit
+    s3_j  = n_replicas * n_unit
+    s3_lk = n_unit
+
+    lattice = atoms.cell[:]
+    scaled_pos = atoms.get_scaled_positions()
+    dataset = spglib.get_symmetry_dataset(
+        (lattice, scaled_pos, atoms.numbers), symprec=symprec
+    )
+    if dataset is None:
+        raise ValueError(
+            f"spglib could not determine symmetry (symprec={symprec}). "
+            "Try adjusting symprec or relaxing the structure."
+        )
+
+    rotations    = dataset.rotations
+    translations = dataset.translations
+    n_ops = len(rotations)
+    logging.info(
+        f"Space group: {dataset.international} (#{dataset.number}), "
+        f"{n_ops} symmetry operations"
+    )
+
+    AT = lattice.T
+    rotations_cart = np.einsum('ij,kjl,lm->kim', AT, rotations, np.linalg.inv(AT))
+
+    atom_map    = np.empty((n_ops, n_unit), dtype=int)
+    cell_shifts = np.zeros((n_ops, n_unit, 3), dtype=int)
+
+    for k in range(n_ops):
+        R, t = rotations[k], translations[k]
+        imgs    = scaled_pos @ R.T + t[np.newaxis, :]
+        shifts  = np.floor(imgs + 0.5 * symprec).astype(int)
+        imgs_w  = imgs - shifts
+        for i in range(n_unit):
+            diffs = imgs_w[i] - scaled_pos
+            diffs -= np.round(diffs)
+            norms = np.linalg.norm(diffs, axis=1)
+            ip = int(np.argmin(norms))
+            if norms[ip] > symprec * 10:
+                raise RuntimeError(
+                    f"Atom image lookup failed for op {k}, atom {i}. "
+                    "Increase symprec or check the structure."
+                )
+            atom_map[k, i]    = ip
+            cell_shifts[k, i] = shifts[i]
+
+    parent2 = np.arange(n_blocks_2)
+    parent3 = np.arange(n_blocks_3) if order >= 3 else None
+
+    def _find(parent, x):
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    if order >= 3:
+        LJ_flat, LK_flat = np.mgrid[0:n_replicas, 0:n_replicas]
+        LJ_flat = LJ_flat.ravel()
+        LK_flat = LK_flat.ravel()
+        n_pairs = n_replicas * n_replicas
+
+    for k in range(n_ops):
+        R_int = rotations[k]
+        for i in range(n_unit):
+            ip = atom_map[k, i]
+            for j in range(n_unit):
+                jp = atom_map[k, j]
+                col_shift_j = cell_shifts[k, j] - cell_shifts[k, i]
+                g_new_j   = grid @ R_int.T + col_shift_j[np.newaxis, :]
+                g_new_j_w = g_new_j % supercell_shape[np.newaxis, :]
+                l_j_new   = (g_new_j_w[:, 0] * ny * nz
+                             + g_new_j_w[:, 1] * nz
+                             + g_new_j_w[:, 2])
+
+                base_orig2 = i  * n_replicas * n_unit + j
+                base_new2  = ip * n_replicas * n_unit + jp
+                for l in range(n_replicas):
+                    f_orig = base_orig2 + l                * n_unit
+                    f_new  = base_new2  + int(l_j_new[l]) * n_unit
+                    r_o, r_n = _find(parent2, f_orig), _find(parent2, f_new)
+                    if r_o != r_n:
+                        if r_o < r_n: parent2[r_n] = r_o
+                        else:         parent2[r_o] = r_n
+
+                if order >= 3:
+                    for k_atom in range(n_unit):
+                        kp = atom_map[k, k_atom]
+                        col_shift_k = cell_shifts[k, k_atom] - cell_shifts[k, i]
+                        g_new_k   = grid @ R_int.T + col_shift_k[np.newaxis, :]
+                        g_new_k_w = g_new_k % supercell_shape[np.newaxis, :]
+                        l_k_new   = (g_new_k_w[:, 0] * ny * nz
+                                     + g_new_k_w[:, 1] * nz
+                                     + g_new_k_w[:, 2])
+
+                        LJ_new = l_j_new[LJ_flat]
+                        LK_new = l_k_new[LK_flat]
+                        f_orig3 = (i  * s3_i + LJ_flat * s3_lj + j  * s3_j + LK_flat * s3_lk + k_atom)
+                        f_new3  = (ip * s3_i + LJ_new  * s3_lj + jp * s3_j + LK_new  * s3_lk + kp)
+
+                        for idx in range(n_pairs):
+                            r_o = _find(parent3, int(f_orig3[idx]))
+                            r_n = _find(parent3, int(f_new3[idx]))
+                            if r_o != r_n:
+                                if r_o < r_n: parent3[r_n] = r_o
+                                else:         parent3[r_o] = r_n
+
+    canonical2 = np.array([_find(parent2, f) for f in range(n_blocks_2)])
+    irr_map_2  = canonical2.reshape(n_unit, n_replicas, n_unit)
+    n_irr2 = len(np.unique(canonical2))
+    logging.info(
+        f"2nd-order IFC: {n_irr2} irreducible / {n_blocks_2} total blocks "
+        f"({100.0 * n_irr2 / n_blocks_2:.1f}%)"
+    )
+
+    if order >= 3:
+        canonical3 = np.array([_find(parent3, f) for f in range(n_blocks_3)])
+        irr_map_3  = canonical3.reshape(n_unit, n_replicas, n_unit, n_replicas, n_unit)
+        n_irr3 = len(np.unique(canonical3))
+        logging.info(
+            f"3rd-order IFC: {n_irr3} irreducible / {n_blocks_3} total blocks "
+            f"({100.0 * n_irr3 / n_blocks_3:.1f}%)"
+        )
+    else:
+        canonical3 = None
+        irr_map_3  = None
+
+    rot_map_2 = np.broadcast_to(np.eye(3), (n_unit, n_replicas, n_unit, 3, 3)).copy()
+    if order >= 3:
+        rot_map_3 = np.broadcast_to(
+            np.eye(3), (n_unit, n_replicas, n_unit, n_replicas, n_unit, 3, 3)
+        ).copy()
+    else:
+        rot_map_3 = None
+
+    l_arr = np.arange(n_replicas)
+
+    for k in range(n_ops):
+        R_int = rotations[k]
+        R_inv = rotations_cart[k].T
+        for i in range(n_unit):
+            ip = atom_map[k, i]
+            for j in range(n_unit):
+                jp = atom_map[k, j]
+                col_shift_j = cell_shifts[k, j] - cell_shifts[k, i]
+                g_new_j   = grid @ R_int.T + col_shift_j[np.newaxis, :]
+                g_new_j_w = g_new_j % supercell_shape[np.newaxis, :]
+                l_j_new   = (g_new_j_w[:, 0] * ny * nz
+                             + g_new_j_w[:, 1] * nz
+                             + g_new_j_w[:, 2])
+
+                f_orig2 = i  * n_replicas * n_unit + l_arr * n_unit + j
+                f_new2  = ip * n_replicas * n_unit + l_j_new * n_unit + jp
+                mask2   = (canonical2[f_orig2] == f_new2) & (f_orig2 != f_new2)
+                rot_map_2[i, l_arr[mask2], j] = R_inv
+
+                if order >= 3:
+                    for k_atom in range(n_unit):
+                        kp = atom_map[k, k_atom]
+                        col_shift_k = cell_shifts[k, k_atom] - cell_shifts[k, i]
+                        g_new_k   = grid @ R_int.T + col_shift_k[np.newaxis, :]
+                        g_new_k_w = g_new_k % supercell_shape[np.newaxis, :]
+                        l_k_new   = (g_new_k_w[:, 0] * ny * nz
+                                     + g_new_k_w[:, 1] * nz
+                                     + g_new_k_w[:, 2])
+
+                        LJ_new = l_j_new[LJ_flat]
+                        LK_new = l_k_new[LK_flat]
+                        f_orig3 = (i  * s3_i + LJ_flat * s3_lj + j  * s3_j + LK_flat * s3_lk + k_atom)
+                        f_new3  = (ip * s3_i + LJ_new  * s3_lj + jp * s3_j + LK_new  * s3_lk + kp)
+                        mask3   = (canonical3[f_orig3] == f_new3) & (f_orig3 != f_new3)
+                        if np.any(mask3):
+                            rot_map_3[i, LJ_flat[mask3], j, LK_flat[mask3], k_atom] = R_inv
+
+    return irr_map_2, rot_map_2, irr_map_3, rot_map_3
+
 
 def list_of_replicas(atoms, replicated_atoms):
     n_atoms = atoms.positions.shape[0]
@@ -34,7 +263,7 @@ def calculate_gradient(x, input_atoms):
 
 
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
-                     scratch_dir=None, keep_scratch=False):
+                     scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5):
     """
     Core method to compute second order force constant matrices
     Approximate the second order force constant matrices
@@ -47,6 +276,11 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
             validate_parallel_calculator(calculator, method='calculate_second')
         elif getattr(replicated_atoms, 'calc', None) is not None:
             validate_parallel_calculator(replicated_atoms.calc, method='calculate_second')
+    if use_symmetry and scratch_dir is not None:
+        raise ValueError(
+            "use_symmetry=True is not compatible with scratch_dir. "
+            "Set scratch_dir=None when using symmetry reduction."
+        )
 
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
@@ -66,6 +300,24 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     else:
         second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
         atoms_to_compute = list(range(n_atoms))
+
+    if use_symmetry:
+        # Assumes diagonal supercell expansion; np.diag discards off-diagonal elements
+        supercell = tuple(np.diag(np.round(replicated_atoms.cell @ np.linalg.inv(atoms.cell)).astype(int)))
+        irr_map_2, rot_map_2, _, _ = get_equivalent_ifc_indices(
+            atoms, supercell, symprec=symprec, order=2
+        )
+        i0_all, l0_all, j0_all = np.unravel_index(
+            irr_map_2.ravel(), (n_atoms, n_replicas, n_atoms)
+        )
+        atoms_to_compute = np.unique(i0_all).tolist()
+        logging.info(
+            f'Symmetry reduction: displacing {len(atoms_to_compute)}/{n_atoms} atoms'
+        )
+    else:
+        irr_map_2 = rot_map_2 = None
+        i0_all = l0_all = j0_all = None
+
     use_parallel = n_workers is None or n_workers > 1
     backend = 'process' if use_parallel else 'serial'
     executor_workers = n_workers if use_parallel else None
@@ -93,6 +345,18 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
 
     second = second.reshape((1, n_unit_cell_atoms, 3, n_replicas, n_unit_cell_atoms, 3))
     second = second / (2. * second_order_delta)
+
+    if use_symmetry:
+        # Reconstruct non-irreducible blocks: Phi[i,:,l,j,:] = R @ Phi[canonical] @ R.T
+        phi = second[0]                                              # (n_unit, 3, n_repl, n_unit, 3)
+        Phi_canon = phi[i0_all, :, l0_all, j0_all, :]               # (n_blocks_2, 3, 3)
+        R = rot_map_2.reshape(-1, 3, 3)                              # (n_blocks_2, 3, 3)
+        second_flat = R @ Phi_canon @ R.transpose(0, 2, 1)           # (n_blocks_2, 3, 3)
+        second = (second_flat
+                  .reshape(n_unit_cell_atoms, n_replicas, n_unit_cell_atoms, 3, 3)
+                  .transpose(0, 3, 1, 2, 4)
+                  [np.newaxis])
+
     asymmetry = np.sum(np.abs(second[0, :, :, 0, :, :] - np.transpose(second[0, :, :, 0, :, :], (2, 3, 0, 1))))
     logging.info('Symmetry of Dynamical Matrix ' + str(asymmetry))
     return second
@@ -146,7 +410,7 @@ def _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep
 
 def calculate_third(atoms, replicated_atoms, third_order_delta, distance_threshold=None, is_verbose=False,
                     n_workers=1, calculator=None, scratch_dir=None, keep_scratch=False,
-                    jat_flush_every=50):
+                    jat_flush_every=50, use_symmetry=False, symprec=1e-5):
     """
     Compute third order force constant matrices by using the central
     difference formula for the approximation.
@@ -200,6 +464,11 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             validate_parallel_calculator(calculator, method='calculate_third')
         elif getattr(replicated_atoms, 'calc', None) is not None:
             validate_parallel_calculator(replicated_atoms.calc, method='calculate_third')
+    if use_symmetry and scratch_dir is not None:
+        raise ValueError(
+            "use_symmetry=True is not compatible with scratch_dir. "
+            "Set scratch_dir=None when using symmetry reduction."
+        )
 
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
@@ -218,17 +487,41 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_done = 0
     n_forces_skipped = 0
 
-    use_parallel = n_workers is None or n_workers > 1
-
-    # Determine which atoms need computing (resume support via scratch sentinels)
-    if use_scratch:
-        atoms_to_compute = [iat for iat in range(n_atoms)
-                             if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))]
-        n_resumed = n_atoms - len(atoms_to_compute)
-        if n_resumed:
-            logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
+    # Build per-iat allowed_jat mapping from irreducible pair set when using symmetry
+    if use_symmetry:
+        # Assumes diagonal supercell expansion; np.diag discards off-diagonal elements
+        supercell = tuple(np.diag(np.round(replicated_atoms.cell @ np.linalg.inv(atoms.cell)).astype(int)))
+        _, _, irr_map_3, rot_map_3 = get_equivalent_ifc_indices(
+            atoms, supercell, symprec=symprec, order=3
+        )
+        i0_all, lj0_all, j0_all, _, _ = np.unravel_index(
+            irr_map_3.ravel(), (n_atoms, n_replicas, n_atoms, n_replicas, n_atoms)
+        )
+        irr_pairs = np.unique(
+            np.stack([i0_all, lj0_all * n_atoms + j0_all], axis=1), axis=0
+        )
+        allowed_jat_per_iat = {}
+        for i0, jat0 in irr_pairs:
+            allowed_jat_per_iat.setdefault(int(i0), set()).add(int(jat0))
+        atoms_to_compute = sorted(allowed_jat_per_iat.keys())
+        logging.info(
+            f'Symmetry reduction: {len(irr_pairs)} irreducible / '
+            f'{n_atoms * n_replicas * n_atoms} total atom pairs'
+        )
     else:
-        atoms_to_compute = list(range(n_atoms))
+        irr_map_3 = rot_map_3 = None
+        allowed_jat_per_iat = {}
+        # Determine which atoms need computing (resume support via scratch sentinels)
+        if use_scratch:
+            atoms_to_compute = [iat for iat in range(n_atoms)
+                                 if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))]
+            n_resumed = n_atoms - len(atoms_to_compute)
+            if n_resumed:
+                logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
+        else:
+            atoms_to_compute = list(range(n_atoms))
+
+    use_parallel = n_workers is None or n_workers > 1
 
     # Select backend: 'process' for parallel, 'serial' for single-threaded
     backend = 'process' if use_parallel else 'serial'
@@ -244,7 +537,8 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     with get_executor(backend=backend, n_workers=executor_workers) as executor:
         futures = {
             executor.submit(worker_fn, iat, atoms, replicated_atoms,
-                           third_order_delta, distance_threshold, is_verbose): iat
+                           third_order_delta, distance_threshold, is_verbose,
+                           allowed_jat=allowed_jat_per_iat.get(iat)): iat
             for iat in atoms_to_compute
         }
         for future in as_completed(futures):
@@ -270,6 +564,74 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
     if use_scratch:
         return _assemble_from_scratch_third(scratch_dir, n_atoms, n_replicas, keep_scratch)
+
+    if use_symmetry:
+        # Expand irreducible sparse entries to the full tensor via symmetry.
+        n_rep_atoms = n_replicas * n_atoms
+
+        phi_irr = {}
+        for iat, ic, jat, jc, k, v in zip(i_at_sparse, i_coord_sparse, jat_sparse,
+                                            j_coord_sparse, k_sparse, value_sparse):
+            key = (int(iat), int(jat))
+            if key not in phi_irr:
+                phi_irr[key] = np.zeros((3, 3, n_rep_atoms * 3))
+            phi_irr[key][int(ic), int(jc), int(k)] = float(v)
+
+        irr_flat = irr_map_3.ravel()
+        rot_flat = rot_map_3.reshape(-1, 3, 3)
+        A_idx = np.arange(3, dtype=np.int32)
+        B_idx = np.arange(3, dtype=np.int32)
+        C_idx = np.arange(3, dtype=np.int32)
+
+        i_at_sparse    = []
+        i_coord_sparse = []
+        jat_sparse     = []
+        j_coord_sparse = []
+        k_sparse       = []
+        value_sparse   = []
+
+        for canon_flat in np.unique(irr_flat):
+            i0, lj0, j0, lk0, k0 = np.unravel_index(
+                int(canon_flat), (n_atoms, n_replicas, n_atoms, n_replicas, n_atoms)
+            )
+            jat0 = lj0 * n_atoms + j0
+            if (i0, jat0) not in phi_irr:
+                continue
+
+            kat0 = (lk0 * n_atoms + k0) * 3
+            phi_333 = phi_irr[(i0, jat0)][:, :, kat0:kat0 + 3].copy()
+
+            equiv_idxs = np.where(irr_flat == canon_flat)[0]
+            i_all, lj_all, j_all, lk_all, k_all = np.unravel_index(
+                equiv_idxs, (n_atoms, n_replicas, n_atoms, n_replicas, n_atoms)
+            )
+            n_eq = len(equiv_idxs)
+
+            R_eq = rot_flat[equiv_idxs]
+            T1   = (R_eq @ phi_333.reshape(3, 9)).reshape(n_eq, 3, 3, 3)
+            T2   = (R_eq @ T1.transpose(0, 2, 1, 3).reshape(n_eq, 3, 9)
+                    ).reshape(n_eq, 3, 3, 3).transpose(0, 2, 1, 3)
+            T3   = (R_eq @ T2.transpose(0, 3, 1, 2).reshape(n_eq, 3, 9)
+                    ).reshape(n_eq, 3, 3, 3).transpose(0, 2, 3, 1)
+
+            jat_eq = (lj_all * n_atoms + j_all)
+            kat_eq = (lk_all * n_atoms + k_all) * 3
+
+            c_iat  = i_all[:, None, None, None]
+            c_ic   = A_idx[None, :, None, None]
+            c_jat  = jat_eq[:, None, None, None]
+            c_jc   = B_idx[None, None, :, None]
+            c_k    = kat_eq[:, None, None, None] + C_idx[None, None, None, :]
+
+            mask = T3 != 0.0
+            bc   = (n_eq, 3, 3, 3)
+            i_at_sparse.extend(np.broadcast_to(c_iat, bc)[mask].tolist())
+            i_coord_sparse.extend(np.broadcast_to(c_ic,  bc)[mask].tolist())
+            jat_sparse.extend(np.broadcast_to(c_jat, bc)[mask].tolist())
+            j_coord_sparse.extend(np.broadcast_to(c_jc,  bc)[mask].tolist())
+            k_sparse.extend(np.broadcast_to(c_k,    bc)[mask].tolist())
+            value_sparse.extend(T3[mask].tolist())
+
     coords = np.array([i_at_sparse, i_coord_sparse, jat_sparse, j_coord_sparse, k_sparse])
     shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
     phifull = COO(coords, np.array(value_sparse), shape)
@@ -278,7 +640,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     
 
 def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance_threshold, is_verbose,
-                 calculator=None, scratch_dir=None, jat_flush_every=50):
+                 calculator=None, scratch_dir=None, jat_flush_every=50, allowed_jat=None):
     """Compute all third-order force constant terms for a single unit cell atom index.
 
     Parameters
@@ -295,6 +657,10 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
     jat_flush_every : int
         Number of jat iterations to accumulate (as compact numpy arrays) before
         flushing to disk. Only used when ``scratch_dir`` is set.
+    allowed_jat : set or None
+        When provided, only jat indices in this set are computed; all others are
+        skipped. Used by ``calculate_third`` when ``use_symmetry=True`` to restrict
+        computation to irreducible atom pairs.
     """
     if calculator is not None:
         replicated_atoms = replicated_atoms.copy()
@@ -312,7 +678,10 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
 
     for jat in range(n_replicas * n_atoms):
         is_computing = True
-        if distance_threshold is not None:
+        if allowed_jat is not None and jat not in allowed_jat:
+            is_computing = False
+            n_skipped += 9
+        if is_computing and distance_threshold is not None:
             dxij = replicated_atoms.get_distance(iat, jat, mic=True, vector=False)
             if dxij > distance_threshold:
                 is_computing = False
