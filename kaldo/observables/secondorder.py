@@ -345,6 +345,15 @@ class SecondOrder(ForceConstant):
         keep_scratch : bool, optional
             If True, keep scratch files after successful assembly.
             Default: False
+        use_symmetry : bool, optional
+            If True, will use crystal spacegroup to reduce number of pairs
+            calculated by the method. Do not use while reading/writing with 
+            scratch_dir (leave scratch_dir=False), will throw an error if
+            scratch_dir is not None.
+            Default: False
+        symprec : float, optional
+            precision for symmetry using spglib.
+            Default: 1e-5
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='SecondOrder.calculate')
