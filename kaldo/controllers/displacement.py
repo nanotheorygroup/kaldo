@@ -4,7 +4,7 @@ import os
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
-from kaldo.parallel import get_executor
+from kaldo.parallel import get_executor, is_parallel, validate_parallel_calculator
 from sparse import COO
 logging = get_logger()
 
@@ -318,24 +318,6 @@ def calculate_gradient(x, input_atoms):
     return grad
 
 
-def _validate_calculator(calculator):
-    """Raise TypeError if calculator is not a callable or ASE Calculator."""
-    if calculator is None:
-        return
-    if callable(calculator):
-        return
-    try:
-        from ase.calculators.calculator import Calculator
-        if isinstance(calculator, Calculator):
-            return
-    except ImportError:
-        pass
-    raise TypeError(
-        f"calculator must be a callable (e.g. EMT) or ASE Calculator instance, "
-        f"got {type(calculator).__name__}"
-    )
-
-
 def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=False, n_workers=1, calculator=None,
                      scratch_dir=None, keep_scratch=False, use_symmetry=False, supercell=None, symprec=1e-5):
     """
@@ -345,12 +327,16 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-    _validate_calculator(calculator)
+    if is_parallel(n_workers):
+        if calculator is not None:
+            validate_parallel_calculator(calculator, method='calculate_second')
+        elif getattr(replicated_atoms, 'calc', None) is not None:
+            validate_parallel_calculator(replicated_atoms.calc, method='calculate_second')
     if use_symmetry and scratch_dir is not None:
         raise ValueError(
             "use_symmetry=True is not compatible with scratch_dir. "
             "Set scratch_dir=None when using symmetry reduction."
-        )
+    )
 
     logging.info('Calculating second order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%second_order_delta)
     n_unit_cell_atoms = len(atoms.numbers)
@@ -498,7 +484,10 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_workers : int or None
         Number of parallel worker processes. ``1`` runs serially (default).
         ``None`` uses all available CPUs. Values > 1 launch that many workers
-        via ``concurrent.futures.ProcessPoolExecutor``.
+        via ``concurrent.futures.ProcessPoolExecutor``. Each worker is capped
+        to one OpenMP / MKL / OpenBLAS thread so calculators with internal
+        multithreading don't oversubscribe; override by setting
+        ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in the environment.
     calculator : callable or ASE Calculator instance or None
         Either an ASE calculator class or an already-constructed instance.
         When running in parallel (``n_workers > 1``), pass a class so each
@@ -533,12 +522,16 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     """
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
-    _validate_calculator(calculator)
+    if is_parallel(n_workers):
+        if calculator is not None:
+            validate_parallel_calculator(calculator, method='calculate_third')
+        elif getattr(replicated_atoms, 'calc', None) is not None:
+            validate_parallel_calculator(replicated_atoms.calc, method='calculate_third')
     if use_symmetry and scratch_dir is not None:
         raise ValueError(
             "use_symmetry=True is not compatible with scratch_dir. "
             "Set scratch_dir=None when using symmetry reduction."
-        )
+    )
 
     logging.info('Calculating third order potential derivatives, ' + 'finite difference displacement: %.3e angstrom'%third_order_delta)
     n_atoms = len(atoms.numbers)
