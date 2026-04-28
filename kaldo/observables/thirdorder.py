@@ -41,7 +41,8 @@ class ThirdOrder(ForceConstant):
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = 'sparse',
              third_energy_threshold: float = 0.,
-             chunk_size: int = 100000):
+             chunk_size: int = 100000,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load third order force constants from a folder in the given format, used for library internally.
 
@@ -201,6 +202,26 @@ class ThirdOrder(ForceConstant):
             case 'tdep':
                 uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
                 sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
+                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+
+                from kaldo.interfaces.tdep_io import (
+                    validate_tdep_supercell_matrix,
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                    parse_tdep_third_forceconstant_nondiag,
+                )
+                M_int = validate_tdep_supercell_matrix(supercell_matrix, M, supercell)
+                if M_int is not None:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    third_ifcs = parse_tdep_third_forceconstant_nondiag(
+                        fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
+                        primitive=uc,
+                        replica_table=mapping["replica_table"],
+                        M=mapping["M"],
+                    )
+                    third_order = cls(value=third_ifcs, folder=folder, **kw)
+                    return attach_snf_metadata(third_order, mapping)
 
                 third_ifcs = parse_tdep_third_forceconstant(
                     fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),

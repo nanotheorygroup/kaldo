@@ -32,6 +32,157 @@ logging = get_logger()
 GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 THZ_TO_MEV = units.J * units._hbar * 2 * np.pi * 1e15
 
+def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
+    """
+    Compute the IBZ mapping and per-equivalent-kpoint column-permutation tables
+    using spglib, aligned with kALDo's k-point ordering.
+
+    Parameters
+    ----------
+    atoms : ASE Atoms
+        Primitive unit cell.
+    kpts : array-like (3,)
+        k-point mesh dimensions.
+    grid_type : str
+        kALDo grid ordering ('C' or 'F').
+
+    Returns
+    -------
+    ir_mapping : np.ndarray (n_k_points,)
+        ir_mapping[ik] = index of the IBZ representative for k-point ik.
+    krot_perm : list of (np.ndarray or None), length n_k_points
+        For IBZ representatives: None.
+        For non-IBZ ik: int array (n_k_points,) where krot_perm[ik][ik']
+        is the index of S^{-1}·q_{ik'}, where S is the rotation mapping
+        q_{ir_mapping[ik]} to q_{ik}.
+    ibz_indices : list of int
+        Sorted list of IBZ representative k-point indices.
+    krot_cart : list of (np.ndarray or None), length n_k_points
+        For IBZ representatives: None.
+        For non-IBZ ik: (3, 3) float array, the Cartesian rotation matrix R
+        such that v(q_ik) = R @ v(q_irr) for any vector quantity (e.g. velocity).
+    """
+    try:
+        import spglib
+    except ImportError:
+        raise ImportError(
+            "spglib is required for q-space symmetry reduction. "
+            "Install with: pip install spglib"
+        )
+
+    kpts_arr = np.asarray(kpts, dtype=int)
+    n_k_points = int(np.prod(kpts_arr))
+    grid = Grid(kpts_arr, order=grid_type)
+
+    # Integer grid coordinates (0..Ni-1) and fractional equivalents.
+    k_indices = grid.generate_index_grid()   # (n_k_points, 3) int
+    q_fracs = k_indices / kpts_arr.astype(float)  # (n_k_points, 3) in [0,1)
+
+    # Build spglib structure tuple.
+    cell = atoms.cell[:]
+    scaled_pos = atoms.get_scaled_positions()
+    numbers = atoms.get_atomic_numbers()
+    spg_struct = (cell, scaled_pos, numbers)
+
+    # --- IBZ mapping via spglib -------------------------------------------
+    spg_mapping, spg_grid_address = spglib.get_ir_reciprocal_mesh(
+        kpts_arr.tolist(), spg_struct, is_shift=[0, 0, 0], is_time_reversal=True)
+
+    # spg_grid_address[i] contains integer coords in [0, Ni).
+    # Build a map from spglib's linear index to kALDo's linear index.
+    spg_to_kaldo = np.empty(n_k_points, dtype=int)
+    for i_spg, addr in enumerate(spg_grid_address):
+        addr_w = np.asarray(addr, dtype=int) % kpts_arr
+        spg_to_kaldo[i_spg] = int(np.ravel_multi_index(addr_w, kpts_arr.tolist(), order=grid_type))
+
+    ir_mapping = np.empty(n_k_points, dtype=int)
+    for i_spg in range(n_k_points):
+        ik = spg_to_kaldo[i_spg]
+        ik_irr = spg_to_kaldo[int(spg_mapping[i_spg])]
+        ir_mapping[ik] = ik_irr
+
+    ibz_indices = sorted(set(ir_mapping.tolist()))
+
+    # --- Rotation permutation tables for gamma-tensor replication -----------
+    # Symmetry operations: R is a (3,3) integer matrix in fractional real-space.
+    # Action on fractional reciprocal-space coords: k' = (R^{-1})^T k.
+    # Inverse of that action: k = R^T k'.  (since ((R^{-1})^T)^{-1} = R^T)
+    sym = spglib.get_symmetry(spg_struct)
+    rotations_frac = sym['rotations']   # (n_ops, 3, 3) integer
+
+    def _apply_rot_to_mesh(R_mat):
+        """
+        Apply integer rotation matrix R_mat (3,3) to every fractional k-point
+        and return the array of resulting mesh indices.
+        """
+        # (R_mat @ q.T).T = q @ R_mat.T for each row-vector q.
+        q_rot = q_fracs @ R_mat.T        # (n_k_points, 3)
+        q_rot = q_rot % 1.0
+        # Collapse floating-point values sitting just below 1.0 to 0.
+        q_rot[np.abs(q_rot - 1.0) < 1e-9] = 0.0
+        q_int = np.round(q_rot * kpts_arr).astype(int) % kpts_arr
+        return np.ravel_multi_index(q_int.T, kpts_arr.tolist(), order=grid_type)
+
+    # For each non-IBZ k-point ik, find the rotation S in reciprocal space
+    # (= (R^{-1})^T) that maps q_{ir_mapping[ik]} to q_{ik}, then store:
+    #   krot_perm : permutation of the full mesh by S^{-1} = R^T (for gamma tensor)
+    #   krot_cart : 3x3 Cartesian rotation matrix R_cart = A @ R @ A^{-1}
+    #               where A = cell.T, for rotating vector quantities (e.g. velocity).
+    krot_perm = [None] * n_k_points
+    krot_cart = [None] * n_k_points
+    A = cell.T                      # columns are lattice vectors
+    A_inv = np.linalg.inv(A)
+
+    for ik in range(n_k_points):
+        ik_irr = ir_mapping[ik]
+        if ik == ik_irr:
+            continue
+
+        q_irr = q_fracs[ik_irr]
+        q_target = q_fracs[ik]
+
+        found = False
+        for R in rotations_frac:
+            # Compute (R^{-1})^T = round(inv(R))^T acting on q_irr.
+            R_inv = np.round(np.linalg.inv(R)).astype(int)
+            R_recip = R_inv.T  # (R^{-1})^T
+            q_test = R_recip @ q_irr
+            q_test = q_test % 1.0
+            q_test[np.abs(q_test - 1.0) < 1e-9] = 0.0
+            if np.allclose(q_test, q_target, atol=1e-9):
+                # S^{-1} = R^T applied to the full mesh gives the permutation.
+                krot_perm[ik] = _apply_rot_to_mesh(R.T)
+                # Cartesian rotation: R acts on fractional real-space coords,
+                # so R_cart = A @ R @ A^{-1} transforms Cartesian vectors.
+                krot_cart[ik] = A @ R @ A_inv
+                found = True
+                break
+
+        if not found:
+            # Time-reversal fallback: q_ik = -q_irr (mod 1).
+            # This arises for non-centrosymmetric crystals where -I is not a
+            # point group rotation but is_time_reversal=True in get_ir_reciprocal_mesh
+            # still identifies q and -q as equivalent.
+            # Γ(-q,μ;q',μ') = Γ(q,μ;-q',μ'), so permuting the k'-axis by
+            # q'→-q' (R_mat=-I) correctly replicates the gamma tensor.
+            # Velocity is odd under inversion: v(-q) = -v(q), so R_cart = -I.
+            q_neg = (-q_irr) % 1.0
+            q_neg[np.abs(q_neg - 1.0) < 1e-9] = 0.0
+            if np.allclose(q_neg, q_target, atol=1e-9):
+                krot_perm[ik] = _apply_rot_to_mesh(-np.eye(3, dtype=int))
+                krot_cart[ik] = -np.eye(3, dtype=float)
+                found = True
+
+        if not found:
+            raise RuntimeError(
+                f"No spglib symmetry operation found mapping IBZ k-point "
+                f"{ik_irr} to k-point {ik}. "
+                "Ensure the k-mesh is commensurate with the crystal symmetry."
+            )
+
+    return ir_mapping, krot_perm, ibz_indices, krot_cart
+
+
 def _sparse_tensor_to_numpy(st):
     """Convert a tf.SparseTensor to a picklable (indices, values, dense_shape) tuple."""
     if st is None:
@@ -49,7 +200,8 @@ def _numpy_to_sparse_tensor(data):
 
 def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mode,
                                 evect_np, third_sparse_data, chi_k_np, velocity_np,
-                                cell_inv, kpts, broadening_shape, third_bandwidth,
+                                cell_inv, kpts, broadening_shape, broadening_kernel,
+                                sigma_mode_np, third_bandwidth,
                                 hbar, n_replicas, is_sparse, kpoint_maps):
     """Compute sparse_phase and sparse_potential for all modes at one k-point.
 
@@ -65,6 +217,10 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
     _chi_k = tf.cast(tf.convert_to_tensor(chi_k_np), dtype=tf.complex128)
     second_minus_chi = tf.math.conj(_chi_k)
     velocity_tf = tf.convert_to_tensor(velocity_np)
+    sigma_mode_tf = (
+        tf.constant(sigma_mode_np, dtype=tf.float64)
+        if sigma_mode_np is not None else None
+    )
 
     if is_sparse:
         coords, data, shape = third_sparse_data
@@ -88,8 +244,14 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
             index_kpp_full = tf.cast(kpoint_maps[(index_k, is_plus)], dtype=tf.int32)
             if third_bandwidth:
                 sigma_tf = tf.constant(third_bandwidth, dtype=tf.float64)
+            elif broadening_kernel == "tdep":
+                sigma_tf = aha.combine_sigma_triplet_tdep(
+                    sigma_mode_tf, int(index_k), int(mu), index_kpp_full
+                )
             else:
-                sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+                sigma_tf = aha.calculate_broadening_shengbte(
+                    velocity_tf, cell_inv, kpts, index_kpp_full
+                )
 
             dirac_delta_result = aha.calculate_dirac_delta_crystal(
                 omega, physical_mode, sigma_tf, broadening_shape,
@@ -213,6 +375,29 @@ class Phonons(Storable):
         energy conservation rules for three-phonon scattering.
         Options: 'gauss', 'lorentz' and 'triangle'.
         Default: ``'gauss'``
+    broadening_kernel : string
+        Chooses how the adaptive σ of the energy-conservation δ is computed
+        when ``third_bandwidth`` is ``None``.
+
+        * ``'shengbte'`` (default): per-pair σ from the velocity difference
+          projected on the reciprocal basis, as in
+          bitbucket.org/sousaw/shengbte/src (`base_sigma` in
+          ``Src/config.f90``). NOT invariant under the crystal point group
+          on degenerate modes — see ``calculate_broadening_shengbte``.
+        * ``'tdep'``: per-mode σ from ``|v(q, μ)|`` with a band-baseline
+          floor, combined as ``σ_triplet = √(σ₁² + σ₂² + σ₃²)``. Ported
+          from github.com/tdep-developers/tdep (`adaptive_sigma` in
+          ``src/libolle/type_qpointmesh_integrationweights.f90``,
+          triplet combination in
+          ``src/thermal_conductivity_2023/phononevents_gaussian.f90``).
+          Gauge-invariant and therefore symmetry-consistent across
+          orbit-equivalent k-points. Recommended when using
+          ``use_q_symmetry=True``.
+
+        Default: ``'shengbte'``
+    smearing_prefactor : float
+        TDEP ``scale`` parameter. Only used when ``broadening_kernel='tdep'``.
+        Default: ``1.0``
     folder : string
         Specifies where to store the data files.
         Default: ``'output'``.
@@ -255,7 +440,38 @@ class Phonons(Storable):
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
     is_nw: bool, optional
-        Defines if you would like to assume the system is a nanowire. 
+        Defines if you would like to assume the system is a nanowire.
+        Default: False
+    n_workers : int or None, optional
+        Number of parallel worker processes to use in the crystal projection.
+        ``1`` (default) runs the projection serially in-process. ``>1`` uses
+        a process pool via the executor abstraction; ``None`` lets the
+        executor choose.
+    projection_output_dir : str or None, optional
+        If set, the per-k-point projection results are persisted to this
+        directory (one ``.npz`` per k-point) so a long run can be resumed.
+        Default: ``None``.
+    use_q_symmetry : bool, optional
+        Reduce the anharmonic projection (``_project_crystal``) to the
+        irreducible Brillouin zone via spglib, then replicate back to the
+        full mesh. For a crystal with a large point group this is an up to
+        ~48× speedup at 25³ while leaving scalar observables (phase_space,
+        bandwidth summed over modes, total Γ per k-point) unchanged.
+
+        Limitations to be aware of:
+
+        * Per-cell gamma tensor entries Γ[(k, μ), (k', μ')] are only
+          replicated along the k' axis. Within a degenerate subspace at
+          k' the μ' index is not rotated, so individual matrix elements
+          can split between swapped μ' modes. Marginal sums
+          Γ_total[k, μ] = Σ_{k', μ'} Γ[(k, μ), (k', μ')] remain correct
+          and are what the BTE conductivity kernel uses.
+        * Per-mode phase_space, bandwidth, and Γ-tensor diagonals carry a
+          documented gauge artifact with the default ShengBTE broadening
+          kernel across orbit-equivalent k-points (eigenvectors are
+          basis-dependent within degenerate subspaces). Use
+          ``broadening_kernel='tdep'`` for strict per-mode invariance.
+
         Default: False
 
     Returns
@@ -292,6 +508,8 @@ class Phonons(Storable):
                  max_frequency: float | None = None,
                  third_bandwidth: float | None = None,
                  broadening_shape: str = "gauss",
+                 broadening_kernel: str = "shengbte",
+                 smearing_prefactor: float = 1.0,
                  folder: str = FOLDER_NAME,
                  storage: str = "formatted",
                  grid_type: str = "C",
@@ -305,6 +523,7 @@ class Phonons(Storable):
                  is_nw: bool = False,
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
+                 use_q_symmetry: bool = False,
                  **kwargs):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
@@ -324,6 +543,13 @@ class Phonons(Storable):
         self.min_frequency = min_frequency
         self.max_frequency = max_frequency
         self.broadening_shape = broadening_shape
+        valid_kernels = ("shengbte", "tdep")
+        if broadening_kernel not in valid_kernels:
+            raise ValueError(
+                f"broadening_kernel={broadening_kernel!r} not in {valid_kernels}"
+            )
+        self.broadening_kernel = broadening_kernel
+        self.smearing_prefactor = float(smearing_prefactor)
         self.is_nw = is_nw
         self.third_bandwidth = third_bandwidth
         self.storage = storage
@@ -342,6 +568,26 @@ class Phonons(Storable):
         self.g_factor = g_factor
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
+        self.use_q_symmetry = use_q_symmetry
+
+        # Warn when combining IBZ replication with the ShengBTE broadening
+        # kernel: ShengBTE's per-pair σ is not invariant under the crystal
+        # point group on degenerate modes, so the per-cell Γ tensor and
+        # per-mode phase_space / bandwidth values carry a documented gauge
+        # artifact across orbit-equivalent k-points (up to ~13% on Si 3×3×3).
+        # Marginal sums (Γ_total[k, μ], Σ_μ phase_space[k, μ]) are still
+        # correct; the TDEP kernel (broadening_kernel='tdep') gives per-mode
+        # invariance to machine precision. See REVIEW_NOTES_qsym.md.
+        if (self.use_q_symmetry and self.broadening_kernel == "shengbte"
+                and not self.third_bandwidth):
+            logging.warning(
+                "use_q_symmetry=True with broadening_kernel='shengbte' "
+                "produces per-mode phase_space / bandwidth / gamma-tensor "
+                "values that are NOT symmetry-invariant across orbit-"
+                "equivalent k-points (gauge artifact in degenerate "
+                "subspaces). Marginal sums remain correct. For strict "
+                "per-mode invariance use broadening_kernel='tdep'."
+            )
 
     def _get_folder_path_components(self, label):
         """Get folder path components for Phonons-specific attributes."""
@@ -493,11 +739,37 @@ class Phonons(Storable):
         -------
         velocity : np.array(n_k_points, n_unit_cell * 3, 3)
              velocity in 100m/s or A/ps
-        """
 
+        Notes
+        -----
+        When ``use_q_symmetry=True`` and the system is not amorphous, the
+        Hellmann-Feynman diagonalization is performed only at IBZ
+        representatives; non-IBZ velocities are obtained as
+        ``v(Sq) = R_cart @ v(q_irr)`` using the Cartesian rotation stored
+        in ``_ir_kgrid_data``. On a high-symmetry crystal this is up to a
+        ~|point-group|× speedup on this routine (which is otherwise a
+        serial HarmonicWithQ loop over all q).
+
+        Per-mode velocity vectors at degenerate modes are defined only up
+        to a unitary rotation within each degenerate subspace. R_cart
+        replication preserves the *set* of velocity magnitudes at each
+        orbit member, so |v(q, μ)|-based quantities (e.g. TDEP adaptive
+        σ) are invariant. Any downstream code that pairs (k, μ) with
+        (Sk, μ) per mode must consume this `velocity` array consistently.
+        """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
-        for ik in range(len(q_points)):
+
+        # Determine which k-points need full diagonalization.
+        if self.use_q_symmetry and not self._is_amorphous:
+            ir_mapping, _, ibz_indices, krot_cart = self._ir_kgrid_data
+            ks_to_compute = list(ibz_indices)
+        else:
+            ir_mapping = None
+            krot_cart = None
+            ks_to_compute = list(range(len(q_points)))
+
+        for ik in ks_to_compute:
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
                                    second=self.forceconstants.second,
@@ -509,6 +781,18 @@ class Phonons(Storable):
                                    is_amorphous=self._is_amorphous)
 
             velocity[ik] = phonon.velocity
+
+        # Replicate non-IBZ velocities via Cartesian rotation.
+        if ir_mapping is not None:
+            for ik in range(len(q_points)):
+                ik_irr = int(ir_mapping[ik])
+                if ik == ik_irr:
+                    continue
+                R = krot_cart[ik]
+                # velocity[ik_irr] shape (n_modes, 3); apply R from the right:
+                # v(Sq, μ) = R @ v(q_irr, μ)  →  matrix form: v_ik = v_irr @ R.T
+                velocity[ik] = velocity[ik_irr] @ R.T
+
         return velocity
 
 
@@ -1154,6 +1438,21 @@ class Phonons(Storable):
         return index_qpp_full
 
 
+    @property
+    def _ir_kgrid_data(self):
+        """Cached (ir_mapping, krot_perm, ibz_indices) from spglib."""
+        try:
+            return self.__ir_kgrid_data
+        except AttributeError:
+            self.__ir_kgrid_data = _get_ir_kgrid_data(
+                self.atoms, self.kpts, self._grid_type)
+            n_irr = len(self.__ir_kgrid_data[2])
+            logging.info(
+                f'q-symmetry: IBZ has {n_irr} of {self.n_k_points} k-points '
+                f'(reduction factor {self.n_k_points / n_irr:.1f}x)'
+            )
+            return self.__ir_kgrid_data
+
     def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
@@ -1176,6 +1475,34 @@ class Phonons(Storable):
         )
         if not self._is_amorphous:
             ps_and_gamma[:, 0] /= self.n_k_points
+
+        # Replicate IBZ results to symmetry-equivalent k-points.
+        # Note: the Python-level per-ik loop with an inner per-mu slice is
+        # actually close to memory-bound-optimal for realistic mesh sizes.
+        # Bulk-gather alternatives allocate an O(n_k × n_m × n_k × n_m)
+        # intermediate (tens of GiB at 25³), so the in-place slice writes
+        # are faster at scale. See benchmark notes in REVIEW_NOTES_qsym.md.
+        if self.use_q_symmetry and not self._is_amorphous:
+            ir_mapping, krot_perm, _, _ = self._ir_kgrid_data
+            n_k = self.n_k_points
+            n_m = self.n_modes
+            # View into the gamma-tensor block so inner assignments avoid
+            # recomputing the slice boundaries on every iteration.
+            gamma_view = ps_and_gamma[:, 2:].reshape(n_k, n_m, n_k, n_m) \
+                if is_gamma_tensor_enabled else None
+            for ik in range(n_k):
+                ik_irr = ir_mapping[ik]
+                if ik == ik_irr:
+                    continue
+                # Scalar columns (phase space, bandwidth): direct copy.
+                ps_and_gamma[ik * n_m:(ik + 1) * n_m, :2] = \
+                    ps_and_gamma[ik_irr * n_m:(ik_irr + 1) * n_m, :2]
+                # Gamma-tensor columns: permute the k'-axis via np.take on
+                # the precomputed view (equivalent to the per-mu loop but
+                # without the reshape/stride recomputation).
+                if gamma_view is not None:
+                    perm = krot_perm[ik]
+                    gamma_view[ik] = np.take(gamma_view[ik_irr], perm, axis=1)
 
         return ps_and_gamma
 
@@ -1292,6 +1619,15 @@ class Phonons(Storable):
 
         logging.info("Projection started")
 
+        # Precompute per-mode σ once when using the TDEP kernel; workers use
+        # it via combine_sigma_triplet_tdep. None for the ShengBTE kernel.
+        sigma_mode_np = None
+        if not self.third_bandwidth and self.broadening_kernel == "tdep":
+            sigma_mode_np = aha.calculate_broadening_tdep(
+                self.velocity, self.frequency, cell_inv, n_k_points,
+                smearing_prefactor=self.smearing_prefactor,
+            )
+
         # Shared config for all k-point workers (all numpy, picklable)
         shared = dict(
             n_modes=n_modes, n_k_points=n_k_points, omega=omega,
@@ -1299,6 +1635,8 @@ class Phonons(Storable):
             third_sparse_data=third_sparse_data, chi_k_np=chi_k_np,
             velocity_np=velocity_np, cell_inv=cell_inv, kpts=kpts,
             broadening_shape=self.broadening_shape,
+            broadening_kernel=self.broadening_kernel,
+            sigma_mode_np=sigma_mode_np,
             third_bandwidth=self.third_bandwidth, hbar=hbar,
             n_replicas=n_replicas, is_sparse=is_sparse,
             kpoint_maps=kpoint_maps,
