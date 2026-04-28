@@ -1,5 +1,15 @@
 # Test temporary folders
 examples_local
+test_full_bz/
+test_full_bz_const/
+test_full_bz_tdep/
+test_ibz_freq/
+test_ibz_gamma_const/
+test_ibz_phase_space_adapt/
+test_ibz_phase_space_const/
+test_ibz_phase_space_tdep/
+test_output_dir_proj/
+test_serial_projection/
 
 .DS_Store
 *.pyc
