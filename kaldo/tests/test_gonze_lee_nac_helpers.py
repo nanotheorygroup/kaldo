@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 
+import h5py
 import numpy as np
 import pytest
 import ase.io
@@ -30,6 +31,7 @@ DEFAULT_NACL_DEBUG = Path(
     "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
     "example/nacl-att3/debug"
 )
+LOCAL_V2_DEBUG = Path("examples/nacl_phonopy_v2/debug")
 
 
 def nacl_debug_dir() -> Path:
@@ -58,6 +60,49 @@ def require_nacl_debug_worktree() -> Path:
     if not all((path / "static" / name).exists() for name in required):
         pytest.skip(f"NaCl Gonze-Lee mapping debug tree not found at {path}")
     return path
+
+
+def require_local_v2_debug() -> Path:
+    path = LOCAL_V2_DEBUG
+    if not (path / "static" / "short_range_force_constants.npy").exists():
+        pytest.skip(f"Local NaCl att3 debug tree not found at {path}")
+    return path
+
+
+def load_att3_phonopy_force_constants() -> np.ndarray:
+    path = nacl_debug_dir().parent / "force_constants.hdf5"
+    if not path.exists():
+        pytest.skip(f"Phonopy compact FC reference not found at {path}")
+    with h5py.File(path, "r") as handle:
+        return np.array(handle["force_constants"], dtype=float)
+
+
+def summarize_att3_fc_deltas(actual: np.ndarray, expected: np.ndarray) -> dict[str, float]:
+    delta = actual - expected
+    n_atom = expected.shape[0]
+    n_replicas = expected.shape[1] // n_atom
+    atom_index = np.arange(expected.shape[1]) // n_replicas
+    replica_index = np.arange(expected.shape[1]) % n_replicas
+    onsite_mask = replica_index == 0
+    same_type_masks = [atom_index == atom for atom in range(n_atom)]
+
+    return {
+        "onsite_na": float(np.max(np.abs(delta[0, onsite_mask & same_type_masks[0]]))),
+        "onsite_cl": float(np.max(np.abs(delta[1, onsite_mask & same_type_masks[1]]))),
+        "offsite_same_type": float(
+            max(
+                np.max(np.abs(delta[0, ~onsite_mask & same_type_masks[0]])),
+                np.max(np.abs(delta[1, ~onsite_mask & same_type_masks[1]])),
+            )
+        ),
+        "cross_type": float(
+            max(
+                np.max(np.abs(delta[0, same_type_masks[1]])),
+                np.max(np.abs(delta[1, same_type_masks[0]])),
+            )
+        ),
+        "overall": float(np.max(np.abs(delta))),
+    }
 
 
 def load_att3_second_order(storage_folder) -> object:
@@ -291,12 +336,58 @@ def test_reconstructed_short_range_force_constants_reproduce_att3_dm_short(q_nam
         np.load(debug_dir / "static" / "p2s_map.npy"),
     )
     expected = np.load(q_dir / "dm_short.npy")
+    # The att3 roundtrip applies kALDo's ASR-adjusted FCs, which injects small
+    # symmetry-breaking noise at non-commensurate q that is not present in raw
+    # phonopy FCs.
     np.testing.assert_allclose(
         actual,
         expected,
         rtol=0.02,
-        atol=1e-8,
+        atol=3e-5,
         err_msg=format_tensor_diff("dm_short", q_name, actual, expected),
+    )
+
+
+def test_att3_interleaved_fc_diagnostic_matches_phonopy_reference(tmp_path):
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    actual = gln._build_interleaved_fc(second_order) / (
+        ase_units.Rydberg / ase_units.Bohr ** 2
+    )
+    expected = load_att3_phonopy_force_constants()
+    summary = summarize_att3_fc_deltas(actual, expected)
+    q_red = np.array([0.21666666666666667, 0.0, 0.21666666666666667])
+    mapping = gln.build_short_range_inputs(
+        second_order, nacl_phonopy_debug_supercell_matrix_att3()
+    )
+    dm_from_delta = hwq._gonze_short_range_dynamical_matrix(
+        actual - expected,
+        q_red,
+        mapping.get("phase_svecs", mapping["svecs"]),
+        mapping["multi"],
+        second_order.atoms.get_masses(),
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+    )
+    assert summary["onsite_na"] > summary["offsite_same_type"]
+    assert summary["onsite_cl"] > summary["cross_type"]
+    assert np.max(np.abs(dm_from_delta)) < 2e-5
+
+
+def test_att3_diagonal_mapping_matches_local_debug_reference(tmp_path):
+    debug_dir = require_local_v2_debug()
+    second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
+    mapping = gln.build_short_range_inputs(
+        second_order, nacl_phonopy_debug_supercell_matrix_att3()
+    )
+
+    np.testing.assert_array_equal(mapping["p2s_map"], np.load(debug_dir / "static" / "p2s_map.npy"))
+    np.testing.assert_array_equal(mapping["s2p_map"], np.load(debug_dir / "static" / "s2p_map.npy"))
+    np.testing.assert_array_equal(mapping["s2pp_map"], np.load(debug_dir / "static" / "s2pp_map.npy"))
+    np.testing.assert_array_equal(mapping["multi"], np.load(debug_dir / "static" / "multi.npy"))
+    np.testing.assert_allclose(mapping["svecs"], np.load(debug_dir / "static" / "svecs.npy"))
+    np.testing.assert_allclose(
+        mapping.get("phase_svecs", mapping["svecs"]),
+        np.load(debug_dir / "static" / "phase_svecs.npy"),
     )
 
 
