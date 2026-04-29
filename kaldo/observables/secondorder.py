@@ -14,14 +14,15 @@ import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
 from kaldo.observables.gonze_lee_nac import (
+    _build_interleaved_fc,
     bvk_supercell_matrix_key,
     build_short_range_inputs,
     build_static_data,
     commensurate_points,
     dipole_dipole_dynamical_matrix,
-    dynamical_matrix_from_second_order,
     inverse_transform_dynmats_to_force_constants,
     normalize_bvk_supercell_matrix,
+    short_range_dynamical_matrix,
 )
 
 logging = get_logger()
@@ -100,8 +101,19 @@ class SecondOrder(ForceConstant, Storable):
             + str(len(qpoints))
             + " commensurate q-points."
         )
+        fc_full = _build_interleaved_fc(self)
+        conversion = units.mol / (10 * units.J)
+        svecs = mapping.get("phase_svecs", mapping["svecs"])
         for i_q, q_point in enumerate(qpoints):
-            dynmat = dynamical_matrix_from_second_order(self, q_point)
+            dynmat = short_range_dynamical_matrix(
+                fc_full * conversion,
+                q_point,
+                svecs,
+                mapping["multi"],
+                static_data["masses"],
+                mapping["s2p_map"],
+                mapping["p2s_map"],
+            )
             dynmat -= dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
             dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
         return inverse_transform_dynmats_to_force_constants(
