@@ -117,3 +117,16 @@ def test_require_main_process_no_op_in_main_process():
     _require_main_process(n_workers=None)
     _require_main_process(n_workers=4)
     _require_main_process(n_workers=1)
+
+
+def test_default_mp_context_picks_spawn_when_tf_loaded(monkeypatch):
+    """When TensorFlow is imported in the parent, fork is unsafe (TF eagerly
+    creates threads at import; forking leaves the child's runtime in a
+    half-initialized state, causing silent deadlocks under xdist + parallel
+    kaldo — see PR #231 CI hang). The context picker must avoid fork.
+    """
+    import sys as _sys
+    from kaldo.parallel.executor import _default_mp_context
+    monkeypatch.setitem(_sys.modules, 'tensorflow', object())
+    ctx = _default_mp_context()
+    assert ctx.get_start_method() == 'spawn'
