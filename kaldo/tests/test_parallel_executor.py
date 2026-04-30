@@ -24,7 +24,13 @@ def _report_thread_caps(_=None):
     }
 
 
-def test_default_worker_caps_threads_to_one():
+def test_default_worker_caps_threads_to_one(monkeypatch):
+    # Same env hygiene as test_worker_threads_override: under spawn the
+    # worker inherits the parent's env, so any pre-set OMP_NUM_THREADS
+    # would short-circuit the cap. Clear the env first.
+    for var in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS',
+                'NUMEXPR_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS'):
+        monkeypatch.delenv(var, raising=False)
     with get_executor(backend='process', n_workers=2) as executor:
         result = executor.submit(_report_thread_caps).result()
     assert result['OMP_NUM_THREADS'] == '1'
@@ -32,7 +38,16 @@ def test_default_worker_caps_threads_to_one():
     assert result['OPENBLAS_NUM_THREADS'] == '1'
 
 
-def test_worker_threads_override():
+def test_worker_threads_override(monkeypatch):
+    # Clear inherited caps so the worker starts in the unset state the
+    # _init_worker_thread_caps docstring describes ("user-set caps are
+    # respected; unset variables are capped to n_threads"). Without this,
+    # spawn-context workers inherit whatever the parent xdist worker has
+    # in its env (often OMP_NUM_THREADS=1 from a previous test), which
+    # silently overrides the n_threads argument we're trying to verify.
+    for var in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS',
+                'NUMEXPR_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS'):
+        monkeypatch.delenv(var, raising=False)
     with get_executor(backend='process', n_workers=2, worker_threads=4) as executor:
         result = executor.submit(_report_thread_caps).result()
     assert result['OMP_NUM_THREADS'] == '4'
