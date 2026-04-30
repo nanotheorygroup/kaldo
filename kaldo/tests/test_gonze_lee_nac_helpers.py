@@ -11,6 +11,7 @@ from kaldo.forceconstants import ForceConstants
 from kaldo.interfaces import shengbte_io
 from kaldo.observables import harmonic_with_q as hwq
 from kaldo.observables import gonze_lee_nac as gln
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.gonze_lee_nac import (
     build_supercell_matrix_mapping,
     commensurate_points,
@@ -31,6 +32,14 @@ DEFAULT_NACL_DEBUG = Path(
     "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
     "example/nacl-att3/debug"
 )
+DEFAULT_NACL_ATT4_DEBUG = Path(
+    "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replace/"
+    "example/nacl-att4/debug"
+)
+DEFAULT_NACL_ATT4_DEBUG_FALLBACK = Path(
+    "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
+    "example/nacl-att4/debug"
+)
 LOCAL_V2_DEBUG = Path("examples/nacl_phonopy_v2/debug")
 
 
@@ -43,6 +52,53 @@ def require_nacl_debug() -> Path:
     if not (path / "static" / "metadata.json").exists():
         pytest.skip(f"NaCl Gonze-Lee debug tree not found at {path}")
     return path
+
+
+def nacl_att4_debug_dir() -> Path:
+    env_override = os.environ.get("NACL_ATT4_DEBUG_DIR")
+    if env_override:
+        return Path(env_override)
+    if DEFAULT_NACL_ATT4_DEBUG.exists():
+        return DEFAULT_NACL_ATT4_DEBUG
+    return DEFAULT_NACL_ATT4_DEBUG_FALLBACK
+
+
+def require_nacl_att4_debug() -> Path:
+    path = nacl_att4_debug_dir()
+    if not (path / "static" / "metadata.json").exists():
+        pytest.skip(f"NaCl att4 debug tree not found at {path}")
+    return path
+
+
+def gather_att4_q_dirs(debug_root: Path) -> list[Path]:
+    expected = [debug_root / f"q-{index:05d}" for index in range(71)]
+    missing = [path.name for path in expected if not path.is_dir()]
+    if missing:
+        pytest.skip(f"NaCl att4 debug tree is incomplete at {debug_root}: {missing}")
+    return expected
+
+
+def classify_first_frequency_failure(
+    actual_path: np.ndarray, expected_path: np.ndarray
+) -> dict[str, object]:
+    for index, (actual, expected) in enumerate(zip(actual_path, expected_path)):
+        if not np.allclose(actual, expected, rtol=1e-8, atol=1e-8):
+            abs_diff = np.abs(actual - expected)
+            rel_diff = abs_diff / np.maximum(np.abs(expected), 1e-30)
+            return {
+                "index": index,
+                "max_abs": float(np.max(abs_diff)),
+                "max_rel": float(np.max(rel_diff)),
+                "actual": actual,
+                "expected": expected,
+            }
+    return {
+        "index": None,
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "actual": None,
+        "expected": None,
+    }
 
 
 def require_nacl_debug_worktree() -> Path:
@@ -132,6 +188,46 @@ def load_att3_v2_second_order_with_reference_nac(storage_folder) -> object:
     forceconstants.second.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
     forceconstants.second.folder = str(storage_folder)
     return forceconstants.second
+
+
+def load_att4_v2_second_order_with_reference_nac(storage_folder) -> object:
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    _, _, charges = shengbte_io.read_second_order_qe_matrix(
+        "examples/nacl_phonopy/espresso.ifc2"
+    )
+    forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
+    forceconstants.second.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
+    forceconstants.second.folder = str(storage_folder)
+    return forceconstants.second
+
+
+def collect_att4_gx_frequencies(
+    second_order, debug_root: Path
+) -> tuple[np.ndarray, np.ndarray]:
+    actual = []
+    expected = []
+    for q_index, q_dir in enumerate(gather_att4_q_dirs(debug_root)):
+        q_red = np.load(q_dir / "q_red.npy", allow_pickle=False)
+        expected_freqs = np.load(q_dir / "frequencies.npy", allow_pickle=False)
+        phonon = HarmonicWithQ(
+            q_point=q_red,
+            second=second_order,
+            storage="memory",
+            is_unfolding=True,
+            nac_method="gonze",
+            nac_bvk_supercell_matrix=nacl_phonopy_debug_supercell_matrix_att3(),
+            nac_q_direction=[1, 0, 0],
+            q_index=q_index,
+        )
+        actual.append(phonon.frequency.flatten())
+        expected.append(expected_freqs)
+    return np.array(actual), np.array(expected)
 
 
 def input_force_constants_compact(second_order) -> np.ndarray:
@@ -371,6 +467,17 @@ def test_att3_interleaved_fc_diagnostic_matches_phonopy_reference(tmp_path):
     assert summary["onsite_na"] > summary["offsite_same_type"]
     assert summary["onsite_cl"] > summary["cross_type"]
     assert np.max(np.abs(dm_from_delta)) < 2e-5
+
+
+def test_att4_gx_path_reports_first_frequency_failure(tmp_path):
+    debug_root = require_nacl_att4_debug()
+    second_order = load_att4_v2_second_order_with_reference_nac(tmp_path)
+    actual, expected = collect_att4_gx_frequencies(second_order, debug_root)
+    first = classify_first_frequency_failure(actual, expected)
+    assert first["index"] is not None
+    assert 0 <= first["index"] < 71
+    assert first["max_abs"] > 1e-5
+    assert first["max_rel"] > 1e-4
 
 
 def test_att3_diagonal_mapping_matches_local_debug_reference(tmp_path):
