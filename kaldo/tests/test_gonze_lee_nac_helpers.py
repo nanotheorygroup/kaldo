@@ -214,6 +214,7 @@ def collect_att4_gx_frequencies(
     expected = []
     for q_index, q_dir in enumerate(gather_att4_q_dirs(debug_root)):
         q_red = np.load(q_dir / "q_red.npy", allow_pickle=False)
+        q_direction_red = np.load(q_dir / "q_direction_red.npy", allow_pickle=False)
         expected_freqs = np.load(q_dir / "frequencies.npy", allow_pickle=False)
         phonon = HarmonicWithQ(
             q_point=q_red,
@@ -222,12 +223,154 @@ def collect_att4_gx_frequencies(
             is_unfolding=True,
             nac_method="gonze",
             nac_bvk_supercell_matrix=nacl_phonopy_debug_supercell_matrix_att3(),
-            nac_q_direction=[1, 0, 0],
+            nac_q_direction=q_direction_red,
             q_index=q_index,
         )
         actual.append(phonon.frequency.flatten())
         expected.append(expected_freqs)
     return np.array(actual), np.array(expected)
+
+
+def collect_kaldo_stage_data(
+    second_order, q_red: np.ndarray, q_index: int, nac_q_direction: np.ndarray
+) -> dict[str, np.ndarray]:
+    phonon = HarmonicWithQ(
+        q_point=q_red,
+        second=second_order,
+        storage="memory",
+        is_unfolding=True,
+        nac_method="gonze",
+        nac_debug=False,
+        nac_bvk_supercell_matrix=nacl_phonopy_debug_supercell_matrix_att3(),
+        nac_q_direction=nac_q_direction,
+        q_index=q_index,
+    )
+    static_data = phonon._build_gonze_static_data()
+    mapping = phonon._build_gonze_short_range_inputs(static_data)
+    masses = static_data["masses"]
+    q_red = np.array(q_red, dtype=float, copy=True)
+    q_cart = static_data["reciprocal_lattice"] @ q_red
+    if np.linalg.norm(q_cart) >= static_data["q_direction_tolerance"]:
+        q_direction_cart = q_cart
+    else:
+        q_direction_cart = static_data["reciprocal_lattice"] @ phonon.nac_q_direction
+
+    recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
+    dd_recip = hwq._gonze_recip_dipole_dipole(
+        recip_dd_q0,
+        static_data["G_list"],
+        q_cart,
+        q_direction_cart,
+        static_data["born"],
+        static_data["dielectric"],
+        static_data["primitive_positions"],
+        float(static_data["nac_factor"]),
+        float(static_data["Lambda"]),
+        float(static_data["q_direction_tolerance"]),
+    )
+    dd_real = hwq._gonze_real_dipole_dipole(
+        q_red,
+        mapping["svecs"],
+        mapping["multi"],
+        mapping["s2pp_map"],
+        static_data["dielectric"],
+        float(static_data["Lambda"]),
+        mapping.get("svecs_cell", static_data["supercell_cell"]),
+    )
+    dd_limiting_expanded = np.zeros_like(dd_recip)
+    for i in range(len(masses)):
+        dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
+    dd_real_q0_full = hwq._gonze_real_dipole_dipole(
+        np.zeros(3, dtype=float),
+        mapping["svecs"],
+        mapping["multi"],
+        mapping["s2pp_map"],
+        static_data["dielectric"],
+        float(static_data["Lambda"]),
+        mapping.get("svecs_cell", static_data["supercell_cell"]),
+    )
+    dd_real_q0 = dd_real_q0_full.sum(axis=2)
+    dd_drift = (
+        static_data["dd_q0"] * float(ase_units.Rydberg / ase_units.Bohr ** 2)
+        + static_data["dd_limiting"] * len(masses)
+        + dd_real_q0
+    )
+    dd_total = dd_recip + dd_limiting_expanded + dd_real
+    for i in range(len(masses)):
+        dd_total[i, :, i, :] -= dd_drift[i]
+    conversion = ase_units.mol / (10 * ase_units.J)
+    dd_total_mass_weighted = hwq._gonze_mass_weight(dd_total * conversion, masses)
+
+    fc_short = second_order.get_gonze_short_range_force_constants(
+        nacl_phonopy_debug_supercell_matrix_att3()
+    )
+    dm_short = hwq._gonze_short_range_dynamical_matrix(
+        fc_short * conversion,
+        q_red,
+        mapping.get("phase_svecs", mapping["svecs"]),
+        mapping["multi"],
+        masses,
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+    )
+    dm_final = dm_short + dd_total_mass_weighted
+    dm_final = (dm_final + dm_final.conj().T) / 2
+    eigenvalues = np.linalg.eigvalsh(dm_final).real
+    frequencies = np.abs(eigenvalues) ** 0.5 * np.sign(eigenvalues) / (2 * np.pi)
+    return {
+        "q_red": q_red,
+        "q_cart": q_cart,
+        "q_direction_cart": q_direction_cart,
+        "dm_short": dm_short,
+        "dd_recip": dd_recip,
+        "dd_real": dd_real,
+        "dd_total_mass_weighted": dd_total_mass_weighted,
+        "dm_final": dm_final,
+        "eigenvalues": eigenvalues,
+        "frequencies": frequencies,
+    }
+
+
+def first_meaningful_stage_difference(
+    actual: dict[str, np.ndarray], expected: dict[str, np.ndarray]
+) -> tuple[str | None, float]:
+    order = [
+        "q_red",
+        "q_cart",
+        "q_direction_cart",
+        "dm_short",
+        "dd_recip",
+        "dd_real",
+        "dd_total_mass_weighted",
+        "dm_final",
+        "eigenvalues",
+        "frequencies",
+    ]
+    tolerances = {
+        "q_red": (0.0, 1e-14),
+        "q_cart": (0.0, 1e-12),
+        "q_direction_cart": (0.0, 1e-12),
+        "dm_short": (0.0, 1e-10),
+        "dd_recip": (0.0, 1e-10),
+        "dd_real": (0.0, 1e-10),
+        "dd_total_mass_weighted": (0.0, 1e-10),
+        "dm_final": (0.0, 1e-10),
+        "eigenvalues": (0.0, 1e-10),
+        "frequencies": (0.0, 1e-8),
+    }
+    for name in order:
+        rtol, atol = tolerances[name]
+        if name == "q_direction_cart":
+            actual_norm = np.linalg.norm(actual[name])
+            expected_norm = np.linalg.norm(expected[name])
+            if actual_norm > 0.0 and expected_norm > 0.0:
+                actual_dir = actual[name] / actual_norm
+                expected_dir = expected[name] / expected_norm
+                if np.allclose(actual_dir, expected_dir, rtol=0.0, atol=1e-12):
+                    continue
+        if not np.allclose(actual[name], expected[name], rtol=rtol, atol=atol):
+            return name, float(np.max(np.abs(actual[name] - expected[name])))
+    return None, 0.0
 
 
 def input_force_constants_compact(second_order) -> np.ndarray:
@@ -478,6 +621,43 @@ def test_att4_gx_path_reports_first_frequency_failure(tmp_path):
     assert 0 <= first["index"] < 71
     assert first["max_abs"] > 1e-5
     assert first["max_rel"] > 1e-4
+
+
+def test_att4_first_failure_reports_first_meaningful_stage_difference(tmp_path):
+    debug_root = require_nacl_att4_debug()
+    second_order = load_att4_v2_second_order_with_reference_nac(tmp_path)
+    path_actual, path_expected = collect_att4_gx_frequencies(second_order, debug_root)
+    first = classify_first_frequency_failure(path_actual, path_expected)
+    assert first["index"] is not None
+    q_index = int(first["index"])
+    q_dir = debug_root / f"q-{q_index:05d}"
+    actual = collect_kaldo_stage_data(
+        second_order,
+        np.load(q_dir / "q_red.npy", allow_pickle=False),
+        q_index,
+        np.load(q_dir / "q_direction_red.npy", allow_pickle=False),
+    )
+    expected = {
+        "q_red": np.load(q_dir / "q_red.npy", allow_pickle=False),
+        "q_cart": np.load(q_dir / "q_cart.npy", allow_pickle=False),
+        "q_direction_cart": np.load(q_dir / "q_direction_cart.npy", allow_pickle=False),
+        "dm_short": np.load(q_dir / "dm_short.npy", allow_pickle=False),
+        "dd_recip": np.load(q_dir / "dd_recip.npy", allow_pickle=False),
+        "dd_real": np.load(q_dir / "dd_real.npy", allow_pickle=False),
+        "dd_total_mass_weighted": np.load(
+            q_dir / "dd_total_mass_weighted.npy", allow_pickle=False
+        ),
+        "dm_final": np.load(q_dir / "dm_final.npy", allow_pickle=False),
+        "eigenvalues": np.load(q_dir / "eigenvalues.npy", allow_pickle=False),
+        "frequencies": np.load(q_dir / "frequencies.npy", allow_pickle=False),
+    }
+    stage_name, max_abs = first_meaningful_stage_difference(actual, expected)
+    pytest.fail(
+        "FIRST_STAGE_DIFFERENCE\n"
+        f"q_index={q_index}\n"
+        f"stage={stage_name}\n"
+        f"max_abs={max_abs:.8e}"
+    )
 
 
 def test_att3_diagonal_mapping_matches_local_debug_reference(tmp_path):
