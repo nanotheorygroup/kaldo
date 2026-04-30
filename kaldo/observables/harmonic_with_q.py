@@ -398,6 +398,17 @@ class HarmonicWithQ(Observable, Storable):
         for name, payload in payloads.items():
             (folder / f"{name}.json").write_text(json.dumps(payload, indent=2, sort_keys=True))
 
+    def _resolve_gonze_bvk_supercell_matrix(self):
+        if self.nac_bvk_supercell_matrix is not None:
+            return np.array(self.nac_bvk_supercell_matrix, dtype=int, copy=True)
+        supercell = np.asarray(self.second.supercell, dtype=int)
+        if supercell.shape != (3,):
+            raise ValueError(
+                "nac_method='gonze' requires second.supercell to be a diagonal 3-vector "
+                "when nac_bvk_supercell_matrix is not provided."
+            )
+        return np.diag(supercell)
+
     def _calculate_gonze_dynamical_matrix_for_q(self, q_red):
         original_q_point = np.array(self.q_point, dtype=float, copy=True)
         original_debug = self.nac_debug
@@ -539,10 +550,8 @@ class HarmonicWithQ(Observable, Storable):
         primitive_positions = np.array(atoms.positions, dtype=float, copy=True)
         reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True)
         masses = np.array(atoms.get_masses(), dtype=float, copy=True)
-        if self.nac_bvk_supercell_matrix is None:
-            supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True)
-        else:
-            supercell_cell = np.array(self.nac_bvk_supercell_matrix @ primitive_cell, dtype=float, copy=True)
+        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
+        supercell_cell = np.array(effective_matrix @ primitive_cell, dtype=float, copy=True)
         volume = float(abs(np.linalg.det(primitive_cell)))
         num_g_points = 300
         g_cutoff = float((3 * num_g_points / (4 * np.pi) / volume) ** (1.0 / 3))
@@ -574,11 +583,7 @@ class HarmonicWithQ(Observable, Storable):
             "q_direction_tolerance": np.array(tolerance),
             "dd_q0": dd_q0,
             "dd_limiting": dd_limiting,
-            "nac_bvk_supercell_matrix": (
-                np.array(self.nac_bvk_supercell_matrix, dtype=int)
-                if self.nac_bvk_supercell_matrix is not None
-                else np.array([])
-            ),
+            "nac_bvk_supercell_matrix": np.array(effective_matrix, dtype=int),
         }
         self._gonze_save_debug(
             self._gonze_debug_static_folder(),
@@ -588,7 +593,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def _build_gonze_short_range_inputs(self, static_data):
         return build_gonze_short_range_inputs(
-            self.second, self.nac_bvk_supercell_matrix
+            self.second, self._resolve_gonze_bvk_supercell_matrix()
         )
 
     def _calculate_gonze_dynamical_matrix(self):
@@ -648,9 +653,8 @@ class HarmonicWithQ(Observable, Storable):
         conversion = units.mol / (10 * units.J)
         dd_total_mass_weighted = _gonze_mass_weight(dd_total * conversion, masses)
 
-        fc_short = self.second.get_gonze_short_range_force_constants(
-            self.nac_bvk_supercell_matrix
-        )
+        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
+        fc_short = self.second.get_gonze_short_range_force_constants(effective_matrix)
         dm_short = _gonze_short_range_dynamical_matrix(
             fc_short * conversion,
             q_red,
