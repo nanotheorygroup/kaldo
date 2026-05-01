@@ -10,14 +10,21 @@ from ase import units as ase_units
 from kaldo.forceconstants import ForceConstants
 from kaldo.interfaces import shengbte_io
 from kaldo.observables import harmonic_with_q as hwq
-from kaldo.observables import gonze_lee_nac as gln
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.observables.gonze_lee_nac import (
-    build_supercell_matrix_mapping,
-    commensurate_points,
-    nacl_phonopy_debug_supercell_matrix,
-    nacl_phonopy_debug_supercell_matrix_att3,
+from kaldo.observables.secondorder import (
+    _build_supercell_matrix_mapping as build_supercell_matrix_mapping,
+    _commensurate_points as commensurate_points,
+    _build_interleaved_fc,
+    _dynamical_matrix_from_second_order,
 )
+
+
+def nacl_phonopy_debug_supercell_matrix():
+    return np.array([[-2, 2, 2], [2, -2, 2], [2, 2, -2]], dtype=int)
+
+
+def nacl_phonopy_debug_supercell_matrix_att3():
+    return np.diag([8, 8, 8]).astype(int)
 from kaldo.tests.gonze_debug_reference import (
     compare_tensors,
     format_tensor_diff,
@@ -535,8 +542,8 @@ def test_matrix_specific_total_dynamical_matrix_matches_input_force_constants_fo
 ):
     second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
     matrix = nacl_phonopy_debug_supercell_matrix_att3()
-    mapping = gln.build_short_range_inputs(second_order, matrix)
-    actual = gln.dynamical_matrix_from_second_order(second_order, q_red)
+    mapping = second_order._gonze_build_mapping(matrix)
+    actual = _dynamical_matrix_from_second_order(second_order, q_red)
     expected = hwq._gonze_short_range_dynamical_matrix(
         input_force_constants_compact(second_order)
         * (ase_units.mol / (10 * ase_units.J)),
@@ -589,15 +596,13 @@ def test_reconstructed_short_range_force_constants_reproduce_att3_dm_short(q_nam
 
 def test_att3_interleaved_fc_diagnostic_matches_phonopy_reference(tmp_path):
     second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
-    actual = gln._build_interleaved_fc(second_order) / (
+    actual = _build_interleaved_fc(second_order) / (
         ase_units.Rydberg / ase_units.Bohr ** 2
     )
     expected = load_att3_phonopy_force_constants()
     summary = summarize_att3_fc_deltas(actual, expected)
     q_red = np.array([0.21666666666666667, 0.0, 0.21666666666666667])
-    mapping = gln.build_short_range_inputs(
-        second_order, nacl_phonopy_debug_supercell_matrix_att3()
-    )
+    mapping = second_order._gonze_build_mapping(nacl_phonopy_debug_supercell_matrix_att3())
     dm_from_delta = hwq._gonze_short_range_dynamical_matrix(
         actual - expected,
         q_red,
@@ -663,9 +668,7 @@ def test_att4_first_failure_reports_first_meaningful_stage_difference(tmp_path):
 def test_att3_diagonal_mapping_matches_local_debug_reference(tmp_path):
     debug_dir = require_local_v2_debug()
     second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
-    mapping = gln.build_short_range_inputs(
-        second_order, nacl_phonopy_debug_supercell_matrix_att3()
-    )
+    mapping = second_order._gonze_build_mapping(nacl_phonopy_debug_supercell_matrix_att3())
 
     np.testing.assert_array_equal(mapping["p2s_map"], np.load(debug_dir / "static" / "p2s_map.npy"))
     np.testing.assert_array_equal(mapping["s2p_map"], np.load(debug_dir / "static" / "s2p_map.npy"))
