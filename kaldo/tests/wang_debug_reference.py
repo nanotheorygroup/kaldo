@@ -21,7 +21,7 @@ def wang_att3_debug_dir() -> Path:
     if env_override:
         return Path(env_override)
     for candidate in (DEFAULT_WANG_ATT3_DEBUG, DEFAULT_WANG_ATT3_DEBUG_FALLBACK):
-        if candidate.exists():
+        if (candidate / "q-00000" / "py_qpoints.npy").exists():
             return candidate
     return DEFAULT_WANG_ATT3_DEBUG
 
