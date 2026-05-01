@@ -261,6 +261,68 @@ def test_second_order_gonze_short_range_force_constants_use_matrix_specific_cach
         nac_second_order.folder = original_folder
 
 
+def test_second_order_gonze_short_range_force_constants_reuse_in_memory_matrix_cache(
+    nac_second_order, tmp_path, monkeypatch
+):
+    original_folder = nac_second_order.folder
+    nac_second_order.folder = str(tmp_path)
+    try:
+        matrix = nacl_phonopy_debug_supercell_matrix()
+        expected = np.arange(2 * 64 * 3 * 3, dtype=float).reshape(2, 64, 3, 3)
+
+        def calculate_once(nac_bvk_supercell_matrix=None):
+            np.testing.assert_array_equal(nac_bvk_supercell_matrix, matrix)
+            return expected
+
+        monkeypatch.setattr(
+            nac_second_order,
+            "calculate_gonze_short_range_force_constants",
+            calculate_once,
+        )
+        first = nac_second_order.get_gonze_short_range_force_constants(matrix)
+        np.testing.assert_allclose(first, expected)
+
+        def fail_if_loaded(*args, **kwargs):
+            raise AssertionError("matrix-specific Gonze-Lee array was not reused from memory")
+
+        monkeypatch.setattr(nac_second_order, "_load_property", fail_if_loaded)
+        monkeypatch.setattr(
+            nac_second_order,
+            "calculate_gonze_short_range_force_constants",
+            fail_if_loaded,
+        )
+        second = nac_second_order.get_gonze_short_range_force_constants(matrix)
+        np.testing.assert_allclose(second, expected)
+    finally:
+        nac_second_order.folder = original_folder
+
+
+def test_harmonic_with_q_auto_reuses_second_order_gonze_bundle(
+    nac_second_order, monkeypatch
+):
+    matrix = nacl_phonopy_debug_supercell_matrix_att3()
+    bundle = nac_second_order.get_gonze_nac_precomputed(matrix)
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+        nac_bvk_supercell_matrix=matrix,
+    )
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("direct HarmonicWithQ call rebuilt Gonze static or mapping data")
+
+    monkeypatch.setattr(nac_second_order, "_gonze_build_static_data", fail_if_called)
+    monkeypatch.setattr(nac_second_order, "_gonze_build_mapping", fail_if_called)
+
+    static_data = phonon._build_gonze_static_data()
+    mapping = phonon._build_gonze_short_range_inputs(static_data)
+
+    np.testing.assert_allclose(static_data["G_list"], bundle["static_data"]["G_list"])
+    np.testing.assert_array_equal(mapping["multi"], bundle["mapping"]["multi"])
+
+
 @pytest.mark.parametrize("q_name", [
     "q-00000",
     "q-00013",

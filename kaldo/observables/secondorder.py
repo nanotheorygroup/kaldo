@@ -94,46 +94,56 @@ def _get_g_list(reciprocal_lattice, g_cutoff):
 
 
 def _multiply_borns(dd_in, born):
-    num_atom = born.shape[0]
-    dd = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
-    for i in range(num_atom):
-        for j in range(num_atom):
-            dd[i, :, j, :] = born[i].T @ dd_in[i, :, j, :] @ born[j]
-    return dd
+    born_t = np.transpose(born, (0, 2, 1))
+    # Apply the Born-charge tensors on both Cartesian sides in one contraction.
+    return np.einsum("iap,ipjq,jqb->iajb", born_t, dd_in, born, optimize=True)
 
 
-def _get_dd_base(g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance):
-    num_atom = positions.shape[0]
-    dd_part = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
+def _get_dd_base(
+    g_list,
+    q_cart,
+    q_direction_cart,
+    dielectric,
+    positions,
+    lambda_,
+    tolerance,
+    pair_phase=None,
+):
+    if pair_phase is None:
+        position_deltas = positions[:, None, :] - positions[None, :, :]
+        phases = 2j * np.pi * np.einsum(
+            "ga,ija->gij",
+            g_list,
+            position_deltas,
+            optimize=True,
+        )
+        pair_phase = np.exp(phases)
+
+    qk = g_list + q_cart[np.newaxis, :]
+    norms = np.linalg.norm(qk, axis=1)
+    kk = np.zeros((len(g_list), 3, 3), dtype=np.complex128)
     l2 = 4 * lambda_ * lambda_
-    for g_vec in g_list:
-        q_k = g_vec + q_cart
-        norm = np.linalg.norm(q_k)
-        if norm < tolerance:
-            if q_direction_cart is None:
-                continue
-            denom = _dielectric_part(q_direction_cart, dielectric)
-            kk = np.outer(q_direction_cart, q_direction_cart) / denom
-        else:
-            denom = _dielectric_part(q_k, dielectric)
-            kk = np.outer(q_k, q_k) / denom * np.exp(-denom / l2)
-        for i in range(num_atom):
-            for j in range(num_atom):
-                phase = float(np.dot(positions[i] - positions[j], g_vec) * 2 * np.pi)
-                dd_part[i, :, j, :] += kk * (np.cos(phase) + 1j * np.sin(phase))
-    return dd_part
+    active = norms >= tolerance
+    if np.any(active):
+        denom = np.einsum("gi,ij,gj->g", qk[active], dielectric, qk[active], optimize=True)
+        scale = np.exp(-denom / l2) / denom
+        # Build all reciprocal-space dyads at once before contracting onto atom pairs.
+        kk[active] = np.einsum("gi,gj,g->gij", qk[active], qk[active], scale, optimize=True)
+    if q_direction_cart is not None:
+        inactive = ~active
+        if np.any(inactive):
+            direction_denom = _dielectric_part(q_direction_cart, dielectric)
+            direction_kk = np.outer(q_direction_cart, q_direction_cart) / direction_denom
+            kk[inactive] = direction_kk
+    return np.einsum("gab,gij->iajb", kk, pair_phase, optimize=True)
 
 
 def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolerance):
     zero = np.zeros(3, dtype="double")
     dd_tmp1 = _get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
     dd_tmp2 = _multiply_borns(dd_tmp1, born)
-    num_atom = positions.shape[0]
-    dd_q0 = np.zeros((num_atom, 3, 3), dtype=np.complex128)
-    for i in range(num_atom):
-        dd_q0[i] = dd_tmp2[i, :, :, :].sum(axis=1)
-    for i in range(num_atom):
-        dd_q0[i] = (dd_q0[i] + dd_q0[i].conj().T) / 2
+    dd_q0 = dd_tmp2.sum(axis=2)
+    dd_q0 = 0.5 * (dd_q0 + np.transpose(dd_q0.conj(), (0, 2, 1)))
     return dd_q0
 
 
@@ -144,53 +154,70 @@ def _limiting_dipole_dipole(dielectric, lambda_):
 
 
 def _real_dipole_dipole(q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell):
-    num_satom, num_patom = multi.shape[:2]
     phase_all = np.exp(2j * np.pi * (svecs @ q_red))
     h = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
     vals = -(lambda_ ** 3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
-    c_real = np.zeros((num_patom, 3, num_patom, 3), dtype=np.complex128)
-    for i_s in range(num_satom):
-        for i_p in range(num_patom):
-            multiplicity = int(multi[i_s, i_p, 0])
-            start = int(multi[i_s, i_p, 1])
-            block = vals[:, :, start]
-            c_real[s2pp_map[i_s], :, i_p, :] += (
-                block + block.conj().T
-            ) / 2 / multiplicity
-    return c_real
+    starts = multi[:, :, 1]
+    multiplicities = multi[:, :, 0].astype(np.float64)
+    gathered = vals[:, :, starts]
+    symmetric_blocks = 0.5 * (
+        gathered + np.transpose(gathered.conj(), (1, 0, 2, 3))
+    )
+    contributions = np.transpose(
+        symmetric_blocks / multiplicities[np.newaxis, np.newaxis, :, :],
+        (2, 3, 0, 1),
+    )
+    num_patom = multi.shape[1]
+    c_real = np.zeros((num_patom, num_patom, 3, 3), dtype=np.complex128)
+    np.add.at(c_real, s2pp_map, contributions)
+    return np.transpose(c_real, (0, 2, 1, 3))
 
 
 def _mass_weight(fc_term, masses):
+    mass_matrix = np.sqrt(np.outer(masses, masses))
     out = np.array(fc_term, dtype=np.complex128, copy=True)
-    for i in range(len(masses)):
-        for j in range(len(masses)):
-            out[i, :, j, :] /= np.sqrt(masses[i] * masses[j])
+    out /= mass_matrix[:, np.newaxis, :, np.newaxis]
     return out.reshape(len(masses) * 3, len(masses) * 3)
 
 
-def _short_range_dynamical_matrix(fc, q_red, svecs, multi, masses, s2p_map, p2s_map):
+def _build_segment_phase_weights(multi, n_svec):
+    n_satom, n_patom = multi.shape[:2]
+    weights = np.zeros((n_satom, n_patom, n_svec), dtype=np.float64)
+    for i_s in range(n_satom):
+        for i_p in range(n_patom):
+            multiplicity = int(multi[i_s, i_p, 0])
+            start = int(multi[i_s, i_p, 1])
+            weights[i_s, i_p, start : start + multiplicity] = 1.0 / multiplicity
+    return weights
+
+
+def _short_range_dynamical_matrix(
+    fc,
+    q_red,
+    svecs,
+    multi,
+    masses,
+    s2p_map,
+    p2s_map,
+    phase_weights=None,
+    target_mask=None,
+):
     num_patom = len(p2s_map)
-    num_satom = len(s2p_map)
-    dm = np.zeros((num_patom * 3, num_patom * 3), dtype=np.complex128)
     is_compact_fc = fc.shape[0] != fc.shape[1]
-    for i in range(num_patom):
-        for j in range(num_patom):
-            local = np.zeros((3, 3), dtype=np.complex128)
-            for k in range(num_satom):
-                if s2p_map[k] != p2s_map[j]:
-                    continue
-                multiplicity = int(multi[k, i, 0])
-                start = int(multi[k, i, 1])
-                phase_factor = 0.0j
-                for ll in range(multiplicity):
-                    phase = float(np.dot(q_red, svecs[start + ll]) * 2 * np.pi)
-                    phase_factor += np.cos(phase) + 1j * np.sin(phase)
-                phase_factor /= multiplicity
-                fc_i = i if is_compact_fc else p2s_map[i]
-                local += fc[fc_i, k] * phase_factor
-            local /= np.sqrt(masses[i] * masses[j])
-            dm[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] = local
-    return (dm + dm.conj().T) / 2
+    if phase_weights is None:
+        phase_weights = _build_segment_phase_weights(multi, len(svecs))
+    phase_all = np.exp(2j * np.pi * (svecs @ q_red))
+    phase_factors = np.einsum("spl,l->sp", phase_weights, phase_all, optimize=True)
+    if target_mask is None:
+        target_mask = (
+            s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]
+        ).astype(np.complex128)
+    fc_source = fc if is_compact_fc else fc[p2s_map]
+    weighted_fc = fc_source * phase_factors.T[:, :, np.newaxis, np.newaxis]
+    dm_blocks = np.einsum("isab,sj->ijab", weighted_fc, target_mask, optimize=True)
+    dm_blocks /= np.sqrt(np.outer(masses, masses))[:, :, np.newaxis, np.newaxis]
+    dm = np.transpose(dm_blocks, (0, 2, 1, 3)).reshape(num_patom * 3, num_patom * 3)
+    return 0.5 * (dm + dm.conj().T)
 
 
 def _h_tensor(supercell_cell, svecs, dielectric, lambda_):
@@ -213,10 +240,8 @@ def _h_tensor(supercell_cell, svecs, dielectric, lambda_):
         (3 * erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 * (3 / y2 + 2)) / y2,
     )
     b = np.where(condition, 0.0, erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 / y2)
-    h = np.zeros((3, 3, len(y_safe)), dtype="double", order="C")
-    for i in range(3):
-        for j in range(3):
-            h[i, j, :] = x[:, i] * x[:, j] * a - eps_inv[i, j] * b
+    h = np.einsum("si,sj,s->ijs", x, x, a, optimize=True)
+    h -= eps_inv[:, :, np.newaxis] * b[np.newaxis, np.newaxis, :]
     return h
 
 # ---------------------------------------------------------------------------
@@ -388,6 +413,7 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
         float(static_data["nac_factor"]),
         float(static_data["Lambda"]),
         float(static_data["q_direction_tolerance"]),
+        pair_phase=static_data.get("pair_phase"),
     )
     dd_real = _real_dipole_dipole(
         q_red,
@@ -398,27 +424,8 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
         float(static_data["Lambda"]),
         mapping.get("svecs_cell", static_data["supercell_cell"]),
     )
-    dd_limiting_expanded = np.zeros_like(dd_recip)
-    for i in range(len(static_data["masses"])):
-        dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
-    dd_real_q0_full = _real_dipole_dipole(
-        np.zeros(3, dtype=float),
-        mapping["svecs"],
-        mapping["multi"],
-        mapping["s2pp_map"],
-        static_data["dielectric"],
-        float(static_data["Lambda"]),
-        mapping.get("svecs_cell", static_data["supercell_cell"]),
-    )
-    dd_real_q0 = dd_real_q0_full.sum(axis=2)
-    dd_drift = (
-        static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
-        + static_data["dd_limiting"] * len(static_data["masses"])
-        + dd_real_q0
-    )
-    dd_total = dd_recip + dd_limiting_expanded + dd_real
-    for i in range(len(static_data["masses"])):
-        dd_total[i, :, i, :] -= dd_drift[i]
+    dd_total = dd_recip + static_data["dd_limiting_expanded"] + dd_real
+    dd_total[:, :, :, :] -= static_data["dd_drift_blocks"]
     conversion = units.mol / (10 * units.J)
     return _mass_weight(dd_total * conversion, static_data["masses"])
 
@@ -434,44 +441,38 @@ def _recip_dipole_dipole(
     factor,
     lambda_,
     tolerance,
+    pair_phase=None,
 ):
     dd_tmp = _get_dd_base(
-        g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+        g_list,
+        q_cart,
+        q_direction_cart,
+        dielectric,
+        positions,
+        lambda_,
+        tolerance,
+        pair_phase=pair_phase,
     )
     dd = _multiply_borns(dd_tmp, born)
-    num_atom = positions.shape[0]
-    for i in range(num_atom):
-        dd[i, :, i, :] -= dd_q0[i]
+    diag = np.arange(positions.shape[0])
+    dd[diag, :, diag, :] -= dd_q0
     return dd * factor
 
 
 def _inverse_transform_dynmats_to_force_constants(dynmats, qpoints, mapping, masses):
-    s2p_map = mapping["s2p_map"]
-    p2s_map = mapping["p2s_map"]
     s2pp_map = mapping["s2pp_map"]
     svecs = mapping.get("phase_svecs", mapping["svecs"])
-    multi = mapping["multi"]
+    phase_weights = mapping["phase_weights"]
+    p2s_map = mapping["p2s_map"]
     n_p = len(p2s_map)
-    n_s = len(s2p_map)
     n_q = len(qpoints)
-    fc = np.zeros((n_p, n_s, 3, 3), dtype=float)
-    for p_i in range(n_p):
-        for s_j in range(n_s):
-            p_j = s2pp_map[s_j]
-            multiplicity = int(multi[s_j, p_i, 0])
-            start = int(multi[s_j, p_i, 1])
-            pos = svecs[start : start + multiplicity]
-            phases = -2j * np.pi * np.dot(qpoints, pos.T)
-            phase_factors = np.exp(phases).sum(axis=1) / multiplicity
-            block = np.zeros((3, 3), dtype=np.complex128)
-            for i_q, phase_factor in enumerate(phase_factors):
-                block += (
-                    dynmats[i_q, p_i * 3 : p_i * 3 + 3, p_j * 3 : p_j * 3 + 3]
-                    * phase_factor
-                )
-            coef = np.sqrt(masses[p_i] * masses[p_j]) / n_q
-            fc[p_i, s_j] = (block * coef).real
-    return fc / (units.mol / (10 * units.J))
+    phase_all = np.exp(-2j * np.pi * np.dot(qpoints, svecs.T))
+    phase_factors = np.einsum("spl,ql->qsp", phase_weights, phase_all, optimize=True)
+    dyn_blocks = dynmats.reshape(n_q, n_p, 3, n_p, 3)
+    gathered_blocks = dyn_blocks[:, :, :, s2pp_map, :]
+    fc = np.einsum("qiasb,qsi->isab", gathered_blocks, phase_factors, optimize=True)
+    coef = np.sqrt(np.outer(masses, masses[s2pp_map])) / n_q
+    return (fc * coef[:, :, np.newaxis, np.newaxis]).real / (units.mol / (10 * units.J))
 
 
 def _build_interleaved_fc(second_order):
@@ -603,6 +604,42 @@ def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
     }
 
 
+def _ensure_gonze_kernel_cache(static_data, mapping):
+    if "pair_phase" not in static_data:
+        position_deltas = (
+            static_data["primitive_positions"][:, np.newaxis, :]
+            - static_data["primitive_positions"][np.newaxis, :, :]
+        )
+        phases = 2j * np.pi * np.einsum(
+            "ga,ija->gij",
+            static_data["G_list"],
+            position_deltas,
+            optimize=True,
+        )
+        static_data["pair_phase"] = np.exp(phases)
+    if "dd_limiting_expanded" not in static_data:
+        n_atom = len(static_data["masses"])
+        dd_limiting_expanded = np.zeros((n_atom, 3, n_atom, 3), dtype=np.complex128)
+        diag = np.arange(n_atom)
+        dd_limiting_expanded[diag, :, diag, :] = static_data["dd_limiting"]
+        static_data["dd_limiting_expanded"] = dd_limiting_expanded
+    if "dd_drift_blocks" not in static_data:
+        dd_drift_blocks = np.zeros_like(static_data["dd_limiting_expanded"])
+        diag = np.arange(len(static_data["masses"]))
+        dd_drift_blocks[diag, :, diag, :] = static_data["dd_drift"]
+        static_data["dd_drift_blocks"] = dd_drift_blocks
+    if "phase_weights" not in mapping:
+        phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
+        mapping["phase_weights"] = _build_segment_phase_weights(
+            mapping["multi"], len(phase_svecs)
+        )
+    if "target_mask" not in mapping:
+        mapping["target_mask"] = (
+            mapping["s2p_map"][:, np.newaxis] == mapping["p2s_map"][np.newaxis, :]
+        ).astype(np.complex128)
+    return static_data, mapping
+
+
 def acoustic_sum_rule(dynmat):
     n_unit = dynmat[0].shape[0]
     sumrulecorr = 0.0
@@ -630,6 +667,7 @@ class SecondOrder(ForceConstant, Storable):
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
         self._gonze_nac_precomputed_cache = {}
+        self._gonze_short_range_force_constants_cache = {}
         self.storage = "numpy"
 
     @lazy_property(label="", format="numpy")
@@ -641,11 +679,16 @@ class SecondOrder(ForceConstant, Storable):
         if matrix is None:
             return self.gonze_short_range_force_constants
 
-        property_name = "gonze_short_range_force_constants_" + bvk_supercell_matrix_key(matrix)
+        key = bvk_supercell_matrix_key(matrix)
+        if key in self._gonze_short_range_force_constants_cache:
+            return self._gonze_short_range_force_constants_cache[key]
+
+        property_name = "gonze_short_range_force_constants_" + key
         folder = self.get_folder_from_label("")
         try:
             loaded = self._load_property(property_name, folder, format="numpy")
             logging.info("Loading " + folder + "/" + property_name)
+            self._gonze_short_range_force_constants_cache[key] = loaded
             return loaded
         except (FileNotFoundError, OSError, KeyError):
             logging.info(
@@ -655,6 +698,7 @@ class SecondOrder(ForceConstant, Storable):
             )
             force_constants = self.calculate_gonze_short_range_force_constants(matrix)
             self._save_property(property_name, folder, force_constants, format="numpy")
+            self._gonze_short_range_force_constants_cache[key] = force_constants
             return force_constants
 
     def get_gonze_nac_precomputed(self, nac_bvk_supercell_matrix=None):
@@ -678,6 +722,7 @@ class SecondOrder(ForceConstant, Storable):
                 + static_data["dd_limiting"] * len(static_data["masses"])
                 + dd_real_q0
             )
+            static_data, mapping = _ensure_gonze_kernel_cache(static_data, mapping)
             self._gonze_nac_precomputed_cache[key] = {
                 "static_data": static_data,
                 "mapping": mapping,
@@ -692,8 +737,9 @@ class SecondOrder(ForceConstant, Storable):
             )
         matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         supercell = self.supercell if matrix is None else matrix
-        static_data = self._gonze_build_static_data(matrix)
-        mapping = self._gonze_build_mapping(matrix)
+        bundle = self.get_gonze_nac_precomputed(matrix)
+        static_data = bundle["static_data"]
+        mapping = bundle["mapping"]
         qpoints = _commensurate_points(supercell, static_data["reciprocal_lattice"])
         dynmats = np.zeros(
             (len(qpoints), len(self.atoms) * 3, len(self.atoms) * 3),
@@ -707,15 +753,18 @@ class SecondOrder(ForceConstant, Storable):
         fc_full = _build_interleaved_fc(self)
         conversion = units.mol / (10 * units.J)
         svecs = mapping.get("phase_svecs", mapping["svecs"])
+        fc_full_converted = fc_full * conversion
         for i_q, q_point in enumerate(qpoints):
             dynmat = _short_range_dynamical_matrix(
-                fc_full * conversion,
+                fc_full_converted,
                 q_point,
                 svecs,
                 mapping["multi"],
                 static_data["masses"],
                 mapping["s2p_map"],
                 mapping["p2s_map"],
+                phase_weights=mapping["phase_weights"],
+                target_mask=mapping["target_mask"],
             )
             dynmat -= _dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
             dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
