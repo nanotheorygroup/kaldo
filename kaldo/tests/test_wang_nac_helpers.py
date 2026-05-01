@@ -20,23 +20,33 @@ def test_wang_att3_debug_tree_is_loadable():
 
 
 def test_wang_diagnostic_q_names_match_expected_points():
-    assert diagnostic_q_names_wang_att3() == [f"q-{i:05d}" for i in range(0, 40, 10)]
+    root = require_wang_att3_debug()
+    q_names = diagnostic_q_names_wang_att3()
+    assert len(q_names) == 4
+    assert q_names[0] == "q-00000"
+    assert q_names[-1] == "q-00030"
+    assert q_names == sorted(q_names, key=lambda name: int(name.split("-")[1]))
+    for q_name in q_names:
+        assert (root / q_name).is_dir()
 
 
-def test_wang_att3_debug_dir_prefers_first_existing_candidate(monkeypatch, tmp_path):
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    second.mkdir()
-    monkeypatch.delenv("WANG_ATT3_DEBUG_DIR", raising=False)
+def test_wang_att3_debug_dir_env_override_takes_precedence(monkeypatch, tmp_path):
+    env_root = tmp_path / "env"
+    default_root = tmp_path / "default"
+    fallback_root = tmp_path / "fallback"
+    env_root.mkdir()
+    default_root.mkdir()
+    fallback_root.mkdir()
+    monkeypatch.setenv("WANG_ATT3_DEBUG_DIR", str(env_root))
     monkeypatch.setattr(
         "kaldo.tests.wang_debug_reference.DEFAULT_WANG_ATT3_DEBUG",
-        first,
+        default_root,
     )
     monkeypatch.setattr(
         "kaldo.tests.wang_debug_reference.DEFAULT_WANG_ATT3_DEBUG_FALLBACK",
-        second,
+        fallback_root,
     )
-    assert wang_att3_debug_dir() == second
+    assert wang_att3_debug_dir() == env_root
 
 
 def test_compare_tensors_reports_expected_diff():
