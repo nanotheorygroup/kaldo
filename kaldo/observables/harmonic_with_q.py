@@ -408,18 +408,18 @@ class HarmonicWithQ(Observable, Storable):
             )
         return np.diag(supercell)
 
-    def _calculate_gonze_dynamical_matrix_for_q(self, q_red):
+    def _calculate_gonze_dynamical_matrix_for_q(self, q_red, _static_data=None, _mapping=None):
         original_q_point = np.array(self.q_point, dtype=float, copy=True)
         original_debug = self.nac_debug
         self.q_point = np.array(q_red, dtype=float, copy=True)
         self.nac_debug = False
         try:
-            return self._calculate_gonze_dynamical_matrix()
+            return self._calculate_gonze_dynamical_matrix(_static_data, _mapping)
         finally:
             self.q_point = original_q_point
             self.nac_debug = original_debug
 
-    def _calculate_gonze_velocity_direction_data(self, direction_index, static_data):
+    def _calculate_gonze_velocity_direction_data(self, direction_index, static_data, _mapping=None):
         if direction_index not in range(4):
             raise ValueError(f"direction_index must be in 0..3, got {direction_index}")
         direction_cart = np.array(
@@ -428,8 +428,12 @@ class HarmonicWithQ(Observable, Storable):
         dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
         dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
         q_red = np.array(self.q_point, dtype=float, copy=True)
-        dm_minus = _gonze_to_phonopy_dm(self._calculate_gonze_dynamical_matrix_for_q(q_red - dq_red))
-        dm_plus = _gonze_to_phonopy_dm(self._calculate_gonze_dynamical_matrix_for_q(q_red + dq_red))
+        dm_minus = _gonze_to_phonopy_dm(
+            self._calculate_gonze_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
+        )
+        dm_plus = _gonze_to_phonopy_dm(
+            self._calculate_gonze_dynamical_matrix_for_q(q_red + dq_red, static_data, _mapping)
+        )
         delta_dm = dm_plus - dm_minus
         ddm_fd = delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH)
         return {
@@ -477,9 +481,10 @@ class HarmonicWithQ(Observable, Storable):
 
     def _calculate_gonze_velocity_debug_data(self):
         static_data = self._build_gonze_static_data()
+        mapping = self._build_gonze_short_range_inputs(static_data)
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
-        dm_q_kaldo = self._calculate_gonze_dynamical_matrix()
+        dm_q_kaldo = self._calculate_gonze_dynamical_matrix(static_data, mapping)
         dm_q = _gonze_to_phonopy_dm(dm_q_kaldo)
         eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
         eigenvalues = eigenvalues.real
@@ -494,7 +499,7 @@ class HarmonicWithQ(Observable, Storable):
         directions = {}
         for index in range(4):
             direction_name = f"d{index}"
-            direction_data = self._calculate_gonze_velocity_direction_data(index, static_data)
+            direction_data = self._calculate_gonze_velocity_direction_data(index, static_data, mapping)
             directions[direction_name] = direction_data
             self._gonze_save_debug(self._gonze_debug_q_folder() / direction_name, direction_data)
         ddms = [directions[f"d{i}"]["ddm_fd"] for i in range(4)]
@@ -558,9 +563,9 @@ class HarmonicWithQ(Observable, Storable):
             return self._gonze_nac_precomputed["mapping"]
         return self.second._gonze_build_mapping(self._resolve_gonze_bvk_supercell_matrix())
 
-    def _calculate_gonze_dynamical_matrix(self):
-        static_data = self._build_gonze_static_data()
-        mapping = self._build_gonze_short_range_inputs(static_data)
+    def _calculate_gonze_dynamical_matrix(self, _static_data=None, _mapping=None):
+        static_data = _static_data if _static_data is not None else self._build_gonze_static_data()
+        mapping = _mapping if _mapping is not None else self._build_gonze_short_range_inputs(static_data)
         masses = static_data["masses"]
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
