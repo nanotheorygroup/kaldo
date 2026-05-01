@@ -21,14 +21,14 @@ def wang_att3_debug_dir() -> Path:
     if env_override:
         return Path(env_override)
     for candidate in (DEFAULT_WANG_ATT3_DEBUG, DEFAULT_WANG_ATT3_DEBUG_FALLBACK):
-        if (candidate / "q-00000" / "py_qpoints.npy").exists():
+        if _is_valid_wang_att3_debug_tree(candidate):
             return candidate
     return DEFAULT_WANG_ATT3_DEBUG
 
 
 def require_wang_att3_debug() -> Path:
     path = wang_att3_debug_dir()
-    if not (path / "q-00000" / "py_qpoints.npy").exists():
+    if not _is_valid_wang_att3_debug_tree(path):
         pytest.skip(f"Wang att3 debug tree not found at {path}")
     return path
 
@@ -40,6 +40,10 @@ def diagnostic_q_names_wang_att3() -> list[str]:
         "q-00020",
         "q-00030",
     ]
+
+
+def _is_valid_wang_att3_debug_tree(path: Path) -> bool:
+    return all((path / q_name / "py_qpoints.npy").exists() for q_name in diagnostic_q_names_wang_att3())
 
 
 def load_q_tensor(root: Path, q_name: str, name: str) -> np.ndarray:
