@@ -592,6 +592,12 @@ class HarmonicWithQ(Observable, Storable):
         }
 
     def _calculate_wang_dynamical_matrix(self, return_debug_data=False):
+        """Build the Wang long-range correction debug helper.
+
+        This stage intentionally stops at the Wang correction foundation used
+        by the trace/debug tests. Later tasks will wire the full runtime
+        assembly around this helper.
+        """
         static_data = self._build_wang_static_data()
         q_cart = static_data["q_cart"]
         dielectric_contraction = float(static_data["dielectric_contraction"])
@@ -605,7 +611,7 @@ class HarmonicWithQ(Observable, Storable):
             correction = np.array(charge_sum.reshape(n_atom, n_atom, 3, 3), copy=True)
             for i in range(n_atom):
                 for j in range(n_atom):
-                    correction[i, :, j, :] /= np.sqrt(masses[i] * masses[j])
+                    correction[i, j, :, :] /= np.sqrt(masses[i] * masses[j])
             dm = correction.reshape(n_atom * 3, n_atom * 3)
         if return_debug_data:
             return {

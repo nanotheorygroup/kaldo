@@ -32,48 +32,55 @@ def _load_wang_binary_tensor(root: Path, q_name: str, stem: str) -> np.ndarray:
         shape_match = re.search(r'"shape"\s*:\s*\[(.*?)\]', raw_metadata, re.S)
         if shape_match:
             metadata["shape"] = shape_match.group(1)
-        for key in ("num_patom", "num_satom", "q_index", "line"):
+        for key in ("num_patom", "num_satom", "num_band", "q_index", "line"):
             match = re.search(rf'"{key}"\s*:\s*([0-9]+)', raw_metadata)
             if match:
                 metadata[key] = int(match.group(1))
 
-    shape = metadata.get("shape") or metadata.get("dims") or metadata.get("array_shape")
+    shape = metadata.get("shape")
     if shape is None:
         raise KeyError(f"{metadata_path} is missing a shape field")
     if isinstance(shape, str):
-        locals_map = {
-            key: value
-            for key, value in metadata.items()
-            if isinstance(value, (int, float, np.integer, np.floating))
-        }
-        shape_parts = [part for part in re.split(r"\s*,\s*", shape.strip().strip("[]()")) if part.strip()]
-        shape = []
-        unresolved_index = None
-        for index, part in enumerate(shape_parts):
-            try:
-                shape.append(int(eval(part.strip(), {"__builtins__": {}}, locals_map)))
-            except NameError:
-                shape.append(part.strip())
-                unresolved_index = index
-    else:
-        locals_map = {}
-        unresolved_index = None
-    dtype = np.dtype(
-        metadata.get("dtype")
-        or metadata.get("data_type")
-        or metadata.get("type")
-        or "float64"
-    )
+        shape_tokens = [part.strip() for part in shape.strip("[]()").split(",") if part.strip()]
+        resolved_shape = []
+        square_index = None
+        for token in shape_tokens:
+            if token.isdigit():
+                resolved_shape.append(int(token))
+            elif token == "num_patom":
+                if "num_patom" not in metadata:
+                    raise KeyError(f"{metadata_path} is missing num_patom metadata")
+                resolved_shape.append(int(metadata["num_patom"]))
+            elif token == "num_band":
+                if "num_band" not in metadata:
+                    raise KeyError(f"{metadata_path} is missing num_band metadata")
+                resolved_shape.append(int(metadata["num_band"]))
+            elif token == "num_patom*num_patom":
+                if "num_patom" in metadata:
+                    resolved_shape.append(int(metadata["num_patom"]) * int(metadata["num_patom"]))
+                else:
+                    resolved_shape.append(token)
+                    square_index = len(resolved_shape) - 1
+            else:
+                raise ValueError(f"Unsupported Wang shape token {token!r} in {metadata_path}")
+        shape = resolved_shape
+    elif not isinstance(shape, (list, tuple)):
+        raise TypeError(f"Unsupported Wang shape metadata in {metadata_path}: {shape!r}")
+    dtype = np.dtype(metadata.get("dtype") or "float64")
     array = np.fromfile(data_path, dtype=dtype)
-    if unresolved_index is not None:
+    if shape and any(isinstance(value, str) for value in shape):
         known_product = 1
         for value in shape:
             if isinstance(value, int):
                 known_product *= value
-        unresolved_value = array.size // known_product
-        if "num_patom*num_patom" in str(shape[unresolved_index]):
-            unresolved_value = int(round(np.sqrt(unresolved_value))) ** 2
-        shape[unresolved_index] = unresolved_value
+        unresolved = [index for index, value in enumerate(shape) if isinstance(value, str)]
+        if unresolved != [square_index] or shape[square_index] != "num_patom*num_patom":
+            raise ValueError(f"Unsupported unresolved Wang shape in {metadata_path}: {shape!r}")
+        square_product = array.size // known_product
+        square_root = int(round(np.sqrt(square_product)))
+        if square_root * square_root != square_product:
+            raise ValueError(f"Cannot infer num_patom from {metadata_path}: {shape!r}")
+        shape[square_index] = square_root * square_root
     return array.reshape(tuple(int(value) for value in shape))
 
 
@@ -229,3 +236,30 @@ def test_wang_charge_sum_matches_debug_reference():
     expected = _load_wang_binary_tensor(root, q_name, "wang_charge_sum")
     diff = compare_tensors("charge_sum", actual, expected)
     assert diff.max_abs_diff < 1e-8, format_tensor_diff("charge_sum", q_name, actual, expected)
+
+
+def test_wang_dynamical_matrix_uses_correct_mass_weighting_axes():
+    root = require_wang_att3_debug()
+    q_name = "q-00020"
+    phonon = HarmonicWithQ(
+        q_point=_load_wang_q_point(root, q_name),
+        second=_load_wang_second_order(),
+        storage="memory",
+        nac_method="wang",
+        q_index=int(q_name.split("-")[1]),
+    )
+
+    debug_data = phonon._calculate_wang_dynamical_matrix(return_debug_data=True)
+    charge_sum = debug_data["charge_sum"]
+    masses = debug_data["masses"]
+    n_atom = len(masses)
+    expected = np.array(charge_sum.reshape(n_atom, n_atom, 3, 3), copy=True)
+    for i in range(n_atom):
+        for j in range(n_atom):
+            expected[i, j, :, :] /= np.sqrt(masses[i] * masses[j])
+    expected = expected.reshape(n_atom * 3, n_atom * 3)
+
+    diff = compare_tensors("dynamical_matrix", debug_data["dynamical_matrix"], expected)
+    assert diff.max_abs_diff < 1e-8, format_tensor_diff(
+        "dynamical_matrix", q_name, debug_data["dynamical_matrix"], expected
+    )
