@@ -13,10 +13,7 @@ from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
-from kaldo.observables.gonze_lee_nac import (
-    build_short_range_inputs as build_gonze_short_range_inputs,
-    normalize_bvk_supercell_matrix,
-)
+from kaldo.observables.secondorder import normalize_bvk_supercell_matrix
 # from numpy.linalg import eigh
 
 logging = get_logger()
@@ -301,6 +298,7 @@ class HarmonicWithQ(Observable, Storable):
                  nac_bvk_supercell_matrix=None,
                  nac_q_direction=(1, 0, 0),
                  q_index=None,
+                 gonze_nac_precomputed=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -334,6 +332,7 @@ class HarmonicWithQ(Observable, Storable):
         )
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
         self.q_index = q_index
+        self._gonze_nac_precomputed = gonze_nac_precomputed
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
@@ -543,58 +542,21 @@ class HarmonicWithQ(Observable, Storable):
         return data
 
     def _build_gonze_static_data(self):
-        atoms = self.second.atoms
-        born = np.array(atoms.get_array('charges'), dtype=float, copy=True)
-        dielectric = np.array(atoms.info['dielectric'], dtype=float, copy=True)
-        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
-        primitive_positions = np.array(atoms.positions, dtype=float, copy=True)
-        reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True)
-        masses = np.array(atoms.get_masses(), dtype=float, copy=True)
-        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
-        supercell_cell = np.array(effective_matrix @ primitive_cell, dtype=float, copy=True)
-        volume = float(abs(np.linalg.det(primitive_cell)))
-        num_g_points = 300
-        g_cutoff = float((3 * num_g_points / (4 * np.pi) / volume) ** (1.0 / 3))
-        exp_cutoff = 1e-10
-        geg = g_cutoff ** 2 * np.trace(dielectric) / 3
-        lambda_ = float(np.sqrt(-geg / 4 / np.log(exp_cutoff)))
-        unit_conversion_factor = 14.4
-        nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
-        tolerance = 1e-5
-        g_list = _gonze_get_g_list(reciprocal_lattice, g_cutoff)
-        dd_q0 = _gonze_recip_dipole_dipole_q0(
-            g_list, born, dielectric, primitive_positions, lambda_, tolerance
-        )
-        dd_limiting = _gonze_limiting_dipole_dipole(dielectric, lambda_)
-        data = {
-            "born": born,
-            "dielectric": dielectric,
-            "primitive_cell": primitive_cell,
-            "primitive_positions": primitive_positions,
-            "reciprocal_lattice": reciprocal_lattice,
-            "masses": masses,
-            "supercell_cell": supercell_cell,
-            "volume": np.array(volume),
-            "Lambda": np.array(lambda_),
-            "G_cutoff": np.array(g_cutoff),
-            "G_list": g_list,
-            "unit_conversion_factor": np.array(unit_conversion_factor),
-            "nac_factor": np.array(nac_factor),
-            "q_direction_tolerance": np.array(tolerance),
-            "dd_q0": dd_q0,
-            "dd_limiting": dd_limiting,
-            "nac_bvk_supercell_matrix": np.array(effective_matrix, dtype=int),
-        }
+        if self._gonze_nac_precomputed is not None:
+            return dict(self._gonze_nac_precomputed["static_data"])  # shallow copy
+        matrix = self._resolve_gonze_bvk_supercell_matrix()
+        data = self.second._gonze_build_static_data(matrix)
+        data["nac_bvk_supercell_matrix"] = np.array(matrix, dtype=int)
         self._gonze_save_debug(
             self._gonze_debug_static_folder(),
-            {name: value for name, value in data.items() if name != "q_direction_tolerance"},
+            {k: v for k, v in data.items() if k != "q_direction_tolerance"},
         )
         return data
 
     def _build_gonze_short_range_inputs(self, static_data):
-        return build_gonze_short_range_inputs(
-            self.second, self._resolve_gonze_bvk_supercell_matrix()
-        )
+        if self._gonze_nac_precomputed is not None:
+            return self._gonze_nac_precomputed["mapping"]
+        return self.second._gonze_build_mapping(self._resolve_gonze_bvk_supercell_matrix())
 
     def _calculate_gonze_dynamical_matrix(self):
         static_data = self._build_gonze_static_data()
@@ -632,21 +594,25 @@ class HarmonicWithQ(Observable, Storable):
         dd_limiting_expanded = np.zeros_like(dd_recip)
         for i in range(len(masses)):
             dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
-        dd_real_q0_full = _gonze_real_dipole_dipole(
-            np.zeros(3, dtype=float),
-            mapping["svecs"],
-            mapping["multi"],
-            mapping["s2pp_map"],
-            static_data["dielectric"],
-            float(static_data["Lambda"]),
-            mapping.get("svecs_cell", static_data["supercell_cell"]),
-        )
-        dd_real_q0 = dd_real_q0_full.sum(axis=2)
-        dd_drift = (
-            static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
-            + static_data["dd_limiting"] * len(masses)
-            + dd_real_q0
-        )
+        if "dd_drift" in static_data:
+            dd_drift = static_data["dd_drift"]
+            dd_real_q0 = None
+        else:
+            dd_real_q0_full = _gonze_real_dipole_dipole(
+                np.zeros(3, dtype=float),
+                mapping["svecs"],
+                mapping["multi"],
+                mapping["s2pp_map"],
+                static_data["dielectric"],
+                float(static_data["Lambda"]),
+                mapping.get("svecs_cell", static_data["supercell_cell"]),
+            )
+            dd_real_q0 = dd_real_q0_full.sum(axis=2)
+            dd_drift = (
+                static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
+                + static_data["dd_limiting"] * len(masses)
+                + dd_real_q0
+            )
         dd_total = dd_recip + dd_limiting_expanded + dd_real
         for i in range(len(masses)):
             dd_total[i, :, i, :] -= dd_drift[i]
@@ -668,7 +634,7 @@ class HarmonicWithQ(Observable, Storable):
         dm_final = (dm_final + dm_final.conj().T) / 2
         eigvals = np.linalg.eigvalsh(dm_final).real
         frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
-        static_debug = {
+        static_debug = {k: v for k, v in {
             "svecs": mapping["svecs"],
             "multi": mapping["multi"],
             "multi_counts": mapping["multi"][:, :, 0],
@@ -678,7 +644,7 @@ class HarmonicWithQ(Observable, Storable):
             "s2pp_map": mapping["s2pp_map"],
             "dd_real_q0": dd_real_q0,
             "short_range_force_constants": fc_short,
-        }
+        }.items() if v is not None}
         for optional_name in (
             "phase_svecs",
             "svecs_cell",
