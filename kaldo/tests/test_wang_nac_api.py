@@ -45,6 +45,23 @@ def test_harmonic_with_q_accepts_wang_nac_options(nac_second_order):
     assert phonon.q_index == 7
 
 
+def test_harmonic_with_q_rejects_wang_without_nac_metadata():
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    with pytest.raises(ValueError, match=r"nac_method='wang' requires"):
+        HarmonicWithQ(
+            q_point=np.array([0.1, 0.0, 0.1]),
+            second=forceconstants.second,
+            storage="memory",
+            nac_method="wang",
+        )
+
+
 def test_phonons_accepts_wang_nac_options():
     forceconstants = ForceConstants.from_folder(
         folder="examples/nacl_phonopy_v2",
@@ -65,3 +82,23 @@ def test_phonons_accepts_wang_nac_options():
     assert phonons.nac_method == "wang"
     assert phonons.nac_debug is True
     assert phonons.nac_debug_folder == "debug"
+    frequencies = phonons.frequency
+    assert frequencies.shape == (1, phonons.n_modes)
+
+
+def test_phonons_rejects_wang_without_nac_metadata():
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    with pytest.raises(ValueError, match=r"nac_method='wang' requires"):
+        phonons = Phonons(
+            forceconstants=forceconstants,
+            kpts=[1, 1, 1],
+            storage="memory",
+            nac_method="wang",
+        )
+        _ = phonons.frequency
