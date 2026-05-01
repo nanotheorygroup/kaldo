@@ -6,7 +6,8 @@ from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
 from kaldo.interfaces import shengbte_io
-from kaldo.observables.gonze_lee_nac import nacl_phonopy_debug_supercell_matrix_att3
+def nacl_phonopy_debug_supercell_matrix_att3():
+    return np.diag([8, 8, 8]).astype(int)
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.tests.gonze_debug_reference import (
     diagnostic_q_names_att3,

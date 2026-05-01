@@ -3,11 +3,15 @@ import pytest
 from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
-from kaldo.observables.gonze_lee_nac import (
-    bvk_supercell_matrix_key,
-    nacl_phonopy_debug_supercell_matrix,
-    nacl_phonopy_debug_supercell_matrix_att3,
-)
+from kaldo.observables.secondorder import bvk_supercell_matrix_key
+
+
+def nacl_phonopy_debug_supercell_matrix():
+    return np.array([[-2, 2, 2], [2, -2, 2], [2, 2, -2]], dtype=int)
+
+
+def nacl_phonopy_debug_supercell_matrix_att3():
+    return np.diag([8, 8, 8]).astype(int)
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.phonons import Phonons
 from kaldo.tests.test_gonze_lee_nac_helpers import require_nacl_debug

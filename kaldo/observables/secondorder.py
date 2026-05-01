@@ -1,4 +1,4 @@
-from kaldo.observables.forceconstant import ForceConstant
+from kaldo.observables.forceconstant import ForceConstant, chi
 from ase import Atoms
 import math
 import os
@@ -15,6 +15,7 @@ import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
 from kaldo.grid import Grid
+from opt_einsum import contract
 
 logging = get_logger()
 
@@ -499,6 +500,26 @@ def _build_interleaved_fc(second_order):
             for i_type in range(n_atom):
                 fc[i_type, k, :, :] = val[j_type, :, l_C_idx, i_type, :].T
     return fc
+
+
+def _dynamical_matrix_from_second_order(second_order, q_red):
+    """Compute the dynamical matrix at q_red directly from second_order force constants."""
+    n_atom = len(second_order.atoms)
+    dynmat = second_order.dynmat
+    dyn_s = contract(
+        "ialjb,l->iajb",
+        dynmat.numpy()[0].astype(np.complex128),
+        chi(np.asarray(q_red, dtype=float), second_order.list_of_replicas, second_order.cell_inv).flatten(),
+        backend="numpy",
+    )
+    scaled_positions = second_order.atoms.get_scaled_positions(wrap=False)
+    for i_atom in range(n_atom):
+        for j_atom in range(n_atom):
+            phase = np.exp(
+                2j * np.pi * np.dot(q_red, scaled_positions[j_atom] - scaled_positions[i_atom])
+            )
+            dyn_s[i_atom, :, j_atom, :] *= phase
+    return dyn_s.reshape(n_atom * 3, n_atom * 3)
 
 
 def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
