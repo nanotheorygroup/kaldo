@@ -259,15 +259,16 @@ def _wang_charge_terms(q_cart, born):
     return np.einsum("nab,a->nb", born, q_cart)
 
 
-def _wang_charge_sum(q_cart, born, nac_factor, dielectric_contraction):
-    charge_terms = _wang_charge_terms(q_cart, born)
+def _wang_charge_sum(born, nac_factor, dielectric_contraction, supercell_multiplicity, charge_terms):
     n_atom = charge_terms.shape[0]
-    q_norm2 = float(np.dot(q_cart, q_cart))
-    scale = float(nac_factor) * q_norm2 / float(n_atom) / float(dielectric_contraction)
+    scale = (
+        float(nac_factor)
+        / float(supercell_multiplicity)
+        / float(dielectric_contraction)
+    )
     return (
         np.einsum("ia,jb->ijab", charge_terms, charge_terms)
         * scale
-        * (1.0 + scale)
     ).reshape(n_atom * n_atom, 3, 3)
 
 
@@ -567,13 +568,20 @@ class HarmonicWithQ(Observable, Storable):
         reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True) * bohr
         masses = np.array(atoms.get_masses(), dtype=float, copy=True)
         supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True) / bohr
+        supercell_multiplicity = int(np.prod(self.supercell))
         volume = float(abs(np.linalg.det(primitive_cell)))
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = _wang_q_cart(q_red, reciprocal_lattice)
         dielectric_contraction = _wang_dielectric_contraction(q_cart, dielectric)
         charge_terms = _wang_charge_terms(q_cart, born)
         nac_factor = float(2.0 * 4 * np.pi / volume)
-        charge_sum = _wang_charge_sum(q_cart, born, nac_factor, dielectric_contraction)
+        charge_sum = _wang_charge_sum(
+            born,
+            nac_factor,
+            dielectric_contraction,
+            supercell_multiplicity,
+            charge_terms,
+        )
         return {
             "born": born,
             "dielectric": dielectric,
@@ -582,6 +590,7 @@ class HarmonicWithQ(Observable, Storable):
             "reciprocal_lattice": reciprocal_lattice,
             "masses": masses,
             "supercell_cell": supercell_cell,
+            "supercell_multiplicity": np.array(supercell_multiplicity),
             "volume": np.array(volume),
             "nac_factor": np.array(nac_factor),
             "q_red": q_red,

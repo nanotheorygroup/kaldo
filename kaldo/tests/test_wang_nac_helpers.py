@@ -235,7 +235,7 @@ def test_wang_charge_sum_matches_debug_reference():
     actual = phonon._calculate_wang_dynamical_matrix(return_debug_data=True)["charge_sum"]
     expected = _load_wang_binary_tensor(root, q_name, "wang_charge_sum")
     diff = compare_tensors("charge_sum", actual, expected)
-    assert diff.max_abs_diff < 1e-8, format_tensor_diff("charge_sum", q_name, actual, expected)
+    assert diff.max_abs_diff < 1e-10, format_tensor_diff("charge_sum", q_name, actual, expected)
 
 
 def test_wang_dynamical_matrix_uses_correct_mass_weighting_axes():
