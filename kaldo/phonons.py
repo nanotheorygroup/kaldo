@@ -411,7 +411,10 @@ class Phonons(Storable):
     def _gonze_precomputed_bundle(self):
         if self.nac_method != "gonze":
             return None
-        return self.forceconstants.second.get_gonze_nac_precomputed(self.nac_bvk_supercell_matrix)
+        matrix = self.nac_bvk_supercell_matrix
+        if matrix is None:
+            matrix = np.diag(np.asarray(self.forceconstants.second.supercell, dtype=int))
+        return self.forceconstants.second.get_gonze_nac_precomputed(matrix)
 
     @lazy_property(label='')
     def physical_mode(self):

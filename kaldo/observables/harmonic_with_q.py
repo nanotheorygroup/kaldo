@@ -13,7 +13,22 @@ from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
-from kaldo.observables.secondorder import normalize_bvk_supercell_matrix
+from kaldo.observables.secondorder import (
+    normalize_bvk_supercell_matrix,
+    _dielectric_part as _shared_dielectric_part,
+    _get_minimum_g_rad as _shared_get_minimum_g_rad,
+    _get_g_vec_list as _shared_get_g_vec_list,
+    _get_g_list as _shared_get_g_list,
+    _multiply_borns as _shared_multiply_borns,
+    _get_dd_base as _shared_get_dd_base,
+    _recip_dipole_dipole_q0 as _shared_recip_dipole_dipole_q0,
+    _limiting_dipole_dipole as _shared_limiting_dipole_dipole,
+    _recip_dipole_dipole as _shared_recip_dipole_dipole,
+    _h_tensor as _shared_h_tensor,
+    _real_dipole_dipole as _shared_real_dipole_dipole,
+    _mass_weight as _shared_mass_weight,
+    _short_range_dynamical_matrix as _shared_short_range_dynamical_matrix,
+)
 # from numpy.linalg import eigh
 
 logging = get_logger()
@@ -81,35 +96,19 @@ def _gonze_velocity_debug_nac_branch(q_red, reciprocal_lattice, tolerance):
 
 
 def _gonze_dielectric_part(q_cart, dielectric):
-    return float(np.einsum("i,ij,j->", q_cart, dielectric, q_cart))
+    return _shared_dielectric_part(q_cart, dielectric)
 
 
 def _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
-    for trial_g_rad in range(g_rad, 0, -1):
-        for a in (-1, 0, 1):
-            for b in (-1, 0, 1):
-                for c in (-1, 0, 1):
-                    if (a, b, c) == (0, 0, 0):
-                        continue
-                    norm = np.linalg.norm(
-                        reciprocal_lattice @ np.array([a, b, c], dtype=float)
-                    )
-                    if norm * trial_g_rad < g_cutoff:
-                        return trial_g_rad + 1
-    return g_rad
+    return _shared_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad)
 
 
 def _gonze_get_g_vec_list(reciprocal_lattice, g_rad):
-    npts = g_rad * 2 + 1
-    grid = np.array(list(np.ndindex((npts, npts, npts))), dtype=np.int64) - g_rad
-    return np.array(grid @ reciprocal_lattice.T, dtype="double", order="C")
+    return _shared_get_g_vec_list(reciprocal_lattice, g_rad)
 
 
 def _gonze_get_g_list(reciprocal_lattice, g_cutoff):
-    g_rad = _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff)
-    g_vec_list = _gonze_get_g_vec_list(reciprocal_lattice, g_rad)
-    g_norm2 = (g_vec_list ** 2).sum(axis=1)
-    return np.array(g_vec_list[g_norm2 < g_cutoff ** 2], dtype="double", order="C")
+    return _shared_get_g_list(reciprocal_lattice, g_cutoff)
 
 
 def _gonze_multiply_borns(dd_in, born):
@@ -177,6 +176,7 @@ def _gonze_recip_dipole_dipole(
     factor,
     lambda_,
     tolerance,
+    pair_phase=None,
 ):
     dd_tmp = _gonze_get_dd_base(
         g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
@@ -243,7 +243,15 @@ def _gonze_mass_weight(fc_term, masses):
 
 
 def _gonze_short_range_dynamical_matrix(
-    fc, q_red, svecs, multi, masses, s2p_map, p2s_map
+    fc,
+    q_red,
+    svecs,
+    multi,
+    masses,
+    s2p_map,
+    p2s_map,
+    phase_weights=None,
+    target_mask=None,
 ):
     num_patom = len(p2s_map)
     num_satom = len(s2p_map)
@@ -333,6 +341,10 @@ class HarmonicWithQ(Observable, Storable):
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
         self.q_index = q_index
         self._gonze_nac_precomputed = gonze_nac_precomputed
+        if self.nac_method == "gonze" and self._gonze_nac_precomputed is None:
+            self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
+                self._resolve_gonze_bvk_supercell_matrix()
+            )
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
@@ -586,6 +598,7 @@ class HarmonicWithQ(Observable, Storable):
             float(static_data["nac_factor"]),
             float(static_data["Lambda"]),
             float(static_data["q_direction_tolerance"]),
+            pair_phase=static_data.get("pair_phase"),
         )
         dd_real = _gonze_real_dipole_dipole(
             q_red,
@@ -596,9 +609,11 @@ class HarmonicWithQ(Observable, Storable):
             float(static_data["Lambda"]),
             mapping.get("svecs_cell", static_data["supercell_cell"]),
         )
-        dd_limiting_expanded = np.zeros_like(dd_recip)
-        for i in range(len(masses)):
-            dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
+        dd_limiting_expanded = static_data.get("dd_limiting_expanded")
+        if dd_limiting_expanded is None:
+            dd_limiting_expanded = np.zeros_like(dd_recip)
+            for i in range(len(masses)):
+                dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
         if "dd_drift" in static_data:
             dd_drift = static_data["dd_drift"]
             dd_real_q0 = None
@@ -619,8 +634,8 @@ class HarmonicWithQ(Observable, Storable):
                 + dd_real_q0
             )
         dd_total = dd_recip + dd_limiting_expanded + dd_real
-        for i in range(len(masses)):
-            dd_total[i, :, i, :] -= dd_drift[i]
+        diag = np.arange(len(masses))
+        dd_total[diag, :, diag, :] -= dd_drift
         conversion = units.mol / (10 * units.J)
         dd_total_mass_weighted = _gonze_mass_weight(dd_total * conversion, masses)
 
@@ -634,6 +649,8 @@ class HarmonicWithQ(Observable, Storable):
             masses,
             mapping["s2p_map"],
             mapping["p2s_map"],
+            phase_weights=mapping.get("phase_weights"),
+            target_mask=mapping.get("target_mask"),
         )
         dm_final = dm_short + dd_total_mass_weighted
         dm_final = (dm_final + dm_final.conj().T) / 2
