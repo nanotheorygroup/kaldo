@@ -7,7 +7,7 @@ from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.phonons import Phonons
 
 
-def attach_reference_nac(second_order, nac_file="kaldo/tests/mgo/espresso.ifc2"):
+def attach_reference_nac(second_order, nac_file="examples/nacl_phonopy/espresso.ifc2"):
     _, _, charges = shengbte_io.read_second_order_qe_matrix(nac_file)
     if charges is None:
         raise ValueError(f"No NAC data found in {nac_file}")
@@ -19,10 +19,11 @@ def attach_reference_nac(second_order, nac_file="kaldo/tests/mgo/espresso.ifc2")
 @pytest.fixture(scope="module")
 def nac_second_order(tmp_path_factory):
     forceconstants = ForceConstants.from_folder(
-        folder="kaldo/tests/mgo",
-        supercell=[5, 5, 5],
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
         only_second=True,
-        format="qe-d3q",
+        is_acoustic_sum=True,
+        format="shengbte-qe",
     )
     forceconstants.second.folder = str(tmp_path_factory.mktemp("wang_runtime_cache"))
     return attach_reference_nac(forceconstants.second)
@@ -46,10 +47,11 @@ def test_harmonic_with_q_accepts_wang_nac_options(nac_second_order):
 
 def test_phonons_accepts_wang_nac_options():
     forceconstants = ForceConstants.from_folder(
-        folder="kaldo/tests/mgo",
-        supercell=[5, 5, 5],
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
         only_second=True,
-        format="qe-d3q",
+        is_acoustic_sum=True,
+        format="shengbte-qe",
     )
     attach_reference_nac(forceconstants.second)
     phonons = Phonons(
