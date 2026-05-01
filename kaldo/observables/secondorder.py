@@ -608,6 +608,7 @@ class SecondOrder(ForceConstant, Storable):
 
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
+        self._gonze_nac_precomputed_cache = {}
         self.storage = "numpy"
 
     @lazy_property(label="", format="numpy")
@@ -634,6 +635,33 @@ class SecondOrder(ForceConstant, Storable):
             force_constants = self.calculate_gonze_short_range_force_constants(matrix)
             self._save_property(property_name, folder, force_constants, format="numpy")
             return force_constants
+
+    def get_gonze_nac_precomputed(self, nac_bvk_supercell_matrix=None):
+        matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        key = bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
+        if key not in self._gonze_nac_precomputed_cache:
+            static_data = self._gonze_build_static_data(matrix)
+            mapping = self._gonze_build_mapping(matrix)
+            dd_real_q0_full = _real_dipole_dipole(
+                np.zeros(3, dtype=float),
+                mapping["svecs"],
+                mapping["multi"],
+                mapping["s2pp_map"],
+                static_data["dielectric"],
+                float(static_data["Lambda"]),
+                mapping.get("svecs_cell", static_data["supercell_cell"]),
+            )
+            dd_real_q0 = dd_real_q0_full.sum(axis=2)
+            static_data["dd_drift"] = (
+                static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
+                + static_data["dd_limiting"] * len(static_data["masses"])
+                + dd_real_q0
+            )
+            self._gonze_nac_precomputed_cache[key] = {
+                "static_data": static_data,
+                "mapping": mapping,
+            }
+        return self._gonze_nac_precomputed_cache[key]
 
     def calculate_gonze_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
         if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
