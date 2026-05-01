@@ -247,6 +247,30 @@ def _gonze_short_range_dynamical_matrix(
     return (dm + dm.conj().T) / 2
 
 
+def _wang_q_cart(q_red, reciprocal_lattice):
+    return np.asarray(reciprocal_lattice, dtype=float) @ np.asarray(q_red, dtype=float)
+
+
+def _wang_dielectric_contraction(q_cart, dielectric):
+    return float(np.einsum("i,ij,j->", q_cart, dielectric, q_cart))
+
+
+def _wang_charge_terms(q_cart, born):
+    return np.einsum("nab,a->nb", born, q_cart)
+
+
+def _wang_charge_sum(q_cart, born, nac_factor, dielectric_contraction):
+    charge_terms = _wang_charge_terms(q_cart, born)
+    n_atom = charge_terms.shape[0]
+    q_norm2 = float(np.dot(q_cart, q_cart))
+    scale = float(nac_factor) * q_norm2 / float(n_atom) / float(dielectric_contraction)
+    return (
+        np.einsum("ia,jb->ijab", charge_terms, charge_terms)
+        * scale
+        * (1.0 + scale)
+    ).reshape(n_atom * n_atom, 3, 3)
+
+
 class HarmonicWithQ(Observable, Storable):
     
     # Define storage formats for harmonic properties
@@ -532,6 +556,64 @@ class HarmonicWithQ(Observable, Storable):
             },
         )
         return dm_final
+
+    def _build_wang_static_data(self):
+        atoms = self.second.atoms
+        bohr = units.Bohr
+        born = np.array(atoms.get_array("charges"), dtype=float, copy=True)
+        dielectric = np.array(atoms.info["dielectric"], dtype=float, copy=True)
+        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True) / bohr
+        primitive_positions = np.array(atoms.positions, dtype=float, copy=True) / bohr
+        reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True) * bohr
+        masses = np.array(atoms.get_masses(), dtype=float, copy=True)
+        supercell_cell = np.array(self.second.replicated_atoms.cell.array, dtype=float, copy=True) / bohr
+        volume = float(abs(np.linalg.det(primitive_cell)))
+        q_red = np.array(self.q_point, dtype=float, copy=True)
+        q_cart = _wang_q_cart(q_red, reciprocal_lattice)
+        dielectric_contraction = _wang_dielectric_contraction(q_cart, dielectric)
+        charge_terms = _wang_charge_terms(q_cart, born)
+        nac_factor = float(2.0 * 4 * np.pi / volume)
+        charge_sum = _wang_charge_sum(q_cart, born, nac_factor, dielectric_contraction)
+        return {
+            "born": born,
+            "dielectric": dielectric,
+            "primitive_cell": primitive_cell,
+            "primitive_positions": primitive_positions,
+            "reciprocal_lattice": reciprocal_lattice,
+            "masses": masses,
+            "supercell_cell": supercell_cell,
+            "volume": np.array(volume),
+            "nac_factor": np.array(nac_factor),
+            "q_red": q_red,
+            "q_cart": q_cart,
+            "dielectric_contraction": np.array(dielectric_contraction),
+            "charge_terms": charge_terms,
+            "charge_sum": charge_sum,
+        }
+
+    def _calculate_wang_dynamical_matrix(self, return_debug_data=False):
+        static_data = self._build_wang_static_data()
+        q_cart = static_data["q_cart"]
+        dielectric_contraction = float(static_data["dielectric_contraction"])
+        charge_terms = static_data["charge_terms"]
+        charge_sum = static_data["charge_sum"]
+        masses = static_data["masses"]
+        n_atom = len(masses)
+        if np.linalg.norm(q_cart) < 1e-14 or dielectric_contraction == 0.0:
+            dm = np.zeros((n_atom * 3, n_atom * 3), dtype=np.complex128)
+        else:
+            correction = np.array(charge_sum.reshape(n_atom, n_atom, 3, 3), copy=True)
+            for i in range(n_atom):
+                for j in range(n_atom):
+                    correction[i, :, j, :] /= np.sqrt(masses[i] * masses[j])
+            dm = correction.reshape(n_atom * 3, n_atom * 3)
+        if return_debug_data:
+            return {
+                **static_data,
+                "dynamical_matrix": dm,
+                "charge_sum": charge_sum,
+            }
+        return dm
 
     @lazy_property(label='<q_point>')
     def frequency(self):

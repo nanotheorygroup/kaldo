@@ -1,6 +1,13 @@
+import json
+import re
+from pathlib import Path
+
 import numpy as np
 import pytest
 
+from kaldo.forceconstants import ForceConstants
+from kaldo.interfaces import shengbte_io
+from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.tests.wang_debug_reference import (
     compare_tensors,
     diagnostic_q_names_wang_att3,
@@ -9,6 +16,84 @@ from kaldo.tests.wang_debug_reference import (
     require_wang_att3_debug,
     wang_att3_debug_dir,
 )
+
+
+def _load_wang_binary_tensor(root: Path, q_name: str, stem: str) -> np.ndarray:
+    metadata_path = root / q_name / f"{stem}.json"
+    data_path = root / q_name / f"{stem}.bin"
+    raw_metadata = metadata_path.read_text()
+    try:
+        metadata = json.loads(raw_metadata)
+    except json.JSONDecodeError:
+        metadata = {}
+        dtype_match = re.search(r'"dtype"\s*:\s*"([^"]+)"', raw_metadata)
+        if dtype_match:
+            metadata["dtype"] = dtype_match.group(1)
+        shape_match = re.search(r'"shape"\s*:\s*\[(.*?)\]', raw_metadata, re.S)
+        if shape_match:
+            metadata["shape"] = shape_match.group(1)
+        for key in ("num_patom", "num_satom", "q_index", "line"):
+            match = re.search(rf'"{key}"\s*:\s*([0-9]+)', raw_metadata)
+            if match:
+                metadata[key] = int(match.group(1))
+
+    shape = metadata.get("shape") or metadata.get("dims") or metadata.get("array_shape")
+    if shape is None:
+        raise KeyError(f"{metadata_path} is missing a shape field")
+    if isinstance(shape, str):
+        locals_map = {
+            key: value
+            for key, value in metadata.items()
+            if isinstance(value, (int, float, np.integer, np.floating))
+        }
+        shape_parts = [part for part in re.split(r"\s*,\s*", shape.strip().strip("[]()")) if part.strip()]
+        shape = []
+        unresolved_index = None
+        for index, part in enumerate(shape_parts):
+            try:
+                shape.append(int(eval(part.strip(), {"__builtins__": {}}, locals_map)))
+            except NameError:
+                shape.append(part.strip())
+                unresolved_index = index
+    else:
+        locals_map = {}
+        unresolved_index = None
+    dtype = np.dtype(
+        metadata.get("dtype")
+        or metadata.get("data_type")
+        or metadata.get("type")
+        or "float64"
+    )
+    array = np.fromfile(data_path, dtype=dtype)
+    if unresolved_index is not None:
+        known_product = 1
+        for value in shape:
+            if isinstance(value, int):
+                known_product *= value
+        unresolved_value = array.size // known_product
+        if "num_patom*num_patom" in str(shape[unresolved_index]):
+            unresolved_value = int(round(np.sqrt(unresolved_value))) ** 2
+        shape[unresolved_index] = unresolved_value
+    return array.reshape(tuple(int(value) for value in shape))
+
+
+def _load_wang_second_order():
+    forceconstants = ForceConstants.from_folder(
+        folder="examples/nacl_phonopy_v2",
+        supercell=[8, 8, 8],
+        only_second=True,
+        is_acoustic_sum=True,
+        format="shengbte-qe",
+    )
+    _, _, charges = shengbte_io.read_second_order_qe_matrix("examples/nacl_phonopy/espresso.ifc2")
+    forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
+    forceconstants.second.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
+    return forceconstants.second
+
+
+def _load_wang_q_point(root: Path, q_name: str) -> np.ndarray:
+    q_points = np.asarray(load_q_tensor(root, q_name, "py_qpoints"), dtype=float)
+    return q_points.reshape(-1, 3)[0]
 
 
 def test_wang_att3_debug_tree_is_loadable():
@@ -110,3 +195,37 @@ def test_format_tensor_diff_includes_summary_fields():
     assert "dtype=float64" in text
     assert "max_abs_diff=1.00000000e+00" in text
     assert "rel_diff=" in text
+
+
+def test_wang_q_cart_matches_debug_reference():
+    root = require_wang_att3_debug()
+    q_name = "q-00010"
+    phonon = HarmonicWithQ(
+        q_point=_load_wang_q_point(root, q_name),
+        second=_load_wang_second_order(),
+        storage="memory",
+        nac_method="wang",
+        q_index=int(q_name.split("-")[1]),
+    )
+
+    actual = phonon._build_wang_static_data()["q_cart"]
+    expected = _load_wang_binary_tensor(root, q_name, "wang_q_cart")
+    diff = compare_tensors("q_cart", actual, expected)
+    assert diff.max_abs_diff < 1e-8, format_tensor_diff("q_cart", q_name, actual, expected)
+
+
+def test_wang_charge_sum_matches_debug_reference():
+    root = require_wang_att3_debug()
+    q_name = "q-00020"
+    phonon = HarmonicWithQ(
+        q_point=_load_wang_q_point(root, q_name),
+        second=_load_wang_second_order(),
+        storage="memory",
+        nac_method="wang",
+        q_index=int(q_name.split("-")[1]),
+    )
+
+    actual = phonon._calculate_wang_dynamical_matrix(return_debug_data=True)["charge_sum"]
+    expected = _load_wang_binary_tensor(root, q_name, "wang_charge_sum")
+    diff = compare_tensors("charge_sum", actual, expected)
+    assert diff.max_abs_diff < 1e-8, format_tensor_diff("charge_sum", q_name, actual, expected)
