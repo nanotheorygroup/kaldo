@@ -321,8 +321,8 @@ class HarmonicWithQ(Observable, Storable):
                  nac_method='legacy',
                  nac_debug=False,
                  nac_debug_folder='debug',
-                 nac_q_direction=None,
                  q_index=None,
+                 nac_q_direction=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)

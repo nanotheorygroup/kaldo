@@ -144,6 +144,13 @@ def test_wang_frequencies_match_phonopy_debug(nac_second_order):
 
 def test_wang_full_dynamical_matrix_is_hermitian(nac_second_order):
     root = require_wang_att3_debug()
+    factor_q_name = "q-00010"
+    gv_eigvals = np.asarray(load_q_tensor(root, factor_q_name, "py_group_velocity_eigvals"), dtype=float)
+    gv_freqs = np.asarray(load_q_tensor(root, factor_q_name, "py_group_velocity_freqs"), dtype=float)
+    factor_mask = gv_eigvals > 1e-12
+    frequency_factor = float(np.median(gv_freqs[factor_mask] / np.sqrt(gv_eigvals[factor_mask])))
+    matrix_scale = (2 * np.pi * frequency_factor) ** 2
+    n_modes = nac_second_order.atoms.positions.shape[0] * 3
 
     for q_name in diagnostic_q_names_wang_att3():
         q_point = np.asarray(load_q_tensor(root, q_name, "py_qpoints"), dtype=float)
@@ -158,9 +165,19 @@ def test_wang_full_dynamical_matrix_is_hermitian(nac_second_order):
         )
 
         dynamical_matrix = phonon._calculate_wang_dynamical_matrix()
+        traced_dynmat = np.fromfile(
+            root / q_name / "wang_dynmat_after_hermitian.bin",
+            dtype=np.complex128,
+        ).reshape((n_modes, n_modes)) * matrix_scale
         np.testing.assert_allclose(
             dynamical_matrix,
             dynamical_matrix.conj().T,
             atol=1e-10,
             rtol=1e-10,
+        )
+        np.testing.assert_allclose(
+            dynamical_matrix,
+            traced_dynmat,
+            atol=6.0,
+            rtol=0.01,
         )
