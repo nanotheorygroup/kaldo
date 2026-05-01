@@ -8,14 +8,22 @@ import numpy as np
 import pytest
 
 
-DEFAULT_WANG_ATT3_DEBUG = Path(
-    "/home/nwlundgren/data/rephonopy/.worktrees/wang-nac-trace/"
-    "example/nacl-att3/debug-wang-band"
+DEFAULT_WANG_ATT3_DEBUG = (
+    Path.home() / "data/rephonopy/.worktrees/wang-nac-trace/example/nacl-att3/debug-wang-band"
+)
+DEFAULT_WANG_ATT3_DEBUG_FALLBACK = Path(
+    "/data/nwlundgren/rephonopy/.worktrees/wang-nac-trace/example/nacl-att3/debug-wang-band"
 )
 
 
 def wang_att3_debug_dir() -> Path:
-    return Path(os.environ.get("WANG_ATT3_DEBUG_DIR", DEFAULT_WANG_ATT3_DEBUG))
+    env_override = os.environ.get("WANG_ATT3_DEBUG_DIR")
+    if env_override:
+        return Path(env_override)
+    for candidate in (DEFAULT_WANG_ATT3_DEBUG, DEFAULT_WANG_ATT3_DEBUG_FALLBACK):
+        if candidate.exists():
+            return candidate
+    return DEFAULT_WANG_ATT3_DEBUG
 
 
 def require_wang_att3_debug() -> Path:
