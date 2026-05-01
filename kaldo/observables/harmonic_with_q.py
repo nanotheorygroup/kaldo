@@ -289,15 +289,15 @@ class HarmonicWithQ(Observable, Storable):
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
         self.is_nac = True if 'dielectric' in self.atoms.info else False
-        supported_nac_methods = ('legacy', 'gonze')
+        supported_nac_methods = ('legacy', 'gonze', 'wang')
         if nac_method not in supported_nac_methods:
             raise ValueError(
                 f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
             )
-        if nac_method == 'gonze':
+        if nac_method in ('gonze', 'wang'):
             if not self.is_nac or 'charges' not in self.atoms.arrays:
                 raise ValueError(
-                    "nac_method='gonze' requires atoms.info['dielectric'] and atoms.arrays['charges']."
+                    f"nac_method={nac_method!r} requires atoms.info['dielectric'] and atoms.arrays['charges']."
                 )
         self.nac_method = nac_method
         self.nac_debug = bool(nac_debug)

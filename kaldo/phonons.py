@@ -188,15 +188,22 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
-        supported_nac_methods = ("legacy", "gonze")
+        self.atoms = self.forceconstants.atoms
+        self.is_nac = True if "dielectric" in self.atoms.info else False
+        supported_nac_methods = ("legacy", "gonze", "wang")
         if nac_method not in supported_nac_methods:
             raise ValueError(
                 f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
             )
+        if nac_method in ("gonze", "wang"):
+            if not self.is_nac or "charges" not in self.atoms.arrays:
+                raise ValueError(
+                    f"nac_method={nac_method!r} requires atoms.info['dielectric'] "
+                    "and atoms.arrays['charges']."
+                )
         self.nac_method = nac_method
         self.nac_debug = bool(nac_debug)
         self.nac_debug_folder = nac_debug_folder
-        self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
         self.n_atoms = self.forceconstants.n_atoms
