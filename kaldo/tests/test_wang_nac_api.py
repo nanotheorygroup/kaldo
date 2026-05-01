@@ -5,6 +5,11 @@ from kaldo.forceconstants import ForceConstants
 from kaldo.interfaces import shengbte_io
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.phonons import Phonons
+from kaldo.tests.wang_debug_reference import (
+    diagnostic_q_names_wang_att3,
+    load_q_tensor,
+    require_wang_att3_debug,
+)
 
 
 def attach_reference_nac(second_order, nac_file="examples/nacl_phonopy/espresso.ifc2"):
@@ -102,3 +107,60 @@ def test_phonons_rejects_wang_without_nac_metadata():
             nac_method="wang",
         )
         _ = phonons.frequency
+
+
+def test_wang_frequencies_match_phonopy_debug(nac_second_order):
+    root = require_wang_att3_debug()
+    q_names = diagnostic_q_names_wang_att3()
+    factor_q_name = "q-00010"
+    gv_eigvals = np.asarray(load_q_tensor(root, factor_q_name, "py_group_velocity_eigvals"), dtype=float)
+    gv_freqs = np.asarray(load_q_tensor(root, factor_q_name, "py_group_velocity_freqs"), dtype=float)
+    factor_mask = gv_eigvals > 1e-12
+    frequency_factor = float(np.median(gv_freqs[factor_mask] / np.sqrt(gv_eigvals[factor_mask])))
+    n_modes = nac_second_order.atoms.positions.shape[0] * 3
+
+    for q_name in q_names:
+        q_point = np.asarray(load_q_tensor(root, q_name, "py_qpoints"), dtype=float)
+        q_direction = np.asarray(load_q_tensor(root, q_name, "py_q_direction"), dtype=float)
+        traced_dynmat = np.fromfile(
+            root / q_name / "wang_dynmat_after_hermitian.bin",
+            dtype=np.complex128,
+        ).reshape((n_modes, n_modes))
+        traced_eigvals = np.linalg.eigvalsh(traced_dynmat).real
+        expected = np.sign(traced_eigvals) * np.sqrt(np.abs(traced_eigvals)) * frequency_factor
+
+        phonon = HarmonicWithQ(
+            q_point=q_point,
+            second=nac_second_order,
+            storage="memory",
+            nac_method="wang",
+            nac_q_direction=q_direction,
+            q_index=int(q_name.split("-")[1]),
+        )
+
+        actual = np.asarray(phonon.frequency, dtype=float).reshape(-1)
+        np.testing.assert_allclose(actual, expected, atol=0.06, rtol=0.03)
+
+
+def test_wang_full_dynamical_matrix_is_hermitian(nac_second_order):
+    root = require_wang_att3_debug()
+
+    for q_name in diagnostic_q_names_wang_att3():
+        q_point = np.asarray(load_q_tensor(root, q_name, "py_qpoints"), dtype=float)
+        q_direction = np.asarray(load_q_tensor(root, q_name, "py_q_direction"), dtype=float)
+        phonon = HarmonicWithQ(
+            q_point=q_point,
+            second=nac_second_order,
+            storage="memory",
+            nac_method="wang",
+            nac_q_direction=q_direction,
+            q_index=int(q_name.split("-")[1]),
+        )
+
+        dynamical_matrix = phonon._calculate_wang_dynamical_matrix()
+        np.testing.assert_allclose(
+            dynamical_matrix,
+            dynamical_matrix.conj().T,
+            atol=1e-10,
+            rtol=1e-10,
+        )
