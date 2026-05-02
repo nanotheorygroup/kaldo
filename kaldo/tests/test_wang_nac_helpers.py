@@ -36,6 +36,26 @@ def _load_wang_binary_tensor(root: Path, q_name: str, stem: str) -> np.ndarray:
             match = re.search(rf'"{key}"\s*:\s*([0-9]+)', raw_metadata)
             if match:
                 metadata[key] = int(match.group(1))
+        size_match = re.search(r'"size_(?:complex_)?elements"\s*:\s*([0-9]+)', raw_metadata)
+        if size_match and ("num_patom" not in metadata or "num_band" not in metadata):
+            shape_str_match = re.search(r'"shape"\s*:\s*\[(.*?)\]', raw_metadata, re.S)
+            if shape_str_match:
+                raw_tokens = [t.strip() for t in shape_str_match.group(1).split(",") if t.strip()]
+                symbol_counts = {
+                    "num_patom": sum(1 for t in raw_tokens if t == "num_patom"),
+                    "num_band": sum(1 for t in raw_tokens if t == "num_band"),
+                }
+                known = 1
+                for t in raw_tokens:
+                    if t.isdigit():
+                        known *= int(t)
+                total = int(size_match.group(1))
+                for symbol, count in symbol_counts.items():
+                    if count <= 0 or symbol in metadata or known <= 0:
+                        continue
+                    inferred = round((total / known) ** (1.0 / count))
+                    if inferred ** count * known == total:
+                        metadata[symbol] = inferred
 
     shape = metadata.get("shape")
     if shape is None:
@@ -215,7 +235,7 @@ def test_wang_q_cart_matches_debug_reference():
         q_index=int(q_name.split("-")[1]),
     )
 
-    actual = phonon._build_wang_static_data()["q_cart"]
+    actual = phonon._calculate_wang_dynamical_matrix(return_debug_data=True)["q_cart"]
     expected = _load_wang_binary_tensor(root, q_name, "wang_q_cart")
     diff = compare_tensors("q_cart", actual, expected)
     assert diff.max_abs_diff < 1e-8, format_tensor_diff("q_cart", q_name, actual, expected)
@@ -238,7 +258,7 @@ def test_wang_charge_sum_matches_debug_reference():
     assert diff.max_abs_diff < 1e-10, format_tensor_diff("charge_sum", q_name, actual, expected)
 
 
-def test_wang_dynamical_matrix_uses_correct_mass_weighting_axes():
+def test_wang_charge_sum_axis_ordering_is_atom_major():
     root = require_wang_att3_debug()
     q_name = "q-00020"
     phonon = HarmonicWithQ(
@@ -251,15 +271,80 @@ def test_wang_dynamical_matrix_uses_correct_mass_weighting_axes():
 
     debug_data = phonon._calculate_wang_dynamical_matrix(return_debug_data=True)
     charge_sum = debug_data["charge_sum"]
+    charge_terms = debug_data["charge_terms"]
     masses = debug_data["masses"]
     n_atom = len(masses)
-    expected = np.array(charge_sum.reshape(n_atom, n_atom, 3, 3), copy=True)
+    # charge_sum[i*n+j, alpha, beta] should equal scale * A_i_alpha * A_j_beta
+    # where A = charge_terms.  Verify for (i=0, j=0) and (i=0, j=1).
+    dielectric_contraction = debug_data["dielectric_contraction"]
+    nac_factor = float(debug_data["nac_factor"])
+    supercell_multiplicity = int(debug_data["supercell_multiplicity"])
+    scale = nac_factor / supercell_multiplicity / dielectric_contraction
     for i in range(n_atom):
         for j in range(n_atom):
-            expected[i, j, :, :] /= np.sqrt(masses[i] * masses[j])
-    expected = expected.reshape(n_atom * 3, n_atom * 3)
+            expected_block = scale * np.outer(charge_terms[i], charge_terms[j])
+            actual_block = charge_sum[i * n_atom + j]
+            diff = compare_tensors(f"charge_sum[{i},{j}]", actual_block, expected_block)
+            assert diff.max_abs_diff < 1e-12, format_tensor_diff(
+                f"charge_sum[{i},{j}]", q_name, actual_block, expected_block
+            )
 
-    diff = compare_tensors("dynamical_matrix", debug_data["dynamical_matrix"], expected)
+
+def test_wang_dnac_matches_debug_reference():
+    root = require_wang_att3_debug()
+    second_order = _load_wang_second_order()
+    q_name = "q-00010"
+    # Reference wang_dnac/ddnac are computed at py_derivative_q, not py_qpoints
+    q_red = load_q_tensor(root, q_name, "py_derivative_q").flatten()
+    phonon = HarmonicWithQ(
+        q_point=q_red,
+        second=second_order,
+        storage="memory",
+        nac_method="wang",
+        q_index=int(q_name.split("-")[1]),
+    )
+    actual = phonon._calculate_wang_derivative_dynamical_matrix(return_debug_data=True)["wang_dnac"]
+    expected = _load_wang_binary_tensor(root, q_name, "wang_dnac")
+    diff = compare_tensors("wang_dnac", actual, expected)
+    assert diff.max_abs_diff < 1e-8, format_tensor_diff("wang_dnac", q_name, actual, expected)
+
+
+def test_wang_ddnac_matches_debug_reference():
+    root = require_wang_att3_debug()
+    second_order = _load_wang_second_order()
+    q_name = "q-00020"
+    # Reference wang_dnac/ddnac are computed at py_derivative_q, not py_qpoints
+    q_red = load_q_tensor(root, q_name, "py_derivative_q").flatten()
+    phonon = HarmonicWithQ(
+        q_point=q_red,
+        second=second_order,
+        storage="memory",
+        nac_method="wang",
+        q_index=int(q_name.split("-")[1]),
+    )
+    actual = phonon._calculate_wang_derivative_dynamical_matrix(return_debug_data=True)["wang_ddnac"]
+    expected = _load_wang_binary_tensor(root, q_name, "wang_ddnac")
+    diff = compare_tensors("wang_ddnac", actual, expected)
+    assert diff.max_abs_diff < 1e-8, format_tensor_diff("wang_ddnac", q_name, actual, expected)
+
+
+def test_wang_derivative_dynmat_matches_debug_reference():
+    root = require_wang_att3_debug()
+    second_order = _load_wang_second_order()
+    q_name = "q-00010"
+    q_red = load_q_tensor(root, q_name, "py_derivative_q").flatten()
+    phonon = HarmonicWithQ(
+        q_point=q_red,
+        second=second_order,
+        storage="memory",
+        nac_method="wang",
+        q_index=int(q_name.split("-")[1]),
+    )
+    actual = phonon._calculate_wang_derivative_dynamical_matrix(return_debug_data=True)[
+        "wang_derivative_dynmat"
+    ]
+    expected = _load_wang_binary_tensor(root, q_name, "wang_derivative_dynmat_after_hermitian")
+    diff = compare_tensors("wang_derivative_dynmat", actual, expected)
     assert diff.max_abs_diff < 1e-8, format_tensor_diff(
-        "dynamical_matrix", q_name, debug_data["dynamical_matrix"], expected
+        "wang_derivative_dynmat", q_name, actual, expected
     )

@@ -272,7 +272,15 @@ def _wang_charge_sum(born, nac_factor, dielectric_contraction, supercell_multipl
     ).reshape(n_atom * n_atom, 3, 3)
 
 
-def _wang_assemble_dynamical_matrix(fc, q_red, svecs, multi, masses, s2p_map, p2s_map):
+def _wang_dA_terms(born):
+    return np.transpose(born, (0, 2, 1))
+
+
+def _wang_dC_terms(q_cart, dielectric):
+    return (dielectric + dielectric.T) @ q_cart
+
+
+def _wang_assemble_dynamical_matrix(fc, q_red, svecs, multi, masses, s2p_map, p2s_map, prim_positions_frac):
     num_patom = len(p2s_map)
     num_satom = len(s2p_map)
     dm = np.zeros((num_patom * 3, num_patom * 3), dtype=np.complex128)
@@ -293,6 +301,35 @@ def _wang_assemble_dynamical_matrix(fc, q_red, svecs, multi, masses, s2p_map, p2
             local *= conversion / np.sqrt(masses[i] * masses[j])
             dm[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] = local
     return (dm + dm.conj().T) / 2
+
+
+def _wang_assemble_velocity_matrix(fc, q_red, svecs, multi, masses, s2p_map, p2s_map, cell, prim_positions_frac):
+    """Assemble the Wang velocity matrix using the traced plain-svec convention."""
+    num_patom = len(p2s_map)
+    num_satom = len(s2p_map)
+    conversion = units.mol / (10 * units.J)
+    n_modes = num_patom * 3
+    M = np.zeros((3, n_modes, n_modes), dtype=np.complex128)
+    for i in range(num_patom):
+        for j in range(num_patom):
+            local = np.zeros((3, 3, 3), dtype=np.complex128)  # (alpha, 3x3 block)
+            for k in range(num_satom):
+                if s2p_map[k] != p2s_map[j]:
+                    continue
+                multiplicity = int(multi[k, i, 0])
+                start = int(multi[k, i, 1])
+                weighted = np.zeros(3, dtype=np.complex128)  # per Cartesian direction
+                for ll in range(multiplicity):
+                    R_l_cart = svecs[start + ll] @ cell  # Cartesian (Bohr)
+                    phase = float(np.dot(q_red, svecs[start + ll]) * 2 * np.pi)
+                    e_phase = np.cos(phase) + 1j * np.sin(phase)
+                    weighted += R_l_cart * e_phase / multiplicity
+                for alpha in range(3):
+                    local[alpha] += fc[i, k] * weighted[alpha]
+            scale = conversion / np.sqrt(masses[i] * masses[j])
+            for alpha in range(3):
+                M[alpha, i * 3:i * 3 + 3, j * 3:j * 3 + 3] = local[alpha] * scale
+    return M
 
 
 class HarmonicWithQ(Observable, Storable):
@@ -402,6 +439,22 @@ class HarmonicWithQ(Observable, Storable):
         return Path(self.nac_debug_folder) / ("q_" + "_".join(label_parts))
 
     def _gonze_save_debug(self, folder, arrays):
+        if not self.nac_debug:
+            return
+        folder = Path(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, value in arrays.items():
+            np.save(folder / f"{name}.npy", value)
+
+    def _wang_debug_static_folder(self):
+        return Path(self.nac_debug_folder) / "static"
+
+    def _wang_debug_q_folder(self):
+        if self.q_index is not None:
+            return Path(self.nac_debug_folder) / f"q-{int(self.q_index):05d}"
+        return self._gonze_debug_q_folder()
+
+    def _save_wang_debug(self, folder, arrays):
         if not self.nac_debug:
             return
         folder = Path(folder)
@@ -621,7 +674,7 @@ class HarmonicWithQ(Observable, Storable):
         # then all images of atom 1, etc.
         mapping["p2s_map"] = np.arange(n_atom, dtype=int)
         mapping["s2p_map"] = np.repeat(np.arange(n_atom, dtype=int), supercell_multiplicity)
-        return {
+        data = {
             "born": born,
             "dielectric": dielectric,
             "reciprocal_lattice": reciprocal_lattice,
@@ -632,6 +685,21 @@ class HarmonicWithQ(Observable, Storable):
             "force_constants": fc,
             "mapping": mapping,
         }
+        self._save_wang_debug(
+            self._wang_debug_static_folder(),
+            {
+                "born": born,
+                "dielectric": dielectric,
+                "reciprocal_lattice": reciprocal_lattice,
+                "masses": masses,
+                "force_constants": fc,
+                "svecs": mapping["svecs"],
+                "multi": mapping["multi"],
+                "p2s_map": mapping["p2s_map"],
+                "s2p_map": mapping["s2p_map"],
+            },
+        )
+        return data
 
     def _calculate_wang_dynamical_matrix(self, return_debug_data=False):
         static_data = self._build_wang_static_data()
@@ -668,6 +736,9 @@ class HarmonicWithQ(Observable, Storable):
             )
             for k, primitive_index in enumerate(static_data["mapping"]["s2p_map"]):
                 fc[:, k] += correction[:, primitive_index]
+        prim_positions_frac = np.array(
+            self.second.atoms.get_scaled_positions(), dtype=float, copy=True
+        )
         dm = _wang_assemble_dynamical_matrix(
             fc,
             q_red,
@@ -676,6 +747,42 @@ class HarmonicWithQ(Observable, Storable):
             masses,
             static_data["mapping"]["s2p_map"],
             static_data["mapping"]["p2s_map"],
+            prim_positions_frac,
+        )
+        self._save_wang_debug(
+            self._wang_debug_q_folder(),
+            {
+                "q_red": q_red,
+                "q_cart": np.zeros(3, dtype=float) if q_cart is None else q_cart,
+                "q_direction_red": np.zeros(3, dtype=float)
+                if self.nac_q_direction is None
+                else np.asarray(self.nac_q_direction, dtype=float),
+                "q_direction_cart": np.zeros(3, dtype=float)
+                if q_cart is None
+                else q_cart,
+                "wang_q_norm": np.array(
+                    0.0 if q_cart is None else np.linalg.norm(q_cart),
+                    dtype=float,
+                ),
+                "wang_C_term": np.array(
+                    0.0 if dielectric_contraction is None else dielectric_contraction,
+                    dtype=float,
+                ),
+                "wang_A_terms": np.zeros((n_atom, 3), dtype=float)
+                if charge_terms is None
+                else charge_terms,
+                "wang_nac_prefactor": np.array(
+                    0.0
+                    if dielectric_contraction in (None, 0.0)
+                    else float(static_data["nac_factor"])
+                    / float(static_data["supercell_multiplicity"])
+                    / float(dielectric_contraction),
+                    dtype=float,
+                ),
+                "wang_charge_sum": charge_sum,
+                "wang_dynmat_before_hermitian": dm,
+                "wang_dynmat_after_hermitian": dm,
+            },
         )
         if return_debug_data:
             return {
@@ -687,6 +794,204 @@ class HarmonicWithQ(Observable, Storable):
                 "charge_terms": charge_terms,
             }
         return dm
+
+    def _calculate_wang_derivative_dynamical_matrix(self, return_debug_data=False):
+        static_data = self._build_wang_static_data()
+        q_red = np.asarray(self.q_point, dtype=float)
+        q_cart = _wang_q_cart(q_red, static_data["reciprocal_lattice"])
+        masses = static_data["masses"]
+        n_atom = len(masses)
+        born = static_data["born"]
+
+        # Wang DM is built from calculate_dynmat_fourier (non-unfolded), so its derivative must
+        # also use the non-unfolded path to remain consistent with the eigenvectors.
+        _sr_deriv = self.calculate_dynmat_derivatives
+
+        # At Gamma, use nac_q_direction for NAC contribution; if unavailable, skip NAC derivative
+        if np.linalg.norm(q_cart) < 1e-5:
+            if self.nac_q_direction is not None and np.linalg.norm(self.nac_q_direction) > 1e-10:
+                nac_q_red = np.asarray(self.nac_q_direction, dtype=float)
+                q_cart = _wang_q_cart(nac_q_red, static_data["reciprocal_lattice"])
+            else:
+                dD_SR = np.array(
+                    [np.asarray(_sr_deriv(direction=k)) for k in range(3)],
+                    dtype=np.complex128,
+                )
+                dnac = np.zeros((n_atom, n_atom, 3, 3), dtype=np.float64)
+                ddnac = np.zeros((3, n_atom, n_atom, 3, 3), dtype=np.float64)
+                if return_debug_data:
+                    return {"wang_dnac": dnac, "wang_ddnac": ddnac, "wang_derivative_dynmat": dD_SR}
+                return dD_SR
+
+        C_term = _wang_dielectric_contraction(q_cart, static_data["dielectric"])
+        A_terms = _wang_charge_terms(q_cart, static_data["born"])
+        dA = _wang_dA_terms(born)
+        dC = _wang_dC_terms(q_cart, static_data["dielectric"])
+        prefactor = float(static_data["nac_factor"]) / float(static_data["supercell_multiplicity"]) / C_term
+        dnac = np.zeros((n_atom, n_atom, 3, 3), dtype=np.float64)
+        ddnac = np.zeros((3, n_atom, n_atom, 3, 3), dtype=np.float64)
+        for i in range(n_atom):
+            for j in range(n_atom):
+                mass = np.sqrt(masses[i] * masses[j])
+                dnac[i, j] = prefactor / mass * np.outer(A_terms[i], A_terms[j])
+                for k in range(3):
+                    numerator = (
+                        np.outer(dA[i, :, k], A_terms[j])
+                        + np.outer(A_terms[i], dA[j, :, k])
+                        - np.outer(A_terms[i], A_terms[j]) * dC[k] / C_term
+                    )
+                    ddnac[k, i, j] = prefactor / mass * numerator
+
+        # Assemble the derivative dynamical matrix in phonopy's raw FC convention.
+        # This follows phonopy.harmonic.derivative_dynmat.DerivativeOfDynamicalMatrix._run_py
+        # for Wang NAC instead of reusing kALDo's legacy derivative path, which is in a
+        # different unit/convention space.
+        mapping = static_data["mapping"]
+        svecs = mapping["svecs"]
+        multi = mapping["multi"]
+        s2p_map = mapping["s2p_map"]
+        p2s_map = mapping["p2s_map"]
+        n_satom = len(s2p_map)
+        cell_angstrom = np.array(self.second.atoms.cell.array, dtype=float, copy=True)
+        reciprocal_lattice_angstrom = np.linalg.inv(cell_angstrom)
+        q_red_nac = q_red
+        if np.linalg.norm(np.asarray(self.q_point, dtype=float)) < 1e-10 and self.nac_q_direction is not None:
+            q_red_nac = np.asarray(self.nac_q_direction, dtype=float)
+        q_cart_angstrom = reciprocal_lattice_angstrom @ q_red_nac
+
+        fc_raw = np.array(
+            static_data["force_constants"] / (units.Rydberg / units.Bohr ** 2),
+            dtype=np.float64,
+            copy=False,
+        )
+        nac_scale = float(static_data["nac_factor"]) / float(static_data["supercell_multiplicity"])
+        B_term = float(np.dot(q_cart_angstrom, static_data["dielectric"] @ q_cart_angstrom))
+        A_terms_raw = np.einsum("nab,a->nb", born, q_cart_angstrom)
+        dB_terms_raw = 2.0 * (static_data["dielectric"] @ q_cart_angstrom)
+        fc_nac_raw = np.zeros((n_atom, n_atom, 3, 3), dtype=np.float64)
+        d_nac_raw = np.zeros((3, n_atom, n_atom, 3, 3), dtype=np.float64)
+        if B_term != 0.0:
+            for i in range(n_atom):
+                for j in range(n_atom):
+                    fc_nac_raw[i, j] = np.outer(A_terms_raw[i], A_terms_raw[j]) * nac_scale / B_term
+                    for axis in range(3):
+                        dA_i = born[i, axis, :]
+                        dA_j = born[j, axis, :]
+                        d_nac_raw[axis, i, j] = (
+                            (np.outer(dA_i, A_terms_raw[j]) + np.outer(A_terms_raw[i], dA_j)) / B_term
+                            - np.outer(A_terms_raw[i], A_terms_raw[j]) * dB_terms_raw[axis] / (B_term ** 2)
+                        ) * nac_scale
+
+        derivative_dynmat = np.zeros((3, self.n_modes, self.n_modes), dtype=np.complex128)
+        for i in range(n_atom):
+            for j in range(n_atom):
+                s_i = int(p2s_map[i])
+                s_j = int(p2s_map[j])
+                mass = np.sqrt(masses[i] * masses[j])
+                local = np.zeros((3, 3, 3), dtype=np.complex128)
+                for k_sat in range(n_satom):
+                    if s_j != s2p_map[k_sat]:
+                        continue
+                    multiplicity = multi[k_sat, i]
+                    count = int(multiplicity[0])
+                    start = int(multiplicity[1])
+                    vecs_multi = svecs[start : start + count]
+                    phase_multi = np.exp(
+                        [np.vdot(vec, q_red) * 2j * np.pi for vec in vecs_multi]
+                    )
+                    vecs_multi_cart = np.dot(vecs_multi, cell_angstrom)
+                    coef = 2j * np.pi * vecs_multi_cart
+                    fc_elem = fc_raw[s_i, k_sat] + fc_nac_raw[i, j]
+                    phase_sum = phase_multi.sum()
+                    for axis in range(3):
+                        ddm_elem = fc_elem * (
+                            coef[:, axis][:, None, None] * phase_multi[:, None, None]
+                        ).sum(axis=0)
+                        ddm_elem += d_nac_raw[axis, i, j] * phase_sum
+                        local[axis] += ddm_elem / mass / count
+                derivative_dynmat[:, i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] = local
+        derivative_dynmat = np.array(
+            [
+                (derivative_dynmat[axis] + derivative_dynmat[axis].conj().T) / 2
+                for axis in range(3)
+            ],
+            dtype=np.complex128,
+        )
+        self._save_wang_debug(
+            self._wang_debug_q_folder(),
+            {
+                "wang_derivative_q_cart": q_cart,
+                "wang_dA_terms": dA,
+                "wang_dC_terms": dC,
+                "wang_dnac": dnac,
+                "wang_ddnac": ddnac,
+                "wang_derivative_dynmat_after_hermitian": derivative_dynmat,
+            },
+        )
+
+        if return_debug_data:
+            return {
+                "wang_dnac": dnac,
+                "wang_ddnac": ddnac,
+                "wang_derivative_dynmat": derivative_dynmat,
+            }
+        return derivative_dynmat
+
+    def _calculate_wang_velocity_data(self):
+        static_data = self._build_wang_static_data()
+        q_red = np.asarray(self.q_point, dtype=float)
+        q_cart = _wang_q_cart(q_red, static_data["reciprocal_lattice"])
+        nac_q_red = q_red
+        if np.linalg.norm(q_cart) < 1e-5:
+            nac_q_red = self.nac_q_direction if self.nac_q_direction is not None else None
+        fc_corrected = np.array(static_data["force_constants"], dtype=np.complex128, copy=True)
+        if nac_q_red is not None and np.linalg.norm(nac_q_red) > 1e-10:
+            nac_q_cart = _wang_q_cart(nac_q_red, static_data["reciprocal_lattice"])
+            dielectric_contraction = _wang_dielectric_contraction(nac_q_cart, static_data["dielectric"])
+            if dielectric_contraction != 0.0:
+                charge_terms = _wang_charge_terms(nac_q_cart, static_data["born"])
+                charge_sum = _wang_charge_sum(
+                    static_data["born"], static_data["nac_factor"], dielectric_contraction,
+                    static_data["supercell_multiplicity"], charge_terms,
+                )
+                correction = np.array(
+                    charge_sum.reshape(len(static_data["masses"]), len(static_data["masses"]), 3, 3)
+                    * (units.Rydberg / units.Bohr ** 2),
+                    dtype=np.complex128,
+                    copy=True,
+                )
+                s2p_map = static_data["mapping"]["s2p_map"]
+                for k, prim_idx in enumerate(s2p_map):
+                    fc_corrected[:, k] += correction[:, prim_idx]
+        cell = np.array(self.second.atoms.cell.array, dtype=float, copy=True) / units.Bohr
+        prim_positions_frac = np.array(self.second.atoms.get_scaled_positions(), dtype=float, copy=True)
+        mapping = static_data["mapping"]
+        M = _wang_assemble_velocity_matrix(
+            fc_corrected, q_red, mapping["svecs"], mapping["multi"],
+            static_data["masses"], mapping["s2p_map"], mapping["p2s_map"], cell,
+            prim_positions_frac,
+        )
+        eigensystem = np.asarray(self._eigensystem)
+        eigvecs = eigensystem[1:, :]
+        frequency = self.frequency[0]
+        n_modes = self.n_modes
+        velocity = np.zeros((n_modes, 3), dtype=float)
+        for alpha in range(3):
+            sij = np.conj(eigvecs).T @ M[alpha] @ eigvecs
+            for n in range(n_modes):
+                if abs(frequency[n]) < 1e-12:
+                    continue
+                velocity[n, alpha] = -float(np.imag(sij[n, n])) / (4 * np.pi * float(frequency[n]))
+        self._save_wang_debug(
+            self._wang_debug_q_folder(),
+            {
+                "group_velocity_eigvals": eigensystem[0].real,
+                "group_velocity_eigvecs": eigvecs,
+                "group_velocity_freqs": frequency,
+                "group_velocities": velocity,
+            },
+        )
+        return velocity[np.newaxis, ...]
 
     @lazy_property(label='<q_point>')
     def frequency(self):
@@ -819,7 +1124,7 @@ class HarmonicWithQ(Observable, Storable):
                                                       complex)),
                                               backend='tensorflow')
         dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
-        if self.is_nac:
+        if self.is_nac and self.nac_method != 'wang':
             dynmat_derivatives += self.nac_derivatives(direction=direction)
         return dynmat_derivatives
 
@@ -853,6 +1158,8 @@ class HarmonicWithQ(Observable, Storable):
         return sij
 
     def calculate_velocity(self):
+        if self.nac_method == 'wang':
+            return self._calculate_wang_velocity_data()
         if self.nac_method == 'gonze':
             raise NotImplementedError(
                 "Gonze-Lee velocity derivatives are not implemented yet; "
@@ -967,6 +1274,13 @@ class HarmonicWithQ(Observable, Storable):
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         if self.nac_method == 'gonze':
             dyn_s = self._calculate_gonze_dynamical_matrix()
+            if only_eigenvals:
+                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
+            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
+            return tf.convert_to_tensor(esystem)
+        if self.nac_method == 'wang':
+            dyn_s = self._calculate_wang_dynamical_matrix()
             if only_eigenvals:
                 return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
             eigenvals, eigenvects = np.linalg.eigh(dyn_s)
@@ -1087,7 +1401,7 @@ class HarmonicWithQ(Observable, Storable):
         ddyn_s = ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
         # Apply correction for Born effective charges, if detected
-        if self.is_nac:
+        if self.is_nac and self.nac_method != 'wang':
             ddyn_s += self.nac_derivatives(direction=direction)
         return ddyn_s
 
