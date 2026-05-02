@@ -177,6 +177,51 @@ def test_gonze_frequency_calculation_returns_real_frequencies(nac_second_order, 
     assert (tmp_path / "debug" / "q-00005" / "frequencies.npy").exists()
 
 
+def test_gonze_eigensystem_uses_numpy_arrays(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+    )
+    eigenvalues = phonon.calculate_eigensystem(only_eigenvals=True)
+    eigensystem = phonon.calculate_eigensystem(only_eigenvals=False)
+    assert isinstance(eigenvalues, np.ndarray)
+    assert isinstance(eigensystem, np.ndarray)
+    assert eigenvalues.shape == (6,)
+    assert eigensystem.shape == (7, 6)
+
+
+def test_gonze_batched_q_dynamical_matrices_match_scalar_path(nac_second_order):
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.1, 0.0, 0.1]),
+        second=nac_second_order,
+        storage="memory",
+        nac_method="gonze",
+    )
+    static_data = phonon._build_gonze_static_data()
+    mapping = phonon._build_gonze_short_range_inputs(static_data)
+    q_reds = np.array(
+        [
+            phonon.q_point,
+            phonon.q_point + np.array([1e-5, 0.0, 0.0]),
+            phonon.q_point - np.array([0.0, 1e-5, 0.0]),
+        ],
+        dtype=float,
+    )
+
+    batched = phonon._calculate_gonze_dynamical_matrices_for_qs(
+        q_reds,
+        static_data,
+        mapping,
+    )
+
+    assert batched.shape == (len(q_reds), 6, 6)
+    for index, q_red in enumerate(q_reds):
+        expected = phonon._calculate_gonze_dynamical_matrix_for_q(q_red, static_data, mapping)
+        np.testing.assert_allclose(batched[index], expected, rtol=1e-10, atol=1e-10)
+
+
 def test_second_order_gonze_short_range_force_constants_use_lazy_numpy_cache(
     nac_second_order, tmp_path, monkeypatch
 ):

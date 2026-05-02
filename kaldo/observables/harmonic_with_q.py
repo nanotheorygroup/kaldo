@@ -15,6 +15,7 @@ from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.observables.secondorder import (
     normalize_bvk_supercell_matrix,
+    _ensure_gonze_kernel_cache as _shared_ensure_gonze_kernel_cache,
     _dielectric_part as _shared_dielectric_part,
     _get_minimum_g_rad as _shared_get_minimum_g_rad,
     _get_g_vec_list as _shared_get_g_vec_list,
@@ -28,6 +29,7 @@ from kaldo.observables.secondorder import (
     _real_dipole_dipole as _shared_real_dipole_dipole,
     _mass_weight as _shared_mass_weight,
     _short_range_dynamical_matrix as _shared_short_range_dynamical_matrix,
+    _gonze_dynamical_matrices as _shared_gonze_dynamical_matrices,
 )
 # from numpy.linalg import eigh
 
@@ -112,57 +114,33 @@ def _gonze_get_g_list(reciprocal_lattice, g_cutoff):
 
 
 def _gonze_multiply_borns(dd_in, born):
-    num_atom = born.shape[0]
-    dd = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
-    for i in range(num_atom):
-        for j in range(num_atom):
-            dd[i, :, j, :] = born[i].T @ dd_in[i, :, j, :] @ born[j]
-    return dd
+    return _shared_multiply_borns(dd_in, born)
 
 
 def _gonze_get_dd_base(
     g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
 ):
-    num_atom = positions.shape[0]
-    dd_part = np.zeros((num_atom, 3, num_atom, 3), dtype=np.complex128)
-    l2 = 4 * lambda_ * lambda_
-    for g_vec in g_list:
-        q_k = g_vec + q_cart
-        norm = np.linalg.norm(q_k)
-        if norm < tolerance:
-            if q_direction_cart is None:
-                continue
-            denom = _gonze_dielectric_part(q_direction_cart, dielectric)
-            kk = np.outer(q_direction_cart, q_direction_cart) / denom
-        else:
-            denom = _gonze_dielectric_part(q_k, dielectric)
-            kk = np.outer(q_k, q_k) / denom * np.exp(-denom / l2)
-        for i in range(num_atom):
-            for j in range(num_atom):
-                phase = float(np.dot(positions[i] - positions[j], g_vec) * 2 * np.pi)
-                dd_part[i, :, j, :] += kk * (np.cos(phase) + 1j * np.sin(phase))
-    return dd_part
+    return _shared_get_dd_base(
+        g_list,
+        q_cart,
+        q_direction_cart,
+        dielectric,
+        positions,
+        lambda_,
+        tolerance,
+    )
 
 
 def _gonze_recip_dipole_dipole_q0(
     g_list, born, dielectric, positions, lambda_, tolerance
 ):
-    zero = np.zeros(3, dtype="double")
-    dd_tmp1 = _gonze_get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
-    dd_tmp2 = _gonze_multiply_borns(dd_tmp1, born)
-    num_atom = positions.shape[0]
-    dd_q0 = np.zeros((num_atom, 3, 3), dtype=np.complex128)
-    for i in range(num_atom):
-        dd_q0[i] = dd_tmp2[i, :, :, :].sum(axis=1)
-    for i in range(num_atom):
-        dd_q0[i] = (dd_q0[i] + dd_q0[i].conj().T) / 2
-    return dd_q0
+    return _shared_recip_dipole_dipole_q0(
+        g_list, born, dielectric, positions, lambda_, tolerance
+    )
 
 
 def _gonze_limiting_dipole_dipole(dielectric, lambda_):
-    inv_eps = np.linalg.inv(dielectric)
-    sqrt_det_eps = np.sqrt(np.linalg.det(dielectric))
-    return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_ ** 3
+    return _shared_limiting_dipole_dipole(dielectric, lambda_)
 
 
 def _gonze_recip_dipole_dipole(
@@ -178,68 +156,35 @@ def _gonze_recip_dipole_dipole(
     tolerance,
     pair_phase=None,
 ):
-    dd_tmp = _gonze_get_dd_base(
-        g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+    return _shared_recip_dipole_dipole(
+        dd_q0,
+        g_list,
+        q_cart,
+        q_direction_cart,
+        born,
+        dielectric,
+        positions,
+        factor,
+        lambda_,
+        tolerance,
+        pair_phase=pair_phase,
     )
-    dd = _gonze_multiply_borns(dd_tmp, born)
-    num_atom = positions.shape[0]
-    for i in range(num_atom):
-        dd[i, :, i, :] -= dd_q0[i]
-    return dd * factor
 
 
 def _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_):
-    cart_vecs = svecs @ supercell_cell
-    eps_inv = np.linalg.inv(dielectric)
-    delta = cart_vecs @ eps_inv.T
-    d_norm = np.sqrt((cart_vecs * delta).sum(axis=1))
-    x = lambda_ * delta
-    y = lambda_ * d_norm
-    condition = y < 1e-10
-    y_safe = y.copy()
-    y_safe[condition] = 1.0
-    y2 = y_safe ** 2
-    y3 = y_safe ** 3
-    exp_y2 = np.exp(-y2)
-    erfc_y = np.vectorize(math.erfc)(y_safe)
-    a = np.where(
-        condition,
-        0.0,
-        (3 * erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 * (3 / y2 + 2)) / y2,
-    )
-    b = np.where(condition, 0.0, erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 / y2)
-    h = np.zeros((3, 3, len(y_safe)), dtype="double", order="C")
-    for i in range(3):
-        for j in range(3):
-            h[i, j, :] = x[:, i] * x[:, j] * a - eps_inv[i, j] * b
-    return h
+    return _shared_h_tensor(supercell_cell, svecs, dielectric, lambda_)
 
 
 def _gonze_real_dipole_dipole(
     q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
 ):
-    num_satom, num_patom = multi.shape[:2]
-    phase_all = np.exp(2j * np.pi * (svecs @ q_red))
-    h = _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_)
-    vals = -(lambda_ ** 3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
-    c_real = np.zeros((num_patom, 3, num_patom, 3), dtype=np.complex128)
-    for i_s in range(num_satom):
-        for i_p in range(num_patom):
-            multiplicity = int(multi[i_s, i_p, 0])
-            start = int(multi[i_s, i_p, 1])
-            block = vals[:, :, start]
-            c_real[s2pp_map[i_s], :, i_p, :] += (
-                block + block.conj().T
-            ) / 2 / multiplicity
-    return c_real
+    return _shared_real_dipole_dipole(
+        q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+    )
 
 
 def _gonze_mass_weight(fc_term, masses):
-    out = np.array(fc_term, dtype=np.complex128, copy=True)
-    for i in range(len(masses)):
-        for j in range(len(masses)):
-            out[i, :, j, :] /= np.sqrt(masses[i] * masses[j])
-    return out.reshape(len(masses) * 3, len(masses) * 3)
+    return _shared_mass_weight(fc_term, masses)
 
 
 def _gonze_short_range_dynamical_matrix(
@@ -253,28 +198,17 @@ def _gonze_short_range_dynamical_matrix(
     phase_weights=None,
     target_mask=None,
 ):
-    num_patom = len(p2s_map)
-    num_satom = len(s2p_map)
-    dm = np.zeros((num_patom * 3, num_patom * 3), dtype=np.complex128)
-    is_compact_fc = fc.shape[0] != fc.shape[1]
-    for i in range(num_patom):
-        for j in range(num_patom):
-            local = np.zeros((3, 3), dtype=np.complex128)
-            for k in range(num_satom):
-                if s2p_map[k] != p2s_map[j]:
-                    continue
-                multiplicity = int(multi[k, i, 0])
-                start = int(multi[k, i, 1])
-                phase_factor = 0.0j
-                for ll in range(multiplicity):
-                    phase = float(np.dot(q_red, svecs[start + ll]) * 2 * np.pi)
-                    phase_factor += np.cos(phase) + 1j * np.sin(phase)
-                phase_factor /= multiplicity
-                fc_i = i if is_compact_fc else p2s_map[i]
-                local += fc[fc_i, k] * phase_factor
-            local /= np.sqrt(masses[i] * masses[j])
-            dm[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] = local
-    return (dm + dm.conj().T) / 2
+    return _shared_short_range_dynamical_matrix(
+        fc,
+        q_red,
+        svecs,
+        multi,
+        masses,
+        s2p_map,
+        p2s_map,
+        phase_weights=phase_weights,
+        target_mask=target_mask,
+    )
 
 
 class HarmonicWithQ(Observable, Storable):
@@ -341,6 +275,7 @@ class HarmonicWithQ(Observable, Storable):
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
         self.q_index = q_index
         self._gonze_nac_precomputed = gonze_nac_precomputed
+        self._gonze_runtime_cache = {}
         if self.nac_method == "gonze" and self._gonze_nac_precomputed is None:
             self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
                 self._resolve_gonze_bvk_supercell_matrix()
@@ -421,15 +356,11 @@ class HarmonicWithQ(Observable, Storable):
         return np.diag(supercell)
 
     def _calculate_gonze_dynamical_matrix_for_q(self, q_red, _static_data=None, _mapping=None):
-        original_q_point = np.array(self.q_point, dtype=float, copy=True)
-        original_debug = self.nac_debug
-        self.q_point = np.array(q_red, dtype=float, copy=True)
-        self.nac_debug = False
-        try:
-            return self._calculate_gonze_dynamical_matrix(_static_data, _mapping)
-        finally:
-            self.q_point = original_q_point
-            self.nac_debug = original_debug
+        return self._calculate_gonze_dynamical_matrices_for_qs(
+            np.array([q_red], dtype=float),
+            _static_data,
+            _mapping,
+        )[0]
 
     def _calculate_gonze_velocity_direction_data(self, direction_index, static_data, _mapping=None):
         if direction_index not in range(4):
@@ -457,6 +388,74 @@ class HarmonicWithQ(Observable, Storable):
             "delta_dm": delta_dm,
             "ddm_fd": ddm_fd,
         }
+
+    def _ensure_gonze_runtime_data(self, static_data, mapping):
+        static_data, mapping = _shared_ensure_gonze_kernel_cache(static_data, mapping)
+        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
+        current_getter = self.second.get_gonze_short_range_force_constants
+        getter_identity = getattr(current_getter, "__func__", current_getter)
+        fc_cache = self._gonze_runtime_cache.get("fc_short")
+        if (
+            fc_cache is None
+            or fc_cache["getter_identity"] is not getter_identity
+        ):
+            fc_short = current_getter(effective_matrix)
+            fc_cache = {
+                "getter_identity": getter_identity,
+                "fc_short": fc_short,
+                "fc_short_converted": fc_short * static_data["gonze_conversion"],
+            }
+            self._gonze_runtime_cache["fc_short"] = fc_cache
+        static_data["fc_short"] = fc_cache["fc_short"]
+        static_data["fc_short_converted"] = fc_cache["fc_short_converted"]
+        return static_data, mapping
+
+    def _gonze_q_direction_carts(self, q_reds, static_data):
+        q_reds = np.atleast_2d(np.array(q_reds, dtype=float, copy=False))
+        reciprocal_lattice = static_data["reciprocal_lattice"]
+        q_carts = np.einsum("ab,qb->qa", reciprocal_lattice, q_reds, optimize=True)
+        q_direction_carts = np.array(q_carts, dtype=float, copy=True)
+        inactive = np.linalg.norm(q_carts, axis=1) < static_data["q_direction_tolerance"]
+        if np.any(inactive):
+            nac_direction_cart = reciprocal_lattice @ self.nac_q_direction
+            q_direction_carts[inactive] = nac_direction_cart
+        return q_carts, q_direction_carts
+
+    def _calculate_gonze_dynamical_matrices_for_qs(
+        self,
+        q_reds,
+        _static_data=None,
+        _mapping=None,
+    ):
+        static_data = _static_data if _static_data is not None else self._build_gonze_static_data()
+        mapping = _mapping if _mapping is not None else self._build_gonze_short_range_inputs(static_data)
+        static_data, mapping = self._ensure_gonze_runtime_data(static_data, mapping)
+        q_reds = np.atleast_2d(np.array(q_reds, dtype=float, copy=False))
+        q_carts, q_direction_carts = self._gonze_q_direction_carts(q_reds, static_data)
+        dm_final = _shared_gonze_dynamical_matrices(
+            q_reds,
+            static_data,
+            mapping,
+            q_direction_carts=q_direction_carts,
+            fc=static_data["fc_short_converted"],
+        )
+        if self.nac_debug and len(q_reds) == 1:
+            q_red = q_reds[0]
+            q_cart = q_carts[0]
+            eigvals = np.linalg.eigvalsh(dm_final[0]).real
+            frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
+            self._gonze_save_debug(
+                self._gonze_debug_q_folder(),
+                {
+                    "q_red": q_red,
+                    "q_cart": q_cart,
+                    "q_direction_cart": q_direction_carts[0],
+                    "dm_final": dm_final[0],
+                    "eigenvalues": eigvals,
+                    "frequencies": frequencies,
+                },
+            )
+        return dm_final
 
     def _project_gonze_group_velocity_raw(self, ddms, eigenvectors, frequencies):
         """Project ddm_fd tensors onto eigenmodes with degenerate perturbation theory.
@@ -496,7 +495,16 @@ class HarmonicWithQ(Observable, Storable):
         mapping = self._build_gonze_short_range_inputs(static_data)
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_cart = static_data["reciprocal_lattice"] @ q_red
-        dm_q_kaldo = self._calculate_gonze_dynamical_matrix(static_data, mapping)
+        q_samples = [q_red]
+        direction_payloads = []
+        for direction_cart in GONZE_VELOCITY_DIRECTIONS_CART:
+            dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
+            dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
+            direction_payloads.append((direction_cart, dq_cart, dq_red))
+            q_samples.extend((q_red - dq_red, q_red + dq_red))
+        q_samples = np.array(q_samples, dtype=float)
+        dm_all_kaldo = self._calculate_gonze_dynamical_matrices_for_qs(q_samples, static_data, mapping)
+        dm_q_kaldo = dm_all_kaldo[0]
         dm_q = _gonze_to_phonopy_dm(dm_q_kaldo)
         eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
         eigenvalues = eigenvalues.real
@@ -509,9 +517,20 @@ class HarmonicWithQ(Observable, Storable):
             GONZE_VELOCITY_Q_LENGTH,
         )
         directions = {}
-        for index in range(4):
+        for index, (direction_cart, dq_cart, dq_red) in enumerate(direction_payloads):
             direction_name = f"d{index}"
-            direction_data = self._calculate_gonze_velocity_direction_data(index, static_data, mapping)
+            dm_minus = _gonze_to_phonopy_dm(dm_all_kaldo[1 + 2 * index])
+            dm_plus = _gonze_to_phonopy_dm(dm_all_kaldo[2 + 2 * index])
+            delta_dm = dm_plus - dm_minus
+            direction_data = {
+                "direction_cart": np.array(direction_cart, dtype=float, copy=True),
+                "dq_cart": dq_cart,
+                "dq_red": dq_red,
+                "dm_minus": dm_minus,
+                "dm_plus": dm_plus,
+                "delta_dm": delta_dm,
+                "ddm_fd": delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH),
+            }
             directions[direction_name] = direction_data
             self._gonze_save_debug(self._gonze_debug_q_folder() / direction_name, direction_data)
         ddms = [directions[f"d{i}"]["ddm_fd"] for i in range(4)]
@@ -560,10 +579,10 @@ class HarmonicWithQ(Observable, Storable):
 
     def _build_gonze_static_data(self):
         if self._gonze_nac_precomputed is not None:
-            return dict(self._gonze_nac_precomputed["static_data"])  # shallow copy
+            return self._gonze_nac_precomputed["static_data"]
         matrix = self._resolve_gonze_bvk_supercell_matrix()
-        data = self.second._gonze_build_static_data(matrix)
-        data["nac_bvk_supercell_matrix"] = np.array(matrix, dtype=int)
+        self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(matrix)
+        data = self._gonze_nac_precomputed["static_data"]
         self._gonze_save_debug(
             self._gonze_debug_static_folder(),
             {k: v for k, v in data.items() if k != "q_direction_tolerance"},
@@ -573,130 +592,17 @@ class HarmonicWithQ(Observable, Storable):
     def _build_gonze_short_range_inputs(self, static_data):
         if self._gonze_nac_precomputed is not None:
             return self._gonze_nac_precomputed["mapping"]
-        return self.second._gonze_build_mapping(self._resolve_gonze_bvk_supercell_matrix())
+        self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
+            self._resolve_gonze_bvk_supercell_matrix()
+        )
+        return self._gonze_nac_precomputed["mapping"]
 
     def _calculate_gonze_dynamical_matrix(self, _static_data=None, _mapping=None):
-        static_data = _static_data if _static_data is not None else self._build_gonze_static_data()
-        mapping = _mapping if _mapping is not None else self._build_gonze_short_range_inputs(static_data)
-        masses = static_data["masses"]
-        q_red = np.array(self.q_point, dtype=float, copy=True)
-        q_cart = static_data["reciprocal_lattice"] @ q_red
-        if np.linalg.norm(q_cart) >= static_data["q_direction_tolerance"]:
-            q_direction_cart = q_cart
-        else:
-            q_direction_cart = static_data["reciprocal_lattice"] @ self.nac_q_direction
-
-        recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
-        dd_recip = _gonze_recip_dipole_dipole(
-            recip_dd_q0,
-            static_data["G_list"],
-            q_cart,
-            q_direction_cart,
-            static_data["born"],
-            static_data["dielectric"],
-            static_data["primitive_positions"],
-            float(static_data["nac_factor"]),
-            float(static_data["Lambda"]),
-            float(static_data["q_direction_tolerance"]),
-            pair_phase=static_data.get("pair_phase"),
-        )
-        dd_real = _gonze_real_dipole_dipole(
-            q_red,
-            mapping["svecs"],
-            mapping["multi"],
-            mapping["s2pp_map"],
-            static_data["dielectric"],
-            float(static_data["Lambda"]),
-            mapping.get("svecs_cell", static_data["supercell_cell"]),
-        )
-        dd_limiting_expanded = static_data.get("dd_limiting_expanded")
-        if dd_limiting_expanded is None:
-            dd_limiting_expanded = np.zeros_like(dd_recip)
-            for i in range(len(masses)):
-                dd_limiting_expanded[i, :, i, :] = static_data["dd_limiting"]
-        if "dd_drift" in static_data:
-            dd_drift = static_data["dd_drift"]
-            dd_real_q0 = None
-        else:
-            dd_real_q0_full = _gonze_real_dipole_dipole(
-                np.zeros(3, dtype=float),
-                mapping["svecs"],
-                mapping["multi"],
-                mapping["s2pp_map"],
-                static_data["dielectric"],
-                float(static_data["Lambda"]),
-                mapping.get("svecs_cell", static_data["supercell_cell"]),
-            )
-            dd_real_q0 = dd_real_q0_full.sum(axis=2)
-            dd_drift = (
-                static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
-                + static_data["dd_limiting"] * len(masses)
-                + dd_real_q0
-            )
-        dd_total = dd_recip + dd_limiting_expanded + dd_real
-        diag = np.arange(len(masses))
-        dd_total[diag, :, diag, :] -= dd_drift
-        conversion = units.mol / (10 * units.J)
-        dd_total_mass_weighted = _gonze_mass_weight(dd_total * conversion, masses)
-
-        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
-        fc_short = self.second.get_gonze_short_range_force_constants(effective_matrix)
-        dm_short = _gonze_short_range_dynamical_matrix(
-            fc_short * conversion,
-            q_red,
-            mapping.get("phase_svecs", mapping["svecs"]),
-            mapping["multi"],
-            masses,
-            mapping["s2p_map"],
-            mapping["p2s_map"],
-            phase_weights=mapping.get("phase_weights"),
-            target_mask=mapping.get("target_mask"),
-        )
-        dm_final = dm_short + dd_total_mass_weighted
-        dm_final = (dm_final + dm_final.conj().T) / 2
-        eigvals = np.linalg.eigvalsh(dm_final).real
-        frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
-        static_debug = {k: v for k, v in {
-            "svecs": mapping["svecs"],
-            "multi": mapping["multi"],
-            "multi_counts": mapping["multi"][:, :, 0],
-            "multi_offsets": mapping["multi"][:, :, 1],
-            "s2p_map": mapping["s2p_map"],
-            "p2s_map": mapping["p2s_map"],
-            "s2pp_map": mapping["s2pp_map"],
-            "dd_real_q0": dd_real_q0,
-            "short_range_force_constants": fc_short,
-        }.items() if v is not None}
-        for optional_name in (
-            "phase_svecs",
-            "svecs_cell",
-            "supercell_matrix",
-            "primitive_matrix",
-            "primitive_scaled_positions",
-            "supercell_scaled_positions",
-            "primitive_shifts",
-        ):
-            if optional_name in mapping:
-                static_debug[optional_name] = mapping[optional_name]
-        self._gonze_save_debug(self._gonze_debug_static_folder(), static_debug)
-        self._gonze_save_debug(
-            self._gonze_debug_q_folder(),
-            {
-                "q_red": q_red,
-                "q_cart": q_cart,
-                "q_direction_cart": q_direction_cart,
-                "dd_recip": dd_recip,
-                "dd_real": dd_real,
-                "dd_limiting_expanded": dd_limiting_expanded,
-                "dd_drift": dd_drift,
-                "dd_total_mass_weighted": dd_total_mass_weighted,
-                "dm_short": dm_short,
-                "dm_final": dm_final,
-                "eigenvalues": eigvals,
-                "frequencies": frequencies,
-            },
-        )
-        return dm_final
+        return self._calculate_gonze_dynamical_matrices_for_qs(
+            np.array([self.q_point], dtype=float),
+            _static_data,
+            _mapping,
+        )[0]
 
     @lazy_property(label='<q_point>')
     def frequency(self):
@@ -883,6 +789,13 @@ class HarmonicWithQ(Observable, Storable):
             velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
         return velocity[np.newaxis, ...]
 
+    def _calculate_gonze_eigensystem(self, only_eigenvals=False):
+        dyn_s = self._calculate_gonze_dynamical_matrix()
+        if only_eigenvals:
+            return np.linalg.eigvalsh(dyn_s).real
+        eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+        return np.vstack((eigenvals[np.newaxis, :], eigenvects))
+
     def calculate_dynmat_fourier(self):
         q_point = self.q_point
         distance_threshold = self.distance_threshold
@@ -927,13 +840,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_eigensystem(self, only_eigenvals):
         if self.nac_method == 'gonze':
-            dyn_s = self._calculate_gonze_dynamical_matrix()
-            if only_eigenvals:
-                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
-            log_size(dyn_s.shape, type=complex, name='eigensystem')
-            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
-            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
-            return tf.convert_to_tensor(esystem)
+            return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
         dyn_s = self._dynmat_fourier
         if self.is_nac:
             dyn_lr = self.nac_dynmat(qpoint=None)
@@ -965,12 +872,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         if self.nac_method == 'gonze':
-            dyn_s = self._calculate_gonze_dynamical_matrix()
-            if only_eigenvals:
-                return tf.convert_to_tensor(np.linalg.eigvalsh(dyn_s).real)
-            eigenvals, eigenvects = np.linalg.eigh(dyn_s)
-            esystem = np.vstack((eigenvals[np.newaxis, :], eigenvects))
-            return tf.convert_to_tensor(esystem)
+            return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms
