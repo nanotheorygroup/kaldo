@@ -16,6 +16,7 @@ from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
 from kaldo.grid import Grid
 from opt_einsum import contract
+import spglib
 
 logging = get_logger()
 
@@ -138,6 +139,55 @@ def _get_dd_base(
     return np.einsum("gab,gij->iajb", kk, pair_phase, optimize=True)
 
 
+def _get_dd_base_many(
+    g_list,
+    q_carts,
+    q_direction_carts,
+    dielectric,
+    positions,
+    lambda_,
+    tolerance,
+    pair_phase=None,
+):
+    if pair_phase is None:
+        position_deltas = positions[:, None, :] - positions[None, :, :]
+        phases = 2j * np.pi * np.einsum(
+            "ga,ija->gij",
+            g_list,
+            position_deltas,
+            optimize=True,
+        )
+        pair_phase = np.exp(phases)
+
+    q_carts = np.array(q_carts, dtype=float, copy=False)
+    qk = g_list[np.newaxis, :, :] + q_carts[:, np.newaxis, :]
+    denom = np.einsum("qgi,ij,qgj->qg", qk, dielectric, qk, optimize=True)
+    norms = np.linalg.norm(qk, axis=2)
+    active = norms >= tolerance
+    scale = np.zeros_like(denom, dtype=np.complex128)
+    scale[active] = np.exp(-denom[active] / (4.0 * lambda_ * lambda_)) / denom[active]
+    # Build all reciprocal-space dyads for every q-point and reciprocal vector.
+    kk = np.einsum("qgi,qgj,qg->qgij", qk, qk, scale, optimize=True)
+    if q_direction_carts is not None:
+        q_direction_carts = np.array(q_direction_carts, dtype=float, copy=False)
+        direction_denom = np.einsum(
+            "qi,ij,qj->q",
+            q_direction_carts,
+            dielectric,
+            q_direction_carts,
+            optimize=True,
+        )
+        direction_kk = np.einsum(
+            "qi,qj,q->qij",
+            q_direction_carts,
+            q_direction_carts,
+            1.0 / direction_denom,
+            optimize=True,
+        )
+        kk += (~active)[..., np.newaxis, np.newaxis] * direction_kk[:, np.newaxis, :, :]
+    return np.einsum("qgab,gij->qiajb", kk, pair_phase, optimize=True)
+
+
 def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolerance):
     zero = np.zeros(3, dtype="double")
     dd_tmp1 = _get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
@@ -173,11 +223,56 @@ def _real_dipole_dipole(q_red, svecs, multi, s2pp_map, dielectric, lambda_, supe
     return np.transpose(c_real, (0, 2, 1, 3))
 
 
+def _real_dipole_dipole_many(
+    q_reds,
+    svecs,
+    multi,
+    s2pp_map,
+    dielectric,
+    lambda_,
+    supercell_cell,
+    h_tensor=None,
+    det_scale=None,
+):
+    q_reds = np.array(q_reds, dtype=float, copy=False)
+    if h_tensor is None:
+        h_tensor = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
+    if det_scale is None:
+        det_scale = np.linalg.det(dielectric) ** (-0.5)
+    phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
+    vals = -(lambda_ ** 3) * h_tensor[np.newaxis, :, :, :] * phase_all[:, np.newaxis, np.newaxis, :]
+    vals *= det_scale
+    starts = multi[:, :, 1]
+    multiplicities = multi[:, :, 0].astype(np.float64)
+    gathered = vals[:, :, :, starts]
+    symmetric_blocks = 0.5 * (
+        gathered + np.transpose(gathered.conj(), (0, 2, 1, 3, 4))
+    )
+    contributions = np.transpose(
+        symmetric_blocks / multiplicities[np.newaxis, np.newaxis, np.newaxis, :, :],
+        (0, 3, 4, 1, 2),
+    )
+    num_q = len(q_reds)
+    num_patom = multi.shape[1]
+    c_real = np.zeros((num_q, num_patom, num_patom, 3, 3), dtype=np.complex128)
+    for i_q in range(num_q):
+        np.add.at(c_real[i_q], s2pp_map, contributions[i_q])
+    return np.transpose(c_real, (0, 1, 3, 2, 4))
+
+
 def _mass_weight(fc_term, masses):
     mass_matrix = np.sqrt(np.outer(masses, masses))
     out = np.array(fc_term, dtype=np.complex128, copy=True)
     out /= mass_matrix[:, np.newaxis, :, np.newaxis]
     return out.reshape(len(masses) * 3, len(masses) * 3)
+
+
+def _mass_weight_many(fc_terms, masses, mass_matrix=None):
+    if mass_matrix is None:
+        mass_matrix = np.sqrt(np.outer(masses, masses))
+    out = np.array(fc_terms, dtype=np.complex128, copy=True)
+    out /= mass_matrix[np.newaxis, :, np.newaxis, :, np.newaxis]
+    return out.reshape(len(out), len(masses) * 3, len(masses) * 3)
 
 
 def _build_segment_phase_weights(multi, n_svec):
@@ -218,6 +313,45 @@ def _short_range_dynamical_matrix(
     dm_blocks /= np.sqrt(np.outer(masses, masses))[:, :, np.newaxis, np.newaxis]
     dm = np.transpose(dm_blocks, (0, 2, 1, 3)).reshape(num_patom * 3, num_patom * 3)
     return 0.5 * (dm + dm.conj().T)
+
+
+def _short_range_dynamical_matrix_many(
+    fc,
+    q_reds,
+    svecs,
+    multi,
+    masses,
+    s2p_map,
+    p2s_map,
+    phase_weights=None,
+    target_mask=None,
+    mass_matrix=None,
+):
+    q_reds = np.array(q_reds, dtype=float, copy=False)
+    num_patom = len(p2s_map)
+    is_compact_fc = fc.shape[0] != fc.shape[1]
+    if phase_weights is None:
+        phase_weights = _build_segment_phase_weights(multi, len(svecs))
+    phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
+    # Average all shortest-path phases for every q-point and primitive/supercell pair.
+    phase_factors = np.einsum("spl,ql->qsp", phase_weights, phase_all, optimize=True)
+    if target_mask is None:
+        target_mask = (
+            s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]
+        ).astype(np.complex128)
+    if mass_matrix is None:
+        mass_matrix = np.sqrt(np.outer(masses, masses))
+    fc_source = fc if is_compact_fc else fc[p2s_map]
+    weighted_fc = (
+        fc_source[np.newaxis, :, :, :, :]
+        * np.transpose(phase_factors, (0, 2, 1))[:, :, :, np.newaxis, np.newaxis]
+    )
+    dm_blocks = np.einsum("qisab,sj->qijab", weighted_fc, target_mask, optimize=True)
+    dm_blocks /= mass_matrix[np.newaxis, :, :, np.newaxis, np.newaxis]
+    dm = np.transpose(dm_blocks, (0, 1, 3, 2, 4)).reshape(
+        len(q_reds), num_patom * 3, num_patom * 3
+    )
+    return 0.5 * (dm + np.swapaxes(dm.conj(), 1, 2))
 
 
 def _h_tensor(supercell_cell, svecs, dielectric, lambda_):
@@ -430,6 +564,73 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
     return _mass_weight(dd_total * conversion, static_data["masses"])
 
 
+def _gonze_dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None):
+    q_reds = np.atleast_2d(np.array(q_reds, dtype=float, copy=False))
+    q_direction_carts = np.atleast_2d(np.array(q_direction_carts, dtype=float, copy=False))
+    if fc is None:
+        fc = static_data["fc_short_converted"]
+
+    q_carts = np.einsum(
+        "ab,qb->qa",
+        static_data["reciprocal_lattice"],
+        q_reds,
+        optimize=True,
+    )
+    dd_base = _get_dd_base_many(
+        static_data["G_list"],
+        q_carts,
+        q_direction_carts,
+        static_data["dielectric"],
+        static_data["primitive_positions"],
+        float(static_data["Lambda"]),
+        float(static_data["q_direction_tolerance"]),
+        pair_phase=static_data.get("pair_phase"),
+    )
+    born_t = np.transpose(static_data["born"], (0, 2, 1))
+    dd_recip = np.einsum(
+        "iap,xipjq,jqb->xiajb",
+        born_t,
+        dd_base,
+        static_data["born"],
+        optimize=True,
+    )
+    dd_recip *= float(static_data["nac_factor"])
+
+    dd_real = _real_dipole_dipole_many(
+        q_reds,
+        mapping["svecs"],
+        mapping["multi"],
+        mapping["s2pp_map"],
+        static_data["dielectric"],
+        float(static_data["Lambda"]),
+        mapping.get("svecs_cell", static_data["supercell_cell"]),
+        h_tensor=static_data.get("h_tensor"),
+        det_scale=static_data.get("real_dipole_det_scale"),
+    )
+    dd_total = dd_recip + static_data["dd_limiting_expanded"][np.newaxis, :, :, :, :] + dd_real
+    dd_total -= static_data["dd_drift_blocks"][np.newaxis, :, :, :, :]
+    dd_total_mass_weighted = _mass_weight_many(
+        dd_total * static_data["gonze_conversion"],
+        static_data["masses"],
+        mass_matrix=static_data.get("sqrt_mass_matrix"),
+    )
+
+    dm_short = _short_range_dynamical_matrix_many(
+        fc,
+        q_reds,
+        mapping.get("phase_svecs", mapping["svecs"]),
+        mapping["multi"],
+        static_data["masses"],
+        mapping["s2p_map"],
+        mapping["p2s_map"],
+        phase_weights=mapping.get("phase_weights"),
+        target_mask=mapping.get("target_mask"),
+        mass_matrix=static_data.get("sqrt_mass_matrix"),
+    )
+    dm_final = dm_short + dd_total_mass_weighted
+    return 0.5 * (dm_final + np.swapaxes(dm_final.conj(), 1, 2))
+
+
 def _recip_dipole_dipole(
     dd_q0,
     g_list,
@@ -501,6 +702,142 @@ def _build_interleaved_fc(second_order):
             for i_type in range(n_atom):
                 fc[i_type, k, :, :] = val[j_type, :, l_C_idx, i_type, :].T
     return fc
+
+
+def _fc_short_translation_data(mapping, symprec=1e-8):
+    p2s_map = mapping["p2s_map"]
+    n_translation = int(mapping["multi"].shape[0] // len(p2s_map))
+    translations = np.array(
+        mapping["primitive_shifts"][p2s_map[0] : p2s_map[0] + n_translation],
+        dtype=float,
+        copy=True,
+    )
+    primitive_matrix = np.array(mapping["primitive_matrix"], dtype=float, copy=False)
+    reduced = (translations @ primitive_matrix) % 1.0
+    reduced[np.isclose(reduced, 1.0, atol=symprec)] = 0.0
+    lookup = {
+        tuple(np.round(reduced[i_translation], 10)): i_translation
+        for i_translation in range(n_translation)
+    }
+    return translations, lookup
+
+
+def _cartesian_rotation_from_fractional(rotation, primitive_cell):
+    primitive_cell = np.array(primitive_cell, dtype=float, copy=False)
+    rotation = np.array(rotation, dtype=float, copy=False)
+    # Fractional coordinates transform as row vectors x' = x R^T, so the
+    # corresponding Cartesian operator on row-vector displacements is the
+    # inverse-space action used below when rotating FC blocks.
+    return np.linalg.inv(primitive_cell) @ np.linalg.inv(rotation).T @ primitive_cell
+
+
+def _build_fc_short_symmetry_data(atoms, mapping, symprec=1e-5):
+    primitive_scaled = np.array(
+        mapping["primitive_scaled_positions"],
+        dtype=float,
+        copy=True,
+    )
+    primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
+    symmetry = spglib.get_symmetry(
+        (primitive_cell, primitive_scaled, atoms.numbers),
+        symprec=symprec,
+    )
+    translations, translation_lookup = _fc_short_translation_data(mapping, symprec=symprec)
+    operations = []
+    for rotation, translation in zip(symmetry["rotations"], symmetry["translations"]):
+        rotation = np.array(rotation, dtype=np.int64, copy=True)
+        translation = np.array(translation, dtype=float, copy=True)
+        cart_rotation = _cartesian_rotation_from_fractional(rotation, primitive_cell)
+        atom_map = np.zeros(len(primitive_scaled), dtype=np.int64)
+        atom_shifts = np.zeros((len(primitive_scaled), 3), dtype=np.int64)
+        for i_atom, position in enumerate(primitive_scaled):
+            transformed = position @ rotation.T + translation
+            deltas = transformed - primitive_scaled
+            wrapped = deltas - np.rint(deltas)
+            distances = np.linalg.norm(wrapped, axis=1)
+            j_atom = int(np.argmin(distances))
+            if distances[j_atom] >= symprec:
+                raise ValueError(
+                    "Could not map primitive atom under symmetry operation while "
+                    "building Gonze short-range FC symmetrizer."
+                )
+            atom_map[i_atom] = j_atom
+            atom_shifts[i_atom] = np.rint(deltas[j_atom]).astype(np.int64)
+        operations.append(
+            {
+                "rotation": rotation,
+                "cart_rotation": cart_rotation,
+                "atom_map": atom_map,
+                "atom_shifts": atom_shifts,
+            }
+        )
+    return {
+        "operations": operations,
+        "translations": translations,
+        "translation_lookup": translation_lookup,
+    }
+
+
+def _symmetrize_fc_short(fc, atoms, mapping, symprec=1e-5):
+    symmetry_data = mapping.get("fc_short_symmetry_data")
+    if symmetry_data is None:
+        symmetry_data = _build_fc_short_symmetry_data(atoms, mapping, symprec=symprec)
+        mapping["fc_short_symmetry_data"] = symmetry_data
+
+    operations = symmetry_data["operations"]
+    if len(operations) <= 1:
+        return np.array(fc, dtype=float, copy=True)
+
+    fc = np.array(fc, dtype=float, copy=False)
+    n_atom = len(atoms)
+    n_translation = fc.shape[1] // n_atom
+    translations = np.array(symmetry_data["translations"], dtype=float, copy=False)
+    translation_lookup = symmetry_data["translation_lookup"]
+    primitive_matrix = np.array(mapping["primitive_matrix"], dtype=float, copy=False)
+    symmetrized = np.zeros_like(fc, dtype=np.float64)
+
+    for operation in operations:
+        rotation = operation["rotation"]
+        cart_rotation = operation["cart_rotation"]
+        atom_map = operation["atom_map"]
+        atom_shifts = operation["atom_shifts"]
+        rotated_translations = translations @ rotation.T
+        for i_atom in range(n_atom):
+            target_i_atom = int(atom_map[i_atom])
+            shift_i = atom_shifts[i_atom]
+            for j_atom in range(n_atom):
+                target_j_atom = int(atom_map[j_atom])
+                transformed_shift = (
+                    rotated_translations
+                    + atom_shifts[j_atom][np.newaxis, :]
+                    - shift_i[np.newaxis, :]
+                )
+                reduced = (transformed_shift @ primitive_matrix) % 1.0
+                reduced[np.isclose(reduced, 1.0, atol=symprec)] = 0.0
+                target_translation_indices = np.fromiter(
+                    (
+                        translation_lookup[tuple(np.round(reduced_row, 10))]
+                        for reduced_row in reduced
+                    ),
+                    dtype=np.int64,
+                    count=n_translation,
+                )
+                transformed_blocks = np.einsum(
+                    "ac,tcd,bd->tab",
+                    cart_rotation,
+                    fc[
+                        i_atom,
+                        j_atom * n_translation : (j_atom + 1) * n_translation,
+                    ],
+                    cart_rotation,
+                    optimize=True,
+                )
+                symmetrized[
+                    target_i_atom,
+                    target_j_atom * n_translation + target_translation_indices,
+                ] += transformed_blocks
+
+    return symmetrized / len(operations)
 
 
 def _dynamical_matrix_from_second_order(second_order, q_red):
@@ -628,6 +965,21 @@ def _ensure_gonze_kernel_cache(static_data, mapping):
         diag = np.arange(len(static_data["masses"]))
         dd_drift_blocks[diag, :, diag, :] = static_data["dd_drift"]
         static_data["dd_drift_blocks"] = dd_drift_blocks
+    if "h_tensor" not in static_data:
+        static_data["h_tensor"] = _h_tensor(
+            mapping.get("svecs_cell", static_data["supercell_cell"]),
+            mapping["svecs"],
+            static_data["dielectric"],
+            float(static_data["Lambda"]),
+        )
+    if "real_dipole_det_scale" not in static_data:
+        static_data["real_dipole_det_scale"] = np.linalg.det(static_data["dielectric"]) ** (-0.5)
+    if "sqrt_mass_matrix" not in static_data:
+        static_data["sqrt_mass_matrix"] = np.sqrt(
+            np.outer(static_data["masses"], static_data["masses"])
+        )
+    if "gonze_conversion" not in static_data:
+        static_data["gonze_conversion"] = units.mol / (10 * units.J)
     if "phase_weights" not in mapping:
         phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
         mapping["phase_weights"] = _build_segment_phase_weights(
@@ -688,6 +1040,11 @@ class SecondOrder(ForceConstant, Storable):
         try:
             loaded = self._load_property(property_name, folder, format="numpy")
             logging.info("Loading " + folder + "/" + property_name)
+            loaded = _symmetrize_fc_short(
+                loaded,
+                self.atoms,
+                self.get_gonze_nac_precomputed(matrix)["mapping"],
+            )
             self._gonze_short_range_force_constants_cache[key] = loaded
             return loaded
         except (FileNotFoundError, OSError, KeyError):
@@ -768,9 +1125,10 @@ class SecondOrder(ForceConstant, Storable):
             )
             dynmat -= _dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
             dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
-        return _inverse_transform_dynmats_to_force_constants(
+        force_constants = _inverse_transform_dynmats_to_force_constants(
             dynmats, qpoints, mapping, static_data["masses"]
         )
+        return _symmetrize_fc_short(force_constants, self.atoms, mapping)
 
     def _gonze_build_static_data(self, matrix=None):
         atoms = self.atoms
