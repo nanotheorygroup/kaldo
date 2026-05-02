@@ -59,11 +59,6 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
     where each *_data_list is [is_plus_0, is_plus_1] with entries as
     (indices, values, dense_shape) numpy tuples or None.
     """
-    # Pin BLAS threads in worker processes
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
     # Reconstruct TF tensors from numpy
     evect_tf = tf.cast(tf.convert_to_tensor(evect_np), dtype=tf.complex128)
     second_minus = tf.math.conj(evect_tf)
