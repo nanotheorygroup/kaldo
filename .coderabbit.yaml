@@ -55,6 +55,10 @@ reviews:
         chosen for the physics, not whatever makes them pass. Use tmp_path for
         any filesystem writes. Don't mock the filesystem to substitute for
         reference data files in sibling directories (si-crystal/, mgo/, etc.).
+  pre_merge_checks:
+    docstrings:
+      mode: warning
+      threshold: 60
   tools:
     ruff:
       enabled: false

@@ -114,3 +114,6 @@ docs/docsource/API
 
 # Claude Code per-developer settings (allowlist overrides, etc.)
 .claude/settings.local.json
+
+# Local scratch / superpowers workspace under docs (never tracked)
+docs/superpowers/
