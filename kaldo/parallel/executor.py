@@ -6,25 +6,41 @@ so computation code is identical regardless of backend.
 
 import multiprocessing
 import os
+import sys
 import warnings
 from concurrent.futures import Future, ProcessPoolExecutor
 
 
 def _default_mp_context():
-    """Return a multiprocessing context safe for CUDA calculators.
+    """Return a multiprocessing context safe for TF and CUDA calculators.
 
-    Fork (Linux default) cannot be used once CUDA is initialized in the parent:
-    torch refuses to re-initialize CUDA in a forked child (BrokenProcessPool /
-    'Cannot re-initialize CUDA in forked subprocess'). Spawn avoids this at a
-    small cold-start cost per worker and is the default on macOS.
+    Fork (Linux default) is unsafe in two situations kaldo regularly hits:
 
-    We pick spawn whenever CUDA is *available*, not only when it has been
-    initialized. Torch lazy-loads CUDA: ``is_initialized()`` returns False
-    until a tensor or model touches the device. By the time the calculator
-    runs in a worker it will initialize CUDA, so anticipating that here is
-    the correct choice. The cold-start cost of spawn (~1s/worker) is
-    negligible next to a single force evaluation.
+    1. CUDA initialized in the parent: torch refuses to re-initialize CUDA
+       in a forked child (BrokenProcessPool /
+       'Cannot re-initialize CUDA in forked subprocess').
+    2. TensorFlow imported in the parent: TF eagerly creates a thread pool
+       and grpc/cuda runtime state at import time. Forking duplicates the
+       file descriptors but not the threads, leaving the child's runtime
+       in a half-initialized state. Symptoms range from silent deadlocks
+       (TF op blocks waiting for a worker thread that never existed in
+       this process) to ``CUDA_ERROR_INVALID_HANDLE`` when the child
+       inherits a stale GPU context. xdist + parallel kaldo on Linux
+       reliably tickles this — see PR #231 CI hang.
+
+    Spawn avoids both because the worker starts from a clean Python
+    interpreter and re-imports modules itself. Cold-start cost is ~0.5s
+    per worker, negligible compared to one phonon calculation.
+
+    We anticipate CUDA: ``torch.cuda.is_available()`` returns True even
+    before any tensor touches the device. By the time the calculator runs
+    in a worker it will initialize CUDA, so picking spawn up front is the
+    correct choice. Same logic for TF: if it's already imported, the
+    parent is tainted; even if it isn't, kaldo's own modules import TF on
+    demand inside ``Phonons``, so the worker will be tainted too.
     """
+    if 'tensorflow' in sys.modules:
+        return multiprocessing.get_context('spawn')
     try:
         import torch  # lazy: don't force-import torch for non-ML users
         if torch.cuda.is_available():
