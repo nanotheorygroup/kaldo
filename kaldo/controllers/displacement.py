@@ -75,12 +75,39 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
             "Try adjusting symprec or relaxing the structure."
         )
 
-    rotations    = dataset.rotations
-    translations = dataset.translations
+    rotations_full    = dataset.rotations
+    translations_full = dataset.translations
+
+    # Filter to spacegroup operations that the supercell shape can host.
+    # An integer rotation R acts on a supercell lattice vector as
+    #     g_new = R @ g + col_shift  (then mod-wrapped by the supercell shape)
+    # For this to be a bijection on the supercell mesh — the precondition
+    # for the equivalence-class union below to be valid — R must permute
+    # axes of the supercell only among themselves when their lengths
+    # differ. Concretely, on a diagonal supercell (nx, ny, nz) we require
+    # R[i, j] == 0 whenever supercell_shape[i] != supercell_shape[j].
+    # Cubic-shape supercells (N, N, N) keep all ops. Anisotropic shapes
+    # (e.g. slab (N, N, 1)) keep the in-plane subgroup. Non-diagonal
+    # supercells are caught by the caller (see calculate_second/third).
+    n_ops_full = len(rotations_full)
+    keep = np.ones(n_ops_full, dtype=bool)
+    for k in range(n_ops_full):
+        R = rotations_full[k]
+        for i in range(3):
+            for j in range(3):
+                if R[i, j] != 0 and supercell_shape[i] != supercell_shape[j]:
+                    keep[k] = False
+                    break
+            if not keep[k]:
+                break
+    rotations    = rotations_full[keep]
+    translations = translations_full[keep]
     n_ops = len(rotations)
+
     logging.info(
         f"Space group: {dataset.international} (#{dataset.number}), "
-        f"{n_ops} symmetry operations"
+        f"{n_ops_full} unit-cell ops, "
+        f"{n_ops} compatible with supercell shape {tuple(supercell_shape.tolist())}"
     )
 
     AT = lattice.T
@@ -239,6 +266,30 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
     return irr_map_2, rot_map_2, irr_map_3, rot_map_3
 
 
+def _diagonal_supercell_or_raise(atoms, replicated_atoms, tol=1e-6):
+    """Recover the diagonal supercell tuple from atoms / replicated_atoms.
+
+    Raises NotImplementedError when the supercell expansion is not diagonal.
+    The realspace symmetry path indexes lattice vectors as
+    ``ix * ny * nz + iy * nz + iz`` (C-order over a diagonal mesh) and
+    has no representation for a sheared supercell.
+    """
+    M = replicated_atoms.cell @ np.linalg.inv(atoms.cell)
+    M_int = np.round(M).astype(int)
+    if not np.allclose(M, M_int, atol=tol):
+        raise NotImplementedError(
+            "use_symmetry=True requires an integer supercell expansion. "
+            f"Got non-integer expansion matrix:\n{M}"
+        )
+    off_diag = M_int - np.diag(np.diag(M_int))
+    if np.any(off_diag != 0):
+        raise NotImplementedError(
+            "use_symmetry=True only supports diagonal supercell expansions. "
+            f"Got non-diagonal expansion matrix:\n{M_int}"
+        )
+    return tuple(np.diag(M_int))
+
+
 def list_of_replicas(atoms, replicated_atoms):
     n_atoms = atoms.positions.shape[0]
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
@@ -302,8 +353,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
         atoms_to_compute = list(range(n_atoms))
 
     if use_symmetry:
-        # Assumes diagonal supercell expansion; np.diag discards off-diagonal elements
-        supercell = tuple(np.diag(np.round(replicated_atoms.cell @ np.linalg.inv(atoms.cell)).astype(int)))
+        supercell = _diagonal_supercell_or_raise(atoms, replicated_atoms)
         irr_map_2, rot_map_2, _, _ = get_equivalent_ifc_indices(
             atoms, supercell, symprec=symprec, order=2
         )
@@ -489,8 +539,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
 
     # Build per-iat allowed_jat mapping from irreducible pair set when using symmetry
     if use_symmetry:
-        # Assumes diagonal supercell expansion; np.diag discards off-diagonal elements
-        supercell = tuple(np.diag(np.round(replicated_atoms.cell @ np.linalg.inv(atoms.cell)).astype(int)))
+        supercell = _diagonal_supercell_or_raise(atoms, replicated_atoms)
         _, _, irr_map_3, rot_map_3 = get_equivalent_ifc_indices(
             atoms, supercell, symprec=symprec, order=3
         )

@@ -322,10 +322,13 @@ class ThirdOrder(ForceConstant):
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
         use_symmetry : bool, optional
-            If True, will use crystal spacegroup to reduce number of pairs
-            calculated by the method. Do not use while reading/writing with 
-            scratch_dir (leave scratch_dir=False), will throw an error if
-            scratch_dir is not None.
+            If True, use the crystal spacegroup to reduce the number of
+            atom pairs (i, jat) computed by the FD method. Only spacegroup
+            operations compatible with the supercell shape are used (e.g.
+            an in-plane subgroup for slab supercells). Requires a
+            diagonal integer supercell expansion. Not compatible with
+            ``scratch_dir`` — pass ``scratch_dir=None`` (the default)
+            when enabling.
             Default: False
         symprec : float, optional
             precision for symmetry using spglib.
