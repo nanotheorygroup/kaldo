@@ -538,7 +538,10 @@ class Phonons(Storable):
             
         if '<include_isotopes>' in label and self.include_isotopes:
             components.append('isotopes')
-            
+
+        if '<use_q_symmetry>' in label and self.use_q_symmetry:
+            components.append('qsym')
+
         return components
 
     def _load_formatted_property(self, property_name, name):
@@ -888,7 +891,7 @@ class Phonons(Storable):
         return zpe_cell / self.n_k_points
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<include_isotopes>/<use_q_symmetry>')
     def bandwidth(self):
         """
         Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
@@ -931,7 +934,7 @@ class Phonons(Storable):
             return isotopic_bw
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<use_q_symmetry>')
     def anharmonic_bandwidth(self):
         """
         Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
@@ -945,7 +948,7 @@ class Phonons(Storable):
         return gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<use_q_symmetry>')
     def phase_space(self):
         """
         Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
@@ -987,11 +990,11 @@ class Phonons(Storable):
         return eigenvectors
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<use_q_symmetry>')
     def _ps_and_gamma(self):
         store_format = self._store_formats.get('_ps_gamma_and_gamma_tensor', 'numpy') \
             if self.storage == 'formatted' else self.storage
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>', \
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>/<use_q_symmetry>', \
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
@@ -999,12 +1002,12 @@ class Phonons(Storable):
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<use_q_symmetry>')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
-    @lazy_property(label='<third_bandwidth>')
+    @lazy_property(label='<third_bandwidth>/<use_q_symmetry>')
     def _sparse_phase_and_potential(self):
         """
         Calculate both sparse phase and potential tensors for anharmonic interactions.
