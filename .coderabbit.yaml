@@ -42,6 +42,13 @@ reviews:
     - "!*.egg-info/**"
     - "!.circleci/**"
   path_instructions:
+    - path: "**"
+      instructions: >
+        Flag any commit message or PR description containing AI-attribution
+        trailers such as `Co-Authored-By: Claude`, `Co-Authored-By: <…>
+        @anthropic.com`, `Generated with Claude Code`, or a 🤖 emoji
+        followed by a Claude reference. Request removal before merge —
+        this project does not record AI co-authorship in git history.
     - path: "kaldo/**/*.py"
       instructions: >
         Flag float comparisons with `==` (use `np.isclose` / `np.allclose`),
