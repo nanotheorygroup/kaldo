@@ -168,13 +168,15 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
 
                 base_orig2 = i  * n_replicas * n_unit + j
                 base_new2  = ip * n_replicas * n_unit + jp
-                for l in range(n_replicas):
-                    f_orig = base_orig2 + l                * n_unit
-                    f_new  = base_new2  + int(l_j_new[l]) * n_unit
+                for lat in range(n_replicas):
+                    f_orig = base_orig2 + lat                * n_unit
+                    f_new  = base_new2  + int(l_j_new[lat]) * n_unit
                     r_o, r_n = _find(parent2, f_orig), _find(parent2, f_new)
                     if r_o != r_n:
-                        if r_o < r_n: parent2[r_n] = r_o
-                        else:         parent2[r_o] = r_n
+                        if r_o < r_n:
+                            parent2[r_n] = r_o
+                        else:
+                            parent2[r_o] = r_n
 
                 if order >= 3:
                     for k_atom in range(n_unit):
@@ -195,8 +197,10 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
                             r_o = _find(parent3, int(f_orig3[idx]))
                             r_n = _find(parent3, int(f_new3[idx]))
                             if r_o != r_n:
-                                if r_o < r_n: parent3[r_n] = r_o
-                                else:         parent3[r_o] = r_n
+                                if r_o < r_n:
+                                    parent3[r_n] = r_o
+                                else:
+                                    parent3[r_o] = r_n
 
     canonical2 = np.array([_find(parent2, f) for f in range(n_blocks_2)])
     irr_map_2  = canonical2.reshape(n_unit, n_replicas, n_unit)
@@ -648,7 +652,11 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             c_jc   = B_idx[None, None, :, None]
             c_k    = kat_eq[:, None, None, None] + C_idx[None, None, None, :]
 
-            mask = T3 != 0.0
+            # Drop near-zero entries from the COO. FD output is rarely exactly
+            # zero; using `!= 0.0` would keep all the FD noise (~1e-7 for
+            # delta=1e-5) and inflate the sparse tensor. atol=1e-12 is well
+            # below physics-relevant scales (IFCs are 0.01-10).
+            mask = ~np.isclose(T3, 0.0, atol=1e-12)
             bc   = (n_eq, 3, 3, 3)
             i_at_sparse.extend(np.broadcast_to(c_iat, bc)[mask].tolist())
             i_coord_sparse.extend(np.broadcast_to(c_ic,  bc)[mask].tolist())
