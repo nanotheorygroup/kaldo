@@ -4,7 +4,9 @@ import os
 import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
-from kaldo.parallel import get_executor, is_parallel, validate_parallel_calculator
+from kaldo.parallel import (
+    dispatch_with_resume, get_executor, is_parallel, validate_parallel_calculator,
+)
 from sparse import COO
 logging = get_logger()
 
@@ -54,39 +56,27 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     n_atoms = n_unit_cell_atoms
     n_replicas = int(n_replicated_atoms / n_unit_cell_atoms)
     use_scratch = scratch_dir is not None
-    if use_scratch:
-        os.makedirs(scratch_dir, exist_ok=True)
-        atoms_to_compute = [
-            atom_id for atom_id in range(n_atoms)
-            if not os.path.exists(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'))
-        ]
-        n_resumed = n_atoms - len(atoms_to_compute)
-        if n_resumed:
-            logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
-    else:
+    if not use_scratch:
         second = np.zeros((n_atoms, 3, n_replicated_atoms * 3))
-        atoms_to_compute = list(range(n_atoms))
-    use_parallel = n_workers is None or n_workers > 1
-    backend = 'process' if use_parallel else 'serial'
-    executor_workers = n_workers if use_parallel else None
 
     worker_fn = functools.partial(
         _compute_iat_second,
+        replicated_atoms=replicated_atoms,
+        second_order_delta=second_order_delta,
         calculator=calculator,
         scratch_dir=scratch_dir,
     )
 
-    with get_executor(backend=backend, n_workers=executor_workers) as executor:
-        futures = {
-            executor.submit(worker_fn, i, replicated_atoms, second_order_delta): i
-            for i in atoms_to_compute
-        }
-        for future in as_completed(futures):
-            atom_id, second_per_atom = future.result()
-            if is_verbose:
-                logging.info('calculating forces on atom ' + str(atom_id))
-            if not use_scratch:
-                second[atom_id] = second_per_atom
+    for atom_id, result in dispatch_with_resume(
+        range(n_atoms), worker_fn,
+        n_workers=n_workers,
+        output_dir=scratch_dir,
+        sentinel_prefix="iat_",
+        log_progress=is_verbose,
+    ):
+        if not use_scratch:
+            _, second_per_atom = result
+            second[atom_id] = second_per_atom
 
     if use_scratch:
         second = _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
@@ -117,8 +107,8 @@ def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculato
             second_per_atom[alpha, :] += move * calculate_gradient(replicated_atoms.positions + shift,
                                                                    replicated_atoms)
     if scratch_dir is not None:
+        # Sentinel is written by dispatch_with_resume after this returns.
         np.save(os.path.join(scratch_dir, f'iat_{atom_id:05d}.npy'), second_per_atom)
-        open(os.path.join(scratch_dir, f'iat_{atom_id:05d}.done'), 'w').close()
         return atom_id, None
     return atom_id, second_per_atom
 
@@ -205,9 +195,7 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
     use_scratch = scratch_dir is not None
-    if use_scratch:
-        os.makedirs(scratch_dir, exist_ok=True)
-    else:
+    if not use_scratch:
         i_at_sparse = []
         i_coord_sparse = []
         jat_sparse = []
@@ -218,53 +206,37 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     n_forces_done = 0
     n_forces_skipped = 0
 
-    use_parallel = n_workers is None or n_workers > 1
-
-    # Determine which atoms need computing (resume support via scratch sentinels)
-    if use_scratch:
-        atoms_to_compute = [iat for iat in range(n_atoms)
-                             if not os.path.exists(os.path.join(scratch_dir, f'iat_{iat:05d}.done'))]
-        n_resumed = n_atoms - len(atoms_to_compute)
-        if n_resumed:
-            logging.info(f'Resuming: skipping {n_resumed} already-computed atom(s)')
-    else:
-        atoms_to_compute = list(range(n_atoms))
-
-    # Select backend: 'process' for parallel, 'serial' for single-threaded
-    backend = 'process' if use_parallel else 'serial'
-    executor_workers = n_workers if use_parallel else None
-
     worker_fn = functools.partial(
         _compute_iat_third,
+        atoms=atoms,
+        replicated_atoms=replicated_atoms,
+        third_order_delta=third_order_delta,
+        distance_threshold=distance_threshold,
+        is_verbose=is_verbose,
         calculator=calculator,
         scratch_dir=scratch_dir,
         jat_flush_every=jat_flush_every,
     )
 
-    with get_executor(backend=backend, n_workers=executor_workers) as executor:
-        futures = {
-            executor.submit(worker_fn, iat, atoms, replicated_atoms,
-                           third_order_delta, distance_threshold, is_verbose): iat
-            for iat in atoms_to_compute
-        }
-        for future in as_completed(futures):
-            iat = futures[future]
-            local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = future.result()
-            if not use_scratch:
-                i_at_sparse.extend(local_i_at)
-                i_coord_sparse.extend(local_i_coord)
-                jat_sparse.extend(local_jat)
-                j_coord_sparse.extend(local_j_coord)
-                k_sparse.extend(local_k)
-                value_sparse.extend(local_value)
-            n_forces_done += n_done
-            n_forces_skipped += n_skipped
-            if use_parallel:
-                logging.info(f'Completed atom {iat}: '
-                             f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
-            elif (n_forces_done + n_forces_skipped) % 300 == 0:
-                logging.info('Calculate third derivatives ' + str(
-                    int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
+    for iat, result in dispatch_with_resume(
+        range(n_atoms), worker_fn,
+        n_workers=n_workers,
+        output_dir=scratch_dir,
+        sentinel_prefix="iat_",
+        log_progress=False,
+    ):
+        local_i_at, local_i_coord, local_jat, local_j_coord, local_k, local_value, n_done, n_skipped = result
+        if not use_scratch:
+            i_at_sparse.extend(local_i_at)
+            i_coord_sparse.extend(local_i_coord)
+            jat_sparse.extend(local_jat)
+            j_coord_sparse.extend(local_j_coord)
+            k_sparse.extend(local_k)
+            value_sparse.extend(local_value)
+        n_forces_done += n_done
+        n_forces_skipped += n_skipped
+        logging.info(f'Completed atom {iat}: '
+                     f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
     logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
@@ -347,7 +319,7 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
     if use_scratch:
         if chunk_values:
             _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values)
-        open(os.path.join(scratch_dir, f'iat_{iat:05d}.done'), 'w').close()
+        # Sentinel is written by dispatch_with_resume after this returns.
         return [], [], [], [], [], [], n_done, n_skipped
 
     if not chunk_coords:
