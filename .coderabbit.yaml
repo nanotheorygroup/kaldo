@@ -49,6 +49,13 @@ reviews:
         np.dot/np.tensordot where np.einsum / opt_einsum.contract would be
         clearer. Watch for TensorFlow imports at module top level in modules
         that should also load on CPU-only environments.
+    - path: "kaldo/**/*.py"
+      instructions: >
+        Apply DRY: flag duplicated logic across functions/modules that
+        should be extracted into a shared helper. Apply YAGNI: flag
+        speculative abstractions, unused parameters, premature config
+        knobs, and code paths added for hypothetical future needs rather
+        than current requirements.
     - path: "kaldo/tests/**/*.py"
       instructions: >
         Tests should use np.testing.assert_allclose with explicit rtol/atol
