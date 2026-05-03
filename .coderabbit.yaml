@@ -63,6 +63,14 @@ reviews:
         speculative abstractions, unused parameters, premature config
         knobs, and code paths added for hypothetical future needs rather
         than current requirements.
+    - path: "kaldo/**/*.py"
+      instructions: >
+        Flag single-letter or cryptic variable names outside tight
+        numerical loops (e.g. `tmp`, `data1`, `x`, `arr`) and ALL_CAPS
+        names that aren't module-level constants. Prefer descriptive
+        snake_case (e.g. `phonon_frequencies` over `pf` or `PhononFreq`).
+        Math symbols (`q`, `omega`, `gamma`) are fine when they match
+        the physics paper notation.
     - path: "kaldo/tests/**/*.py"
       instructions: >
         Tests should use np.testing.assert_allclose with explicit rtol/atol
