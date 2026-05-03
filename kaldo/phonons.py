@@ -1511,19 +1511,20 @@ class Phonons(Storable):
         # - output_dir None: accumulate in a dict (legacy in-memory mode).
         kpoint_results = {} if output_dir is None else None
 
-        for ik, result in dispatch_with_resume(
+        n_ibz = len(ibz_compute)
+        for n_done, (ik, result) in enumerate(dispatch_with_resume(
             ibz_compute, worker_fn,
             n_workers=self.n_workers,
             output_dir=output_dir,
             sentinel_prefix="kpt_",
             log_progress=False,
-        ):
+        ), start=1):
             if output_dir is not None:
                 _save_kpoint_projection(output_dir, ik, result)
                 # result dropped here — assembly loop reads from disk.
             else:
                 kpoint_results[ik] = result
-            logging.info(f'Completed k-point {ik}/{len(ibz_compute)}')
+            logging.info(f'Completed IBZ k-point {n_done}/{n_ibz} (index {ik})')
 
         # All-None placeholder used for non-IBZ k-points under q-symmetry.
         _null_results = [([None, None], [None, None])] * n_modes
