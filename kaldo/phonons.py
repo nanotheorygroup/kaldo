@@ -406,7 +406,23 @@ class Phonons(Storable):
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
     is_nw: bool, optional
-        Defines if you would like to assume the system is a nanowire. 
+        Defines if you would like to assume the system is a nanowire.
+        Default: False
+    use_q_symmetry : bool, optional
+        Reduce the per-k-point projection cost by computing only the
+        irreducible Brillouin zone (IBZ) representatives via spglib and
+        replicating the gamma tensor to symmetry-equivalent k-points. The
+        speedup equals the IBZ reduction factor (e.g. ~7x for Si diamond
+        on a 3x3x3 mesh).
+
+        Note on broadening: the replicated results match a full-BZ run
+        exactly only with a fixed ``third_bandwidth`` (Shengbte/TDEP-style
+        broadening). With the default adaptive broadening
+        (``third_bandwidth=None``), the per-process sigma depends on
+        ``(v_kp - v_kpp) . delta_k``, which is not invariant under the
+        rotation that maps a k-point to its IBZ representative; results
+        differ from the full-BZ run at the O(0.5%) level on Si 3x3x3 and
+        scale with broadening width.
         Default: False
 
     Returns
