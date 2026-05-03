@@ -131,7 +131,7 @@ def _gonze_build_full_fc_compact(second_order):
     n_atom = len(second_order.atoms)
     n_replicas = int(np.prod(second_order.supercell))
     fc_full = np.array(second_order.value[0], dtype=float)
-    fc_full = np.transpose(fc_full, (0, 2, 3, 1, 4))
+    fc_full = np.transpose(fc_full, (0, 2, 3, 4, 1))
     fc_full = fc_full.reshape(n_atom, n_replicas * n_atom, 3, 3)
     permutation = np.concatenate(
         [np.arange(atom_j, n_replicas * n_atom, n_atom, dtype=int) for atom_j in range(n_atom)]
@@ -436,7 +436,6 @@ class SecondOrder(ForceConstant, Storable):
                             atoms.info['dielectric'] = charges[0, :, :]
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                        _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                         grid_type = "F"
                     case _:
                         # load VASP second order force constant
