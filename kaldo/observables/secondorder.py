@@ -9,6 +9,7 @@ from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
 from kaldo.controllers.displacement import calculate_second
+from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 
@@ -283,10 +284,87 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator, delta_shift=1e-3, is_storing=True, is_verbose=False):
+    def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
+                  scratch_dir=None, keep_scratch=False):
+        """
+        Calculate second-order force constants with finite differences.
+
+        This is the method typically reached through ``fc.second.calculate(...)``.
+        It can either load an existing ``second.npy`` from ``self.folder`` when
+        ``is_storing`` is enabled, or compute the harmonic force constants from
+        the current structure and calculator.
+
+        See the *Parallel runs with ML calculators* section of the
+        ForceConstants documentation for the recommended pattern when
+        running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in
+        parallel: define a no-arg factory function at module top level
+        and pass it (without parentheses) as ``calculator``.
+
+        Parameters
+        ----------
+        calculator : callable or ASE Calculator instance or None
+            For serial runs, pass an ASE Calculator instance (the existing
+            kaldo idiom). For parallel runs, pass a callable that returns
+            a fresh ASE Calculator: a class with a no-arg constructor, a
+            top-level factory function, ``functools.partial``, etc. Each
+            worker invokes the callable once to build its own isolated
+            calculator. If None, ``replicated_atoms`` must already have
+            a calculator attached.
+        delta_shift : float, optional
+            Finite-difference displacement in Angstrom. The default
+            ``1e-3`` is tuned for analytical calculators (EMT, LAMMPS).
+            ML potentials in float32 (Orb, MACE, MatterSim, ...) need
+            ``1e-2`` or larger because float32 force noise (~1e-7 eV/Å)
+            divided by a tiny delta produces FC noise that swamps the
+            physics. A warning fires when ``delta_shift < 1e-2`` and the
+            calculator looks ML-based.
+            Default: 1e-3
+        is_storing : bool, optional
+            If True, try to load an existing result from ``self.folder`` first
+            and save newly computed data after the calculation.
+            Default: True
+        is_verbose : bool, optional
+            If True, log per-atom progress information.
+            Default: False
+        n_workers : int or None, optional
+            Number of worker processes used for the displaced-atom finite-
+            difference tasks. ``1`` runs serially, ``None`` uses all available
+            workers. Each worker is capped to one OpenMP / MKL / OpenBLAS
+            thread so that calculators with internal multithreading (PyNEP,
+            torch CPU, numpy+MKL) don't oversubscribe. Override by setting
+            ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in the environment
+            before invoking.
+            Default: 1
+        scratch_dir : str or None, optional
+            Optional scratch directory for atom-by-atom intermediate files used
+            for recovery of interrupted calculations. Pass an explicit path to
+            override. Pass an empty string ``''`` to disable scratch files and
+            fall back to in-memory accumulation.
+            Default: ``{folder}/second_order`` when ``self.folder`` is set and
+            ``n_workers > 1``
+        keep_scratch : bool, optional
+            If True, keep scratch files after successful assembly.
+            Default: False
+        """
+        if is_parallel(n_workers):
+            validate_parallel_calculator(calculator, method='SecondOrder.calculate')
+        maybe_warn_ml_delta_shift(calculator, delta_shift, method='SecondOrder.calculate')
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        replicated_atoms.calc = calculator
+        # Attach the calculator instance to replicated_atoms once and skip the
+        # per-atom rebind in _compute_iat_second. Some calculator libraries
+        # require a calculator to stay bound to a single atoms object.
+        if n_workers == 1 and calculator is not None and not callable(calculator):
+            replicated_atoms.calc = calculator
+            worker_calculator = None
+        else:
+            worker_calculator = calculator
+        # Auto-resolve the default scratch directory only for parallel runs;
+        # serial stays in memory to avoid creating unexpected directories.
+        if scratch_dir is None and self.folder and is_parallel(n_workers):
+            scratch_dir = os.path.join(self.folder, 'second_order')
+        elif scratch_dir == '':
+            scratch_dir = None
 
         if is_storing:
             try:
@@ -296,14 +374,34 @@ class SecondOrder(ForceConstant):
 
             except FileNotFoundError:
                 logging.info("Second order not found. Calculating.")
-                self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+                self.value = calculate_second(
+                    atoms,
+                    replicated_atoms,
+                    delta_shift,
+                    is_verbose=is_verbose,
+                    n_workers=n_workers,
+                    calculator=worker_calculator,
+                    scratch_dir=scratch_dir,
+                    keep_scratch=keep_scratch,
+                )
                 self.save("second")
+                if calculator is not None:
+                    self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
                 self.replicated_atoms.get_forces()
                 ase.io.write(self.folder + "/replicated_atoms.xyz", self.replicated_atoms, "extxyz")
             else:
                 logging.info("Reading stored second")
         else:
-            self.value = calculate_second(atoms, replicated_atoms, delta_shift, is_verbose)
+            self.value = calculate_second(
+                atoms,
+                replicated_atoms,
+                delta_shift,
+                is_verbose=is_verbose,
+                n_workers=n_workers,
+                calculator=worker_calculator,
+                scratch_dir=scratch_dir,
+                keep_scratch=keep_scratch,
+            )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 

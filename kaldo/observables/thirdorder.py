@@ -10,6 +10,7 @@ from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third
+from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
@@ -42,7 +43,7 @@ class ThirdOrder(ForceConstant):
              third_energy_threshold: float = 0.,
              chunk_size: int = 100000):
         """
-        Load thrid order force constants from a folder in the given format, used for library internally.
+        Load third order force constants from a folder in the given format, used for library internally.
 
         To load force constants data, ``ForceConstants.from_folder`` is recommended.
 
@@ -92,7 +93,8 @@ class ThirdOrder(ForceConstant):
                               pbc=[1, 1, 1])
 
                 _third_order = COO.from_scipy_sparse(load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))) \
-                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
+                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)) \
+                    .astype(np.float64)
                 third_order = ThirdOrder(atoms=atoms,
                                          replicated_positions=replicated_atoms.positions,
                                          supercell=supercell,
@@ -262,30 +264,50 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, n_threads=None):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
         """Calculate the third order force constants.
+
+        This is the method typically reached through ``fc.third.calculate(...)``.
+        It can load an existing stored result from ``self.folder`` when
+        ``is_storing`` is enabled, or compute the anharmonic force constants
+        directly from finite-difference force evaluations.
+
+        See the *Parallel runs with ML calculators* section of the
+        ForceConstants documentation for the recommended pattern when
+        running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in
+        parallel: define a no-arg factory function at module top level
+        and pass it (without parentheses) as ``calculator``.
 
         Parameters
         ----------
-        calculator : ASE Calculator instance or callable
-            A zero-argument callable (e.g. a class or lambda) that returns a fresh
-            ASE calculator instance. An already-constructed instance is also accepted
-            and will be wrapped internally.
-
-            For file-based calculators, configure a unique directory per process::
-
-                import os
-                calculator=lambda: LAMMPS(tmp_dir=f'/tmp/kaldo_{os.getpid()}')
-
-            For argument-less classes like ASE's EMT::
+        calculator : callable or ASE Calculator instance
+            For serial runs, pass an ASE Calculator instance (the existing
+            kaldo idiom). For parallel runs, pass a callable that returns
+            a fresh ASE Calculator: a class with a no-arg constructor, a
+            top-level factory function, ``functools.partial``, etc. Each
+            worker invokes the callable once to build its own isolated
+            calculator::
 
                 from ase.calculators.emt import EMT
                 calculator=EMT
 
             If None, replicated_atoms must already have a calculator attached.
+        delta_shift : float
+            Finite-difference displacement in Angstrom. The default ``1e-4``
+            is tuned for analytical calculators (EMT, LAMMPS). ML potentials
+            in float32 (Orb, MACE, MatterSim, ...) need ``1e-2`` or larger
+            because float32 force noise (~1e-7 eV/Å) divided by a tiny
+            delta produces FC noise that swamps the physics. A warning
+            fires when ``delta_shift < 1e-2`` and the calculator looks
+            ML-based.
+            Default: 1e-4
         n_workers : int or None
             Number of parallel worker processes. ``1`` runs serially.
-            ``None`` uses all available CPUs.
+            ``None`` uses all available CPUs. Each worker is capped to one
+            OpenMP / MKL / OpenBLAS thread so calculators with internal
+            multithreading (PyNEP, torch CPU, numpy+MKL) don't oversubscribe.
+            Override by setting ``OMP_NUM_THREADS`` / ``MKL_NUM_THREADS`` in
+            the environment before invoking.
             Default: 1 (serial)
         scratch_dir : str or None
             Directory for scratch chunk files written during calculation to keep
@@ -299,19 +321,23 @@ class ThirdOrder(ForceConstant):
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
-        n_threads : int or None
-            Deprecated alias for ``n_workers``.
         """
-        if n_threads is not None:
-            import warnings
-            warnings.warn("n_threads is deprecated, use n_workers instead.", DeprecationWarning, stacklevel=2)
-            n_workers = n_threads
-        if calculator is None:
-            raise ValueError("Provide a calculator")
+        if is_parallel(n_workers):
+            validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
+        maybe_warn_ml_delta_shift(calculator, delta_shift, method='ThirdOrder.calculate')
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
-        # Resolve scratch_dir default
-        if scratch_dir is None and self.folder:
+        # Attach the calculator instance to replicated_atoms once and skip the
+        # per-atom rebind in _compute_iat_third. Some calculator libraries
+        # require a calculator to stay bound to a single atoms object.
+        if n_workers == 1 and calculator is not None and not callable(calculator):
+            replicated_atoms.calc = calculator
+            worker_calculator = None
+        else:
+            worker_calculator = calculator
+        # Auto-resolve the default scratch directory only for parallel runs;
+        # serial stays in memory to avoid creating unexpected directories.
+        if scratch_dir is None and self.folder and is_parallel(n_workers):
             scratch_dir = os.path.join(self.folder, 'third_order')
         elif scratch_dir == '':
             scratch_dir = None
@@ -327,7 +353,7 @@ class ThirdOrder(ForceConstant):
                                              distance_threshold=distance_threshold,
                                              is_verbose=is_verbose,
                                              n_workers=n_workers,
-                                             calculator=calculator,
+                                             calculator=worker_calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
                                              jat_flush_every=jat_flush_every)
@@ -342,7 +368,7 @@ class ThirdOrder(ForceConstant):
                                          distance_threshold=distance_threshold,
                                          is_verbose=is_verbose,
                                          n_workers=n_workers,
-                                         calculator=calculator,
+                                         calculator=worker_calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
                                          jat_flush_every=jat_flush_every)
