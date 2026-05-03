@@ -436,6 +436,7 @@ class SecondOrder(ForceConstant, Storable):
                             atoms.info['dielectric'] = charges[0, :, :]
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                         grid_type = "F"
                     case _:
                         # load VASP second order force constant
