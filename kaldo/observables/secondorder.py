@@ -340,8 +340,11 @@ class SecondOrder(ForceConstant):
             for recovery of interrupted calculations. Pass an explicit path to
             override. Pass an empty string ``''`` to disable scratch files and
             fall back to in-memory accumulation.
-            Default: ``{folder}/second_order`` when ``self.folder`` is set and
-            ``n_workers > 1``
+            Default: ``{folder}/second_order`` when ``self.folder`` is set,
+            ``n_workers > 1``, and ``use_symmetry=False``. With
+            ``use_symmetry=True`` the auto-default is suppressed (the two
+            modes are mutually incompatible — see the ``use_symmetry``
+            docstring below).
         keep_scratch : bool, optional
             If True, keep scratch files after successful assembly.
             Default: False
