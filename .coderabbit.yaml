@@ -4,10 +4,9 @@
 language: en-US
 early_access: false
 tone_instructions: >
-  Be concise and technical. This is a scientific Python library for thermal
-  transport (BTE/QHGK). Prioritize correctness of physics and numerics, dtype
-  consistency, GPU/CPU dispatch, and TensorFlow vs NumPy boundaries. Avoid
-  cosmetic nitpicks; respect the project's flake8/yapf line length of 119.
+  Concise and technical. Scientific Python library for thermal transport.
+  Prioritize numerical correctness, dtype, GPU/CPU dispatch. Avoid cosmetic
+  nitpicks; respect flake8/yapf line length of 119.
 
 reviews:
   profile: chill
