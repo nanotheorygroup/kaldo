@@ -102,3 +102,24 @@ def test_use_symmetry_rejects_scratch_dir(tmp_path):
             atoms, rep, second_order_delta=1e-5, n_workers=1, calculator=EMT(),
             use_symmetry=True, scratch_dir=str(tmp_path),
         )
+
+
+def test_use_symmetry_with_parallel_via_observable(tmp_path):
+    """SecondOrder.calculate / ThirdOrder.calculate with use_symmetry=True
+    AND n_workers>1 must NOT auto-fill scratch_dir from self.folder.
+    Otherwise calculate_second/third would reject the combination and
+    the user's parallel symmetry call would always fail.
+    Regression test for CodeRabbit finding on PR #253."""
+    import shutil
+    from kaldo.forceconstants import ForceConstants
+
+    atoms = bulk("Cu", "fcc", a=3.61, cubic=True)
+
+    folder = str(tmp_path / "fc_sym_parallel")
+    shutil.rmtree(folder, ignore_errors=True)
+
+    fc = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=folder)
+    # SecondOrder.calculate with use_symmetry=True + n_workers=2 must succeed
+    fc.second.calculate(calculator=EMT, n_workers=2, use_symmetry=True)
+    # ThirdOrder.calculate with use_symmetry=True + n_workers=2 must succeed
+    fc.third.calculate(calculator=EMT, n_workers=2, use_symmetry=True)

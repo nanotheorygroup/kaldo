@@ -372,7 +372,10 @@ class SecondOrder(ForceConstant):
             worker_calculator = calculator
         # Auto-resolve the default scratch directory only for parallel runs;
         # serial stays in memory to avoid creating unexpected directories.
-        if scratch_dir is None and self.folder and is_parallel(n_workers):
+        # use_symmetry is incompatible with scratch_dir (calculate_second
+        # raises ValueError on the combo), so don't auto-assign in that case.
+        if (scratch_dir is None and self.folder and is_parallel(n_workers)
+                and not use_symmetry):
             scratch_dir = os.path.join(self.folder, 'second_order')
         elif scratch_dir == '':
             scratch_dir = None
