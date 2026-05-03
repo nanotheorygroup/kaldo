@@ -160,19 +160,27 @@ def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
                 break
 
         if not found:
-            # Time-reversal fallback: q_ik = -q_irr (mod 1).
-            # This arises for non-centrosymmetric crystals where -I is not a
-            # point group rotation but is_time_reversal=True in get_ir_reciprocal_mesh
-            # still identifies q and -q as equivalent.
-            # Γ(-q,μ;q',μ') = Γ(q,μ;-q',μ'), so permuting the k'-axis by
-            # q'→-q' (R_mat=-I) correctly replicates the gamma tensor.
-            # Velocity is odd under inversion: v(-q) = -v(q), so R_cart = -I.
-            q_neg = (-q_irr) % 1.0
-            q_neg[np.abs(q_neg - 1.0) < 1e-9] = 0.0
-            if np.allclose(q_neg, q_target, atol=1e-9):
-                krot_perm[ik] = _apply_rot_to_mesh(-np.eye(3, dtype=int))
-                krot_cart[ik] = -np.eye(3, dtype=float)
-                found = True
+            # Time-reversal fallback: q_ik = -R_recip · q_irr (mod 1).
+            # spglib's get_ir_reciprocal_mesh(is_time_reversal=True) identifies
+            # q and -R_recip·q as equivalent for any rotation R in the point
+            # group. The R = I case (q_ik = -q_irr) is the most common, but for
+            # non-centrosymmetric crystals where -I is not a point group
+            # rotation, equivalence may require the composition of a non-trivial
+            # rotation with time reversal.
+            # Γ(-R_recip·q,μ;q',μ') = Γ(q,μ;-R_recip·q',μ'), so permuting the
+            # k'-axis by q'→-R_recip·q' (mesh permutation by -R.T) correctly
+            # replicates the gamma tensor. Velocity is odd under inversion and
+            # transforms as v(-R_recip·q) = -R_cart · v(q), so R_cart = -A·R·A⁻¹.
+            for R in rotations_frac:
+                R_inv = np.round(np.linalg.inv(R)).astype(int)
+                R_recip = R_inv.T
+                q_neg = (-R_recip @ q_irr) % 1.0
+                q_neg[np.abs(q_neg - 1.0) < 1e-9] = 0.0
+                if np.allclose(q_neg, q_target, atol=1e-9):
+                    krot_perm[ik] = _apply_rot_to_mesh(-R.T)
+                    krot_cart[ik] = -(A @ R @ A_inv)
+                    found = True
+                    break
 
         if not found:
             raise RuntimeError(
