@@ -17,6 +17,17 @@ jobs:
           name: Test
       - codecov/upload:
           file: ./coverage.xml
+  lint:
+    docker:
+      - image: "gbarbalinardo/kaldo:amd"
+    steps:
+      - checkout
+      - run:
+          name: Install flake8
+          command: pip install --quiet flake8
+      - run:
+          name: Run flake8 (advisory; reads max-line-length from setup.cfg)
+          command: python -m flake8 kaldo/ --count --statistics --exit-zero
   docs-build:
     docker:
       - image: "gbarbalinardo/kaldo_docs:amd"
@@ -54,6 +65,7 @@ workflows:
   main:
     jobs:
       - build-and-test
+      - lint
       - docs-build
       - docs-deploy:
           requires:
