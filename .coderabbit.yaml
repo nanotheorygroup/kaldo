@@ -1,0 +1,66 @@
+# CodeRabbit configuration for nanotheorygroup/kaldo
+# Docs: https://docs.coderabbit.ai/reference/yaml-template
+
+language: en-US
+early_access: false
+tone_instructions: >
+  Concise and technical. Scientific Python library for thermal transport.
+  Prioritize numerical correctness, dtype, GPU/CPU dispatch. Avoid cosmetic
+  nitpicks; respect flake8/yapf line length of 119.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_filters:
+    # Exclude generated, vendored, and noisy paths — focus the review on source
+    - "!kaldo/_version.py"
+    - "!versioneer.py"
+    - "!kaldo/tests/**/*.npy"
+    - "!kaldo/tests/**/*.h5"
+    - "!kaldo/tests/**/*.hdf5"
+    - "!kaldo/tests/**/*.dat"
+    - "!kaldo/tests/**/*.in"
+    - "!kaldo/tests/**/*.out"
+    - "!kaldo/tests/**/POSCAR*"
+    - "!kaldo/tests/**/CONTCAR*"
+    - "!kaldo/tests/**/CHGCAR*"
+    - "!docs/**"
+    - "!examples/**/*.ipynb"
+    - "!examples_local/**"
+    - "!build/**"
+    - "!dist/**"
+    - "!*.egg-info/**"
+    - "!.circleci/**"
+  path_instructions:
+    - path: "kaldo/**/*.py"
+      instructions: >
+        Flag float comparisons with `==` (use `np.isclose` / `np.allclose`),
+        silent dtype downgrades from float64 to float32, and chained
+        np.dot/np.tensordot where np.einsum / opt_einsum.contract would be
+        clearer. Watch for TensorFlow imports at module top level in modules
+        that should also load on CPU-only environments.
+    - path: "kaldo/tests/**/*.py"
+      instructions: >
+        Tests should use np.testing.assert_allclose with explicit rtol/atol
+        chosen for the physics, not whatever makes them pass. Use tmp_path for
+        any filesystem writes. Don't mock the filesystem to substitute for
+        reference data files in sibling directories (si-crystal/, mgo/, etc.).
+  tools:
+    ruff:
+      enabled: false
+    languagetool:
+      enabled: false
+    markdownlint:
+      enabled: false
+
+chat:
+  auto_reply: true
