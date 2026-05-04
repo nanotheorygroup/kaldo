@@ -13,7 +13,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-SI_PROD = Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0")
+# Production-only fixture: large DFT-quality Si IFCs at 25^3 supercell.
+# Set KALDO_TEST_SI_PROD to point at reference_si/T300_0 to enable.
+# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
+from kaldo.tests._paths import SI_PROD
 
 
 @pytest.mark.skipif(not SI_PROD.exists(), reason="Si production IFC4 unavailable")
