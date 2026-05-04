@@ -305,6 +305,10 @@ class Phonons(Storable):
                  is_nw: bool = False,
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
+                 nac_method: str = "legacy",
+                 nac_debug: bool = False,
+                 nac_debug_folder: str = "debug",
+                 nac_bvk_supercell_matrix=None,
                  **kwargs):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
@@ -330,6 +334,15 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
+        supported_nac_methods = ("legacy", "gonze")
+        if nac_method not in supported_nac_methods:
+            raise ValueError(
+                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
+            )
+        self.nac_method = nac_method
+        self.nac_debug = bool(nac_debug)
+        self.nac_debug_folder = nac_debug_folder
+        self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -395,6 +408,15 @@ class Phonons(Storable):
 
 
     @lazy_property(label='')
+    def _gonze_precomputed_bundle(self):
+        if self.nac_method != "gonze":
+            return None
+        matrix = self.nac_bvk_supercell_matrix
+        if matrix is None:
+            matrix = np.diag(np.asarray(self.forceconstants.second.supercell, dtype=int))
+        return self.forceconstants.second.get_gonze_nac_precomputed(matrix)
+
+    @lazy_property(label='')
     def physical_mode(self):
         """
         Calculate physical modes. Non physical modes are the first 3 modes of q=(0, 0, 0) and, if defined, all the
@@ -407,6 +429,7 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
+        gonze_precomputed = self._gonze_precomputed_bundle
 
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -417,7 +440,13 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                                   gonze_nac_precomputed=gonze_precomputed,
+                                   q_index=ik)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -438,6 +467,7 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
+        gonze_precomputed = self._gonze_precomputed_bundle
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -447,7 +477,13 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                                   gonze_nac_precomputed=gonze_precomputed,
+                                   q_index=ik)
 
             frequency[ik] = phonon.frequency
 
@@ -468,6 +504,7 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         participation_ratio = np.zeros((self.n_k_points, self.n_modes))
+        gonze_precomputed = self._gonze_precomputed_bundle
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -477,7 +514,13 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                                   gonze_nac_precomputed=gonze_precomputed,
+                                   q_index=ik)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -497,6 +540,7 @@ class Phonons(Storable):
 
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
+        gonze_precomputed = self._gonze_precomputed_bundle
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -506,7 +550,13 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                                   gonze_nac_precomputed=gonze_precomputed,
+                                   q_index=ik)
 
             velocity[ik] = phonon.velocity
         return velocity
@@ -530,6 +580,7 @@ class Phonons(Storable):
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
         log_size(shape, name='eigensystem', type=type)
         eigensystem = np.zeros(shape, dtype=type)
+        gonze_precomputed = self._gonze_precomputed_bundle
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -539,7 +590,13 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_method=self.nac_method,
+                                   nac_debug=self.nac_debug,
+                                   nac_debug_folder=self.nac_debug_folder,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                                   gonze_nac_precomputed=gonze_precomputed,
+                                   q_index=ik)
 
             eigensystem[ik] = phonon._eigensystem
 

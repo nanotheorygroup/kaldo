@@ -1,7 +1,10 @@
 from kaldo.grid import wrap_coordinates, Grid
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
+import json
+import math
 import numpy as np
+from pathlib import Path
 from ase import units
 import ase.io
 from ase import Atoms
@@ -10,11 +13,202 @@ from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
+from kaldo.observables.secondorder import (
+    normalize_bvk_supercell_matrix,
+    _ensure_gonze_kernel_cache as _shared_ensure_gonze_kernel_cache,
+    _dielectric_part as _shared_dielectric_part,
+    _get_minimum_g_rad as _shared_get_minimum_g_rad,
+    _get_g_vec_list as _shared_get_g_vec_list,
+    _get_g_list as _shared_get_g_list,
+    _multiply_borns as _shared_multiply_borns,
+    _get_dd_base as _shared_get_dd_base,
+    _recip_dipole_dipole_q0 as _shared_recip_dipole_dipole_q0,
+    _limiting_dipole_dipole as _shared_limiting_dipole_dipole,
+    _recip_dipole_dipole as _shared_recip_dipole_dipole,
+    _h_tensor as _shared_h_tensor,
+    _real_dipole_dipole as _shared_real_dipole_dipole,
+    _mass_weight as _shared_mass_weight,
+    _short_range_dynamical_matrix as _shared_short_range_dynamical_matrix,
+    _gonze_dynamical_matrices as _shared_gonze_dynamical_matrices,
+)
 # from numpy.linalg import eigh
 
 logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
+
+GONZE_VELOCITY_Q_LENGTH = 1e-5
+GONZE_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
+GONZE_VELOCITY_CUTOFF_FREQUENCY = 1e-4
+# DM conversion: 1 Ry/bohr²/amu in (rad/ps)² = (Ry_to_eV/Å²) × eV_to_10Jmol
+# = (units.Ry/units.Bohr²) × (units.mol/(10*units.J))
+# Used to convert kALDo-unit DM to phonopy-unit DM for cross-validation.
+_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr ** 2) * (units.mol / (10 * units.J))
+GONZE_VELOCITY_DIRECTIONS_CART = np.array(
+    [
+        np.array([1.0, 2.0, 3.0], dtype=float) / np.sqrt(14.0),
+        np.array([1.0, 0.0, 0.0], dtype=float),
+        np.array([0.0, 1.0, 0.0], dtype=float),
+        np.array([0.0, 0.0, 1.0], dtype=float),
+    ],
+    dtype=float,
+)
+
+
+def _gonze_degenerate_sets(frequencies, tolerance=GONZE_VELOCITY_DEGENERACY_TOLERANCE):
+    sets = []
+    current = [0]
+    for index in range(1, len(frequencies)):
+        if abs(frequencies[index] - frequencies[current[-1]]) < tolerance:
+            current.append(index)
+        else:
+            sets.append(current)
+            current = [index]
+    sets.append(current)
+    return sets
+
+
+def _gonze_to_phonopy_q_cart(q_cart):
+    return np.array(q_cart, dtype=float, copy=True) * units.Bohr
+
+
+def _gonze_to_phonopy_dm(dm):
+    return np.array(dm, copy=True) / _PHONOPY_TO_KALDO_DM
+
+
+def _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues):
+    factor = np.sqrt(_PHONOPY_TO_KALDO_DM) / (2 * np.pi)
+    return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
+
+
+def _gonze_velocity_debug_nac_branch(q_red, reciprocal_lattice, tolerance):
+    q_red = np.array(q_red, dtype=float, copy=True)
+    direction_cart = np.array(GONZE_VELOCITY_DIRECTIONS_CART[3], dtype=float, copy=True)
+    q_floor_cart = direction_cart / np.linalg.norm(direction_cart) * tolerance
+    dq_red = np.linalg.solve(reciprocal_lattice, q_floor_cart)
+    q_red_nac = q_red + dq_red
+    q_norm = max(float(np.linalg.norm(reciprocal_lattice @ q_red_nac)), tolerance)
+    return {
+        "nac_applied": bool(q_norm >= tolerance),
+        "q_direction_red": None,
+        "q_norm": q_norm,
+        "q_red": q_red_nac.tolist(),
+        "tolerance": tolerance,
+    }
+
+
+def _gonze_dielectric_part(q_cart, dielectric):
+    return _shared_dielectric_part(q_cart, dielectric)
+
+
+def _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
+    return _shared_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad)
+
+
+def _gonze_get_g_vec_list(reciprocal_lattice, g_rad):
+    return _shared_get_g_vec_list(reciprocal_lattice, g_rad)
+
+
+def _gonze_get_g_list(reciprocal_lattice, g_cutoff):
+    return _shared_get_g_list(reciprocal_lattice, g_cutoff)
+
+
+def _gonze_multiply_borns(dd_in, born):
+    return _shared_multiply_borns(dd_in, born)
+
+
+def _gonze_get_dd_base(
+    g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
+):
+    return _shared_get_dd_base(
+        g_list,
+        q_cart,
+        q_direction_cart,
+        dielectric,
+        positions,
+        lambda_,
+        tolerance,
+    )
+
+
+def _gonze_recip_dipole_dipole_q0(
+    g_list, born, dielectric, positions, lambda_, tolerance
+):
+    return _shared_recip_dipole_dipole_q0(
+        g_list, born, dielectric, positions, lambda_, tolerance
+    )
+
+
+def _gonze_limiting_dipole_dipole(dielectric, lambda_):
+    return _shared_limiting_dipole_dipole(dielectric, lambda_)
+
+
+def _gonze_recip_dipole_dipole(
+    dd_q0,
+    g_list,
+    q_cart,
+    q_direction_cart,
+    born,
+    dielectric,
+    positions,
+    factor,
+    lambda_,
+    tolerance,
+    pair_phase=None,
+):
+    return _shared_recip_dipole_dipole(
+        dd_q0,
+        g_list,
+        q_cart,
+        q_direction_cart,
+        born,
+        dielectric,
+        positions,
+        factor,
+        lambda_,
+        tolerance,
+        pair_phase=pair_phase,
+    )
+
+
+def _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_):
+    return _shared_h_tensor(supercell_cell, svecs, dielectric, lambda_)
+
+
+def _gonze_real_dipole_dipole(
+    q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+):
+    return _shared_real_dipole_dipole(
+        q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+    )
+
+
+def _gonze_mass_weight(fc_term, masses):
+    return _shared_mass_weight(fc_term, masses)
+
+
+def _gonze_short_range_dynamical_matrix(
+    fc,
+    q_red,
+    svecs,
+    multi,
+    masses,
+    s2p_map,
+    p2s_map,
+    phase_weights=None,
+    target_mask=None,
+):
+    return _shared_short_range_dynamical_matrix(
+        fc,
+        q_red,
+        svecs,
+        multi,
+        masses,
+        s2p_map,
+        p2s_map,
+        phase_weights=phase_weights,
+        target_mask=target_mask,
+    )
 
 
 class HarmonicWithQ(Observable, Storable):
@@ -40,6 +234,13 @@ class HarmonicWithQ(Observable, Storable):
                  is_nw=False,
                  is_unfolding=False,
                  is_amorphous=False,
+                 nac_method='legacy',
+                 nac_debug=False,
+                 nac_debug_folder='debug',
+                 nac_bvk_supercell_matrix=None,
+                 nac_q_direction=(1, 0, 0),
+                 q_index=None,
+                 gonze_nac_precomputed=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -55,6 +256,30 @@ class HarmonicWithQ(Observable, Storable):
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
         self.is_nac = True if 'dielectric' in self.atoms.info else False
+        supported_nac_methods = ('legacy', 'gonze')
+        if nac_method not in supported_nac_methods:
+            raise ValueError(
+                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
+            )
+        if nac_method == 'gonze':
+            if not self.is_nac or 'charges' not in self.atoms.arrays:
+                raise ValueError(
+                    "nac_method='gonze' requires atoms.info['dielectric'] and atoms.arrays['charges']."
+                )
+        self.nac_method = nac_method
+        self.nac_debug = bool(nac_debug)
+        self.nac_debug_folder = nac_debug_folder
+        self.nac_bvk_supercell_matrix = normalize_bvk_supercell_matrix(
+            nac_bvk_supercell_matrix
+        )
+        self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
+        self.q_index = q_index
+        self._gonze_nac_precomputed = gonze_nac_precomputed
+        self._gonze_runtime_cache = {}
+        if self.nac_method == "gonze" and self._gonze_nac_precomputed is None:
+            self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
+                self._resolve_gonze_bvk_supercell_matrix()
+            )
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
@@ -87,6 +312,297 @@ class HarmonicWithQ(Observable, Storable):
         else:
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
+
+    def _gonze_debug_static_folder(self):
+        return Path(self.nac_debug_folder) / "static"
+
+    def _gonze_debug_q_folder(self):
+        if self.q_index is not None:
+            return Path(self.nac_debug_folder) / f"q-{int(self.q_index):05d}"
+        label_parts = []
+        for value in np.asarray(self.q_point, dtype=float):
+            text = f"{value:.12g}"
+            if "." not in text:
+                text += ".0"
+            text = text.replace("-", "m").replace(".", "p")
+            label_parts.append(text)
+        return Path(self.nac_debug_folder) / ("q_" + "_".join(label_parts))
+
+    def _gonze_save_debug(self, folder, arrays):
+        if not self.nac_debug:
+            return
+        folder = Path(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, value in arrays.items():
+            np.save(folder / f"{name}.npy", value)
+
+    def _gonze_save_debug_json(self, folder, payloads):
+        if not self.nac_debug:
+            return
+        folder = Path(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, payload in payloads.items():
+            (folder / f"{name}.json").write_text(json.dumps(payload, indent=2, sort_keys=True))
+
+    def _resolve_gonze_bvk_supercell_matrix(self):
+        if self.nac_bvk_supercell_matrix is not None:
+            return np.array(self.nac_bvk_supercell_matrix, dtype=int, copy=True)
+        supercell = np.asarray(self.second.supercell, dtype=int)
+        if supercell.shape != (3,):
+            raise ValueError(
+                "nac_method='gonze' requires second.supercell to be a diagonal 3-vector "
+                "when nac_bvk_supercell_matrix is not provided."
+            )
+        return np.diag(supercell)
+
+    def _calculate_gonze_dynamical_matrix_for_q(self, q_red, _static_data=None, _mapping=None):
+        return self._calculate_gonze_dynamical_matrices_for_qs(
+            np.array([q_red], dtype=float),
+            _static_data,
+            _mapping,
+        )[0]
+
+    def _calculate_gonze_velocity_direction_data(self, direction_index, static_data, _mapping=None):
+        if direction_index not in range(4):
+            raise ValueError(f"direction_index must be in 0..3, got {direction_index}")
+        direction_cart = np.array(
+            GONZE_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
+        )
+        dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
+        dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
+        q_red = np.array(self.q_point, dtype=float, copy=True)
+        dm_minus = _gonze_to_phonopy_dm(
+            self._calculate_gonze_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
+        )
+        dm_plus = _gonze_to_phonopy_dm(
+            self._calculate_gonze_dynamical_matrix_for_q(q_red + dq_red, static_data, _mapping)
+        )
+        delta_dm = dm_plus - dm_minus
+        ddm_fd = delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH)
+        return {
+            "direction_cart": direction_cart,
+            "dq_cart": dq_cart,
+            "dq_red": dq_red,
+            "dm_minus": dm_minus,
+            "dm_plus": dm_plus,
+            "delta_dm": delta_dm,
+            "ddm_fd": ddm_fd,
+        }
+
+    def _ensure_gonze_runtime_data(self, static_data, mapping):
+        static_data, mapping = _shared_ensure_gonze_kernel_cache(static_data, mapping)
+        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
+        current_getter = self.second.get_gonze_short_range_force_constants
+        getter_identity = getattr(current_getter, "__func__", current_getter)
+        fc_cache = self._gonze_runtime_cache.get("fc_short")
+        if (
+            fc_cache is None
+            or fc_cache["getter_identity"] is not getter_identity
+        ):
+            fc_short = current_getter(effective_matrix)
+            fc_cache = {
+                "getter_identity": getter_identity,
+                "fc_short": fc_short,
+                "fc_short_converted": fc_short * static_data["gonze_conversion"],
+            }
+            self._gonze_runtime_cache["fc_short"] = fc_cache
+        static_data["fc_short"] = fc_cache["fc_short"]
+        static_data["fc_short_converted"] = fc_cache["fc_short_converted"]
+        return static_data, mapping
+
+    def _gonze_q_direction_carts(self, q_reds, static_data):
+        q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
+        reciprocal_lattice = static_data["reciprocal_lattice"]
+        q_carts = np.einsum("ab,qb->qa", reciprocal_lattice, q_reds, optimize=True)
+        q_direction_carts = np.array(q_carts, dtype=float, copy=True)
+        inactive = np.linalg.norm(q_carts, axis=1) < static_data["q_direction_tolerance"]
+        if np.any(inactive):
+            nac_direction_cart = reciprocal_lattice @ self.nac_q_direction
+            q_direction_carts[inactive] = nac_direction_cart
+        return q_carts, q_direction_carts
+
+    def _calculate_gonze_dynamical_matrices_for_qs(
+        self,
+        q_reds,
+        _static_data=None,
+        _mapping=None,
+    ):
+        static_data = _static_data if _static_data is not None else self._build_gonze_static_data()
+        mapping = _mapping if _mapping is not None else self._build_gonze_short_range_inputs(static_data)
+        static_data, mapping = self._ensure_gonze_runtime_data(static_data, mapping)
+        q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
+        q_carts, q_direction_carts = self._gonze_q_direction_carts(q_reds, static_data)
+        dm_final = _shared_gonze_dynamical_matrices(
+            q_reds,
+            static_data,
+            mapping,
+            q_direction_carts=q_direction_carts,
+            fc=static_data["fc_short_converted"],
+        )
+        if self.nac_debug and len(q_reds) == 1:
+            q_red = q_reds[0]
+            q_cart = q_carts[0]
+            eigvals = np.linalg.eigvalsh(dm_final[0]).real
+            frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
+            self._gonze_save_debug(
+                self._gonze_debug_q_folder(),
+                {
+                    "q_red": q_red,
+                    "q_cart": q_cart,
+                    "q_direction_cart": q_direction_carts[0],
+                    "dm_final": dm_final[0],
+                    "eigenvalues": eigvals,
+                    "frequencies": frequencies,
+                },
+            )
+        return dm_final
+
+    def _project_gonze_group_velocity_raw(self, ddms, eigenvectors, frequencies):
+        """Project ddm_fd tensors onto eigenmodes with degenerate perturbation theory.
+
+        ddms[0] is the d0 direction used to lift degeneracy.
+        ddms[1:] are the x/y/z axes (d1, d2, d3) for the velocity components.
+        Returns gv_raw of shape (n_modes, 3) in phonopy DM derivative units.
+        """
+        gv_raw = np.zeros((len(frequencies), 3), dtype=float)
+        degenerate_sets = _gonze_degenerate_sets(frequencies)
+        for indices in degenerate_sets:
+            subspace = eigenvectors[:, indices]
+            perturbation = subspace.conj().T @ ddms[0] @ subspace
+            _, rotation = np.linalg.eigh((perturbation + perturbation.conj().T) / 2)
+            rotated = subspace @ rotation
+            for axis, ddm in enumerate(ddms[1:]):
+                projected = rotated.conj().T @ ddm @ rotated
+                gv_raw[np.array(indices), axis] = np.real(np.diag(projected))
+        return gv_raw
+
+    def _scale_gonze_group_velocity_raw(self, gv_raw, frequencies):
+        """Scale raw projected derivatives to group velocity in Å×THz.
+
+        Applies gv = (1/2ω) × dω²/dk, expressed in phonopy units as
+        _PHONOPY_TO_KALDO_DM / (8π² × freq_THz).
+        """
+        scaling = np.zeros(len(frequencies), dtype=float)
+        cutoff_mask = (np.abs(frequencies) > GONZE_VELOCITY_CUTOFF_FREQUENCY).astype(np.int64)
+        active = cutoff_mask.astype(bool)
+        scaling[active] = _PHONOPY_TO_KALDO_DM / (8.0 * np.pi ** 2 * frequencies[active])
+        gv_scaled = gv_raw * scaling[:, np.newaxis]
+        gv_scaled[~active] = 0.0
+        return gv_scaled, scaling, cutoff_mask
+
+    def _calculate_gonze_velocity_debug_data(self):
+        static_data = self._build_gonze_static_data()
+        mapping = self._build_gonze_short_range_inputs(static_data)
+        q_red = np.array(self.q_point, dtype=float, copy=True)
+        q_cart = static_data["reciprocal_lattice"] @ q_red
+        q_samples = [q_red]
+        direction_payloads = []
+        for direction_cart in GONZE_VELOCITY_DIRECTIONS_CART:
+            dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
+            dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
+            direction_payloads.append((direction_cart, dq_cart, dq_red))
+            q_samples.extend((q_red - dq_red, q_red + dq_red))
+        q_samples = np.array(q_samples, dtype=float)
+        dm_all_kaldo = self._calculate_gonze_dynamical_matrices_for_qs(q_samples, static_data, mapping)
+        dm_q_kaldo = dm_all_kaldo[0]
+        dm_q = _gonze_to_phonopy_dm(dm_q_kaldo)
+        eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
+        eigenvalues = eigenvalues.real
+        frequencies = _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues)
+        degenerate_sets = _gonze_degenerate_sets(frequencies)
+        q_cart = _gonze_to_phonopy_q_cart(q_cart)
+        nac_branch = _gonze_velocity_debug_nac_branch(
+            q_red,
+            _gonze_to_phonopy_q_cart(static_data["reciprocal_lattice"]),
+            GONZE_VELOCITY_Q_LENGTH,
+        )
+        directions = {}
+        for index, (direction_cart, dq_cart, dq_red) in enumerate(direction_payloads):
+            direction_name = f"d{index}"
+            dm_minus = _gonze_to_phonopy_dm(dm_all_kaldo[1 + 2 * index])
+            dm_plus = _gonze_to_phonopy_dm(dm_all_kaldo[2 + 2 * index])
+            delta_dm = dm_plus - dm_minus
+            direction_data = {
+                "direction_cart": np.array(direction_cart, dtype=float, copy=True),
+                "dq_cart": dq_cart,
+                "dq_red": dq_red,
+                "dm_minus": dm_minus,
+                "dm_plus": dm_plus,
+                "delta_dm": delta_dm,
+                "ddm_fd": delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH),
+            }
+            directions[direction_name] = direction_data
+            self._gonze_save_debug(self._gonze_debug_q_folder() / direction_name, direction_data)
+        ddms = [directions[f"d{i}"]["ddm_fd"] for i in range(4)]
+        gv_raw = self._project_gonze_group_velocity_raw(ddms, eigenvectors, frequencies)
+        gv_scaled, gv_scaling_prefactor, gv_cutoff_mask = self._scale_gonze_group_velocity_raw(
+            gv_raw, frequencies
+        )
+        data = {
+            "q_red": q_red,
+            "q_cart": q_cart,
+            "dm_q": dm_q,
+            "eigenvalues": eigenvalues,
+            "eigenvectors": eigenvectors,
+            "frequencies": frequencies,
+            "degenerate_sets": {"sets": degenerate_sets},
+            "nac_branch": nac_branch,
+            "directions": directions,
+            "gv_raw": gv_raw,
+            "gv_scaling_prefactor": gv_scaling_prefactor,
+            "gv_cutoff_mask": gv_cutoff_mask,
+            "gv_scaled": gv_scaled,
+        }
+        self._gonze_save_debug(
+            self._gonze_debug_q_folder(),
+            {
+                "q_red": q_red,
+                "q_cart": q_cart,
+                "dm_q": dm_q,
+                "eigenvalues": eigenvalues,
+                "eigenvectors": eigenvectors,
+                "frequencies": frequencies,
+                "gv_raw": gv_raw,
+                "gv_scaling_prefactor": gv_scaling_prefactor,
+                "gv_cutoff_mask": gv_cutoff_mask,
+                "gv_scaled": gv_scaled,
+            },
+        )
+        self._gonze_save_debug_json(
+            self._gonze_debug_q_folder(),
+            {
+                "degenerate_sets": {"sets": degenerate_sets},
+                "nac_branch": nac_branch,
+            },
+        )
+        return data
+
+    def _build_gonze_static_data(self):
+        if self._gonze_nac_precomputed is not None:
+            return self._gonze_nac_precomputed["static_data"]
+        matrix = self._resolve_gonze_bvk_supercell_matrix()
+        self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(matrix)
+        data = self._gonze_nac_precomputed["static_data"]
+        self._gonze_save_debug(
+            self._gonze_debug_static_folder(),
+            {k: v for k, v in data.items() if k != "q_direction_tolerance"},
+        )
+        return data
+
+    def _build_gonze_short_range_inputs(self, static_data):
+        if self._gonze_nac_precomputed is not None:
+            return self._gonze_nac_precomputed["mapping"]
+        self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
+            self._resolve_gonze_bvk_supercell_matrix()
+        )
+        return self._gonze_nac_precomputed["mapping"]
+
+    def _calculate_gonze_dynamical_matrix(self, _static_data=None, _mapping=None):
+        return self._calculate_gonze_dynamical_matrices_for_qs(
+            np.array([self.q_point], dtype=float),
+            _static_data,
+            _mapping,
+        )[0]
 
     @lazy_property(label='<q_point>')
     def frequency(self):
@@ -253,6 +769,8 @@ class HarmonicWithQ(Observable, Storable):
         return sij
 
     def calculate_velocity(self):
+        if self.nac_method == 'gonze':
+            return self._calculate_gonze_velocity_debug_data()["gv_scaled"][np.newaxis, ...]
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
@@ -270,6 +788,13 @@ class HarmonicWithQ(Observable, Storable):
             velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
             velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
         return velocity[np.newaxis, ...]
+
+    def _calculate_gonze_eigensystem(self, only_eigenvals=False):
+        dyn_s = self._calculate_gonze_dynamical_matrix()
+        if only_eigenvals:
+            return np.linalg.eigvalsh(dyn_s).real
+        eigenvals, eigenvects = np.linalg.eigh(dyn_s)
+        return np.vstack((eigenvals[np.newaxis, :], eigenvects))
 
     def calculate_dynmat_fourier(self):
         q_point = self.q_point
@@ -314,6 +839,8 @@ class HarmonicWithQ(Observable, Storable):
         return dyn_s
 
     def calculate_eigensystem(self, only_eigenvals):
+        if self.nac_method == 'gonze':
+            return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
         dyn_s = self._dynmat_fourier
         if self.is_nac:
             dyn_lr = self.nac_dynmat(qpoint=None)
@@ -344,6 +871,8 @@ class HarmonicWithQ(Observable, Storable):
         return participation_ratio
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
+        if self.nac_method == 'gonze':
+            return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms

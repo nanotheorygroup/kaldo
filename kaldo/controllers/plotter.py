@@ -295,12 +295,16 @@ class _Plotter:
         freqs_plot = []
         vel_plot = []
         vel_norm_plot = []
-        for q_point in k_list:
+        for iq, q_point in enumerate(k_list):
             phonon = HarmonicWithQ(q_point, self.phonons.forceconstants.second,
                                    distance_threshold=self.phonons.forceconstants.distance_threshold,
                                    storage='memory',
                                    is_nw=self.phonons.is_nw,
-                                   is_unfolding=self.phonons.is_unfolding)
+                                   is_unfolding=self.phonons.is_unfolding,
+                                   nac_method=getattr(self.phonons, "nac_method", "legacy"),
+                                   nac_debug=getattr(self.phonons, "nac_debug", False),
+                                   nac_debug_folder=getattr(self.phonons, "nac_debug_folder", "debug"),
+                                   q_index=iq)
             freqs_plot.append(phonon.frequency.flatten())
             vel_value = phonon.velocity[0]
             vel_plot.append(vel_value)
