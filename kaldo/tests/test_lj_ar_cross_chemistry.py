@@ -1,8 +1,9 @@
 """
-Gap 4: cross-chemistry validation on Lennard-Jones Argon at 80 K.
+Cross-chemistry validation on Lennard-Jones Argon at 80 K.
 
-The LJ fixture ships with Julia LDT at
-``~/.julia/packages/LatticeDynamicsToolkit/*/data/LJ/80K_4UC/``. It is:
+Uses the LJ Ar 80K_4UC TDEP fixture vendored under
+``kaldo/tests/cumulant_fixtures/LJ/`` (originally from
+LatticeDynamicsToolkit.jl). It is:
 
   * a DIFFERENT atom (Ar, mass 39.948 amu) than our Ne LJ reference (20.18 amu)
   * at DIFFERENT temperature (80 K vs 24 K for Ne)
@@ -13,6 +14,9 @@ The LJ fixture ships with Julia LDT at
 This pins mesh-convergence values for F1/F2 to catch numerical drift in
 future changes and confirms the non-diagonal SNF path scales to
 det M = 256 (our largest supercell mapping).
+
+Tests are entirely self-contained (no external paths, no Julia runtime
+required).
 """
 from __future__ import annotations
 
@@ -23,9 +27,9 @@ import numpy as np
 import pytest
 
 
-LDT_LJ_BASE = Path(
-    "/home/giuseppe/.julia/packages/LatticeDynamicsToolkit/Gtn1t/data/LJ"
-)
+# LJ Ar TDEP fixture vendored from LatticeDynamicsToolkit.jl test data.
+# Self-contained — no external paths or Julia runtime required.
+LDT_LJ_BASE = Path(__file__).parent / "cumulant_fixtures" / "LJ"
 LDT_LJ_IFC = LDT_LJ_BASE / "80K_4UC"
 
 

@@ -34,13 +34,16 @@ def test_cumulant_thermo_legacy_signature_unchanged():
     assert params[:2] == ["ifc_dir", "ifcs_sc_h5"]
 
 
-NE_IFC_DIR = "/home/giuseppe/Development/ethan/run/thermo_out_full"
-NE_H5 = "/home/giuseppe/Development/4th-order-cumulants/out/ifcs_sc_remapped.h5"
+# Production-only fixtures: Ne TDEP IFC dir + the SC-remapped IFC4 HDF5
+# dump from Ethan's run. Set KALDO_TEST_NE_REF and KALDO_TEST_SI_NE_H5 to
+# enable. See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
+from kaldo.tests._paths import NE_REF, NE_IFC_H5
+NE_IFC_DIR = str(NE_REF)
+NE_H5 = str(NE_IFC_H5)
 
 
 def _have_ne_fixtures():
-    import os
-    return os.path.exists(NE_IFC_DIR) and os.path.exists(NE_H5)
+    return NE_REF.exists() and NE_IFC_H5.exists()
 
 
 def test_cumulant_thermo_phases_1_to_4_run_on_nondiagonal_ne():

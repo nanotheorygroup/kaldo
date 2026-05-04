@@ -58,24 +58,22 @@ class FourthOrder(ForceConstant):
                     validate_tdep_supercell_matrix,
                     build_nondiag_observable_kwargs,
                     attach_snf_metadata,
-                    parse_tdep_fourth_forceconstant_nondiag,
                 )
                 M_int = validate_tdep_supercell_matrix(supercell_matrix, M, supercell)
                 if M_int is not None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    fourth_ifcs = parse_tdep_fourth_forceconstant_nondiag(
+                    fourth_ifcs = parse_tdep_fourth_forceconstant(
                         fc_filename=os.path.join(folder, "infile.forceconstant_fourthorder"),
                         primitive=uc,
-                        replica_table=mapping["replica_table"],
-                        M=mapping["M"],
+                        grid=kw["grid"],
                     )
                     fourth_order = cls(value=fourth_ifcs, folder=folder, **kw)
                     return attach_snf_metadata(fourth_order, mapping)
 
                 fourth_ifcs = parse_tdep_fourth_forceconstant(
                     fc_filename=os.path.join(folder, "infile.forceconstant_fourthorder"),
-                    primitive=os.path.join(folder, "infile.ucposcar"),
+                    primitive=uc,
                     supercell=supercell,
                 )
 

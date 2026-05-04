@@ -24,6 +24,11 @@ import pytest
 SI_TDEP_DIR = Path(__file__).parent / "si-tdep"
 SI_MASS_AMU = 28.0855
 
+# Production-only fixture: large DFT-quality Si IFCs at 25^3 supercell.
+# Set KALDO_TEST_SI_PROD to point at reference_si/T300_0 to enable.
+# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
+from kaldo.tests._paths import SI_PROD
+
 
 def _sort_freqs_2d(freq):
     """Sort phonon frequencies within each q and across q for stable comparison.
@@ -89,7 +94,7 @@ def test_kaldo_tdep_ifc2_matches_cumulant_dynmat_si():
 
 
 @pytest.mark.skipif(
-    not Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0").exists(),
+    not SI_PROD.exists(),
     reason="non-diagonal Si fixture unavailable",
 )
 def test_tdep_reader_rejects_non_diagonal_supercell():
@@ -103,7 +108,7 @@ def test_tdep_reader_rejects_non_diagonal_supercell():
     """
     from kaldo.forceconstants import ForceConstants
 
-    si_prod = Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0")
+    si_prod = SI_PROD
     with pytest.raises(ValueError, match=r"(?i)non.?diagonal|SNF|diagonal"):
         ForceConstants.from_folder(
             folder=str(si_prod), supercell=(3, 3, 3), format="tdep",
@@ -162,7 +167,7 @@ def test_kaldo_tdep_ifc3_matches_cumulant_triplets_si():
 
 
 @pytest.mark.skipif(
-    not Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0").exists(),
+    not SI_PROD.exists(),
     reason="non-diagonal Si fixture unavailable",
 )
 def test_tdep_third_reader_rejects_non_diagonal_supercell():
@@ -174,7 +179,7 @@ def test_tdep_third_reader_rejects_non_diagonal_supercell():
     """
     from kaldo.forceconstants import ForceConstants
 
-    si_prod = Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0")
+    si_prod = SI_PROD
     with pytest.raises(ValueError, match=r"(?i)non.?diagonal|SNF|diagonal"):
         ForceConstants.from_folder(
             folder=str(si_prod), supercell=(3, 3, 3), format="tdep",

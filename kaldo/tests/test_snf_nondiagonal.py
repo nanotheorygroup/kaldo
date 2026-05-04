@@ -21,8 +21,11 @@ import numpy as np
 import pytest
 
 SI_TDEP_DIR = Path(__file__).parent / "si-tdep"
-SI_PROD = Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0")
-NE_PROD = Path("/home/giuseppe/Development/ethan/run/thermo_out_full")
+
+# Production-only fixtures: large DFT-quality Si IFCs and Ne TDEP run output.
+# Set KALDO_TEST_SI_PROD and KALDO_TEST_NE_REF to enable.
+# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
+from kaldo.tests._paths import SI_PROD, NE_REF as NE_PROD
 
 
 # ---------------------------------------------------------------------------

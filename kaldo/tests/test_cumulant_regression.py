@@ -18,9 +18,10 @@ Validated sources:
   * Si 2^3, 3^3, 5^3 - matches Julia LDT to 4-5 digits
 
 Skip conditions:
-  * Ne fixtures: requires /home/giuseppe/Development/ethan/run/thermo_out_full/
-  * Si fixtures: requires ~/Development/4th-order-cumulants/reference_si/T300_0/
-  Both live on the dvncls SSH host; tests are skipped when unavailable.
+  * Ne fixtures: set KALDO_TEST_NE_REF to the thermo_out_full directory.
+  * Si fixtures: set KALDO_TEST_SI_PROD to reference_si/T300_0 directory.
+  * Cached JSON: set KALDO_TEST_CUMULANT_OUT to the cumulants out/ directory.
+  Tests skip cleanly when the env vars are unset.
 """
 from __future__ import annotations
 
@@ -30,9 +31,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-NE_REF = Path("/home/giuseppe/Development/ethan/run/thermo_out_full")
-SI_REF = Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0")
-OUT_DIR = Path("/home/giuseppe/Development/4th-order-cumulants/out")
+# Production-only fixtures: large DFT-quality Si IFCs and Ne TDEP run output.
+# Set KALDO_TEST_SI_PROD, KALDO_TEST_NE_REF, KALDO_TEST_CUMULANT_OUT to enable.
+# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
+import os
+from kaldo.tests._paths import SI_PROD as SI_REF, NE_REF
+OUT_DIR = Path(os.environ.get("KALDO_TEST_CUMULANT_OUT", ""))
 
 _NE_AVAIL = NE_REF.exists()
 _SI_AVAIL = SI_REF.exists()

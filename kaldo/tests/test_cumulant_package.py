@@ -13,8 +13,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-NE_REF = Path("/home/giuseppe/Development/ethan/run/thermo_out_full")
-SI_REF = Path("/home/giuseppe/Development/4th-order-cumulants/reference_si/T300_0")
+# Production-only fixtures: large DFT-quality Si IFCs and Ne TDEP run output.
+# Set KALDO_TEST_SI_PROD and KALDO_TEST_NE_REF to enable.
+# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
+from kaldo.tests._paths import SI_PROD as SI_REF, NE_REF
 
 _NE_AVAIL = NE_REF.exists()
 _SI_AVAIL = SI_REF.exists()
@@ -83,7 +85,12 @@ def test_ne_10cubed_F_H_matches_phase1():
 # Gate 6 full recap using kaldo.cumulant estimator+bootstrap
 # -------------------------------------------------------------------------
 
-SAMPLES_NPZ = Path("/home/giuseppe/Development/4th-order-cumulants/out/phase5_our_samples.npz")
+import os
+# Production-only fixture: cached MC samples / analytic JSON outputs from
+# Ethan's reference cumulant runs. Set KALDO_TEST_CUMULANT_OUT to the dir
+# containing phase5_our_samples.npz, run_25cubed_ibz.json, etc. to enable.
+_OUT_DIR = Path(os.environ.get("KALDO_TEST_CUMULANT_OUT", ""))
+SAMPLES_NPZ = _OUT_DIR / "phase5_our_samples.npz"
 
 
 @pytest.mark.skipif(not SAMPLES_NPZ.exists(),
@@ -111,8 +118,8 @@ def test_gate6_recap_uses_kaldo_cumulant():
     F_H, U_H = 6.140788e-3, 8.811518e-3
     S_H, Cv_H = 1.2913396, 1.9769204
 
-    d25_f1 = json.load(open("/home/giuseppe/Development/4th-order-cumulants/out/run_25cubed_ibz.json"))
-    d25_f2 = json.load(open("/home/giuseppe/Development/4th-order-cumulants/out/run_25cubed_ibz_tdep.json"))
+    d25_f1 = json.load(open(_OUT_DIR / "run_25cubed_ibz.json"))
+    d25_f2 = json.load(open(_OUT_DIR / "run_25cubed_ibz_tdep.json"))
     F1 = d25_f1["phase3"]["F1"]; U1 = d25_f1["phase3"]["U1"]
     S1 = d25_f1["phase3"]["S1"]; Cv1 = d25_f1["phase3"]["Cv1"]
     F2 = d25_f2["phase4"]["F2"]; U2 = d25_f2["phase4"]["U2"]

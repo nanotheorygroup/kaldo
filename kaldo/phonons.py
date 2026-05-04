@@ -18,7 +18,7 @@ import kaldo.controllers.anharmonic as aha
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from concurrent.futures import as_completed
-from kaldo.parallel import get_executor
+from kaldo.parallel import dispatch_with_resume, get_executor
 from scipy import stats
 import numpy as np
 from numpy.typing import ArrayLike
@@ -31,7 +31,6 @@ logging = get_logger()
 # Constants
 GAMMA_TO_THZ = 1e11 * units.mol * (units.mol / (10 * units.J)) ** 2
 THZ_TO_MEV = units.J * units._hbar * 2 * np.pi * 1e15
-
 
 def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
     """
@@ -183,6 +182,7 @@ def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
 
     return ir_mapping, krot_perm, ibz_indices, krot_cart
 
+
 def _sparse_tensor_to_numpy(st):
     """Convert a tf.SparseTensor to a picklable (indices, values, dense_shape) tuple."""
     if st is None:
@@ -211,11 +211,6 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
     where each *_data_list is [is_plus_0, is_plus_1] with entries as
     (indices, values, dense_shape) numpy tuples or None.
     """
-    # Pin BLAS threads in worker processes
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
     # Reconstruct TF tensors from numpy
     evect_tf = tf.cast(tf.convert_to_tensor(evect_np), dtype=tf.complex128)
     second_minus = tf.math.conj(evect_tf)
@@ -298,7 +293,7 @@ def _save_kpoint_projection(output_dir, index_k, results):
                 save_dict[f'{prefix}_pot_shape'] = np.array(dense_shape)
     save_dict['n_modes'] = np.array(len(results))
     np.savez(os.path.join(output_dir, f'kpt_{index_k:05d}.npz'), **save_dict)
-    open(os.path.join(output_dir, f'kpt_{index_k:05d}.done'), 'w').close()
+    # Sentinel is written by dispatch_with_resume after this returns.
 
 
 def _load_kpoint_projection(output_dir, index_k, n_modes):
@@ -689,7 +684,6 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
-
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -700,6 +694,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous)
+
             frequency[ik] = phonon.frequency
 
         return frequency
@@ -784,6 +779,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous)
+
             velocity[ik] = phonon.velocity
 
         # Replicate non-IBZ velocities via Cartesian rotation.
@@ -1615,17 +1611,9 @@ class Phonons(Storable):
         hbar = units._hbar
         n_modes = self.n_modes
 
-        # Determine which k-points to compute.  When q-symmetry is enabled
-        # only IBZ representatives need full projection; equivalents are
-        # skipped here and replicated in _select_algorithm_for_phase_space_and_gamma.
-        if self.use_q_symmetry:
-            _, _, ibz_compute, _ = self._ir_kgrid_data
-        else:
-            ibz_compute = list(range(n_k_points))
-
         # Pre-compute k-point mappings (avoids passing self to workers)
         kpoint_maps = {}
-        for ik in ibz_compute:
+        for ik in range(n_k_points):
             for is_plus in (0, 1):
                 kpoint_maps[(ik, is_plus)] = self._allowed_third_phonons_index(ik, is_plus)
 
@@ -1654,62 +1642,39 @@ class Phonons(Storable):
             kpoint_maps=kpoint_maps,
         )
 
-        use_parallel = self.n_workers is None or self.n_workers > 1
-        backend = 'process' if use_parallel else 'serial'
-        n_workers = self.n_workers if use_parallel else None
-
-        # Determine which k-points to compute (resume support + q-symmetry).
-        # When use_q_symmetry is True, ibz_compute already limits to IBZ reps;
-        # non-IBZ k-points are assembled as all-None tensors below.
-        output_dir = self.projection_output_dir
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-            kpoints_to_compute = [
-                ik for ik in ibz_compute
-                if not os.path.exists(os.path.join(output_dir, f'kpt_{ik:05d}.done'))
-            ]
-            n_resumed = len(ibz_compute) - len(kpoints_to_compute)
-            if n_resumed:
-                logging.info(f'Resuming projection: skipping {n_resumed} already-computed k-point(s)')
-        else:
-            kpoints_to_compute = list(ibz_compute)
-
         worker_fn = functools.partial(_compute_kpoint_projection, **shared)
+        output_dir = self.projection_output_dir
 
-        # Collect results per k-point
-        kpoint_results = {}
-        with get_executor(backend=backend, n_workers=n_workers) as executor:
-            futures = {
-                executor.submit(worker_fn, ik): ik
-                for ik in kpoints_to_compute
-            }
-            for future in as_completed(futures):
-                ik = futures[future]
-                kpoint_results[ik] = future.result()
-                logging.info(f'Completed k-point {ik}/{n_k_points}: '
-                             f'{100 * len(kpoint_results) / len(kpoints_to_compute):.0f}%')
+        # Memory handling:
+        # - output_dir set: write to disk inside the loop and DROP the
+        #   in-memory result so peak memory stays at O(1) k-points. The
+        #   assembly loop later loads each k-point from disk one at a
+        #   time. This is the memory-bug fix vs. PR #231.
+        # - output_dir None: accumulate in a dict (legacy in-memory mode).
+        kpoint_results = {} if output_dir is None else None
 
-                # Write to disk if output_dir is set
-                if output_dir:
-                    _save_kpoint_projection(output_dir, ik, kpoint_results[ik])
+        for ik, result in dispatch_with_resume(
+            range(n_k_points), worker_fn,
+            n_workers=self.n_workers,
+            output_dir=output_dir,
+            sentinel_prefix="kpt_",
+            log_progress=False,
+        ):
+            if output_dir is not None:
+                _save_kpoint_projection(output_dir, ik, result)
+                # result dropped here — assembly loop reads from disk.
+            else:
+                kpoint_results[ik] = result
+            logging.info(f'Completed k-point {ik}/{n_k_points}')
 
-        # All-None placeholder used for non-IBZ k-points under q-symmetry.
-        _null_results = [([None, None], [None, None])] * n_modes
-
-        # Assemble into the flat sparse_phase / sparse_potential lists.
-        # Non-IBZ k-points get all-None tensors; their ps_and_gamma rows are
-        # filled by replication in _select_algorithm_for_phase_space_and_gamma.
+        # Assemble into the flat sparse_phase / sparse_potential lists
         sparse_phase = []
         sparse_potential = []
-        ibz_set = set(ibz_compute)
         for ik in range(n_k_points):
-            if ik in kpoint_results:
+            if kpoint_results is not None and ik in kpoint_results:
                 results = kpoint_results[ik]
-            elif output_dir and ik in ibz_set:
+            elif output_dir:
                 results = _load_kpoint_projection(output_dir, ik, n_modes)
-            elif ik not in ibz_set:
-                # Non-IBZ k-point: placeholder (replicated later)
-                results = _null_results
             else:
                 raise RuntimeError(f'Missing results for k-point {ik}')
 

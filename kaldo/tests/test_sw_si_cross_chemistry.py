@@ -1,39 +1,27 @@
 """
-Task 44: cross-chemistry validation on Stillinger-Weber Si at 100 K.
+Cross-chemistry validation on Stillinger-Weber Si at 100 K.
 
-The SW Si 100K_3UC fixture ships with Julia LDT (under
-``.julia/packages/LatticeDynamicsToolkit/*/data/SW/100K_3UC/``) and uses the
-**same Si diamond primitive** as our ``reference_si/T300_0`` fixture, but
-with a **different interatomic potential (Stillinger-Weber)** and **different
-temperature (100 K vs 300 K)**. The non-diagonal ssposcar tiling is
-identical (det M = 108), so the SNF path + F1/F2 kernels get exercised on
-physics that differs from the primary regression set.
+Uses the SW Si 100K_3UC TDEP fixture vendored under
+``kaldo/tests/cumulant_fixtures/SW/`` (originally from
+LatticeDynamicsToolkit.jl). Same Si diamond primitive as the production
+``reference_si/T300_0`` fixture, but a **different potential (Stillinger-
+Weber)** and **temperature (100 K vs 300 K)**. The non-diagonal ssposcar
+tiling is identical (det M = 108), so the SNF path + F1/F2 kernels get
+exercised on physics that differs from the primary regression set.
 
-Observed convergence: Julia LDT vs our Python port (exact match to 5+
-significant digits):
+Pinned reference values: F1/F2 at 2³, 3³, 5³ produced by an independent
+Julia/LatticeDynamicsToolkit.jl run on the same TDEP IFC files. Python
+port agrees to 5+ significant digits, confirming the multi-atom F1/F2
+kernels match an independent implementation.
 
-  | mesh | Julia LDT F1         | Python F1   | Julia LDT F2           | Python F2    |
-  |------|----------------------|-------------|------------------------|--------------|
-  | 2^3  | +1.0716049836198e-4  | +1.0716e-4  | -2.2973337994597e-5    | -2.2973e-5   |
-  | 3^3  | +1.0949229998332e-4  | +1.0949e-4  | -2.4322264096593e-5    | -2.4322e-5   |
-  | 5^3  | +1.1012932216338e-4  | +1.1013e-4  | -2.4806056654285e-5    | -2.4806e-5   |
+Note on physics: F1 here is positive (~+1.10e-4 eV/atom), opposite sign
+to DFT-Si-300K where F1 ≈ -1.24e-5. The SW potential plus colder
+temperature produces quartic stiffening that raises the free energy
+rather than lowering it; both signs are physically valid given the
+different potentials. F2 converges monotonically to ~-2.5e-5.
 
-Julia reference generated on dvncls via
-``julia --project=LDT /tmp/ldt_sw_si_reference.jl``. This is a
-third-party independent computation agreeing with our port to floating-
-point precision, confirming our multi-atom F1/F2 kernels are correct on
-this SW potential.
-
-Notably:
-  * F1 flips sign vs DFT-Si-300K (where F1 = -1.24e-5). The SW potential +
-    colder temperature produces quartic stiffening that raises F, not
-    lowers it. Physically valid: different potential ⇒ different dressed
-    harmonic, so different sign is expected.
-  * F2 converges monotonically to ~-2.5e-5.
-  * Both quantities have the right units and orders of magnitude.
-
-The test below pins a 5-digit Julia-derived value for each mesh so a
-future drift at the 1e-4 level trips.
+Tests are entirely self-contained (no external paths, no Julia runtime
+required).
 """
 from __future__ import annotations
 
@@ -44,10 +32,9 @@ import numpy as np
 import pytest
 
 
-# Julia LDT SW Si fixture (ships with LDT, installed with Julia)
-LDT_SW_BASE = Path(
-    "/home/giuseppe/.julia/packages/LatticeDynamicsToolkit/Gtn1t/data/SW"
-)
+# SW Si TDEP fixture vendored from LatticeDynamicsToolkit.jl test data.
+# Self-contained — no external paths or Julia runtime required.
+LDT_SW_BASE = Path(__file__).parent / "cumulant_fixtures" / "SW"
 LDT_SW_IFC = LDT_SW_BASE / "100K_3UC"
 
 
