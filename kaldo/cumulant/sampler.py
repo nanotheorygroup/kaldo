@@ -13,10 +13,6 @@ Bit-for-bit agreement with Julia on Ne rhombohedral SC (T=24 K quantum and
 classical) confirmed during the cumulant port.
 """
 from __future__ import annotations
-
-from pathlib import Path
-
-import h5py
 import numpy as np
 
 from .common import HBAR, KB, EV, AMU, ANG, FREQ_TOL_THZ
@@ -27,14 +23,12 @@ class SCSampler:
     Sample from the quantum or classical canonical harmonic ensemble on the
     supercell (Gamma-point diagonalization of D_sc).
 
-    The supercell IFC2 is consumed in SC-remapped HDF5 form (one dense entry
-    per atom-pair in the supercell, indexed by atom_sc indices a1, a2). This
-    is the format written by Julia's `dump_remapped_ifcs.jl`.
+    The supercell IFC2 is consumed from a generic remap dictionary.
 
     Parameters
     ----------
-    ifcs_sc_h5 : Path
-        Path to the SC-remapped IFC2/3/4 HDF5 file.
+    remapped
+        ``kaldo.remap.SupercellIFCRemap``.
     masses_amu_sc : (n_sc,) array
         Atomic masses in amu for each supercell atom.
     T_K : float
@@ -47,19 +41,19 @@ class SCSampler:
 
     def __init__(
         self,
-        ifcs_sc_h5: Path,
+        remapped,
         masses_amu_sc: np.ndarray,
         T_K: float,
         quantum: bool = True,
         seed: int | None = None,
     ):
-        with h5py.File(ifcs_sc_h5) as f:
-            n_sc = int(f["n_atoms_sc"][()])
-            a1 = f["ifc2/a1"][:].astype(int)
-            a2 = f["ifc2/a2"][:].astype(int)
-            phi = f["ifc2/phi_eV_per_A2"][:]
-            if phi.shape[-2:] != (3, 3):
-                phi = np.moveaxis(phi, -1, 0)
+        sc_ifc2 = remapped.ifc2
+        n_sc = int(remapped.n_atoms_sc)
+        a1 = np.asarray(sc_ifc2.a1, dtype=int)
+        a2 = np.asarray(sc_ifc2.a2, dtype=int)
+        phi = np.asarray(sc_ifc2.phi)
+        if phi.shape[-2:] != (3, 3):
+            phi = np.moveaxis(phi, -1, 0)
         self.n_sc = n_sc
         self.masses_amu = np.asarray(masses_amu_sc)
         self.masses_kg = self.masses_amu * AMU

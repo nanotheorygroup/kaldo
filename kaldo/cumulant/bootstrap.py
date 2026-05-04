@@ -16,7 +16,7 @@ import time
 
 import numpy as np
 
-from .common import KB_eV_per_K
+from .constants import KB_eV_per_K
 from .estimator import calculate_cumulants
 
 
@@ -34,18 +34,18 @@ def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None
 
     Returns
     -------
-    (point, se) : two dicts with keys F_offset, U_offset (eV/atom) and
-        S_offset, Cv_offset (kB/atom).
+    (point, se) : two dicts with keys F0, U0 (eV/atom) and
+        S0, Cv0 (kB/atom).
     """
     rng = np.random.default_rng(seed)
     N = len(V)
 
     F_c, S_c, U_c, Cv_c = calculate_cumulants(V, V2, V3, V4, V_ref, T_K)
     point = dict(
-        F_offset=F_c / Nat,
-        U_offset=U_c / Nat,
-        S_offset=S_c / (Nat * KB_eV_per_K),
-        Cv_offset=Cv_c / (Nat * KB_eV_per_K),
+        F0=F_c / Nat,
+        U0=U_c / Nat,
+        S0=S_c / (Nat * KB_eV_per_K),
+        Cv0=Cv_c / (Nat * KB_eV_per_K),
     )
 
     F_b = np.empty(n_boot); S_b = np.empty(n_boot)
@@ -61,9 +61,9 @@ def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None
             print(f"  boot {i+1}/{n_boot}  ({time.time()-t0:.1f}s)", flush=True)
 
     se = dict(
-        F_offset=np.std(F_b, ddof=0) / Nat,
-        U_offset=np.std(U_b, ddof=0) / Nat,
-        S_offset=np.std(S_b, ddof=0) / (Nat * KB_eV_per_K),
-        Cv_offset=np.std(Cv_b, ddof=0) / (Nat * KB_eV_per_K),
+        F0=np.std(F_b, ddof=0) / Nat,
+        U0=np.std(U_b, ddof=0) / Nat,
+        S0=np.std(S_b, ddof=0) / (Nat * KB_eV_per_K),
+        Cv0=np.std(Cv_b, ddof=0) / (Nat * KB_eV_per_K),
     )
     return point, se

@@ -19,9 +19,7 @@ compute:
 """
 from __future__ import annotations
 
-import numpy as np
-
-from .common import KB_eV_per_K
+from .constants import KB_eV_per_K
 
 
 def dA_dT(A, V, T):
