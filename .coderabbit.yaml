@@ -53,8 +53,9 @@ reviews:
         Flag float comparisons with `==` (use `np.isclose` / `np.allclose`),
         silent dtype downgrades from float64 to float32, and chained
         np.dot/np.tensordot where np.einsum / opt_einsum.contract would be
-        clearer. Watch for TensorFlow imports at module top level in modules
-        that should also load on CPU-only environments.
+        clearer. TensorFlow is a hard dependency in kaldo — top-level
+        `import tensorflow as tf` is the project convention; do not flag
+        it or suggest deferred imports.
     - path: "kaldo/**/*.py"
       instructions: >
         Apply DRY: flag duplicated logic across functions/modules that
