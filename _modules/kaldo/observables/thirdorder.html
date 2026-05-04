@@ -1089,7 +1089,7 @@
 <div class="viewcode-block" id="ThirdOrder.calculate">
 <a class="viewcode-back" href="../../../docsource/api_forceconstants.html#kaldo.observables.thirdorder.ThirdOrder.calculate">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calculator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delta_shift</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_storing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">is_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                  <span class="n">n_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">scratch_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keep_scratch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">jat_flush_every</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+                  <span class="n">n_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">scratch_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keep_scratch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">jat_flush_every</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">use_symmetry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the third order force constants.</span>
 
 <span class="sd">        This is the method typically reached through ``fc.third.calculate(...)``.</span>
@@ -1139,13 +1139,29 @@
 <span class="sd">            peak memory low. Pass an explicit path to override. Pass an</span>
 <span class="sd">            empty string ``&#39;&#39;`` to disable scratch files and fall back to</span>
 <span class="sd">            in-memory accumulation.</span>
-<span class="sd">            Default: ``{folder}/third_order`` when ``self.folder`` is set</span>
+<span class="sd">            Default: ``{folder}/third_order`` when ``self.folder`` is set,</span>
+<span class="sd">            ``n_workers &gt; 1``, and ``use_symmetry=False``. With</span>
+<span class="sd">            ``use_symmetry=True`` the auto-default is suppressed (the two</span>
+<span class="sd">            modes are mutually incompatible — see the ``use_symmetry``</span>
+<span class="sd">            docstring below).</span>
 <span class="sd">        keep_scratch : bool</span>
 <span class="sd">            If True, scratch files are kept after assembly.</span>
 <span class="sd">            Default: False</span>
 <span class="sd">        jat_flush_every : int</span>
 <span class="sd">            Number of jat iterations each worker buffers before flushing to disk.</span>
 <span class="sd">            Smaller values use less memory at the cost of more I/O. Default 50.</span>
+<span class="sd">        use_symmetry : bool, optional</span>
+<span class="sd">            If True, use the crystal spacegroup to reduce the number of</span>
+<span class="sd">            atom pairs (i, jat) computed by the FD method. Only spacegroup</span>
+<span class="sd">            operations compatible with the supercell shape are used (e.g.</span>
+<span class="sd">            an in-plane subgroup for slab supercells). Requires a</span>
+<span class="sd">            diagonal integer supercell expansion. Not compatible with</span>
+<span class="sd">            ``scratch_dir`` — pass ``scratch_dir=None`` (the default)</span>
+<span class="sd">            when enabling.</span>
+<span class="sd">            Default: False</span>
+<span class="sd">        symprec : float, optional</span>
+<span class="sd">            precision for symmetry using spglib.</span>
+<span class="sd">            Default: 1e-5</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">is_parallel</span><span class="p">(</span><span class="n">n_workers</span><span class="p">):</span>
             <span class="n">validate_parallel_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;ThirdOrder.calculate&#39;</span><span class="p">)</span>
@@ -1162,7 +1178,10 @@
             <span class="n">worker_calculator</span> <span class="o">=</span> <span class="n">calculator</span>
         <span class="c1"># Auto-resolve the default scratch directory only for parallel runs;</span>
         <span class="c1"># serial stays in memory to avoid creating unexpected directories.</span>
-        <span class="k">if</span> <span class="n">scratch_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="ow">and</span> <span class="n">is_parallel</span><span class="p">(</span><span class="n">n_workers</span><span class="p">):</span>
+        <span class="c1"># use_symmetry is incompatible with scratch_dir (calculate_third</span>
+        <span class="c1"># raises ValueError on the combo), so don&#39;t auto-assign in that case.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">scratch_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="ow">and</span> <span class="n">is_parallel</span><span class="p">(</span><span class="n">n_workers</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="n">use_symmetry</span><span class="p">):</span>
             <span class="n">scratch_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;third_order&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">scratch_dir</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
             <span class="n">scratch_dir</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1181,7 +1200,9 @@
                                              <span class="n">calculator</span><span class="o">=</span><span class="n">worker_calculator</span><span class="p">,</span>
                                              <span class="n">scratch_dir</span><span class="o">=</span><span class="n">scratch_dir</span><span class="p">,</span>
                                              <span class="n">keep_scratch</span><span class="o">=</span><span class="n">keep_scratch</span><span class="p">,</span>
-                                             <span class="n">jat_flush_every</span><span class="o">=</span><span class="n">jat_flush_every</span><span class="p">)</span>
+                                             <span class="n">jat_flush_every</span><span class="o">=</span><span class="n">jat_flush_every</span><span class="p">,</span>
+                                             <span class="n">use_symmetry</span><span class="o">=</span><span class="n">use_symmetry</span><span class="p">,</span>
+                                             <span class="n">symprec</span><span class="o">=</span><span class="n">symprec</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;third&#39;</span><span class="p">)</span>
                 <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">REPLICATED_ATOMS_THIRD_FILE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="s1">&#39;extxyz&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -1196,7 +1217,9 @@
                                          <span class="n">calculator</span><span class="o">=</span><span class="n">worker_calculator</span><span class="p">,</span>
                                          <span class="n">scratch_dir</span><span class="o">=</span><span class="n">scratch_dir</span><span class="p">,</span>
                                          <span class="n">keep_scratch</span><span class="o">=</span><span class="n">keep_scratch</span><span class="p">,</span>
-                                         <span class="n">jat_flush_every</span><span class="o">=</span><span class="n">jat_flush_every</span><span class="p">)</span>
+                                         <span class="n">jat_flush_every</span><span class="o">=</span><span class="n">jat_flush_every</span><span class="p">,</span>
+                                         <span class="n">use_symmetry</span><span class="o">=</span><span class="n">use_symmetry</span><span class="p">,</span>
+                                         <span class="n">symprec</span><span class="o">=</span><span class="n">symprec</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">is_storing</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;third&#39;</span><span class="p">)</span>
                 <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">REPLICATED_ATOMS_THIRD_FILE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="s1">&#39;extxyz&#39;</span><span class="p">)</span></div>
