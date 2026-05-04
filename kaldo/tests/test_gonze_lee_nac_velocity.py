@@ -47,7 +47,15 @@ def _attach_reference_short_range_force_constants(second_order):
     a different origin and will not reproduce the reference velocities.
     """
     replay_sr_path = nacl_att3_debug_dir() / "static" / "short_range_force_constants.npy"
-    sr_path = replay_sr_path if replay_sr_path.exists() else _V2_STATIC / "short_range_force_constants.npy"
+    fallback_sr_path = _V2_STATIC / "short_range_force_constants.npy"
+    if replay_sr_path.exists():
+        sr_path = replay_sr_path
+    elif fallback_sr_path.exists():
+        sr_path = fallback_sr_path
+    else:
+        pytest.skip(
+            f"Reference short-range force constants not found at {replay_sr_path} or {fallback_sr_path}"
+        )
     sr_ry = np.load(sr_path)
     sr_ev = sr_ry * (ase_units.Rydberg / ase_units.Bohr ** 2)
     second_order.get_gonze_short_range_force_constants = (

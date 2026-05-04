@@ -411,7 +411,7 @@ class HarmonicWithQ(Observable, Storable):
         return static_data, mapping
 
     def _gonze_q_direction_carts(self, q_reds, static_data):
-        q_reds = np.atleast_2d(np.array(q_reds, dtype=float, copy=False))
+        q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
         reciprocal_lattice = static_data["reciprocal_lattice"]
         q_carts = np.einsum("ab,qb->qa", reciprocal_lattice, q_reds, optimize=True)
         q_direction_carts = np.array(q_carts, dtype=float, copy=True)
@@ -430,7 +430,7 @@ class HarmonicWithQ(Observable, Storable):
         static_data = _static_data if _static_data is not None else self._build_gonze_static_data()
         mapping = _mapping if _mapping is not None else self._build_gonze_short_range_inputs(static_data)
         static_data, mapping = self._ensure_gonze_runtime_data(static_data, mapping)
-        q_reds = np.atleast_2d(np.array(q_reds, dtype=float, copy=False))
+        q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
         q_carts, q_direction_carts = self._gonze_q_direction_carts(q_reds, static_data)
         dm_final = _shared_gonze_dynamical_matrices(
             q_reds,
