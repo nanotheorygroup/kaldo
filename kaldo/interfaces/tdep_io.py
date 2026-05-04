@@ -568,6 +568,8 @@ def parse_tdep_third_forceconstant(
     n_uc = len(uc)
     n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
 
+    print(n_rep)
+
     dense = np.zeros(
         (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
     )

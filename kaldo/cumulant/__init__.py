@@ -28,7 +28,7 @@ algorithms as a vectorized Python port, validated bit-for-bit against
 Julia LDT on Ne (n_uc=1) and Si diamond (n_uc=2).
 
 Entry-point modules:
-  * :mod:`kaldo.cumulant.common` - constants, TDEP IFC parsers, dynmat
+  * :mod:`kaldo.cumulant.constants` - constants, TDEP IFC parsers, dynmat
   * :mod:`kaldo.cumulant.harmonic` - F_H / U_H / S_H / Cv_H
   * :mod:`kaldo.cumulant.free_energy` - F1 (quartic) and F2 (cubic);
     preferred entry points are ``F1_from_fc`` / ``F2_from_fc`` which
@@ -42,11 +42,9 @@ Entry-point modules:
 """
 from __future__ import annotations
 
-from .common import (
+from .constants import (
     HBAR, KB, EV, AMU, ANG, NE_MASS_AMU, FREQ_TOL_THZ, KB_eV_per_K,
-    read_tdep_pair_fcs, read_tdep_ifc3, read_tdep_ifc4,
-    load_tdep_folder,
-    dynmat_and_eigs,
+    dynmat_and_eigs
 )
 
 from .harmonic import (

@@ -20,11 +20,47 @@ import time
 
 import numpy as np
 
-from .common import (
+from .constants import (
     HBAR, KB, EV, ANG, FREQ_TOL_THZ,
-    dynmat_and_eigs,
 )
 
+
+def dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart):
+    """
+    Build and diagonalize the mass-weighted dynamical matrix at a single q.
+
+    Uses the **sum convention** (= TDEP / LDT convention):
+        D_{a,b}(q) = sum_R Phi_{a,b}(R) exp(i q . R) / sqrt(m_a m_b)
+    where R is the lattice vector between primitive cells. This makes the
+    eigenvectors compatible with the IFC3 / IFC4 triplet and quartet
+    pretransforms in this package - which phase only by lattice vectors.
+
+    For single-atom-per-cell systems (Ne) the convention doesn't matter
+    (tau_i = 0). For multi-atom primitives (Si, diamond) the atomic
+    convention `exp(iq.(r_j - r_i))` with r_j = tau_j + R produces
+    eigenvectors shifted by `exp(iq.(tau_j - tau_i))` relative to the sum
+    convention - which breaks the IFC3/IFC4 quartet contraction for
+    multi-atom cells.
+
+    Returns ``(omegas, egvs)``:
+      * ``omegas`` (n_bands,): frequencies in rad/s, with sign preserved
+        for imaginary modes (negative omega**2 -> negative omega).
+      * ``egvs`` (n_bands, n_bands): complex eigenvectors of the
+        dynamical matrix, column-indexed by band.
+    """
+    n = len(neighbors_pair); nb = 3 * n
+    D = np.zeros((nb, nb), dtype=complex)
+    for i, il in enumerate(neighbors_pair):
+        for (j, rj, _lp, phi) in il:
+            # R is the pure lattice vector between cell of atom i and cell of
+            # atom j. rj = tau_j + R and uc_positions[j] = tau_j, so
+            # R = rj - tau_j = rj - uc_positions[j].
+            R = rj - uc_positions[j]
+            ph = np.exp(1j * np.dot(q_cart, R))
+            D[3*i:3*i+3, 3*j:3*j+3] += phi * ph / np.sqrt(masses_kg[i] * masses_kg[j])
+    D = 0.5 * (D + D.conj().T)
+    w2, egv = np.linalg.eigh(D * (EV / ANG ** 2))
+    return np.sign(w2) * np.sqrt(np.abs(w2)), egv
 
 # ---------------------------------------------------------------------------
 # Quartic: F1 = <V_4>_0 / (4! * 2)  (LDT prefactor /32)
@@ -348,7 +384,7 @@ def compute_group_velocity_analytic(neighbors_pair, uc_positions, masses_kg,
 
     Returns (3, nb) in (rad/s) per (1/A), same units as the FD routine.
     """
-    from .common import EV as _EV, ANG as _ANG
+    from .constants import EV as _EV, ANG as _ANG
     n = len(neighbors_pair)
     nb = 3 * n
     dDdq = np.zeros((3, nb, nb), dtype=complex)
@@ -809,7 +845,7 @@ def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
     -------
     dict with keys ``F2``, ``S2``, ``Cv2``, ``U2``.
     """
-    from .common import AMU
+    from .constants import AMU
     uc_pos = np.asarray(fc.atoms.positions)
     uc_cell = np.asarray(fc.atoms.cell)
     masses_kg = np.asarray(masses_amu) * AMU
@@ -831,7 +867,7 @@ def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False):
     neighbour-list / quartet-list format. Output is bit-for-bit identical
     to :func:`F1_vectorized` on the same physical inputs.
     """
-    from .common import AMU
+    from .constants import AMU
     uc_pos = np.asarray(fc.atoms.positions)
     uc_cell = np.asarray(fc.atoms.cell)
     masses_kg = np.asarray(masses_amu) * AMU
