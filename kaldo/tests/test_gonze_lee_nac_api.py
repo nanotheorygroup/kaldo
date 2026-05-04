@@ -20,7 +20,7 @@ from kaldo.tests.test_gonze_lee_nac_helpers import require_nacl_debug
 @pytest.fixture(scope="module")
 def nac_second_order(tmp_path_factory):
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy",
+        folder="kaldo/tests/nacl_phonopy",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
@@ -76,7 +76,7 @@ def test_gonze_velocity_returns_finite_array(nac_second_order):
 def test_phonons_stores_nac_options():
     matrix = nacl_phonopy_debug_supercell_matrix()
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy",
+        folder="kaldo/tests/nacl_phonopy",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,

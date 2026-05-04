@@ -19,12 +19,12 @@ from kaldo.tests.gonze_debug_reference import (
     require_nacl_att3_velocity_debug,
 )
 
-_V2_STATIC = Path("examples/nacl_phonopy_v2/debug/static")
+_V2_STATIC = Path("kaldo/tests/nacl_phonopy_v2/debug/static")
 
 _NAC_BVK_MATRIX = nacl_phonopy_debug_supercell_matrix_att3()
 
 
-def attach_reference_nac(second_order, nac_file="examples/nacl_phonopy/espresso.ifc2"):
+def attach_reference_nac(second_order, nac_file="kaldo/tests/nacl_phonopy/espresso.ifc2"):
     _, _, charges = shengbte_io.read_second_order_qe_matrix(nac_file)
     if charges is None:
         static_dir = Path(nac_file).parent / "debug" / "static"
@@ -59,7 +59,7 @@ def _attach_reference_short_range_force_constants(second_order):
 @pytest.fixture(scope="module")
 def nac_second_order():
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy_v2",
+        folder="kaldo/tests/nacl_phonopy_v2",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
@@ -323,7 +323,7 @@ def test_gonze_velocity_public_api_matches_phonopy_debug(nac_second_order):
 
 def _load_example_v2_second_order():
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy_v2",
+        folder="kaldo/tests/nacl_phonopy_v2",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,

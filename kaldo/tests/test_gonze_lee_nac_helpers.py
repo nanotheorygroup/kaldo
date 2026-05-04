@@ -47,7 +47,7 @@ DEFAULT_NACL_ATT4_DEBUG_FALLBACK = Path(
     "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
     "example/nacl-att4/debug"
 )
-LOCAL_V2_DEBUG = Path("examples/nacl_phonopy_v2/debug")
+LOCAL_V2_DEBUG = Path("kaldo/tests/nacl_phonopy_v2/debug")
 
 
 def nacl_debug_dir() -> Path:
@@ -170,7 +170,7 @@ def summarize_att3_fc_deltas(actual: np.ndarray, expected: np.ndarray) -> dict[s
 
 def load_att3_second_order(storage_folder) -> object:
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy",
+        folder="kaldo/tests/nacl_phonopy",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
@@ -182,14 +182,14 @@ def load_att3_second_order(storage_folder) -> object:
 
 def load_att3_v2_second_order_with_reference_nac(storage_folder) -> object:
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy_v2",
+        folder="kaldo/tests/nacl_phonopy_v2",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
     _, _, charges = shengbte_io.read_second_order_qe_matrix(
-        "examples/nacl_phonopy/espresso.ifc2"
+        "kaldo/tests/nacl_phonopy/espresso.ifc2"
     )
     forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
     forceconstants.second.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
@@ -199,14 +199,14 @@ def load_att3_v2_second_order_with_reference_nac(storage_folder) -> object:
 
 def load_att4_v2_second_order_with_reference_nac(storage_folder) -> object:
     forceconstants = ForceConstants.from_folder(
-        folder="examples/nacl_phonopy_v2",
+        folder="kaldo/tests/nacl_phonopy_v2",
         supercell=[8, 8, 8],
         only_second=True,
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
     _, _, charges = shengbte_io.read_second_order_qe_matrix(
-        "examples/nacl_phonopy/espresso.ifc2"
+        "kaldo/tests/nacl_phonopy/espresso.ifc2"
     )
     forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
     forceconstants.second.atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
@@ -702,7 +702,7 @@ def test_gonze_real_dipole_q0_matches_debug_reference():
 def test_nacl_phonopy_equivalent_mapping_matches_debug_reference():
     debug_dir = require_nacl_debug_worktree()
     static = debug_dir / "static"
-    atoms = ase.io.read("examples/nacl_phonopy/POSCAR")
+    atoms = ase.io.read("kaldo/tests/nacl_phonopy/POSCAR")
     mapping = build_supercell_matrix_mapping(
         atoms, nacl_phonopy_debug_supercell_matrix()
     )
@@ -746,7 +746,7 @@ def test_nacl_phonopy_equivalent_mapping_matches_debug_reference():
 def test_nacl_phonopy_equivalent_mapping_reproduces_dd_real_q0():
     debug_dir = require_nacl_debug_worktree()
     static = debug_dir / "static"
-    atoms = ase.io.read("examples/nacl_phonopy/POSCAR")
+    atoms = ase.io.read("kaldo/tests/nacl_phonopy/POSCAR")
     mapping = build_supercell_matrix_mapping(
         atoms, nacl_phonopy_debug_supercell_matrix()
     )
