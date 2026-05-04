@@ -285,7 +285,7 @@ class SecondOrder(ForceConstant):
             return self._dynmat
 
     def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
-                  scratch_dir=None, keep_scratch=False):
+                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5):
         """
         Calculate second-order force constants with finite differences.
 
@@ -340,11 +340,25 @@ class SecondOrder(ForceConstant):
             for recovery of interrupted calculations. Pass an explicit path to
             override. Pass an empty string ``''`` to disable scratch files and
             fall back to in-memory accumulation.
-            Default: ``{folder}/second_order`` when ``self.folder`` is set and
-            ``n_workers > 1``
+            Default: ``{folder}/second_order`` when ``self.folder`` is set,
+            ``n_workers > 1``, and ``use_symmetry=False``. With
+            ``use_symmetry=True`` the auto-default is suppressed (the two
+            modes are mutually incompatible — see the ``use_symmetry``
+            docstring below).
         keep_scratch : bool, optional
             If True, keep scratch files after successful assembly.
             Default: False
+        use_symmetry : bool, optional
+            If True, use the crystal spacegroup to reduce the number of
+            atoms displaced by the FD method. Only spacegroup operations
+            compatible with the supercell shape are used (e.g. an in-plane
+            subgroup for slab supercells). Requires a diagonal integer
+            supercell expansion. Not compatible with ``scratch_dir`` —
+            pass ``scratch_dir=None`` (the default) when enabling.
+            Default: False
+        symprec : float, optional
+            precision for symmetry using spglib.
+            Default: 1e-5
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='SecondOrder.calculate')
@@ -361,7 +375,10 @@ class SecondOrder(ForceConstant):
             worker_calculator = calculator
         # Auto-resolve the default scratch directory only for parallel runs;
         # serial stays in memory to avoid creating unexpected directories.
-        if scratch_dir is None and self.folder and is_parallel(n_workers):
+        # use_symmetry is incompatible with scratch_dir (calculate_second
+        # raises ValueError on the combo), so don't auto-assign in that case.
+        if (scratch_dir is None and self.folder and is_parallel(n_workers)
+                and not use_symmetry):
             scratch_dir = os.path.join(self.folder, 'second_order')
         elif scratch_dir == '':
             scratch_dir = None
@@ -383,6 +400,8 @@ class SecondOrder(ForceConstant):
                     calculator=worker_calculator,
                     scratch_dir=scratch_dir,
                     keep_scratch=keep_scratch,
+                    use_symmetry=use_symmetry,
+                    symprec=symprec,
                 )
                 self.save("second")
                 if calculator is not None:
@@ -401,6 +420,8 @@ class SecondOrder(ForceConstant):
                 calculator=worker_calculator,
                 scratch_dir=scratch_dir,
                 keep_scratch=keep_scratch,
+                use_symmetry=use_symmetry,
+                symprec=symprec,
             )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)

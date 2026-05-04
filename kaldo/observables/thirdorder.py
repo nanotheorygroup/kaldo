@@ -264,7 +264,7 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, use_symmetry=False, symprec=1e-5):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -314,13 +314,29 @@ class ThirdOrder(ForceConstant):
             peak memory low. Pass an explicit path to override. Pass an
             empty string ``''`` to disable scratch files and fall back to
             in-memory accumulation.
-            Default: ``{folder}/third_order`` when ``self.folder`` is set
+            Default: ``{folder}/third_order`` when ``self.folder`` is set,
+            ``n_workers > 1``, and ``use_symmetry=False``. With
+            ``use_symmetry=True`` the auto-default is suppressed (the two
+            modes are mutually incompatible — see the ``use_symmetry``
+            docstring below).
         keep_scratch : bool
             If True, scratch files are kept after assembly.
             Default: False
         jat_flush_every : int
             Number of jat iterations each worker buffers before flushing to disk.
             Smaller values use less memory at the cost of more I/O. Default 50.
+        use_symmetry : bool, optional
+            If True, use the crystal spacegroup to reduce the number of
+            atom pairs (i, jat) computed by the FD method. Only spacegroup
+            operations compatible with the supercell shape are used (e.g.
+            an in-plane subgroup for slab supercells). Requires a
+            diagonal integer supercell expansion. Not compatible with
+            ``scratch_dir`` — pass ``scratch_dir=None`` (the default)
+            when enabling.
+            Default: False
+        symprec : float, optional
+            precision for symmetry using spglib.
+            Default: 1e-5
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
@@ -337,7 +353,10 @@ class ThirdOrder(ForceConstant):
             worker_calculator = calculator
         # Auto-resolve the default scratch directory only for parallel runs;
         # serial stays in memory to avoid creating unexpected directories.
-        if scratch_dir is None and self.folder and is_parallel(n_workers):
+        # use_symmetry is incompatible with scratch_dir (calculate_third
+        # raises ValueError on the combo), so don't auto-assign in that case.
+        if (scratch_dir is None and self.folder and is_parallel(n_workers)
+                and not use_symmetry):
             scratch_dir = os.path.join(self.folder, 'third_order')
         elif scratch_dir == '':
             scratch_dir = None
@@ -356,7 +375,9 @@ class ThirdOrder(ForceConstant):
                                              calculator=worker_calculator,
                                              scratch_dir=scratch_dir,
                                              keep_scratch=keep_scratch,
-                                             jat_flush_every=jat_flush_every)
+                                             jat_flush_every=jat_flush_every,
+                                             use_symmetry=use_symmetry,
+                                             symprec=symprec)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -371,7 +392,9 @@ class ThirdOrder(ForceConstant):
                                          calculator=worker_calculator,
                                          scratch_dir=scratch_dir,
                                          keep_scratch=keep_scratch,
-                                         jat_flush_every=jat_flush_every)
+                                         jat_flush_every=jat_flush_every,
+                                         use_symmetry=use_symmetry,
+                                         symprec=symprec)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
