@@ -159,7 +159,7 @@ def _get_dd_base_many(
         )
         pair_phase = np.exp(phases)
 
-    q_carts = np.array(q_carts, dtype=float, copy=False)
+    q_carts = np.asarray(q_carts, dtype=float)
     qk = g_list[np.newaxis, :, :] + q_carts[:, np.newaxis, :]
     denom = np.einsum("qgi,ij,qgj->qg", qk, dielectric, qk, optimize=True)
     norms = np.linalg.norm(qk, axis=2)
@@ -169,7 +169,7 @@ def _get_dd_base_many(
     # Build all reciprocal-space dyads for every q-point and reciprocal vector.
     kk = np.einsum("qgi,qgj,qg->qgij", qk, qk, scale, optimize=True)
     if q_direction_carts is not None:
-        q_direction_carts = np.array(q_direction_carts, dtype=float, copy=False)
+        q_direction_carts = np.asarray(q_direction_carts, dtype=float)
         direction_denom = np.einsum(
             "qi,ij,qj->q",
             q_direction_carts,
@@ -234,7 +234,7 @@ def _real_dipole_dipole_many(
     h_tensor=None,
     det_scale=None,
 ):
-    q_reds = np.array(q_reds, dtype=float, copy=False)
+    q_reds = np.asarray(q_reds, dtype=float)
     if h_tensor is None:
         h_tensor = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
     if det_scale is None:
@@ -327,7 +327,7 @@ def _short_range_dynamical_matrix_many(
     target_mask=None,
     mass_matrix=None,
 ):
-    q_reds = np.array(q_reds, dtype=float, copy=False)
+    q_reds = np.asarray(q_reds, dtype=float)
     num_patom = len(p2s_map)
     is_compact_fc = fc.shape[0] != fc.shape[1]
     if phase_weights is None:
@@ -565,8 +565,8 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
 
 
 def _gonze_dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None):
-    q_reds = np.atleast_2d(np.array(q_reds, dtype=float, copy=False))
-    q_direction_carts = np.atleast_2d(np.array(q_direction_carts, dtype=float, copy=False))
+    q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
+    q_direction_carts = np.atleast_2d(np.asarray(q_direction_carts, dtype=float))
     if fc is None:
         fc = static_data["fc_short_converted"]
 
@@ -712,7 +712,7 @@ def _fc_short_translation_data(mapping, symprec=1e-8):
         dtype=float,
         copy=True,
     )
-    primitive_matrix = np.array(mapping["primitive_matrix"], dtype=float, copy=False)
+    primitive_matrix = np.asarray(mapping["primitive_matrix"], dtype=float)
     reduced = (translations @ primitive_matrix) % 1.0
     reduced[np.isclose(reduced, 1.0, atol=symprec)] = 0.0
     lookup = {
@@ -723,8 +723,8 @@ def _fc_short_translation_data(mapping, symprec=1e-8):
 
 
 def _cartesian_rotation_from_fractional(rotation, primitive_cell):
-    primitive_cell = np.array(primitive_cell, dtype=float, copy=False)
-    rotation = np.array(rotation, dtype=float, copy=False)
+    primitive_cell = np.asarray(primitive_cell, dtype=float)
+    rotation = np.asarray(rotation, dtype=float)
     # Fractional coordinates transform as row vectors x' = x R^T, so the
     # corresponding Cartesian operator on row-vector displacements is the
     # inverse-space action used below when rotating FC blocks.
@@ -788,12 +788,12 @@ def _symmetrize_fc_short(fc, atoms, mapping, symprec=1e-5):
     if len(operations) <= 1:
         return np.array(fc, dtype=float, copy=True)
 
-    fc = np.array(fc, dtype=float, copy=False)
+    fc = np.asarray(fc, dtype=float)
     n_atom = len(atoms)
     n_translation = fc.shape[1] // n_atom
-    translations = np.array(symmetry_data["translations"], dtype=float, copy=False)
+    translations = np.asarray(symmetry_data["translations"], dtype=float)
     translation_lookup = symmetry_data["translation_lookup"]
-    primitive_matrix = np.array(mapping["primitive_matrix"], dtype=float, copy=False)
+    primitive_matrix = np.asarray(mapping["primitive_matrix"], dtype=float)
     symmetrized = np.zeros_like(fc, dtype=np.float64)
 
     for operation in operations:
