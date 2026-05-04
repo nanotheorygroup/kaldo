@@ -227,247 +227,65 @@ def attach_snf_metadata(observable, mapping):
     return observable
 
 
-def parse_tdep_third_forceconstant_nondiag(
-    fc_filename, primitive, replica_table, M, tol=1e-4,
-):
-    """Non-diagonal TDEP IFC3 parser using the SNF replica table.
-
-    Returns a sparse COO of shape
-    ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``, same layout as the
-    diagonal :func:`parse_tdep_third_forceconstant`, but replica indices
-    come from :func:`wrap_lattice_vector_to_replica` so it works for any
-    primitive-to-supercell tiling.
-    """
-    if isinstance(primitive, str):
-        uc = ase.io.read(primitive, format="vasp")
-    else:
-        uc = primitive
-    n_uc = len(uc)
-    n_rep = len(replica_table)
-
-    dense = np.zeros(
-        (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
-    )
-    with open(fc_filename) as f:
-        na = int(f.readline().split()[0])
-        _cutoff = float(f.readline().split()[0])
-        if na != n_uc:
-            raise AssertionError(
-                f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}"
-            )
-        for a1 in range(n_uc):
-            n_trips = int(f.readline().split()[0])
-            for _ in range(n_trips):
-                i1 = int(f.readline().split()[0]) - 1
-                a2 = int(f.readline().split()[0]) - 1
-                a3 = int(f.readline().split()[0]) - 1
-                if i1 != a1:
-                    raise ValueError(
-                        f"IFC3 record at outer atom {a1} has central index"
-                        f" i1={i1} (expected {a1}); file is malformed."
-                    )
-                _lv1 = np.array(f.readline().split(), dtype=float)
-                if not np.allclose(_lv1, 0.0, atol=1e-6):
-                    raise ValueError(
-                        f"IFC3 R1 lattice vector for central atom {a1} is"
-                        f" {_lv1} (expected [0,0,0]); file is malformed."
-                    )
-                lv2 = np.array(f.readline().split(), dtype=float)
-                lv3 = np.array(f.readline().split(), dtype=float)
-                flat = np.empty(27); idx = 0
-                while idx < 27:
-                    for t in f.readline().split():
-                        flat[idx] = float(t); idx += 1
-                        if idx >= 27: break
-                phi = flat.reshape(3, 3, 3)
-
-                R2 = np.round(lv2).astype(int)
-                R3 = np.round(lv3).astype(int)
-                r2_id = wrap_lattice_vector_to_replica(
-                    R2, replica_table, M, tol=tol,
-                )
-                r3_id = wrap_lattice_vector_to_replica(
-                    R3, replica_table, M, tol=tol,
-                )
-                if r2_id < 0 or r3_id < 0:
-                    raise ValueError(
-                        f"IFC3 triplet (a1={a1}, a2={a2}, a3={a3}, R2={R2}, R3={R3})"
-                        " could not map to SNF replicas"
-                    )
-                dense[a1, :, r2_id, a2, :, r3_id, a3, :] += phi
-
-    return COO.from_numpy(dense)
-
-
-def parse_tdep_fourth_forceconstant_nondiag(
-    fc_filename, primitive, replica_table, M, tol=1e-4,
-):
-    """Non-diagonal TDEP IFC4 parser using the SNF replica table.
-
-    Returns a sparse COO of shape
-    ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``.
-    """
-    if isinstance(primitive, str):
-        uc = ase.io.read(primitive, format="vasp")
-    else:
-        uc = primitive
-    n_uc = len(uc)
-    n_rep = len(replica_table)
-
-    shape = (
-        n_uc, 3, n_rep,
-        n_uc, 3, n_rep,
-        n_uc, 3, n_rep,
-        n_uc, 3,
-    )
-    dense = np.zeros(shape, dtype=float)
-
-    with open(fc_filename) as f:
-        na = int(f.readline().split()[0])
-        _cutoff = float(f.readline().split()[0])
-        if na != n_uc:
-            raise AssertionError(
-                f"IFC4 file n_atoms={na} != primitive n_atoms={n_uc}"
-            )
-        for a1 in range(n_uc):
-            n_quartets = int(f.readline().split()[0])
-            for _ in range(n_quartets):
-                i1 = int(f.readline().split()[0]) - 1
-                a2 = int(f.readline().split()[0]) - 1
-                a3 = int(f.readline().split()[0]) - 1
-                a4 = int(f.readline().split()[0]) - 1
-                if i1 != a1:
-                    raise ValueError(
-                        f"IFC4 record at outer atom {a1} has central index"
-                        f" i1={i1} (expected {a1}); file is malformed."
-                    )
-                _lv1 = np.array(f.readline().split(), dtype=float)
-                if not np.allclose(_lv1, 0.0, atol=1e-6):
-                    raise ValueError(
-                        f"IFC4 R1 lattice vector for central atom {a1} is"
-                        f" {_lv1} (expected [0,0,0]); file is malformed."
-                    )
-                lv2 = np.array(f.readline().split(), dtype=float)
-                lv3 = np.array(f.readline().split(), dtype=float)
-                lv4 = np.array(f.readline().split(), dtype=float)
-                flat = np.empty(81); idx = 0
-                while idx < 81:
-                    for t in f.readline().split():
-                        flat[idx] = float(t); idx += 1
-                        if idx >= 81: break
-                phi = flat.reshape(3, 3, 3, 3)
-
-                R2 = np.round(lv2).astype(int)
-                R3 = np.round(lv3).astype(int)
-                R4 = np.round(lv4).astype(int)
-                r2_id = wrap_lattice_vector_to_replica(R2, replica_table, M, tol=tol)
-                r3_id = wrap_lattice_vector_to_replica(R3, replica_table, M, tol=tol)
-                r4_id = wrap_lattice_vector_to_replica(R4, replica_table, M, tol=tol)
-                if r2_id < 0 or r3_id < 0 or r4_id < 0:
-                    raise ValueError(
-                        f"IFC4 quartet (a1={a1}, a2={a2}, a3={a3}, a4={a4},"
-                        f" R2={R2}, R3={R3}, R4={R4}) could not map to SNF replicas"
-                    )
-                dense[a1, :, r2_id, a2, :, r3_id, a3, :, r4_id, a4, :] += phi
-
-    return COO.from_numpy(dense)
-
-
-def parse_tdep_forceconstant_nondiag(
-    fc_file, primitive, replica_table, M, tol=1e-4,
-):
-    """Non-diagonal TDEP IFC2 parser using the SNF replica table.
-
-    Returns an IFC2 tensor of shape ``(1, n_uc, 3, n_rep, n_uc, 3)`` where
-    ``n_rep = len(replica_table) = |det(M)|``. Unlike the diagonal-Grid
-    :func:`parse_tdep_forceconstant`, replica indices come from
-    :func:`wrap_lattice_vector_to_replica`, so the IFC placement is correct
-    for any primitive-to-supercell tiling.
-    """
-    if isinstance(primitive, str):
-        uc = ase.io.read(primitive, format="vasp")
-    else:
-        uc = primitive
-    n_uc = len(uc)
-    n_rep = len(replica_table)
-
-    tensor = np.zeros((1, n_uc, 3, n_rep, n_uc, 3), dtype=float)
-
-    with open(fc_file) as f:
-        na = int(f.readline().split()[0])
-        _cutoff = float(f.readline().split()[0])
-        if na != n_uc:
-            raise AssertionError(
-                f"IFC2 file n_atoms={na} != primitive n_atoms={n_uc}"
-            )
-        for i in range(n_uc):
-            n_nbr = int(f.readline().split()[0])
-            for _ in range(n_nbr):
-                j = int(f.readline().split()[0]) - 1
-                lv_frac_prim = np.array(f.readline().split(), dtype=float)
-                phi = np.array(
-                    [f.readline().split() for _ in range(3)], dtype=float,
-                )
-                R_int = np.round(lv_frac_prim).astype(int)
-                rep_idx = wrap_lattice_vector_to_replica(
-                    R_int, replica_table, M, tol=tol,
-                )
-                if rep_idx < 0:
-                    raise ValueError(
-                        f"IFC2 entry (i={i}, j={j}, R={R_int}) did not match"
-                        " any replica in the SNF table"
-                    )
-                tensor[0, i, :, rep_idx, j, :] += phi
-    return tensor
-
-
 # --------------------------------
 # Second order force constant method
 
 def parse_tdep_forceconstant(
     fc_file: str = "infile.forceconstants",
-    primitive: str = "infile.ucposcar",
-    supercell: str = "infile.ssposcar",
-    fortran: bool = True,
+    primitive: str | Atoms = "infile.ucposcar",
+    supercell: str | Atoms = "infile.ssposcar",
     two_dim: bool = True,
     symmetrize: bool = False,
-    reduce_fc: bool = True,
     eps: float = 1e-13,
     tol: float = 1e-5,
     format: str = "vasp",
+    grid: Grid | None = None,
 ):
     """
-    Parse TDEP second order force constants.
+    Parse TDEP second-order force constants.
+
+    Two paths, selected by whether ``grid=`` is supplied:
+
+    ``grid`` is None  (default — back-compatible with the historical API)
+        Returns force constants via the geometric-match path:
+        ``two_dim=True`` returns the ``(3*n_sc, 3*n_sc)`` matrix; otherwise
+        the ``(n_sc, n_sc, 3, 3)`` 4D form. Used by
+        :func:`kaldo.controllers.sigma2.calculate_sigma2`.
+
+    ``grid`` is not None
+        Returns a dense ndarray of shape ``(1, n_uc, 3, n_rep, n_uc, 3)``,
+        the kaldo replica-factorized storage convention. ``grid`` may be
+        :class:`Grid` (diagonal supercell) or :class:`NonDiagonalGrid`
+        (SNF non-diagonal supercell). Used by
+        :class:`SecondOrder.from_folder`. When this branch is taken
+        ``supercell``, ``two_dim``, and ``symmetrize`` are unused.
 
     Parameters
     ----------
     fc_file : str, optional
-        Path to the force constant file. Default: "infile.forceconstants"
+        Path to the force constant file.
     primitive : str or Atoms, optional
-        Path to primitive cell file or Atoms object. Default: "infile.ucposcar"
+        Path to the primitive cell file or an Atoms object.
     supercell : str or Atoms, optional
-        Path to supercell file or Atoms object. Default: "infile.ssposcar"
-    fortran : bool, optional
-        Unused parameter for compatibility. Default: True
+        Path to the supercell file or an Atoms object. Only used when
+        ``grid is None``.
     two_dim : bool, optional
-        If True, return 2D array shape (3*N_sc, 3*N_sc). Default: True
+        Geometric-match path only. If True, returns the
+        ``(3*n_sc, 3*n_sc)`` matrix. Default: True.
     symmetrize : bool, optional
-        If True, symmetrize force constants. Default: False
-    reduce_fc : bool, optional
-        If True, return reduced shape. Default: True
-    eps : float, optional
-        Finite zero tolerance. Default: 1e-13
-    tol : float, optional
-        Distance tolerance for atom matching. Default: 1e-5
+        Geometric-match path only. Forwarded to
+        :func:`remap_force_constants`. Default: False.
+    eps, tol : float, optional
+        Numerical tolerances for ASE ``wrap`` and supercell-position
+        matching.
     format : str, optional
-        File format for reading structures. Default: "vasp"
-
-    Returns
-    -------
-    np.ndarray
-        Force constants in requested shape.
+        ASE format string for reading structures. Default ``"vasp"``.
+    grid : Grid or NonDiagonalGrid or None, optional
+        If supplied, route through the kaldo replica-factorized path
+        (above). When given, ``supercell``, ``two_dim`` and ``symmetrize``
+        are ignored.
     """
-    # Load or validate primitive cell
+    # Load primitive
     if isinstance(primitive, Atoms):
         uc = primitive
     elif Path(primitive).exists():
@@ -475,7 +293,39 @@ def parse_tdep_forceconstant(
     else:
         raise RuntimeError("Primitive cell missing")
 
-    # Load or validate supercell
+    n_uc = len(uc)
+
+    if grid is not None:
+        # --- kaldo replica-factorized path ---
+        n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
+        tensor = np.zeros((1, n_uc, 3, n_rep, n_uc, 3), dtype=float)
+        with open(fc_file) as f:
+            na = int(f.readline().split()[0])
+            _cutoff = float(f.readline().split()[0])
+            if na != n_uc:
+                raise AssertionError(
+                    f"IFC2 file n_atoms={na} != primitive n_atoms={n_uc}"
+                )
+            for a1 in range(n_uc):
+                n_nbr = int(f.readline().split()[0])
+                for _ in range(n_nbr):
+                    a2 = int(f.readline().split()[0]) - 1
+                    lv = np.array(f.readline().split(), dtype=float)
+                    phi = np.array(
+                        [f.readline().split() for _ in range(3)], dtype=float,
+                    )
+                    R = np.round(lv).astype(int)
+                    rep_ids = grid.grid_index_to_id(R, is_wrapping=True)
+                    if len(rep_ids) == 0:
+                        raise ValueError(
+                            f"IFC2 entry (a1={a1}, a2={a2}, R={R}) did not"
+                            " resolve to any replica in the supplied grid"
+                        )
+                    rep_id = int(rep_ids[0])
+                    tensor[0, a1, :, rep_id, a2, :] += phi
+        return tensor
+
+    # --- grid is None: geometric-match path (sigma2 / historical) ---
     if isinstance(supercell, Atoms):
         sc = supercell
     elif Path(supercell).exists():
@@ -485,16 +335,13 @@ def parse_tdep_forceconstant(
 
     uc.wrap(eps=tol)
     sc.wrap(eps=tol)
-    n_uc = len(uc)
     n_sc = len(sc)
 
     force_constants = np.zeros((n_uc, n_sc, 3, 3))
 
-    # Parse force constant file
     with open(fc_file) as file:
         n_atoms = int(file.readline().split()[0])
-        cutoff = float(file.readline().split()[0])
-
+        _cutoff = float(file.readline().split()[0])
         if n_atoms != n_uc:
             raise AssertionError(f"n_atoms == {n_atoms}, should be {n_uc}")
 
@@ -505,11 +352,9 @@ def parse_tdep_forceconstant(
                 lp = np.array(file.readline().split(), dtype=float)
                 phi = np.array(
                     [file.readline().split() for _ in range(3)],
-                    dtype=float
+                    dtype=float,
                 )
                 r_target = uc.positions[i2] + np.dot(lp, uc.cell[:])
-
-                # Find matching atom in supercell
                 for ii, r1 in enumerate(sc.positions):
                     r_diff = np.abs(r_target - r1)
                     sc_cell = sc.get_cell(complete=True)
@@ -518,27 +363,23 @@ def parse_tdep_forceconstant(
                     if np.sum(r_diff) < tol:
                         force_constants[i1, ii, :, :] += phi
 
-    # Remap if needed
-    if not reduce_fc or two_dim:
-        force_constants = remap_force_constants(
-            force_constants, uc, sc, symmetrize=symmetrize
-        )
-
-    # Return in 2D format if requested
+    force_constants = remap_force_constants(
+        force_constants, uc, sc, symmetrize=symmetrize,
+    )
     if two_dim:
         return force_constants.swapaxes(2, 1).reshape(2 * (3 * n_sc,))
-
     return force_constants
 
 
-# TODO: remap_force_constants and reduce_force_constants functions are mainly from vibes.
-# needs to check original code
+# remap_force_constants is reachable only via parse_tdep_forceconstant(grid=None,
+# two_dim=True) — the kaldo.controllers.sigma2 path. It maps an
+# (n_prim, n_sc, 3, 3) IFC2 onto the full supercell-supercell (n_sc, n_sc, 3, 3)
+# array, then optionally flattens to (3*n_sc, 3*n_sc) for sigma2.
 def remap_force_constants(
     force_constants: NDArray,
     primitive: Atoms,
     supercell: Atoms,
     new_supercell: Atoms = None,
-    reduce_fc: bool = False,
     two_dim: bool = False,
     symmetrize: bool = True,
     tol: float = 1e-5,
@@ -546,8 +387,6 @@ def remap_force_constants(
 ) -> NDArray:
     """
     Remap force constants from [N_prim, N_sc, 3, 3] to [N_sc, N_sc, 3, 3].
-
-    Note: This function mostly follows vibes.force_constants.py from Vibes library.
 
     Parameters
     ----------
@@ -559,8 +398,6 @@ def remap_force_constants(
         Supercell for reference
     new_supercell : Atoms, optional
         Supercell to map to. Default: None (uses supercell copy)
-    reduce_fc : bool, optional
-        If True, return in [N_prim, N_sc, 3, 3] shape. Default: False
     two_dim : bool, optional
         If True, return in [3*N_sc, 3*N_sc] shape. Default: False
     symmetrize : bool, optional
@@ -645,48 +482,6 @@ def remap_force_constants(
 
         return fc_out
 
-    # Reduce to primitive representation if requested
-    if reduce_fc:
-        p2s_map = np.zeros(len(primitive), dtype=int)
-
-        primitive.cell = new_supercell.cell
-
-        new_supercell.wrap(eps=tol)
-        primitive.wrap(eps=tol)
-
-        for aa, a1 in enumerate(primitive):
-            diff = new_supercell.positions - a1.position
-            p2s_map[aa] = np.where(np.linalg.norm(diff, axis=1) < tol)[0][0]
-
-        primitive.cell = primitive_cell
-        primitive.wrap(eps=tol)
-
-        return reduce_force_constants(fc_out, p2s_map)
-
-    return fc_out
-
-
-def reduce_force_constants(fc_full: NDArray, map2prim: NDArray) -> NDArray:
-    """
-    Reduce force constants from [N_sc, N_sc, 3, 3] to [N_prim, N_sc, 3, 3].
-
-    Parameters
-    ----------
-    fc_full : NDArray
-        The non-reduced force constant matrix
-    map2prim : NDArray
-        Map from supercell to unitcell index
-
-    Returns
-    -------
-    NDArray
-        The reduced force constants
-    """
-    _, uc_index = np.unique(map2prim, return_index=True)
-    fc_out = np.zeros((len(uc_index), fc_full.shape[1], 3, 3))
-    for ii, uc_ind in enumerate(uc_index):
-        fc_out[ii, :, :, :] = fc_full[uc_ind, :, :, :]
-
     return fc_out
 
 
@@ -734,140 +529,99 @@ def _map2prim(primitive: Atoms, supercell: Atoms, tol: float = 1e-5) -> list:
 
 def parse_tdep_third_forceconstant(
     fc_filename: str,
-    primitive: str,
-    supercell: tuple[int, int, int],
+    primitive: str | Atoms,
+    supercell: tuple[int, int, int] | None = None,
+    grid: Grid | None = None,
 ):
-    """
-    Parse TDEP third order force constants.
+    """Parse TDEP third-order force constants.
 
     Parameters
     ----------
     fc_filename : str
-        Path to the third order force constant file
-    primitive : str
-        Path to the primitive cell file
-    supercell : tuple[int, int, int]
-        Supercell dimensions
+        Path to ``infile.forceconstant_thirdorder``.
+    primitive : str or Atoms
+        Path to ``infile.ucposcar`` (or an ASE ``Atoms``).
+    supercell : tuple[int, int, int], optional
+        Diagonal supercell tiling. Builds ``Grid(supercell, order='C')``
+        internally. Mutually exclusive with ``grid=``.
+    grid : Grid or NonDiagonalGrid, optional
+        Replica grid. Use this to pass a ``NonDiagonalGrid`` for SNF
+        non-diagonal tilings, or a pre-built ``Grid`` for the diagonal
+        case. Mutually exclusive with ``supercell=``.
 
     Returns
     -------
-    COO
-        Sparse third order force constants tensor
+    sparse.COO
+        Shape ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``.
     """
-    uc = ase.io.read(primitive, format='vasp')
-    n_unit_atoms = uc.positions.shape[0]
-    n_replicas = np.prod(supercell)
-    order = 'C'
-
-    current_grid = Grid(supercell, order=order)
-
-    # Read file and parse header
-    with open(fc_filename, 'r') as file:
-        line = file.readline()
-        num1 = int(line.split()[0])
-        line = file.readline()
-        lines = file.readlines()
-
-    # Parse triplet structure
-    num_triplets = []
-    new_ind = 0
-    count = 0
-    if count == 0:
-        n_t = int(lines[0].split()[0])
-        num_triplets.append(n_t)
-        new_ind += int(n_t * 15 + 1)
-        count += 1
-    while count != 0 and new_ind < len(lines):
-        n_t = int(lines[new_ind].split()[0])
-        num_triplets.append(n_t)
-        new_ind += int(n_t * 15 + 1)
-
-    coords = []
-    frcs = np.zeros((
-        n_unit_atoms, 3, n_replicas,
-        n_unit_atoms, 3, n_replicas,
-        n_unit_atoms, 3
-    ))
-
-    # Parse force constant triplets
-    for count1 in range(num1):
-        for j in range(len(num_triplets)):
-            n_trip = num_triplets[j]
-            lower = sum(int(num_triplets[i] * 15 + 1) for i in range(j))
-            upper = lower + int(n_trip * 15 + 1)
-            subset = lines[lower:upper][1:]
-            num2 = int(len(subset) / 15)
-
-            for count2 in range(num2):
-                lower2 = int(count2 * 15)
-                upper2 = int((count2 + 1) * 15)
-                ssubset = subset[lower2:upper2]
-
-                # Parse atom indices
-                atom_i = int(ssubset[0].split()[0]) - 1
-                atom_j = int(ssubset[1].split()[0]) - 1
-                atom_k = int(ssubset[2].split()[0]) - 1
-
-                # Parse lattice vectors (R1 unused)
-                R2 = np.array(ssubset[4].split(), dtype=float)
-                R3 = np.array(ssubset[5].split(), dtype=float)
-
-                # Parse 3x3 phi matrix
-                phi = np.array([
-                    [ssubset[6].split(), ssubset[7].split(), ssubset[8].split()],
-                    [ssubset[9].split(), ssubset[10].split(), ssubset[11].split()],
-                    [ssubset[12].split(), ssubset[13].split(), ssubset[14].split()]
-                ], dtype=float)
-
-                second_cell_id = current_grid.grid_index_to_id(
-                    R2, is_wrapping=True
-                )
-                third_cell_id = current_grid.grid_index_to_id(
-                    R3, is_wrapping=True
-                )
-
-                # Store force constants
-                for alpha in range(3):
-                    for beta in range(3):
-                        for gamma in range(3):
-                            frcs[
-                                atom_i, alpha, second_cell_id[0],
-                                atom_j, beta, third_cell_id[0],
-                                atom_k, gamma
-                            ] = phi[alpha, beta, gamma]
-
-    # Build sparse array
-    sparse_frcs = []
-    for n1 in range(n_unit_atoms):
-        for a in range(3):
-            for nr1 in range(n_replicas):
-                for n2 in range(n_unit_atoms):
-                    for b in range(3):
-                        for nr2 in range(n_replicas):
-                            for n3 in range(n_unit_atoms):
-                                for c in range(3):
-                                    coords.append((n1, a, nr1, n2, b, nr2, n3, c))
-                                    sparse_frcs.append(
-                                        frcs[n1, a, nr1, n2, b, nr2, n3, c]
-                                    )
-
-    third_ifcs = COO(
-        np.array(coords).T,
-        np.array(sparse_frcs),
-        shape=(
-            n_unit_atoms, 3, n_replicas,
-            n_unit_atoms, 3, n_replicas,
-            n_unit_atoms, 3
+    if (supercell is None) == (grid is None):
+        raise ValueError(
+            "parse_tdep_third_forceconstant requires exactly one of"
+            " supercell= or grid="
         )
+    if grid is None:
+        grid = Grid(supercell, order="C")
+    if isinstance(primitive, Atoms):
+        uc = primitive
+    else:
+        uc = ase.io.read(primitive, format="vasp")
+    n_uc = len(uc)
+    n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
+
+    dense = np.zeros(
+        (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
     )
 
-    third_ifcs.reshape((
-        n_unit_atoms * 3,
-        n_replicas * n_unit_atoms * 3,
-        n_replicas * n_unit_atoms * 3
-    ))
+    with open(fc_filename) as f:
+        na = int(f.readline().split()[0])
+        _cutoff = float(f.readline().split()[0])
+        if na != n_uc:
+            raise AssertionError(
+                f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}"
+            )
+        for a1 in range(n_uc):
+            n_trips = int(f.readline().split()[0])
+            for _ in range(n_trips):
+                i1 = int(f.readline().split()[0]) - 1
+                a2 = int(f.readline().split()[0]) - 1
+                a3 = int(f.readline().split()[0]) - 1
+                if i1 != a1:
+                    raise ValueError(
+                        f"IFC3 record at outer atom {a1} has central index"
+                        f" i1={i1} (expected {a1}); file is malformed."
+                    )
+                _lv1 = np.array(f.readline().split(), dtype=float)
+                if not np.allclose(_lv1, 0.0, atol=1e-6):
+                    raise ValueError(
+                        f"IFC3 R1 lattice vector for central atom {a1} is"
+                        f" {_lv1} (expected [0,0,0]); file is malformed."
+                    )
+                lv2 = np.array(f.readline().split(), dtype=float)
+                lv3 = np.array(f.readline().split(), dtype=float)
+                flat = np.empty(27)
+                idx = 0
+                while idx < 27:
+                    for tok in f.readline().split():
+                        flat[idx] = float(tok)
+                        idx += 1
+                        if idx >= 27:
+                            break
+                phi = flat.reshape(3, 3, 3)
 
-    return third_ifcs
+                R2 = np.round(lv2).astype(int)
+                R3 = np.round(lv3).astype(int)
+                r2_ids = grid.grid_index_to_id(R2, is_wrapping=True)
+                r3_ids = grid.grid_index_to_id(R3, is_wrapping=True)
+                if len(r2_ids) == 0 or len(r3_ids) == 0:
+                    raise ValueError(
+                        f"IFC3 triplet (a1={a1}, a2={a2}, a3={a3},"
+                        f" R2={R2}, R3={R3}) did not resolve in the grid"
+                    )
+                r2_id = int(r2_ids[0])
+                r3_id = int(r3_ids[0])
+                dense[a1, :, r2_id, a2, :, r3_id, a3, :] += phi
+
+    return COO.from_numpy(dense)
 
 
 # --------------------------------
@@ -875,49 +629,50 @@ def parse_tdep_third_forceconstant(
 
 def parse_tdep_fourth_forceconstant(
     fc_filename: str,
-    primitive: str,
-    supercell: tuple[int, int, int],
+    primitive: str | Atoms,
+    supercell: tuple[int, int, int] | None = None,
+    grid: Grid | None = None,
 ):
-    """Parse TDEP fourth order force constants.
+    """Parse TDEP fourth-order force constants.
 
     Reads ``infile.forceconstant_fourthorder`` and returns a sparse rank-11
-    COO tensor in kaldo's storage convention, mirroring
-    :func:`parse_tdep_third_forceconstant`:
+    COO tensor in kaldo's storage convention:
 
       shape = (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)
 
-    The file format is:
-
-        n_atoms
-        cutoff
-        <per central atom a1 = 1..n_atoms>
-          n_quartets
-          <per quartet>
-            atom indices i1, i2, i3, i4 (one per line)
-            lattice vectors R1, R2, R3, R4 (3-vectors in fractional coords,
-              R1 is the central atom's cell and is unused)
-            81 floats of Phi (3x3x3x3), read across lines
-
-    The index conventions match ``kaldo.cumulant.common.read_tdep_ifc4``
-    but the output format is the kaldo sparse tensor.
+    Parameters
+    ----------
+    fc_filename : str
+        Path to ``infile.forceconstant_fourthorder``.
+    primitive : str or Atoms
+    supercell : tuple[int, int, int], optional
+        Diagonal supercell tiling. Builds ``Grid(supercell, order='C')``
+        internally. Mutually exclusive with ``grid=``.
+    grid : Grid or NonDiagonalGrid, optional
+        Replica grid. Use this to pass a ``NonDiagonalGrid`` for SNF
+        non-diagonal tilings, or a pre-built ``Grid`` for the diagonal
+        case. Mutually exclusive with ``supercell=``.
     """
-    uc = ase.io.read(primitive, format='vasp')
-    n_unit_atoms = uc.positions.shape[0]
-    n_replicas = np.prod(supercell)
-    order = 'C'
-    current_grid = Grid(supercell, order=order)
+    if (supercell is None) == (grid is None):
+        raise ValueError(
+            "parse_tdep_fourth_forceconstant requires exactly one of"
+            " supercell= or grid="
+        )
+    if grid is None:
+        grid = Grid(supercell, order="C")
+    if isinstance(primitive, Atoms):
+        uc = primitive
+    else:
+        uc = ase.io.read(primitive, format='vasp')
+    n_uc = len(uc)
+    n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
 
-    # Fill a dense array first, then convert to COO at the end.
-    # Rank-11 (n_uc, 3, n_rep) x 4.
     shape = (
-        n_unit_atoms, 3, n_replicas,
-        n_unit_atoms, 3, n_replicas,
-        n_unit_atoms, 3, n_replicas,
-        n_unit_atoms, 3,
+        n_uc, 3, n_rep,
+        n_uc, 3, n_rep,
+        n_uc, 3, n_rep,
+        n_uc, 3,
     )
-
-    def _read_ints_one_per_line(fh, k):
-        return [int(fh.readline().split()[0]) for _ in range(k)]
 
     def _read_vec3(fh):
         return np.array(fh.readline().split(), dtype=float)
@@ -933,36 +688,54 @@ def parse_tdep_fourth_forceconstant(
                     break
         return flat.reshape(3, 3, 3, 3)
 
-    fourth_dense = np.zeros(shape, dtype=float)
-    with open(fc_filename, 'r') as fh:
+    dense = np.zeros(shape, dtype=float)
+    with open(fc_filename) as fh:
         na = int(fh.readline().split()[0])
         _cutoff = float(fh.readline().split()[0])
-        if na != n_unit_atoms:
+        if na != n_uc:
             raise AssertionError(
-                f"infile.forceconstant_fourthorder n_atoms={na} != n_unit_atoms={n_unit_atoms}"
+                f"IFC4 file n_atoms={na} != n_uc={n_uc}"
             )
-        for a1 in range(n_unit_atoms):
+        for a1 in range(n_uc):
             n_quartets = int(fh.readline().split()[0])
             for _ in range(n_quartets):
                 i1 = int(fh.readline().split()[0]) - 1
                 i2 = int(fh.readline().split()[0]) - 1
                 i3 = int(fh.readline().split()[0]) - 1
                 i4 = int(fh.readline().split()[0]) - 1
-                _R1 = _read_vec3(fh)  # unused (central atom's cell)
+                if i1 != a1:
+                    raise ValueError(
+                        f"IFC4 record at outer atom {a1} has central index"
+                        f" i1={i1} (expected {a1}); file is malformed."
+                    )
+                _R1 = _read_vec3(fh)
+                if not np.allclose(_R1, 0.0, atol=1e-6):
+                    raise ValueError(
+                        f"IFC4 R1 lattice vector for central atom {a1} is"
+                        f" {_R1} (expected [0,0,0]); file is malformed."
+                    )
                 R2 = _read_vec3(fh)
                 R3 = _read_vec3(fh)
                 R4 = _read_vec3(fh)
                 phi = _read_phi4(fh)
 
-                r2_id = current_grid.grid_index_to_id(R2, is_wrapping=True)[0]
-                r3_id = current_grid.grid_index_to_id(R3, is_wrapping=True)[0]
-                r4_id = current_grid.grid_index_to_id(R4, is_wrapping=True)[0]
-
-                # Use += so two quartets that PBC-wrap to the same replica
-                # slot accumulate (matches the IFC2/IFC3 convention).
-                fourth_dense[
-                    i1, :, r2_id, i2, :, r3_id, i3, :, r4_id, i4, :,
+                R2_int = np.round(R2).astype(int)
+                R3_int = np.round(R3).astype(int)
+                R4_int = np.round(R4).astype(int)
+                r2_ids = grid.grid_index_to_id(R2_int, is_wrapping=True)
+                r3_ids = grid.grid_index_to_id(R3_int, is_wrapping=True)
+                r4_ids = grid.grid_index_to_id(R4_int, is_wrapping=True)
+                if len(r2_ids) == 0 or len(r3_ids) == 0 or len(r4_ids) == 0:
+                    raise ValueError(
+                        f"IFC4 quartet (a1={a1}, a2={i2}, a3={i3}, a4={i4},"
+                        f" R2={R2_int}, R3={R3_int}, R4={R4_int}) did not"
+                        " resolve in the grid"
+                    )
+                r2_id = int(r2_ids[0])
+                r3_id = int(r3_ids[0])
+                r4_id = int(r4_ids[0])
+                dense[
+                    a1, :, r2_id, i2, :, r3_id, i3, :, r4_id, i4, :,
                 ] += phi
 
-    fourth_ifcs = COO.from_numpy(fourth_dense)
-    return fourth_ifcs
+    return COO.from_numpy(dense)

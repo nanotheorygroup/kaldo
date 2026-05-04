@@ -208,24 +208,22 @@ class ThirdOrder(ForceConstant):
                     validate_tdep_supercell_matrix,
                     build_nondiag_observable_kwargs,
                     attach_snf_metadata,
-                    parse_tdep_third_forceconstant_nondiag,
                 )
                 M_int = validate_tdep_supercell_matrix(supercell_matrix, M, supercell)
                 if M_int is not None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    third_ifcs = parse_tdep_third_forceconstant_nondiag(
+                    third_ifcs = parse_tdep_third_forceconstant(
                         fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
                         primitive=uc,
-                        replica_table=mapping["replica_table"],
-                        M=mapping["M"],
+                        grid=kw["grid"],
                     )
                     third_order = cls(value=third_ifcs, folder=folder, **kw)
                     return attach_snf_metadata(third_order, mapping)
 
                 third_ifcs = parse_tdep_third_forceconstant(
                     fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
-                    primitive=os.path.join(folder, 'infile.ucposcar'),
+                    primitive=uc,
                     supercell=supercell,
                 )
 

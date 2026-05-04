@@ -5,9 +5,11 @@ Demonstrates the cumulant flow on a centrosymmetric Lennard-Jones FCC
 crystal. Argon has a one-atom primitive cell, so the multi-atom IFC3/IFC4
 phase factors collapse — useful as a "minimal-complexity" sanity case.
 
-Uses the LJ Ar 80 K fixture that ships with the LatticeDynamicsToolkit
-Julia package. Replace the ``folder`` path with your own TDEP run output
-to apply the same analysis to other LJ-like atomic systems (Ne, Kr, ...).
+Uses the LJ Ar 80 K fixture vendored under
+``kaldo/tests/cumulant_fixtures/LJ/`` (originally from
+LatticeDynamicsToolkit.jl). Replace the ``folder`` path with your own
+TDEP run output to apply the same analysis to other LJ-like atomic
+systems (Ne, Kr, ...).
 
 Run::
 
@@ -24,8 +26,11 @@ from kaldo.forceconstants import ForceConstants
 from kaldo.cumulant import F1_from_fc, F2_from_fc
 
 
-# LJ Ar fixture from Julia LDT (n_uc=1, det M = 256)
-LDT_BASE = Path("~/.julia/packages/LatticeDynamicsToolkit/Gtn1t/data/LJ").expanduser()
+# LJ Ar fixture (n_uc=1, det M = 256) — vendored under
+# kaldo/tests/cumulant_fixtures/LJ/ so the example runs without external
+# dependencies.
+_TESTS_DIR = Path(__file__).parent.parent.parent / "tests" / "cumulant_fixtures"
+LDT_BASE = _TESTS_DIR / "LJ"
 LDT_IFC_DIR = LDT_BASE / "80K_4UC"
 
 # rhombohedral primitive in 4x4x4 cubic conventional supercell

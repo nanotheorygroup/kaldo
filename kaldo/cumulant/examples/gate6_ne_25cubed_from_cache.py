@@ -10,22 +10,30 @@ Requires the cached files (produced earlier by the validated cumulant
 pipeline now re-exposed in kaldo.cumulant.F1_vectorized / F2_vectorized
 / SCSampler / bootstrap_corrections):
 
-    out/run_25cubed_ibz.json
-    out/run_25cubed_ibz_tdep.json
-    out/phase5_our_samples.npz
+    <ROOT>/out/run_25cubed_ibz.json
+    <ROOT>/out/run_25cubed_ibz_tdep.json
+    <ROOT>/out/phase5_our_samples.npz
 
-Run from the dvncls host where these files exist, or copy them locally.
+Set the ``KALDO_CUMULANT_GATE6_ROOT`` environment variable to the
+directory containing the ``out/`` subdirectory before running.
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 
 from kaldo.cumulant import bootstrap_corrections
 
-ROOT = Path("/home/giuseppe/Development/4th-order-cumulants")
+ROOT = Path(os.environ.get("KALDO_CUMULANT_GATE6_ROOT", ""))
+if not ROOT or not (ROOT / "out").exists():
+    raise SystemExit(
+        "Set KALDO_CUMULANT_GATE6_ROOT to the directory containing the\n"
+        "cached Gate 6 inputs (out/run_25cubed_ibz.json,\n"
+        "out/run_25cubed_ibz_tdep.json, out/phase5_our_samples.npz)."
+    )
 
 # Ethan's 25^3 published totals (for the PASS/FAIL gate)
 ETHAN = dict(

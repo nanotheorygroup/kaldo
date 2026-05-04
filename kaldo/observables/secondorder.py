@@ -248,17 +248,16 @@ class SecondOrder(ForceConstant):
                     validate_tdep_supercell_matrix,
                     build_nondiag_observable_kwargs,
                     attach_snf_metadata,
-                    parse_tdep_forceconstant_nondiag,
                 )
+                from kaldo.grid import Grid
                 M_int = validate_tdep_supercell_matrix(supercell_matrix, M, supercell)
                 if M_int is not None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    d2 = parse_tdep_forceconstant_nondiag(
+                    d2 = parse_tdep_forceconstant(
                         fc_file=os.path.join(folder, "infile.forceconstant"),
                         primitive=uc,
-                        replica_table=mapping["replica_table"],
-                        M=mapping["M"],
+                        grid=kw["grid"],
                     )
                     second_order = SecondOrder(
                         value=d2, is_acoustic_sum=is_acoustic_sum,
@@ -266,17 +265,12 @@ class SecondOrder(ForceConstant):
                     )
                     return attach_snf_metadata(second_order, mapping)
 
-                # Diagonal path (unchanged)
+                # Diagonal path
                 d2 = parse_tdep_forceconstant(
                     fc_file=os.path.join(folder, "infile.forceconstant"),
-                    primitive=atom_prime_file,
-                    supercell=replicated_atom_prime_file,
-                    reduce_fc=False,
+                    primitive=uc,
+                    grid=Grid(supercell, order="C"),
                 )
-                n_unit_atoms = uc.positions.shape[0]
-                n_replicas = np.prod(supercell)
-                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                d2 = d2[0, np.newaxis]
                 second_order = SecondOrder(
                     atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
                 )

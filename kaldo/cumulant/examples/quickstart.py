@@ -5,11 +5,10 @@ Demonstrates the canonical kaldo-native flow for computing the quartic
 (F1) and cubic (F2) anharmonic cumulant corrections to the harmonic
 free energy of a crystal, given a TDEP-format set of force constants.
 
-This example uses the Stillinger-Weber Si fixture that ships with the
-LatticeDynamicsToolkit Julia package
-(``~/.julia/packages/LatticeDynamicsToolkit/Gtn1t/data/SW``); replace
-the ``folder`` path with your own TDEP run output to apply the same
-analysis to other materials.
+This example uses the Stillinger-Weber Si fixture vendored under
+``kaldo/tests/cumulant_fixtures/SW/`` (originally from
+LatticeDynamicsToolkit.jl). Replace the ``folder`` path with your own
+TDEP run output to apply the same analysis to other materials.
 
 Steps:
   1. Load IFC2/IFC3/IFC4 from the TDEP folder via
@@ -37,8 +36,12 @@ from kaldo.forceconstants import ForceConstants
 from kaldo.cumulant import F1_from_fc, F2_from_fc
 
 
-# Stillinger-Weber Si fixture from Julia LDT (n_uc=2, det M = 108)
-LDT_BASE = Path("~/.julia/packages/LatticeDynamicsToolkit/Gtn1t/data/SW").expanduser()
+# Stillinger-Weber Si fixture (n_uc=2, det M = 108) — vendored under
+# kaldo/tests/cumulant_fixtures/SW/ so the example runs without external
+# dependencies. Replace these paths with your own TDEP run output to
+# apply the same analysis to other materials.
+_TESTS_DIR = Path(__file__).parent.parent.parent / "tests" / "cumulant_fixtures"
+LDT_BASE = _TESTS_DIR / "SW"
 LDT_IFC_DIR = LDT_BASE / "100K_3UC"
 
 # Si diamond primitive in a 3x3x3 cubic conventional supercell:
