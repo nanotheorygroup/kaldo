@@ -63,7 +63,8 @@ class SecondOrder(ForceConstant):
              folder: str,
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = "numpy",
-             is_acoustic_sum: bool = False):
+             is_acoustic_sum: bool = False,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load second order force constants from a folder in the given format, used for library internally.
 
@@ -235,22 +236,53 @@ class SecondOrder(ForceConstant):
                     )
 
             case "tdep":
+
+                from kaldo.interfaces.tdep_io import (
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                )
+                from kaldo.grid import Grid
+
                 uc_filename = "infile.ucposcar"
                 replicated_filename = "infile.ssposcar"
                 atom_prime_file = os.path.join(folder, uc_filename)
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 uc = ase.io.read(atom_prime_file, format="vasp")
                 sc = ase.io.read(replicated_atom_prime_file, format="vasp")
+                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+                M_int = np.round(M).astype(int)
+
+                if supercell_matrix is not None:
+                    print("TDEP ignroes supercell_matrix kwarg. Supercell inferred from ucposcar and ssposcar.")
+
+                if not np.allclose(M, M_int, atol=1e-4):
+                    raise ValueError(
+                        f"Mapping from unitll to supercell (M matrix) was not integer-valued, got\n{M}"
+                    )
+
+                M_diag = np.diag(np.diag(M_int))
+                M_is_not_diagonal = not np.allclose(M_int - M_diag, 0.0, atol=1e-6)
+     
+                if M_is_not_diagonal:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    d2 = parse_tdep_forceconstant(
+                        fc_file=os.path.join(folder, "infile.forceconstant"),
+                        primitive=uc,
+                        grid=kw["grid"],
+                    )
+                    second_order = SecondOrder(
+                        value=d2, is_acoustic_sum=is_acoustic_sum,
+                        folder=folder, **kw,
+                    )
+                    return attach_snf_metadata(second_order, mapping)
+
+                # Diagonal path
                 d2 = parse_tdep_forceconstant(
                     fc_file=os.path.join(folder, "infile.forceconstant"),
-                    primitive=atom_prime_file,
-                    supercell=replicated_atom_prime_file,
-                    reduce_fc=False,
+                    primitive=uc,
+                    grid=Grid(supercell, order="C"),
                 )
-                n_unit_atoms = uc.positions.shape[0]
-                n_replicas = np.prod(supercell)
-                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                d2 = d2[0, np.newaxis]
                 second_order = SecondOrder(
                     atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
                 )

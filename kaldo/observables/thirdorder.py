@@ -41,7 +41,8 @@ class ThirdOrder(ForceConstant):
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = 'sparse',
              third_energy_threshold: float = 0.,
-             chunk_size: int = 100000):
+             chunk_size: int = 100000,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load third order force constants from a folder in the given format, used for library internally.
 
@@ -199,12 +200,41 @@ class ThirdOrder(ForceConstant):
                                       folder=folder)
 
             case 'tdep':
+                from kaldo.interfaces.tdep_io import (
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                )
+
                 uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
                 sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
+                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+                M_int = np.round(M).astype(int)
+
+                if supercell_matrix is not None:
+                    print("TDEP ignroes supercell_matrix kwarg. Supercell inferred from ucposcar and ssposcar.")
+
+                if not np.allclose(M, M_int, atol=1e-4):
+                    raise ValueError(
+                        f"Mapping from unitll to supercell (M matrix) was not integer-valued, got\n{M}"
+                    )
+
+                M_diag = np.diag(np.diag(M_int))
+                M_is_not_diagonal = not np.allclose(M_int - M_diag, 0.0, atol=1e-6)
+
+                if M_is_not_diagonal:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    third_ifcs = parse_tdep_third_forceconstant(
+                        fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
+                        primitive=uc,
+                        grid=kw["grid"],
+                    )
+                    third_order = cls(value=third_ifcs, folder=folder, **kw)
+                    return attach_snf_metadata(third_order, mapping)
 
                 third_ifcs = parse_tdep_third_forceconstant(
                     fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
-                    primitive=os.path.join(folder, 'infile.ucposcar'),
+                    primitive=uc,
                     supercell=supercell,
                 )
 
