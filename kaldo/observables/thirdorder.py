@@ -200,17 +200,28 @@ class ThirdOrder(ForceConstant):
                                       folder=folder)
 
             case 'tdep':
-                uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
-                sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
-                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
-
                 from kaldo.interfaces.tdep_io import (
-                    validate_tdep_supercell_matrix,
                     build_nondiag_observable_kwargs,
                     attach_snf_metadata,
                 )
-                M_int = validate_tdep_supercell_matrix(supercell_matrix, M, supercell)
-                if M_int is not None:
+
+                uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
+                sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
+                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+                M_int = np.round(M).astype(int)
+
+                if supercell_matrix is not None:
+                    print("TDEP ignroes supercell_matrix kwarg. Supercell inferred from ucposcar and ssposcar.")
+
+                if not np.allclose(M, M_int, atol=1e-4):
+                    raise ValueError(
+                        f"Mapping from unitll to supercell (M matrix) was not integer-valued, got\n{M}"
+                    )
+
+                M_diag = np.diag(np.diag(M_int))
+                M_is_not_diagonal = not np.allclose(M_int - M_diag, 0.0, atol=1e-6)
+
+                if M_is_not_diagonal:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
                     third_ifcs = parse_tdep_third_forceconstant(

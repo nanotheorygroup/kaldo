@@ -134,51 +134,51 @@ from kaldo.grid import wrap_lattice_vector_to_replica  # noqa: E402, F401
 # Shared helpers for TDEP non-diagonal observable loaders
 # ---------------------------------------------------------------------------
 
-def validate_tdep_supercell_matrix(supercell_matrix, M_inferred, supercell, tol=1e-4):
-    """Cross-check a user-supplied ``supercell_matrix`` against ssposcar.
+# def validate_tdep_supercell_matrix(supercell_matrix, M_inferred, supercell, tol=1e-4):
+#     """Cross-check a user-supplied ``supercell_matrix`` against ssposcar.
 
-    Returns ``M_int`` (integer ``np.ndarray``, shape (3, 3)) when valid.
-    Raises ``ValueError`` on:
-      * ``supercell_matrix`` not integer-valued (within ``tol``)
-      * mismatch with the M inferred from ``ucposcar`` / ``ssposcar``
+#     Returns ``M_int`` (integer ``np.ndarray``, shape (3, 3)) when valid.
+#     Raises ``ValueError`` on:
+#       * ``supercell_matrix`` not integer-valued (within ``tol``)
+#       * mismatch with the M inferred from ``ucposcar`` / ``ssposcar``
 
-    If ``supercell_matrix`` is ``None``, validates the **diagonal** path
-    instead: M must be diagonal and its diagonal must match ``supercell``.
-    Returns ``None`` to signal "use the diagonal path".
-    """
-    if supercell_matrix is None:
-        M_diag = np.diag(np.diag(M_inferred))
-        if not np.allclose(M_inferred - M_diag, 0.0, atol=1e-6):
-            raise ValueError(
-                "format='tdep' requires a diagonal primitive-to-supercell"
-                " mapping, but the ssposcar is non-diagonal:\n"
-                f"  M = ucposcar^-1 * ssposcar =\n{M_inferred}\n"
-                "Pass supercell_matrix= (a 3x3 integer matrix) to enable"
-                " non-diagonal SNF support."
-            )
-        expected_diag = np.array(supercell, dtype=float)
-        if not np.allclose(np.diag(M_inferred), expected_diag, atol=1e-6):
-            raise ValueError(
-                f"format='tdep' supercell={tuple(supercell)} does not match"
-                f" the diagonal tiling M={np.diag(M_inferred).astype(int).tolist()}"
-                " implied by ucposcar/ssposcar. Pass the matching supercell"
-                " tuple."
-            )
-        return None
+#     If ``supercell_matrix`` is ``None``, validates the **diagonal** path
+#     instead: M must be diagonal and its diagonal must match ``supercell``.
+#     Returns ``None`` to signal "use the diagonal path".
+#     """
+#     if supercell_matrix is None:
+#         M_diag = np.diag(np.diag(M_inferred))
+#         if not np.allclose(M_inferred - M_diag, 0.0, atol=1e-6):
+#             raise ValueError(
+#                 "format='tdep' requires a diagonal primitive-to-supercell"
+#                 " mapping, but the ssposcar is non-diagonal:\n"
+#                 f"  M = ucposcar^-1 * ssposcar =\n{M_inferred}\n"
+#                 "Pass supercell_matrix= (a 3x3 integer matrix) to enable"
+#                 " non-diagonal SNF support."
+#             )
+#         expected_diag = np.array(supercell, dtype=float)
+#         if not np.allclose(np.diag(M_inferred), expected_diag, atol=1e-6):
+#             raise ValueError(
+#                 f"format='tdep' supercell={tuple(supercell)} does not match"
+#                 f" the diagonal tiling M={np.diag(M_inferred).astype(int).tolist()}"
+#                 " implied by ucposcar/ssposcar. Pass the matching supercell"
+#                 " tuple."
+#             )
+#         return None
 
-    M_given = np.asarray(supercell_matrix, dtype=float)
-    M_given_round = np.round(M_given)
-    if not np.allclose(M_given, M_given_round, atol=tol):
-        raise ValueError(
-            f"supercell_matrix must be integer-valued, got\n{M_given}"
-        )
-    if not np.allclose(M_given_round, M_inferred, atol=tol):
-        raise ValueError(
-            f"supercell_matrix does not match ucposcar->ssposcar"
-            f" mapping:\n given M=\n{M_given_round.astype(int)}\n"
-            f" inferred M=\n{M_inferred}"
-        )
-    return M_given_round.astype(int)
+#     M_given = np.asarray(supercell_matrix, dtype=float)
+#     M_given_round = np.round(M_given)
+#     if not np.allclose(M_given, M_given_round, atol=tol):
+#         raise ValueError(
+#             f"supercell_matrix must be integer-valued, got\n{M_given}"
+#         )
+#     if not np.allclose(M_given_round, M_inferred, atol=tol):
+#         raise ValueError(
+#             f"supercell_matrix does not match ucposcar->ssposcar"
+#             f" mapping:\n given M=\n{M_given_round.astype(int)}\n"
+#             f" inferred M=\n{M_inferred}"
+#         )
+#     return M_given_round.astype(int)
 
 
 def build_nondiag_observable_kwargs(uc, sc):
@@ -448,12 +448,21 @@ def remap_force_constants(
             r_pair = np.linalg.solve(sc_cell.T, r_pair.T).T % 1.0
 
             r_diff = np.abs(r_pair - ref_struct_pos)
+
+            # Treat positions near 1.0 as equivalent to 0.0.
             r_diff -= np.floor(r_diff + eps)
 
             norms = np.linalg.norm(r_diff, axis=1)
-            below_tolerance = np.where(norms < tol)
+            matches = np.where(norms < tol)[0]
 
-            fc_out[a1, below_tolerance, :, :] += force_constants[
+            if len(matches) != 1:
+                raise ValueError(
+                    f"Failed to remap IFCs. Expected exactly one match, found {len(matches)} "
+                    f"for a1={a1}, uc_index={uc_index}, sc_a2={sc_a2}. "
+                    f"Minimum distance = {norms.min()}"
+                )
+
+            fc_out[a1, matches[0], :, :] += force_constants[
                 uc_index, sc_a2, :, :
             ]
 
