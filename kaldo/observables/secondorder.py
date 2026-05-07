@@ -12,6 +12,8 @@ from kaldo.controllers.displacement import calculate_second
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+from tqdm import tqdm
+from sparse import COO
 
 logging = get_logger()
 
@@ -235,22 +237,53 @@ class SecondOrder(ForceConstant):
                     )
 
             case "tdep":
+
+                from kaldo.interfaces.tdep_io import (
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                )
+                from kaldo.grid import Grid
+
                 uc_filename = "infile.ucposcar"
                 replicated_filename = "infile.ssposcar"
                 atom_prime_file = os.path.join(folder, uc_filename)
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 uc = ase.io.read(atom_prime_file, format="vasp")
                 sc = ase.io.read(replicated_atom_prime_file, format="vasp")
+
+                M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+                M_int = np.round(M).astype(int)
+
+                if not np.allclose(M, M_int, atol=1e-4):
+                    raise ValueError(
+                        f"Mapping from unitll to supercell (M matrix) was not integer-valued, got\n{M}"
+                    )
+
+                M_diag = np.diag(np.diag(M_int))
+                M_is_not_diagonal = not np.allclose(M_int - M_diag, 0.0, atol=1e-6)
+
+     
+                if M_is_not_diagonal:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    print(kw["grid"].grid_shape)
+                    mapping = kw.pop("_mapping")
+                    d2 = parse_tdep_forceconstant(
+                        fc_file=os.path.join(folder, "infile.forceconstant"),
+                        primitive=uc,
+                        grid=kw["grid"],
+                    )
+                    second_order = SecondOrder(
+                        value=d2, is_acoustic_sum=is_acoustic_sum,
+                        folder=folder, **kw,
+                    )
+                    return attach_snf_metadata(second_order, mapping)
+
+                # Diagonal path
                 d2 = parse_tdep_forceconstant(
                     fc_file=os.path.join(folder, "infile.forceconstant"),
-                    primitive=atom_prime_file,
-                    supercell=replicated_atom_prime_file,
-                    reduce_fc=False,
+                    primitive=uc,
+                    grid=Grid(supercell, order="C"),
                 )
-                n_unit_atoms = uc.positions.shape[0]
-                n_replicas = np.prod(supercell)
-                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                d2 = d2[0, np.newaxis]
                 second_order = SecondOrder(
                     atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
                 )
@@ -259,6 +292,113 @@ class SecondOrder(ForceConstant):
                 raise ValueError(f"{format} is not a valid format")
 
         return second_order
+
+    @classmethod
+    def remap(cls, ifc2 : "SecondOrder", new_supercell : Atoms, tol : float = 1e-5) -> "SecondOrder":
+
+        """
+        Remaps the force constants in ifc2 to a super-cell representation. The result is a new
+        SecondOrder object whose internal IFCs have size: (n_rep, n_uc, 3, n_rep, n_uc, 3)
+        where n_rep and n_uc are set by the `new_supercell`.
+        """
+
+        from kaldo.interfaces.tdep_io import (
+            build_nondiag_observable_kwargs,
+            attach_snf_metadata,
+            _map2prim
+        )
+        from kaldo.distance_table import DistanceTable
+        from kaldo.grid import wrap_coordinates
+
+        uc = ifc2.atoms
+        new_cell = np.asarray(new_supercell.cell)
+        new_cell_inv = np.linalg.inv(new_cell)
+        uc_cell = np.asarray(uc.cell)
+        n_uc = len(uc)
+        n_rep = ifc2.n_replicas
+
+        # TODO FIGUREOUT CUTOFF FROM ifc2 object passed
+        rc = 4.0 #TODO
+        rc_sq = rc**2
+        dt = DistanceTable(new_supercell, rc)
+
+        # map2prim[i] gives the primitive atom index corresponding to
+        # atom i in new_supercell.
+        map2prim = _map2prim(uc, new_supercell)  
+
+        kw = build_nondiag_observable_kwargs(uc, new_supercell)
+        mapping = kw.pop("_mapping")
+
+        # Build the output sparsely as COO: collect coordinates and values.
+        # Output shape matches kaldo's replica-factorized IFC3 convention:
+        #   (n_rep, n_uc, 3, n_rep, n_uc, 3)
+        out_shape = (n_rep, n_uc, 3, n_rep, n_uc, 3)
+        out_coords: list[list[int]] = []
+        out_data: list[float] = []
+
+        # Build progress bar:
+        total_pairs = sum(atom.N_neighbors**2 for atom in dt)   # or N_neighbors*(N_neighbors-1) if you exclude ifc2/ifc2
+        pbar = tqdm(total=total_pairs, desc="Remap IFC2 pairs", mininterval=0.5)
+    
+        for i, atom_i in enumerate(dt):
+            uc_index_i = map2prim[i]
+
+            # Figure out which blocks actually interact (i.e., non-zero)
+            # to identify which (rep_j, uc_j) blocks are nonzero.
+            phi2_i = ifc2.value[uc_index_i]
+            mask = np.any(phi2_i != 0.0, axis=(0, 3))   # shape (n_rep, n_uc)
+            R2s, js = np.where(mask)
+
+            neighbor_indices_i = atom_i.inds
+
+            for j, (vj, _, _, _, _) in enumerate(atom_i.neighbors()):
+                pbar.update(1)
+
+                found_match = False
+                for rep_j, uc_j in zip(R2s, js):
+                    R2 = ifc2._direct_grid.id_to_grid_index(int(rep_j))
+                    rv_ij = (uc.positions[int(uc_j)] - uc.positions[int(uc_index_i)]) + (R2 @ uc_cell)
+                    rv_ij = wrap_coordinates(rv_ij, new_cell, new_cell_inv)
+
+                    if np.sum(np.square(rv_ij - vj)) > tol*tol:
+                        continue
+
+                    uc_i_new = int(mapping["atom_of_sc"][i])
+                    uc_j_new = int(mapping["atom_of_sc"][neighbor_indices_i[j]])
+                    rep_i_new = int(mapping["replica_id_of_sc"][i])
+                    rep_j_new = int(mapping["replica_id_of_sc"][neighbor_indices_i[j]])
+
+                    # Store coords/value for output
+                    block = ifc2.value[uc_index_i, :, rep_j, uc_j, :]
+                    bcoords = np.asarray(block.coords)  # (3, nnz) for (alpha,beta,gamma)
+                    bdata = np.asarray(block.data)
+                    for nnz_idx in range(bdata.shape[0]):
+                        alpha = int(bcoords[0, nnz_idx])
+                        beta = int(bcoords[1, nnz_idx])
+                        out_coords.append([
+                            rep_i_new, uc_i_new, alpha,
+                            rep_j_new, uc_j_new, beta,
+                        ])
+                        out_data.append(float(bdata[nnz_idx]))
+
+                    found_match = True
+                    break
+
+                if not found_match:
+                    j_sc = int(neighbor_indices_i[j])
+                    failed_atom = f"i_sc={i}, uc_index_i={uc_index_i}, j_sc={j_sc}"
+                    raise ValueError(
+                        f"Could not find matching pair for {failed_atom}. Cells are likely inconsistent."
+                    )
+            pbar.close()
+
+        coords_arr = np.asarray(out_coords, dtype=np.int64).T  # (9, nnz)
+        data_arr = np.asarray(out_data, dtype=float)
+        second_ifcs = COO(coords=coords_arr, data=data_arr, shape=out_shape)#.sum_duplicates()
+        second_order = SecondOrder(value=second_ifcs, folder="Remapped IFCs, no source folder", **kw)
+
+        return attach_snf_metadata(second_order, mapping)
+
 
     @property
     def supercell_replicas(self):
@@ -478,3 +618,5 @@ class SecondOrder(ForceConstant):
                         sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2, iy2, iz2]))
                     ir = ir + 1
         return sc_r_pos
+    
+    
