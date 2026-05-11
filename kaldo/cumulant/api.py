@@ -73,7 +73,7 @@ def _check_lammps_kwargs(lammps_kwargs: dict) -> None:
 def cumulant_thermo(
     forceconstants : ForceConstants,
     temperature: float,
-    quantum : bool,
+    is_classic : bool,
     lammps_cmds : Sequence[str] | str,
     nconf: int = 100_000,
     nboot: int = 5_000,
@@ -93,8 +93,9 @@ def cumulant_thermo(
         Pre-loaded ForceConstants object (must include fourth IFCs).
     temperature : float
         Temperature in Kelvin.
-    quantum : bool
-        If True, use Bose-Einstein distribution for phonon occupations.
+    is_classic : bool
+        Specifies if the system is treated with classical or quantum
+        statistics. Default: False
     nconf : int
         Number of configurations to sample for 0th order correction. Default is 100_000.
     nboot : int
@@ -201,6 +202,8 @@ def cumulant_thermo(
     masses_amu_sc = sc.get_masses()
     n_sc = len(sc)
 
+    phonons_sc = Phonons()
+
     # Get super cell representation of the IFCs
     #! NEED TO CHECK THIS FUNCTION IS CORRECT
     remapped = remap_to_supercell_ifcs(
@@ -210,10 +213,16 @@ def cumulant_thermo(
     )
 
     sampler = SCSampler(
-        remapped, masses_amu_sc, T_K=temperature, quantum=quantum, seed=seed,
+        remapped,
+        masses_amu_sc,
+        T_K=temperature,
+        is_classic=is_classic,
+        seed=seed,
     )
 
     contractors = SCContractors(remapped)
+
+    
     sc_cell_A = np.asarray(sc.get_cell())
     sc_pos_eq_A = np.asarray(sc.get_positions())
 

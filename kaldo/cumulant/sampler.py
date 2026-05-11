@@ -44,7 +44,7 @@ class SCSampler:
         remapped,
         masses_amu_sc: np.ndarray,
         T_K: float,
-        quantum: bool = True,
+        is_classic: bool = True,
         seed: int | None = None,
     ):
         sc_ifc2 = remapped.ifc2
@@ -58,7 +58,7 @@ class SCSampler:
         self.masses_amu = np.asarray(masses_amu_sc)
         self.masses_kg = self.masses_amu * AMU
         self.T = float(T_K)
-        self.quantum = bool(quantum)
+        self.is_classic = bool(is_classic)
 
         nb = 3 * n_sc
         D = np.zeros((nb, nb))
@@ -77,13 +77,14 @@ class SCSampler:
         x = HBAR * self.omega / (KB * self.T)
         self.n_pop = np.zeros_like(self.omega)
         self.n_pop[self.ok] = 1.0 / np.expm1(x[self.ok])
-        if self.quantum:
+
+        if self.is_classic:
             self.var_per_mode = np.where(
-                self.ok, HBAR * (2 * self.n_pop + 1) / (2 * self.omega), 0.0
+                self.ok, KB * self.T / (self.omega ** 2), 0.0
             )
         else:
             self.var_per_mode = np.where(
-                self.ok, KB * self.T / (self.omega ** 2), 0.0
+                self.ok, HBAR * (2 * self.n_pop + 1) / (2 * self.omega), 0.0
             )
         self.amp = np.sqrt(self.var_per_mode)
         self.rng = np.random.default_rng(seed)
@@ -112,12 +113,14 @@ class SCSampler:
         Classical: ``w = 1`` everywhere.
         """
         ok = self.ok
-        if self.quantum:
+
+        if self.is_classic:
+            w = np.where(ok, 1.0, 0.0)
+        else:
             denom = (2 * self.n_pop + 1) ** 2
             w = np.zeros_like(self.omega)
             w[ok] = 4.0 * self.n_pop[ok] * (self.n_pop[ok] + 1.0) / denom[ok]
-        else:
-            w = np.where(ok, 1.0, 0.0)
+
         per_mode_J = np.where(
             ok, HBAR * self.omega * (2 * self.n_pop + 1) / 4.0, 0.0
         )
