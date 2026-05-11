@@ -7,6 +7,7 @@ from sparse import COO
 from kaldo.grid import wrap_coordinates, Grid, NonDiagonalGrid
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
+from kaldo.observables.fourthorder import FourthOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
@@ -51,6 +52,9 @@ class ForceConstants:
     third_order: ThirdOrder, optional
         Preloaded third-order force constants attached to the instance.
         Default: ``None`` (lazy construction)
+    fourth_order: FourthOrder, optional
+        Preloaded fourth-order force constants attached to the instance.
+        Default: ``None`` (not constructed lazily — must be loaded explicitly)
 
     Attributes
     ----------
@@ -76,7 +80,8 @@ class ForceConstants:
                  folder: str = MAIN_FOLDER,
                  distance_threshold: float | None = None,
                  second_order: SecondOrder | None = None,
-                 third_order: ThirdOrder | None = None):
+                 third_order: ThirdOrder | None = None,
+                 fourth_order: FourthOrder | None = None):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -92,6 +97,7 @@ class ForceConstants:
         self._list_of_replicas = None
         self._second = second_order
         self._third = third_order
+        self._fourth = fourth_order
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
@@ -116,6 +122,17 @@ class ForceConstants:
                                                     folder=self.folder)
         return self._third
 
+    @property
+    def fourth(self):
+        """Fourth-order force constants (FourthOrder).
+
+        Unlike ``second`` and ``third`` there is no lazy construction path
+        today: IFC4 must be loaded explicitly via ``from_folder`` (currently
+        only format='tdep' is supported) or passed as ``fourth_order=`` at
+        construction time. Returns ``None`` if not loaded.
+        """
+        return self._fourth
+
     @classmethod
     def from_folder(cls,
                     folder: str,
@@ -125,6 +142,7 @@ class ForceConstants:
                     third_supercell: tuple[int, int, int] | None = None,
                     is_acoustic_sum: bool = False,
                     only_second: bool = False,
+                    include_fourth: bool = False,
                     distance_threshold: float | None = None,
                     chunk_size: int = 100000):
         """
@@ -143,6 +161,7 @@ class ForceConstants:
         - qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q
         - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
         - tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder
+                (+ infile.forceconstant_fourthorder if ``include_fourth=True``)
 
         Parameters
         ----------
@@ -180,6 +199,14 @@ class ForceConstants:
         supercell = _normalize_supercell(supercell)
         third_supercell = _normalize_supercell(third_supercell)
 
+        # Validate include_fourth early so we don't waste time loading IFC2/3
+        # only to discover the format is wrong.
+        if include_fourth and format != 'tdep':
+            raise ValueError(
+                f"include_fourth=True is only supported for format='tdep'"
+                f" (got format={format!r})"
+            )
+
         effective_second_format = format
         effective_third_format = format
 
@@ -201,13 +228,23 @@ class ForceConstants:
                                           chunk_size=chunk_size)
             target_third_supercell = _normalize_supercell(third_order.supercell)
 
+        fourth_order = None
+        if include_fourth and not only_second:
+            # Fourth-order loading is opt-in because most existing datasets
+            # ship only IFC2 + IFC3. Today only format='tdep' is wired
+            # (validated at the top of this method).
+            fourth_order = FourthOrder.load(folder=folder,
+                                            supercell=target_third_supercell,
+                                            format='tdep')
+
         return cls(atoms=atoms,
                    supercell=resolved_supercell,
                    third_supercell=target_third_supercell,
                    folder=folder,
                    distance_threshold=distance_threshold,
                    second_order=second_order,
-                   third_order=third_order)
+                   third_order=third_order,
+                   fourth_order=fourth_order)
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
