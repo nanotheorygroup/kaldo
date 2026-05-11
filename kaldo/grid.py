@@ -105,3 +105,107 @@ class Grid:
             logging.error(err_msg)
             raise ValueError(err_msg)
 
+
+class NonDiagonalGrid(Grid):
+    """Grid for a non-diagonal primitive-to-supercell tiling.
+
+    Stores an explicit ``replica_table`` (n_rep × 3) integer lattice vectors
+    in the primitive basis, already minimum-image-wrapped inside the
+    Wigner-Seitz cell of the supercell. Mimics the :class:`Grid` public
+    interface so downstream code (ForceConstant, HarmonicWithQ) can use it
+    interchangeably.
+
+    The ``is_wrapping`` flag on ``grid()`` and ``grid_index_to_id()`` is
+    accepted for API compatibility with :class:`Grid` but is **always
+    treated as True**: the replica table is already minimum-image-wrapped
+    by construction.
+    """
+
+    def __init__(self, replica_table, M):
+        self._replica_table = np.asarray(replica_table, dtype=int)
+        self._M = np.asarray(M, dtype=float)
+        self.grid_size = len(self._replica_table)
+        # Synthesize a shape for the Grid base-class interface (used only
+        # for n_replicas bookkeeping downstream).
+        self.grid_shape = (self.grid_size, 1, 1)
+        self.order = "nondiag"
+
+    def generate_index_grid(self):
+        return self._replica_table.copy()
+
+    def grid(self, is_wrapping: bool = True):
+        # replica_table is already the minimum-image wrap
+        return self._replica_table.copy()
+
+    def unitary_grid(self, is_wrapping: bool = True):
+        # Fractional coordinates in the supercell basis
+        return self._replica_table @ np.linalg.inv(self._M)
+
+    def grid_index_to_id(self, cell_idx, is_wrapping: bool = True):
+        cell_idx = np.asarray(cell_idx).astype(int)
+        if is_wrapping:
+            idx = wrap_lattice_vector_to_replica(
+                cell_idx, self._replica_table, self._M,
+            )
+            if idx < 0:
+                return np.array([], dtype=int)
+            return np.array([idx], dtype=int)
+        mask = (self._replica_table == cell_idx).all(axis=1)
+        return np.argwhere(mask).flatten()
+
+    def id_to_grid_index(self, id: int):
+        return self._replica_table[int(id)].copy()
+
+    def cell_position_to_id(self, cell_position, cell, is_wrapping: bool = True):
+        # The base-class implementation casts the position via cell_inv
+        # to a 3-tuple of integer indices — meaningful only for diagonal
+        # grids. Refuse on non-diagonal so callers don't get silently
+        # wrong indices.
+        raise NotImplementedError(
+            "cell_position_to_id is not defined for NonDiagonalGrid; "
+            "use grid_index_to_id with the integer primitive lattice vector."
+        )
+
+    def id_to_unitary_grid_index(self, id: int):
+        # Inherited unravel_index would treat (n_rep, 1, 1) as the shape,
+        # producing meaningless fractional coords. Return the supercell-
+        # fractional coordinate of replica `id` instead.
+        return self._replica_table[int(id)] @ np.linalg.inv(self._M)
+
+
+def wrap_lattice_vector_to_replica(R_prim_int, replica_table, M, tol=1e-4):
+    """Find the replica index of a lattice vector R (integer primitive basis).
+
+    Wraps R through the non-diagonal supercell PBC and looks up the unique
+    replica entry. ``replica_table`` may be in either ``[0, 1)``-fractional
+    form or "Cartesian-norm-minimal" form; we test both candidates via
+    (a) the sc-fractional ``[0, 1)`` wrap and (b) nearby integer shifts of
+    M that could produce a norm-minimal representative. Returns the index
+    into ``replica_table`` or ``-1`` if no match.
+
+    Pure SNF math — no TDEP-format dependencies. Used internally by
+    :class:`NonDiagonalGrid` and by the TDEP non-diagonal IFC parsers.
+    """
+    R = np.asarray(R_prim_int, dtype=int)
+    M_rows = np.asarray(M).astype(int)
+
+    # First: sc-fractional [0, 1) wrap
+    R_frac_sc = R.astype(float) @ np.linalg.inv(M)
+    R_frac_sc_wrap = R_frac_sc - np.floor(R_frac_sc + tol)
+    R_frac_prim_wrap = R_frac_sc_wrap @ M
+    R_wrap_int = np.round(R_frac_prim_wrap).astype(int)
+
+    # Direct match (handles either-form table)
+    for idx, rep in enumerate(replica_table):
+        if np.array_equal(rep, R) or np.array_equal(rep, R_wrap_int):
+            return idx
+
+    # Otherwise enumerate nearby integer shifts (replica_table may be norm-minimal)
+    for a in (-2, -1, 0, 1, 2):
+        for b in (-2, -1, 0, 1, 2):
+            for c in (-2, -1, 0, 1, 2):
+                R_shift = R - np.array([a, b, c]) @ M_rows
+                for idx, rep in enumerate(replica_table):
+                    if np.array_equal(rep, R_shift):
+                        return idx
+    return -1
