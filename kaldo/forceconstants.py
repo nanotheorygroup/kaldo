@@ -250,6 +250,96 @@ class ForceConstants:
                    third_order=third_order,
                    fourth_order=fourth_order)
 
+    @staticmethod
+    def _build_shifted_rep(grid: Grid) -> np.ndarray:
+        """Return shifted_rep[rep_i, rel] = ravel((grid[rep_i] + grid[rel]) % supercell).
+
+        shifted_rep[rep_i, rel] is the absolute flat replica index that lies ``rel`` unit cells
+        away from rep_i under periodic boundary conditions.  The row-wise argsort gives the
+        inverse mapping: inv_shifted_rep[rep_i, abs] = rel such that shifted_rep[rep_i, rel] = abs.
+        """
+        supercell = grid.grid_shape
+        grid_arr = grid.grid(is_wrapping=False)                                    # (n_rep, 3)
+        combined = (grid_arr[:, np.newaxis, :] + grid_arr[np.newaxis, :, :]) % np.array(supercell)
+        return np.ravel_multi_index(
+            combined.reshape(-1, 3).T, supercell, order=grid.order
+        ).reshape(grid.grid_size, grid.grid_size)
+
+
+    def irred_to_full(self, order: int, grid: Grid | None = None) -> np.ndarray:
+        """Reconstruct the full IFC tensor from the irreducible part stored in this object.
+
+        The irreducible tensor (``self.second`` or ``self.third``) suppresses the replica index
+        of the first atom (always cell 0 by translational convention).  Translational symmetry
+        gives:
+
+            fc_full[rep_i, uc_i, :, abs_j, uc_j, :, ...]
+                = ifc_irred[uc_i, :, rel_j, uc_j, :, ...]
+
+        where  abs_j = shifted_rep[rep_i, rel_j]
+        and    shifted_rep = ForceConstants._build_shifted_rep(grid).
+
+        For the loop-based assignment pattern (resolving ``???`` for 3rd order)::
+
+            shifted_rep = ForceConstants._build_shifted_rep(grid)
+            for rep_i in range(n_rep):
+                for uc_i, rep_j, uc_j, rep_k, uc_k in ...:
+                    fc3_out[rep_i, uc_i, :,
+                            shifted_rep[rep_i, rep_j], uc_j, :,
+                            shifted_rep[rep_i, rep_k], uc_k, :] += ifc3_irred[uc_i, :, rep_j, uc_j, :, rep_k, uc_k, :]
+
+        Parameters
+        ----------
+        order : int
+            IFC order; 2 or 3.
+        grid : Grid, optional
+            Supercell grid.  Defaults to the grid of the corresponding order object
+            (``self.second._direct_grid`` or ``self.third._direct_grid``).
+
+        Returns
+        -------
+        fc_full : np.ndarray
+            Full IFC tensor of shape ``(n_rep, n_unit, 3) * order``.
+        """
+        if order not in (2, 3):
+            raise ValueError(f'order must be 2 or 3, got {order}.')
+
+        n_unit = self.n_atoms
+
+        if order == 2:
+            ifc_obj = self.second
+            raw = np.asarray(ifc_obj.value[0], dtype=np.float64)
+        else:
+            ifc_obj = self.third
+            n_rep_obj = ifc_obj.n_replicas
+            raw = ifc_obj.value
+            if hasattr(raw, 'todense'):
+                raw = raw.todense()
+            raw = np.asarray(raw, dtype=np.float64).reshape(n_unit, 3, n_rep_obj, n_unit, 3, n_rep_obj, n_unit, 3)
+
+        if grid is None:
+            grid = ifc_obj._direct_grid
+
+        n_rep = grid.grid_size
+        # Relative-replica axes in the irreducible tensor: 2, 5, ... (one per non-first atom)
+        replica_axes = [3 * j - 1 for j in range(1, order)]
+
+        shifted_rep = self._build_shifted_rep(grid)        # (n_rep, n_rep)
+        inv_shifted_rep = np.argsort(shifted_rep, axis=1)  # inv_shifted_rep[rep_i, abs] = rel
+
+        full_shape = (n_rep, n_unit, 3) * order
+        fc_full = np.zeros(full_shape, dtype=np.float64)
+
+        for rep_i in range(n_rep):
+            inv_perm = inv_shifted_rep[rep_i]
+            temp = raw
+            for ax in replica_axes:
+                temp = np.take(temp, inv_perm, axis=ax)
+            fc_full[rep_i] = temp
+
+        return fc_full
+
+
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
         This method extrapolates a third order force constant matrix from a unit

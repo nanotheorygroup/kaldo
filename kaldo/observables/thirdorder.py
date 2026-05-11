@@ -291,8 +291,6 @@ class ThirdOrder(ForceConstant):
             case _:
                 super(ThirdOrder, self).save(filename, format)
 
-
-
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
                   n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50):
         """Calculate the third order force constants.
@@ -405,9 +403,6 @@ class ThirdOrder(ForceConstant):
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
-
-
-
 
     def __str__(self):
         return 'third'

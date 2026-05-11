@@ -249,6 +249,7 @@ class SecondOrder(ForceConstant):
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
                 uc = ase.io.read(atom_prime_file, format="vasp")
                 sc = ase.io.read(replicated_atom_prime_file, format="vasp")
+
                 M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
                 M_int = np.round(M).astype(int)
 
@@ -262,9 +263,11 @@ class SecondOrder(ForceConstant):
 
                 M_diag = np.diag(np.diag(M_int))
                 M_is_not_diagonal = not np.allclose(M_int - M_diag, 0.0, atol=1e-6)
+
      
                 if M_is_not_diagonal:
                     kw = build_nondiag_observable_kwargs(uc, sc)
+                    print(kw["grid"].grid_shape)
                     mapping = kw.pop("_mapping")
                     d2 = parse_tdep_forceconstant(
                         fc_file=os.path.join(folder, "infile.forceconstant"),

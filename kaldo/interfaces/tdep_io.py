@@ -363,9 +363,11 @@ def parse_tdep_forceconstant(
                     if np.sum(r_diff) < tol:
                         force_constants[i1, ii, :, :] += phi
 
+    print("NEW REMAP FUNCTIOn")
     force_constants = remap_force_constants(
         force_constants, uc, sc, symmetrize=symmetrize,
     )
+
     if two_dim:
         return force_constants.swapaxes(2, 1).reshape(2 * (3 * n_sc,))
     return force_constants
@@ -576,8 +578,6 @@ def parse_tdep_third_forceconstant(
         uc = ase.io.read(primitive, format="vasp")
     n_uc = len(uc)
     n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
-
-    print(n_rep)
 
     dense = np.zeros(
         (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
