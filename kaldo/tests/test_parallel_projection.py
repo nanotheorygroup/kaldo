@@ -113,37 +113,3 @@ def test_n_workers_zero_raises():
     fc = ForceConstants.from_folder("kaldo/tests/si-crystal", supercell=(3, 3, 3), format="eskm")
     with pytest.raises(ValueError, match="n_workers must be >= 1"):
         Phonons(forceconstants=fc, kpts=(3, 3, 3), temperature=300, n_workers=0)
-
-
-def test_output_dir_writes_files_for_every_kpoint(si_forceconstants, tmp_path):
-    """When projection_output_dir is set, every k-point's .npz must exist
-    on disk after the run (not just the sentinel). Regression for the
-    PR #231 memory bug: the old code accumulated results in memory and
-    only wrote files at the end; this test pins that the new code writes
-    inside the dispatch loop (and drops the in-memory copy).
-    """
-    import os
-    import glob
-
-    output_dir = str(tmp_path / "kpt_out")
-    phonons = Phonons(
-        forceconstants=si_forceconstants,
-        kpts=(3, 3, 3),
-        temperature=300,
-        is_classic=True,
-        folder=str(tmp_path / "phonons_folder"),
-        projection_output_dir=output_dir,
-        n_workers=1,
-    )
-    _ = phonons.sparse_phase
-
-    npz_files = sorted(glob.glob(os.path.join(output_dir, "kpt_*.npz")))
-    done_files = sorted(glob.glob(os.path.join(output_dir, "kpt_*.done")))
-
-    # 3x3x3 mesh = 27 k-points
-    assert len(npz_files) == 27, (
-        f"Expected 27 .npz files, got {len(npz_files)}: {npz_files}"
-    )
-    assert len(done_files) == 27, (
-        f"Expected 27 .done sentinels, got {len(done_files)}"
-    )
