@@ -449,6 +449,18 @@ def save_third_order_matrix(phonons):
         .reshape((n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3, n_replicas, n_in_unit_cell, 3))\
         .todense()
 
+    # ShengBTE's FORCE_CONSTANTS_3RD reader expects FC3 values 10x smaller
+    # than the eV/A^3 magnitudes kaldo (and phonopy/phono3py) store
+    # internally. Verified empirically on Si-Tersoff: without this factor
+    # ShengBTE's kappa comes out 100x too small (because |V_3|^2 ~ Phi_3^2,
+    # so Phi_3 x 10 produces Gamma x 100, and kappa x 1/100). The factor is
+    # supercell-independent (checked on 2x2x2 and 3x3x3 FC3 supercells) and
+    # equals 0.1 exactly. The precise origin of the 10x in ShengBTE's unit
+    # chain has not yet been traced through processes.f90, but the factor
+    # is required for any kaldo -> ShengBTE pipeline to produce a kappa
+    # consistent with kaldo's and phono3py's own internal calculations.
+    third_order = third_order * 0.1
+
     block_counter = 0
     for i_0 in range (n_in_unit_cell):
         for n_1 in range (n_replicas):
