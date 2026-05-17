@@ -451,14 +451,23 @@ def save_third_order_matrix(phonons):
 
     # ShengBTE's FORCE_CONSTANTS_3RD reader expects FC3 values 10x smaller
     # than the eV/A^3 magnitudes kaldo (and phonopy/phono3py) store
-    # internally. Verified empirically on Si-Tersoff: without this factor
-    # ShengBTE's kappa comes out 100x too small (because |V_3|^2 ~ Phi_3^2,
-    # so Phi_3 x 10 produces Gamma x 100, and kappa x 1/100). The factor is
-    # supercell-independent (checked on 2x2x2 and 3x3x3 FC3 supercells) and
-    # equals 0.1 exactly. The precise origin of the 10x in ShengBTE's unit
-    # chain has not yet been traced through processes.f90, but the factor
-    # is required for any kaldo -> ShengBTE pipeline to produce a kappa
-    # consistent with kaldo's and phono3py's own internal calculations.
+    # internally. The root cause is a hidden nm-vs-A unit mix in ShengBTE's
+    # FC3 dim chain: gruneisen.f90 documents the unit as
+    #
+    #     `nm * eV / (amu * A^3 * THz^2)`
+    #
+    # (gruneisen.f90:44, "From nm*eV/(amu*A^3*THz^2) to 1.") — nm in the
+    # numerator with A^3 in the denominator. Since 1 nm = 10 A, this means
+    # 1 eV/A^3 = 10 eV/(A^2*nm), so to feed ShengBTE the value it
+    # implicitly expects we multiply kaldo's eV/A^3 representation by 0.1.
+    # processes.f90 documents the chain more sloppily as `(eV/A^3)^2*...`
+    # but the actual implementation follows gruneisen.f90's convention.
+    #
+    # Verified empirically on Si-Tersoff (kaldo + LAMMPS+ASE calculator):
+    #   - 3x3x3 FC3 supercell: ShengBTE kappa(RTA) = 16.93 W/m/K (vs kaldo 16.74)
+    #   - 2x2x2 FC3 supercell: ShengBTE kappa(RTA) = 17.10 W/m/K (vs phono3py 16.85)
+    # Without this factor, both runs give kappa ~ 0.17 W/m/K (100x too small,
+    # consistent with |V_3|^2 ~ Phi_3^2 -> Gamma x 100 -> kappa x 1/100).
     third_order = third_order * 0.1
 
     block_counter = 0
