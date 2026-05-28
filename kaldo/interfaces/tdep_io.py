@@ -363,13 +363,14 @@ def parse_tdep_forceconstant(
                     if np.sum(r_diff) < tol:
                         force_constants[i1, ii, :, :] += phi
 
-    print("NEW REMAP FUNCTIOn")
+    
     force_constants = remap_force_constants(
-        force_constants, uc, sc, symmetrize=symmetrize,
+        force_constants, uc, sc, symmetrize=symmetrize
     )
 
     if two_dim:
         return force_constants.swapaxes(2, 1).reshape(2 * (3 * n_sc,))
+
     return force_constants
 
 
@@ -382,6 +383,7 @@ def remap_force_constants(
     primitive: Atoms,
     supercell: Atoms,
     new_supercell: Atoms = None,
+    reduce_fc: bool = False,
     two_dim: bool = False,
     symmetrize: bool = True,
     tol: float = 1e-5,
@@ -389,6 +391,8 @@ def remap_force_constants(
 ) -> NDArray:
     """
     Remap force constants from [N_prim, N_sc, 3, 3] to [N_sc, N_sc, 3, 3].
+
+    Note: This function mostly follows vibes.force_constants.py from Vibes library.
 
     Parameters
     ----------
@@ -400,6 +404,8 @@ def remap_force_constants(
         Supercell for reference
     new_supercell : Atoms, optional
         Supercell to map to. Default: None (uses supercell copy)
+    reduce_fc : bool, optional
+        If True, return in [N_prim, N_sc, 3, 3] shape. Default: False
     two_dim : bool, optional
         If True, return in [3*N_sc, 3*N_sc] shape. Default: False
     symmetrize : bool, optional
@@ -450,21 +456,12 @@ def remap_force_constants(
             r_pair = np.linalg.solve(sc_cell.T, r_pair.T).T % 1.0
 
             r_diff = np.abs(r_pair - ref_struct_pos)
-
-            # Treat positions near 1.0 as equivalent to 0.0.
             r_diff -= np.floor(r_diff + eps)
 
             norms = np.linalg.norm(r_diff, axis=1)
-            matches = np.where(norms < tol)[0]
+            below_tolerance = np.where(norms < tol)
 
-            if len(matches) != 1:
-                raise ValueError(
-                    f"Failed to remap IFCs. Expected exactly one match, found {len(matches)} "
-                    f"for a1={a1}, uc_index={uc_index}, sc_a2={sc_a2}. "
-                    f"Minimum distance = {norms.min()}"
-                )
-
-            fc_out[a1, matches[0], :, :] += force_constants[
+            fc_out[a1, below_tolerance, :, :] += force_constants[
                 uc_index, sc_a2, :, :
             ]
 
@@ -492,6 +489,48 @@ def remap_force_constants(
             logging.warning(f"Sum rule violated by {violation:.2e} (axis 2).")
 
         return fc_out
+
+    # Reduce to primitive representation if requested
+    if reduce_fc:
+        p2s_map = np.zeros(len(primitive), dtype=int)
+
+        primitive.cell = new_supercell.cell
+
+        new_supercell.wrap(eps=tol)
+        primitive.wrap(eps=tol)
+
+        for aa, a1 in enumerate(primitive):
+            diff = new_supercell.positions - a1.position
+            p2s_map[aa] = np.where(np.linalg.norm(diff, axis=1) < tol)[0][0]
+
+        primitive.cell = primitive_cell
+        primitive.wrap(eps=tol)
+
+        return reduce_force_constants(fc_out, p2s_map)
+
+    return fc_out
+
+
+def reduce_force_constants(fc_full: NDArray, map2prim: NDArray) -> NDArray:
+    """
+    Reduce force constants from [N_sc, N_sc, 3, 3] to [N_prim, N_sc, 3, 3].
+
+    Parameters
+    ----------
+    fc_full : NDArray
+        The non-reduced force constant matrix
+    map2prim : NDArray
+        Map from supercell to unitcell index
+
+    Returns
+    -------
+    NDArray
+        The reduced force constants
+    """
+    _, uc_index = np.unique(map2prim, return_index=True)
+    fc_out = np.zeros((len(uc_index), fc_full.shape[1], 3, 3))
+    for ii, uc_ind in enumerate(uc_index):
+        fc_out[ii, :, :, :] = fc_full[uc_ind, :, :, :]
 
     return fc_out
 
@@ -533,8 +572,6 @@ def _map2prim(primitive: Atoms, supercell: Atoms, tol: float = 1e-5) -> list:
         raise AssertionError(f"Inconsistent mapping counts: {counts}")
 
     return map2prim
-
-
 # --------------------------------
 # Third order force constant method
 

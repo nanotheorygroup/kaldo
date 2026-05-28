@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-from kaldo.grid import wrap_coordinates, Grid
+from kaldo.grid import wrap_coordinates, Grid, NonDiagonalGrid
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.observables.fourthorder import FourthOrder
@@ -251,19 +251,48 @@ class ForceConstants:
                    fourth_order=fourth_order)
 
     @staticmethod
-    def _build_shifted_rep(grid: Grid) -> np.ndarray:
-        """Return shifted_rep[rep_i, rel] = ravel((grid[rep_i] + grid[rel]) % supercell).
+    def _build_shifted_rep(grid) -> np.ndarray:
+        """Return shifted_rep[rep_i, rel] = index of (grid[rep_i] + grid[rel]) in the replica table.
 
-        shifted_rep[rep_i, rel] is the absolute flat replica index that lies ``rel`` unit cells
-        away from rep_i under periodic boundary conditions.  The row-wise argsort gives the
-        inverse mapping: inv_shifted_rep[rep_i, abs] = rel such that shifted_rep[rep_i, rel] = abs.
+        For a diagonal Grid uses fast modular arithmetic + ravel_multi_index.
+        For a NonDiagonalGrid uses wrap_lattice_vector_to_replica so that the
+        non-diagonal PBC is handled correctly.
         """
-        supercell = grid.grid_shape
-        grid_arr = grid.grid(is_wrapping=False)                                    # (n_rep, 3)
-        combined = (grid_arr[:, np.newaxis, :] + grid_arr[np.newaxis, :, :]) % np.array(supercell)
-        return np.ravel_multi_index(
-            combined.reshape(-1, 3).T, supercell, order=grid.order
-        ).reshape(grid.grid_size, grid.grid_size)
+        if isinstance(grid, NonDiagonalGrid):
+            table = grid._replica_table                              # (n_rep, 3) int
+            M = np.rint(grid._M).astype(int)
+            n_rep = len(table)
+
+            # All pairwise sums: (n_rep, n_rep, 3)
+            sums = table[:, None, :] + table[None, :, :]
+
+            # Step 1: [0,1) sc-fractional wrap (vectorized).
+            # Mirrors what build_supercell_replica_mapping does before norm-min.
+            inv_M = np.linalg.inv(M.astype(float))
+            frac = sums.astype(float) @ inv_M                              # (n_rep, n_rep, 3)
+            wrapped = np.rint((frac - np.floor(frac + 1e-4)) @ M).astype(int)  # (n_rep, n_rep, 3)
+
+            # Step 2: norm-minimal search over {-1,0,1}^3 — same shifts used
+            # when the table was built, so exactly one candidate matches each (i,j).
+            sv = np.array(np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1],
+                                      indexing='ij')).reshape(3, -1).T   # (27, 3)
+            candidates = wrapped[:, :, None, :] - (sv @ M)[None, None, :, :]  # (n_rep, n_rep, 27, 3)
+
+            # matches[i, j, s, k] = True when candidates[i,j,s] == table[k]
+            matches = (candidates[:, :, :, None, :] == table[None, None, None, :, :]).all(axis=-1)
+            matched = matches.any(axis=2)   # (n_rep, n_rep, n_rep): any shift hits table[k]?
+
+            if not matched.any(axis=-1).all():
+                raise ValueError("Replica sum not found; the replica table may be incomplete.")
+
+            return np.argmax(matched, axis=-1)   # (n_rep, n_rep)
+        else:
+            supercell = grid.grid_shape
+            grid_arr = grid.grid(is_wrapping=False)                                    # (n_rep, 3)
+            combined = (grid_arr[:, np.newaxis, :] + grid_arr[np.newaxis, :, :]) % np.array(supercell)
+            return np.ravel_multi_index(
+                combined.reshape(-1, 3).T, supercell, order=grid.order
+            ).reshape(grid.grid_size, grid.grid_size)
 
 
     def irred_to_full(self, order: int, grid: Grid | None = None) -> np.ndarray:
