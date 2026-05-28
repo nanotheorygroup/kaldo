@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Sequence
 
 import numpy as np
-from kaldo.remap import remap_to_supercell_ifcs
 
 from .constants import AMU
 from .harmonic import compute_all_frequencies_THz, harmonic_thermo_quantum
@@ -30,6 +29,7 @@ from .sampler import SCSampler
 from .taylor import SCContractors
 from .bootstrap import bootstrap_corrections
 from kaldo.forceconstants import ForceConstants
+from tqdm import trange
 
 
 @dataclass
@@ -61,17 +61,10 @@ def _harmonic_thermo(neighbors_pair, uc_positions, uc_cell, masses_amu, kmesh, T
     F, U, S, Cv = harmonic_thermo_quantum(freqs, T_K, n_q * n_uc)
     return dict(F_H=F, U_H=U, S_H=S, Cv_H=Cv)
 
-def _check_lammps_kwargs(lammps_kwargs: dict) -> None:
-    if "atom_types" not in lammps_kwargs:
-        raise ValueError("atom_types must be provided in lammps_kwargs")
-    if "atom_type_masses" not in lammps_kwargs:
-        raise ValueError("atom_type_masses must be provided in lammps_kwargs")
-    if "lmpcmds" in lammps_kwargs:
-        raise ValueError("lmpcmds should be provided directly to `cumulant_thermo` function via lammps_cmds argument.")
-
 
 def cumulant_thermo(
-    forceconstants : ForceConstants,
+    tdep_folder : str,
+    supercell : tuple[int, int, int],
     temperature: float,
     is_classic : bool,
     lammps_cmds : Sequence[str] | str,
@@ -81,7 +74,7 @@ def cumulant_thermo(
     free_energy_mesh: Sequence[int] = (25, 25, 25),
     seed: int = 987654,
     use_q_symmetry: bool = True,
-    lammps_kwargs: dict = {"atom_types" : {}, "atom_type_masses" : {}},
+    lammps_kwargs: dict = {},
     verbose: bool = True,
 ) -> CumulantResult:
     """
@@ -134,7 +127,15 @@ def cumulant_thermo(
     else:
         lammps_cmds = list(lammps_cmds)
 
-    _check_lammps_kwargs(lammps_kwargs)
+    if "lmpcmds" in lammps_kwargs:
+        raise ValueError("lmpcmds should be provided directly to `cumulant_thermo` function via lammps_cmds argument not the lammps_kwargs.")
+
+    forceconstants = ForceConstants.from_folder(
+            tdep_folder,
+            supercell=supercell,
+            format="tdep",
+            include_fourth=True
+        )
 
     uc = forceconstants.atoms
     uc_positions = np.asarray(uc.get_positions())
@@ -197,45 +198,54 @@ def cumulant_thermo(
     if verbose:
         print(f"Phase 5: sampling N={nconf} configs ...", flush=True)
 
-    sc = forceconstants.second.replicated_atom
+    sc = forceconstants.second.replicated_atoms
     species_sc = sc.get_chemical_symbols()
     masses_amu_sc = sc.get_masses()
     n_sc = len(sc)
 
-    phonons_sc = Phonons()
+    ifc2_remapped_raw = forceconstants.irred_to_full(order = 2)
+    ifc2_remapped_raw = ifc2_remapped_raw.reshape((3 * n_sc, 3 * n_sc))
 
-    # Get super cell representation of the IFCs
-    #! NEED TO CHECK THIS FUNCTION IS CORRECT
-    remapped = remap_to_supercell_ifcs(
-        forceconstants,
-        require_third=True, 
-        require_fourth=True
-    )
+    if verbose:
+        print(f"Phase 5: Remapped IFCs to supercell ...", flush=True)
+        print(f"IFC2 shape: {ifc2_remapped_raw.shape}", flush=True)
 
+
+    #! IS ORDER OF REMAPPED MATRIX GOING TO MATCH MASS VECTOR??
     sampler = SCSampler(
-        remapped,
+        ifc2_remapped_raw,
         masses_amu_sc,
         T_K=temperature,
         is_classic=is_classic,
-        seed=seed,
+        seed=seed
     )
+    if verbose:
+        print(f"Phase 5: Built sampler ...", flush=True)
 
-    contractors = SCContractors(remapped)
+    contractors = SCContractors.from_tdep_folder(tdep_folder, include_fourth=True)
 
-    
+    if verbose:
+        print(f"Phase 5: Build contractors ...", flush=True)
+
+    #! THESE CELLS GET PARSED FUNNY
     sc_cell_A = np.asarray(sc.get_cell())
     sc_pos_eq_A = np.asarray(sc.get_positions())
 
     # Build mappings for LAMMPS calculator
     _, unique_species_idx = np.unique(species_uc, return_index=True)
-    atom_types = {species_uc[idx] : i for i, idx in enumerate(unique_species_idx)}
-    atom_masses = {species_uc[idx] : masses_amu_uc[idx] for i, idx in enumerate(unique_species_idx)}
+    if "atom_types" not in lammps_kwargs:
+        lammps_kwargs["atom_types"] = {species_uc[idx] : i + 1 for i, idx in enumerate(unique_species_idx)}
+    if "atom_type_masses" not in lammps_kwargs:
+        lammps_kwargs["atom_type_masses"] = {species_uc[idx] : masses_amu_uc[idx] for i, idx in enumerate(unique_species_idx)}
+
+    if verbose:
+        print(f"Phase 5: Building LAMMPS calculator ...", flush=True)
+        print(f"  LAMMPS atom_types: {lammps_kwargs['atom_types']}", flush=True)
+        print(f"  LAMMPS atom_type_masses: {lammps_kwargs['atom_type_masses']}", flush=True)
 
     at = Atoms(species_sc, positions=sc_pos_eq_A, cell=sc_cell_A, pbc=True)
     at.calc = LAMMPSlib(
         lmpcmds=list(lammps_cmds),
-        atom_types=atom_types,
-        atom_type_masses=atom_masses,
         keep_alive=True, 
         log_file="/tmp/cumulant_thermo_lammps.log",
         **lammps_kwargs
@@ -243,7 +253,7 @@ def cumulant_thermo(
     V = np.zeros(nconf); V2 = np.zeros(nconf); V3 = np.zeros(nconf)
     V4 = np.zeros(nconf); V2_tilde = np.zeros(nconf)
     t0 = time.time()
-    for n in range(nconf):
+    for n in trange(nconf):
         u, z = sampler.draw_with_z()
         at.set_positions(sc_pos_eq_A + u)
         V[n] = at.get_potential_energy()
@@ -254,7 +264,7 @@ def cumulant_thermo(
         if verbose and (n + 1) % max(1, nconf // 10) == 0:
             print(f"  n={n+1}/{nconf}  ({time.time()-t0:.1f}s)", flush=True)
 
-    V_ref = V2_tilde if quantum else V2
+    V_ref = V2 if is_classic else V2_tilde
     point, se = bootstrap_corrections(
         V, V2, V3, V4, V_ref, temperature, n_sc,
         n_boot=nboot, seed=seed + 1, verbose=False,

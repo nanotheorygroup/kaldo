@@ -15,8 +15,18 @@ classical) confirmed during the cumulant port.
 from __future__ import annotations
 import numpy as np
 
-from .common import HBAR, KB, EV, AMU, ANG, FREQ_TOL_THZ
+AMU_TO_KG = 1.660539040E-27
+EMU_TO_KG = 9.10938356E-31
+AMU_TO_EMU = AMU_TO_KG/EMU_TO_KG
 
+HARTREE_TO_EV = 27.21138602
+EV_TO_HARTREE = 1.0 / HARTREE_TO_EV
+BOHR_TO_A = 0.52917721067
+A_TO_BOHR = 1.0 / BOHR_TO_A
+IFC_2nd_EVA_TO_HARTREEBOHR = EV_TO_HARTREE / (A_TO_BOHR**2)
+
+KB_EV = 8.6173303E-5
+KB_HARTREE = KB_EV*EV_TO_HARTREE
 
 class SCSampler:
     """
@@ -41,51 +51,66 @@ class SCSampler:
 
     def __init__(
         self,
-        remapped,
-        masses_amu_sc: np.ndarray,
+        ifc2_sc_eVAng : np.ndarray, # assumes in eV / Ang^2
+        masses_amu_sc: np.ndarray, # in amu
         T_K: float,
         is_classic: bool = True,
         seed: int | None = None,
     ):
-        sc_ifc2 = remapped.ifc2
-        n_sc = int(remapped.n_atoms_sc)
-        a1 = np.asarray(sc_ifc2.a1, dtype=int)
-        a2 = np.asarray(sc_ifc2.a2, dtype=int)
-        phi = np.asarray(sc_ifc2.phi)
-        if phi.shape[-2:] != (3, 3):
-            phi = np.moveaxis(phi, -1, 0)
-        self.n_sc = n_sc
-        self.masses_amu = np.asarray(masses_amu_sc)
-        self.masses_kg = self.masses_amu * AMU
+
+        self.n_sc = len(masses_amu_sc)
+        self.masses_emu = masses_amu_sc * AMU_TO_EMU
         self.T = float(T_K)
         self.is_classic = bool(is_classic)
 
-        nb = 3 * n_sc
-        D = np.zeros((nb, nb))
-        inv_sqrt_m = 1.0 / np.sqrt(self.masses_kg)
-        for k in range(a1.size):
-            i = a1[k]; j = a2[k]
-            D[3*i:3*i+3, 3*j:3*j+3] += phi[k] * (inv_sqrt_m[i] * inv_sqrt_m[j])
-        D = 0.5 * (D + D.T)
-        D_SI = D * (EV / ANG ** 2)
-        omega2, phi_vec = np.linalg.eigh(D_SI)
+        self.inv_sqrt_m_emu_expanded = 1.0 / np.sqrt(np.repeat(self.masses_emu, 3))
+        
+        D = 3
+        dynmat = np.zeros((D * self.n_sc, D * self.n_sc))
+        for i in range(self.n_sc):
+            for j in range(i, self.n_sc):
+                block = ifc2_sc_eVAng[D*i:D*i+D, D*j:D*j+D]
+
+                mass_factor = np.sqrt(self.masses_emu[i] * self.masses_emu[j])
+
+                dynmat[D*i:D*i+D, D*j:D*j+D] = (
+                    IFC_2nd_EVA_TO_HARTREEBOHR * block / mass_factor
+                )
+
+                dynmat[D*j:D*j+D, D*i:D*i+D] = (
+                    dynmat[D*i:D*i+D, D*j:D*j+D].T
+                )
+
+        omega2, evecs = np.linalg.eigh(dynmat)
         self.omega = np.sign(omega2) * np.sqrt(np.abs(omega2))
-        self.phi_vec = phi_vec
-        self.ok = self.omega > 2 * np.pi * FREQ_TOL_THZ * 1e12
+        self.evecs = evecs
+
+        # Set rigid translation modes to exactly 0.0
+        rtm_idx = np.argsort(self.omega)[:D]
+        self.omega[rtm_idx] = 0.0
+
+        if np.any(self.omega < 0.0):
+            raise ValueError("Imaginary phonon modes detected.")
+        
+        self.ok = self.omega > 0.0 # mask for rigid translation modes
 
         # Bose-Einstein populations and per-mode variance
-        x = HBAR * self.omega / (KB * self.T)
+        x = self.omega / (KB_HARTREE * self.T)
         self.n_pop = np.zeros_like(self.omega)
         self.n_pop[self.ok] = 1.0 / np.expm1(x[self.ok])
 
+        self.var_per_mode = np.zeros_like(self.omega)
+
         if self.is_classic:
-            self.var_per_mode = np.where(
-                self.ok, KB * self.T / (self.omega ** 2), 0.0
+            self.var_per_mode[self.ok] = (
+                KB_HARTREE * self.T / np.square(self.omega[self.ok])
             )
         else:
-            self.var_per_mode = np.where(
-                self.ok, HBAR * (2 * self.n_pop + 1) / (2 * self.omega), 0.0
+            self.var_per_mode[self.ok] = (
+                (2.0 * self.n_pop[self.ok] + 1.0)
+                / (2.0 * self.omega[self.ok])
             )
+            
         self.amp = np.sqrt(self.var_per_mode)
         self.rng = np.random.default_rng(seed)
 
@@ -94,9 +119,8 @@ class SCSampler:
         nb = 3 * self.n_sc
         z = self.rng.standard_normal(nb)
         z[~self.ok] = 0.0
-        inv_sqrt_m = 1.0 / np.sqrt(np.repeat(self.masses_kg, 3))
-        u_flat_m = inv_sqrt_m * (self.phi_vec @ (self.amp * z))
-        u_A = u_flat_m.reshape(self.n_sc, 3) / ANG
+        u_flat_m = self.inv_sqrt_m_emu_expanded * (self.evecs @ (self.amp * z))
+        u_A = u_flat_m.reshape(self.n_sc, 3) * BOHR_TO_A
         return u_A, z
 
     def draw(self):
@@ -121,7 +145,7 @@ class SCSampler:
             w = np.zeros_like(self.omega)
             w[ok] = 4.0 * self.n_pop[ok] * (self.n_pop[ok] + 1.0) / denom[ok]
 
-        per_mode_J = np.where(
-            ok, HBAR * self.omega * (2 * self.n_pop + 1) / 4.0, 0.0
+        per_mode = np.where(
+            ok, self.omega * (2 * self.n_pop + 1) / 4.0, 0.0
         )
-        return (w * per_mode_J * (z ** 2)).sum() / EV
+        return (w * per_mode * (z ** 2)).sum() * HARTREE_TO_EV
