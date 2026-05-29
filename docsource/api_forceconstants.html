@@ -3363,8 +3363,8 @@ The “delta_shift” argument is how far the atoms move.:</p>
 </div>
 </li>
 </ol>
-<p>Try referencing the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/blob/main/examples/carbon_diamond_Tersoff_ASE_LAMMPS/1_C_Tersoff_fc_and_harmonic_properties.py">carbon diamond example</a> to see an example where we use kALDo and ASE to control LAMMPS
-calculations.</p>
+<p>See the <a class="reference external" href="https://nanotheorygroup.github.io/kaldo-examples/">examples gallery</a> for end-to-end workflows that drive LAMMPS through ASE
+and other calculators.</p>
 <div class="hint tip admonition">
 <p class="admonition-title">Hint</p>
 <p>Some libraries, like LAMMPS, can use either a python wrapper (LAMMPSlib) or a direct call to the binary
@@ -3434,8 +3434,8 @@ from spawn-imported workers. Move the <code class="docutils literal notranslate"
 produces ~1e-3 FC noise on float32 ML potentials, swamping the real signal. Use <code class="docutils literal notranslate"><span class="pre">1e-2</span></code> instead.</p></li>
 </ul>
 <h2 id="loading-precalculated-ifcs"><span id="loading-ifcs"></span>Loading Precalculated IFCs<a class="headerlink" href="#loading-precalculated-ifcs" title="Link to this heading">¶</a></h2>
-<p>Construct your ForceConstants object by using the <code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code> method. The first step of
-the <a class="reference external" href="https://github.com/nanotheorygroup/kaldo/blob/main/examples/amorphous_silicon_Tersoff_LAMMPS/1_aSi512_Tersoff_thermal_conductivity.py">amorphous silicon example</a> can help you get started.
+<p>Construct your ForceConstants object by using the <code class="xref py py-obj docutils literal notranslate"><span class="pre">from_folder</span></code> method;
+the <a class="reference external" href="https://nanotheorygroup.github.io/kaldo-examples/">examples gallery</a> shows this pattern end-to-end.
 If you’d like to load IFCs into the already-created instances without the <code class="xref py py-meth docutils literal notranslate"><span class="pre">from_folder()</span></code> generate the
 ForceConstants object and then use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">load()</span></code> method of the SecondOrder and ThirdOrder objects to pull data as
 needed.</p>

@@ -157,10 +157,10 @@ scratch directory skips finished atoms and only recomputes missing work.
                        delta_shift = 1e-5,
                        n_workers = 2,)
 
-.. _carbon diamond example: https://github.com/nanotheorygroup/kaldo/blob/main/examples/carbon_diamond_Tersoff_ASE_LAMMPS/1_C_Tersoff_fc_and_harmonic_properties.py
+.. _examples gallery: https://nanotheorygroup.github.io/kaldo-examples/
 
-Try referencing the `carbon diamond example`_ to see an example where we use kALDo and ASE to control LAMMPS
-calculations.
+See the `examples gallery`_ for end-to-end workflows that drive LAMMPS through ASE
+and other calculators.
 
 .. hint::
    Some libraries, like LAMMPS, can use either a python wrapper (LAMMPSlib) or a direct call to the binary
@@ -244,10 +244,8 @@ Common pitfalls
 Loading Precalculated IFCs
 **************************
 
-.. _amorphous silicon example: https://github.com/nanotheorygroup/kaldo/blob/main/examples/amorphous_silicon_Tersoff_LAMMPS/1_aSi512_Tersoff_thermal_conductivity.py
-
-Construct your ForceConstants object by using the :obj:`~kaldo.ForceConstants.from_folder` method. The first step of
-the `amorphous silicon example`_ can help you get started.
+Construct your ForceConstants object by using the :obj:`~kaldo.ForceConstants.from_folder` method;
+the `examples gallery`_ shows this pattern end-to-end.
 If you'd like to load IFCs into the already-created instances without the :py:meth:`from_folder` generate the
 ForceConstants object and then use the :py:meth:`load` method of the SecondOrder and ThirdOrder objects to pull data as
 needed.
