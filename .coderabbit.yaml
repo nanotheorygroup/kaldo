@@ -35,7 +35,6 @@ reviews:
     - "!kaldo/tests/**/CONTCAR*"
     - "!kaldo/tests/**/CHGCAR*"
     - "!docs/**"
-    - "!examples/**/*.ipynb"
     - "!examples_local/**"
     - "!build/**"
     - "!dist/**"
@@ -54,8 +53,9 @@ reviews:
         Flag float comparisons with `==` (use `np.isclose` / `np.allclose`),
         silent dtype downgrades from float64 to float32, and chained
         np.dot/np.tensordot where np.einsum / opt_einsum.contract would be
-        clearer. Watch for TensorFlow imports at module top level in modules
-        that should also load on CPU-only environments.
+        clearer. TensorFlow is a hard dependency in kaldo — top-level
+        `import tensorflow as tf` is the project convention; do not flag
+        it or suggest deferred imports.
     - path: "kaldo/**/*.py"
       instructions: >
         Apply DRY: flag duplicated logic across functions/modules that
@@ -77,6 +77,12 @@ reviews:
         chosen for the physics, not whatever makes them pass. Use tmp_path for
         any filesystem writes. Don't mock the filesystem to substitute for
         reference data files in sibling directories (si-crystal/, mgo/, etc.).
+    - path: "examples/**"
+      instructions: >
+        Block any new or modified files under examples/. kaldo's examples
+        live in nanotheorygroup/kaldo-examples — request the contributor
+        move the change there. Flag this as a blocker, not a nitpick:
+        re-introducing an examples/ folder in this repo is out of scope.
   pre_merge_checks:
     docstrings:
       mode: warning
