@@ -320,7 +320,12 @@ Input Files and Formats
      - xyz
      - second.npy
      - third.npz
-      
+   * - gpumd
+     - gpumd_fc.npz (self-contained)
+     - N/A (embedded)
+     - gpumd_fc.npz
+     - gpumd_fc.npz
+
 
 .. rubric:: Notes on Formats
 
@@ -328,6 +333,14 @@ Input Files and Formats
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
 .. [#f2] ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
          use the ``kaldo.interfaces.shegbte_io.import_control_file`` method.
+
+``gpumd``
+    A single ``gpumd_fc.npz`` archive produced by the GPUMD
+    ``tools/Format_Conversion/gpumd_to_kaldo`` exporter (NEP potential via
+    calorine + phono3py). The unit cell, ``supercell``/``third_supercell``, and
+    force constants are all embedded; no ``replicated_atoms.xyz`` is required.
+    Second order is stored dense in eV/Angstrom^2; third order is a sparse COO in
+    eV/Angstrom^3. Replica ordering is C-style.
 
 .. _forceconstants-api:
 
