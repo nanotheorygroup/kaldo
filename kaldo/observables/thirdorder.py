@@ -220,7 +220,7 @@ class ThirdOrder(ForceConstant):
                 meta = gpumd_io.read_gpumd_fc(folder)
                 fc3 = meta['fc3']
                 if third_energy_threshold > 0.:
-                    mask = np.abs(fc3.data) >= third_energy_threshold
+                    mask = np.abs(fc3.data) > third_energy_threshold
                     fc3 = sparse.COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
                 third_order = cls.from_supercell(
                     atoms=meta['atoms'],
