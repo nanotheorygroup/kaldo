@@ -94,3 +94,19 @@ def test_from_folder_gpumd(tmp_path):
     assert fc.second.value.shape == (1, 2, 3, 1, 2, 3)
     assert fc.third.value.shape == (6, 6, 6)
     assert tuple(fc.supercell) == (1, 1, 1)
+
+
+# Task A.5 — differential round-trip oracle from the existing si-crystal hiphive fixture
+import os  # noqa: E402
+
+_SI = os.path.join(os.path.dirname(__file__), 'si-crystal')
+
+
+def test_gpumd_matches_hiphive_oracle():
+    sc = (3, 3, 3)
+    fc_hip = ForceConstants.from_folder(folder=os.path.join(_SI, 'hiphive'), supercell=sc, format='hiphive')
+    fc_gpu = ForceConstants.from_folder(folder=os.path.join(_SI, 'gpumd'), format='gpumd')
+    np.testing.assert_allclose(fc_gpu.second.value, fc_hip.second.value, rtol=1e-12, atol=1e-12)
+    a = fc_hip.third.value.todense() if hasattr(fc_hip.third.value, 'todense') else fc_hip.third.value
+    b = fc_gpu.third.value.todense() if hasattr(fc_gpu.third.value, 'todense') else fc_gpu.third.value
+    np.testing.assert_allclose(b, a, rtol=1e-10, atol=1e-12)
