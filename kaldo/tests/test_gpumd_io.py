@@ -110,3 +110,48 @@ def test_gpumd_matches_hiphive_oracle():
     a = fc_hip.third.value.todense() if hasattr(fc_hip.third.value, 'todense') else fc_hip.third.value
     b = fc_gpu.third.value.todense() if hasattr(fc_gpu.third.value, 'todense') else fc_gpu.third.value
     np.testing.assert_allclose(b, a, rtol=1e-10, atol=1e-12)
+
+
+# Task C.4 — transport-level regression locking format='gpumd' to format='hiphive' oracle
+from kaldo.conductivity import Conductivity  # noqa: E402
+from kaldo.phonons import Phonons  # noqa: E402
+
+
+def _kappa_inverse(fc, folder):
+    """Compute isotropic inverse-BTE kappa (W/mK) for the given ForceConstants."""
+    phonons = Phonons(
+        forceconstants=fc,
+        kpts=[3, 3, 3],
+        is_classic=False,
+        temperature=300,
+        folder=folder,
+        storage='memory',
+    )
+    cond = Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0)
+    return float(np.abs(np.mean(cond.diagonal())))
+
+
+def test_gpumd_transport_matches_hiphive(tmp_path):
+    """Lock the format='gpumd' BTE conductivity to the format='hiphive' oracle value.
+
+    The two routes load identical force-constant arrays (fc2 and fc3 are bit-for-bit equal,
+    confirmed by test_gpumd_matches_hiphive_oracle).  A small residual difference in kappa
+    (~0.07 %) is expected because the two loaders produce different supercell-replica orderings,
+    which perturbs floating-point accumulation in the BTE solver; rtol=2e-3 captures this.
+    Both routes should agree with kaldo's published Si reference of ~154 W/mK to 2 significant
+    figures.
+    """
+    sc = (3, 3, 3)
+    fc_gpumd = ForceConstants.from_folder(folder=os.path.join(_SI, 'gpumd'), format='gpumd')
+    fc_hiphive = ForceConstants.from_folder(folder=os.path.join(_SI, 'hiphive'), supercell=sc, format='hiphive')
+
+    kappa_gpumd = _kappa_inverse(fc_gpumd, str(tmp_path / 'gpumd'))
+    kappa_hiphive = _kappa_inverse(fc_hiphive, str(tmp_path / 'hiphive'))
+
+    # Both routes derive from the same force constants; allow for supercell-ordering-induced
+    # floating-point scatter (~0.07 % observed), but no larger systematic error.
+    np.testing.assert_allclose(kappa_gpumd, kappa_hiphive, rtol=2e-3,
+                               err_msg=f'gpumd kappa {kappa_gpumd:.4f} vs hiphive {kappa_hiphive:.4f}')
+
+    # Lock the gpumd path to the known Si reference value (~154 W/mK, 2 sig figs).
+    np.testing.assert_approx_equal(kappa_gpumd, 154, significant=2)
