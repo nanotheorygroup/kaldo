@@ -261,7 +261,7 @@ class SecondOrder(ForceConstant):
                 apply_asr = is_acoustic_sum and not meta["acoustic_sum_applied"]
                 second_order = SecondOrder.from_supercell(
                     atoms=meta["atoms"],
-                    grid_type="C",
+                    grid_type=meta["grid_order"],
                     supercell=meta["supercell"],
                     value=meta["fc2"],
                     is_acoustic_sum=apply_asr,

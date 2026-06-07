@@ -135,11 +135,10 @@ def test_gpumd_transport_matches_hiphive(tmp_path):
     """Lock the format='gpumd' BTE conductivity to the format='hiphive' oracle value.
 
     The two routes load identical force-constant arrays (fc2 and fc3 are bit-for-bit equal,
-    confirmed by test_gpumd_matches_hiphive_oracle).  A small residual difference in kappa
-    (~0.07 %) is expected because the two loaders produce different supercell-replica orderings,
-    which perturbs floating-point accumulation in the BTE solver; rtol=2e-3 captures this.
-    Both routes should agree with kaldo's published Si reference of ~154 W/mK to 2 significant
-    figures.
+    confirmed by test_gpumd_matches_hiphive_oracle) AND the fixture records the same replica
+    grid order the hiphive route uses, so the gpumd reader reconstructs an identical
+    replica->R-vector mapping.  The two BTE conductivities are therefore numerically equal.
+    Both also agree with kaldo's published Si reference of ~154 W/mK to 2 significant figures.
     """
     sc = (3, 3, 3)
     fc_gpumd = ForceConstants.from_folder(folder=os.path.join(_SI, 'gpumd'), format='gpumd')
@@ -148,9 +147,8 @@ def test_gpumd_transport_matches_hiphive(tmp_path):
     kappa_gpumd = _kappa_inverse(fc_gpumd, str(tmp_path / 'gpumd'))
     kappa_hiphive = _kappa_inverse(fc_hiphive, str(tmp_path / 'hiphive'))
 
-    # Both routes derive from the same force constants; allow for supercell-ordering-induced
-    # floating-point scatter (~0.07 % observed), but no larger systematic error.
-    np.testing.assert_allclose(kappa_gpumd, kappa_hiphive, rtol=2e-3,
+    # Same force constants, same replica ordering: kappa must agree to numerical precision.
+    np.testing.assert_allclose(kappa_gpumd, kappa_hiphive, rtol=1e-6,
                                err_msg=f'gpumd kappa {kappa_gpumd:.4f} vs hiphive {kappa_hiphive:.4f}')
 
     # Lock the gpumd path to the known Si reference value (~154 W/mK, 2 sig figs).

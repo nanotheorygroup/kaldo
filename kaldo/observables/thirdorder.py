@@ -224,7 +224,7 @@ class ThirdOrder(ForceConstant):
                     fc3 = sparse.COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
                 third_order = cls.from_supercell(
                     atoms=meta['atoms'],
-                    grid_type='C',
+                    grid_type=meta['grid_order'],
                     supercell=meta['third_supercell'],
                     value=fc3.astype(np.float64),
                     folder=folder,

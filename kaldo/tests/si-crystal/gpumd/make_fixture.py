@@ -26,6 +26,12 @@ def main():
     fc2 = np.ascontiguousarray(fc.second.value, dtype=np.float64)
     assert fc2.shape == (1, n_uc, 3, n_rep, n_uc, 3), fc2.shape
 
+    # The fixture's replica axes are ordered by whatever grid the hiphive route
+    # detected; record it honestly so the gpumd reader reconstructs the SAME
+    # replica->R-vector mapping (rather than assuming 'C').
+    grid_order = fc.second._direct_grid.order
+    assert fc.third._direct_grid.order == grid_order, 'fc2/fc3 grid order mismatch'
+
     # hiphive yields a dense ndarray; other routes yield sparse.COO. Handle both.
     third_value = fc.third.value
     if isinstance(third_value, sparse.COO):
@@ -46,7 +52,7 @@ def main():
         fc3_data=third.data.astype(np.float64),
         fc3_shape=np.array(third.shape, dtype=np.int64),
         units_fc2='eV/angstrom^2', units_fc3='eV/angstrom^3',
-        grid_order='C', acoustic_sum_applied=np.bool_(False),
+        grid_order=grid_order, acoustic_sum_applied=np.bool_(False),
         nep_potential='derived-from-hiphive-fixture', generator='make_fixture.py')
     print('wrote', os.path.join(HERE, 'gpumd_fc.npz'))
 

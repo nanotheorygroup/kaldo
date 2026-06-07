@@ -340,7 +340,8 @@ Input Files and Formats
     calorine + phono3py). The unit cell, ``supercell``/``third_supercell``, and
     force constants are all embedded; no ``replicated_atoms.xyz`` is required.
     Second order is stored dense in eV/Angstrom^2; third order is a sparse COO in
-    eV/Angstrom^3. Replica ordering is C-style.
+    eV/Angstrom^3. The archive records its replica enumeration in a ``grid_order``
+    field (``'C'`` or ``'F'``); the reader reconstructs the matching replica grid.
 
 .. _forceconstants-api:
 

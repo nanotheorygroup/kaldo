@@ -33,8 +33,9 @@ def read_gpumd_fc(folder):
     Returns a dict with keys: ``atoms`` (ase.Atoms unit cell), ``supercell``,
     ``third_supercell`` (int 3-tuples), ``fc2`` (float64, shape
     ``(1, n_uc, 3, n_rep2, n_uc, 3)``, eV/A^2), ``fc3`` (sparse.COO, shape
-    ``(n_uc*3, n_rep3*n_uc*3, n_rep3*n_uc*3)``, eV/A^3), and
-    ``acoustic_sum_applied`` (bool).
+    ``(n_uc*3, n_rep3*n_uc*3, n_rep3*n_uc*3)``, eV/A^3),
+    ``acoustic_sum_applied`` (bool), and ``grid_order`` ('C' or 'F', the
+    replica enumeration the force-constant arrays are stored in).
     """
     path = os.path.join(str(folder), GPUMD_FC_FILE)
     if not os.path.isfile(path):
@@ -50,8 +51,9 @@ def read_gpumd_fc(folder):
             raise ValueError(f'Unexpected units in gpumd_fc.npz: fc2={units_fc2!r}, '
                              f'fc3={units_fc3!r}; expected {EXPECTED_UNITS_FC2!r}/'
                              f'{EXPECTED_UNITS_FC3!r} (bare IFCs, not mass-weighted).')
-        if _as_str(npz['grid_order']) != 'C':
-            raise ValueError("gpumd_fc.npz must use grid_order='C'.")
+        grid_order = _as_str(npz['grid_order'])
+        if grid_order not in ('C', 'F'):
+            raise ValueError(f"gpumd_fc.npz grid_order must be 'C' or 'F', got {grid_order!r}.")
 
         atoms = Atoms(numbers=npz['atomic_numbers'].astype(int),
                       positions=npz['positions'].astype(np.float64),
@@ -65,4 +67,5 @@ def read_gpumd_fc(folder):
         acoustic_sum_applied = bool(npz['acoustic_sum_applied'])
 
     return {'atoms': atoms, 'supercell': supercell, 'third_supercell': third_supercell,
-            'fc2': fc2, 'fc3': fc3, 'acoustic_sum_applied': acoustic_sum_applied}
+            'fc2': fc2, 'fc3': fc3, 'acoustic_sum_applied': acoustic_sum_applied,
+            'grid_order': grid_order}
