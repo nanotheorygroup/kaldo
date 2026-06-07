@@ -8,6 +8,7 @@ so the reader test is a true differential oracle.
 import os
 
 import numpy as np
+import sparse
 
 from kaldo.forceconstants import ForceConstants
 
@@ -25,12 +26,12 @@ def main():
     fc2 = np.ascontiguousarray(fc.second.value, dtype=np.float64)
     assert fc2.shape == (1, n_uc, 3, n_rep, n_uc, 3), fc2.shape
 
-    third_raw = np.asarray(fc.third.value, dtype=np.float64)  # dense or sparse
-    import sparse as _sparse
-    if isinstance(third_raw, _sparse.COO):
-        third = third_raw
+    # hiphive yields a dense ndarray; other routes yield sparse.COO. Handle both.
+    third_value = fc.third.value
+    if isinstance(third_value, sparse.COO):
+        third = third_value.astype(np.float64)
     else:
-        third = _sparse.COO.from_numpy(third_raw)
+        third = sparse.COO.from_numpy(np.asarray(third_value, dtype=np.float64))
 
     np.savez_compressed(
         os.path.join(HERE, 'gpumd_fc.npz'),
