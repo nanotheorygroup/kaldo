@@ -4,6 +4,7 @@ import os
 import ase.io
 import numpy as np
 from scipy.sparse import load_npz, save_npz
+import sparse
 from sparse import COO
 from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
@@ -213,6 +214,21 @@ class ThirdOrder(ForceConstant):
                                   supercell=supercell,
                                   value=third_ifcs,
                                   folder=folder)
+
+            case 'gpumd':
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                fc3 = meta['fc3']
+                if third_energy_threshold > 0.:
+                    mask = np.abs(fc3.data) >= third_energy_threshold
+                    fc3 = sparse.COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
+                third_order = cls.from_supercell(
+                    atoms=meta['atoms'],
+                    grid_type='C',
+                    supercell=meta['third_supercell'],
+                    value=fc3.astype(np.float64),
+                    folder=folder,
+                )
 
             case _:
                 logging.error('Third order format not recognized: ' + str(format))
