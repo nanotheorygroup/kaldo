@@ -11,7 +11,7 @@ Scalable Thermal Transport from First Principles and Machine Learning Potentials
 
 **kALDo** is an open-source Python package for computing thermal transport properties of crystalline, disordered, and amorphous materials. It implements the **Boltzmann Transport Equation (BTE)** for crystals and the **Quasi-Harmonic Green-Kubo (QHGK)** method for systems lacking long-range order.
 
-Read the paper on `arXiv <https://arxiv.org/abs/2009.01967>`_.
+Read the κALDo 2.0 paper in `Computer Physics Communications <https://doi.org/10.1016/j.cpc.2026.110282>`_.
 
 
 .. toctree::
