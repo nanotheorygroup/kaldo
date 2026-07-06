@@ -490,6 +490,66 @@ def symmetrize_ifc_second(second, atoms, supercell, symprec=1e-5):
     return (acc / n_ops).reshape(1, n_unit, 3, n_rep, n_unit, 3)
 
 
+def symmetrize_ifc_third(phifull, atoms, supercell, symprec=1e-5):
+    """Project third-order IFCs (sparse COO) onto the space-group-invariant subspace.
+
+    Rank-3 analogue of symmetrize_ifc_second, operating directly on the sparse
+    tensor: for each spacegroup operation the entries are index-permuted and
+    their Cartesian components rotated, then everything is averaged over the
+    group. Idempotent; symmetric input is a fixed point.
+
+    Parameters
+    ----------
+    phifull : sparse.COO, shape (n_unit * 3, n_replicas * n_unit * 3, n_replicas * n_unit * 3)
+        Third-order force constants as produced by calculate_third.
+    atoms : ase.Atoms
+        Unit cell.
+    supercell : tuple of int, length 3
+        Diagonal supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+
+    Returns
+    -------
+    sparse.COO
+        Projected force constants, same shape as the input.
+    """
+    maps = _get_symmetry_maps(atoms, supercell, symprec)
+    rotations, rotations_cart = maps['rotations'], maps['rotations_cart']
+    atom_map, cell_shifts = maps['atom_map'], maps['cell_shifts']
+    grid, sc = maps['grid'], maps['supercell_shape']
+    nx, ny, nz = sc
+    n_unit = len(atoms)
+    n_rep = nx * ny * nz
+    n_ops = len(rotations)
+
+    shape8 = (n_unit, 3, n_rep, n_unit, 3, n_rep, n_unit, 3)
+    phi = phifull.reshape(shape8)
+    i, a, lj, j, b, lk, kk, c = phi.coords
+    vals = phi.data
+
+    acc = None
+    for k in range(n_ops):
+        R = rotations_cart[k]
+        ip, jp, kp = atom_map[k, i], atom_map[k, j], atom_map[k, kk]
+        lv_j = (grid[lj] @ rotations[k].T + (cell_shifts[k, j] - cell_shifts[k, i])) % sc
+        lv_k = (grid[lk] @ rotations[k].T + (cell_shifts[k, kk] - cell_shifts[k, i])) % sc
+        ljp = lv_j[:, 0] * ny * nz + lv_j[:, 1] * nz + lv_j[:, 2]
+        lkp = lv_k[:, 0] * ny * nz + lv_k[:, 1] * nz + lv_k[:, 2]
+        # weight[n, x, y, z] = R[x, a_n] * R[y, b_n] * R[z, c_n]
+        weight = (R[:, a].T[:, :, None, None]
+                  * R[:, b].T[:, None, :, None]
+                  * R[:, c].T[:, None, None, :])
+        new_vals = vals[:, None, None, None] * weight
+        keep = np.abs(new_vals) > 1e-14
+        n_idx, x_idx, y_idx, z_idx = np.nonzero(keep)
+        coords = np.stack([ip[n_idx], x_idx, ljp[n_idx], jp[n_idx], y_idx,
+                           lkp[n_idx], kp[n_idx], z_idx])
+        coo_k = COO(coords, new_vals[keep], shape=shape8)
+        acc = coo_k if acc is None else acc + coo_k
+    return (acc / n_ops).reshape(phifull.shape)
+
+
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
                         scratch_dir=None):
     """Compute second-order force constants for a single unit cell atom.

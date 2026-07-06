@@ -170,3 +170,26 @@ def test_symmetrize_second_is_a_fixed_point_on_symmetric_input():
     # Idempotence: projecting twice changes nothing at machine precision.
     np.testing.assert_allclose(symmetrize_ifc_second(projected, atoms, (2, 2, 2)), projected,
                                rtol=0, atol=1e-13)
+
+
+def test_symmetrize_third_projects_noise_and_preserves_symmetric_input():
+    from sparse import COO
+    from kaldo.controllers.displacement import symmetrize_ifc_third
+    atoms, rep = _cu_atoms((2, 2, 2))
+    baseline = calculate_third(atoms, rep, third_order_delta=1e-5, n_workers=1, calculator=EMT())
+    dense = baseline.todense()
+    # Symmetric input is a (near-)fixed point: only FD noise is removed.
+    # atol matches the FD-noise floor documented for the use_symmetry
+    # baseline comparison above (~1e-4 absolute at delta=1e-5).
+    projected = symmetrize_ifc_third(baseline, atoms, (2, 2, 2)).todense()
+    np.testing.assert_allclose(projected, dense, rtol=1e-5, atol=1e-3)
+    # Noisy input: projection is idempotent (P P x == P x) at machine precision.
+    rng = np.random.default_rng(1)
+    mask = dense != 0
+    noisy_dense = dense + rng.normal(scale=1e-3, size=dense.shape) * mask
+    noisy = COO.from_numpy(noisy_dense)
+    p1 = symmetrize_ifc_third(noisy, atoms, (2, 2, 2))
+    p2 = symmetrize_ifc_third(p1, atoms, (2, 2, 2))
+    np.testing.assert_allclose(p2.todense(), p1.todense(), rtol=0, atol=1e-12)
+    # And it actually moved the noisy input.
+    assert np.abs(p1.todense() - noisy_dense).max() > 1e-5
