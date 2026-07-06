@@ -143,8 +143,8 @@ def _invariance_violation_second(phi6, atoms, supercell):
                 lv = (m['grid'] @ m['rotations'][k].T
                       + (m['cell_shifts'][k, j] - m['cell_shifts'][k, i])) % m['supercell_shape']
                 lnew = lv[:, 0] * ny * nz + lv[:, 1] * nz + lv[:, 2]
-                for l in range(n_rep):
-                    dev = np.abs(phi[ip, :, lnew[l], jp, :] - R @ phi[i, :, l, j, :] @ R.T).max()
+                for li in range(n_rep):
+                    dev = np.abs(phi[ip, :, lnew[li], jp, :] - R @ phi[i, :, li, j, :] @ R.T).max()
                     worst = max(worst, dev)
     return worst
 
