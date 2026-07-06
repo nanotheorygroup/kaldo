@@ -11,41 +11,16 @@ from sparse import COO
 logging = get_logger()
 
 
-def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
-    """Determine symmetrically equivalent IFC block indices for 2nd and 3rd order.
+def _get_symmetry_maps(atoms, supercell, symprec=1e-5):
+    """Spacegroup operations compatible with the supercell, with per-op atom images and cell shifts.
 
-    Groups every (i, l_j, j) second-order and (i, l_j, j, l_k, k) third-order
-    atom-tuple into equivalence classes under the crystal spacegroup. Two blocks
-    belong to the same class when a spacegroup operation maps one to the other;
-    their IFC tensors are then related by a Cartesian similarity transform:
+    Shared by the use_symmetry displacement reduction (get_equivalent_ifc_indices)
+    and the symmetrize_ifc_* projectors.
 
-        2nd order:  Phi[i,:,l_j,j,:]         = R @ Phi[canonical] @ R.T
-        3rd order:  Phi[i,:,l_j,j,:,l_k,k,:] = einsum('ai,bj,ck,ijk', R, R, R, Phi[canonical])
-
-    where (canonical) is the lowest flat-index representative of the class and
-    R is the Cartesian rotation stored in the corresponding rot_map.
-
-    Parameters
-    ----------
-    atoms : ase.Atoms
-        Unit cell with valid cell vectors and periodic boundary conditions.
-    supercell : tuple of int, length 3
-        Supercell repetitions (nx, ny, nz).
-    symprec : float, optional
-        Symmetry detection tolerance passed to spglib (default 1e-5).
-    order : int, optional
-        2 or 3 (default 2). Passing 2 skips all third-order work.
-
-    Returns
-    -------
-    irr_map_2 : ndarray, shape (n_unit, n_replicas, n_unit)
-        Flat canonical index for each 2nd-order block.
-    rot_map_2 : ndarray, shape (n_unit, n_replicas, n_unit, 3, 3)
-        Cartesian rotation R such that Phi2[i,:,l,j,:] = R @ Phi2[canonical] @ R.T.
-    irr_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit)
-        Flat canonical index for each 3rd-order block (None when order < 3).
-    rot_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit, 3, 3)
-        Cartesian rotation for each 3rd-order block (None when order < 3).
+    Returns a dict with keys: rotations (n_ops, 3, 3) integer matrices in
+    fractional coordinates, translations (n_ops, 3), rotations_cart
+    (n_ops, 3, 3), atom_map (n_ops, n_unit), cell_shifts (n_ops, n_unit, 3),
+    grid (n_replicas, 3) C-ordered replica vectors, supercell_shape (3,).
     """
     try:
         import spglib
@@ -54,17 +29,8 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
 
     n_unit = len(atoms)
     nx, ny, nz = supercell
-    n_replicas = nx * ny * nz
     supercell_shape = np.array([nx, ny, nz], dtype=int)
     grid = np.array(list(np.ndindex(nx, ny, nz)), dtype=int)
-
-    n_blocks_2 = n_unit * n_replicas * n_unit
-    n_blocks_3 = n_unit * n_replicas * n_unit * n_replicas * n_unit if order >= 3 else 0
-
-    s3_i  = n_replicas * n_unit * n_replicas * n_unit
-    s3_lj = n_unit * n_replicas * n_unit
-    s3_j  = n_replicas * n_unit
-    s3_lk = n_unit
 
     lattice = atoms.cell[:]
     scaled_pos = atoms.get_scaled_positions()
@@ -135,6 +101,74 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
                 )
             atom_map[k, i]    = ip
             cell_shifts[k, i] = shifts[i]
+
+    return {
+        'rotations': rotations,
+        'translations': translations,
+        'rotations_cart': rotations_cart,
+        'atom_map': atom_map,
+        'cell_shifts': cell_shifts,
+        'grid': grid,
+        'supercell_shape': supercell_shape,
+    }
+
+
+def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
+    """Determine symmetrically equivalent IFC block indices for 2nd and 3rd order.
+
+    Groups every (i, l_j, j) second-order and (i, l_j, j, l_k, k) third-order
+    atom-tuple into equivalence classes under the crystal spacegroup. Two blocks
+    belong to the same class when a spacegroup operation maps one to the other;
+    their IFC tensors are then related by a Cartesian similarity transform:
+
+        2nd order:  Phi[i,:,l_j,j,:]         = R @ Phi[canonical] @ R.T
+        3rd order:  Phi[i,:,l_j,j,:,l_k,k,:] = einsum('ai,bj,ck,ijk', R, R, R, Phi[canonical])
+
+    where (canonical) is the lowest flat-index representative of the class and
+    R is the Cartesian rotation stored in the corresponding rot_map.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Unit cell with valid cell vectors and periodic boundary conditions.
+    supercell : tuple of int, length 3
+        Supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+    order : int, optional
+        2 or 3 (default 2). Passing 2 skips all third-order work.
+
+    Returns
+    -------
+    irr_map_2 : ndarray, shape (n_unit, n_replicas, n_unit)
+        Flat canonical index for each 2nd-order block.
+    rot_map_2 : ndarray, shape (n_unit, n_replicas, n_unit, 3, 3)
+        Cartesian rotation R such that Phi2[i,:,l,j,:] = R @ Phi2[canonical] @ R.T.
+    irr_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit)
+        Flat canonical index for each 3rd-order block (None when order < 3).
+    rot_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit, 3, 3)
+        Cartesian rotation for each 3rd-order block (None when order < 3).
+    """
+    maps = _get_symmetry_maps(atoms, supercell, symprec)
+    rotations       = maps['rotations']
+    rotations_cart  = maps['rotations_cart']
+    atom_map        = maps['atom_map']
+    cell_shifts     = maps['cell_shifts']
+    grid            = maps['grid']
+    supercell_shape = maps['supercell_shape']
+    n_ops = len(rotations)
+
+    n_unit = len(atoms)
+    nx, ny, nz = supercell
+    n_replicas = nx * ny * nz
+
+    n_blocks_2 = n_unit * n_replicas * n_unit
+    n_blocks_3 = n_unit * n_replicas * n_unit * n_replicas * n_unit if order >= 3 else 0
+
+    s3_i  = n_replicas * n_unit * n_replicas * n_unit
+    s3_lj = n_unit * n_replicas * n_unit
+    s3_j  = n_replicas * n_unit
+    s3_lk = n_unit
 
     parent2 = np.arange(n_blocks_2)
     parent3 = np.arange(n_blocks_3) if order >= 3 else None
