@@ -64,7 +64,7 @@ def test_secondorder_load_gpumd(tmp_path):
     so = SecondOrder.load(folder=str(tmp_path), format='gpumd')
     assert tuple(so.supercell) == (1, 1, 1)
     assert so.value.shape == (1, 2, 3, 1, 2, 3)
-    np.testing.assert_allclose(so.value[0, 0, 0, 0, 0, 0], 1.0)
+    np.testing.assert_allclose(so.value[0, 0, 0, 0, 0, 0], 1.0, rtol=0.0, atol=0.0)
 
 
 # Task A.3 — ThirdOrder.load
@@ -75,7 +75,7 @@ def test_thirdorder_load_gpumd(tmp_path):
     _write_minimal_npz(tmp_path / 'gpumd_fc.npz', supercell=(1, 1, 1))
     to = ThirdOrder.load(folder=str(tmp_path), format='gpumd')
     assert to.value.shape == (6, 6, 6)
-    np.testing.assert_allclose(to.value[0, 0, 0], 0.5)
+    np.testing.assert_allclose(to.value[0, 0, 0], 0.5, rtol=0.0, atol=0.0)
 
 
 def test_thirdorder_load_gpumd_threshold(tmp_path):
@@ -148,8 +148,12 @@ def test_gpumd_transport_matches_hiphive(tmp_path):
     kappa_hiphive = _kappa_inverse(fc_hiphive, str(tmp_path / 'hiphive'))
 
     # Same force constants, same replica ordering: kappa must agree to numerical precision.
-    np.testing.assert_allclose(kappa_gpumd, kappa_hiphive, rtol=1e-6,
+    # atol=1e-3 W/mK floors the comparison well below any physical difference (kappa ~ 154).
+    np.testing.assert_allclose(kappa_gpumd, kappa_hiphive, rtol=1e-6, atol=1e-3,
                                err_msg=f'gpumd kappa {kappa_gpumd:.4f} vs hiphive {kappa_hiphive:.4f}')
 
-    # Lock the gpumd path to the known Si reference value (~154 W/mK, 2 sig figs).
-    np.testing.assert_approx_equal(kappa_gpumd, 154, significant=2)
+    # Lock the gpumd path to the known Si reference value (~154 W/mK). This is a loose
+    # physical sanity band (~2 significant figures), not a tight numerical lock: rtol=5e-3
+    # accepts ~153-155 W/mK.
+    np.testing.assert_allclose(kappa_gpumd, 154.0, rtol=5e-3, atol=0.0,
+                               err_msg=f'gpumd kappa {kappa_gpumd:.4f} not within ~2 sig figs of 154')

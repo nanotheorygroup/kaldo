@@ -24,13 +24,16 @@ def main():
     n_rep = int(np.prod(SUPERCELL))
 
     fc2 = np.ascontiguousarray(fc.second.value, dtype=np.float64)
-    assert fc2.shape == (1, n_uc, 3, n_rep, n_uc, 3), fc2.shape
+    expected_shape = (1, n_uc, 3, n_rep, n_uc, 3)
+    if fc2.shape != expected_shape:
+        raise ValueError(f'unexpected fc2 shape: {fc2.shape}, expected {expected_shape}')
 
     # The fixture's replica axes are ordered by whatever grid the hiphive route
     # detected; record it honestly so the gpumd reader reconstructs the SAME
     # replica->R-vector mapping (rather than assuming 'C').
     grid_order = fc.second._direct_grid.order
-    assert fc.third._direct_grid.order == grid_order, 'fc2/fc3 grid order mismatch'
+    if fc.third._direct_grid.order != grid_order:
+        raise ValueError('fc2/fc3 grid order mismatch')
 
     # hiphive yields a dense ndarray; other routes yield sparse.COO. Handle both.
     third_value = fc.third.value
