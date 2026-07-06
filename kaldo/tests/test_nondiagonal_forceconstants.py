@@ -7,6 +7,7 @@ Covers:
     loads IFC2/IFC3/IFC4 on a non-diagonal tiling (rhombo primitive +
     cubic conventional ssposcar).
   * ``list_of_replicas`` returns the SNF Cartesian replica vectors.
+  * ``replicated_atoms`` carries the true ``M @ uc.cell`` supercell cell.
   * ``Conductivity.rta`` runs end-to-end on a non-diagonal fc.
   * ``IFC3`` / ``IFC4`` are stored at the right shapes.
   * Diagonal path and SNF path agree element-wise on a fundamentally
@@ -27,6 +28,60 @@ import pytest
 from kaldo.tests._paths import SI_PROD
 SI_TDEP_DIR = Path(__file__).parent / "si-tdep"
 SI_MASS_AMU = 28.0855
+
+
+def test_replicated_atoms_cell_is_correct_on_nondiagonal_tiling():
+    """``ForceConstant.replicated_atoms`` must carry the true supercell cell
+    (``M @ uc.cell``) on a non-diagonal SNF tiling.
+
+    Self-contained (no fixture): a 2-atom Si primitive tiled by a
+    non-diagonal M into a cubic conventional supercell. Regression for the
+    293 x 2.7 x 2.7 A "sliver" cell that ``atoms * (n_rep, 1, 1)`` used to
+    produce, which silently corrupted anything consuming
+    ``replicated_atoms`` on non-diagonal TDEP runs (e.g. the cumulant
+    supercell sampler and any PBC-aware energy evaluation).
+    """
+    from ase.build import bulk, make_supercell
+    from kaldo.observables.secondorder import SecondOrder
+    from kaldo.interfaces.tdep_io import build_nondiag_observable_kwargs
+
+    uc = bulk("Si", "diamond", a=5.43)
+    M = np.array([[3, -3, 3], [3, 3, -3], [-3, 3, 3]], dtype=int)
+    sc = make_supercell(uc, M)  # cubic conventional, 216 atoms, det M = 108
+
+    kw = build_nondiag_observable_kwargs(uc, sc)
+    kw.pop("_mapping")
+    n_rep = kw["supercell"][0]
+    n_uc = len(uc)
+    so = SecondOrder(value=np.zeros((1, n_uc, 3, n_rep, n_uc, 3)), folder="kALDo", **kw)
+
+    ra = so.replicated_atoms
+    assert len(ra) == len(sc) == 216
+    np.testing.assert_allclose(np.asarray(ra.cell), np.asarray(sc.cell), atol=1e-10)
+
+    # Every replicated atom sits on an ssposcar site modulo the (correct) cell.
+    inv = np.linalg.inv(np.asarray(ra.cell))
+    ra_frac = np.asarray(ra.positions) @ inv
+    sc_frac = np.asarray(sc.positions) @ inv
+    for p in ra_frac:
+        d = sc_frac - p
+        d -= np.round(d)
+        assert np.min(np.linalg.norm(d, axis=1)) < 1e-9
+
+
+@pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
+def test_replicated_atoms_cell_matches_ssposcar_on_production_si():
+    """On the production non-diagonal Si fixture, ``replicated_atoms.cell``
+    equals the infile.ssposcar cell."""
+    import ase.io
+    from kaldo.forceconstants import ForceConstants
+
+    M = np.array([[3, -3, 3], [3, 3, -3], [-3, 3, 3]], dtype=int)
+    fc = ForceConstants.from_folder(folder=str(SI_PROD), supercell_matrix=M, format="tdep", only_second=True)
+    sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
+    np.testing.assert_allclose(
+        np.asarray(fc.second.replicated_atoms.cell), np.asarray(sc.cell), atol=1e-8
+    )
 
 
 @pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
