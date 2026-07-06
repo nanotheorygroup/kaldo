@@ -123,3 +123,50 @@ def test_use_symmetry_with_parallel_via_observable(tmp_path):
     fc.second.calculate(calculator=EMT, n_workers=2, use_symmetry=True)
     # ThirdOrder.calculate with use_symmetry=True + n_workers=2 must succeed
     fc.third.calculate(calculator=EMT, n_workers=2, use_symmetry=True)
+
+
+def _invariance_violation_second(phi6, atoms, supercell):
+    """Max |Phi[g(b)] - R Phi[b] R^T| over all supercell-compatible ops and blocks."""
+    from kaldo.controllers.displacement import _get_symmetry_maps
+    m = _get_symmetry_maps(atoms, supercell)
+    nx, ny, nz = supercell
+    n_unit = len(atoms)
+    n_rep = nx * ny * nz
+    phi = np.asarray(phi6).reshape(n_unit, 3, n_rep, n_unit, 3)
+    worst = 0.0
+    for k in range(len(m['rotations'])):
+        R = m['rotations_cart'][k]
+        for i in range(n_unit):
+            ip = m['atom_map'][k, i]
+            for j in range(n_unit):
+                jp = m['atom_map'][k, j]
+                lv = (m['grid'] @ m['rotations'][k].T
+                      + (m['cell_shifts'][k, j] - m['cell_shifts'][k, i])) % m['supercell_shape']
+                lnew = lv[:, 0] * ny * nz + lv[:, 1] * nz + lv[:, 2]
+                for l in range(n_rep):
+                    dev = np.abs(phi[ip, :, lnew[l], jp, :] - R @ phi[i, :, l, j, :] @ R.T).max()
+                    worst = max(worst, dev)
+    return worst
+
+
+def test_symmetrize_second_projects_noise_to_invariant_subspace():
+    from kaldo.controllers.displacement import symmetrize_ifc_second
+    atoms, rep = _cu_atoms((2, 2, 2))
+    baseline = calculate_second(atoms, rep, second_order_delta=1e-5, n_workers=1, calculator=EMT())
+    rng = np.random.default_rng(0)
+    noisy = np.asarray(baseline) + rng.normal(scale=1e-2, size=np.shape(baseline))
+    assert _invariance_violation_second(noisy, atoms, (2, 2, 2)) > 1e-3
+    projected = symmetrize_ifc_second(noisy, atoms, (2, 2, 2))
+    assert _invariance_violation_second(projected, atoms, (2, 2, 2)) < 1e-12
+
+
+def test_symmetrize_second_is_a_fixed_point_on_symmetric_input():
+    from kaldo.controllers.displacement import symmetrize_ifc_second
+    atoms, rep = _cu_atoms((2, 2, 2))
+    baseline = np.asarray(calculate_second(atoms, rep, second_order_delta=1e-5, n_workers=1, calculator=EMT()))
+    projected = symmetrize_ifc_second(baseline, atoms, (2, 2, 2))
+    # EMT is an analytic, symmetry-respecting potential: projection only removes FD noise.
+    np.testing.assert_allclose(projected, baseline, rtol=1e-6, atol=1e-8)
+    # Idempotence: projecting twice changes nothing at machine precision.
+    np.testing.assert_allclose(symmetrize_ifc_second(projected, atoms, (2, 2, 2)), projected,
+                               rtol=0, atol=1e-13)

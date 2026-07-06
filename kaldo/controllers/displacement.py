@@ -440,6 +440,56 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     return second
 
 
+def symmetrize_ifc_second(second, atoms, supercell, symprec=1e-5):
+    """Project second-order IFCs onto the space-group-invariant subspace.
+
+    Full-group average Phi[g(b)] <- (1/|G|) sum_g R_g Phi[b] R_g^T, including
+    stabilizer operations, so the result is exactly invariant under every
+    supercell-compatible spacegroup operation. The projection is idempotent
+    and exact IFCs from a symmetry-respecting potential are a fixed point.
+    Use it on force constants from potentials that only approximately respect
+    the crystal symmetry (e.g. rotationally unconstrained ML potentials).
+
+    Parameters
+    ----------
+    second : ArrayLike, shape (1, n_unit, 3, n_replicas, n_unit, 3)
+        Second-order force constants (float64).
+    atoms : ase.Atoms
+        Unit cell.
+    supercell : tuple of int, length 3
+        Diagonal supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+
+    Returns
+    -------
+    ndarray, shape (1, n_unit, 3, n_replicas, n_unit, 3)
+        Projected force constants.
+    """
+    maps = _get_symmetry_maps(atoms, supercell, symprec)
+    rotations, rotations_cart = maps['rotations'], maps['rotations_cart']
+    atom_map, cell_shifts = maps['atom_map'], maps['cell_shifts']
+    grid, sc = maps['grid'], maps['supercell_shape']
+    nx, ny, nz = sc
+    n_unit = len(atoms)
+    n_rep = nx * ny * nz
+    n_ops = len(rotations)
+
+    phi = np.asarray(second, dtype=np.float64).reshape(n_unit, 3, n_rep, n_unit, 3)
+    acc = np.zeros_like(phi)
+    for k in range(n_ops):
+        R = rotations_cart[k]
+        for i in range(n_unit):
+            ip = atom_map[k, i]
+            for j in range(n_unit):
+                jp = atom_map[k, j]
+                lv = (grid @ rotations[k].T + (cell_shifts[k, j] - cell_shifts[k, i])) % sc
+                lnew = lv[:, 0] * ny * nz + lv[:, 1] * nz + lv[:, 2]
+                rotated = np.einsum('ab,bLc,dc->aLd', R, phi[i, :, :, j, :], R)
+                acc[ip, :, lnew, jp, :] += rotated.transpose(1, 0, 2)
+    return (acc / n_ops).reshape(1, n_unit, 3, n_rep, n_unit, 3)
+
+
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
                         scratch_dir=None):
     """Compute second-order force constants for a single unit cell atom.
