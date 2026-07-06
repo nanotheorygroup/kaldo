@@ -16,6 +16,31 @@ logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
 
+_warned_incommensurate = False
+
+
+def _warn_incommensurate_once(q_point, supercell):
+    """Warn once per process when a q-point off the supercell-commensurate grid
+    is evaluated without Wigner-Seitz unfolding.
+
+    At such q-points the periodic-replica convention used by the default
+    dynamical-matrix construction is not invariant under the non-symmorphic
+    spacegroup operations, which can break symmetry-protected degeneracies
+    (e.g. split transverse-acoustic branches in diamond-structure crystals).
+    """
+    global _warned_incommensurate
+    if _warned_incommensurate:
+        return
+    scaled = np.asarray(q_point) * np.asarray(supercell)
+    if np.allclose(scaled, np.round(scaled), atol=1e-8):
+        return
+    _warned_incommensurate = True
+    logging.warning(
+        f'q-point {np.asarray(q_point)} is incommensurate with the supercell {tuple(supercell)}: '
+        'the default dynamical-matrix construction can break symmetry-protected degeneracies '
+        '(e.g. split transverse-acoustic branches). Consider is_unfolding=True.'
+    )
+
 
 class HarmonicWithQ(Observable, Storable):
     
@@ -54,6 +79,8 @@ class HarmonicWithQ(Observable, Storable):
         # Arguments for specific physical assumptions
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
+        if not is_unfolding:
+            _warn_incommensurate_once(q_point, self.supercell)
         self.is_nac = True if 'dielectric' in self.atoms.info else False
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
