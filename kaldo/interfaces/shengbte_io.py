@@ -402,43 +402,6 @@ def save_second_order_matrix(phonons):
     logging.info('second order sheng saved')
 
 
-def save_second_order_qe_matrix(phonons):
-    shenbte_folder = phonons.folder + '/'
-    n_replicas = phonons.forceconstants.n_replicas
-    n_atoms = int(phonons.n_modes / 3)
-    second_order = phonons.forceconstants.second.value.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
-    filename = 'espresso.ifc2'
-    filename = shenbte_folder + filename
-    file = open ('%s' % filename, 'w+')
-
-    list_of_index = phonons.list_of_index()
-
-    file.write (header(phonons))
-    for alpha in range (3):
-        for beta in range (3):
-            for i in range (n_atoms):
-                for j in range (n_atoms):
-                    file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
-                    for id_replica in range(list_of_index.shape[0]):
-
-                        l_vec = (phonons.list_of_index()[id_replica] + 1)
-                        for delta in range(3):
-                            if l_vec[delta] <= 0:
-                                l_vec[delta] = phonons.forceconstants.supercell[delta]
-
-
-                        file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
-
-                        matrix_element = second_order[i, alpha, id_replica, j, beta]
-
-                        matrix_element = matrix_element / Rydberg * (
-                                Bohr ** 2)
-                        file.write ('\t %.11E' % matrix_element)
-                        file.write ('\n')
-    file.close ()
-    logging.info('second order qe sheng saved')
-
-
 def save_third_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_3RD'
     filename = phonons.folder + '/' + filename
