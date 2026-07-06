@@ -8,7 +8,7 @@ from numpy.typing import ArrayLike
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
-from kaldo.controllers.displacement import calculate_second
+from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
@@ -285,7 +285,7 @@ class SecondOrder(ForceConstant):
             return self._dynmat
 
     def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
-                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5):
+                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5, symmetrize=True):
         """
         Calculate second-order force constants with finite differences.
 
@@ -359,6 +359,16 @@ class SecondOrder(ForceConstant):
         symprec : float, optional
             precision for symmetry using spglib.
             Default: 1e-5
+        symmetrize : bool, optional
+            If True, project freshly computed force constants onto the
+            space-group-invariant subspace (full-group average). Exact
+            force constants are a fixed point, so this only removes
+            finite-difference noise and symmetry violations from
+            potentials that do not exactly respect the crystal symmetry
+            (e.g. rotationally unconstrained ML potentials). Skipped
+            with a warning when the symmetry analysis is unavailable.
+            Force constants loaded from ``self.folder`` are never
+            re-projected. Default: True
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='SecondOrder.calculate')
@@ -403,6 +413,8 @@ class SecondOrder(ForceConstant):
                     use_symmetry=use_symmetry,
                     symprec=symprec,
                 )
+                if symmetrize:
+                    self.value = try_symmetrize_ifc(2, self.value, atoms, self.supercell, symprec)
                 self.save("second")
                 if calculator is not None:
                     self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
@@ -423,8 +435,23 @@ class SecondOrder(ForceConstant):
                 use_symmetry=use_symmetry,
                 symprec=symprec,
             )
+            if symmetrize:
+                self.value = try_symmetrize_ifc(2, self.value, atoms, self.supercell, symprec)
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
+
+    def symmetrize(self, symprec=1e-5):
+        """Project the stored force constants onto the space-group-invariant subspace.
+
+        See kaldo.controllers.displacement.symmetrize_ifc_second. Invalidates
+        the cached dynamical matrix.
+        """
+        from kaldo.controllers.displacement import symmetrize_ifc_second
+        self.value = symmetrize_ifc_second(self.value, self.atoms, self.supercell, symprec)
+        try:
+            del self._dynmat
+        except AttributeError:
+            pass
 
     def calculate_dynmat(self):
         evtotenjovermol = units.mol / (10 * units.J)

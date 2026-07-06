@@ -193,3 +193,36 @@ def test_symmetrize_third_projects_noise_and_preserves_symmetric_input():
     np.testing.assert_allclose(p2.todense(), p1.todense(), rtol=0, atol=1e-12)
     # And it actually moved the noisy input.
     assert np.abs(p1.todense() - noisy_dense).max() > 1e-5
+
+
+def test_calculate_second_symmetrize_flag_and_method(tmp_path):
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.controllers.displacement import symmetrize_ifc_second
+    atoms, _ = _cu_atoms((2, 2, 2))
+    fc = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path / 'a'))
+    fc.second.calculate(EMT(), delta_shift=1e-3, is_storing=False)  # symmetrize defaults to True
+    assert _invariance_violation_second(np.asarray(fc.second.value), atoms, (2, 2, 2)) < 1e-12
+    # Opt-out reproduces raw finite differences; the public method projects them.
+    fc2 = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path / 'b'))
+    fc2.second.calculate(EMT(), delta_shift=1e-3, is_storing=False, symmetrize=False)
+    raw = np.asarray(fc2.second.value).copy()
+    fc2.second.symmetrize()
+    np.testing.assert_allclose(np.asarray(fc2.second.value),
+                               symmetrize_ifc_second(raw, atoms, (2, 2, 2)),
+                               rtol=0, atol=1e-14)
+
+
+def test_calculate_third_symmetrize_flag_and_method(tmp_path):
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.controllers.displacement import symmetrize_ifc_third
+    atoms, _ = _cu_atoms((2, 2, 2))
+    fc = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path / 'a'))
+    fc.third.calculate(EMT(), delta_shift=1e-3, is_storing=False, symmetrize=False)
+    raw = fc.third.value
+    sym_ref = symmetrize_ifc_third(raw, atoms, (2, 2, 2)).todense()
+    fc.third.symmetrize()
+    np.testing.assert_allclose(fc.third.value.todense(), sym_ref, rtol=0, atol=1e-14)
+    # Default path applies the same projection during calculate.
+    fc2 = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path / 'b'))
+    fc2.third.calculate(EMT(), delta_shift=1e-3, is_storing=False)
+    np.testing.assert_allclose(fc2.third.value.todense(), sym_ref, rtol=0, atol=1e-12)

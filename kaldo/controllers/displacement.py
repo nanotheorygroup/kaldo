@@ -550,6 +550,22 @@ def symmetrize_ifc_third(phifull, atoms, supercell, symprec=1e-5):
     return (acc / n_ops).reshape(phifull.shape)
 
 
+def try_symmetrize_ifc(order, value, atoms, supercell, symprec=1e-5):
+    """Apply the order-2 or order-3 projector; on unsupported setups warn and return value unchanged.
+
+    Unsupported setups are non-diagonal supercell expansions and structures
+    where spglib cannot determine the symmetry. Kept non-fatal because
+    symmetrize=True is the default calculate path.
+    """
+    try:
+        if order == 2:
+            return symmetrize_ifc_second(value, atoms, supercell, symprec)
+        return symmetrize_ifc_third(value, atoms, supercell, symprec)
+    except (ValueError, NotImplementedError, RuntimeError) as err:
+        logging.warning(f'Skipping force-constant symmetrization (order {order}): {err}')
+        return value
+
+
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
                         scratch_dir=None):
     """Compute second-order force constants for a single unit cell atom.
