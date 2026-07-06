@@ -11,6 +11,57 @@ from sparse import COO
 logging = get_logger()
 
 
+class TDEP(AbstractForceConstantFormat):
+
+    def __init__(
+        self,
+        ucposcar_path : str,
+        ssposcar_path : str,   
+    ):
+        self.storage_fmt = ForceConstantStorageFormat.REPLICA_FMT
+
+        self.ucposcar_path = ucposcar_path
+        self.ssposcar_path = ssposcar_path
+
+        self.uc = ase.io.read(ucposcar_path, format="vasp")
+        self.sc = ase.io.read(ssposcar_path, format="vasp")
+
+
+    def load_second_order(
+        self,
+        ifc_path : str,
+        supercell : tuple[int, int, int],
+    ) -> SecondOrder:
+        d2 = parse_tdep_forceconstant(
+            fc_file=ifc_path,
+            primitive=self.ucposcar_path,
+            supercell=self.ssposcar_path,
+            reduce_fc=False,
+        )
+
+        n_unit_atoms = self.uc.positions.shape[0]
+        n_replicas = np.prod(supercell)
+        d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+        d2 = d2[0, np.newaxis]
+
+        ifc2 = ReplicaForceConstantFormat(d2)
+
+        return SecondOrder(
+            atoms=self.uc,
+            replicated_positions=self.sc.positions,
+            supercell=supercell,
+            value=ifc2,
+            folder=os.path.dirname(ifc_path)
+        )
+
+    def load_third_order():
+        #TODO
+        pass
+
+    def load_fourth_order():
+        #TODO
+        pass
+
 # --------------------------------
 # Second order force constant method
 

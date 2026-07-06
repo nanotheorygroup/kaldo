@@ -19,7 +19,7 @@ class ForceConstant(Observable):
                  replicated_positions: NDArray,
                  supercell: tuple[int, int, int],
                  folder: str,
-                 value: ArrayLike | None = None,
+                 value: ArrayLike | AbstractForceConstantStorageFormat | None = None,
                  grid: Grid | None = None,
                  **kwargs):
         super().__init__(folder=folder, **kwargs)

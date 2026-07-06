@@ -235,24 +235,19 @@ class SecondOrder(ForceConstant):
                     )
 
             case "tdep":
+                
                 uc_filename = "infile.ucposcar"
                 replicated_filename = "infile.ssposcar"
                 atom_prime_file = os.path.join(folder, uc_filename)
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
-                uc = ase.io.read(atom_prime_file, format="vasp")
-                sc = ase.io.read(replicated_atom_prime_file, format="vasp")
-                d2 = parse_tdep_forceconstant(
-                    fc_file=os.path.join(folder, "infile.forceconstant"),
-                    primitive=atom_prime_file,
-                    supercell=replicated_atom_prime_file,
-                    reduce_fc=False,
+
+                tdep_io = TDEP(
+                    ucposcar_path=atom_prime_file,
+                    ssposcar_path=replicated_atom_prime_file,
                 )
-                n_unit_atoms = uc.positions.shape[0]
-                n_replicas = np.prod(supercell)
-                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                d2 = d2[0, np.newaxis]
-                second_order = SecondOrder(
-                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
+               return tdep_io.load_second_order(
+                    ifc_path=os.path.join(folder, "infile.forceconstant"),
+                    supercell=supercell,
                 )
 
             case _:
