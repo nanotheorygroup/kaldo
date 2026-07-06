@@ -739,7 +739,18 @@ def parse_tdep_fourth_forceconstant(
                     break
         return flat.reshape(3, 3, 3, 3)
 
-    dense = np.zeros(shape, dtype=float)
+    # Accumulate COO coordinates directly. The dense tensor has
+    # n_uc^4 * 3^4 * n_rep^3 entries (13+ GB even at 216 atoms), but only
+    # the ~n_quartets * 81 blocks read from file are non-zero, so building
+    # the COO from a dense array would allocate ~1e3x the memory it keeps.
+    # Each quartet contributes a fixed (3,3,3,3) block at (a1, r2_id, i2,
+    # r3_id, i3, r4_id, i4); the 81 within-block Cartesian offsets are the
+    # same for every quartet, so precompute them once.
+    d = np.arange(3)
+    da, db, dc, dd = (x.ravel() for x in np.meshgrid(d, d, d, d, indexing="ij"))
+
+    coord_cols = []   # list of (11, 81) int arrays, one per quartet
+    values = []       # list of (81,) float arrays
     with open(fc_filename) as fh:
         na = int(fh.readline().split()[0])
         _cutoff = float(fh.readline().split()[0])
@@ -785,8 +796,22 @@ def parse_tdep_fourth_forceconstant(
                 r2_id = int(r2_ids[0])
                 r3_id = int(r3_ids[0])
                 r4_id = int(r4_ids[0])
-                dense[
-                    a1, :, r2_id, i2, :, r3_id, i3, :, r4_id, i4, :,
-                ] += phi
 
-    return COO.from_numpy(dense)
+                block = np.empty((11, 81), dtype=np.int64)
+                block[0] = a1;    block[1] = da;  block[2] = r2_id
+                block[3] = i2;    block[4] = db;  block[5] = r3_id
+                block[6] = i3;    block[7] = dc;  block[8] = r4_id
+                block[9] = i4;    block[10] = dd
+                coord_cols.append(block)
+                values.append(phi.ravel())
+
+    if coord_cols:
+        coords = np.concatenate(coord_cols, axis=1)
+        data = np.concatenate(values)
+    else:
+        coords = np.empty((11, 0), dtype=np.int64)
+        data = np.empty(0, dtype=float)
+
+    # Duplicate (quartet) coordinates are summed by COO, matching the
+    # `dense[...] += phi` accumulation of the previous implementation.
+    return COO(coords, data, shape=shape)
