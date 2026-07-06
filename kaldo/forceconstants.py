@@ -4,9 +4,10 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-from kaldo.grid import wrap_coordinates, Grid
+from kaldo.grid import wrap_coordinates, Grid, NonDiagonalGrid
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
+from kaldo.observables.fourthorder import FourthOrder
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import ase.units as units
@@ -51,6 +52,9 @@ class ForceConstants:
     third_order: ThirdOrder, optional
         Preloaded third-order force constants attached to the instance.
         Default: ``None`` (lazy construction)
+    fourth_order: FourthOrder, optional
+        Preloaded fourth-order force constants attached to the instance.
+        Default: ``None`` (not constructed lazily — must be loaded explicitly)
 
     Attributes
     ----------
@@ -76,7 +80,8 @@ class ForceConstants:
                  folder: str = MAIN_FOLDER,
                  distance_threshold: float | None = None,
                  second_order: SecondOrder | None = None,
-                 third_order: ThirdOrder | None = None):
+                 third_order: ThirdOrder | None = None,
+                 fourth_order: FourthOrder | None = None):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -92,6 +97,7 @@ class ForceConstants:
         self._list_of_replicas = None
         self._second = second_order
         self._third = third_order
+        self._fourth = fourth_order
 
         if distance_threshold is not None:
             logging.info('Using folded IFC matrices.')
@@ -116,6 +122,17 @@ class ForceConstants:
                                                     folder=self.folder)
         return self._third
 
+    @property
+    def fourth(self):
+        """Fourth-order force constants (FourthOrder).
+
+        Unlike ``second`` and ``third`` there is no lazy construction path
+        today: IFC4 must be loaded explicitly via ``from_folder`` (currently
+        only format='tdep' is supported) or passed as ``fourth_order=`` at
+        construction time. Returns ``None`` if not loaded.
+        """
+        return self._fourth
+
     @classmethod
     def from_folder(cls,
                     folder: str,
@@ -125,8 +142,10 @@ class ForceConstants:
                     third_supercell: tuple[int, int, int] | None = None,
                     is_acoustic_sum: bool = False,
                     only_second: bool = False,
+                    include_fourth: bool = False,
                     distance_threshold: float | None = None,
-                    chunk_size: int = 100000):
+                    chunk_size: int = 100000,
+                    supercell_matrix: np.ndarray | None = None):
         """
         Create a finite difference object from a folder
 
@@ -143,6 +162,7 @@ class ForceConstants:
         - qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q
         - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
         - tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder
+                (+ infile.forceconstant_fourthorder if ``include_fourth=True``)
 
         Parameters
         ----------
@@ -180,13 +200,22 @@ class ForceConstants:
         supercell = _normalize_supercell(supercell)
         third_supercell = _normalize_supercell(third_supercell)
 
+        # Validate include_fourth early so we don't waste time loading IFC2/3
+        # only to discover the format is wrong.
+        if include_fourth and format != 'tdep':
+            raise ValueError(
+                f"include_fourth=True is only supported for format='tdep'"
+                f" (got format={format!r})"
+            )
+
         effective_second_format = format
         effective_third_format = format
 
         second_order = SecondOrder.load(folder=folder,
                                         supercell=supercell,
                                         format=effective_second_format,
-                                        is_acoustic_sum=is_acoustic_sum)
+                                        is_acoustic_sum=is_acoustic_sum,
+                                        supercell_matrix=supercell_matrix)
         atoms = second_order.atoms
         resolved_supercell = _normalize_supercell(second_order.supercell)
 
@@ -198,8 +227,19 @@ class ForceConstants:
                                           supercell=target_third_supercell,
                                           format=effective_third_format,
                                           third_energy_threshold=third_energy_threshold,
-                                          chunk_size=chunk_size)
+                                          chunk_size=chunk_size,
+                                          supercell_matrix=supercell_matrix)
             target_third_supercell = _normalize_supercell(third_order.supercell)
+
+        fourth_order = None
+        if include_fourth and not only_second:
+            # Fourth-order loading is opt-in because most existing datasets
+            # ship only IFC2 + IFC3. Today only format='tdep' is wired
+            # (validated at the top of this method).
+            fourth_order = FourthOrder.load(folder=folder,
+                                            supercell=target_third_supercell,
+                                            format='tdep',
+                                            supercell_matrix=supercell_matrix)
 
         return cls(atoms=atoms,
                    supercell=resolved_supercell,
@@ -207,7 +247,127 @@ class ForceConstants:
                    folder=folder,
                    distance_threshold=distance_threshold,
                    second_order=second_order,
-                   third_order=third_order)
+                   third_order=third_order,
+                   fourth_order=fourth_order)
+
+    @staticmethod
+    def _build_shifted_rep(grid) -> np.ndarray:
+        """Return shifted_rep[rep_i, rel] = index of (grid[rep_i] + grid[rel]) in the replica table.
+
+        For a diagonal Grid uses fast modular arithmetic + ravel_multi_index.
+        For a NonDiagonalGrid uses wrap_lattice_vector_to_replica so that the
+        non-diagonal PBC is handled correctly.
+        """
+        if isinstance(grid, NonDiagonalGrid):
+            table = grid._replica_table                              # (n_rep, 3) int
+            M = np.rint(grid._M).astype(int)
+            n_rep = len(table)
+
+            # All pairwise sums: (n_rep, n_rep, 3)
+            sums = table[:, None, :] + table[None, :, :]
+
+            # Step 1: [0,1) sc-fractional wrap (vectorized).
+            # Mirrors what build_supercell_replica_mapping does before norm-min.
+            inv_M = np.linalg.inv(M.astype(float))
+            frac = sums.astype(float) @ inv_M                              # (n_rep, n_rep, 3)
+            wrapped = np.rint((frac - np.floor(frac + 1e-4)) @ M).astype(int)  # (n_rep, n_rep, 3)
+
+            # Step 2: norm-minimal search over {-1,0,1}^3 — same shifts used
+            # when the table was built, so exactly one candidate matches each (i,j).
+            sv = np.array(np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1],
+                                      indexing='ij')).reshape(3, -1).T   # (27, 3)
+            candidates = wrapped[:, :, None, :] - (sv @ M)[None, None, :, :]  # (n_rep, n_rep, 27, 3)
+
+            # matches[i, j, s, k] = True when candidates[i,j,s] == table[k]
+            matches = (candidates[:, :, :, None, :] == table[None, None, None, :, :]).all(axis=-1)
+            matched = matches.any(axis=2)   # (n_rep, n_rep, n_rep): any shift hits table[k]?
+
+            if not matched.any(axis=-1).all():
+                raise ValueError("Replica sum not found; the replica table may be incomplete.")
+
+            return np.argmax(matched, axis=-1)   # (n_rep, n_rep)
+        else:
+            supercell = grid.grid_shape
+            grid_arr = grid.grid(is_wrapping=False)                                    # (n_rep, 3)
+            combined = (grid_arr[:, np.newaxis, :] + grid_arr[np.newaxis, :, :]) % np.array(supercell)
+            return np.ravel_multi_index(
+                combined.reshape(-1, 3).T, supercell, order=grid.order
+            ).reshape(grid.grid_size, grid.grid_size)
+
+
+    def irred_to_full(self, order: int, grid: Grid | None = None) -> np.ndarray:
+        """Reconstruct the full IFC tensor from the irreducible part stored in this object.
+
+        The irreducible tensor (``self.second`` or ``self.third``) suppresses the replica index
+        of the first atom (always cell 0 by translational convention).  Translational symmetry
+        gives:
+
+            fc_full[rep_i, uc_i, :, abs_j, uc_j, :, ...]
+                = ifc_irred[uc_i, :, rel_j, uc_j, :, ...]
+
+        where  abs_j = shifted_rep[rep_i, rel_j]
+        and    shifted_rep = ForceConstants._build_shifted_rep(grid).
+
+        For the loop-based assignment pattern (resolving ``???`` for 3rd order)::
+
+            shifted_rep = ForceConstants._build_shifted_rep(grid)
+            for rep_i in range(n_rep):
+                for uc_i, rep_j, uc_j, rep_k, uc_k in ...:
+                    fc3_out[rep_i, uc_i, :,
+                            shifted_rep[rep_i, rep_j], uc_j, :,
+                            shifted_rep[rep_i, rep_k], uc_k, :] += ifc3_irred[uc_i, :, rep_j, uc_j, :, rep_k, uc_k, :]
+
+        Parameters
+        ----------
+        order : int
+            IFC order; 2 or 3.
+        grid : Grid, optional
+            Supercell grid.  Defaults to the grid of the corresponding order object
+            (``self.second._direct_grid`` or ``self.third._direct_grid``).
+
+        Returns
+        -------
+        fc_full : np.ndarray
+            Full IFC tensor of shape ``(n_rep, n_unit, 3) * order``.
+        """
+        if order not in (2, 3):
+            raise ValueError(f'order must be 2 or 3, got {order}.')
+
+        n_unit = self.n_atoms
+
+        if order == 2:
+            ifc_obj = self.second
+            raw = np.asarray(ifc_obj.value[0], dtype=np.float64)
+        else:
+            ifc_obj = self.third
+            n_rep_obj = ifc_obj.n_replicas
+            raw = ifc_obj.value
+            if hasattr(raw, 'todense'):
+                raw = raw.todense()
+            raw = np.asarray(raw, dtype=np.float64).reshape(n_unit, 3, n_rep_obj, n_unit, 3, n_rep_obj, n_unit, 3)
+
+        if grid is None:
+            grid = ifc_obj._direct_grid
+
+        n_rep = grid.grid_size
+        # Relative-replica axes in the irreducible tensor: 2, 5, ... (one per non-first atom)
+        replica_axes = [3 * j - 1 for j in range(1, order)]
+
+        shifted_rep = self._build_shifted_rep(grid)        # (n_rep, n_rep)
+        inv_shifted_rep = np.argsort(shifted_rep, axis=1)  # inv_shifted_rep[rep_i, abs] = rel
+
+        full_shape = (n_rep, n_unit, 3) * order
+        fc_full = np.zeros(full_shape, dtype=np.float64)
+
+        for rep_i in range(n_rep):
+            inv_perm = inv_shifted_rep[rep_i]
+            temp = raw
+            for ax in replica_axes:
+                temp = np.take(temp, inv_perm, axis=ax)
+            fc_full[rep_i] = temp
+
+        return fc_full
+
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
