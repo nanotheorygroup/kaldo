@@ -30,8 +30,10 @@ def acoustic_sum_rule(dynmat):
 class SecondOrder(ForceConstant):
     def __init__(self, value: ArrayLike, is_acoustic_sum: bool = False, *kargs, **kwargs):
         # apply acoustic sum rule before initialize in forceconstnat
+        # (value is None for the empty object used to compute force constants
+        # later; calculate() applies the sum rule itself in that case)
         self.is_acoustic_sum = is_acoustic_sum
-        if is_acoustic_sum:
+        if is_acoustic_sum and value is not None:
             value = acoustic_sum_rule(value)
 
         super().__init__(value=value, *kargs, **kwargs)

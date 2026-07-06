@@ -155,3 +155,14 @@ def phonons():
 def test_frequency_with_forceconstants(phonons):
     calculated_frequency = phonons.frequency
     np.testing.assert_equal(np.round(calculated_frequency - frequency, 2), 0)
+
+
+def test_forceconstants_is_acoustic_sum_reaches_fd_path(tmp_path):
+    atoms = bulk("Cu", "fcc", a=3.61, cubic=True)
+    fc = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path), is_acoustic_sum=True)
+    assert fc.second.is_acoustic_sum is True
+    fc.second.calculate(calculator=EMT(), delta_shift=1e-3, is_storing=False)
+    phi = np.asarray(fc.second.value)[0]
+    # Acoustic sum rule: sum over all (replica, atom) pairs of Phi[i, :, l, j, :]
+    # vanishes for every displaced atom i, so uniform translations cost no force.
+    np.testing.assert_allclose(phi.sum(axis=(2, 3)), 0.0, atol=1e-10)

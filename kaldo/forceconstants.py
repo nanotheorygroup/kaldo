@@ -51,6 +51,14 @@ class ForceConstants:
     third_order: ThirdOrder, optional
         Preloaded third-order force constants attached to the instance.
         Default: ``None`` (lazy construction)
+    is_acoustic_sum: bool, optional
+        If True, apply the acoustic sum rule to second-order force constants
+        computed via ``second.calculate``. For force constants read from
+        files use ``from_folder(..., is_acoustic_sum=True)`` instead. Note
+        that on transpose-asymmetric force constants (e.g. raw finite
+        differences from an ML potential that breaks the crystal symmetry)
+        the sum rule alone cannot zero the Gamma acoustic modes.
+        Default: False
 
     Attributes
     ----------
@@ -76,7 +84,8 @@ class ForceConstants:
                  folder: str = MAIN_FOLDER,
                  distance_threshold: float | None = None,
                  second_order: SecondOrder | None = None,
-                 third_order: ThirdOrder | None = None):
+                 third_order: ThirdOrder | None = None,
+                 is_acoustic_sum: bool = False):
 
         # Store the user defined information to the object
         self.atoms = atoms
@@ -89,6 +98,7 @@ class ForceConstants:
         self.cell_inv = np.linalg.inv(atoms.cell)
         self.folder = folder
         self.distance_threshold = distance_threshold
+        self.is_acoustic_sum = is_acoustic_sum
         self._list_of_replicas = None
         self._second = second_order
         self._third = third_order
@@ -103,7 +113,7 @@ class ForceConstants:
             self._second = SecondOrder.from_supercell(self.atoms,
                                                       supercell=self.supercell,
                                                       grid_type='C',
-                                                      is_acoustic_sum=False,
+                                                      is_acoustic_sum=self.is_acoustic_sum,
                                                       folder=self.folder)
         return self._second
 
