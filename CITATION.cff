@@ -1,0 +1,76 @@
+cff-version: 1.2.0
+message: "If you use κALDo, please cite the following paper."
+title: "κALDo: Anharmonic Lattice Dynamics"
+abstract: >-
+  κALDo is an open-source Python package for computing vibrational, elastic,
+  and thermal transport properties of crystalline and disordered solids from
+  first principles and machine-learned interatomic potentials, implementing the
+  Boltzmann Transport Equation (BTE) and the Quasi-Harmonic Green-Kubo (QHGK)
+  method.
+type: software
+version: 2.1.0
+date-released: "2026-06-30"
+url: "https://github.com/nanotheorygroup/kaldo"
+repository-code: "https://github.com/nanotheorygroup/kaldo"
+license: BSD-3-Clause
+authors:
+  - given-names: Giuseppe
+    family-names: Barbalinardo
+    orcid: "https://orcid.org/0000-0002-7829-4403"
+  - given-names: Zekun
+    family-names: Chen
+    orcid: "https://orcid.org/0000-0002-4183-2941"
+  - given-names: Dylan A.
+    family-names: Folkner
+    orcid: "https://orcid.org/0000-0002-8715-7048"
+  - given-names: Bohan
+    family-names: Li
+    orcid: "https://orcid.org/0009-0000-9946-630X"
+  - given-names: Nicholas W.
+    family-names: Lundgren
+    orcid: "https://orcid.org/0000-0003-1914-0954"
+  - given-names: Nathaniel
+    family-names: Troup
+    orcid: "https://orcid.org/0009-0002-9789-2238"
+  - given-names: Alfredo
+    family-names: Fiorentino
+    orcid: "https://orcid.org/0000-0002-3048-5534"
+  - given-names: Davide
+    family-names: Donadio
+    orcid: "https://orcid.org/0000-0002-2150-4182"
+preferred-citation:
+  type: article
+  title: "κALDo 2.0: Scalable thermal transport from first principles and machine learning potentials"
+  authors:
+    - given-names: Giuseppe
+      family-names: Barbalinardo
+      orcid: "https://orcid.org/0000-0002-7829-4403"
+    - given-names: Zekun
+      family-names: Chen
+      orcid: "https://orcid.org/0000-0002-4183-2941"
+    - given-names: Dylan A.
+      family-names: Folkner
+      orcid: "https://orcid.org/0000-0002-8715-7048"
+    - given-names: Bohan
+      family-names: Li
+      orcid: "https://orcid.org/0009-0000-9946-630X"
+    - given-names: Nicholas W.
+      family-names: Lundgren
+      orcid: "https://orcid.org/0000-0003-1914-0954"
+    - given-names: Nathaniel
+      family-names: Troup
+      orcid: "https://orcid.org/0009-0002-9789-2238"
+    - given-names: Alfredo
+      family-names: Fiorentino
+      orcid: "https://orcid.org/0000-0002-3048-5534"
+    - given-names: Davide
+      family-names: Donadio
+      orcid: "https://orcid.org/0000-0002-2150-4182"
+  journal: "Computer Physics Communications"
+  volume: 327
+  start: 110282
+  year: 2026
+  doi: "10.1016/j.cpc.2026.110282"
+  url: "https://doi.org/10.1016/j.cpc.2026.110282"
+  publisher:
+    name: "Elsevier"
