@@ -165,6 +165,11 @@ class Storable:
             # Generic fallback: flatten to 2D, store original shape in header
             flat_data = data.reshape(-1, data.shape[-1]) if data.shape[-1] > 1 else data.flatten()
             np.savetxt(name + '.dat', flat_data, fmt=fmt, header=str(data.shape))
+        elif np.iscomplexobj(data):
+            # Complex arrays (e.g. diffusivity) need numpy's default (real+imagj)
+            # format; a float format cannot represent them. The 'complex' header
+            # tag tells _read_formatted_file to load them back as complex.
+            np.savetxt(name + '.dat', data, header='complex ' + str(data.shape))
         else:
             # Default: 1D or 2D array
             np.savetxt(name + '.dat', data, fmt=fmt, header=str(data.shape))
