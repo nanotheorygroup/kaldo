@@ -227,13 +227,6 @@ class Storable:
 
 
 
-def parse_pair(txt):
-    return complex(txt.strip("()"))
-
-
-
-
-
 def lazy_property(label: str = '', format: Optional[str] = None) -> Callable[[Callable], property]:
     """
     Decorator for lazy evaluation of properties with storage support.
