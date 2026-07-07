@@ -198,22 +198,40 @@ def cumulant_thermo(
     if verbose:
         print(f"Phase 5: sampling N={nconf} configs ...", flush=True)
 
-    sc = forceconstants.second.replicated_atoms
+    # The whole of Phase 5 works in ONE atom frame: infile.ssposcar order.
+    #  * The LAMMPS Atoms is read straight from ssposcar, so its cell,
+    #    species and equilibrium positions are exactly TDEP's supercell
+    #    (this also sidesteps ForceConstant.replicated_atoms, whose cell is
+    #    only meaningful for diagonal tilings).
+    #  * SCContractors index displacements in ssposcar order.
+    #  * The sampler IFC2 (from irred_to_full, natively replica-major:
+    #    replica_id * n_uc + atom_uc) is permuted into ssposcar order once,
+    #    so the drawn displacement u is already in the contractor / LAMMPS
+    #    frame and needs no per-configuration reindexing.
+    import ase.io
+    from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
+
+    sc = ase.io.read(str(Path(tdep_folder) / "infile.ssposcar"), format="vasp")
     species_sc = sc.get_chemical_symbols()
     masses_amu_sc = sc.get_masses()
     n_sc = len(sc)
 
-    ifc2_remapped_raw = forceconstants.irred_to_full(order = 2)
-    ifc2_remapped_raw = ifc2_remapped_raw.reshape((3 * n_sc, 3 * n_sc))
+    mapping = build_supercell_replica_mapping(uc, sc)
+    n_uc = len(uc)
+    # replica-major index of each ssposcar atom: file atom f sits at
+    # (atom_of_sc[f], replica_id_of_sc[f]) -> replica_id * n_uc + atom_uc.
+    replica_major_of_file = mapping["replica_id_of_sc"] * n_uc + mapping["atom_of_sc"]
+
+    ifc2_replica_major = forceconstants.irred_to_full(order=2).reshape((3 * n_sc, 3 * n_sc))
+    # Reindex rows/cols from replica-major to ssposcar order (3x3 blocks).
+    dof_perm = (replica_major_of_file[:, None] * 3 + np.arange(3)).reshape(-1)
+    ifc2_sc = ifc2_replica_major[np.ix_(dof_perm, dof_perm)]
 
     if verbose:
-        print(f"Phase 5: Remapped IFCs to supercell ...", flush=True)
-        print(f"IFC2 shape: {ifc2_remapped_raw.shape}", flush=True)
+        print(f"Phase 5: Remapped IFC2 to ssposcar frame, shape {ifc2_sc.shape} ...", flush=True)
 
-
-    #! IS ORDER OF REMAPPED MATRIX GOING TO MATCH MASS VECTOR??
     sampler = SCSampler(
-        ifc2_remapped_raw,
+        ifc2_sc,
         masses_amu_sc,
         T_K=temperature,
         is_classic=is_classic,
@@ -227,7 +245,6 @@ def cumulant_thermo(
     if verbose:
         print(f"Phase 5: Build contractors ...", flush=True)
 
-    #! THESE CELLS GET PARSED FUNNY
     sc_cell_A = np.asarray(sc.get_cell())
     sc_pos_eq_A = np.asarray(sc.get_positions())
 
@@ -246,17 +263,24 @@ def cumulant_thermo(
     at = Atoms(species_sc, positions=sc_pos_eq_A, cell=sc_cell_A, pbc=True)
     at.calc = LAMMPSlib(
         lmpcmds=list(lammps_cmds),
-        keep_alive=True, 
+        keep_alive=True,
         log_file="/tmp/cumulant_thermo_lammps.log",
         **lammps_kwargs
     )
+    # Every sampled configuration shares topology (same atoms, same box; only
+    # positions move), so keep one LAMMPS instance alive and, per config,
+    # only scatter the new coordinates + `run 0 pre no post no` (reuse the
+    # neighbor lists, skip setup). The first energy() call does the full ASE
+    # setup; the rest take the fast path. See _lammps_batch.BatchEnergyEvaluator.
+    from ._lammps_batch import BatchEnergyEvaluator
+    energy_eval = BatchEnergyEvaluator(at, sc_pos_eq_A)
+
     V = np.zeros(nconf); V2 = np.zeros(nconf); V3 = np.zeros(nconf)
     V4 = np.zeros(nconf); V2_tilde = np.zeros(nconf)
     t0 = time.time()
     for n in trange(nconf):
         u, z = sampler.draw_with_z()
-        at.set_positions(sc_pos_eq_A + u)
-        V[n] = at.get_potential_energy()
+        V[n] = energy_eval.energy(u)
         V2[n] = contractors.V2(u)
         V3[n] = contractors.V3(u)
         V4[n] = contractors.V4(u)
@@ -301,21 +325,23 @@ def print_ethan_table(result: CumulantResult) -> None:
     """Print the result in Ethan's ``*_mean.txt`` column layout."""
     print(f"# Cumulant thermo, T = {result.T_K} K, Nat = {result.Nat}, "
           f"N_conf = {result.N_conf}")
+    # The 0th-order (constant) correction is the only stochastic term, so its
+    # standard error IS the total standard error (analytic F1/F2 carry none).
     rows = [
-        ("F", "eV/atom", result.F_H, result.F_offset, result.F_1, result.F_2,
-         result.F_total, result.F_offset_SE, result.F_total_SE),
-        ("U", "eV/atom", result.U_H, result.U_offset, result.U_1, result.U_2,
-         result.U_total, result.U_offset_SE, result.U_total_SE),
-        ("S", "kB/atom", result.S_H, result.S_offset, result.S_1, result.S_2,
-         result.S_total, result.S_offset_SE, result.S_total_SE),
-        ("Cv", "kB/atom", result.Cv_H, result.Cv_offset, result.Cv_1, result.Cv_2,
-         result.Cv_total, result.Cv_offset_SE, result.Cv_total_SE),
+        ("F", "eV/atom", result.F_H, result.F_0, result.F_1, result.F_2,
+         result.F_total, result.F_total_SE),
+        ("U", "eV/atom", result.U_H, result.U_0, result.U_1, result.U_2,
+         result.U_total, result.U_total_SE),
+        ("S", "kB/atom", result.S_H, result.S_0, result.S_1, result.S_2,
+         result.S_total, result.S_total_SE),
+        ("Cv", "kB/atom", result.Cv_H, result.Cv_0, result.Cv_1, result.Cv_2,
+         result.Cv_total, result.Cv_total_SE),
     ]
-    for name, unit, H, off, a1, a2, tot, offse, totse in rows:
+    for name, unit, H, zeroth, a1, a2, tot, se in rows:
         print(f"\n# {name} [{unit}]")
-        print(f"       {name}_H          {name}_offset         "
+        print(f"       {name}_H          {name}_0            "
               f"{name}_1            {name}_2            {name}_total")
-        print(f"  {H:+.7f}      {off:+.7f}      "
+        print(f"  {H:+.7f}      {zeroth:+.7f}      "
               f"{a1:+.7f}      {a2:+.7f}      {tot:+.7f}")
-        print(f"  {'0':>14}      {offse:.7f}      "
-              f"{'0':>14}      {'0':>14}      {totse:.7f}")
+        print(f"  {'0':>14}      {se:.7f}      "
+              f"{'0':>14}      {'0':>14}      {se:.7f}")

@@ -130,11 +130,25 @@ class SCSampler:
 
     def V2_tilde_from_z(self, z):
         """
-        Reference V2 computed from the harmonic canonical weights at the
-        drawn z (in eV).
+        Harmonic reference energy ``V_2_tilde`` for the drawn ``z`` (in eV).
 
-        Quantum : per mode ``w = 4 n (n+1) / (2 n + 1)^2``.
-        Classical: ``w = 1`` everywhere.
+        Per LatticeDynamicsToolkit's ``_v2_tilde_coefficients`` the per-mode
+        coefficient is::
+
+            c_lambda = mode_weight_lambda * 0.5 * omega_lambda^2 * sigma_lambda^2
+
+        and ``V_2_tilde = sum_lambda c_lambda * z_lambda^2``, where
+        ``sigma_lambda^2`` is the mode variance (``self.var_per_mode``; here in
+        mass-weighted normal-mode coordinates, so the atomic mass is already
+        folded in) and the mode weight is
+
+            classical : ``w = 1``
+            quantum   : ``w = 4 n (n + 1) / (2 n + 1)^2``.
+
+        With ``w = 1`` (classical) this is exactly the harmonic potential
+        energy ``0.5 u^T Phi u`` of the drawn configuration; the quantum weight
+        reweights each mode for the control-variate reference used by the
+        entropy / heat-capacity estimator.
         """
         ok = self.ok
 
@@ -145,7 +159,5 @@ class SCSampler:
             w = np.zeros_like(self.omega)
             w[ok] = 4.0 * self.n_pop[ok] * (self.n_pop[ok] + 1.0) / denom[ok]
 
-        per_mode = np.where(
-            ok, self.omega * (2 * self.n_pop + 1) / 4.0, 0.0
-        )
-        return (w * per_mode * (z ** 2)).sum() * HARTREE_TO_EV
+        coeffs = np.where(ok, 0.5 * self.omega ** 2 * self.var_per_mode, 0.0)
+        return (w * coeffs * (z ** 2)).sum() * HARTREE_TO_EV
