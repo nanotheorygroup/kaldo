@@ -4,7 +4,6 @@ import os
 import ase.io
 import numpy as np
 from scipy.sparse import load_npz, save_npz
-import sparse
 from sparse import COO
 from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
@@ -221,7 +220,7 @@ class ThirdOrder(ForceConstant):
                 fc3 = meta['fc3']
                 if third_energy_threshold > 0.:
                     mask = np.abs(fc3.data) > third_energy_threshold
-                    fc3 = sparse.COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
+                    fc3 = COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
                 third_order = cls.from_supercell(
                     atoms=meta['atoms'],
                     grid_type=meta['grid_order'],
