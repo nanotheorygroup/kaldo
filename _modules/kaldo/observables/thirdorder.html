@@ -959,7 +959,12 @@
                                          <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
 
             <span class="k">case</span> <span class="p">(</span><span class="s2">&quot;vasp-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-d3q&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-d3q&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="s2">&quot;vasp-d3q&quot;</span><span class="p">:</span>
-                <span class="n">grid_type</span> <span class="o">=</span> <span class="s1">&#39;F&#39;</span>
+                <span class="c1"># must match the grid declared by SecondOrder.load for the same format</span>
+                <span class="k">match</span> <span class="nb">format</span><span class="p">:</span>
+                    <span class="k">case</span> <span class="p">(</span><span class="s2">&quot;qe-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-d3q&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-d3q&quot;</span><span class="p">):</span>
+                        <span class="n">grid_type</span> <span class="o">=</span> <span class="s1">&#39;C&#39;</span>
+                    <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                        <span class="n">grid_type</span> <span class="o">=</span> <span class="s1">&#39;F&#39;</span>
                 <span class="n">config_path</span><span class="p">,</span> <span class="n">config_file</span> <span class="o">=</span> <span class="n">detect_path</span><span class="p">([</span><span class="s1">&#39;CONTROL&#39;</span><span class="p">,</span> <span class="s1">&#39;POSCAR&#39;</span><span class="p">],</span> <span class="n">folder</span><span class="p">)</span>
                 <span class="k">match</span> <span class="n">config_file</span><span class="p">:</span>
                     <span class="k">case</span> <span class="s1">&#39;CONTROL&#39;</span><span class="p">:</span>
