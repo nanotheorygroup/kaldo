@@ -21,6 +21,7 @@ from concurrent.futures import as_completed
 from kaldo.parallel import dispatch_with_resume, get_executor
 from scipy import stats
 import numpy as np
+from scipy.integrate import trapezoid
 from numpy.typing import ArrayLike
 import ase.units as units
 from kaldo.helpers.tools import timeit
@@ -1322,8 +1323,7 @@ class Phonons(Storable):
                 for j in range(proj.shape[1]):
                     p_dos[ip, i] += np.sum(amp * proj[:, j, :] * physical_mode)
 
-            # TODO: np.trapz is deprecated in numpy 2.0+, but np.trapezoid does not exist before numpy 2.0. migrate it after this function gets removed. 
-            p_dos[ip] *= 3 * n_atoms / np.trapz(p_dos[ip], f_grid)
+            p_dos[ip] *= 3 * n_atoms / trapezoid(p_dos[ip], f_grid)
 
         return f_grid, p_dos
 
