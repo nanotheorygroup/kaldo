@@ -639,3 +639,27 @@ def test_get_folder_from_label_with_q_point_and_temperature():
 
     # Critical: different temperatures must produce different paths
     assert folder_300 != folder_500
+
+
+def _roundtrip_formatted(data, tmp_path):
+    """Save then load `data` through the real Storable formatted methods."""
+    instance = Storable()
+    folder = str(tmp_path)
+    instance._save_formatted_property('prop', folder + '/prop', data)
+    return instance._load_formatted_property('prop', folder + '/prop')
+
+
+@pytest.mark.parametrize('data', [
+    np.array([1 + 1j, 2 - 2j, -3 + 3j]),
+    np.array([1.5, -2.5, 3.0]),
+])
+def test_save_load_formatted_roundtrip(data, tmp_path):
+    """Formatted storage must round-trip complex arrays, not just real ones.
+
+    Regression test: a complex array (e.g. diffusivity) previously loaded back
+    as float and raised a ValueError because the dtype was not recorded in the
+    file header.
+    """
+    result = _roundtrip_formatted(data, tmp_path)
+    assert result.dtype == data.dtype
+    np.testing.assert_allclose(result, data)
