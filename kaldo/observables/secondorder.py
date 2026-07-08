@@ -257,6 +257,19 @@ class SecondOrder(ForceConstant):
                     atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
                 )
 
+            case "gpumd":
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                apply_asr = is_acoustic_sum and not meta["acoustic_sum_applied"]
+                second_order = SecondOrder.from_supercell(
+                    atoms=meta["atoms"],
+                    grid_type=meta["grid_order"],
+                    supercell=meta["supercell"],
+                    value=meta["fc2"],
+                    is_acoustic_sum=apply_asr,
+                    folder=folder,
+                )
+
             case _:
                 raise ValueError(f"{format} is not a valid format")
 
