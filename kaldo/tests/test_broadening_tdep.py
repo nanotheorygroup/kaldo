@@ -92,15 +92,18 @@ def test_shengbte_default_unchanged(si_forceconstants, tmp_path):
         is_classic=True, folder=str(tmp_path / "explicit"),
         broadening_kernel="shengbte",
     )
-    np.testing.assert_array_equal(ph_default.phase_space, ph_explicit.phase_space)
-    np.testing.assert_array_equal(ph_default.bandwidth, ph_explicit.bandwidth)
+    # rtol=0, atol=0: the two runs must agree exactly; the default kernel is
+    # claimed bit-for-bit unchanged, not merely close.
+    np.testing.assert_allclose(ph_default.phase_space, ph_explicit.phase_space, rtol=0.0, atol=0.0)
+    np.testing.assert_allclose(ph_default.bandwidth, ph_explicit.bandwidth, rtol=0.0, atol=0.0)
 
 
-def test_invalid_kernel_rejected(si_forceconstants):
+def test_invalid_kernel_rejected(si_forceconstants, tmp_path):
     with pytest.raises(ValueError, match="broadening_kernel"):
         Phonons(
             forceconstants=si_forceconstants, kpts=(3, 3, 3), temperature=300,
-            is_classic=True, folder="bad_kernel", broadening_kernel="nonsense",
+            is_classic=True, folder=str(tmp_path / "bad_kernel"),
+            broadening_kernel="nonsense",
         )
 
 
