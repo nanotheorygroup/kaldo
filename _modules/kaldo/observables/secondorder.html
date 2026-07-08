@@ -1077,6 +1077,19 @@
                     <span class="n">atoms</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">replicated_positions</span><span class="o">=</span><span class="n">sc</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span>
                 <span class="p">)</span>
 
+            <span class="k">case</span> <span class="s2">&quot;gpumd&quot;</span><span class="p">:</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">gpumd_io</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">gpumd_io</span><span class="o">.</span><span class="n">read_gpumd_fc</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+                <span class="n">apply_asr</span> <span class="o">=</span> <span class="n">is_acoustic_sum</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;acoustic_sum_applied&quot;</span><span class="p">]</span>
+                <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;atoms&quot;</span><span class="p">],</span>
+                    <span class="n">grid_type</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;grid_order&quot;</span><span class="p">],</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;supercell&quot;</span><span class="p">],</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;fc2&quot;</span><span class="p">],</span>
+                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">apply_asr</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                <span class="p">)</span>
+
             <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">format</span><span class="si">}</span><span class="s2"> is not a valid format&quot;</span><span class="p">)</span>
 
