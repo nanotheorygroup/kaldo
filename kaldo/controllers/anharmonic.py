@@ -452,8 +452,7 @@ def calculate_bz_cell_radius(cell_inv, n_k_points):
 
 
 def calculate_broadening_tdep(velocity, frequency, cell_inv, n_k_points,
-                              smearing_prefactor=1.0, radius=None,
-                              default_sigma=None):
+                              smearing_prefactor=1.0):
     """
     TDEP-style adaptive broadening: per-mode σ, |v|-based, gauge-invariant.
 
@@ -463,10 +462,6 @@ def calculate_broadening_tdep(velocity, frequency, cell_inv, n_k_points,
         cell_inv           (np.ndarray): shape (3, 3)
         n_k_points         (int):        mesh size (prod of kpts)
         smearing_prefactor (float):      TDEP `scale`; default 1.0
-        radius             (float):      override BZ-cell radius; default
-                                         computed from cell_inv + n_k_points
-        default_sigma      (np.ndarray): override per-band baseline σ;
-                                         default computed from `frequency`
 
     Returns:
         np.ndarray, shape (n_k, n_m): per-mode σ (units match `frequency`).
@@ -478,10 +473,8 @@ def calculate_broadening_tdep(velocity, frequency, cell_inv, n_k_points,
     energy calculations of solids.* Phys. Rev. B **87**, 104111 (2013).
     doi:10.1103/PhysRevB.87.104111
     """
-    if default_sigma is None:
-        default_sigma = calculate_default_smearing_per_band(frequency)
-    if radius is None:
-        radius = calculate_bz_cell_radius(cell_inv, n_k_points)
+    default_sigma = calculate_default_smearing_per_band(frequency)
+    radius = calculate_bz_cell_radius(cell_inv, n_k_points)
     return calculate_adaptive_sigma_tdep(
         radius, velocity, default_sigma, scale=smearing_prefactor
     )
