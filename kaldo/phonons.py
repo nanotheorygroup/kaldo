@@ -209,7 +209,8 @@ def _numpy_to_sparse_tensor(data):
 
 def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mode,
                                 evect_np, third_sparse_data, chi_k_np, velocity_np,
-                                cell_inv, kpts, broadening_shape, third_bandwidth,
+                                cell_inv, kpts, broadening_shape, broadening_kernel,
+                                sigma_mode_np, third_bandwidth,
                                 hbar, n_replicas, is_sparse, kpoint_maps):
     """Compute sparse_phase and sparse_potential for all modes at one k-point.
 
@@ -225,6 +226,10 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
     _chi_k = tf.cast(tf.convert_to_tensor(chi_k_np), dtype=tf.complex128)
     second_minus_chi = tf.math.conj(_chi_k)
     velocity_tf = tf.convert_to_tensor(velocity_np)
+    sigma_mode_tf = (
+        tf.constant(sigma_mode_np, dtype=tf.float64)
+        if sigma_mode_np is not None else None
+    )
 
     if is_sparse:
         coords, data, shape = third_sparse_data
@@ -248,8 +253,14 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
             index_kpp_full = tf.cast(kpoint_maps[(index_k, is_plus)], dtype=tf.int32)
             if third_bandwidth:
                 sigma_tf = tf.constant(third_bandwidth, dtype=tf.float64)
+            elif broadening_kernel == "tdep":
+                sigma_tf = aha.combine_sigma_triplet_tdep(
+                    sigma_mode_tf, int(index_k), int(mu), index_kpp_full
+                )
             else:
-                sigma_tf = aha.calculate_broadening(velocity_tf, cell_inv, kpts, index_kpp_full)
+                sigma_tf = aha.calculate_broadening_shengbte(
+                    velocity_tf, cell_inv, kpts, index_kpp_full
+                )
 
             dirac_delta_result = aha.calculate_dirac_delta_crystal(
                 omega, physical_mode, sigma_tf, broadening_shape,
@@ -373,6 +384,29 @@ class Phonons(Storable):
         energy conservation rules for three-phonon scattering.
         Options: 'gauss', 'lorentz' and 'triangle'.
         Default: ``'gauss'``
+    broadening_kernel : string
+        Chooses how the adaptive σ of the energy-conservation δ is computed
+        when ``third_bandwidth`` is ``None``.
+
+        * ``'shengbte'`` (default): per-pair σ from the velocity difference
+          projected on the reciprocal basis, as in
+          bitbucket.org/sousaw/shengbte/src (`base_sigma` in
+          ``Src/config.f90``). NOT invariant under the crystal point group
+          on degenerate modes — see ``calculate_broadening_shengbte``.
+        * ``'tdep'``: per-mode σ from ``|v(q, μ)|`` with a band-baseline
+          floor, combined as ``σ_triplet = √(σ₁² + σ₂² + σ₃²)``. Ported
+          from github.com/tdep-developers/tdep (`adaptive_sigma` in
+          ``src/libolle/type_qpointmesh_integrationweights.f90``,
+          triplet combination in
+          ``src/thermal_conductivity_2023/phononevents_gaussian.f90``).
+          Gauge-invariant and therefore symmetry-consistent across
+          orbit-equivalent k-points. Recommended when using
+          ``use_q_symmetry=True``.
+
+        Default: ``'shengbte'``
+    smearing_prefactor : float
+        TDEP ``scale`` parameter. Only used when ``broadening_kernel='tdep'``.
+        Default: ``1.0``
     folder : string
         Specifies where to store the data files.
         Default: ``'output'``.
@@ -424,14 +458,21 @@ class Phonons(Storable):
         speedup equals the IBZ reduction factor (e.g. ~7x for Si diamond
         on a 3x3x3 mesh).
 
-        Note on broadening: the replicated results match a full-BZ run
-        exactly only with a fixed ``third_bandwidth`` (Shengbte/TDEP-style
-        broadening). With the default adaptive broadening
-        (``third_bandwidth=None``), the per-process sigma depends on
-        ``(v_kp - v_kpp) . delta_k``, which is not invariant under the
-        rotation that maps a k-point to its IBZ representative; results
-        differ from the full-BZ run at the O(0.5%) level on Si 3x3x3 and
-        scale with broadening width.
+        Limitations to be aware of:
+
+        * Per-cell gamma tensor entries Γ[(k, μ), (k', μ')] are only
+          replicated along the k' axis. Within a degenerate subspace at
+          k' the μ' index is not rotated, so individual matrix elements
+          can split between swapped μ' modes. Marginal sums
+          Γ_total[k, μ] = Σ_{k', μ'} Γ[(k, μ), (k', μ')] remain correct
+          and are what the BTE conductivity kernel uses.
+        * Per-mode phase_space, bandwidth, and Γ-tensor diagonals carry a
+          documented gauge artifact with the default ShengBTE broadening
+          kernel across orbit-equivalent k-points (eigenvectors are
+          basis-dependent within degenerate subspaces); with adaptive
+          broadening results differ from the full-BZ run at the O(0.5%)
+          level on Si 3x3x3. Use ``broadening_kernel='tdep'`` for strict
+          per-mode invariance.
         Default: False
 
     Returns
@@ -468,6 +509,8 @@ class Phonons(Storable):
                  max_frequency: float | None = None,
                  third_bandwidth: float | None = None,
                  broadening_shape: str = "gauss",
+                 broadening_kernel: str = "shengbte",
+                 smearing_prefactor: float = 1.0,
                  folder: str = FOLDER_NAME,
                  storage: str = "formatted",
                  grid_type: str = "C",
@@ -501,6 +544,13 @@ class Phonons(Storable):
         self.min_frequency = min_frequency
         self.max_frequency = max_frequency
         self.broadening_shape = broadening_shape
+        valid_kernels = ("shengbte", "tdep")
+        if broadening_kernel not in valid_kernels:
+            raise ValueError(
+                f"broadening_kernel={broadening_kernel!r} not in {valid_kernels}"
+            )
+        self.broadening_kernel = broadening_kernel
+        self.smearing_prefactor = float(smearing_prefactor)
         self.is_nw = is_nw
         self.third_bandwidth = third_bandwidth
         self.storage = storage
@@ -520,6 +570,25 @@ class Phonons(Storable):
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
         self.use_q_symmetry = use_q_symmetry
+
+        # Warn when combining IBZ replication with the ShengBTE broadening
+        # kernel: ShengBTE's per-pair σ is not invariant under the crystal
+        # point group on degenerate modes, so the per-cell Γ tensor and
+        # per-mode phase_space / bandwidth values carry a documented gauge
+        # artifact across orbit-equivalent k-points (up to ~13% on Si 3×3×3).
+        # Marginal sums (Γ_total[k, μ], Σ_μ phase_space[k, μ]) are still
+        # correct; the TDEP kernel (broadening_kernel='tdep') gives per-mode
+        # invariance to machine precision.
+        if (self.use_q_symmetry and self.broadening_kernel == "shengbte"
+                and not self.third_bandwidth):
+            logging.warning(
+                "use_q_symmetry=True with broadening_kernel='shengbte' "
+                "produces per-mode phase_space / bandwidth / gamma-tensor "
+                "values that are NOT symmetry-invariant across orbit-"
+                "equivalent k-points (gauge artifact in degenerate "
+                "subspaces). Marginal sums remain correct. For strict "
+                "per-mode invariance use broadening_kernel='tdep'."
+            )
 
     def _get_folder_path_components(self, label):
         """Get folder path components for Phonons-specific attributes."""
@@ -549,6 +618,15 @@ class Phonons(Storable):
         # caches stay at the same paths.
         if '<broadening_shape>' in label and self.broadening_shape != 'gauss':
             components.append('br_' + str(self.broadening_shape))
+
+        # broadening_kernel (and its smearing prefactor) change the adaptive
+        # sigma whenever third_bandwidth is None. Only emit a component for
+        # the non-default kernel so existing ShengBTE caches keep their paths.
+        if '<broadening_kernel>' in label and self.broadening_kernel != 'shengbte':
+            component = 'kern_' + str(self.broadening_kernel)
+            if self.smearing_prefactor != 1.0:
+                component += '_sp' + format(self.smearing_prefactor, 'g')
+            components.append(component)
 
         if '<is_balanced>' in label and self.is_balanced:
             components.append('balanced')
@@ -896,7 +974,7 @@ class Phonons(Storable):
         return zpe_cell / self.n_k_points
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>/<include_isotopes>/<use_q_symmetry>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<include_isotopes>/<use_q_symmetry>')
     def bandwidth(self):
         """
         Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
@@ -939,7 +1017,7 @@ class Phonons(Storable):
             return isotopic_bw
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>/<use_q_symmetry>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>')
     def anharmonic_bandwidth(self):
         """
         Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.
@@ -953,7 +1031,7 @@ class Phonons(Storable):
         return gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>/<use_q_symmetry>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>')
     def phase_space(self):
         """
         Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
@@ -995,11 +1073,11 @@ class Phonons(Storable):
         return eigenvectors
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>/<use_q_symmetry>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>')
     def _ps_and_gamma(self):
         store_format = self._store_formats.get('_ps_gamma_and_gamma_tensor', 'numpy') \
             if self.storage == 'formatted' else self.storage
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>/<use_q_symmetry>', \
+        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>', \
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
@@ -1007,12 +1085,12 @@ class Phonons(Storable):
         return ps_and_gamma
 
 
-    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>/<use_q_symmetry>')
+    @lazy_property(label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>')
     def _ps_gamma_and_gamma_tensor(self):
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(is_gamma_tensor_enabled=True)
         return ps_gamma_and_gamma_tensor
 
-    @lazy_property(label='<third_bandwidth>/<broadening_shape>/<use_q_symmetry>')
+    @lazy_property(label='<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<use_q_symmetry>')
     def _sparse_phase_and_potential(self):
         """
         Calculate both sparse phase and potential tensors for anharmonic interactions.
@@ -1519,6 +1597,15 @@ class Phonons(Storable):
 
         logging.info("Projection started")
 
+        # Precompute per-mode σ once when using the TDEP kernel; workers use
+        # it via combine_sigma_triplet_tdep. None for the ShengBTE kernel.
+        sigma_mode_np = None
+        if not self.third_bandwidth and self.broadening_kernel == "tdep":
+            sigma_mode_np = aha.calculate_broadening_tdep(
+                self.velocity, self.frequency, cell_inv, n_k_points,
+                smearing_prefactor=self.smearing_prefactor,
+            )
+
         # Shared config for all k-point workers (all numpy, picklable)
         shared = dict(
             n_modes=n_modes, n_k_points=n_k_points, omega=omega,
@@ -1526,6 +1613,8 @@ class Phonons(Storable):
             third_sparse_data=third_sparse_data, chi_k_np=chi_k_np,
             velocity_np=velocity_np, cell_inv=cell_inv, kpts=kpts,
             broadening_shape=self.broadening_shape,
+            broadening_kernel=self.broadening_kernel,
+            sigma_mode_np=sigma_mode_np,
             third_bandwidth=self.third_bandwidth, hbar=hbar,
             n_replicas=n_replicas, is_sparse=is_sparse,
             kpoint_maps=kpoint_maps,
