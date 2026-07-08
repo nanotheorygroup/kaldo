@@ -214,6 +214,21 @@ class ThirdOrder(ForceConstant):
                                   value=third_ifcs,
                                   folder=folder)
 
+            case 'gpumd':
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                fc3 = meta['fc3']
+                if third_energy_threshold > 0.:
+                    mask = np.abs(fc3.data) > third_energy_threshold
+                    fc3 = COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
+                third_order = cls.from_supercell(
+                    atoms=meta['atoms'],
+                    grid_type=meta['grid_order'],
+                    supercell=meta['third_supercell'],
+                    value=fc3.astype(np.float64),
+                    folder=folder,
+                )
+
             case _:
                 logging.error('Third order format not recognized: ' + str(format))
                 raise ValueError
