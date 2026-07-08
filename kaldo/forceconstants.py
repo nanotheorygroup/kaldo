@@ -143,6 +143,7 @@ class ForceConstants:
         - qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q
         - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs
         - tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder
+        - gpumd: gpumd_fc.npz (single compact archive; supercell/geometry embedded)
 
         Parameters
         ----------
@@ -151,7 +152,7 @@ class ForceConstants:
         supercell : (int, int, int), optional
             Number of unit cells in each cartesian direction replicated to form the input structure.
             Default is (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep'
+        format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep', 'gpumd'
             Format of force constant information being loaded into ForceConstants object.
             Default is ``'numpy'``
         third_energy_threshold : float, optional
