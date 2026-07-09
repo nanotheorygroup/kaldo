@@ -827,6 +827,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">wrap_coordinates</span><span class="p">,</span> <span class="n">Grid</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.secondorder</span><span class="w"> </span><span class="kn">import</span> <span class="n">SecondOrder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.thirdorder</span><span class="w"> </span><span class="kn">import</span> <span class="n">ThirdOrder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.fourthorder</span><span class="w"> </span><span class="kn">import</span> <span class="n">FourthOrder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.helpers.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q</span><span class="w"> </span><span class="kn">import</span> <span class="n">HarmonicWithQ</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ase.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">units</span>
@@ -873,6 +874,9 @@
 <span class="sd">    third_order: ThirdOrder, optional</span>
 <span class="sd">        Preloaded third-order force constants attached to the instance.</span>
 <span class="sd">        Default: ``None`` (lazy construction)</span>
+<span class="sd">    fourth_order: FourthOrder, optional</span>
+<span class="sd">        Preloaded fourth-order force constants attached to the instance.</span>
+<span class="sd">        Default: ``None`` (not constructed lazily — must be loaded explicitly)</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -898,7 +902,8 @@
                  <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MAIN_FOLDER</span><span class="p">,</span>
                  <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">second_order</span><span class="p">:</span> <span class="n">SecondOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">third_order</span><span class="p">:</span> <span class="n">ThirdOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                 <span class="n">third_order</span><span class="p">:</span> <span class="n">ThirdOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">fourth_order</span><span class="p">:</span> <span class="n">FourthOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 
         <span class="c1"># Store the user defined information to the object</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="n">atoms</span>
@@ -914,6 +919,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_list_of_replicas</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_second</span> <span class="o">=</span> <span class="n">second_order</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_third</span> <span class="o">=</span> <span class="n">third_order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fourth</span> <span class="o">=</span> <span class="n">fourth_order</span>
 
         <span class="k">if</span> <span class="n">distance_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using folded IFC matrices.&#39;</span><span class="p">)</span>
@@ -938,6 +944,17 @@
                                                     <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_third</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fourth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fourth-order force constants (FourthOrder).</span>
+
+<span class="sd">        Unlike ``second`` and ``third`` there is no lazy construction path</span>
+<span class="sd">        today: IFC4 must be loaded explicitly via ``from_folder`` (currently</span>
+<span class="sd">        only format=&#39;tdep&#39; is supported) or passed as ``fourth_order=`` at</span>
+<span class="sd">        construction time. Returns ``None`` if not loaded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fourth</span>
+
 <div class="viewcode-block" id="ForceConstants.from_folder">
 <a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants.from_folder">[docs]</a>
     <span class="nd">@classmethod</span>
@@ -949,8 +966,10 @@
                     <span class="n">third_supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                     <span class="n">only_second</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="n">include_fourth</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                     <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100000</span><span class="p">):</span>
+                    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100000</span><span class="p">,</span>
+                    <span class="n">supercell_matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a finite difference object from a folder</span>
 
@@ -967,6 +986,7 @@
 <span class="sd">        - qe-d3q: CONTROL/POSCAR, espresso.ifc2, FORCE_CONSTANTS_3RD_D3Q</span>
 <span class="sd">        - hiphive: atom_prim.xyz, replicated_atoms.xyz, model2.fcs, model3.fcs</span>
 <span class="sd">        - tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder</span>
+<span class="sd">                (+ infile.forceconstant_fourthorder if ``include_fourth=True``)</span>
 <span class="sd">        - gpumd: gpumd_fc.npz (single compact archive; supercell/geometry embedded)</span>
 
 <span class="sd">        Parameters</span>
@@ -1005,13 +1025,22 @@
         <span class="n">supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
         <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">third_supercell</span><span class="p">)</span>
 
+        <span class="c1"># Validate include_fourth early so we don&#39;t waste time loading IFC2/3</span>
+        <span class="c1"># only to discover the format is wrong.</span>
+        <span class="k">if</span> <span class="n">include_fourth</span> <span class="ow">and</span> <span class="nb">format</span> <span class="o">!=</span> <span class="s1">&#39;tdep&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;include_fourth=True is only supported for format=&#39;tdep&#39;&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot; (got format=</span><span class="si">{</span><span class="nb">format</span><span class="si">!r}</span><span class="s2">)&quot;</span>
+            <span class="p">)</span>
+
         <span class="n">effective_second_format</span> <span class="o">=</span> <span class="nb">format</span>
         <span class="n">effective_third_format</span> <span class="o">=</span> <span class="nb">format</span>
 
         <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
                                         <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
                                         <span class="nb">format</span><span class="o">=</span><span class="n">effective_second_format</span><span class="p">,</span>
-                                        <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">)</span>
+                                        <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span>
+                                        <span class="n">supercell_matrix</span><span class="o">=</span><span class="n">supercell_matrix</span><span class="p">)</span>
         <span class="n">atoms</span> <span class="o">=</span> <span class="n">second_order</span><span class="o">.</span><span class="n">atoms</span>
         <span class="n">resolved_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">second_order</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
 
@@ -1023,8 +1052,19 @@
                                           <span class="n">supercell</span><span class="o">=</span><span class="n">target_third_supercell</span><span class="p">,</span>
                                           <span class="nb">format</span><span class="o">=</span><span class="n">effective_third_format</span><span class="p">,</span>
                                           <span class="n">third_energy_threshold</span><span class="o">=</span><span class="n">third_energy_threshold</span><span class="p">,</span>
-                                          <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span>
+                                          <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span>
+                                          <span class="n">supercell_matrix</span><span class="o">=</span><span class="n">supercell_matrix</span><span class="p">)</span>
             <span class="n">target_third_supercell</span> <span class="o">=</span> <span class="n">_normalize_supercell</span><span class="p">(</span><span class="n">third_order</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
+
+        <span class="n">fourth_order</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">include_fourth</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">only_second</span><span class="p">:</span>
+            <span class="c1"># Fourth-order loading is opt-in because most existing datasets</span>
+            <span class="c1"># ship only IFC2 + IFC3. Today only format=&#39;tdep&#39; is wired</span>
+            <span class="c1"># (validated at the top of this method).</span>
+            <span class="n">fourth_order</span> <span class="o">=</span> <span class="n">FourthOrder</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                                            <span class="n">supercell</span><span class="o">=</span><span class="n">target_third_supercell</span><span class="p">,</span>
+                                            <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;tdep&#39;</span><span class="p">,</span>
+                                            <span class="n">supercell_matrix</span><span class="o">=</span><span class="n">supercell_matrix</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
                    <span class="n">supercell</span><span class="o">=</span><span class="n">resolved_supercell</span><span class="p">,</span>
@@ -1032,7 +1072,8 @@
                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
                    <span class="n">distance_threshold</span><span class="o">=</span><span class="n">distance_threshold</span><span class="p">,</span>
                    <span class="n">second_order</span><span class="o">=</span><span class="n">second_order</span><span class="p">,</span>
-                   <span class="n">third_order</span><span class="o">=</span><span class="n">third_order</span><span class="p">)</span></div>
+                   <span class="n">third_order</span><span class="o">=</span><span class="n">third_order</span><span class="p">,</span>
+                   <span class="n">fourth_order</span><span class="o">=</span><span class="n">fourth_order</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ForceConstants.unfold_third_order">

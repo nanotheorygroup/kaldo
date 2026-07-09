@@ -885,7 +885,8 @@
              <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
              <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
              <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;numpy&quot;</span><span class="p">,</span>
-             <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+             <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+             <span class="n">supercell_matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load second order force constants from a folder in the given format, used for library internally.</span>
 
@@ -904,6 +905,12 @@
 <span class="sd">        is_acoustic_sum : bool, optional</span>
 <span class="sd">            If true, the acoustic sum rule is applied to the dynamical matrix.</span>
 <span class="sd">            Default: False</span>
+<span class="sd">        supercell_matrix : np.ndarray, optional</span>
+<span class="sd">            3x3 integer supercell expansion matrix. Accepted for API symmetry</span>
+<span class="sd">            with ``ForceConstants.from_folder``; for ``format=&#39;tdep&#39;`` the</span>
+<span class="sd">            (possibly non-diagonal) supercell is inferred from</span>
+<span class="sd">            ``infile.ucposcar`` / ``infile.ssposcar`` instead.</span>
+<span class="sd">            Default: None</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1059,24 +1066,28 @@
                     <span class="p">)</span>
 
             <span class="k">case</span> <span class="s2">&quot;tdep&quot;</span><span class="p">:</span>
-                <span class="n">uc_filename</span> <span class="o">=</span> <span class="s2">&quot;infile.ucposcar&quot;</span>
-                <span class="n">replicated_filename</span> <span class="o">=</span> <span class="s2">&quot;infile.ssposcar&quot;</span>
-                <span class="n">atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">uc_filename</span><span class="p">)</span>
-                <span class="n">replicated_atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">replicated_filename</span><span class="p">)</span>
-                <span class="n">uc</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">atom_prime_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;vasp&quot;</span><span class="p">)</span>
-                <span class="n">sc</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">replicated_atom_prime_file</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;vasp&quot;</span><span class="p">)</span>
-                <span class="n">d2</span> <span class="o">=</span> <span class="n">parse_tdep_forceconstant</span><span class="p">(</span>
-                    <span class="n">fc_file</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;infile.forceconstant&quot;</span><span class="p">),</span>
-                    <span class="n">primitive</span><span class="o">=</span><span class="n">atom_prime_file</span><span class="p">,</span>
-                    <span class="n">supercell</span><span class="o">=</span><span class="n">replicated_atom_prime_file</span><span class="p">,</span>
-                    <span class="n">reduce_fc</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces.tdep_io</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+                    <span class="n">build_nondiag_observable_kwargs</span><span class="p">,</span>
+                    <span class="n">attach_snf_metadata</span><span class="p">,</span>
+                    <span class="n">resolve_tdep_supercell</span><span class="p">,</span>
                 <span class="p">)</span>
-                <span class="n">n_unit_atoms</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">n_replicas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
-                <span class="n">d2</span> <span class="o">=</span> <span class="n">d2</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
-                <span class="n">d2</span> <span class="o">=</span> <span class="n">d2</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">Grid</span>
+
+                <span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">diagonal_supercell</span> <span class="o">=</span> <span class="n">resolve_tdep_supercell</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">supercell_matrix</span><span class="p">)</span>
+                <span class="n">fc_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;infile.forceconstant&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">diagonal_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">kw</span> <span class="o">=</span> <span class="n">build_nondiag_observable_kwargs</span><span class="p">(</span><span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">)</span>
+                    <span class="n">mapping</span> <span class="o">=</span> <span class="n">kw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_mapping&quot;</span><span class="p">)</span>
+                    <span class="n">d2</span> <span class="o">=</span> <span class="n">parse_tdep_forceconstant</span><span class="p">(</span><span class="n">fc_file</span><span class="o">=</span><span class="n">fc_file</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="n">kw</span><span class="p">[</span><span class="s2">&quot;grid&quot;</span><span class="p">])</span>
+                    <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">attach_snf_metadata</span><span class="p">(</span><span class="n">second_order</span><span class="p">,</span> <span class="n">mapping</span><span class="p">)</span>
+
+                <span class="n">supercell</span> <span class="o">=</span> <span class="n">diagonal_supercell</span>
+                <span class="n">d2</span> <span class="o">=</span> <span class="n">parse_tdep_forceconstant</span><span class="p">(</span><span class="n">fc_file</span><span class="o">=</span><span class="n">fc_file</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="n">Grid</span><span class="p">(</span><span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">))</span>
                 <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span>
-                    <span class="n">atoms</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">replicated_positions</span><span class="o">=</span><span class="n">sc</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">replicated_positions</span><span class="o">=</span><span class="n">sc</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span>
+                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span>
                 <span class="p">)</span>
 
             <span class="k">case</span> <span class="s2">&quot;gpumd&quot;</span><span class="p">:</span>
