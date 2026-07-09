@@ -13,6 +13,19 @@ from sparse import COO
 logging = get_logger()
 
 
+def _readline_or_raise(fh, context):
+    """readline() that raises on EOF instead of returning ''.
+
+    The fixed-count token loops in the IFC parsers otherwise spin forever
+    on a truncated file ('' splits to zero tokens, so the index never
+    advances) or silently produce empty arrays.
+    """
+    line = fh.readline()
+    if not line:
+        raise ValueError(f"unexpected end of file while reading {context}")
+    return line
+
+
 # ---------------------------------------------------------------------------
 # SNF-style supercell enumeration (for non-diagonal primitive -> ssposcar)
 # ---------------------------------------------------------------------------
@@ -48,9 +61,11 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
         )
 
     inv_uc = np.linalg.inv(uc_cell)
-    inv_sc = np.linalg.inv(sc_cell)
-    # M_prim_to_sc satisfies sc_cell = M @ uc_cell (row-vector lattice matrices).
-    M = np.linalg.solve(uc_cell, sc_cell)
+    # M_prim_to_sc satisfies sc_cell = M @ uc_cell (row-vector lattice
+    # matrices, ASE convention), hence M = sc_cell @ uc_cell^-1. The
+    # transposed form uc^-1 @ sc agrees only when M commutes with the cell
+    # (e.g. uniform n*I tilings) and is wrong for general tilings.
+    M = sc_cell @ inv_uc
 
     atom_of_sc = np.full(n_sc, -1, dtype=int)
     replica_vector_of_sc = np.zeros((n_sc, 3), dtype=int)
@@ -98,7 +113,7 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
     # small) and keeps exp(iq.R) phases correct on q-meshes smaller than the
     # supercell.
     uniq_rs_min = np.zeros_like(uniq_rs)
-    M_rows = M.astype(int)
+    M_rows = np.rint(M).astype(int)
     shifts = np.array(
         [[a, b, c] for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1)],
         dtype=int,
@@ -158,19 +173,23 @@ def resolve_tdep_supercell(folder, supercell=(1, 1, 1), supercell_matrix=None):
     uc = ase.io.read(os.path.join(folder, "infile.ucposcar"), format="vasp")
     sc = ase.io.read(os.path.join(folder, "infile.ssposcar"), format="vasp")
 
-    M = np.linalg.solve(np.asarray(uc.cell), np.asarray(sc.cell))
+    # Row-vector cells (ASE): sc_cell = M @ uc_cell, so M = sc_cell @ uc_cell^-1.
+    M = np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))
     M_int = np.rint(M).astype(int)
-
-    if supercell_matrix is not None:
-        logging.info(
-            "format='tdep' ignores supercell_matrix; the supercell is "
-            "inferred from infile.ucposcar and infile.ssposcar."
-        )
 
     if not np.allclose(M, M_int, atol=1e-4):
         raise ValueError(
             f"Mapping from unit cell to supercell (M matrix) was not integer-valued, got\n{M}"
         )
+
+    if supercell_matrix is not None:
+        given = np.rint(np.asarray(supercell_matrix)).astype(int)
+        if not np.array_equal(given, M_int):
+            logging.warning(
+                f"format='tdep': supercell_matrix=\n{given}\ndoes not match the tiling\n"
+                f"{M_int}\ninferred from infile.ucposcar/infile.ssposcar; "
+                "using the inferred value."
+            )
 
     if np.any(M_int != np.diag(np.diag(M_int))):
         return uc, sc, None
@@ -225,7 +244,7 @@ def attach_snf_metadata(observable, mapping):
     """Stamp the SNF mapping onto a freshly-built observable so downstream
     consumers (e.g. BTE on non-diagonal supercells) can read it back."""
     observable._snf_mapping = mapping
-    observable._supercell_matrix = mapping["M"].astype(int)
+    observable._supercell_matrix = np.rint(mapping["M"]).astype(int)
     observable._replica_table = mapping["replica_table"]
     return observable
 
@@ -647,12 +666,12 @@ def parse_tdep_third_forceconstant(
                         f"IFC3 R1 lattice vector for central atom {a1} is"
                         f" {_lv1} (expected [0,0,0]); file is malformed."
                     )
-                lv2 = np.array(f.readline().split(), dtype=float)
-                lv3 = np.array(f.readline().split(), dtype=float)
+                lv2 = np.array(_readline_or_raise(f, "IFC3 lattice vector").split(), dtype=float)
+                lv3 = np.array(_readline_or_raise(f, "IFC3 lattice vector").split(), dtype=float)
                 flat = np.empty(27)
                 idx = 0
                 while idx < 27:
-                    for tok in f.readline().split():
+                    for tok in _readline_or_raise(f, "IFC3 tensor block").split():
                         flat[idx] = float(tok)
                         idx += 1
                         if idx >= 27:
@@ -726,13 +745,13 @@ def parse_tdep_fourth_forceconstant(
     )
 
     def _read_vec3(fh):
-        return np.array(fh.readline().split(), dtype=float)
+        return np.array(_readline_or_raise(fh, "IFC4 lattice vector").split(), dtype=float)
 
     def _read_phi4(fh):
         flat = np.empty(81)
         idx = 0
         while idx < 81:
-            for tok in fh.readline().split():
+            for tok in _readline_or_raise(fh, "IFC4 tensor block").split():
                 flat[idx] = float(tok)
                 idx += 1
                 if idx >= 81:

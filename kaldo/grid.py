@@ -187,7 +187,9 @@ def wrap_lattice_vector_to_replica(R_prim_int, replica_table, M, tol=1e-4):
     :class:`NonDiagonalGrid` and by the TDEP non-diagonal IFC parsers.
     """
     R = np.asarray(R_prim_int, dtype=int)
-    M_rows = np.asarray(M).astype(int)
+    # rint, not a plain int cast: M arrives as float and a stored
+    # 2.9999999 must round to 3, not truncate to 2.
+    M_rows = np.rint(np.asarray(M)).astype(int)
 
     # First: sc-fractional [0, 1) wrap
     R_frac_sc = R.astype(float) @ np.linalg.inv(M)

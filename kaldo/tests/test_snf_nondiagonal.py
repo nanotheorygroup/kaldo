@@ -71,3 +71,81 @@ def test_wrap_lattice_vector_to_replica_si():
         assert idx >= 0, f"R={R} did not map to a replica"
         # And it's in range
         assert 0 <= idx < 108
+
+
+def _skewed_primitive():
+    """Two-atom primitive with a deliberately skewed (triclinic) cell.
+
+    The cell must NOT commute with the tiling matrices below, so any
+    row/column-order mistake in the primitive-to-supercell M computation
+    (M = sc @ uc^-1 for ASE row-vector cells) changes the result.
+    """
+    from ase import Atoms
+    cell = np.array([[4.0, 0.0, 0.0],
+                     [1.3, 3.8, 0.0],
+                     [0.4, 0.9, 3.5]])
+    return Atoms("Si2", scaled_positions=[[0, 0, 0], [0.27, 0.31, 0.24]],
+                 cell=cell, pbc=True)
+
+
+def test_non_commuting_tiling_recovers_true_m():
+    """Regression: M must be sc @ uc^-1 (row-vector cells), not uc^-1 @ sc.
+
+    The two coincide exactly when M commutes with the primitive cell,
+    which is true for every uniform (n, n, n) fixture; a skewed cell with
+    a non-diagonal tiling tells them apart. ase.build.make_supercell is
+    the independent oracle: it constructs the supercell as M @ uc by
+    definition.
+    """
+    from ase.build import make_supercell
+    from kaldo.grid import wrap_lattice_vector_to_replica
+    from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
+
+    prim = _skewed_primitive()
+    uc_cell = np.asarray(prim.cell)
+    M0 = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 2]])
+    sc = make_supercell(prim, M0)
+    n_rep = round(abs(np.linalg.det(M0)))
+
+    mapping = build_supercell_replica_mapping(prim, sc)
+    np.testing.assert_allclose(mapping["M"], M0, atol=1e-8)
+    assert len(mapping["replica_table"]) == n_rep
+
+    # Every supercell atom must reconstruct from its (primitive atom,
+    # replica vector) assignment modulo the TRUE supercell lattice.
+    inv_sc = np.linalg.inv(np.asarray(sc.cell))
+    for i, rsc in enumerate(sc.positions):
+        j = mapping["atom_of_sc"][i]
+        R = mapping["replica_vector_of_sc"][i]
+        diff = rsc - (prim.positions[j] + R @ uc_cell)
+        f = diff @ inv_sc
+        np.testing.assert_allclose(f, np.rint(f), atol=1e-6,
+                                   err_msg=f"sc atom {i} not on the lattice")
+
+    # Wrapping any replica shifted by a supercell lattice translation
+    # (rows of M0 in the primitive basis) must recover the same replica.
+    table = mapping["replica_table"]
+    for idx, R in enumerate(table):
+        for s in ([1, 0, 0], [0, 1, 0], [-1, 1, -1]):
+            R_shifted = R + np.array(s) @ M0
+            found = wrap_lattice_vector_to_replica(R_shifted, table, mapping["M"])
+            assert found == idx, (
+                f"replica {R} + {s}@M wrapped to {found}, expected {idx}"
+            )
+
+
+def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
+    """Regression: a legitimate (3, 2, 1) diagonal tiling of a skewed cell
+    must resolve as diagonal, not fail the integer-M check."""
+    import ase.io
+    from ase.build import make_supercell
+    from kaldo.interfaces.tdep_io import resolve_tdep_supercell
+
+    prim = _skewed_primitive()
+    M0 = np.diag([3, 2, 1])
+    sc = make_supercell(prim, M0)
+    ase.io.write(str(tmp_path / "infile.ucposcar"), prim, format="vasp")
+    ase.io.write(str(tmp_path / "infile.ssposcar"), sc, format="vasp")
+
+    _, _, diagonal_supercell = resolve_tdep_supercell(str(tmp_path))
+    assert diagonal_supercell == (3, 2, 1)

@@ -131,3 +131,27 @@ def test_force_constants_include_fourth_rejects_non_tdep_format(tmp_path):
             folder=str(tmp_path), supercell=(1, 1, 1), format="numpy",
             include_fourth=True,
         )
+
+def test_ifc4_parser_raises_on_truncated_file(tmp_path):
+    """A truncated IFC4 file must raise, not hang.
+
+    Regression: the fixed-count token loop in _read_phi4 made no progress
+    once readline() started returning '' at EOF, spinning forever on a
+    truncated file.
+    """
+    from kaldo.interfaces.tdep_io import parse_tdep_fourth_forceconstant
+
+    uc = tmp_path / "infile.ucposcar"
+    uc.write_text(
+        "Si\n1.0\n3.0 0.0 0.0\n0.0 3.0 0.0\n0.0 0.0 3.0\nSi\n2\n"
+        "Direct\n0.0 0.0 0.0\n0.5 0.5 0.5\n"
+    )
+    fc = tmp_path / "infile.forceconstant_fourthorder"
+    _write_ifc4(fc, 2, {0: [(1, 0, 1, (0, 0, 0), (0, 0, 0), (0, 0, 0),
+                             np.ones((3, 3, 3, 3)))]})
+    # Cut the file mid-phi-block (keep header + indices + R vectors + a few values)
+    lines = fc.read_text().splitlines()
+    fc.write_text("\n".join(lines[:15]) + "\n")
+
+    with pytest.raises(ValueError, match="unexpected end of file"):
+        parse_tdep_fourth_forceconstant(fc_filename=str(fc), primitive=str(uc), supercell=(1, 1, 1))

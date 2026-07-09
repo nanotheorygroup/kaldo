@@ -264,7 +264,8 @@ class SecondOrder(ForceConstant):
                 supercell = diagonal_supercell
                 d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C"))
                 second_order = SecondOrder(
-                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
+                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2,
+                    is_acoustic_sum=is_acoustic_sum, folder=folder
                 )
 
             case "gpumd":
