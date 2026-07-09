@@ -1029,7 +1029,8 @@
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_compute_kpoint_projection</span><span class="p">(</span><span class="n">index_k</span><span class="p">,</span> <span class="n">n_modes</span><span class="p">,</span> <span class="n">n_k_points</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span>
                                 <span class="n">evect_np</span><span class="p">,</span> <span class="n">third_sparse_data</span><span class="p">,</span> <span class="n">chi_k_np</span><span class="p">,</span> <span class="n">velocity_np</span><span class="p">,</span>
-                                <span class="n">cell_inv</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">broadening_shape</span><span class="p">,</span> <span class="n">third_bandwidth</span><span class="p">,</span>
+                                <span class="n">cell_inv</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">broadening_shape</span><span class="p">,</span> <span class="n">broadening_kernel</span><span class="p">,</span>
+                                <span class="n">sigma_mode_np</span><span class="p">,</span> <span class="n">third_bandwidth</span><span class="p">,</span>
                                 <span class="n">hbar</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">is_sparse</span><span class="p">,</span> <span class="n">kpoint_maps</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute sparse_phase and sparse_potential for all modes at one k-point.</span>
 
@@ -1045,6 +1046,10 @@
     <span class="n">_chi_k</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">chi_k_np</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">complex128</span><span class="p">)</span>
     <span class="n">second_minus_chi</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">math</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">_chi_k</span><span class="p">)</span>
     <span class="n">velocity_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">velocity_np</span><span class="p">)</span>
+    <span class="n">sigma_mode_tf</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">tf</span><span class="o">.</span><span class="n">constant</span><span class="p">(</span><span class="n">sigma_mode_np</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sigma_mode_np</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">is_sparse</span><span class="p">:</span>
         <span class="n">coords</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">third_sparse_data</span>
@@ -1068,8 +1073,14 @@
             <span class="n">index_kpp_full</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">kpoint_maps</span><span class="p">[(</span><span class="n">index_k</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">third_bandwidth</span><span class="p">:</span>
                 <span class="n">sigma_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">constant</span><span class="p">(</span><span class="n">third_bandwidth</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">broadening_kernel</span> <span class="o">==</span> <span class="s2">&quot;tdep&quot;</span><span class="p">:</span>
+                <span class="n">sigma_tf</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">combine_sigma_triplet_tdep</span><span class="p">(</span>
+                    <span class="n">sigma_mode_tf</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">index_k</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">mu</span><span class="p">),</span> <span class="n">index_kpp_full</span>
+                <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">sigma_tf</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">calculate_broadening</span><span class="p">(</span><span class="n">velocity_tf</span><span class="p">,</span> <span class="n">cell_inv</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">index_kpp_full</span><span class="p">)</span>
+                <span class="n">sigma_tf</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">calculate_broadening_shengbte</span><span class="p">(</span>
+                    <span class="n">velocity_tf</span><span class="p">,</span> <span class="n">cell_inv</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">index_kpp_full</span>
+                <span class="p">)</span>
 
             <span class="n">dirac_delta_result</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">calculate_dirac_delta_crystal</span><span class="p">(</span>
                 <span class="n">omega</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span> <span class="n">sigma_tf</span><span class="p">,</span> <span class="n">broadening_shape</span><span class="p">,</span>
@@ -1195,6 +1206,29 @@
 <span class="sd">        energy conservation rules for three-phonon scattering.</span>
 <span class="sd">        Options: &#39;gauss&#39;, &#39;lorentz&#39; and &#39;triangle&#39;.</span>
 <span class="sd">        Default: ``&#39;gauss&#39;``</span>
+<span class="sd">    broadening_kernel : string</span>
+<span class="sd">        Chooses how the adaptive σ of the energy-conservation δ is computed</span>
+<span class="sd">        when ``third_bandwidth`` is ``None``.</span>
+
+<span class="sd">        * ``&#39;shengbte&#39;`` (default): per-pair σ from the velocity difference</span>
+<span class="sd">          projected on the reciprocal basis, as in</span>
+<span class="sd">          bitbucket.org/sousaw/shengbte/src (`base_sigma` in</span>
+<span class="sd">          ``Src/config.f90``). NOT invariant under the crystal point group</span>
+<span class="sd">          on degenerate modes — see ``calculate_broadening_shengbte``.</span>
+<span class="sd">        * ``&#39;tdep&#39;``: per-mode σ from ``|v(q, μ)|`` with a band-baseline</span>
+<span class="sd">          floor, combined as ``σ_triplet = √(σ₁² + σ₂² + σ₃²)``. Ported</span>
+<span class="sd">          from github.com/tdep-developers/tdep (`adaptive_sigma` in</span>
+<span class="sd">          ``src/libolle/type_qpointmesh_integrationweights.f90``,</span>
+<span class="sd">          triplet combination in</span>
+<span class="sd">          ``src/thermal_conductivity_2023/phononevents_gaussian.f90``).</span>
+<span class="sd">          Gauge-invariant and therefore symmetry-consistent across</span>
+<span class="sd">          orbit-equivalent k-points. Recommended when using</span>
+<span class="sd">          ``use_q_symmetry=True``.</span>
+
+<span class="sd">        Default: ``&#39;shengbte&#39;``</span>
+<span class="sd">    smearing_prefactor : float</span>
+<span class="sd">        TDEP ``scale`` parameter. Only used when ``broadening_kernel=&#39;tdep&#39;``.</span>
+<span class="sd">        Default: ``1.0``</span>
 <span class="sd">    folder : string</span>
 <span class="sd">        Specifies where to store the data files.</span>
 <span class="sd">        Default: ``&#39;output&#39;``.</span>
@@ -1246,14 +1280,21 @@
 <span class="sd">        speedup equals the IBZ reduction factor (e.g. ~7x for Si diamond</span>
 <span class="sd">        on a 3x3x3 mesh).</span>
 
-<span class="sd">        Note on broadening: the replicated results match a full-BZ run</span>
-<span class="sd">        exactly only with a fixed ``third_bandwidth`` (Shengbte/TDEP-style</span>
-<span class="sd">        broadening). With the default adaptive broadening</span>
-<span class="sd">        (``third_bandwidth=None``), the per-process sigma depends on</span>
-<span class="sd">        ``(v_kp - v_kpp) . delta_k``, which is not invariant under the</span>
-<span class="sd">        rotation that maps a k-point to its IBZ representative; results</span>
-<span class="sd">        differ from the full-BZ run at the O(0.5%) level on Si 3x3x3 and</span>
-<span class="sd">        scale with broadening width.</span>
+<span class="sd">        Limitations to be aware of:</span>
+
+<span class="sd">        * Per-cell gamma tensor entries Γ[(k, μ), (k&#39;, μ&#39;)] are only</span>
+<span class="sd">          replicated along the k&#39; axis. Within a degenerate subspace at</span>
+<span class="sd">          k&#39; the μ&#39; index is not rotated, so individual matrix elements</span>
+<span class="sd">          can split between swapped μ&#39; modes. Marginal sums</span>
+<span class="sd">          Γ_total[k, μ] = Σ_{k&#39;, μ&#39;} Γ[(k, μ), (k&#39;, μ&#39;)] remain correct</span>
+<span class="sd">          and are what the BTE conductivity kernel uses.</span>
+<span class="sd">        * Per-mode phase_space, bandwidth, and Γ-tensor diagonals carry a</span>
+<span class="sd">          documented gauge artifact with the default ShengBTE broadening</span>
+<span class="sd">          kernel across orbit-equivalent k-points (eigenvectors are</span>
+<span class="sd">          basis-dependent within degenerate subspaces); with adaptive</span>
+<span class="sd">          broadening results differ from the full-BZ run at the O(0.5%)</span>
+<span class="sd">          level on Si 3x3x3. Use ``broadening_kernel=&#39;tdep&#39;`` for strict</span>
+<span class="sd">          per-mode invariance.</span>
 <span class="sd">        Default: False</span>
 
 <span class="sd">    Returns</span>
@@ -1290,6 +1331,8 @@
                  <span class="n">max_frequency</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">third_bandwidth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">broadening_shape</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gauss&quot;</span><span class="p">,</span>
+                 <span class="n">broadening_kernel</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;shengbte&quot;</span><span class="p">,</span>
+                 <span class="n">smearing_prefactor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
                  <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">FOLDER_NAME</span><span class="p">,</span>
                  <span class="n">storage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;formatted&quot;</span><span class="p">,</span>
                  <span class="n">grid_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span>
@@ -1323,6 +1366,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">min_frequency</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="o">=</span> <span class="n">max_frequency</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">=</span> <span class="n">broadening_shape</span>
+        <span class="n">valid_kernels</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;shengbte&quot;</span><span class="p">,</span> <span class="s2">&quot;tdep&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">broadening_kernel</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_kernels</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;broadening_kernel=</span><span class="si">{</span><span class="n">broadening_kernel</span><span class="si">!r}</span><span class="s2"> not in </span><span class="si">{</span><span class="n">valid_kernels</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span> <span class="o">=</span> <span class="n">broadening_kernel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smearing_prefactor</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">smearing_prefactor</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span> <span class="o">=</span> <span class="n">is_nw</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span> <span class="o">=</span> <span class="n">third_bandwidth</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">storage</span>
@@ -1342,6 +1392,25 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span> <span class="o">=</span> <span class="n">include_isotopes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">iso_speed_up</span> <span class="o">=</span> <span class="n">iso_speed_up</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_q_symmetry</span> <span class="o">=</span> <span class="n">use_q_symmetry</span>
+
+        <span class="c1"># Warn when combining IBZ replication with the ShengBTE broadening</span>
+        <span class="c1"># kernel: ShengBTE&#39;s per-pair σ is not invariant under the crystal</span>
+        <span class="c1"># point group on degenerate modes, so the per-cell Γ tensor and</span>
+        <span class="c1"># per-mode phase_space / bandwidth values carry a documented gauge</span>
+        <span class="c1"># artifact across orbit-equivalent k-points (up to ~13% on Si 3×3×3).</span>
+        <span class="c1"># Marginal sums (Γ_total[k, μ], Σ_μ phase_space[k, μ]) are still</span>
+        <span class="c1"># correct; the TDEP kernel (broadening_kernel=&#39;tdep&#39;) gives per-mode</span>
+        <span class="c1"># invariance to machine precision.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_q_symmetry</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span> <span class="o">==</span> <span class="s2">&quot;shengbte&quot;</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span><span class="p">):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;use_q_symmetry=True with broadening_kernel=&#39;shengbte&#39; &quot;</span>
+                <span class="s2">&quot;produces per-mode phase_space / bandwidth / gamma-tensor &quot;</span>
+                <span class="s2">&quot;values that are NOT symmetry-invariant across orbit-&quot;</span>
+                <span class="s2">&quot;equivalent k-points (gauge artifact in degenerate &quot;</span>
+                <span class="s2">&quot;subspaces). Marginal sums remain correct. For strict &quot;</span>
+                <span class="s2">&quot;per-mode invariance use broadening_kernel=&#39;tdep&#39;.&quot;</span>
+            <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_folder_path_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get folder path components for Phonons-specific attributes.&quot;&quot;&quot;</span>
@@ -1371,6 +1440,15 @@
         <span class="c1"># caches stay at the same paths.</span>
         <span class="k">if</span> <span class="s1">&#39;&lt;broadening_shape&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">!=</span> <span class="s1">&#39;gauss&#39;</span><span class="p">:</span>
             <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;br_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span><span class="p">))</span>
+
+        <span class="c1"># broadening_kernel (and its smearing prefactor) change the adaptive</span>
+        <span class="c1"># sigma whenever third_bandwidth is None. Only emit a component for</span>
+        <span class="c1"># the non-default kernel so existing ShengBTE caches keep their paths.</span>
+        <span class="k">if</span> <span class="s1">&#39;&lt;broadening_kernel&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span> <span class="o">!=</span> <span class="s1">&#39;shengbte&#39;</span><span class="p">:</span>
+            <span class="n">component</span> <span class="o">=</span> <span class="s1">&#39;kern_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">smearing_prefactor</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span>
+                <span class="n">component</span> <span class="o">+=</span> <span class="s1">&#39;_sp&#39;</span> <span class="o">+</span> <span class="nb">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">smearing_prefactor</span><span class="p">,</span> <span class="s1">&#39;g&#39;</span><span class="p">)</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">component</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="s1">&#39;&lt;is_balanced&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_balanced</span><span class="p">:</span>
             <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;balanced&#39;</span><span class="p">)</span>
@@ -1718,7 +1796,7 @@
         <span class="k">return</span> <span class="n">zpe_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;is_balanced&gt;/&lt;include_isotopes&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;is_balanced&gt;/&lt;include_isotopes&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</span>
@@ -1761,7 +1839,7 @@
             <span class="k">return</span> <span class="n">isotopic_bw</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">anharmonic_bandwidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the phonons bandwidth, the inverse of the lifetime, for each k point in k_points and each mode.</span>
@@ -1775,7 +1853,7 @@
         <span class="k">return</span> <span class="n">gamma</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">phase_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</span>
@@ -1817,11 +1895,11 @@
         <span class="k">return</span> <span class="n">eigenvectors</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_ps_and_gamma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">store_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_store_formats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;_ps_gamma_and_gamma_tensor&#39;</span><span class="p">,</span> <span class="s1">&#39;numpy&#39;</span><span class="p">)</span> \
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">==</span> <span class="s1">&#39;formatted&#39;</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span>
-        <span class="k">if</span> <span class="n">is_calculated</span><span class="p">(</span><span class="s1">&#39;_ps_gamma_and_gamma_tensor&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">,</span> \
+        <span class="k">if</span> <span class="n">is_calculated</span><span class="p">(</span><span class="s1">&#39;_ps_gamma_and_gamma_tensor&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">,</span> \
                          <span class="nb">format</span><span class="o">=</span><span class="n">store_format</span><span class="p">):</span>
             <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ps_gamma_and_gamma_tensor</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
@@ -1829,12 +1907,12 @@
         <span class="k">return</span> <span class="n">ps_and_gamma</span>
 
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;/&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;is_balanced&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_ps_gamma_and_gamma_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">ps_gamma_and_gamma_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_algorithm_for_phase_space_and_gamma</span><span class="p">(</span><span class="n">is_gamma_tensor_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ps_gamma_and_gamma_tensor</span>
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;third_bandwidth&gt;/&lt;broadening_shape&gt;/&lt;broadening_kernel&gt;/&lt;use_q_symmetry&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_sparse_phase_and_potential</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate both sparse phase and potential tensors for anharmonic interactions.</span>
@@ -2344,6 +2422,15 @@
 
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Projection started&quot;</span><span class="p">)</span>
 
+        <span class="c1"># Precompute per-mode σ once when using the TDEP kernel; workers use</span>
+        <span class="c1"># it via combine_sigma_triplet_tdep. None for the ShengBTE kernel.</span>
+        <span class="n">sigma_mode_np</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span> <span class="o">==</span> <span class="s2">&quot;tdep&quot;</span><span class="p">:</span>
+            <span class="n">sigma_mode_np</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">calculate_broadening_tdep</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">,</span> <span class="n">cell_inv</span><span class="p">,</span> <span class="n">n_k_points</span><span class="p">,</span>
+                <span class="n">smearing_prefactor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smearing_prefactor</span><span class="p">,</span>
+            <span class="p">)</span>
+
         <span class="c1"># Shared config for all k-point workers (all numpy, picklable)</span>
         <span class="n">shared</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
             <span class="n">n_modes</span><span class="o">=</span><span class="n">n_modes</span><span class="p">,</span> <span class="n">n_k_points</span><span class="o">=</span><span class="n">n_k_points</span><span class="p">,</span> <span class="n">omega</span><span class="o">=</span><span class="n">omega</span><span class="p">,</span>
@@ -2351,6 +2438,8 @@
             <span class="n">third_sparse_data</span><span class="o">=</span><span class="n">third_sparse_data</span><span class="p">,</span> <span class="n">chi_k_np</span><span class="o">=</span><span class="n">chi_k_np</span><span class="p">,</span>
             <span class="n">velocity_np</span><span class="o">=</span><span class="n">velocity_np</span><span class="p">,</span> <span class="n">cell_inv</span><span class="o">=</span><span class="n">cell_inv</span><span class="p">,</span> <span class="n">kpts</span><span class="o">=</span><span class="n">kpts</span><span class="p">,</span>
             <span class="n">broadening_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span><span class="p">,</span>
+            <span class="n">broadening_kernel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span><span class="p">,</span>
+            <span class="n">sigma_mode_np</span><span class="o">=</span><span class="n">sigma_mode_np</span><span class="p">,</span>
             <span class="n">third_bandwidth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span><span class="p">,</span> <span class="n">hbar</span><span class="o">=</span><span class="n">hbar</span><span class="p">,</span>
             <span class="n">n_replicas</span><span class="o">=</span><span class="n">n_replicas</span><span class="p">,</span> <span class="n">is_sparse</span><span class="o">=</span><span class="n">is_sparse</span><span class="p">,</span>
             <span class="n">kpoint_maps</span><span class="o">=</span><span class="n">kpoint_maps</span><span class="p">,</span>
