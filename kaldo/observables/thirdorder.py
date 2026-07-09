@@ -144,7 +144,12 @@ class ThirdOrder(ForceConstant):
                                          folder=folder)
 
             case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
-                grid_type = 'F'
+                # must match the grid declared by SecondOrder.load for the same format
+                match format:
+                    case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
+                        grid_type = 'C'
+                    case _:
+                        grid_type = 'F'
                 config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
                 match config_file:
                     case 'CONTROL':
@@ -232,6 +237,21 @@ class ThirdOrder(ForceConstant):
                                   supercell=supercell,
                                   value=third_ifcs,
                                   folder=folder)
+
+            case 'gpumd':
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                fc3 = meta['fc3']
+                if third_energy_threshold > 0.:
+                    mask = np.abs(fc3.data) > third_energy_threshold
+                    fc3 = COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
+                third_order = cls.from_supercell(
+                    atoms=meta['atoms'],
+                    grid_type=meta['grid_order'],
+                    supercell=meta['third_supercell'],
+                    value=fc3.astype(np.float64),
+                    folder=folder,
+                )
 
             case _:
                 logging.error('Third order format not recognized: ' + str(format))
