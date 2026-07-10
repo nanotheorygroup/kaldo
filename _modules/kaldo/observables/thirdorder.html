@@ -829,7 +829,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces.tdep_io</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_tdep_third_forceconstant</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.interfaces.shengbte_io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">shengbte_io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ase.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">units</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.controllers.displacement</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_third</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.controllers.displacement</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_third</span><span class="p">,</span> <span class="n">try_symmetrize_ifc</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.parallel</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_parallel</span><span class="p">,</span> <span class="n">validate_parallel_calculator</span><span class="p">,</span> <span class="n">maybe_warn_ml_delta_shift</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.helpers.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span>
 
@@ -1128,7 +1128,8 @@
 <div class="viewcode-block" id="ThirdOrder.calculate">
 <a class="viewcode-back" href="../../../docsource/api_forceconstants.html#kaldo.observables.thirdorder.ThirdOrder.calculate">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calculator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delta_shift</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_storing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">is_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                  <span class="n">n_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">scratch_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keep_scratch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">jat_flush_every</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">use_symmetry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+                  <span class="n">n_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">scratch_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keep_scratch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">jat_flush_every</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">use_symmetry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                  <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">symmetrize</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the third order force constants.</span>
 
 <span class="sd">        This is the method typically reached through ``fc.third.calculate(...)``.</span>
@@ -1201,6 +1202,16 @@
 <span class="sd">        symprec : float, optional</span>
 <span class="sd">            precision for symmetry using spglib.</span>
 <span class="sd">            Default: 1e-5</span>
+<span class="sd">        symmetrize : bool, optional</span>
+<span class="sd">            If True, project freshly computed force constants onto the</span>
+<span class="sd">            space-group-invariant subspace (full-group average). Exact</span>
+<span class="sd">            force constants are a fixed point, so this only removes</span>
+<span class="sd">            finite-difference noise and symmetry violations from</span>
+<span class="sd">            potentials that do not exactly respect the crystal symmetry</span>
+<span class="sd">            (e.g. rotationally unconstrained ML potentials). Skipped</span>
+<span class="sd">            with a warning when the symmetry analysis is unavailable.</span>
+<span class="sd">            Force constants loaded from ``self.folder`` are never</span>
+<span class="sd">            re-projected. Default: True</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">is_parallel</span><span class="p">(</span><span class="n">n_workers</span><span class="p">):</span>
             <span class="n">validate_parallel_calculator</span><span class="p">(</span><span class="n">calculator</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;ThirdOrder.calculate&#39;</span><span class="p">)</span>
@@ -1242,6 +1253,8 @@
                                              <span class="n">jat_flush_every</span><span class="o">=</span><span class="n">jat_flush_every</span><span class="p">,</span>
                                              <span class="n">use_symmetry</span><span class="o">=</span><span class="n">use_symmetry</span><span class="p">,</span>
                                              <span class="n">symprec</span><span class="o">=</span><span class="n">symprec</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">symmetrize</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">try_symmetrize_ifc</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;third&#39;</span><span class="p">)</span>
                 <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">REPLICATED_ATOMS_THIRD_FILE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="s1">&#39;extxyz&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -1259,13 +1272,28 @@
                                          <span class="n">jat_flush_every</span><span class="o">=</span><span class="n">jat_flush_every</span><span class="p">,</span>
                                          <span class="n">use_symmetry</span><span class="o">=</span><span class="n">use_symmetry</span><span class="p">,</span>
                                          <span class="n">symprec</span><span class="o">=</span><span class="n">symprec</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">symmetrize</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">try_symmetrize_ifc</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">is_storing</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;third&#39;</span><span class="p">)</span>
                 <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">REPLICATED_ATOMS_THIRD_FILE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="s1">&#39;extxyz&#39;</span><span class="p">)</span></div>
 
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">symmetrize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Project the stored force constants onto the space-group-invariant subspace.</span>
 
-
+<span class="sd">        See kaldo.controllers.displacement.symmetrize_ifc_third. Diagonal</span>
+<span class="sd">        supercells only.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.controllers.displacement</span><span class="w"> </span><span class="kn">import</span> <span class="n">symmetrize_ifc_third</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_snf_mapping&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># See SecondOrder.symmetrize: the SNF-linearized supercell would</span>
+            <span class="c1"># silently symmetrize against the wrong replica lattice.</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s1">&#39;symmetrize() supports diagonal supercells only; this observable &#39;</span>
+                <span class="s1">&#39;was loaded on a non-diagonal (SNF) replica mapping.&#39;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">symmetrize_ifc_third</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s1">&#39;third&#39;</span>
