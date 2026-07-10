@@ -33,18 +33,17 @@ class SCSampler:
     Sample from the quantum or classical canonical harmonic ensemble on the
     supercell (Gamma-point diagonalization of D_sc).
 
-    The supercell IFC2 is consumed from a generic remap dictionary.
-
     Parameters
     ----------
-    remapped
-        ``kaldo.remap.SupercellIFCRemap``.
+    ifc2_sc_eVAng : (3 n_sc, 3 n_sc) array
+        Supercell IFC2 in eV/Angstrom^2, in the same atom order as
+        ``masses_amu_sc`` (and as the displacements this sampler returns).
     masses_amu_sc : (n_sc,) array
         Atomic masses in amu for each supercell atom.
     T_K : float
         Temperature in Kelvin.
-    quantum : bool, default True
-        Quantum Bose-Einstein sampling; False for classical equipartition.
+    is_classic : bool, default True
+        Classical equipartition sampling; False for quantum Bose-Einstein.
     seed : int or None
         RNG seed for reproducibility.
     """

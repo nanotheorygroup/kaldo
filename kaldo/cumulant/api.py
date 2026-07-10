@@ -73,7 +73,7 @@ def cumulant_thermo(
     free_energy_mesh: Sequence[int] = (25, 25, 25),
     seed: int = 987654,
     use_q_symmetry: bool = True,
-    lammps_kwargs: dict = {},
+    lammps_kwargs: dict | None = None,
     verbose: bool = True,
 ) -> CumulantResult:
     """
@@ -81,8 +81,12 @@ def cumulant_thermo(
 
     Parameters
     ----------
-    forceconstants : kaldo.forceconstants.ForceConstants
-        Pre-loaded ForceConstants object (must include fourth IFCs).
+    tdep_folder : str
+        TDEP folder with infile.ucposcar / infile.ssposcar and the
+        infile.forceconstant* files (IFC2, IFC3 and IFC4 are all required).
+    supercell : tuple[int, int, int]
+        Diagonal supercell tiling. Ignored (inferred from the structure
+        files) when the ssposcar tiling is non-diagonal.
     temperature : float
         Temperature in Kelvin.
     is_classic : bool
@@ -120,11 +124,15 @@ def cumulant_thermo(
     from ase import Atoms
     from ase.calculators.lammpslib import LAMMPSlib
 
-    # Normalzie lammps command to list of strings
+    # Normalize lammps commands to a list of strings
     if isinstance(lammps_cmds, str):
         lammps_cmds = [lammps_cmds]
     else:
         lammps_cmds = list(lammps_cmds)
+
+    # Copy so neither a caller-supplied dict nor a shared default is mutated
+    # by the atom_types / atom_type_masses auto-population below.
+    lammps_kwargs = dict(lammps_kwargs) if lammps_kwargs else {}
 
     if "lmpcmds" in lammps_kwargs:
         raise ValueError("lmpcmds should be provided directly to `cumulant_thermo` function via lammps_cmds argument not the lammps_kwargs.")

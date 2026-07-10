@@ -70,13 +70,13 @@ def main():
                                        n_boot=5000, seed=1234)
 
     totals = dict(
-        F=F_H + point["F_offset"] + F1 + F2,
-        U=U_H + point["U_offset"] + U1 + U2,
-        S=S_H + point["S_offset"] + S1 + S2,
-        Cv=Cv_H + point["Cv_offset"] + Cv1 + Cv2,
+        F=F_H + point["F0"] + F1 + F2,
+        U=U_H + point["U0"] + U1 + U2,
+        S=S_H + point["S0"] + S1 + S2,
+        Cv=Cv_H + point["Cv0"] + Cv1 + Cv2,
     )
-    SE = dict(F=se["F_offset"], U=se["U_offset"],
-              S=se["S_offset"], Cv=se["Cv_offset"])
+    SE = dict(F=se["F0"], U=se["U0"],
+              S=se["S0"], Cv=se["Cv0"])
 
     print()
     print("=" * 78)

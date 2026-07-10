@@ -37,7 +37,7 @@ def test_cumulant_package_imports():
     )
     assert abs(HBAR - 1.054571817e-34) < 1e-40
     assert abs(KB - 1.380649e-23) < 1e-30
-    assert NE_MASS_AMU == 20.1797
+    assert np.isclose(NE_MASS_AMU, 20.1797)
 
 
 def test_cumulant_submodules_importable():
@@ -133,14 +133,14 @@ def test_gate6_recap_uses_kaldo_cumulant():
                                        n_boot=5000, seed=1234)
 
     totals = dict(
-        F=F_H + point["F_offset"] + F1 + F2,
-        U=U_H + point["U_offset"] + U1 + U2,
-        S=S_H + point["S_offset"] + S1 + S2,
-        Cv=Cv_H + point["Cv_offset"] + Cv1 + Cv2,
+        F=F_H + point["F0"] + F1 + F2,
+        U=U_H + point["U0"] + U1 + U2,
+        S=S_H + point["S0"] + S1 + S2,
+        Cv=Cv_H + point["Cv0"] + Cv1 + Cv2,
     )
     SE = dict(
-        F=se["F_offset"], U=se["U_offset"],
-        S=se["S_offset"], Cv=se["Cv_offset"],
+        F=se["F0"], U=se["U0"],
+        S=se["S0"], Cv=se["Cv0"],
     )
     for q in ("F", "U", "S", "Cv"):
         joint_SE = np.sqrt(SE[q] ** 2 + ETHAN[q]["total_SE"] ** 2)

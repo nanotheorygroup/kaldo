@@ -35,6 +35,27 @@ KB_eV_per_K = KB / EV  # ≈ 8.617e-5 eV/K
 
 # --- TDEP IFC parsers -------------------------------------------------------
 
+def _read_flat_block(f, n, context):
+    """Read ``n`` whitespace-separated floats spanning multiple lines.
+
+    Raises on EOF instead of spinning forever: ``''.split()`` yields no
+    tokens, so a bare ``while idx < n: for t in f.readline().split()`` loop
+    never advances on a truncated file.
+    """
+    flat = np.empty(n)
+    idx = 0
+    while idx < n:
+        line = f.readline()
+        if not line:
+            raise ValueError(f"unexpected end of file while reading {context}")
+        for t in line.split():
+            flat[idx] = float(t)
+            idx += 1
+            if idx >= n:
+                break
+    return flat
+
+
 def read_tdep_pair_fcs(fc_path, uc_positions, uc_cell, enforce_asr=True):
     """
     Parse TDEP ``infile.forceconstant``.
@@ -107,11 +128,7 @@ def read_tdep_ifc3(fc3_path, na_uc=None):
                 _lv1 = np.array(f.readline().split(), dtype=float)
                 lv2 = np.array(f.readline().split(), dtype=float)
                 lv3 = np.array(f.readline().split(), dtype=float)
-                flat = np.empty(27); idx = 0
-                while idx < 27:
-                    for t in f.readline().split():
-                        flat[idx] = float(t); idx += 1
-                        if idx >= 27: break
+                flat = _read_flat_block(f, 27, "IFC3 tensor block")
                 ts.append((i2 - 1, i3 - 1, lv2, lv3, flat.reshape(3, 3, 3)))
             per_atom.append(ts)
     return per_atom
@@ -211,11 +228,7 @@ def read_tdep_ifc4(fc4_path, na_uc=None):
                 lv2 = np.array(f.readline().split(), dtype=float)
                 lv3 = np.array(f.readline().split(), dtype=float)
                 lv4 = np.array(f.readline().split(), dtype=float)
-                flat = np.empty(81); idx = 0
-                while idx < 81:
-                    for t in f.readline().split():
-                        flat[idx] = float(t); idx += 1
-                        if idx >= 81: break
+                flat = _read_flat_block(f, 81, "IFC4 tensor block")
                 qs.append((i2 - 1, i3 - 1, i4 - 1, lv2, lv3, lv4, flat.reshape(3, 3, 3, 3)))
             per_atom.append(qs)
     return per_atom
