@@ -8,7 +8,7 @@ from numpy.typing import ArrayLike
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
-from kaldo.controllers.displacement import calculate_second
+from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
@@ -28,10 +28,12 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant):
-    def __init__(self, value: ArrayLike, is_acoustic_sum: bool = False, *kargs, **kwargs):
+    def __init__(self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs):
         # apply acoustic sum rule before initialize in forceconstnat
+        # (value is None for the empty object used to compute force constants
+        # later; calculate() applies the sum rule itself in that case)
         self.is_acoustic_sum = is_acoustic_sum
-        if is_acoustic_sum:
+        if is_acoustic_sum and value is not None:
             value = acoustic_sum_rule(value)
 
         super().__init__(value=value, *kargs, **kwargs)
@@ -63,7 +65,8 @@ class SecondOrder(ForceConstant):
              folder: str,
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = "numpy",
-             is_acoustic_sum: bool = False):
+             is_acoustic_sum: bool = False,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load second order force constants from a folder in the given format, used for library internally.
 
@@ -82,6 +85,12 @@ class SecondOrder(ForceConstant):
         is_acoustic_sum : bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default: False
+        supercell_matrix : np.ndarray, optional
+            3x3 integer supercell expansion matrix. Accepted for API symmetry
+            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
+            (possibly non-diagonal) supercell is inferred from
+            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Default: None
 
         Returns
         -------
@@ -177,7 +186,8 @@ class SecondOrder(ForceConstant):
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                         _second_order = _second_order.transpose(3, 4, 2, 0, 1)
-                        grid_type = "F"
+                        # must match the C-order flattening of (t1, t2, t3) in the reshape above
+                        grid_type = "C"
                     case _:
                         # load VASP second order force constant
                         filename = os.path.join(folder, "FORCE_CONSTANTS_2ND")
@@ -187,6 +197,7 @@ class SecondOrder(ForceConstant):
                             raise FileNotFoundError(f"File {filename} not found.")
                         _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        # must stay "F" together with the vasp-* case in ThirdOrder.load
                         grid_type = "F"
                 second_order = SecondOrder.from_supercell(
                     atoms=atoms,
@@ -235,24 +246,41 @@ class SecondOrder(ForceConstant):
                     )
 
             case "tdep":
-                uc_filename = "infile.ucposcar"
-                replicated_filename = "infile.ssposcar"
-                atom_prime_file = os.path.join(folder, uc_filename)
-                replicated_atom_prime_file = os.path.join(folder, replicated_filename)
-                uc = ase.io.read(atom_prime_file, format="vasp")
-                sc = ase.io.read(replicated_atom_prime_file, format="vasp")
-                d2 = parse_tdep_forceconstant(
-                    fc_file=os.path.join(folder, "infile.forceconstant"),
-                    primitive=atom_prime_file,
-                    supercell=replicated_atom_prime_file,
-                    reduce_fc=False,
+                from kaldo.interfaces.tdep_io import (
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                    resolve_tdep_supercell,
                 )
-                n_unit_atoms = uc.positions.shape[0]
-                n_replicas = np.prod(supercell)
-                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                d2 = d2[0, np.newaxis]
+                from kaldo.grid import Grid
+
+                uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
+                fc_file = os.path.join(folder, "infile.forceconstant")
+
+                if diagonal_supercell is None:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=kw["grid"])
+                    second_order = SecondOrder(value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw)
+                    return attach_snf_metadata(second_order, mapping)
+
+                supercell = diagonal_supercell
+                d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C"))
                 second_order = SecondOrder(
-                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
+                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2,
+                    is_acoustic_sum=is_acoustic_sum, folder=folder
+                )
+
+            case "gpumd":
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                apply_asr = is_acoustic_sum and not meta["acoustic_sum_applied"]
+                second_order = SecondOrder.from_supercell(
+                    atoms=meta["atoms"],
+                    grid_type=meta["grid_order"],
+                    supercell=meta["supercell"],
+                    value=meta["fc2"],
+                    is_acoustic_sum=apply_asr,
+                    folder=folder,
                 )
 
             case _:
@@ -285,7 +313,7 @@ class SecondOrder(ForceConstant):
             return self._dynmat
 
     def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
-                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5):
+                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5, symmetrize=True):
         """
         Calculate second-order force constants with finite differences.
 
@@ -359,6 +387,16 @@ class SecondOrder(ForceConstant):
         symprec : float, optional
             precision for symmetry using spglib.
             Default: 1e-5
+        symmetrize : bool, optional
+            If True, project freshly computed force constants onto the
+            space-group-invariant subspace (full-group average). Exact
+            force constants are a fixed point, so this only removes
+            finite-difference noise and symmetry violations from
+            potentials that do not exactly respect the crystal symmetry
+            (e.g. rotationally unconstrained ML potentials). Skipped
+            with a warning when the symmetry analysis is unavailable.
+            Force constants loaded from ``self.folder`` are never
+            re-projected. Default: True
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='SecondOrder.calculate')
@@ -403,6 +441,8 @@ class SecondOrder(ForceConstant):
                     use_symmetry=use_symmetry,
                     symprec=symprec,
                 )
+                if symmetrize:
+                    self.value = try_symmetrize_ifc(2, self.value, atoms, self.supercell, symprec)
                 self.save("second")
                 if calculator is not None:
                     self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
@@ -423,8 +463,31 @@ class SecondOrder(ForceConstant):
                 use_symmetry=use_symmetry,
                 symprec=symprec,
             )
+            if symmetrize:
+                self.value = try_symmetrize_ifc(2, self.value, atoms, self.supercell, symprec)
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
+
+    def symmetrize(self, symprec=1e-5):
+        """Project the stored force constants onto the space-group-invariant subspace.
+
+        See kaldo.controllers.displacement.symmetrize_ifc_second. Invalidates
+        the cached dynamical matrix. Diagonal supercells only.
+        """
+        from kaldo.controllers.displacement import symmetrize_ifc_second
+        if getattr(self, '_snf_mapping', None) is not None:
+            # The projector interprets self.supercell as an (nx, ny, nz) grid;
+            # the SNF-linearized (n_rep, 1, 1) form would silently symmetrize
+            # against the wrong replica lattice.
+            raise NotImplementedError(
+                'symmetrize() supports diagonal supercells only; this observable '
+                'was loaded on a non-diagonal (SNF) replica mapping.'
+            )
+        self.value = symmetrize_ifc_second(self.value, self.atoms, self.supercell, symprec)
+        try:
+            del self._dynmat
+        except AttributeError:
+            pass
 
     def calculate_dynmat(self):
         evtotenjovermol = units.mol / (10 * units.J)
