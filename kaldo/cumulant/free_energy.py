@@ -737,8 +737,9 @@ def _triplets_from_fc(fc):
     For each unique ``(a1, a2, a3, r2, r3)`` combination we assemble the
     3×3×3 phi and convert r2/r3 to fractional lattice vectors.
     """
-    third = np.asarray(fc.third.value.todense())
-    # Shape: (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)
+    third = fc.third.value
+    # Shape: (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), sparse COO. Never
+    # densify: the dense tensor is n_uc^3 * 27 * n_rep^2 doubles.
     if getattr(fc.third, "_replica_table", None) is not None:
         lv_frac_tab = np.asarray(fc.third._replica_table, dtype=float)
     else:
@@ -751,25 +752,26 @@ def _triplets_from_fc(fc):
         ])
 
     n_uc = fc.n_atoms
-    n_rep = fc.n_replicas
 
-    # Find all unique (a1, a2, a3, r2, r3) with any non-zero phi
-    per_atom = []
-    for a1 in range(n_uc):
-        # slice out (3, n_rep, n_uc, 3, n_rep, n_uc, 3)
-        sl = third[a1]
-        trips = []
-        for r2 in range(n_rep):
-            for a2 in range(n_uc):
-                for r3 in range(n_rep):
-                    for a3 in range(n_uc):
-                        phi = sl[:, r2, a2, :, r3, a3, :]  # (3, 3, 3)
-                        if not np.any(phi):
-                            continue
-                        lv2 = lv_frac_tab[r2]
-                        lv3 = lv_frac_tab[r3]
-                        trips.append((a2, a3, lv2, lv3, phi.copy()))
-        per_atom.append(trips)
+    # Assemble 3x3x3 blocks directly from the COO coordinates: only the
+    # ~nnz stored entries are visited, in the same (a1, r2, a2, r3, a3)
+    # order the dense loops used.
+    coords = np.asarray(third.coords)
+    data = np.asarray(third.data)
+    a1_i, al, r2_i, a2_i, be, r3_i, a3_i, ga = (coords[k] for k in range(8))
+    blocks = {}
+    for k in range(coords.shape[1]):
+        key = (int(a1_i[k]), int(r2_i[k]), int(a2_i[k]), int(r3_i[k]), int(a3_i[k]))
+        b = blocks.get(key)
+        if b is None:
+            b = blocks[key] = np.zeros((3, 3, 3))
+        b[al[k], be[k], ga[k]] = data[k]
+
+    per_atom = [[] for _ in range(n_uc)]
+    for (a1, r2, a2, r3, a3) in sorted(blocks):
+        per_atom[a1].append(
+            (a2, a3, lv_frac_tab[r2], lv_frac_tab[r3], blocks[(a1, r2, a2, r3, a3)])
+        )
     return per_atom
 
 
@@ -786,7 +788,10 @@ def _quartets_from_fc(fc):
         raise ValueError(
             "F1_from_fc requires fc.fourth; load with include_fourth=True"
         )
-    fourth = np.asarray(fc.fourth.value.todense())
+    fourth = fc.fourth.value
+    # Sparse COO of shape (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep,
+    # n_uc, 3). Never densify: the dense tensor is 81 * n_uc^4 * n_rep^3
+    # doubles (11+ GB already at 216 atoms), which OOM-kills CI workers.
     if getattr(fc.fourth, "_replica_table", None) is not None:
         lv_frac_tab = np.asarray(fc.fourth._replica_table, dtype=float)
     else:
@@ -799,27 +804,32 @@ def _quartets_from_fc(fc):
         ])
 
     n_uc = fc.n_atoms
-    n_rep = int(np.prod(fc.supercell))
 
-    per_atom = []
-    for a1 in range(n_uc):
-        sl = fourth[a1]  # (3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)
-        quartets_a1 = []
-        for r2 in range(n_rep):
-            for a2 in range(n_uc):
-                for r3 in range(n_rep):
-                    for a3 in range(n_uc):
-                        for r4 in range(n_rep):
-                            for a4 in range(n_uc):
-                                phi = sl[:, r2, a2, :, r3, a3, :, r4, a4, :]  # (3,3,3,3)
-                                if not np.any(phi):
-                                    continue
-                                quartets_a1.append(
-                                    (a2, a3, a4,
-                                     lv_frac_tab[r2], lv_frac_tab[r3], lv_frac_tab[r4],
-                                     phi.copy())
-                                )
-        per_atom.append(quartets_a1)
+    # Assemble 3x3x3x3 blocks directly from the COO coordinates: only the
+    # ~nnz stored entries are visited, in the same (a1, r2, a2, r3, a3,
+    # r4, a4) order the dense loops used.
+    coords = np.asarray(fourth.coords)
+    data = np.asarray(fourth.data)
+    a1_i, al, r2_i, a2_i, be, r3_i, a3_i, ga, r4_i, a4_i, de = (
+        coords[k] for k in range(11)
+    )
+    blocks = {}
+    for k in range(coords.shape[1]):
+        key = (int(a1_i[k]), int(r2_i[k]), int(a2_i[k]), int(r3_i[k]),
+               int(a3_i[k]), int(r4_i[k]), int(a4_i[k]))
+        b = blocks.get(key)
+        if b is None:
+            b = blocks[key] = np.zeros((3, 3, 3, 3))
+        b[al[k], be[k], ga[k], de[k]] = data[k]
+
+    per_atom = [[] for _ in range(n_uc)]
+    for key in sorted(blocks):
+        a1, r2, a2, r3, a3, r4, a4 = key
+        per_atom[a1].append(
+            (a2, a3, a4,
+             lv_frac_tab[r2], lv_frac_tab[r3], lv_frac_tab[r4],
+             blocks[key])
+        )
     return per_atom
 
 
