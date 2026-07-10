@@ -36,3 +36,4 @@ def _path_from_env(var: str) -> Path:
 
 SI_PROD = _path_from_env("KALDO_TEST_SI_PROD")
 NE_REF = _path_from_env("KALDO_TEST_NE_REF")
+NE_IFC_H5 = _path_from_env("KALDO_TEST_SI_NE_H5")
