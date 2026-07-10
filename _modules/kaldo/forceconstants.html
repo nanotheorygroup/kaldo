@@ -877,6 +877,14 @@
 <span class="sd">    fourth_order: FourthOrder, optional</span>
 <span class="sd">        Preloaded fourth-order force constants attached to the instance.</span>
 <span class="sd">        Default: ``None`` (not constructed lazily — must be loaded explicitly)</span>
+<span class="sd">    is_acoustic_sum: bool, optional</span>
+<span class="sd">        If True, apply the acoustic sum rule to second-order force constants</span>
+<span class="sd">        computed via ``second.calculate``. For force constants read from</span>
+<span class="sd">        files use ``from_folder(..., is_acoustic_sum=True)`` instead. Note</span>
+<span class="sd">        that on transpose-asymmetric force constants (e.g. raw finite</span>
+<span class="sd">        differences from an ML potential that breaks the crystal symmetry)</span>
+<span class="sd">        the sum rule alone cannot zero the Gamma acoustic modes.</span>
+<span class="sd">        Default: False</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -903,7 +911,8 @@
                  <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">second_order</span><span class="p">:</span> <span class="n">SecondOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">third_order</span><span class="p">:</span> <span class="n">ThirdOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">fourth_order</span><span class="p">:</span> <span class="n">FourthOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+                 <span class="n">fourth_order</span><span class="p">:</span> <span class="n">FourthOrder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
 
         <span class="c1"># Store the user defined information to the object</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="n">atoms</span>
@@ -916,6 +925,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">cell_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">folder</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">distance_threshold</span> <span class="o">=</span> <span class="n">distance_threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_acoustic_sum</span> <span class="o">=</span> <span class="n">is_acoustic_sum</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_list_of_replicas</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_second</span> <span class="o">=</span> <span class="n">second_order</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_third</span> <span class="o">=</span> <span class="n">third_order</span>
@@ -931,7 +941,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_second</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span>
                                                       <span class="n">supercell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
                                                       <span class="n">grid_type</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">,</span>
-                                                      <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                                      <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_acoustic_sum</span><span class="p">,</span>
                                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_second</span>
 
@@ -1073,7 +1083,8 @@
                    <span class="n">distance_threshold</span><span class="o">=</span><span class="n">distance_threshold</span><span class="p">,</span>
                    <span class="n">second_order</span><span class="o">=</span><span class="n">second_order</span><span class="p">,</span>
                    <span class="n">third_order</span><span class="o">=</span><span class="n">third_order</span><span class="p">,</span>
-                   <span class="n">fourth_order</span><span class="o">=</span><span class="n">fourth_order</span><span class="p">)</span></div>
+                   <span class="n">fourth_order</span><span class="o">=</span><span class="n">fourth_order</span><span class="p">,</span>
+                   <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ForceConstants.unfold_third_order">
