@@ -498,3 +498,83 @@ def test_from_folder_pheasy_include_fourth_missing_file_raises(tmp_path):
                     [(np.array([3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), np.ones((3, 3, 3)))])
     with pytest.raises(FileNotFoundError, match="FORCE_CONSTANTS_4TH"):
         ForceConstants.from_folder(str(tmp_path), supercell=supercell, format="pheasy", include_fourth=True)
+
+
+# ---------------------------------------------------------------------------
+# Integration: committed differential fixtures
+# ---------------------------------------------------------------------------
+
+SI_PHEASY_DIR = Path(__file__).parent / "si-crystal" / "pheasy"
+SI_HIPHIVE_DIR = Path(__file__).parent / "si-crystal" / "hiphive"
+
+needs_si_fixture = pytest.mark.skipif(not (SI_PHEASY_DIR / "FORCE_CONSTANTS").exists(),
+                                      reason="si pheasy fixture missing")
+
+
+def _replica_permutation(grid_from, grid_to):
+    """perm such that array_from[..., perm, ...] lands in grid_to's replica order."""
+    a = grid_from.grid(is_wrapping=False)
+    b = grid_to.grid(is_wrapping=False)
+    return np.array([int(np.where((a == row).all(axis=1))[0][0]) for row in b])
+
+
+@pytest.fixture(scope="module")
+def si_pheasy_and_hiphive():
+    from kaldo.forceconstants import ForceConstants
+    fc_p = ForceConstants.from_folder(str(SI_PHEASY_DIR), supercell=(3, 3, 3), format="pheasy")
+    fc_h = ForceConstants.from_folder(str(SI_HIPHIVE_DIR), supercell=(3, 3, 3), format="hiphive")
+    return fc_p, fc_h
+
+
+@needs_si_fixture
+def test_si_pheasy_second_matches_hiphive(si_pheasy_and_hiphive):
+    fc_p, fc_h = si_pheasy_and_hiphive
+    perm = _replica_permutation(fc_h.second._direct_grid, fc_p.second._direct_grid)
+    fc2_h = np.asarray(fc_h.second.value)[:, :, :, perm, :, :]
+    np.testing.assert_allclose(np.asarray(fc_p.second.value), fc2_h, atol=1e-10)
+
+
+@needs_si_fixture
+def test_si_pheasy_third_matches_hiphive(si_pheasy_and_hiphive):
+    fc_p, fc_h = si_pheasy_and_hiphive
+    n_uc = fc_p.atoms.positions.shape[0]
+    n_rep = 27
+    perm = _replica_permutation(fc_h.third._direct_grid, fc_p.third._direct_grid)
+    shape8 = (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)
+    third_p = np.asarray(fc_p.third.value).reshape(shape8)
+    third_h = np.asarray(fc_h.third.value).reshape(shape8)[:, :, perm][:, :, :, :, :, perm]
+    np.testing.assert_allclose(third_p, third_h, atol=1e-10)
+
+
+@needs_si_fixture
+def test_si_pheasy_frequencies_match_hiphive(si_pheasy_and_hiphive):
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+    fc_p, fc_h = si_pheasy_and_hiphive
+    for q in (np.array([0.0, 0.0, 0.0]), np.array([0.5, 0.0, 0.0]), np.array([0.25, 0.25, 0.0])):
+        f_p = HarmonicWithQ(q_point=q, second=fc_p.second).frequency.flatten()
+        f_h = HarmonicWithQ(q_point=q, second=fc_h.second).frequency.flatten()
+        np.testing.assert_array_almost_equal(f_p, f_h, decimal=6)
+
+
+@needs_si_fixture
+def test_si_pheasy_hdf5_route_matches_text(tmp_path, si_pheasy_and_hiphive):
+    import shutil
+    from kaldo.forceconstants import ForceConstants
+    fc_p, _ = si_pheasy_and_hiphive
+    for name in ("POSCAR", "fc2.hdf5", "fc3.hdf5"):
+        shutil.copy(SI_PHEASY_DIR / name, tmp_path / name)
+    fc_h5 = ForceConstants.from_folder(str(tmp_path), supercell=(3, 3, 3), format="pheasy")
+    np.testing.assert_allclose(np.asarray(fc_h5.second.value), np.asarray(fc_p.second.value), atol=1e-12)
+    np.testing.assert_allclose(np.asarray(fc_h5.third.value), np.asarray(fc_p.third.value), atol=1e-12)
+
+
+@needs_si_fixture
+def test_si_pheasy_fourth_order(si_pheasy_and_hiphive):
+    from kaldo.forceconstants import ForceConstants
+    fc = ForceConstants.from_folder(str(SI_PHEASY_DIR), supercell=(3, 3, 3), format="pheasy",
+                                    include_fourth=True)
+    assert fc.fourth is not None
+    assert fc.fourth.value.nnz <= 2 * 81
+    phi4_a = np.arange(81, dtype=float).reshape(3, 3, 3, 3) / 100.0
+    dense_block = fc.fourth.value.todense()[0, :, 0, 1, :, 0, 1, :, 0, 0, :]
+    np.testing.assert_allclose(dense_block, phi4_a, atol=1e-12)
