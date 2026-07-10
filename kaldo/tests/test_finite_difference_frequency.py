@@ -166,3 +166,11 @@ def test_forceconstants_is_acoustic_sum_reaches_fd_path(tmp_path):
     # Acoustic sum rule: sum over all (replica, atom) pairs of Phi[i, :, l, j, :]
     # vanishes for every displaced atom i, so uniform translations cost no force.
     np.testing.assert_allclose(phi.sum(axis=(2, 3)), 0.0, atol=1e-10)
+
+
+def test_from_folder_propagates_is_acoustic_sum():
+    fc = ForceConstants.from_folder(
+        "kaldo/tests/si-crystal", supercell=(3, 3, 3), format="eskm",
+        is_acoustic_sum=True, only_second=True,
+    )
+    assert fc.is_acoustic_sum is True

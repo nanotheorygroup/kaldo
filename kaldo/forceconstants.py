@@ -259,7 +259,8 @@ class ForceConstants:
                    distance_threshold=distance_threshold,
                    second_order=second_order,
                    third_order=third_order,
-                   fourth_order=fourth_order)
+                   fourth_order=fourth_order,
+                   is_acoustic_sum=is_acoustic_sum)
 
     def unfold_third_order(self, reduced_third=None, distance_threshold=None):
         """
