@@ -8,9 +8,10 @@ with shape::
 
 mirroring :class:`kaldo.observables.thirdorder.ThirdOrder` one rank higher.
 
-TDEP (``format="tdep"``) and pheasy (``format="pheasy"``) are wired, reading
-``infile.forceconstant_fourthorder`` via
-:func:`kaldo.interfaces.tdep_io.parse_tdep_fourth_forceconstant`. Other
+TDEP (``format="tdep"``) reads ``infile.forceconstant_fourthorder`` via
+:func:`kaldo.interfaces.tdep_io.parse_tdep_fourth_forceconstant`. pheasy
+(``format="pheasy"``) reads ``FORCE_CONSTANTS_4TH`` via
+:func:`kaldo.interfaces.shengbte_io.read_fourth_order_matrix`. Other
 formats will be added as needed.
 """
 from __future__ import annotations
