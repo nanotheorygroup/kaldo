@@ -9,7 +9,7 @@ from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
-from kaldo.controllers.displacement import calculate_third
+from kaldo.controllers.displacement import calculate_third, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 from kaldo.helpers.logger import get_logger
 
@@ -41,7 +41,8 @@ class ThirdOrder(ForceConstant):
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = 'sparse',
              third_energy_threshold: float = 0.,
-             chunk_size: int = 100000):
+             chunk_size: int = 100000,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load third order force constants from a folder in the given format, used for library internally.
 
@@ -65,6 +66,12 @@ class ThirdOrder(ForceConstant):
             Number of entries to process per chunk when reading sparse third order files.
             Larger values use more memory but may be faster for very large files.
             Default: 100000
+        supercell_matrix : np.ndarray, optional
+            3x3 integer supercell expansion matrix. Accepted for API symmetry
+            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
+            (possibly non-diagonal) supercell is inferred from
+            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Default: None
 
         Returns
         -------
@@ -137,7 +144,12 @@ class ThirdOrder(ForceConstant):
                                          folder=folder)
 
             case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
-                grid_type = 'F'
+                # must match the grid declared by SecondOrder.load for the same format
+                match format:
+                    case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
+                        grid_type = 'C'
+                    case _:
+                        grid_type = 'F'
                 config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
                 match config_file:
                     case 'CONTROL':
@@ -199,20 +211,47 @@ class ThirdOrder(ForceConstant):
                                       folder=folder)
 
             case 'tdep':
-                uc = ase.io.read(os.path.join(folder, 'infile.ucposcar'), format='vasp')
-                sc = ase.io.read(os.path.join(folder, 'infile.ssposcar'), format='vasp')
-
-                third_ifcs = parse_tdep_third_forceconstant(
-                    fc_filename=os.path.join(folder, 'infile.forceconstant_thirdorder'),
-                    primitive=os.path.join(folder, 'infile.ucposcar'),
-                    supercell=supercell,
+                from kaldo.interfaces.tdep_io import (
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                    resolve_tdep_supercell,
                 )
+
+                uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
+                fc_filename = os.path.join(folder, 'infile.forceconstant_thirdorder')
+
+                if diagonal_supercell is None:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,
+                                                                grid=kw["grid"])
+                    third_order = cls(value=third_ifcs, folder=folder, **kw)
+                    return attach_snf_metadata(third_order, mapping)
+
+                supercell = diagonal_supercell
+                third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,
+                                                            supercell=supercell)
 
                 third_order = cls(atoms=uc,
                                   replicated_positions=sc.positions,
                                   supercell=supercell,
                                   value=third_ifcs,
                                   folder=folder)
+
+            case 'gpumd':
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                fc3 = meta['fc3']
+                if third_energy_threshold > 0.:
+                    mask = np.abs(fc3.data) > third_energy_threshold
+                    fc3 = COO(fc3.coords[:, mask], fc3.data[mask], shape=fc3.shape)
+                third_order = cls.from_supercell(
+                    atoms=meta['atoms'],
+                    grid_type=meta['grid_order'],
+                    supercell=meta['third_supercell'],
+                    value=fc3.astype(np.float64),
+                    folder=folder,
+                )
 
             case _:
                 logging.error('Third order format not recognized: ' + str(format))
@@ -264,7 +303,8 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, use_symmetry=False, symprec=1e-5):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, use_symmetry=False,
+                  symprec=1e-5, symmetrize=True):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -337,6 +377,16 @@ class ThirdOrder(ForceConstant):
         symprec : float, optional
             precision for symmetry using spglib.
             Default: 1e-5
+        symmetrize : bool, optional
+            If True, project freshly computed force constants onto the
+            space-group-invariant subspace (full-group average). Exact
+            force constants are a fixed point, so this only removes
+            finite-difference noise and symmetry violations from
+            potentials that do not exactly respect the crystal symmetry
+            (e.g. rotationally unconstrained ML potentials). Skipped
+            with a warning when the symmetry analysis is unavailable.
+            Force constants loaded from ``self.folder`` are never
+            re-projected. Default: True
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
@@ -378,6 +428,8 @@ class ThirdOrder(ForceConstant):
                                              jat_flush_every=jat_flush_every,
                                              use_symmetry=use_symmetry,
                                              symprec=symprec)
+                if symmetrize:
+                    self.value = try_symmetrize_ifc(3, self.value, atoms, self.supercell, symprec)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -395,12 +447,27 @@ class ThirdOrder(ForceConstant):
                                          jat_flush_every=jat_flush_every,
                                          use_symmetry=use_symmetry,
                                          symprec=symprec)
+            if symmetrize:
+                self.value = try_symmetrize_ifc(3, self.value, atoms, self.supercell, symprec)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
+    def symmetrize(self, symprec=1e-5):
+        """Project the stored force constants onto the space-group-invariant subspace.
 
-
+        See kaldo.controllers.displacement.symmetrize_ifc_third. Diagonal
+        supercells only.
+        """
+        from kaldo.controllers.displacement import symmetrize_ifc_third
+        if getattr(self, '_snf_mapping', None) is not None:
+            # See SecondOrder.symmetrize: the SNF-linearized supercell would
+            # silently symmetrize against the wrong replica lattice.
+            raise NotImplementedError(
+                'symmetrize() supports diagonal supercells only; this observable '
+                'was loaded on a non-diagonal (SNF) replica mapping.'
+            )
+        self.value = symmetrize_ifc_third(self.value, self.atoms, self.supercell, symprec)
 
     def __str__(self):
         return 'third'
