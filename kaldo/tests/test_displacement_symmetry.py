@@ -226,3 +226,31 @@ def test_calculate_third_symmetrize_flag_and_method(tmp_path):
     fc2 = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path / 'b'))
     fc2.third.calculate(EMT(), delta_shift=1e-3, is_storing=False)
     np.testing.assert_allclose(fc2.third.value.todense(), sym_ref, rtol=0, atol=1e-12)
+
+
+def test_symmetrize_refuses_snf_observables():
+    """symmetrize() must refuse SNF (non-diagonal) observables rather than
+    silently projecting against the wrong replica lattice: the SNF path
+    linearizes the supercell to (n_rep, 1, 1), which the projector cannot
+    distinguish from a legitimate chain supercell."""
+    from ase import Atoms
+    from ase.build import make_supercell
+    from kaldo.interfaces.tdep_io import (
+        attach_snf_metadata, build_nondiag_observable_kwargs,
+    )
+    from kaldo.observables.secondorder import SecondOrder
+
+    cell = np.array([[4.0, 0.0, 0.0], [1.3, 3.8, 0.0], [0.4, 0.9, 3.5]])
+    prim = Atoms("Si2", scaled_positions=[[0, 0, 0], [0.27, 0.31, 0.24]],
+                 cell=cell, pbc=True)
+    M0 = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 2]])
+    sc = make_supercell(prim, M0)
+
+    kw = build_nondiag_observable_kwargs(prim, sc)
+    mapping = kw.pop("_mapping")
+    n_rep = len(mapping["replica_table"])
+    value = np.zeros((1, 2, 3, n_rep, 2, 3))
+    so = attach_snf_metadata(SecondOrder(value=value, folder="unused", **kw), mapping)
+
+    with pytest.raises(NotImplementedError, match="diagonal supercells only"):
+        so.symmetrize()

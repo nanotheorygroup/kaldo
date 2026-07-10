@@ -470,9 +470,17 @@ class SecondOrder(ForceConstant):
         """Project the stored force constants onto the space-group-invariant subspace.
 
         See kaldo.controllers.displacement.symmetrize_ifc_second. Invalidates
-        the cached dynamical matrix.
+        the cached dynamical matrix. Diagonal supercells only.
         """
         from kaldo.controllers.displacement import symmetrize_ifc_second
+        if getattr(self, '_snf_mapping', None) is not None:
+            # The projector interprets self.supercell as an (nx, ny, nz) grid;
+            # the SNF-linearized (n_rep, 1, 1) form would silently symmetrize
+            # against the wrong replica lattice.
+            raise NotImplementedError(
+                'symmetrize() supports diagonal supercells only; this observable '
+                'was loaded on a non-diagonal (SNF) replica mapping.'
+            )
         self.value = symmetrize_ifc_second(self.value, self.atoms, self.supercell, symprec)
         try:
             del self._dynmat

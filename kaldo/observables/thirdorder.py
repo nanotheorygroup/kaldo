@@ -456,9 +456,17 @@ class ThirdOrder(ForceConstant):
     def symmetrize(self, symprec=1e-5):
         """Project the stored force constants onto the space-group-invariant subspace.
 
-        See kaldo.controllers.displacement.symmetrize_ifc_third.
+        See kaldo.controllers.displacement.symmetrize_ifc_third. Diagonal
+        supercells only.
         """
         from kaldo.controllers.displacement import symmetrize_ifc_third
+        if getattr(self, '_snf_mapping', None) is not None:
+            # See SecondOrder.symmetrize: the SNF-linearized supercell would
+            # silently symmetrize against the wrong replica lattice.
+            raise NotImplementedError(
+                'symmetrize() supports diagonal supercells only; this observable '
+                'was loaded on a non-diagonal (SNF) replica mapping.'
+            )
         self.value = symmetrize_ifc_third(self.value, self.atoms, self.supercell, symprec)
 
     def __str__(self):
