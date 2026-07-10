@@ -26,6 +26,7 @@ the two enumerations coincide.
 """
 import os
 
+import ase.io
 import numpy as np
 
 from kaldo.grid import Grid
@@ -42,7 +43,6 @@ BORN_FILE = 'born.fmt'
 
 def read_pheasy_structure(folder):
     """Read the primitive cell of a pheasy run (``POSCAR`` or ``cell.in``)."""
-    import ase.io
     poscar = os.path.join(str(folder), STRUCTURE_FILES[0])
     espresso = os.path.join(str(folder), STRUCTURE_FILES[1])
     if os.path.isfile(poscar):
@@ -95,7 +95,6 @@ def check_pheasy_supercell_order(folder, atoms, supercell):
     atom-major, x-fastest supercell reconstructed from the primitive cell.
     Never raises and never reorders anything; a mismatch logs a warning.
     """
-    import ase.io
     sposcar = os.path.join(str(folder), 'SPOSCAR')
     supercell_in = os.path.join(str(folder), 'supercell.in')
     if os.path.isfile(sposcar):

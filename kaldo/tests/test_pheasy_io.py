@@ -69,3 +69,46 @@ def test_pheasy_cell_map_is_exact_on_asymmetric_grid():
         oz = c // (d0 * d1)
         kaldo_c_order_id = ox * (d1 * d2) + oy * d2 + oz
         assert mapping[c] == kaldo_c_order_id
+
+
+def test_supercell_order_check_accepts_pheasy_order(tmp_path, caplog):
+    import ase.io
+    from ase import Atoms
+    from kaldo.interfaces.pheasy_io import check_pheasy_supercell_order
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    d0, d1, d2 = 2, 1, 1
+    n_cells = d0 * d1 * d2
+    scaled = atoms.get_scaled_positions()
+    positions, numbers = [], []
+    for i in range(len(atoms)):
+        for c in range(n_cells):
+            ox, oy, oz = c % d0, (c // d0) % d1, c // (d0 * d1)
+            positions.append((scaled[i] + np.array([ox, oy, oz])) / np.array([d0, d1, d2]))
+            numbers.append(atoms.numbers[i])
+    sposcar = Atoms(numbers=numbers, scaled_positions=positions,
+                    cell=np.array(atoms.cell) * np.array([[d0], [d1], [d2]]), pbc=True)
+    ase.io.write(tmp_path / "SPOSCAR", sposcar, format="vasp")
+    check_pheasy_supercell_order(str(tmp_path), atoms, (d0, d1, d2))
+    assert not [r for r in caplog.records if "pheasy supercell" in r.getMessage()
+                or "atom order" in r.getMessage()]
+
+
+def test_supercell_order_check_warns_on_cell_major_order(tmp_path, caplog):
+    import ase.io
+    from kaldo.interfaces.pheasy_io import check_pheasy_supercell_order
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    wrong = atoms * (2, 1, 1)  # ASE repeat is cell-major, not pheasy's atom-major
+    ase.io.write(tmp_path / "SPOSCAR", wrong, format="vasp")
+    check_pheasy_supercell_order(str(tmp_path), atoms, (2, 1, 1))
+    assert [r for r in caplog.records if "atom order does not match" in r.getMessage()]
+
+
+def test_supercell_order_check_noop_without_supercell_file(tmp_path, caplog):
+    import ase.io
+    from kaldo.interfaces.pheasy_io import check_pheasy_supercell_order
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    check_pheasy_supercell_order(str(tmp_path), atoms, (2, 1, 1))
+    assert not caplog.records
