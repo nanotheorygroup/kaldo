@@ -559,11 +559,20 @@ def try_symmetrize_ifc(order, value, atoms, supercell, symprec=1e-5):
     """
     try:
         if order == 2:
-            return symmetrize_ifc_second(value, atoms, supercell, symprec)
-        return symmetrize_ifc_third(value, atoms, supercell, symprec)
+            projected = symmetrize_ifc_second(value, atoms, supercell, symprec)
+            moved = float(np.abs(np.asarray(projected) - np.asarray(value)).max())
+        else:
+            projected = symmetrize_ifc_third(value, atoms, supercell, symprec)
+            moved = float(np.abs(projected - value).max())
     except (ValueError, NotImplementedError, RuntimeError) as err:
         logging.warning(f'Skipping force-constant symmetrization (order {order}): {err}')
         return value
+    # Make the default observable: symmetric potentials should see a change at
+    # finite-difference-noise level; anything larger quantifies how strongly
+    # the potential violates the crystal symmetry.
+    logging.info(f'Symmetrized order-{order} force constants; '
+                 f'max change {moved:.2e} (pass symmetrize=False to disable).')
+    return projected
 
 
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
