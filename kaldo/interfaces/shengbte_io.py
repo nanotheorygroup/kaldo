@@ -507,64 +507,6 @@ def create_control_file(phonons):
         file.write (string)
 
 
-def header(phonons):
-
-    # this convert masses to qm masses
-
-    nat = len (phonons.atoms.get_chemical_symbols ())
-
-    # TODO: The dielectric calculation is not implemented yet
-    dielectric_constant = 1.
-    born_eff_charge = 0.000000
-
-    ntype = len (np.unique (phonons.atoms.get_chemical_symbols ()))
-    # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
-    ibrav = 0
-    header_str = ''
-    header_str += str (ntype) + ' '
-    header_str += str (nat) + ' '
-    header_str += str (ibrav) + ' '
-
-    # TODO: I'd like to have ibrav = 1 and put the actual positions here
-    header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
-    header_str += matrix_to_string (phonons.atoms.cell)
-    mass_factor = 1.8218779 * 6.022e-4
-
-    for i in range (ntype):
-        mass = np.unique (phonons.forceconstants.atoms.get_masses ())[i] / mass_factor
-        label = np.unique (phonons.forceconstants.atoms.get_chemical_symbols ())[i]
-        header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
-
-    # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
-    for i in range (nat):
-        header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (phonons.atoms.positions[i])
-    header_str += 'T \n'
-    header_str += matrix_to_string (np.diag (np.ones (3)) * dielectric_constant)
-    for i in range (nat):
-        header_str += str (i + 1) + '\n'
-        header_str += matrix_to_string (np.diag (np.ones (3)) * born_eff_charge * (-1) ** i)
-    header_str += str (phonons.supercell[0]) + '    '
-    header_str += str (phonons.supercell[1]) + '    '
-    header_str += str (phonons.supercell[2]) + '\n'
-    return header_str
-
-
-
-
-def matrix_to_string(matrix):
-    string = ''
-    if len (matrix.shape) == 1:
-        for i in range (matrix.shape[0]):
-            string += '%.7f' % matrix[i] + ' '
-        string += '\n'
-    else:
-        for i in range (matrix.shape[0]):
-            for j in range (matrix.shape[1]):
-                string += '%.7f' % matrix[i, j] + ' '
-            string += '\n'
-    return string
-
-
 def type_element_id(atoms, element_name):
     # TODO: remove this method
     unique_elements = np.unique (atoms.get_chemical_symbols ())
