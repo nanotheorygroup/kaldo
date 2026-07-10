@@ -301,3 +301,55 @@ def test_fc2_files_missing_raise(tmp_path):
     atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
     with pytest.raises(FileNotFoundError, match=r"FORCE_CONSTANTS.*fc2\.hdf5|fc2\.hdf5.*FORCE_CONSTANTS"):
         read_pheasy_second(str(tmp_path), atoms, (1, 1, 1))
+
+
+# ---------------------------------------------------------------------------
+# SecondOrder.load / from_folder dispatch
+# ---------------------------------------------------------------------------
+
+def _make_pheasy_second_folder(tmp_path, supercell=(2, 1, 1), with_born=False):
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    value = _random_fc2(2, supercell)
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", value, supercell)
+    if with_born:
+        rows = np.vstack([np.diag([2.5, 2.5, 2.5]), np.diag([1.1, 1.1, 1.1]), np.diag([-1.1, -1.1, -1.1])])
+        np.savetxt(tmp_path / "born.fmt", rows)
+    return atoms, value
+
+
+def test_second_order_load_pheasy(tmp_path):
+    from kaldo.observables.secondorder import SecondOrder
+    _, value = _make_pheasy_second_folder(tmp_path)
+    second = SecondOrder.load(folder=str(tmp_path), supercell=(2, 1, 1), format="pheasy")
+    np.testing.assert_allclose(second.value, value, atol=1e-12)
+    assert second._direct_grid.order == "C"
+
+
+def test_from_folder_pheasy_only_second_with_born(tmp_path):
+    from kaldo.forceconstants import ForceConstants
+    _make_pheasy_second_folder(tmp_path, with_born=True)
+    fc = ForceConstants.from_folder(str(tmp_path), supercell=(2, 1, 1), format="pheasy", only_second=True)
+    # `third` is a lazy property that always materializes an empty ThirdOrder on access
+    # (pre-existing behavior across every format, see ForceConstants.third); `_third` is the
+    # unmaterialized attribute set directly from from_folder and is the real "was it loaded" signal.
+    assert fc._third is None
+    np.testing.assert_allclose(fc.atoms.info["dielectric"], np.diag([2.5, 2.5, 2.5]), atol=1e-12)
+    np.testing.assert_allclose(fc.atoms.get_array("charges")[0], np.diag([1.1, 1.1, 1.1]), atol=1e-12)
+
+
+def test_from_folder_pheasy_without_born_has_no_nac(tmp_path):
+    from kaldo.forceconstants import ForceConstants
+    _make_pheasy_second_folder(tmp_path, with_born=False)
+    fc = ForceConstants.from_folder(str(tmp_path), supercell=(2, 1, 1), format="pheasy", only_second=True)
+    assert "dielectric" not in fc.atoms.info
+
+
+def test_second_order_pheasy_rejects_nondiagonal_supercell_matrix(tmp_path):
+    from kaldo.observables.secondorder import SecondOrder
+    _make_pheasy_second_folder(tmp_path)
+    non_diagonal = np.array([[2, 1, 0], [0, 1, 0], [0, 0, 1]])
+    with pytest.raises(ValueError, match="diagonal"):
+        SecondOrder.load(folder=str(tmp_path), supercell=(2, 1, 1), format="pheasy",
+                         supercell_matrix=non_diagonal)

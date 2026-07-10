@@ -283,6 +283,32 @@ class SecondOrder(ForceConstant):
                     folder=folder,
                 )
 
+            case "pheasy":
+                from kaldo.interfaces import pheasy_io
+
+                if supercell_matrix is not None:
+                    supercell_matrix = np.asarray(supercell_matrix)
+                    if not np.array_equal(supercell_matrix, np.diag(np.diagonal(supercell_matrix))):
+                        raise ValueError("format='pheasy' supports diagonal supercells only; "
+                                         "pass supercell=(m, n, p).")
+                    supercell = tuple(int(x) for x in np.diagonal(supercell_matrix))
+
+                atoms = pheasy_io.read_pheasy_structure(folder)
+                if os.path.isfile(os.path.join(folder, pheasy_io.BORN_FILE)):
+                    charges = pheasy_io.read_born_charges(folder, atoms.positions.shape[0])
+                    atoms.info['dielectric'] = charges[0, :, :]
+                    atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
+                _second_order = pheasy_io.read_pheasy_second(folder, atoms, supercell)
+                pheasy_io.check_pheasy_supercell_order(folder, atoms, supercell)
+                second_order = SecondOrder.from_supercell(
+                    atoms=atoms,
+                    grid_type='C',
+                    supercell=supercell,
+                    value=_second_order,
+                    is_acoustic_sum=is_acoustic_sum,
+                    folder=folder,
+                )
+
             case _:
                 raise ValueError(f"{format} is not a valid format")
 
