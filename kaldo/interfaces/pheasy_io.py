@@ -166,6 +166,7 @@ def _read_fc2_text(filename, n_unit_atoms, n_cells, supercell):
             rows[n], cols[n] = int(index_line[0]), int(index_line[1])
             for alpha in range(3):
                 blocks[n, alpha] = [float(x) for x in file.readline().split()]
+    # for a (1, 1, 1) supercell n_uc == n_sc, so compact and full coincide and either path is correct
     return rows, cols, blocks, nat_a == n_sc
 
 

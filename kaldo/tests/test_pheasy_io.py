@@ -198,6 +198,55 @@ def test_fc2_full_equals_compact(tmp_path):
     np.testing.assert_allclose(loaded, value, atol=1e-12)
 
 
+def test_fc2_full_ignores_non_central_rows(tmp_path):
+    """Rows outside the central cell are redundant by translation; corrupting them must not change the load."""
+    import ase.io
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    supercell = (2, 1, 1)
+    n_cells = 2
+    value = _random_fc2(2, supercell, seed=7)
+    path = tmp_path / "FORCE_CONSTANTS"
+    _write_fc2_text(path, value, supercell, full=True)
+    lines = path.read_text().splitlines()
+    poisoned = [lines[0]]
+    idx = 1
+    while idx < len(lines):
+        header = lines[idx]
+        block = lines[idx + 1: idx + 4]
+        if (int(header.split()[0]) - 1) % n_cells != 0:
+            block = ["".join(f"{9999.0:25.15f}" for _ in range(3))] * 3
+        poisoned.append(header)
+        poisoned.extend(block)
+        idx += 4
+    path.write_text("\n".join(poisoned) + "\n")
+    loaded = read_pheasy_second(str(tmp_path), atoms, supercell)
+    np.testing.assert_allclose(loaded, value, atol=1e-12)
+
+
+def test_fc2_hdf5_full_shape_ignores_non_central_rows(tmp_path):
+    import h5py
+    import ase.io
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    supercell = (2, 1, 1)
+    n_uc, n_cells = 2, 2
+    n_sc = n_uc * n_cells
+    value = _random_fc2(n_uc, supercell, seed=8)
+    to_c = _kaldo_id_to_pheasy_c(supercell)
+    full = np.full((n_sc, n_sc, 3, 3), 9999.0)
+    for i in range(n_uc):
+        for rep in range(n_cells):
+            for j in range(n_uc):
+                full[i * n_cells, j * n_cells + to_c[rep]] = value[0, i, :, rep, j, :]
+    with h5py.File(tmp_path / "fc2.hdf5", "w") as fd:
+        fd.create_dataset("fc2", data=full)
+    loaded = read_pheasy_second(str(tmp_path), atoms, supercell)
+    np.testing.assert_allclose(loaded, value, atol=1e-12)
+
+
 def test_fc2_hdf5_equals_text(tmp_path):
     import h5py
     import ase.io
