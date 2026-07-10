@@ -98,11 +98,20 @@ def check_pheasy_supercell_order(folder, atoms, supercell):
     """
     sposcar = os.path.join(str(folder), 'SPOSCAR')
     supercell_in = os.path.join(str(folder), 'supercell.in')
-    if os.path.isfile(sposcar):
-        written = ase.io.read(sposcar, format='vasp')
-    elif os.path.isfile(supercell_in):
-        written = ase.io.read(supercell_in, format='espresso-in')
-    else:
+    try:
+        if os.path.isfile(sposcar):
+            written = ase.io.read(sposcar, format='vasp')
+        elif os.path.isfile(supercell_in):
+            written = ase.io.read(supercell_in, format='espresso-in')
+        else:
+            return
+    except Exception as error:
+        # pheasy's own supercell.in omits the &CONTROL/&SYSTEM namelists a standalone
+        # pw.x input needs (pheasy/structure/atoms.py:write_pw_in only ever emits
+        # CELL_PARAMETERS/ATOMIC_POSITIONS), so ASE's espresso-in reader can fail on it.
+        # This check is an optional cross-check; degrade to a warning, never raise.
+        logging.warning(f"pheasy supercell file in {folder} could not be read ({error}); "
+                        "skipping the ordering check.")
         return
     d0, d1, d2 = (int(x) for x in supercell)
     n_cells = d0 * d1 * d2

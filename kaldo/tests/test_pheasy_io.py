@@ -115,6 +115,31 @@ def test_supercell_order_check_noop_without_supercell_file(tmp_path, caplog):
     assert not caplog.records
 
 
+def test_supercell_order_check_warns_instead_of_raising_on_bare_supercell_in(tmp_path, caplog):
+    """pheasy's own write_pw_in emits only CELL_PARAMETERS/ATOMIC_POSITIONS for
+    supercell.in (no &CONTROL/&SYSTEM/&ELECTRONS), which is not a standalone
+    pw.x input; ASE's espresso-in reader raises on it. The check must degrade
+    to a warning rather than propagate the exception (real pheasy Si test
+    fixture reproduces this)."""
+    import ase.io
+    from kaldo.interfaces.pheasy_io import check_pheasy_supercell_order
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    (tmp_path / "supercell.in").write_text(
+        "CELL_PARAMETERS (angstrom)\n"
+        "   6.0   0.0   0.0\n"
+        "   0.0   3.0   0.0\n"
+        "   0.0   0.0   3.0\n"
+        "ATOMIC_POSITIONS (crystal)\n"
+        "Si   0.00   0.00   0.00\n"
+        "Si   0.25   0.00   0.00\n"
+        "Si   0.50   0.00   0.00\n"
+        "Si   0.75   0.00   0.00\n"
+    )
+    check_pheasy_supercell_order(str(tmp_path), atoms, (2, 1, 1))
+    assert [r for r in caplog.records if "could not be read" in r.getMessage()]
+
+
 # ---------------------------------------------------------------------------
 # Helper writers: emit kaldo-layout FC2 in pheasy's exact FORCE_CONSTANTS
 # format (also reused by later tasks). `value` has kaldo shape
