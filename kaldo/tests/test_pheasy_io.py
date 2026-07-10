@@ -112,3 +112,143 @@ def test_supercell_order_check_noop_without_supercell_file(tmp_path, caplog):
     atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
     check_pheasy_supercell_order(str(tmp_path), atoms, (2, 1, 1))
     assert not caplog.records
+
+
+# ---------------------------------------------------------------------------
+# Helper writers: emit kaldo-layout FC2 in pheasy's exact FORCE_CONSTANTS
+# format (also reused by later tasks). `value` has kaldo shape
+# (1, n_uc, 3, n_rep, n_uc, 3) with replicas ordered by Grid(supercell, 'C').
+# ---------------------------------------------------------------------------
+
+def _kaldo_id_to_pheasy_c(supercell):
+    from kaldo.grid import Grid
+    d0, d1, d2 = supercell
+    offsets = Grid((d0, d1, d2), order="C").grid(is_wrapping=False)
+    return np.array([int(ox + oy * d0 + oz * d0 * d1) for (ox, oy, oz) in offsets])
+
+
+def _write_fc2_text(path, value, supercell, row_style="pmap", full=False):
+    d0, d1, d2 = supercell
+    n_cells = d0 * d1 * d2
+    n_uc = value.shape[1]
+    n_sc = n_uc * n_cells
+    to_c = _kaldo_id_to_pheasy_c(supercell)
+    c_to_id = np.argsort(to_c)
+    n_rows = n_sc if full else n_uc
+    with open(path, "w") as fd:
+        fd.write(f"{n_rows:>5d}{n_sc:5d}\n")
+        for row in range(n_rows):
+            i_uc, ci = (row // n_cells, row % n_cells) if full else (row, 0)
+            for col in range(n_sc):
+                j_uc, cj = col // n_cells, col % n_cells
+                if full:
+                    label = row + 1
+                elif row_style == "pmap":
+                    label = i_uc * n_cells + 1
+                else:
+                    label = i_uc + 1
+                fd.write(f"{label:5d}{col + 1:5d}\n")
+                oxi, oyi, ozi = ci % d0, (ci // d0) % d1, ci // (d0 * d1)
+                oxj, oyj, ozj = cj % d0, (cj // d0) % d1, cj // (d0 * d1)
+                rel_c = ((oxj - oxi) % d0) + ((oyj - oyi) % d1) * d0 + ((ozj - ozi) % d2) * d0 * d1
+                block = value[0, i_uc, :, c_to_id[rel_c], j_uc, :]
+                for alpha in range(3):
+                    fd.write("".join(f"{x:25.15f}" for x in block[alpha]) + "\n")
+
+
+def _random_fc2(n_uc, supercell, seed=0):
+    rng = np.random.default_rng(seed)
+    n_cells = supercell[0] * supercell[1] * supercell[2]
+    return rng.standard_normal((1, n_uc, 3, n_cells, n_uc, 3))
+
+
+def test_fc2_text_roundtrip_places_every_block(tmp_path):
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    supercell = (2, 1, 1)
+    value = _random_fc2(2, supercell)
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", value, supercell)
+    loaded = read_pheasy_second(str(tmp_path), atoms, supercell)
+    np.testing.assert_allclose(loaded, value, atol=1e-12)
+
+
+def test_fc2_text_direct_row_labels_equivalent(tmp_path):
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    supercell = (2, 1, 1)
+    value = _random_fc2(2, supercell)
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", value, supercell, row_style="direct")
+    loaded = read_pheasy_second(str(tmp_path), atoms, supercell)
+    np.testing.assert_allclose(loaded, value, atol=1e-12)
+
+
+def test_fc2_full_equals_compact(tmp_path):
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    supercell = (2, 1, 1)
+    value = _random_fc2(2, supercell)
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", value, supercell, full=True)
+    loaded = read_pheasy_second(str(tmp_path), atoms, supercell)
+    np.testing.assert_allclose(loaded, value, atol=1e-12)
+
+
+def test_fc2_hdf5_equals_text(tmp_path):
+    import h5py
+    import ase.io
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    supercell = (2, 1, 1)
+    n_uc, n_cells = 2, 2
+    n_sc = n_uc * n_cells
+    value = _random_fc2(n_uc, supercell)
+    to_c = _kaldo_id_to_pheasy_c(supercell)
+    ifc2 = np.zeros((n_uc, n_sc, 3, 3))
+    for i in range(n_uc):
+        for rep in range(n_cells):
+            for j in range(n_uc):
+                ifc2[i, j * n_cells + to_c[rep]] = value[0, i, :, rep, j, :]
+    with h5py.File(tmp_path / "fc2.hdf5", "w") as fd:
+        fd.create_dataset("fc2", data=ifc2)
+    loaded = read_pheasy_second(str(tmp_path), atoms, supercell)
+    np.testing.assert_allclose(loaded, value, atol=1e-12)
+
+
+def test_fc2_header_supercell_mismatch_raises(tmp_path):
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    value = _random_fc2(2, (2, 1, 1))
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", value, (2, 1, 1))
+    with pytest.raises(ValueError, match="supercell"):
+        read_pheasy_second(str(tmp_path), atoms, (3, 1, 1))
+
+
+def test_fc2_unrecognized_row_labels_raise(tmp_path):
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    lines = [f"{2:>5d}{4:5d}"]
+    for row, col in [(5, c) for c in range(1, 5)] + [(6, c) for c in range(1, 5)]:
+        lines.append(f"{row:5d}{col:5d}")
+        lines += ["    0.0    0.0    0.0"] * 3
+    (tmp_path / "FORCE_CONSTANTS").write_text("\n".join(lines) + "\n")
+    with pytest.raises(ValueError, match="row indices"):
+        read_pheasy_second(str(tmp_path), atoms, (2, 1, 1))
+
+
+def test_fc2_files_missing_raise(tmp_path):
+    from kaldo.interfaces.pheasy_io import read_pheasy_second
+    import ase.io
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    with pytest.raises(FileNotFoundError, match=r"FORCE_CONSTANTS.*fc2\.hdf5|fc2\.hdf5.*FORCE_CONSTANTS"):
+        read_pheasy_second(str(tmp_path), atoms, (1, 1, 1))

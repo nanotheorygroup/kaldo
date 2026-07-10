@@ -122,3 +122,103 @@ def check_pheasy_supercell_order(folder, atoms, supercell):
     if not np.allclose(diff, 0.0, atol=1e-5):
         logging.warning("pheasy supercell file atom order does not match pheasy's atom-major convention; "
                         "imported force constants may be misassigned. Check the pheasy run inputs.")
+
+
+def _decode_row_atoms(row_labels, n_unit_atoms, n_cells):
+    """Decode compact FORCE_CONSTANTS row labels into unit-cell atom indices.
+
+    pheasy labels compact rows with the supercell index of each unit-cell atom
+    (``i * n_cells + 1``, 1-based); plain phonopy compact files use
+    ``1..n_unit_atoms``. Returns a dict label -> unit atom, or raises.
+    """
+    labels = np.array(sorted(set(int(x) for x in row_labels)))
+    pmap_style = np.arange(n_unit_atoms) * n_cells + 1
+    direct_style = np.arange(n_unit_atoms) + 1
+    if np.array_equal(labels, pmap_style):
+        return {int(label): int(label - 1) // n_cells for label in labels}
+    if np.array_equal(labels, direct_style):
+        return {int(label): int(label) - 1 for label in labels}
+    raise ValueError(f"FORCE_CONSTANTS: cannot interpret row indices {labels[:6].tolist()}... as compact rows for "
+                     f"{n_unit_atoms} unit-cell atoms and {n_cells} cells; the file layout is not recognized.")
+
+
+def _read_fc2_text(filename, n_unit_atoms, n_cells, supercell):
+    """Parse a pheasy FORCE_CONSTANTS file into (rows, cols, blocks, is_full)."""
+    n_sc = n_unit_atoms * n_cells
+    with open(filename, 'r') as file:
+        header = file.readline().split()
+        if len(header) < 2:
+            raise ValueError(f"{filename}: malformed header {header!r}.")
+        nat_a, nat_b = int(header[0]), int(header[1])
+        if nat_b != n_sc or nat_a not in (n_unit_atoms, n_sc):
+            raise ValueError(f"{filename}: header ({nat_a}, {nat_b}) is inconsistent with {n_unit_atoms} unit-cell "
+                             f"atoms and supercell {tuple(int(x) for x in supercell)} (expected "
+                             f"({n_unit_atoms} or {n_sc}, {n_sc})); check the supercell argument against "
+                             "pheasy's --dim.")
+        n_blocks = nat_a * nat_b
+        rows = np.empty(n_blocks, dtype=np.int64)
+        cols = np.empty(n_blocks, dtype=np.int64)
+        blocks = np.empty((n_blocks, 3, 3))
+        for n in range(n_blocks):
+            index_line = file.readline().split()
+            if len(index_line) < 2:
+                raise ValueError(f"{filename}: unexpected end of file at block {n}.")
+            rows[n], cols[n] = int(index_line[0]), int(index_line[1])
+            for alpha in range(3):
+                blocks[n, alpha] = [float(x) for x in file.readline().split()]
+    return rows, cols, blocks, nat_a == n_sc
+
+
+def read_pheasy_second(folder, atoms, supercell):
+    """Read pheasy IFC2 into kaldo's ``(1, n_uc, 3, n_rep, n_uc, 3)`` layout, eV/A^2.
+
+    Prefers the always-written ``FORCE_CONSTANTS`` text file; falls back to
+    ``fc2.hdf5`` (dataset ``fc2``). Handles pheasy's compact and full forms.
+    """
+    n_unit_atoms = atoms.positions.shape[0]
+    d0, d1, d2 = (int(x) for x in supercell)
+    n_cells = d0 * d1 * d2
+    n_sc = n_unit_atoms * n_cells
+    cell_map = _pheasy_cell_to_kaldo_id((d0, d1, d2))
+    value = np.zeros((1, n_unit_atoms, 3, n_cells, n_unit_atoms, 3))
+
+    text_path = os.path.join(str(folder), SECOND_ORDER_FILES[0])
+    hdf5_path = os.path.join(str(folder), SECOND_ORDER_FILES[1])
+    if os.path.isfile(text_path):
+        logging.info(f"Reading pheasy second order from {text_path}")
+        rows, cols, blocks, is_full = _read_fc2_text(text_path, n_unit_atoms, n_cells, supercell)
+        row_to_unit = None if is_full else _decode_row_atoms(rows, n_unit_atoms, n_cells)
+        for n in range(rows.shape[0]):
+            row, col = int(rows[n]), int(cols[n])
+            if is_full:
+                if (row - 1) % n_cells != 0:
+                    # rows outside the central cell are redundant under translational symmetry
+                    continue
+                i_uc = (row - 1) // n_cells
+            else:
+                i_uc = row_to_unit[row]
+            j_uc = (col - 1) // n_cells
+            rep = cell_map[(col - 1) % n_cells]
+            value[0, i_uc, :, rep, j_uc, :] = blocks[n]
+    elif os.path.isfile(hdf5_path):
+        import h5py
+        logging.info(f"Reading pheasy second order from {hdf5_path}")
+        with h5py.File(hdf5_path, 'r') as fd:
+            if 'fc2' not in fd:
+                raise ValueError(f"{hdf5_path}: dataset 'fc2' not found.")
+            ifc2 = np.array(fd['fc2'], dtype=np.float64)
+        if ifc2.shape == (n_sc, n_sc, 3, 3):
+            ifc2 = ifc2[np.arange(n_unit_atoms) * n_cells]
+        elif ifc2.shape != (n_unit_atoms, n_sc, 3, 3):
+            raise ValueError(f"{hdf5_path}: fc2 shape {ifc2.shape} is inconsistent with supercell "
+                             f"{(d0, d1, d2)} (expected ({n_unit_atoms}, {n_sc}, 3, 3) or "
+                             f"({n_sc}, {n_sc}, 3, 3)); check the supercell argument against pheasy's --dim.")
+        for i_uc in range(n_unit_atoms):
+            for col in range(n_sc):
+                j_uc = col // n_cells
+                rep = cell_map[col % n_cells]
+                value[0, i_uc, :, rep, j_uc, :] = ifc2[i_uc, col]
+    else:
+        raise FileNotFoundError(f"No pheasy second order file found in {folder}: expected one of "
+                                f"{SECOND_ORDER_FILES}.")
+    return value.astype(np.float64)
