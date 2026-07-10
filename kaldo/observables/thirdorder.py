@@ -9,7 +9,7 @@ from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
 import ase.units as units
-from kaldo.controllers.displacement import calculate_third
+from kaldo.controllers.displacement import calculate_third, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 from kaldo.helpers.logger import get_logger
 
@@ -303,7 +303,8 @@ class ThirdOrder(ForceConstant):
 
 
     def calculate(self, calculator=None, delta_shift=1e-4, distance_threshold=None, is_storing=True, is_verbose=False,
-                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, use_symmetry=False, symprec=1e-5):
+                  n_workers=1, scratch_dir=None, keep_scratch=False, jat_flush_every=50, use_symmetry=False,
+                  symprec=1e-5, symmetrize=True):
         """Calculate the third order force constants.
 
         This is the method typically reached through ``fc.third.calculate(...)``.
@@ -376,6 +377,16 @@ class ThirdOrder(ForceConstant):
         symprec : float, optional
             precision for symmetry using spglib.
             Default: 1e-5
+        symmetrize : bool, optional
+            If True, project freshly computed force constants onto the
+            space-group-invariant subspace (full-group average). Exact
+            force constants are a fixed point, so this only removes
+            finite-difference noise and symmetry violations from
+            potentials that do not exactly respect the crystal symmetry
+            (e.g. rotationally unconstrained ML potentials). Skipped
+            with a warning when the symmetry analysis is unavailable.
+            Force constants loaded from ``self.folder`` are never
+            re-projected. Default: True
         """
         if is_parallel(n_workers):
             validate_parallel_calculator(calculator, method='ThirdOrder.calculate')
@@ -417,6 +428,8 @@ class ThirdOrder(ForceConstant):
                                              jat_flush_every=jat_flush_every,
                                              use_symmetry=use_symmetry,
                                              symprec=symprec)
+                if symmetrize:
+                    self.value = try_symmetrize_ifc(3, self.value, atoms, self.supercell, symprec)
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
             else:
@@ -434,12 +447,27 @@ class ThirdOrder(ForceConstant):
                                          jat_flush_every=jat_flush_every,
                                          use_symmetry=use_symmetry,
                                          symprec=symprec)
+            if symmetrize:
+                self.value = try_symmetrize_ifc(3, self.value, atoms, self.supercell, symprec)
             if is_storing:
                 self.save('third')
                 ase.io.write(self.folder + '/' + REPLICATED_ATOMS_THIRD_FILE, self.replicated_atoms, 'extxyz')
 
+    def symmetrize(self, symprec=1e-5):
+        """Project the stored force constants onto the space-group-invariant subspace.
 
-
+        See kaldo.controllers.displacement.symmetrize_ifc_third. Diagonal
+        supercells only.
+        """
+        from kaldo.controllers.displacement import symmetrize_ifc_third
+        if getattr(self, '_snf_mapping', None) is not None:
+            # See SecondOrder.symmetrize: the SNF-linearized supercell would
+            # silently symmetrize against the wrong replica lattice.
+            raise NotImplementedError(
+                'symmetrize() supports diagonal supercells only; this observable '
+                'was loaded on a non-diagonal (SNF) replica mapping.'
+            )
+        self.value = symmetrize_ifc_third(self.value, self.atoms, self.supercell, symprec)
 
     def __str__(self):
         return 'third'
