@@ -11,6 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import itertools
 
 POSCAR_2ATOM = (
     "Si\n1.0\n3.0 0.0 0.0\n0.0 3.0 0.0\n0.0 0.0 3.0\nSi\n2\n"
@@ -353,3 +354,65 @@ def test_second_order_pheasy_rejects_nondiagonal_supercell_matrix(tmp_path):
     with pytest.raises(ValueError, match="diagonal"):
         SecondOrder.load(folder=str(tmp_path), supercell=(2, 1, 1), format="pheasy",
                          supercell_matrix=non_diagonal)
+
+
+# ---------------------------------------------------------------------------
+# Third order
+# ---------------------------------------------------------------------------
+
+def _write_fc3_text(path, blocks):
+    """blocks: list of (cart_offset_2 (3,), cart_offset_3 (3,), (i, j, k) 0-based unit atoms, phi (3,3,3))."""
+    with open(path, "w") as fd:
+        fd.write(f"{len(blocks)}\n")
+        for n, (r2, r3, (i, j, k), phi) in enumerate(blocks, start=1):
+            fd.write(f"\n{n}\n")
+            fd.write("".join(f"{x:25.15f}" for x in r2) + "\n")
+            fd.write("".join(f"{x:25.15f}" for x in r3) + "\n")
+            fd.write(f"{i + 1:6d}{j + 1:6d}{k + 1:6d}\n")
+            for (a, b, c) in itertools.product([1, 2, 3], repeat=3):
+                fd.write(f"{a:4d}{b:4d}{c:4d}{phi[a - 1, b - 1, c - 1]:25.15f}\n")
+
+
+def test_third_order_load_pheasy_places_block(tmp_path):
+    from kaldo.observables.thirdorder import ThirdOrder
+    _write_poscar(tmp_path)
+    rng = np.random.default_rng(1)
+    phi = rng.standard_normal((3, 3, 3))
+    # cell is cubic with a = 3.0; offset (3, 0, 0) is the (1, 0, 0) cell,
+    # which on Grid((2, 1, 1), 'C') is replica id 1. (0, 0, 0) is id 0.
+    _write_fc3_text(tmp_path / "FORCE_CONSTANTS_3RD",
+                    [(np.array([3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), phi)])
+    third = ThirdOrder.load(folder=str(tmp_path), supercell=(2, 1, 1), format="pheasy")
+    dense = np.asarray(third.value).reshape((2, 3, 2, 2, 3, 2, 2, 3))
+    np.testing.assert_allclose(dense[0, :, 1, 1, :, 0, 0, :], phi, atol=1e-12)
+    assert np.count_nonzero(dense) == np.count_nonzero(phi)
+
+
+def test_third_order_pheasy_hdf5_equals_text(tmp_path):
+    import h5py
+    from kaldo.observables.thirdorder import ThirdOrder
+    _write_poscar(tmp_path)
+    rng = np.random.default_rng(2)
+    phi = rng.standard_normal((3, 3, 3))
+    supercell = (2, 1, 1)
+    n_uc, n_cells = 2, 2
+    n_sc = 4
+    _write_fc3_text(tmp_path / "FORCE_CONSTANTS_3RD",
+                    [(np.array([3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), phi)])
+    third_text = ThirdOrder.load(folder=str(tmp_path), supercell=supercell, format="pheasy")
+    (tmp_path / "FORCE_CONSTANTS_3RD").unlink()
+    to_c = _kaldo_id_to_pheasy_c(supercell)
+    fc3 = np.zeros((n_uc, n_sc, n_sc, 3, 3, 3))
+    # unit atom j=1 in kaldo replica 1 -> pheasy column j * n_cells + c(rep=1)
+    fc3[0, 1 * n_cells + to_c[1], 0 * n_cells + to_c[0]] = phi
+    with h5py.File(tmp_path / "fc3.hdf5", "w") as fd:
+        fd.create_dataset("fc3", data=fc3)
+    third_h5 = ThirdOrder.load(folder=str(tmp_path), supercell=supercell, format="pheasy")
+    np.testing.assert_allclose(np.asarray(third_h5.value), np.asarray(third_text.value), atol=1e-12)
+
+
+def test_third_order_pheasy_missing_files_raise(tmp_path):
+    from kaldo.observables.thirdorder import ThirdOrder
+    _write_poscar(tmp_path)
+    with pytest.raises(FileNotFoundError, match=r"FORCE_CONSTANTS_3RD.*fc3\.hdf5|fc3\.hdf5.*FORCE_CONSTANTS_3RD"):
+        ThirdOrder.load(folder=str(tmp_path), supercell=(1, 1, 1), format="pheasy")

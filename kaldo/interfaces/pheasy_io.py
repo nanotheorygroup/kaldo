@@ -29,6 +29,7 @@ import os
 import ase.io
 import numpy as np
 
+import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
 
@@ -223,3 +224,52 @@ def read_pheasy_second(folder, atoms, supercell):
         raise FileNotFoundError(f"No pheasy second order file found in {folder}: expected one of "
                                 f"{SECOND_ORDER_FILES}.")
     return value.astype(np.float64)
+
+
+def read_pheasy_third(folder, atoms, supercell):
+    """Read pheasy IFC3, eV/A^3, into the dense ``(n_uc*3, n_rep*n_uc*3, n_rep*n_uc*3)`` layout.
+
+    Prefers the always-written ShengBTE ``FORCE_CONSTANTS_3RD`` (self-describing:
+    Cartesian cell offsets plus 1-based unit-cell atom indices, parsed by the
+    existing ShengBTE reader); falls back to ``fc3.hdf5`` (dataset ``fc3``).
+    """
+    text_path = os.path.join(str(folder), THIRD_ORDER_FILES[0])
+    hdf5_path = os.path.join(str(folder), THIRD_ORDER_FILES[1])
+    if os.path.isfile(text_path):
+        logging.info(f"Reading pheasy third order from {text_path}")
+        return shengbte_io.read_third_order_matrix(text_path, atoms, supercell, order='C')
+    if os.path.isfile(hdf5_path):
+        logging.info(f"Reading pheasy third order from {hdf5_path}")
+        return _read_fc3_hdf5(hdf5_path, atoms, supercell)
+    raise FileNotFoundError(f"No pheasy third order file found in {folder}: expected one of {THIRD_ORDER_FILES}.")
+
+
+def _read_fc3_hdf5(filename, atoms, supercell):
+    import h5py
+    n_unit_atoms = atoms.positions.shape[0]
+    d0, d1, d2 = (int(x) for x in supercell)
+    n_cells = d0 * d1 * d2
+    n_sc = n_unit_atoms * n_cells
+    with h5py.File(filename, 'r') as fd:
+        if 'fc3' not in fd:
+            raise ValueError(f"{filename}: dataset 'fc3' not found.")
+        fc3 = np.array(fd['fc3'], dtype=np.float64)
+    if fc3.shape == (n_sc, n_sc, n_sc, 3, 3, 3):
+        fc3 = fc3[np.arange(n_unit_atoms) * n_cells]
+    elif fc3.shape != (n_unit_atoms, n_sc, n_sc, 3, 3, 3):
+        raise ValueError(f"{filename}: fc3 shape {fc3.shape} is inconsistent with supercell {(d0, d1, d2)} "
+                         f"(expected ({n_unit_atoms}, {n_sc}, {n_sc}, 3, 3, 3) or ({n_sc}, {n_sc}, {n_sc}, 3, 3, 3)); "
+                         "check the supercell argument against pheasy's --dim.")
+    cell_map = _pheasy_cell_to_kaldo_id((d0, d1, d2))
+    unit_of_col = np.arange(n_sc) // n_cells
+    rep_of_col = cell_map[np.arange(n_sc) % n_cells]
+    third = np.zeros((n_unit_atoms, 3, n_cells, n_unit_atoms, 3, n_cells, n_unit_atoms, 3))
+    for i_uc in range(n_unit_atoms):
+        for col_j in range(n_sc):
+            for col_k in range(n_sc):
+                block = fc3[i_uc, col_j, col_k]
+                if not block.any():
+                    continue
+                third[i_uc, :, rep_of_col[col_j], unit_of_col[col_j], :,
+                      rep_of_col[col_k], unit_of_col[col_k], :] = block
+    return third.reshape((n_unit_atoms * 3, n_cells * n_unit_atoms * 3, n_cells * n_unit_atoms * 3))
