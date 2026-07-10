@@ -217,9 +217,9 @@ class ForceConstants:
 
         # Validate include_fourth early so we don't waste time loading IFC2/3
         # only to discover the format is wrong.
-        if include_fourth and format != 'tdep':
+        if include_fourth and format not in ('tdep', 'pheasy'):
             raise ValueError(
-                f"include_fourth=True is only supported for format='tdep'"
+                f"include_fourth=True is only supported for format='tdep' or format='pheasy'"
                 f" (got format={format!r})"
             )
 
@@ -249,11 +249,11 @@ class ForceConstants:
         fourth_order = None
         if include_fourth and not only_second:
             # Fourth-order loading is opt-in because most existing datasets
-            # ship only IFC2 + IFC3. Today only format='tdep' is wired
+            # ship only IFC2 + IFC3. Wired for format='tdep' and format='pheasy'
             # (validated at the top of this method).
             fourth_order = FourthOrder.load(folder=folder,
                                             supercell=target_third_supercell,
-                                            format='tdep',
+                                            format=format,
                                             supercell_matrix=supercell_matrix)
 
         return cls(atoms=atoms,

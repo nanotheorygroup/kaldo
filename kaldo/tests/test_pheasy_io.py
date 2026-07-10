@@ -416,3 +416,85 @@ def test_third_order_pheasy_missing_files_raise(tmp_path):
     _write_poscar(tmp_path)
     with pytest.raises(FileNotFoundError, match=r"FORCE_CONSTANTS_3RD.*fc3\.hdf5|fc3\.hdf5.*FORCE_CONSTANTS_3RD"):
         ThirdOrder.load(folder=str(tmp_path), supercell=(1, 1, 1), format="pheasy")
+
+
+# ---------------------------------------------------------------------------
+# Fourth order
+# ---------------------------------------------------------------------------
+
+
+def _write_fc4_text(path, blocks):
+    """blocks: list of (r2 (3,), r3 (3,), r4 (3,), (i, j, k, l) 0-based unit atoms, phi (3,3,3,3))."""
+    with open(path, "w") as fd:
+        fd.write(f"{len(blocks)}\n")
+        for n, (r2, r3, r4, (i, j, k, m), phi) in enumerate(blocks, start=1):
+            fd.write(f"\n{n}\n")
+            for r in (r2, r3, r4):
+                fd.write("".join(f"{x:25.15f}" for x in r) + "\n")
+            fd.write(f"{i + 1:6d}{j + 1:6d}{k + 1:6d}{m + 1:6d}\n")
+            for (a, b, c, e) in itertools.product([1, 2, 3], repeat=4):
+                fd.write(f"{a:4d}{b:4d}{c:4d}{e:4d}{phi[a - 1, b - 1, c - 1, e - 1]:25.15f}\n")
+
+
+def test_fc4_parser_places_and_sums_blocks(tmp_path):
+    import ase.io
+    from kaldo.interfaces.shengbte_io import read_fourth_order_matrix
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    rng = np.random.default_rng(3)
+    phi_a = rng.standard_normal((3, 3, 3, 3))
+    phi_b = rng.standard_normal((3, 3, 3, 3))
+    Z = np.zeros(3)
+    R100 = np.array([3.0, 0.0, 0.0])  # cell (1, 0, 0): id 1 on Grid((2, 1, 1), 'C')
+    fc4_file = tmp_path / "FORCE_CONSTANTS_4TH"
+    _write_fc4_text(fc4_file, [
+        (R100, Z, Z, (0, 1, 0, 1), phi_a),
+        (R100, Z, Z, (0, 1, 0, 1), phi_b),  # duplicate quartet: must sum
+    ])
+    ifc4 = read_fourth_order_matrix(str(fc4_file), atoms, (2, 1, 1), order="C")
+    assert ifc4.shape == (2, 3, 2, 2, 3, 2, 2, 3, 2, 2, 3)
+    dense = ifc4.todense()
+    np.testing.assert_allclose(dense[0, :, 1, 1, :, 0, 0, :, 0, 1, :], phi_a + phi_b, atol=1e-12)
+    assert ifc4.nnz <= 2 * 81
+
+
+def test_fc4_parser_raises_on_truncated_file(tmp_path):
+    import ase.io
+    from kaldo.interfaces.shengbte_io import read_fourth_order_matrix
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    fc4_file = tmp_path / "FORCE_CONSTANTS_4TH"
+    _write_fc4_text(fc4_file, [(np.zeros(3), np.zeros(3), np.zeros(3), (0, 1, 0, 1), np.ones((3, 3, 3, 3)))])
+    lines = fc4_file.read_text().splitlines()
+    fc4_file.write_text("\n".join(lines[:20]) + "\n")
+    with pytest.raises(ValueError, match="unexpected end of file"):
+        read_fourth_order_matrix(str(fc4_file), atoms, (1, 1, 1), order="C")
+
+
+def test_from_folder_pheasy_include_fourth(tmp_path):
+    from kaldo.forceconstants import ForceConstants
+    _write_poscar(tmp_path)
+    supercell = (2, 1, 1)
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", _random_fc2(2, supercell), supercell)
+    _write_fc3_text(tmp_path / "FORCE_CONSTANTS_3RD",
+                    [(np.array([3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), np.ones((3, 3, 3)))])
+    phi4 = np.arange(81, dtype=float).reshape(3, 3, 3, 3)
+    _write_fc4_text(tmp_path / "FORCE_CONSTANTS_4TH",
+                    [(np.zeros(3), np.zeros(3), np.zeros(3), (0, 1, 1, 0), phi4)])
+    fc = ForceConstants.from_folder(str(tmp_path), supercell=supercell, format="pheasy", include_fourth=True)
+    assert fc.fourth is not None
+    dense = fc.fourth.value.todense()
+    np.testing.assert_allclose(dense[0, :, 0, 1, :, 0, 1, :, 0, 0, :], phi4, atol=1e-12)
+    fc_no4 = ForceConstants.from_folder(str(tmp_path), supercell=supercell, format="pheasy")
+    assert fc_no4.fourth is None
+
+
+def test_from_folder_pheasy_include_fourth_missing_file_raises(tmp_path):
+    from kaldo.forceconstants import ForceConstants
+    _write_poscar(tmp_path)
+    supercell = (2, 1, 1)
+    _write_fc2_text(tmp_path / "FORCE_CONSTANTS", _random_fc2(2, supercell), supercell)
+    _write_fc3_text(tmp_path / "FORCE_CONSTANTS_3RD",
+                    [(np.array([3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), np.ones((3, 3, 3)))])
+    with pytest.raises(FileNotFoundError, match="FORCE_CONSTANTS_4TH"):
+        ForceConstants.from_folder(str(tmp_path), supercell=supercell, format="pheasy", include_fourth=True)

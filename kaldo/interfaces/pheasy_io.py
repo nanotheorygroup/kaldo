@@ -273,3 +273,17 @@ def _read_fc3_hdf5(filename, atoms, supercell):
                 third[i_uc, :, rep_of_col[col_j], unit_of_col[col_j], :,
                       rep_of_col[col_k], unit_of_col[col_k], :] = block
     return third.reshape((n_unit_atoms * 3, n_cells * n_unit_atoms * 3, n_cells * n_unit_atoms * 3))
+
+
+def read_pheasy_fourth(folder, atoms, supercell):
+    """Read pheasy IFC4 (``FORCE_CONSTANTS_4TH``, eV/A^4) as a rank-11 sparse COO tensor.
+
+    ``fc4.hdf5`` is intentionally not supported: it stores the dense rank-8
+    tensor, O(n_sc^3) memory, while the text file is sparse and always written.
+    """
+    path = os.path.join(str(folder), FOURTH_ORDER_FILE)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"{path} not found (pheasy writes {FOURTH_ORDER_FILE} when fitting with "
+                                "order >= 4; fc4.hdf5 is not supported).")
+    logging.info(f"Reading pheasy fourth order from {path}")
+    return shengbte_io.read_fourth_order_matrix(path, atoms, supercell, order='C')
