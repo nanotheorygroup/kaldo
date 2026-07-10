@@ -89,8 +89,12 @@ def cumulant_thermo(
     temperature : float
         Temperature in Kelvin.
     is_classic : bool
-        Specifies if the system is treated with classical or quantum
-        statistics. Default: False
+        True for classical statistics, False for quantum. Required.
+    lammps_cmds : str or sequence of str
+        ASE ``LAMMPSlib`` commands (pair_style, pair_coeff, ...) defining
+        the potential; the sampler hits this calculator in a tight loop.
+        For example:
+        ["pair_style lj/cut 6.955", "pair_coeff * * 0.0032135 2.782", "pair_modify shift yes"]
     nconf : int
         Number of configurations to sample for 0th order correction. Default is 100_000.
     nboot : int
@@ -100,13 +104,11 @@ def cumulant_thermo(
     free_energy_mesh : tuple[int, int, int]
         q-mesh for analytic F1/F2. For optimal runtime/accuracy trade-off you should
         run a convergence study. Default is (25, 25, 25), but smaller meshes often work well.
-    lammps_cmds : ASE ``LAMMPSlib`` pair_style + pair_coeff etc. The
-        sampler hits this calculator in a tight loop. For example:
-        ["pair_style lj/cut 6.955", "pair_coeff * * 0.0032135 2.782", "pair_modify shift yes"]
     seed : int
         Random seed for the sampler.
-    use_q_symmetry : Restricts F1/F2 outer q1 loop to spglib IBZ. This flag
-        is meant for debugging. Default is True. 
+    use_q_symmetry : bool
+        Restricts the F1/F2 outer q1 loop to the spglib IBZ; disabling is
+        meant for debugging. Default is True.
     lammps_kwargs : dict
         Keyword arguments for the LAMMPSlib calculator. LAMMPS commands should be provided via
         the `lammps_cmds` argument. `atom_types` and `atom_type_masses` will be populated automatically
