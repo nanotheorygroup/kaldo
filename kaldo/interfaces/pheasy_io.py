@@ -28,7 +28,6 @@ import os
 
 import numpy as np
 
-import kaldo.interfaces.shengbte_io as shengbte_io
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
 
