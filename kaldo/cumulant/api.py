@@ -29,7 +29,6 @@ from .sampler import SCSampler
 from .taylor import SCContractors
 from .bootstrap import bootstrap_corrections
 from kaldo.forceconstants import ForceConstants
-from tqdm import trange
 
 
 @dataclass
@@ -278,7 +277,7 @@ def cumulant_thermo(
     V = np.zeros(nconf); V2 = np.zeros(nconf); V3 = np.zeros(nconf)
     V4 = np.zeros(nconf); V2_tilde = np.zeros(nconf)
     t0 = time.time()
-    for n in trange(nconf):
+    for n in range(nconf):
         u, z = sampler.draw_with_z()
         V[n] = energy_eval.energy(u)
         V2[n] = contractors.V2(u)
