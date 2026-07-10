@@ -2,14 +2,13 @@
 Unified ``cumulant_thermo`` API.
 
 Mirrors Ethan Meitz's ``CumulantAnalysis.jl`` ``crystal_thermodynamic_properties``
-top-level runner. Given a ``ForceConstants`` object, compute the full
-cumulant thermodynamics.
+top-level runner. Given a TDEP folder (IFC2/IFC3/IFC4 plus structures),
+compute the full cumulant thermodynamics
 
-    F_total = F_H + F_offset + F_1 + F_2
+    F_total = F_H + F_0 + F_1 + F_2
 
 and analogously U_total / S_total / Cv_total, with bootstrap SEs on the
-constant-correction piece (F_offset etc.) and zero SE on the analytic
-contributions.
+constant correction (F_0 etc.) and zero SE on the analytic contributions.
 
 Validated against Ethan's 25^3 Ne published values (Gate 6 PASS: F_total
 matches to 1.7e-7 eV/atom < Ethan's own SE).
