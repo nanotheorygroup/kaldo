@@ -63,7 +63,8 @@ class SecondOrder(ForceConstant):
              folder: str,
              supercell: tuple[int, int, int] = (1, 1, 1),
              format: str = "numpy",
-             is_acoustic_sum: bool = False):
+             is_acoustic_sum: bool = False,
+             supercell_matrix: np.ndarray | None = None):
         """
         Load second order force constants from a folder in the given format, used for library internally.
 
@@ -82,6 +83,12 @@ class SecondOrder(ForceConstant):
         is_acoustic_sum : bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default: False
+        supercell_matrix : np.ndarray, optional
+            3x3 integer supercell expansion matrix. Accepted for API symmetry
+            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
+            (possibly non-diagonal) supercell is inferred from
+            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Default: None
 
         Returns
         -------
@@ -177,7 +184,8 @@ class SecondOrder(ForceConstant):
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                         _second_order = _second_order.transpose(3, 4, 2, 0, 1)
-                        grid_type = "F"
+                        # must match the C-order flattening of (t1, t2, t3) in the reshape above
+                        grid_type = "C"
                     case _:
                         # load VASP second order force constant
                         filename = os.path.join(folder, "FORCE_CONSTANTS_2ND")
@@ -187,6 +195,7 @@ class SecondOrder(ForceConstant):
                             raise FileNotFoundError(f"File {filename} not found.")
                         _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        # must stay "F" together with the vasp-* case in ThirdOrder.load
                         grid_type = "F"
                 second_order = SecondOrder.from_supercell(
                     atoms=atoms,
@@ -235,24 +244,41 @@ class SecondOrder(ForceConstant):
                     )
 
             case "tdep":
-                uc_filename = "infile.ucposcar"
-                replicated_filename = "infile.ssposcar"
-                atom_prime_file = os.path.join(folder, uc_filename)
-                replicated_atom_prime_file = os.path.join(folder, replicated_filename)
-                uc = ase.io.read(atom_prime_file, format="vasp")
-                sc = ase.io.read(replicated_atom_prime_file, format="vasp")
-                d2 = parse_tdep_forceconstant(
-                    fc_file=os.path.join(folder, "infile.forceconstant"),
-                    primitive=atom_prime_file,
-                    supercell=replicated_atom_prime_file,
-                    reduce_fc=False,
+                from kaldo.interfaces.tdep_io import (
+                    build_nondiag_observable_kwargs,
+                    attach_snf_metadata,
+                    resolve_tdep_supercell,
                 )
-                n_unit_atoms = uc.positions.shape[0]
-                n_replicas = np.prod(supercell)
-                d2 = d2.reshape((n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                d2 = d2[0, np.newaxis]
+                from kaldo.grid import Grid
+
+                uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
+                fc_file = os.path.join(folder, "infile.forceconstant")
+
+                if diagonal_supercell is None:
+                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    mapping = kw.pop("_mapping")
+                    d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=kw["grid"])
+                    second_order = SecondOrder(value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw)
+                    return attach_snf_metadata(second_order, mapping)
+
+                supercell = diagonal_supercell
+                d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C"))
                 second_order = SecondOrder(
-                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2, folder=folder
+                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2,
+                    is_acoustic_sum=is_acoustic_sum, folder=folder
+                )
+
+            case "gpumd":
+                from kaldo.interfaces import gpumd_io
+                meta = gpumd_io.read_gpumd_fc(folder)
+                apply_asr = is_acoustic_sum and not meta["acoustic_sum_applied"]
+                second_order = SecondOrder.from_supercell(
+                    atoms=meta["atoms"],
+                    grid_type=meta["grid_order"],
+                    supercell=meta["supercell"],
+                    value=meta["fc2"],
+                    is_acoustic_sum=apply_asr,
+                    folder=folder,
                 )
 
             case _:
