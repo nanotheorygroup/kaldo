@@ -578,3 +578,26 @@ def test_si_pheasy_fourth_order(si_pheasy_and_hiphive):
     phi4_a = np.arange(81, dtype=float).reshape(3, 3, 3, 3) / 100.0
     dense_block = fc.fourth.value.todense()[0, :, 0, 1, :, 0, 1, :, 0, 0, :]
     np.testing.assert_allclose(dense_block, phi4_a, atol=1e-12)
+
+
+MGO_PHEASY_DIR = Path(__file__).parent / "mgo" / "pheasy"
+MGO_DIR = Path(__file__).parent / "mgo"
+
+needs_mgo_fixture = pytest.mark.skipif(not (MGO_PHEASY_DIR / "fc2.hdf5").exists(),
+                                       reason="mgo pheasy fixture missing")
+
+
+@needs_mgo_fixture
+def test_mgo_pheasy_nac_matches_qe_route():
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+    fc_p = ForceConstants.from_folder(str(MGO_PHEASY_DIR), supercell=(5, 5, 5), only_second=True,
+                                      format="pheasy")
+    fc_q = ForceConstants.from_folder(str(MGO_DIR), supercell=(5, 5, 5), only_second=True,
+                                      format="qe-d3q")
+    np.testing.assert_allclose(fc_p.atoms.info["dielectric"], fc_q.atoms.info["dielectric"], atol=1e-12)
+    np.testing.assert_allclose(fc_p.atoms.get_array("charges"), fc_q.atoms.get_array("charges"), atol=1e-12)
+    q_point = np.array([0.3, 0.0, 0.3])
+    f_p = HarmonicWithQ(q_point=q_point, second=fc_p.second, is_unfolding=True).frequency.flatten()
+    f_q = HarmonicWithQ(q_point=q_point, second=fc_q.second, is_unfolding=True).frequency.flatten()
+    np.testing.assert_array_almost_equal(f_p, f_q, decimal=4)
