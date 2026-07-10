@@ -325,6 +325,11 @@ Input Files and Formats
      - N/A (embedded)
      - gpumd_fc.npz
      - gpumd_fc.npz
+   * - pheasy
+     - POSCAR / cell.in
+     - vasp / espresso-in
+     - FORCE_CONSTANTS or fc2.hdf5
+     - FORCE_CONSTANTS_3RD or fc3.hdf5
 
 
 .. rubric:: Notes on Formats
@@ -342,6 +347,29 @@ Input Files and Formats
     Second order is stored dense in eV/Angstrom^2; third order is a sparse COO in
     eV/Angstrom^3. The archive records its replica enumeration in a ``grid_order``
     field (``'C'`` or ``'F'``); the reader reconstructs the matching replica grid.
+
+``pheasy``
+    An unmodified `pheasy <https://gitlab.com/cplin/pheasy>`_ working
+    directory after an IFC fit. The primitive cell is read from ``POSCAR``
+    (VASP runs) or ``cell.in`` (Quantum ESPRESSO runs); keep pheasy's
+    ``--pcell`` file under one of those names. Second order comes from the
+    phonopy-style ``FORCE_CONSTANTS`` text file (compact or full header, in
+    eV/Angstrom^2 regardless of the force calculator) or ``fc2.hdf5``
+    (dataset ``fc2``); third order from the ShengBTE ``FORCE_CONSTANTS_3RD``
+    text file (eV/Angstrom^3) or ``fc3.hdf5`` (dataset ``fc3``). With
+    ``include_fourth=True`` the ShengBTE/FourPhonon ``FORCE_CONSTANTS_4TH``
+    file (eV/Angstrom^4) is loaded as well; ``fc4.hdf5`` is not supported
+    (dense, O(n_sc^3) memory). If pheasy's ``born.fmt`` is present, the
+    dielectric tensor and Born effective charges are attached to the atoms
+    and the non-analytic correction is enabled automatically. ``supercell``
+    must equal pheasy's ``--dim`` (diagonal supercells only); pheasy's
+    atom-major supercell ordering is remapped to kaldo's replica grid
+    internally. Validated against pheasy v0.1.0. Typical workflow::
+
+        pheasy -s -c -d -f -n 20 --dim 3 3 3 --pcell POSCAR
+        # then, in python:
+        from kaldo.forceconstants import ForceConstants
+        fc = ForceConstants.from_folder('pheasy_run', supercell=(3, 3, 3), format='pheasy')
 
 .. _forceconstants-api:
 
