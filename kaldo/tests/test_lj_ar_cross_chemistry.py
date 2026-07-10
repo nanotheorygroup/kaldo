@@ -61,8 +61,12 @@ def lj_ar_folder(tmp_path_factory):
 
 
 @pytest.mark.skipif(not _have_lj_fixture(), reason="LDT LJ fixture unavailable")
+# The 2^3 pin moved from 8.1201e-4 when the SNF replica table gained the
+# Cartesian-norm-minimal re-wrap (exp(iq.R) phases on q-meshes smaller than
+# the supercell are convention-dependent; converged meshes are unaffected,
+# as the 3^3 / 5^3 pins show).
 @pytest.mark.parametrize("mesh,expected_F1", [
-    (2, 8.1201e-4),
+    (2, 8.1441e-4),
     (3, 9.4335e-4),
     (5, 9.9491e-4),
 ])

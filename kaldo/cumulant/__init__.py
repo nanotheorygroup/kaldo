@@ -45,7 +45,10 @@ from __future__ import annotations
 from .constants import (
     HBAR, KB, EV, AMU, ANG, NE_MASS_AMU, FREQ_TOL_THZ, KB_eV_per_K,
 )
-from .common import dynmat_and_eigs
+from .common import (
+    dynmat_and_eigs, load_tdep_folder,
+    read_tdep_pair_fcs, read_tdep_ifc3, read_tdep_ifc4,
+)
 
 from .harmonic import (
     harmonic_thermo_quantum,
@@ -67,13 +70,7 @@ from .sampler import SCSampler
 from .taylor import SCContractors
 from .estimator import calculate_cumulants, dA_dT, d2A_dT2
 from .bootstrap import bootstrap_corrections
-try:
-    from .api import cumulant_thermo, CumulantResult, print_ethan_table
-except Exception:
-    # ``api.py`` is currently a WIP on ethan-cumulant-pr and imports a
-    # not-yet-exported helper from ``kaldo.remap``. Catch broadly because
-    # the downstream chain can raise SyntaxError on older Python too.
-    pass
+from .api import cumulant_thermo, CumulantResult, print_ethan_table
 
 # Public surface — kept minimal. Internal helpers (constants like HBAR,
 # parsers like read_tdep_*, kernel helpers like flatten_* and build_psi*,
