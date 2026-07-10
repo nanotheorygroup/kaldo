@@ -11,41 +11,16 @@ from sparse import COO
 logging = get_logger()
 
 
-def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
-    """Determine symmetrically equivalent IFC block indices for 2nd and 3rd order.
+def _get_symmetry_maps(atoms, supercell, symprec=1e-5):
+    """Spacegroup operations compatible with the supercell, with per-op atom images and cell shifts.
 
-    Groups every (i, l_j, j) second-order and (i, l_j, j, l_k, k) third-order
-    atom-tuple into equivalence classes under the crystal spacegroup. Two blocks
-    belong to the same class when a spacegroup operation maps one to the other;
-    their IFC tensors are then related by a Cartesian similarity transform:
+    Shared by the use_symmetry displacement reduction (get_equivalent_ifc_indices)
+    and the symmetrize_ifc_* projectors.
 
-        2nd order:  Phi[i,:,l_j,j,:]         = R @ Phi[canonical] @ R.T
-        3rd order:  Phi[i,:,l_j,j,:,l_k,k,:] = einsum('ai,bj,ck,ijk', R, R, R, Phi[canonical])
-
-    where (canonical) is the lowest flat-index representative of the class and
-    R is the Cartesian rotation stored in the corresponding rot_map.
-
-    Parameters
-    ----------
-    atoms : ase.Atoms
-        Unit cell with valid cell vectors and periodic boundary conditions.
-    supercell : tuple of int, length 3
-        Supercell repetitions (nx, ny, nz).
-    symprec : float, optional
-        Symmetry detection tolerance passed to spglib (default 1e-5).
-    order : int, optional
-        2 or 3 (default 2). Passing 2 skips all third-order work.
-
-    Returns
-    -------
-    irr_map_2 : ndarray, shape (n_unit, n_replicas, n_unit)
-        Flat canonical index for each 2nd-order block.
-    rot_map_2 : ndarray, shape (n_unit, n_replicas, n_unit, 3, 3)
-        Cartesian rotation R such that Phi2[i,:,l,j,:] = R @ Phi2[canonical] @ R.T.
-    irr_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit)
-        Flat canonical index for each 3rd-order block (None when order < 3).
-    rot_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit, 3, 3)
-        Cartesian rotation for each 3rd-order block (None when order < 3).
+    Returns a dict with keys: rotations (n_ops, 3, 3) integer matrices in
+    fractional coordinates, translations (n_ops, 3), rotations_cart
+    (n_ops, 3, 3), atom_map (n_ops, n_unit), cell_shifts (n_ops, n_unit, 3),
+    grid (n_replicas, 3) C-ordered replica vectors, supercell_shape (3,).
     """
     try:
         import spglib
@@ -54,17 +29,8 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
 
     n_unit = len(atoms)
     nx, ny, nz = supercell
-    n_replicas = nx * ny * nz
     supercell_shape = np.array([nx, ny, nz], dtype=int)
     grid = np.array(list(np.ndindex(nx, ny, nz)), dtype=int)
-
-    n_blocks_2 = n_unit * n_replicas * n_unit
-    n_blocks_3 = n_unit * n_replicas * n_unit * n_replicas * n_unit if order >= 3 else 0
-
-    s3_i  = n_replicas * n_unit * n_replicas * n_unit
-    s3_lj = n_unit * n_replicas * n_unit
-    s3_j  = n_replicas * n_unit
-    s3_lk = n_unit
 
     lattice = atoms.cell[:]
     scaled_pos = atoms.get_scaled_positions()
@@ -135,6 +101,74 @@ def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
                 )
             atom_map[k, i]    = ip
             cell_shifts[k, i] = shifts[i]
+
+    return {
+        'rotations': rotations,
+        'translations': translations,
+        'rotations_cart': rotations_cart,
+        'atom_map': atom_map,
+        'cell_shifts': cell_shifts,
+        'grid': grid,
+        'supercell_shape': supercell_shape,
+    }
+
+
+def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
+    """Determine symmetrically equivalent IFC block indices for 2nd and 3rd order.
+
+    Groups every (i, l_j, j) second-order and (i, l_j, j, l_k, k) third-order
+    atom-tuple into equivalence classes under the crystal spacegroup. Two blocks
+    belong to the same class when a spacegroup operation maps one to the other;
+    their IFC tensors are then related by a Cartesian similarity transform:
+
+        2nd order:  Phi[i,:,l_j,j,:]         = R @ Phi[canonical] @ R.T
+        3rd order:  Phi[i,:,l_j,j,:,l_k,k,:] = einsum('ai,bj,ck,ijk', R, R, R, Phi[canonical])
+
+    where (canonical) is the lowest flat-index representative of the class and
+    R is the Cartesian rotation stored in the corresponding rot_map.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Unit cell with valid cell vectors and periodic boundary conditions.
+    supercell : tuple of int, length 3
+        Supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+    order : int, optional
+        2 or 3 (default 2). Passing 2 skips all third-order work.
+
+    Returns
+    -------
+    irr_map_2 : ndarray, shape (n_unit, n_replicas, n_unit)
+        Flat canonical index for each 2nd-order block.
+    rot_map_2 : ndarray, shape (n_unit, n_replicas, n_unit, 3, 3)
+        Cartesian rotation R such that Phi2[i,:,l,j,:] = R @ Phi2[canonical] @ R.T.
+    irr_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit)
+        Flat canonical index for each 3rd-order block (None when order < 3).
+    rot_map_3 : ndarray or None, shape (n_unit, n_replicas, n_unit, n_replicas, n_unit, 3, 3)
+        Cartesian rotation for each 3rd-order block (None when order < 3).
+    """
+    maps = _get_symmetry_maps(atoms, supercell, symprec)
+    rotations       = maps['rotations']
+    rotations_cart  = maps['rotations_cart']
+    atom_map        = maps['atom_map']
+    cell_shifts     = maps['cell_shifts']
+    grid            = maps['grid']
+    supercell_shape = maps['supercell_shape']
+    n_ops = len(rotations)
+
+    n_unit = len(atoms)
+    nx, ny, nz = supercell
+    n_replicas = nx * ny * nz
+
+    n_blocks_2 = n_unit * n_replicas * n_unit
+    n_blocks_3 = n_unit * n_replicas * n_unit * n_replicas * n_unit if order >= 3 else 0
+
+    s3_i  = n_replicas * n_unit * n_replicas * n_unit
+    s3_lj = n_unit * n_replicas * n_unit
+    s3_j  = n_replicas * n_unit
+    s3_lk = n_unit
 
     parent2 = np.arange(n_blocks_2)
     parent3 = np.arange(n_blocks_3) if order >= 3 else None
@@ -404,6 +438,141 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     asymmetry = np.sum(np.abs(second[0, :, :, 0, :, :] - np.transpose(second[0, :, :, 0, :, :], (2, 3, 0, 1))))
     logging.info('Symmetry of Dynamical Matrix ' + str(asymmetry))
     return second
+
+
+def symmetrize_ifc_second(second, atoms, supercell, symprec=1e-5):
+    """Project second-order IFCs onto the space-group-invariant subspace.
+
+    Full-group average Phi[g(b)] <- (1/|G|) sum_g R_g Phi[b] R_g^T, including
+    stabilizer operations, so the result is exactly invariant under every
+    supercell-compatible spacegroup operation. The projection is idempotent
+    and exact IFCs from a symmetry-respecting potential are a fixed point.
+    Use it on force constants from potentials that only approximately respect
+    the crystal symmetry (e.g. rotationally unconstrained ML potentials).
+
+    Parameters
+    ----------
+    second : ArrayLike, shape (1, n_unit, 3, n_replicas, n_unit, 3)
+        Second-order force constants (float64).
+    atoms : ase.Atoms
+        Unit cell.
+    supercell : tuple of int, length 3
+        Diagonal supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+
+    Returns
+    -------
+    ndarray, shape (1, n_unit, 3, n_replicas, n_unit, 3)
+        Projected force constants.
+    """
+    maps = _get_symmetry_maps(atoms, supercell, symprec)
+    rotations, rotations_cart = maps['rotations'], maps['rotations_cart']
+    atom_map, cell_shifts = maps['atom_map'], maps['cell_shifts']
+    grid, sc = maps['grid'], maps['supercell_shape']
+    nx, ny, nz = sc
+    n_unit = len(atoms)
+    n_rep = nx * ny * nz
+    n_ops = len(rotations)
+
+    phi = np.asarray(second, dtype=np.float64).reshape(n_unit, 3, n_rep, n_unit, 3)
+    acc = np.zeros_like(phi)
+    for k in range(n_ops):
+        R = rotations_cart[k]
+        for i in range(n_unit):
+            ip = atom_map[k, i]
+            for j in range(n_unit):
+                jp = atom_map[k, j]
+                lv = (grid @ rotations[k].T + (cell_shifts[k, j] - cell_shifts[k, i])) % sc
+                lnew = lv[:, 0] * ny * nz + lv[:, 1] * nz + lv[:, 2]
+                rotated = np.einsum('ab,bLc,dc->aLd', R, phi[i, :, :, j, :], R)
+                acc[ip, :, lnew, jp, :] += rotated.transpose(1, 0, 2)
+    return (acc / n_ops).reshape(1, n_unit, 3, n_rep, n_unit, 3)
+
+
+def symmetrize_ifc_third(phifull, atoms, supercell, symprec=1e-5):
+    """Project third-order IFCs (sparse COO) onto the space-group-invariant subspace.
+
+    Rank-3 analogue of symmetrize_ifc_second, operating directly on the sparse
+    tensor: for each spacegroup operation the entries are index-permuted and
+    their Cartesian components rotated, then everything is averaged over the
+    group. Idempotent; symmetric input is a fixed point.
+
+    Parameters
+    ----------
+    phifull : sparse.COO, shape (n_unit * 3, n_replicas * n_unit * 3, n_replicas * n_unit * 3)
+        Third-order force constants as produced by calculate_third.
+    atoms : ase.Atoms
+        Unit cell.
+    supercell : tuple of int, length 3
+        Diagonal supercell repetitions (nx, ny, nz).
+    symprec : float, optional
+        Symmetry detection tolerance passed to spglib (default 1e-5).
+
+    Returns
+    -------
+    sparse.COO
+        Projected force constants, same shape as the input.
+    """
+    maps = _get_symmetry_maps(atoms, supercell, symprec)
+    rotations, rotations_cart = maps['rotations'], maps['rotations_cart']
+    atom_map, cell_shifts = maps['atom_map'], maps['cell_shifts']
+    grid, sc = maps['grid'], maps['supercell_shape']
+    nx, ny, nz = sc
+    n_unit = len(atoms)
+    n_rep = nx * ny * nz
+    n_ops = len(rotations)
+
+    shape8 = (n_unit, 3, n_rep, n_unit, 3, n_rep, n_unit, 3)
+    phi = phifull.reshape(shape8)
+    i, a, lj, j, b, lk, kk, c = phi.coords
+    vals = phi.data
+
+    acc = None
+    for k in range(n_ops):
+        R = rotations_cart[k]
+        ip, jp, kp = atom_map[k, i], atom_map[k, j], atom_map[k, kk]
+        lv_j = (grid[lj] @ rotations[k].T + (cell_shifts[k, j] - cell_shifts[k, i])) % sc
+        lv_k = (grid[lk] @ rotations[k].T + (cell_shifts[k, kk] - cell_shifts[k, i])) % sc
+        ljp = lv_j[:, 0] * ny * nz + lv_j[:, 1] * nz + lv_j[:, 2]
+        lkp = lv_k[:, 0] * ny * nz + lv_k[:, 1] * nz + lv_k[:, 2]
+        # weight[n, x, y, z] = R[x, a_n] * R[y, b_n] * R[z, c_n]
+        weight = (R[:, a].T[:, :, None, None]
+                  * R[:, b].T[:, None, :, None]
+                  * R[:, c].T[:, None, None, :])
+        new_vals = vals[:, None, None, None] * weight
+        keep = np.abs(new_vals) > 1e-14
+        n_idx, x_idx, y_idx, z_idx = np.nonzero(keep)
+        coords = np.stack([ip[n_idx], x_idx, ljp[n_idx], jp[n_idx], y_idx,
+                           lkp[n_idx], kp[n_idx], z_idx])
+        coo_k = COO(coords, new_vals[keep], shape=shape8)
+        acc = coo_k if acc is None else acc + coo_k
+    return (acc / n_ops).reshape(phifull.shape)
+
+
+def try_symmetrize_ifc(order, value, atoms, supercell, symprec=1e-5):
+    """Apply the order-2 or order-3 projector; on unsupported setups warn and return value unchanged.
+
+    Unsupported setups are non-diagonal supercell expansions and structures
+    where spglib cannot determine the symmetry. Kept non-fatal because
+    symmetrize=True is the default calculate path.
+    """
+    try:
+        if order == 2:
+            projected = symmetrize_ifc_second(value, atoms, supercell, symprec)
+            moved = float(np.abs(np.asarray(projected) - np.asarray(value)).max())
+        else:
+            projected = symmetrize_ifc_third(value, atoms, supercell, symprec)
+            moved = float(np.abs(projected - value).max())
+    except (ValueError, NotImplementedError, RuntimeError) as err:
+        logging.warning(f'Skipping force-constant symmetrization (order {order}): {err}')
+        return value
+    # Make the default observable: symmetric potentials should see a change at
+    # finite-difference-noise level; anything larger quantifies how strongly
+    # the potential violates the crystal symmetry.
+    logging.info(f'Symmetrized order-{order} force constants; '
+                 f'max change {moved:.2e} (pass symmetrize=False to disable).')
+    return projected
 
 
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
