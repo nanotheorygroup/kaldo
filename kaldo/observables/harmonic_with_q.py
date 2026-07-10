@@ -79,7 +79,11 @@ class HarmonicWithQ(Observable, Storable):
         # Arguments for specific physical assumptions
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
-        if not is_unfolding:
+        if not is_unfolding and getattr(second, '_snf_mapping', None) is None:
+            # The commensurability heuristic reads self.supercell as an
+            # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
+            # which would flag every off-axis q as incommensurate (and
+            # is_unfolding is not supported on the SNF path anyway).
             _warn_incommensurate_once(q_point, self.supercell)
         self.is_nac = True if 'dielectric' in self.atoms.info else False
         self.is_nw = is_nw
