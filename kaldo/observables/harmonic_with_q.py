@@ -87,7 +87,6 @@ class HarmonicWithQ(Observable, Storable):
                  is_amorphous=False,
                  nac_bvk_supercell_matrix=None,
                  nac_q_direction=(1, 0, 0),
-                 nac_precomputed=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -125,7 +124,7 @@ class HarmonicWithQ(Observable, Storable):
             nac_bvk_supercell_matrix
         )
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
-        self._nac_precomputed = nac_precomputed
+        self._nac_precomputed = None
         self._nac_runtime_cache = {}
         if self.is_nac and self._nac_precomputed is None:
             self._nac_precomputed = self.second.get_nac_precomputed(
