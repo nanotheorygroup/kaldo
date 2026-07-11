@@ -356,7 +356,8 @@ Input Files and Formats
     phonopy-style ``FORCE_CONSTANTS`` text file (compact or full header, in
     eV/Angstrom^2 regardless of the force calculator) or ``fc2.hdf5``
     (dataset ``fc2``); third order from the ShengBTE ``FORCE_CONSTANTS_3RD``
-    text file (eV/Angstrom^3) or ``fc3.hdf5`` (dataset ``fc3``). With
+    text file (eV/Angstrom^3) or ``fc3.hdf5`` (dataset ``fc3``). When both
+    the text and HDF5 files are present, the text file is used. With
     ``include_fourth=True`` the ShengBTE/FourPhonon ``FORCE_CONSTANTS_4TH``
     file (eV/Angstrom^4) is loaded as well; ``fc4.hdf5`` is not supported
     (dense, O(n_sc^3) memory). If pheasy's ``born.fmt`` is present, the
