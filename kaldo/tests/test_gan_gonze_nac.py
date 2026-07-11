@@ -66,7 +66,7 @@ def gan_second():
 
 def _gonze_frequencies_cm(second, q_point):
     hwq = HarmonicWithQ(q_point=np.array(q_point, dtype=float), second=second,
-                        storage="memory", nac_method="gonze")
+                        storage="memory")
     return np.sort(np.array(hwq.frequency).flatten()) * THZ_TO_CM
 
 
@@ -90,8 +90,7 @@ def test_gonze_gamma_lo_to_splitting(gan_second):
 
 def test_gonze_velocity_matches_dispersion_slope(gan_second):
     q0 = np.array([0.1, 0.1, 0.1])
-    hwq = HarmonicWithQ(q_point=q0, second=gan_second, storage="memory",
-                        nac_method="gonze")
+    hwq = HarmonicWithQ(q_point=q0, second=gan_second, storage="memory")
     order = np.argsort(np.array(hwq.frequency).flatten())
     velocity = np.array(hwq.velocity)[0][order]
 

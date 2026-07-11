@@ -524,9 +524,6 @@ class Phonons(Storable):
                  is_nw: bool = False,
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
-                 nac_method: str = "legacy",
-                 nac_debug: bool = False,
-                 nac_debug_folder: str = "debug",
                  nac_bvk_supercell_matrix=None,
                  use_q_symmetry: bool = False,
                  **kwargs):
@@ -561,14 +558,6 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
-        supported_nac_methods = ("legacy", "gonze")
-        if nac_method not in supported_nac_methods:
-            raise ValueError(
-                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
-            )
-        self.nac_method = nac_method
-        self.nac_debug = bool(nac_debug)
-        self.nac_debug_folder = nac_debug_folder
         self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
@@ -675,7 +664,10 @@ class Phonons(Storable):
         # Runtime cache of large arrays; never persisted (a storage-backed
         # lazy_property would try to write None for legacy runs and the
         # bundle dict is not a storable array anyway).
-        if self.nac_method != "gonze":
+        atoms = self.forceconstants.second.atoms
+        if "dielectric" not in atoms.info or "charges" not in atoms.arrays:
+            return None
+        if np.abs(atoms.get_array("charges")).max() <= 1e-8:
             return None
         if getattr(self, "_gonze_bundle_cache", None) is None:
             matrix = self.nac_bvk_supercell_matrix
@@ -709,12 +701,8 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
-                                   nac_method=self.nac_method,
-                                   nac_debug=self.nac_debug,
-                                   nac_debug_folder=self.nac_debug_folder,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
-                                   gonze_nac_precomputed=gonze_precomputed,
-                                   q_index=ik)
+                                   gonze_nac_precomputed=gonze_precomputed)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -746,12 +734,8 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
-                                   nac_method=self.nac_method,
-                                   nac_debug=self.nac_debug,
-                                   nac_debug_folder=self.nac_debug_folder,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
-                                   gonze_nac_precomputed=gonze_precomputed,
-                                   q_index=ik)
+                                   gonze_nac_precomputed=gonze_precomputed)
 
             frequency[ik] = phonon.frequency
 
@@ -783,12 +767,8 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
-                                   nac_method=self.nac_method,
-                                   nac_debug=self.nac_debug,
-                                   nac_debug_folder=self.nac_debug_folder,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
-                                   gonze_nac_precomputed=gonze_precomputed,
-                                   q_index=ik)
+                                   gonze_nac_precomputed=gonze_precomputed)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -819,12 +799,8 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
-                                   nac_method=self.nac_method,
-                                   nac_debug=self.nac_debug,
-                                   nac_debug_folder=self.nac_debug_folder,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
-                                   gonze_nac_precomputed=gonze_precomputed,
-                                   q_index=ik)
+                                   gonze_nac_precomputed=gonze_precomputed)
 
             velocity[ik] = phonon.velocity
 
@@ -860,12 +836,8 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
-                                   nac_method=self.nac_method,
-                                   nac_debug=self.nac_debug,
-                                   nac_debug_folder=self.nac_debug_folder,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
-                                   gonze_nac_precomputed=gonze_precomputed,
-                                   q_index=ik)
+                                   gonze_nac_precomputed=gonze_precomputed)
 
             eigensystem[ik] = phonon._eigensystem
 
