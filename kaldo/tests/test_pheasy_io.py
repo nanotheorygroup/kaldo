@@ -443,6 +443,33 @@ def test_third_order_pheasy_missing_files_raise(tmp_path):
         ThirdOrder.load(folder=str(tmp_path), supercell=(1, 1, 1), format="pheasy")
 
 
+def test_fc3_negative_offset_convention_resolves(tmp_path):
+    """On supercell (2, 1, 1) with a=3.0 cubic cell, +a and -a along x are the
+    same replica (id 1). A file written with the negative-offset convention
+    (-3.0) must resolve to the same replica as the positive convention
+    (+3.0), not silently produce an all-zero load."""
+    from kaldo.observables.thirdorder import ThirdOrder
+    rng = np.random.default_rng(11)
+    phi = rng.standard_normal((3, 3, 3))
+    positive_dir = tmp_path / "positive"
+    negative_dir = tmp_path / "negative"
+    positive_dir.mkdir()
+    negative_dir.mkdir()
+    _write_poscar(positive_dir)
+    _write_poscar(negative_dir)
+    _write_fc3_text(positive_dir / "FORCE_CONSTANTS_3RD",
+                    [(np.array([3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), phi)])
+    _write_fc3_text(negative_dir / "FORCE_CONSTANTS_3RD",
+                    [(np.array([-3.0, 0.0, 0.0]), np.zeros(3), (0, 1, 0), phi)])
+    third_positive = ThirdOrder.load(folder=str(positive_dir), supercell=(2, 1, 1), format="pheasy")
+    third_negative = ThirdOrder.load(folder=str(negative_dir), supercell=(2, 1, 1), format="pheasy")
+    dense_positive = np.asarray(third_positive.value).reshape((2, 3, 2, 2, 3, 2, 2, 3))
+    dense_negative = np.asarray(third_negative.value).reshape((2, 3, 2, 2, 3, 2, 2, 3))
+    np.testing.assert_allclose(dense_negative, dense_positive, atol=1e-12)
+    np.testing.assert_allclose(dense_negative[0, :, 1, 1, :, 0, 0, :], phi, atol=1e-12)
+    assert np.count_nonzero(dense_negative) == np.count_nonzero(phi)
+
+
 # ---------------------------------------------------------------------------
 # Fourth order
 # ---------------------------------------------------------------------------
@@ -494,6 +521,29 @@ def test_fc4_parser_raises_on_truncated_file(tmp_path):
     fc4_file.write_text("\n".join(lines[:20]) + "\n")
     with pytest.raises(ValueError, match="unexpected end of file"):
         read_fourth_order_matrix(str(fc4_file), atoms, (1, 1, 1), order="C")
+
+
+def test_fc4_negative_offset_convention_resolves(tmp_path):
+    """Same half-box-offset convention issue as the FC3 parser, but for
+    read_fourth_order_matrix: r2 = -3.0 along x on supercell (2, 1, 1) is the
+    same replica (id 1) as r2 = +3.0, and must resolve rather than raise."""
+    import ase.io
+    from kaldo.interfaces.shengbte_io import read_fourth_order_matrix
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    rng = np.random.default_rng(12)
+    phi = rng.standard_normal((3, 3, 3, 3))
+    Z = np.zeros(3)
+    positive_file = tmp_path / "FORCE_CONSTANTS_4TH_POS"
+    negative_file = tmp_path / "FORCE_CONSTANTS_4TH_NEG"
+    _write_fc4_text(positive_file, [(np.array([3.0, 0.0, 0.0]), Z, Z, (0, 1, 0, 1), phi)])
+    _write_fc4_text(negative_file, [(np.array([-3.0, 0.0, 0.0]), Z, Z, (0, 1, 0, 1), phi)])
+    ifc4_positive = read_fourth_order_matrix(str(positive_file), atoms, (2, 1, 1), order="C")
+    ifc4_negative = read_fourth_order_matrix(str(negative_file), atoms, (2, 1, 1), order="C")
+    dense_positive = ifc4_positive.todense()
+    dense_negative = ifc4_negative.todense()
+    np.testing.assert_allclose(dense_negative, dense_positive, atol=1e-12)
+    np.testing.assert_allclose(dense_negative[0, :, 1, 1, :, 0, 0, :, 0, 1, :], phi, atol=1e-12)
 
 
 def test_from_folder_pheasy_include_fourth(tmp_path):
