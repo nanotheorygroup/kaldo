@@ -144,12 +144,9 @@ class ThirdOrder(ForceConstant):
                                          folder=folder)
 
             case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
-                # must match the grid declared by SecondOrder.load for the same format
-                match format:
-                    case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
-                        grid_type = 'C'
-                    case _:
-                        grid_type = 'F'
+                # all these readers produce C-ordered replica data; declared
+                # together with SecondOrder.load for the same formats (#272)
+                grid_type = 'C'
                 config_path, config_file = detect_path(['CONTROL', 'POSCAR'], folder)
                 match config_file:
                     case 'CONTROL':

@@ -86,11 +86,15 @@ def test_rta_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 2.7, significant=2)
+    # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
+    # silently dropped force constants
+    np.testing.assert_approx_equal(cond, 2.8, significant=2)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 2.4, significant=2)
+    # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
+    # silently dropped force constants
+    np.testing.assert_approx_equal(cond, 2.5, significant=2)
