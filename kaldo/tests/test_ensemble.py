@@ -143,3 +143,18 @@ def test_single_member_zero_std(tmp_path):
     assert ens.n_members == 1
     _, std = ens.mean_std('frequency')
     np.testing.assert_allclose(std, 0.0, atol=1e-12)
+
+
+def test_from_calculators_gives_members_distinct_folders(tmp_path):
+    # Regression: on-disk storage must not have members clobber each other.
+    # Each member's Phonons folder must be distinct (member_i under base).
+    atoms = bulk('Cu', 'fcc', a=3.61, cubic=True)
+    base = str(tmp_path / 'ald')
+    ens = PhononsEnsemble.from_calculators(
+        atoms, (2, 2, 2), [EMT(), EMT()],
+        delta_shift=1e-2, symmetrize=True,
+        kpts=(3, 3, 3), temperature=300, storage='numpy', folder=base,
+    )
+    folders = [m.folder for m in ens.members]
+    assert folders == [f"{base}/member_0", f"{base}/member_1"]
+    assert len(set(folders)) == ens.n_members

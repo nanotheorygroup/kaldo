@@ -8,9 +8,6 @@ import numpy as np
 
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
-from kaldo.helpers.logger import get_logger
-
-logging = get_logger()
 
 
 class PhononsEnsemble:
@@ -62,15 +59,17 @@ class PhononsEnsemble:
         base_folder = phonons_kwargs.get('folder', None)
         members = []
         for i, calc in enumerate(calculators):
-            fc_folder = (f"{base_folder}/member_{i}" if base_folder
-                         else f"ensemble_member_{i}")
+            member_folder = f"{base_folder}/member_{i}" if base_folder else f"ensemble_member_{i}"
             fc = ForceConstants(atoms=atoms, supercell=supercell,
-                                folder=fc_folder)
+                                folder=member_folder)
             fc.second.calculate(calculator=calc, delta_shift=delta_shift,
                                 is_storing=False, symmetrize=False)
+            # Give each member a distinct Phonons folder as well, so on-disk
+            # storage does not have the members clobber each other's output.
+            member_kwargs = dict(phonons_kwargs, folder=member_folder)
             members.append(cls._member_from_second(
                 atoms, supercell, fc.second, symmetrize=symmetrize,
-                phonons_kwargs=phonons_kwargs))
+                phonons_kwargs=member_kwargs))
         return cls(members)
 
     @staticmethod
