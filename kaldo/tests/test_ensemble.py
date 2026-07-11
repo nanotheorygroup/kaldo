@@ -109,3 +109,38 @@ def test_from_calculators_empty_raises():
             atoms, (2, 2, 2), [], kpts=(3, 3, 3), temperature=300,
             storage='memory'
         )
+
+
+def _perturbed_second(atoms, base_second, scale, seed):
+    """Return a copy of base_second with symmetry-breaking noise on its value."""
+    from kaldo.observables.secondorder import SecondOrder
+    rng = np.random.default_rng(seed)
+    value = np.asarray(base_second.value).copy()
+    value = value + rng.normal(scale=scale, size=value.shape)
+    return SecondOrder.from_supercell(
+        atoms=atoms, supercell=(2, 2, 2), grid_type='C', value=value, is_acoustic_sum=False)
+
+
+def test_symmetrization_reduces_gamma_frequency_spread(tmp_path):
+    atoms, base_second = _cu_second(tmp_path, 'base')
+    seconds = [_perturbed_second(atoms, base_second, scale=1e-2, seed=s) for s in range(4)]
+
+    def build(symmetrize):
+        members = [PhononsEnsemble._member_from_second(
+            atoms, (2, 2, 2), s, symmetrize=symmetrize,
+            phonons_kwargs=dict(kpts=(3, 3, 3), temperature=300, storage='memory'))
+            for s in [_perturbed_second(atoms, base_second, scale=1e-2, seed=s) for s in range(4)]]
+        return PhononsEnsemble(members).std('frequency')
+
+    std_raw = build(symmetrize=False)
+    std_sym = build(symmetrize=True)
+    # Projection removes per-member symmetry violations, tightening the spread.
+    assert std_sym.sum() < std_raw.sum()
+
+
+def test_single_member_zero_std(tmp_path):
+    members = _cu_phonons(tmp_path, n=1)
+    ens = PhononsEnsemble(members)
+    assert ens.n_members == 1
+    _, std = ens.mean_std('frequency')
+    np.testing.assert_allclose(std, 0.0, atol=1e-12)
