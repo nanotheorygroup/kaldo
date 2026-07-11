@@ -365,7 +365,9 @@ Input Files and Formats
     and the non-analytic correction is enabled automatically. ``supercell``
     must equal pheasy's ``--dim`` (diagonal supercells only); pheasy's
     atom-major supercell ordering is remapped to kaldo's replica grid
-    internally. Validated against pheasy v0.1.0. Typical workflow::
+    internally. Install pheasy from its GitLab source (the PyPI package is
+    outdated); this reader was validated against pheasy 0.1.0 at source
+    commit 67d6695 (2026-01). Typical workflow::
 
         pheasy -s -c -d -f -n 20 --dim 3 3 3 --pcell POSCAR
         # then, in python:
