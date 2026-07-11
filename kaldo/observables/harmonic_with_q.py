@@ -13,17 +13,18 @@ from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
+import kaldo.controllers.nac as nac
 from kaldo.controllers.nac import (
     normalize_bvk_supercell_matrix,
-    _ensure_gonze_kernel_cache,
-    _gonze_dynamical_matrices,
-    GONZE_VELOCITY_Q_LENGTH,
-    GONZE_VELOCITY_CUTOFF_FREQUENCY,
-    GONZE_VELOCITY_DIRECTIONS_CART,
+    ensure_kernel_cache,
+    dynamical_matrices,
+    NAC_VELOCITY_Q_LENGTH,
+    NAC_VELOCITY_CUTOFF_FREQUENCY,
+    NAC_VELOCITY_DIRECTIONS_CART,
     _PHONOPY_TO_KALDO_DM,
-    _gonze_degenerate_sets,
-    _gonze_to_phonopy_dm,
-    _gonze_phonopy_frequencies_from_eigenvalues,
+    degenerate_sets,
+    _to_phonopy_dm,
+    _phonopy_frequencies_from_eigenvalues,
 )
 # from numpy.linalg import eigh
 
@@ -33,10 +34,6 @@ MIN_N_MODES_TO_STORE = 1000
 # DM conversion: 1 Ry/bohr²/amu in (rad/ps)² = (Ry_to_eV/Å²) × eV_to_10Jmol
 # = (units.Ry/units.Bohr²) × (units.mol/(10*units.J))
 # Used to convert kALDo-unit DM to phonopy-unit DM for cross-validation.
-
-
-def _gonze_to_phonopy_q_cart(q_cart):
-    return np.array(q_cart, dtype=float, copy=True) * units.Bohr
 
 
 _warned_incommensurate = False
@@ -90,7 +87,7 @@ class HarmonicWithQ(Observable, Storable):
                  is_amorphous=False,
                  nac_bvk_supercell_matrix=None,
                  nac_q_direction=(1, 0, 0),
-                 gonze_nac_precomputed=None,
+                 nac_precomputed=None,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
@@ -128,11 +125,11 @@ class HarmonicWithQ(Observable, Storable):
             nac_bvk_supercell_matrix
         )
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
-        self._gonze_nac_precomputed = gonze_nac_precomputed
-        self._gonze_runtime_cache = {}
-        if self.is_nac and self._gonze_nac_precomputed is None:
-            self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
-                self._resolve_gonze_bvk_supercell_matrix()
+        self._nac_precomputed = nac_precomputed
+        self._nac_runtime_cache = {}
+        if self.is_nac and self._nac_precomputed is None:
+            self._nac_precomputed = self.second.get_nac_precomputed(
+                self._resolve_nac_bvk_supercell_matrix()
             )
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
@@ -167,7 +164,7 @@ class HarmonicWithQ(Observable, Storable):
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
 
-    def _resolve_gonze_bvk_supercell_matrix(self):
+    def _resolve_nac_bvk_supercell_matrix(self):
         if self.nac_bvk_supercell_matrix is not None:
             return np.array(self.nac_bvk_supercell_matrix, dtype=int, copy=True)
         supercell = np.asarray(self.second.supercell, dtype=int)
@@ -178,38 +175,38 @@ class HarmonicWithQ(Observable, Storable):
             )
         return np.diag(supercell)
 
-    def _calculate_gonze_dynamical_matrix_for_q(self, q_red, _static_data=None, _mapping=None):
-        return self._calculate_gonze_dynamical_matrices_for_qs(
+    def _calculate_nac_dynamical_matrix_for_q(self, q_red, _static_data=None, _mapping=None):
+        return self._calculate_nac_dynamical_matrices_for_qs(
             np.array([q_red], dtype=float),
             _static_data,
             _mapping,
         )[0]
 
-    def _calculate_gonze_velocity_direction_data(self, direction_index, static_data, _mapping=None):
+    def _calculate_nac_velocity_direction_data(self, direction_index, static_data, _mapping=None):
         if direction_index not in range(4):
             raise ValueError(f"direction_index must be in 0..3, got {direction_index}")
         direction_cart = np.array(
-            GONZE_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
+            NAC_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
         )
-        dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
+        dq_cart = direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
         dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
         q_red = np.array(self.q_point, dtype=float, copy=True)
-        dm_minus = _gonze_to_phonopy_dm(
-            self._calculate_gonze_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
+        dm_minus = _to_phonopy_dm(
+            self._calculate_nac_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
         )
-        dm_plus = _gonze_to_phonopy_dm(
-            self._calculate_gonze_dynamical_matrix_for_q(q_red + dq_red, static_data, _mapping)
+        dm_plus = _to_phonopy_dm(
+            self._calculate_nac_dynamical_matrix_for_q(q_red + dq_red, static_data, _mapping)
         )
         delta_dm = dm_plus - dm_minus
-        ddm_fd = delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH)
+        ddm_fd = delta_dm / (2 * NAC_VELOCITY_Q_LENGTH)
         return {"ddm_fd": ddm_fd}
 
-    def _ensure_gonze_runtime_data(self, static_data, mapping):
-        static_data, mapping = _ensure_gonze_kernel_cache(static_data, mapping)
-        effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
-        current_getter = self.second.get_gonze_short_range_force_constants
+    def _ensure_nac_runtime_data(self, static_data, mapping):
+        static_data, mapping = ensure_kernel_cache(static_data, mapping)
+        effective_matrix = self._resolve_nac_bvk_supercell_matrix()
+        current_getter = self.second.get_nac_short_range_force_constants
         getter_identity = getattr(current_getter, "__func__", current_getter)
-        fc_cache = self._gonze_runtime_cache.get("fc_short")
+        fc_cache = self._nac_runtime_cache.get("fc_short")
         if (
             fc_cache is None
             or fc_cache["getter_identity"] is not getter_identity
@@ -218,14 +215,14 @@ class HarmonicWithQ(Observable, Storable):
             fc_cache = {
                 "getter_identity": getter_identity,
                 "fc_short": fc_short,
-                "fc_short_converted": fc_short * static_data["gonze_conversion"],
+                "fc_short_converted": fc_short * static_data["nac_conversion"],
             }
-            self._gonze_runtime_cache["fc_short"] = fc_cache
+            self._nac_runtime_cache["fc_short"] = fc_cache
         static_data["fc_short"] = fc_cache["fc_short"]
         static_data["fc_short_converted"] = fc_cache["fc_short_converted"]
         return static_data, mapping
 
-    def _gonze_q_direction_carts(self, q_reds, static_data):
+    def _nac_q_direction_carts(self, q_reds, static_data):
         q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
         reciprocal_lattice = static_data["reciprocal_lattice"]
         q_carts = np.einsum("ab,qb->qa", reciprocal_lattice, q_reds, optimize=True)
@@ -236,18 +233,18 @@ class HarmonicWithQ(Observable, Storable):
             q_direction_carts[inactive] = nac_direction_cart
         return q_carts, q_direction_carts
 
-    def _calculate_gonze_dynamical_matrices_for_qs(
+    def _calculate_nac_dynamical_matrices_for_qs(
         self,
         q_reds,
         _static_data=None,
         _mapping=None,
     ):
-        static_data = _static_data if _static_data is not None else self._build_gonze_static_data()
-        mapping = _mapping if _mapping is not None else self._build_gonze_short_range_inputs(static_data)
-        static_data, mapping = self._ensure_gonze_runtime_data(static_data, mapping)
+        static_data = _static_data if _static_data is not None else self._build_nac_static_data_runtime()
+        mapping = _mapping if _mapping is not None else self._build_nac_mapping_runtime(static_data)
+        static_data, mapping = self._ensure_nac_runtime_data(static_data, mapping)
         q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
-        q_carts, q_direction_carts = self._gonze_q_direction_carts(q_reds, static_data)
-        dm_final = _gonze_dynamical_matrices(
+        q_carts, q_direction_carts = self._nac_q_direction_carts(q_reds, static_data)
+        dm_final = dynamical_matrices(
             q_reds,
             static_data,
             mapping,
@@ -256,7 +253,7 @@ class HarmonicWithQ(Observable, Storable):
         )
         return dm_final
 
-    def _project_gonze_group_velocity_raw(self, ddms, eigenvectors, frequencies):
+    def _project_nac_group_velocity_raw(self, ddms, eigenvectors, frequencies):
         """Project ddm_fd tensors onto eigenmodes with degenerate perturbation theory.
 
         ddms[0] is the d0 direction used to lift degeneracy.
@@ -264,8 +261,8 @@ class HarmonicWithQ(Observable, Storable):
         Returns gv_raw of shape (n_modes, 3) in phonopy DM derivative units.
         """
         gv_raw = np.zeros((len(frequencies), 3), dtype=float)
-        degenerate_sets = _gonze_degenerate_sets(frequencies)
-        for indices in degenerate_sets:
+        sets = degenerate_sets(frequencies)
+        for indices in sets:
             subspace = eigenvectors[:, indices]
             perturbation = subspace.conj().T @ ddms[0] @ subspace
             _, rotation = np.linalg.eigh((perturbation + perturbation.conj().T) / 2)
@@ -275,14 +272,14 @@ class HarmonicWithQ(Observable, Storable):
                 gv_raw[np.array(indices), axis] = np.real(np.diag(projected))
         return gv_raw
 
-    def _scale_gonze_group_velocity_raw(self, gv_raw, frequencies):
+    def _scale_nac_group_velocity_raw(self, gv_raw, frequencies):
         """Scale raw projected derivatives to group velocity in Å×THz.
 
         Applies gv = (1/2ω) × dω²/dk, expressed in phonopy units as
         _PHONOPY_TO_KALDO_DM / (8π² × freq_THz).
         """
         scaling = np.zeros(len(frequencies), dtype=float)
-        cutoff_mask = (np.abs(frequencies) > GONZE_VELOCITY_CUTOFF_FREQUENCY).astype(np.int64)
+        cutoff_mask = (np.abs(frequencies) > NAC_VELOCITY_CUTOFF_FREQUENCY).astype(np.int64)
         active = cutoff_mask.astype(bool)
         # The finite-difference step is taken per 1/Bohr (phonopy convention),
         # so converting the projected derivative to A/ps needs the extra Bohr.
@@ -291,51 +288,47 @@ class HarmonicWithQ(Observable, Storable):
         gv_scaled[~active] = 0.0
         return gv_scaled, scaling, cutoff_mask
 
-    def _calculate_gonze_velocity_data(self):
-        static_data = self._build_gonze_static_data()
-        mapping = self._build_gonze_short_range_inputs(static_data)
+    def _calculate_nac_velocity_data(self):
+        static_data = self._build_nac_static_data_runtime()
+        mapping = self._build_nac_mapping_runtime(static_data)
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_samples = [q_red]
-        for direction_cart in GONZE_VELOCITY_DIRECTIONS_CART:
-            dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
+        for direction_cart in NAC_VELOCITY_DIRECTIONS_CART:
+            dq_cart = direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
             dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
             q_samples.extend((q_red - dq_red, q_red + dq_red))
         q_samples = np.array(q_samples, dtype=float)
-        dm_all = self._calculate_gonze_dynamical_matrices_for_qs(q_samples, static_data, mapping)
-        dm_q = _gonze_to_phonopy_dm(dm_all[0])
+        dm_all = self._calculate_nac_dynamical_matrices_for_qs(q_samples, static_data, mapping)
+        dm_q = _to_phonopy_dm(dm_all[0])
         eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
-        frequencies = _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues.real)
+        frequencies = _phonopy_frequencies_from_eigenvalues(eigenvalues.real)
         ddms = []
-        for index in range(len(GONZE_VELOCITY_DIRECTIONS_CART)):
-            dm_minus = _gonze_to_phonopy_dm(dm_all[1 + 2 * index])
-            dm_plus = _gonze_to_phonopy_dm(dm_all[2 + 2 * index])
-            ddms.append((dm_plus - dm_minus) / (2 * GONZE_VELOCITY_Q_LENGTH))
-        gv_raw = self._project_gonze_group_velocity_raw(ddms, eigenvectors, frequencies)
-        gv_scaled, _, _ = self._scale_gonze_group_velocity_raw(gv_raw, frequencies)
+        for index in range(len(NAC_VELOCITY_DIRECTIONS_CART)):
+            dm_minus = _to_phonopy_dm(dm_all[1 + 2 * index])
+            dm_plus = _to_phonopy_dm(dm_all[2 + 2 * index])
+            ddms.append((dm_plus - dm_minus) / (2 * NAC_VELOCITY_Q_LENGTH))
+        gv_raw = self._project_nac_group_velocity_raw(ddms, eigenvectors, frequencies)
+        gv_scaled, _, _ = self._scale_nac_group_velocity_raw(gv_raw, frequencies)
         return {"frequencies": frequencies, "gv_scaled": gv_scaled}
 
-    def _build_gonze_static_data(self):
-        if self._gonze_nac_precomputed is not None:
-            return self._gonze_nac_precomputed["static_data"]
-        matrix = self._resolve_gonze_bvk_supercell_matrix()
-        self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(matrix)
-        data = self._gonze_nac_precomputed["static_data"]
-        self._gonze_save_debug(
-            self._gonze_debug_static_folder(),
-            {k: v for k, v in data.items() if k != "q_direction_tolerance"},
-        )
+    def _build_nac_static_data_runtime(self):
+        if self._nac_precomputed is not None:
+            return self._nac_precomputed["static_data"]
+        matrix = self._resolve_nac_bvk_supercell_matrix()
+        self._nac_precomputed = self.second.get_nac_precomputed(matrix)
+        data = self._nac_precomputed["static_data"]
         return data
 
-    def _build_gonze_short_range_inputs(self, static_data):
-        if self._gonze_nac_precomputed is not None:
-            return self._gonze_nac_precomputed["mapping"]
-        self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
-            self._resolve_gonze_bvk_supercell_matrix()
+    def _build_nac_mapping_runtime(self, static_data):
+        if self._nac_precomputed is not None:
+            return self._nac_precomputed["mapping"]
+        self._nac_precomputed = self.second.get_nac_precomputed(
+            self._resolve_nac_bvk_supercell_matrix()
         )
-        return self._gonze_nac_precomputed["mapping"]
+        return self._nac_precomputed["mapping"]
 
-    def _calculate_gonze_dynamical_matrix(self, _static_data=None, _mapping=None):
-        return self._calculate_gonze_dynamical_matrices_for_qs(
+    def _calculate_nac_dynamical_matrix(self, _static_data=None, _mapping=None):
+        return self._calculate_nac_dynamical_matrices_for_qs(
             np.array([self.q_point], dtype=float),
             _static_data,
             _mapping,
@@ -417,15 +410,15 @@ class HarmonicWithQ(Observable, Storable):
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequency.real
 
-    def _calculate_gonze_dynmat_derivatives(self, direction):
-        static_data = self._build_gonze_static_data()
-        mapping = self._build_gonze_short_range_inputs(static_data)
-        data = self._calculate_gonze_velocity_direction_data(1 + direction, static_data, mapping)
+    def _calculate_nac_dynmat_derivatives(self, direction):
+        static_data = self._build_nac_static_data_runtime()
+        mapping = self._build_nac_mapping_runtime(static_data)
+        data = self._calculate_nac_velocity_direction_data(1 + direction, static_data, mapping)
         return data["ddm_fd"] * (_PHONOPY_TO_KALDO_DM * units.Bohr)
 
     def calculate_dynmat_derivatives(self, direction):
         if self.is_nac:
-            return self._calculate_gonze_dynmat_derivatives(direction)
+            return self._calculate_nac_dynmat_derivatives(direction)
         q_point = self.q_point
         is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
@@ -513,7 +506,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_velocity(self):
         if self.is_nac:
-            return self._calculate_gonze_velocity_data()["gv_scaled"][np.newaxis, ...]
+            return self._calculate_nac_velocity_data()["gv_scaled"][np.newaxis, ...]
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
@@ -532,8 +525,8 @@ class HarmonicWithQ(Observable, Storable):
             velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
         return velocity[np.newaxis, ...]
 
-    def _calculate_gonze_eigensystem(self, only_eigenvals=False):
-        dyn_s = self._calculate_gonze_dynamical_matrix()
+    def _calculate_nac_eigensystem(self, only_eigenvals=False):
+        dyn_s = self._calculate_nac_dynamical_matrix()
         if only_eigenvals:
             return np.linalg.eigvalsh(dyn_s).real
         eigenvals, eigenvects = np.linalg.eigh(dyn_s)
@@ -583,7 +576,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_eigensystem(self, only_eigenvals):
         if self.is_nac:
-            return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
+            return self._calculate_nac_eigensystem(only_eigenvals=only_eigenvals)
         dyn_s = self._dynmat_fourier
 
         if only_eigenvals:
@@ -607,7 +600,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
         if self.is_nac:
-            return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
+            return self._calculate_nac_eigensystem(only_eigenvals=only_eigenvals)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms
@@ -671,7 +664,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_dynmat_derivatives_unfolded(self, direction):
         if self.is_nac:
-            return self._calculate_gonze_dynmat_derivatives(direction)
+            return self._calculate_nac_dynmat_derivatives(direction)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms

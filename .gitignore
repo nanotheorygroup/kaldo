@@ -119,5 +119,5 @@ docs/docsource/API
 # Local scratch / superpowers workspace under docs (never tracked)
 docs/superpowers/
 
-# Gonze short-range FC caches are derived data, never fixtures
-gonze_short_range_force_constants*.npy
+# NAC short-range FC caches are derived data, never fixtures
+nac_short_range_force_constants*.npy

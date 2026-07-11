@@ -16,41 +16,6 @@ from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
 from kaldo.grid import Grid
 import kaldo.controllers.nac as nac
-from kaldo.controllers.nac import (  # re-exported for callers
-    _BZ_SEARCH_SPACE,
-    _dielectric_part,
-    _get_minimum_g_rad,
-    _get_g_vec_list,
-    _get_g_list,
-    _multiply_borns,
-    _get_dd_base,
-    _get_dd_base_many,
-    _recip_dipole_dipole_q0,
-    _limiting_dipole_dipole,
-    _real_dipole_dipole,
-    _real_dipole_dipole_many,
-    _mass_weight,
-    _mass_weight_many,
-    _build_segment_phase_weights,
-    _short_range_dynamical_matrix,
-    _short_range_dynamical_matrix_many,
-    _h_tensor,
-    normalize_bvk_supercell_matrix,
-    bvk_supercell_matrix_key,
-    _diagonal_supercell_sort_key,
-    _unique_supercell_translations,
-    _nacl_phonopy_debug_sort_key,
-    _phonopy_lattice_points,
-    _fold_points_to_first_bz,
-    _commensurate_points,
-    _dipole_dipole_dynamical_matrix,
-    _gonze_dynamical_matrices,
-    _recip_dipole_dipole,
-    _inverse_transform_dynmats_to_force_constants,
-    _build_interleaved_fc,
-    _build_supercell_matrix_mapping,
-    _ensure_gonze_kernel_cache,
-)
 from opt_einsum import contract
 
 logging = get_logger()
@@ -105,7 +70,7 @@ def acoustic_sum_rule(dynmat):
 
 class SecondOrder(ForceConstant, Storable):
     _store_formats = {
-        "gonze_short_range_force_constants": "numpy",
+        "nac_short_range_force_constants": "numpy",
     }
 
     def __init__(self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs):
@@ -120,39 +85,39 @@ class SecondOrder(ForceConstant, Storable):
 
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
-        self._gonze_nac_precomputed_cache = {}
-        self._gonze_short_range_force_constants_cache = {}
+        self._nac_precomputed_cache = {}
+        self._nac_short_range_force_constants_cache = {}
         self.storage = "numpy"
 
     @lazy_property(label="", format="numpy")
-    def gonze_short_range_force_constants(self):
-        return self.calculate_gonze_short_range_force_constants()
+    def nac_short_range_force_constants(self):
+        return self.calculate_nac_short_range_force_constants()
 
-    def get_gonze_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+    def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
         if self.atoms.info.get('dipole_subtracted_fc', False):
             raise NotImplementedError(
                 "These force constants come from a QE .fc file with embedded Born "
                 "charges, which q2r writes in the dipole-subtracted convention. The "
-                "Gonze non-analytic correction expects total force constants and "
+                "non-analytic correction expects total force constants and "
                 "would subtract the dipole part a second time. Re-run q2r.x without "
                 "epsil so the file contains total force constants, and provide the "
                 "dielectric tensor and Born charges separately (atoms.info and "
                 "atoms.arrays, or a ShengBTE CONTROL file)."
             )
-        matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         if matrix is None:
-            return self.gonze_short_range_force_constants
+            return self.nac_short_range_force_constants
 
-        key = bvk_supercell_matrix_key(matrix)
-        if key in self._gonze_short_range_force_constants_cache:
-            return self._gonze_short_range_force_constants_cache[key]
+        key = nac.bvk_supercell_matrix_key(matrix)
+        if key in self._nac_short_range_force_constants_cache:
+            return self._nac_short_range_force_constants_cache[key]
 
-        property_name = "gonze_short_range_force_constants_" + key
+        property_name = "nac_short_range_force_constants_" + key
         folder = self.get_folder_from_label("")
         try:
             loaded = self._load_property(property_name, folder, format="numpy")
             logging.info("Loading " + folder + "/" + property_name)
-            self._gonze_short_range_force_constants_cache[key] = loaded
+            self._nac_short_range_force_constants_cache[key] = loaded
             return loaded
         except (FileNotFoundError, OSError, KeyError):
             logging.info(
@@ -160,25 +125,25 @@ class SecondOrder(ForceConstant, Storable):
                 + " not found in numpy format, calculating "
                 + property_name
             )
-            force_constants = self.calculate_gonze_short_range_force_constants(matrix)
+            force_constants = self.calculate_nac_short_range_force_constants(matrix)
             self._save_property(property_name, folder, force_constants, format="numpy")
-            self._gonze_short_range_force_constants_cache[key] = force_constants
+            self._nac_short_range_force_constants_cache[key] = force_constants
             return force_constants
 
 
-    def _gonze_build_static_data(self, matrix=None):
+    def _build_nac_static_data(self, matrix=None):
         return nac.build_static_data(self, matrix)
 
-    def _gonze_build_mapping(self, matrix=None):
+    def _build_nac_mapping(self, matrix=None):
         return nac.build_mapping(self, matrix)
 
-    def get_gonze_nac_precomputed(self, nac_bvk_supercell_matrix=None):
-        matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
-        key = bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
-        if key not in self._gonze_nac_precomputed_cache:
-            static_data = self._gonze_build_static_data(matrix)
-            mapping = self._gonze_build_mapping(matrix)
-            dd_real_q0_full = _real_dipole_dipole(
+    def get_nac_precomputed(self, nac_bvk_supercell_matrix=None):
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        key = nac.bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
+        if key not in self._nac_precomputed_cache:
+            static_data = self._build_nac_static_data(matrix)
+            mapping = self._build_nac_mapping(matrix)
+            dd_real_q0_full = nac._real_dipole_dipole(
                 np.zeros(3, dtype=float),
                 mapping["svecs"],
                 mapping["multi"],
@@ -192,40 +157,40 @@ class SecondOrder(ForceConstant, Storable):
             # construction: the limiting term (diagonal only) and the real-space
             # Ewald part. The reciprocal part subtracts its own q0 row sum.
             static_data["dd_drift"] = static_data["dd_limiting"] + dd_real_q0
-            static_data, mapping = _ensure_gonze_kernel_cache(static_data, mapping)
-            self._gonze_nac_precomputed_cache[key] = {
+            static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)
+            self._nac_precomputed_cache[key] = {
                 "static_data": static_data,
                 "mapping": mapping,
             }
-        return self._gonze_nac_precomputed_cache[key]
+        return self._nac_precomputed_cache[key]
 
-    def calculate_gonze_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+    def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
         if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
             raise ValueError(
-                "Gonze-Lee short-range force constants require atoms.info['dielectric'] "
+                "NAC short-range force constants require atoms.info['dielectric'] "
                 "and atoms.arrays['charges']."
             )
-        matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         supercell = self.supercell if matrix is None else matrix
-        bundle = self.get_gonze_nac_precomputed(matrix)
+        bundle = self.get_nac_precomputed(matrix)
         static_data = bundle["static_data"]
         mapping = bundle["mapping"]
-        qpoints = _commensurate_points(supercell, static_data["reciprocal_lattice"])
+        qpoints = nac._commensurate_points(supercell, static_data["reciprocal_lattice"])
         dynmats = np.zeros(
             (len(qpoints), len(self.atoms) * 3, len(self.atoms) * 3),
             dtype=np.complex128,
         )
         logging.info(
-            "Calculating Gonze-Lee short-range force constants from "
+            "Calculating NAC short-range force constants from "
             + str(len(qpoints))
             + " commensurate q-points."
         )
-        fc_full = _build_interleaved_fc(self)
+        fc_full = nac._build_interleaved_fc(self)
         conversion = units.mol / (10 * units.J)
         svecs = mapping.get("phase_svecs", mapping["svecs"])
         fc_full_converted = fc_full * conversion
         for i_q, q_point in enumerate(qpoints):
-            dynmat = _short_range_dynamical_matrix(
+            dynmat = nac._short_range_dynamical_matrix(
                 fc_full_converted,
                 q_point,
                 svecs,
@@ -236,9 +201,9 @@ class SecondOrder(ForceConstant, Storable):
                 phase_weights=mapping["phase_weights"],
                 target_mask=mapping["target_mask"],
             )
-            dynmat -= _dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
+            dynmat -= nac._dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
             dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
-        return _inverse_transform_dynmats_to_force_constants(
+        return nac._inverse_transform_dynmats_to_force_constants(
             dynmats, qpoints, mapping, static_data["masses"]
         )
 
