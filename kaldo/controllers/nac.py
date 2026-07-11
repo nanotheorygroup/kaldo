@@ -12,6 +12,7 @@ Requires atoms.info["dielectric"] (3x3) and atoms.arrays["charges"]
 whenever both are present with nonzero charges.
 """
 
+import itertools
 import math
 
 import numpy as np
@@ -68,36 +69,10 @@ def _phonopy_frequencies_from_eigenvalues(eigenvalues):
     return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
 
 
+# All 27 nearest reciprocal-cell images, origin first so exact ties in
+# the folding fall back to the unshifted point.
 _BZ_SEARCH_SPACE = np.array(
-    [
-        [0, 0, 0],
-        [0, 0, 1],
-        [0, 1, -1],
-        [0, 1, 0],
-        [0, 1, 1],
-        [1, -1, -1],
-        [1, -1, 0],
-        [1, -1, 1],
-        [1, 0, -1],
-        [1, 0, 0],
-        [1, 0, 1],
-        [1, 1, -1],
-        [1, 1, 0],
-        [1, 1, 1],
-        [-1, -1, -1],
-        [-1, -1, 0],
-        [-1, -1, 1],
-        [-1, 0, -1],
-        [-1, 0, 0],
-        [-1, 0, 1],
-        [-1, 1, -1],
-        [-1, 1, 0],
-        [-1, 1, 1],
-        [0, -1, -1],
-        [0, -1, 0],
-        [0, -1, 1],
-        [0, 0, -1],
-    ],
+    [[0, 0, 0]] + [p for p in itertools.product((-1, 0, 1), repeat=3) if any(p)],
     dtype=np.int64,
 )
 
