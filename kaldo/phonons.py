@@ -12,7 +12,7 @@ from kaldo.helpers.logger import log_size
 from kaldo.storable import FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 import tensorflow as tf
@@ -563,9 +563,6 @@ class Phonons(Storable):
         self.n_atoms = self.forceconstants.n_atoms
         self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
-        self.hbar = units._hbar
-        if self.is_classic:
-            self.hbar = self.hbar * 1e-6
         self.g_factor = g_factor
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
@@ -878,8 +875,12 @@ class Phonons(Storable):
     def population(self):
         """
         Calculate the phonons population for each k point in k_points and each mode.
-        If classical, it returns the temperature divided by each frequency, using equipartition theorem.
-        If quantum it returns the Bose-Einstein distribution
+        If quantum, it returns the Bose-Einstein distribution.
+        If classical, it returns the equipartition occupation k_B*T/(hbar*omega)
+        scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2
+        (see kaldo.observables.harmonic_with_q_temp); the convention factors
+        cancel in the scattering rates, so bandwidth and conductivity are
+        unaffected, but the array itself is not the physical occupation.
 
         Returns
         -------
@@ -904,19 +905,19 @@ class Phonons(Storable):
             population[ik] = phonon.population
         return population
 
-    @lazy_property(label='<temperature>')
+    @lazy_property(label='<temperature>/<statistics>')
     def free_energy(self):
         """
         Harmonic free energy, already Brillouin-zone averaged,
-        returned in eV per mode (including zero-point energy).
+        returned in eV per mode.
 
-        Formula: F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2
+        Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with
+        x = hbar*omega/(k_B*T), including zero-point energy.
 
-        where:
-            k_B: Boltzmann constant
-            T: temperature
-            hbar: reduced Planck constant
-            omega: angular frequency (2*pi*frequency)
+        Classical (``is_classic=True``): F = k_B * T * ln(x), the x -> 0
+        limit of the quantum expression (the zero-point term cancels
+        against the expansion of the logarithm). It uses the physical hbar
+        as the phase-space measure and contains no zero-point energy.
 
         Returns
         -------
@@ -927,12 +928,15 @@ class Phonons(Storable):
 
         Notes
         -----
-        - At T=0, only the zero-point energy contributes (thermal term vanishes)
+        - At T=0, the quantum result reduces to the zero-point energy; the
+          classical result reduces to its T -> 0 limit, zero
         - Modes with imaginary frequencies (negative frequency values) are automatically
           excluded and will trigger a warning, as they may indicate structural instability
         """
-        # At T=0, F = ZPE only (thermal contribution vanishes)
-        if self.temperature == 0:
+        # atol: any temperature below 1e-12 K is physically zero
+        if np.isclose(self.temperature, 0.0, rtol=0.0, atol=1e-12):
+            if self.is_classic:
+                return np.zeros_like(self.frequency)
             return self.zero_point_harmonic_energy
 
         # Check for imaginary frequencies (negative values)
@@ -952,6 +956,12 @@ class Phonons(Storable):
         # This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies
         physical = self.physical_mode.reshape(self.frequency.shape)
         valid_modes = physical & (self.frequency > 0)
+
+        if self.is_classic:
+            ln_term[valid_modes] = np.log(x_vals[valid_modes])
+            f_cell = 1.0 / units._e * units._k * self.temperature * ln_term
+            return f_cell / self.n_k_points
+
         ln_term[valid_modes] = np.log1p(-np.exp(-x_vals[valid_modes]))  # ln(1 − e^{-x})
 
         # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in eV
@@ -969,6 +979,10 @@ class Phonons(Storable):
         """
         Harmonic zero-point energy, Brillouin-zone averaged,
         returned in eV per mode.
+
+        This is a quantum quantity (hbar*omega/2); it has no classical
+        counterpart and ``free_energy`` with ``is_classic=True`` does not
+        include it.
         """
         zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / units._e
         return zpe_cell / self.n_k_points
@@ -1035,6 +1049,11 @@ class Phonons(Storable):
     def phase_space(self):
         """
         Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
+
+        With ``is_classic=True`` the values carry the internal
+        1/CLASSICAL_HBAR_SCALE population convention (see
+        kaldo.observables.harmonic_with_q_temp), so classical and quantum
+        phase spaces are not directly comparable in magnitude.
 
         Returns
         -------
@@ -1439,8 +1458,10 @@ class Phonons(Storable):
         # Reshape population to 1D for unified indexing
         population_flat = self.population.flatten()
 
-        # Apply hbar scaling factor for classical vs quantum
-        hbar_factor = 1e-6 if self.is_classic else 1
+        # Classical statistics: cancel the 1/CLASSICAL_HBAR_SCALE the
+        # population carries (see harmonic_with_q_temp.CLASSICAL_HBAR_SCALE)
+        # by scaling the potential with the matching factor.
+        hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
 
         ps_and_gamma = aha.calculate_ps_and_gamma(
             self.sparse_phase,

@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-from kaldo.grid import wrap_coordinates, Grid
+from kaldo.grid import wrap_coordinates
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.observables.fourthorder import FourthOrder
@@ -354,16 +354,13 @@ class ForceConstants:
         atoms = self.atoms
         masses = atoms.get_masses()
         volume = atoms.get_volume()
+        # The dynmat replica axis and list_of_replicas both follow the grid
+        # declared by the loader, so they pair directly. A former
+        # unconditional C-override here compensated for loaders that
+        # declared F over C-ordered data (QE fixed in #272, VASP alongside
+        # this change); on self-consistent F loads such as hiphive it
+        # mispaired the vectors and corrupted the tensor.
         list_of_replicas = self.second.list_of_replicas
-
-        # Rest of the code for elastic tensor assumes C-type grid
-        # Generate C-type grid if needed
-        if self.second._direct_grid.order == 'F':
-            list_of_replicas = (
-                Grid(self.second.supercell, order='C')
-                .grid(is_wrapping=True)
-                .dot(self.atoms.cell)
-            )
 
         dynmat = self.second.dynmat[0]  # units THz^2
         positions = self.atoms.positions
