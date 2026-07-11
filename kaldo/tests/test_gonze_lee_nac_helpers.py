@@ -35,45 +35,30 @@ from kaldo.tests.gonze_debug_reference import (
 )
 
 
-DEFAULT_NACL_DEBUG = Path(
-    "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
-    "example/nacl-att3/debug"
-)
-DEFAULT_NACL_ATT4_DEBUG = Path(
-    "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replace/"
-    "example/nacl-att4/debug"
-)
-DEFAULT_NACL_ATT4_DEBUG_FALLBACK = Path(
-    "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
-    "example/nacl-att4/debug"
-)
 LOCAL_V2_DEBUG = Path("kaldo/tests/nacl_phonopy_v2/debug")
 
 
-def nacl_debug_dir() -> Path:
-    return Path(os.environ.get("NACL_ATT3_DEBUG_DIR", DEFAULT_NACL_DEBUG))
+def nacl_debug_dir() -> Path | None:
+    value = os.environ.get("NACL_ATT3_DEBUG_DIR")
+    return Path(value) if value else None
 
 
 def require_nacl_debug() -> Path:
     path = nacl_debug_dir()
-    if not (path / "static" / "metadata.json").exists():
-        pytest.skip(f"NaCl Gonze-Lee debug tree not found at {path}")
+    if path is None or not (path / "static" / "metadata.json").exists():
+        pytest.skip("NaCl Gonze-Lee debug tree not available; set NACL_ATT3_DEBUG_DIR")
     return path
 
 
-def nacl_att4_debug_dir() -> Path:
-    env_override = os.environ.get("NACL_ATT4_DEBUG_DIR")
-    if env_override:
-        return Path(env_override)
-    if DEFAULT_NACL_ATT4_DEBUG.exists():
-        return DEFAULT_NACL_ATT4_DEBUG
-    return DEFAULT_NACL_ATT4_DEBUG_FALLBACK
+def nacl_att4_debug_dir() -> Path | None:
+    value = os.environ.get("NACL_ATT4_DEBUG_DIR")
+    return Path(value) if value else None
 
 
 def require_nacl_att4_debug() -> Path:
     path = nacl_att4_debug_dir()
-    if not (path / "static" / "metadata.json").exists():
-        pytest.skip(f"NaCl att4 debug tree not found at {path}")
+    if path is None or not (path / "static" / "metadata.json").exists():
+        pytest.skip("NaCl att4 debug tree not available; set NACL_ATT4_DEBUG_DIR")
     return path
 
 
@@ -109,7 +94,10 @@ def classify_first_frequency_failure(
 
 
 def require_nacl_debug_worktree() -> Path:
-    path = nacl_debug_dir().parent / "debug_worktree"
+    base = nacl_debug_dir()
+    if base is None:
+        pytest.skip("NaCl Gonze-Lee debug tree not available; set NACL_ATT3_DEBUG_DIR")
+    path = base.parent / "debug_worktree"
     required = [
         "primitive_matrix.npy",
         "supercell_matrix.npy",
@@ -133,7 +121,10 @@ def require_local_v2_debug() -> Path:
 
 
 def load_att3_phonopy_force_constants() -> np.ndarray:
-    path = nacl_debug_dir().parent / "force_constants.hdf5"
+    base = nacl_debug_dir()
+    if base is None:
+        pytest.skip("NaCl Gonze-Lee debug tree not available; set NACL_ATT3_DEBUG_DIR")
+    path = base.parent / "force_constants.hdf5"
     if not path.exists():
         pytest.skip(f"Phonopy compact FC reference not found at {path}")
     with h5py.File(path, "r") as handle:
