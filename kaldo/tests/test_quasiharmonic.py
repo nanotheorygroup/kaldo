@@ -270,6 +270,54 @@ class TestCalculateQHA:
         assert np.allclose(loaded_data['free_energies'], results['free_energies'])
         assert loaded_data['symmetry'] == results['symmetry']
 
+    def test_calculate_qha_classical_vs_quantum(self, tmp_path, monkeypatch):
+        """End-to-end classical QHA: statistics reach the free-energy surface.
+
+        Physics pin: the quantum harmonic free energy exceeds the classical
+        one for every mode (zero-point energy at T=0, the Wigner correction
+        at finite T), and the potential-energy surface is
+        statistics-independent, so F_classical < F_quantum must hold at
+        every grid point and temperature. On this deliberately unstable
+        fixture (simple-cubic Cu has imaginary modes) the bound is also a
+        regression test for the zero-point energy summing 0.5*hbar*omega
+        over imaginary modes, which poisoned the quantum branch with
+        negative spurious contributions and inverted the bound.
+
+        Also pins the no-pollution contract: with storage='memory' a QHA run
+        must not write anything to the working directory (regression for the
+        unconditional raw_free_energy.npy dump and the force-constant folder
+        that ignored the memory storage setting).
+        """
+        monkeypatch.chdir(tmp_path)
+        atoms = bulk("Cu", "sc", a=3.6, cubic=True)
+
+        common = dict(
+            atoms=atoms,
+            calculator=EMT(),
+            temperatures=[0, 300],
+            supercell=(2, 2, 2),
+            kpts=(3, 3, 3),
+            symmetry='cubic',
+            n_lattice_points=3,
+            storage='memory',
+        )
+        results_q = calculate_qha(is_classic=False, **common)
+        results_c = calculate_qha(is_classic=True, **common)
+
+        assert results_c['free_energies'].shape == (2,)
+        # The bound is asserted on the raw grid values: the polynomial fit
+        # behind 'free_energies' is a ridge regression, which is not
+        # guaranteed to preserve pointwise ordering.
+        matrix_q = results_q['free_energy_matrix']
+        matrix_c = results_c['free_energy_matrix']
+        assert (matrix_c < matrix_q).all(), (
+            "classical free energy must lie below quantum at every grid point "
+            f"and temperature (classical {matrix_c}, quantum {matrix_q})"
+        )
+
+        leftovers = sorted(p.name for p in tmp_path.iterdir())
+        assert leftovers == [], f"QHA with storage='memory' wrote to the working directory: {leftovers}"
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
