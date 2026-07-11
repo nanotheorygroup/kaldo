@@ -518,7 +518,9 @@ class HarmonicWithQ(Observable, Storable):
         scaling = np.zeros(len(frequencies), dtype=float)
         cutoff_mask = (np.abs(frequencies) > GONZE_VELOCITY_CUTOFF_FREQUENCY).astype(np.int64)
         active = cutoff_mask.astype(bool)
-        scaling[active] = _PHONOPY_TO_KALDO_DM / (8.0 * np.pi ** 2 * frequencies[active])
+        # The finite-difference step is taken per 1/Bohr (phonopy convention),
+        # so converting the projected derivative to A/ps needs the extra Bohr.
+        scaling[active] = _PHONOPY_TO_KALDO_DM * units.Bohr / (8.0 * np.pi ** 2 * frequencies[active])
         gv_scaled = gv_raw * scaling[:, np.newaxis]
         gv_scaled[~active] = 0.0
         return gv_scaled, scaling, cutoff_mask
