@@ -1225,7 +1225,7 @@ class HarmonicWithQ(Observable, Storable):
         zag_zeff = contract('ina,mcb->inmabc', zag, zeff)
         zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3, 5))
         # Term 3 (imaginary)
-        zag_zbg_rij = 1j * contract('ina,imb,nmc->inmabc', zag, zag, distances_n)
+        zag_zbg_rij = 1j * contract('ina,imb,nmc->inmabc', zag, zag, distances_bohr)
         # Term 4 (negative)
         dgeg = contract('ab,ib->ib', epsilon + epsilon.T, g_positions)
         zag_zbg_dgeg = -1 * contract('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))

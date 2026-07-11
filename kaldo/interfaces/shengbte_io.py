@@ -123,6 +123,12 @@ def read_second_order_qe_matrix(filename):
                     charges[na + 1, alpha, :] = file.readline().split()
         else:
             charges = None
+            logging.warning(
+                "The QE force-constant file carries no dielectric tensor or Born "
+                "effective charges (NAC flag F): the non-analytic correction will "
+                "not be applied. For polar materials the dispersion will lack "
+                "LO-TO splitting."
+            )
 
         # Read second order force constants
         # read t1*t2*t3 supercell
