@@ -29,3 +29,28 @@ def test_members_and_count(tmp_path):
 def test_empty_ensemble_raises():
     with pytest.raises(ValueError, match="at least one member"):
         PhononsEnsemble([])
+
+
+def test_identical_members_zero_std(tmp_path):
+    members = _cu_phonons(tmp_path, n=3)
+    ens = PhononsEnsemble(members)
+    mean, std = ens.mean_std('frequency')
+    ref = np.asarray(members[0].frequency)
+    assert mean.shape == ref.shape
+    np.testing.assert_allclose(mean, ref, rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(std, 0.0, atol=1e-10)
+
+
+def test_mean_and_std_helpers_match_mean_std(tmp_path):
+    members = _cu_phonons(tmp_path, n=2)
+    ens = PhononsEnsemble(members)
+    mean, std = ens.mean_std('frequency')
+    np.testing.assert_array_equal(ens.mean('frequency'), mean)
+    np.testing.assert_array_equal(ens.std('frequency'), std)
+
+
+def test_unknown_observable_raises_helpful(tmp_path):
+    members = _cu_phonons(tmp_path, n=1)
+    ens = PhononsEnsemble(members)
+    with pytest.raises(AttributeError, match="not_a_prop"):
+        ens.mean_std('not_a_prop')

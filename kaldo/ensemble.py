@@ -37,3 +37,46 @@ class PhononsEnsemble:
     def n_members(self):
         """Number of members in the ensemble."""
         return len(self._members)
+
+    def _stack(self, observable):
+        """Stack the named per-mode property across members: shape (n_members, ...).
+
+        Aggregation is sorted-stack: kaldo returns frequencies sorted ascending per
+        q-point, so member axis m tracks the same branch away from band crossings.
+        At crossings and in degenerate subspaces the ordering can swap branches,
+        which slightly overestimates the std there.
+        """
+        arrays = []
+        for i, member in enumerate(self._members):
+            try:
+                value = getattr(member, observable)
+            except AttributeError as exc:
+                raise AttributeError(
+                    f"Ensemble member has no property {observable!r}. "
+                    "mean_std aggregates scalar per-mode Phonons properties such as "
+                    "'frequency', 'heat_capacity', 'participation_ratio', 'bandwidth'."
+                ) from exc
+            arr = np.asarray(value)
+            if i == 0:
+                ref_shape = arr.shape
+            elif arr.shape != ref_shape:
+                raise ValueError(
+                    f"Ensemble members disagree on the shape of {observable!r}: "
+                    f"member 0 has {ref_shape}, member {i} has {arr.shape}. "
+                    "All members must share kpts and system size."
+                )
+            arrays.append(arr)
+        return np.stack(arrays, axis=0)
+
+    def mean(self, observable):
+        """Mean of the named per-mode property across members."""
+        return self._stack(observable).mean(axis=0)
+
+    def std(self, observable):
+        """Standard deviation of the named per-mode property across members."""
+        return self._stack(observable).std(axis=0)
+
+    def mean_std(self, observable):
+        """Return (mean, std) of the named per-mode property across members."""
+        stacked = self._stack(observable)
+        return stacked.mean(axis=0), stacked.std(axis=0)
