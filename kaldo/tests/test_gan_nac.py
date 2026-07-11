@@ -1,5 +1,5 @@
 """
-Regression test: Gonze NAC on a hexagonal, non-centrosymmetric, polar crystal
+Regression test: non-analytic correction on a hexagonal, non-centrosymmetric, polar crystal
 (wurtzite GaN).
 
 This is the anisotropic acid test the cubic NaCl/MgO fixtures cannot provide:
@@ -60,35 +60,35 @@ def gan_second():
     second = forceconstants.second
     second.atoms.info["dielectric"] = EPSILON.copy()
     second.atoms.set_array("charges", BORN.copy(), shape=(3, 3))
-    second.folder = tempfile.mkdtemp(prefix="gan_gonze_test_")
+    second.folder = tempfile.mkdtemp(prefix="gan_nac_test_")
     return second
 
 
-def _gonze_frequencies_cm(second, q_point):
+def _nac_frequencies_cm(second, q_point):
     hwq = HarmonicWithQ(q_point=np.array(q_point, dtype=float), second=second,
                         storage="memory")
     return np.sort(np.array(hwq.frequency).flatten()) * THZ_TO_CM
 
 
 @pytest.mark.parametrize("q_point", list(PHONOPY_REFERENCE))
-def test_gonze_frequencies_match_phonopy(gan_second, q_point):
-    actual = _gonze_frequencies_cm(gan_second, q_point)
+def test_nac_frequencies_match_phonopy(gan_second, q_point):
+    actual = _nac_frequencies_cm(gan_second, q_point)
     np.testing.assert_allclose(actual, PHONOPY_REFERENCE[q_point], atol=15.0)
 
 
-def test_gonze_gamma_A_transverse_degeneracy(gan_second):
-    actual = _gonze_frequencies_cm(gan_second, (0.0, 0.0, 0.25))
+def test_nac_gamma_A_transverse_degeneracy(gan_second):
+    actual = _nac_frequencies_cm(gan_second, (0.0, 0.0, 0.25))
     assert abs(actual[0] - actual[1]) < 0.1
     assert abs(actual[6] - actual[7]) < 0.1
 
 
-def test_gonze_gamma_lo_to_splitting(gan_second):
-    actual = _gonze_frequencies_cm(gan_second, (0.0, 0.0, 0.0))
+def test_nac_gamma_lo_to_splitting(gan_second):
+    actual = _nac_frequencies_cm(gan_second, (0.0, 0.0, 0.0))
     # highest branch is the NAC-lifted LO; without charges it sits at ~660
     assert actual[-1] > 690.0
 
 
-def test_gonze_velocity_matches_dispersion_slope(gan_second):
+def test_nac_velocity_matches_dispersion_slope(gan_second):
     q0 = np.array([0.1, 0.1, 0.1])
     hwq = HarmonicWithQ(q_point=q0, second=gan_second, storage="memory")
     order = np.argsort(np.array(hwq.frequency).flatten())
@@ -98,8 +98,8 @@ def test_gonze_velocity_matches_dispersion_slope(gan_second):
     reciprocal = 2 * np.pi * np.linalg.inv(cell).T
     delta = 1e-3
     step = np.linalg.solve(reciprocal, np.array([0.0, 0.0, delta]))
-    plus = _gonze_frequencies_cm(gan_second, q0 + step) / THZ_TO_CM
-    minus = _gonze_frequencies_cm(gan_second, q0 - step) / THZ_TO_CM
+    plus = _nac_frequencies_cm(gan_second, q0 + step) / THZ_TO_CM
+    minus = _nac_frequencies_cm(gan_second, q0 - step) / THZ_TO_CM
     slope = (plus - minus) / (2 * delta)
 
     usable = np.abs(slope) > 0.05

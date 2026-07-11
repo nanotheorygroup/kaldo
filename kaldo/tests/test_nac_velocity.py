@@ -104,5 +104,5 @@ def _load_example_v2_second_order():
     # These fixtures attach reference charges by hand and exercise the
     # machinery on the file constants as if they were totals.
     second.atoms.info.pop("dipole_subtracted_fc", None)
-    second.folder = tempfile.mkdtemp(prefix="gonze_v2_cache_")
+    second.folder = tempfile.mkdtemp(prefix="nac_v2_cache_")
     return attach_reference_nac(second)

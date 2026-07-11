@@ -11,14 +11,14 @@ from kaldo.forceconstants import ForceConstants
 from kaldo.interfaces import shengbte_io
 from kaldo.observables import harmonic_with_q as hwq
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-import kaldo.observables.secondorder as so
-from kaldo.observables.secondorder import (
+import kaldo.controllers.nac as so
+from kaldo.observables.secondorder import _dynamical_matrix_from_second_order
+from kaldo.controllers.nac import (
     _short_range_dynamical_matrix,
     _mass_weight,
     _build_supercell_matrix_mapping as build_supercell_matrix_mapping,
     _commensurate_points as commensurate_points,
     _build_interleaved_fc,
-    _dynamical_matrix_from_second_order,
 )
 
 
@@ -151,13 +151,13 @@ def first_meaningful_stage_difference(
     return None, 0.0
 
 
-def test_gonze_dielectric_part_matches_quadratic_form():
+def test_nac_dielectric_part_matches_quadratic_form():
     vector = np.array([1.0, 2.0, -1.0])
     dielectric = np.diag([2.0, 3.0, 4.0])
     assert so._dielectric_part(vector, dielectric) == pytest.approx(18.0)
 
 
-def test_gonze_multiply_borns_contracts_cartesian_axes():
+def test_nac_multiply_borns_contracts_cartesian_axes():
     dd_in = np.zeros((1, 3, 1, 3), dtype=np.complex128)
     dd_in[0, :, 0, :] = np.arange(9, dtype=float).reshape(3, 3)
     born = np.zeros((1, 3, 3), dtype=float)
@@ -181,7 +181,7 @@ def test_matrix_specific_total_dynamical_matrix_matches_input_force_constants_fo
 ):
     second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
     matrix = nacl_phonopy_debug_supercell_matrix_att3()
-    mapping = second_order._gonze_build_mapping(matrix)
+    mapping = second_order._build_nac_mapping(matrix)
     actual = _dynamical_matrix_from_second_order(second_order, q_red)
     expected = _short_range_dynamical_matrix(
         _build_interleaved_fc(second_order)

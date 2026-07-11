@@ -23,19 +23,19 @@ from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
 
-GONZE_VELOCITY_Q_LENGTH = 1e-5
+NAC_VELOCITY_Q_LENGTH = 1e-5
 
 
-GONZE_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
+NAC_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
 
 
-GONZE_VELOCITY_CUTOFF_FREQUENCY = 1e-4
+NAC_VELOCITY_CUTOFF_FREQUENCY = 1e-4
 
 
 _PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr ** 2) * (units.mol / (10 * units.J))
 
 
-GONZE_VELOCITY_DIRECTIONS_CART = np.array(
+NAC_VELOCITY_DIRECTIONS_CART = np.array(
     [
         np.array([1.0, 2.0, 3.0], dtype=float) / np.sqrt(14.0),
         np.array([1.0, 0.0, 0.0], dtype=float),
@@ -46,7 +46,7 @@ GONZE_VELOCITY_DIRECTIONS_CART = np.array(
 )
 
 
-def _gonze_degenerate_sets(frequencies, tolerance=GONZE_VELOCITY_DEGENERACY_TOLERANCE):
+def degenerate_sets(frequencies, tolerance=NAC_VELOCITY_DEGENERACY_TOLERANCE):
     sets = []
     current = [0]
     for index in range(1, len(frequencies)):
@@ -59,11 +59,11 @@ def _gonze_degenerate_sets(frequencies, tolerance=GONZE_VELOCITY_DEGENERACY_TOLE
     return sets
 
 
-def _gonze_to_phonopy_dm(dm):
+def _to_phonopy_dm(dm):
     return np.array(dm, copy=True) / _PHONOPY_TO_KALDO_DM
 
 
-def _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues):
+def _phonopy_frequencies_from_eigenvalues(eigenvalues):
     factor = np.sqrt(_PHONOPY_TO_KALDO_DM) / (2 * np.pi)
     return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
 
@@ -596,7 +596,7 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
     return _mass_weight(dd_total * conversion, static_data["masses"])
 
 
-def _gonze_dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None):
+def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None):
     q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
     q_direction_carts = np.atleast_2d(np.asarray(q_direction_carts, dtype=float))
     if fc is None:
@@ -642,7 +642,7 @@ def _gonze_dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, f
     dd_total = dd_recip + static_data["dd_limiting_expanded"][np.newaxis, :, :, :, :] + dd_real
     dd_total -= static_data["dd_drift_blocks"][np.newaxis, :, :, :, :]
     dd_total_mass_weighted = _mass_weight_many(
-        dd_total * static_data["gonze_conversion"],
+        dd_total * static_data["nac_conversion"],
         static_data["masses"],
         mass_matrix=static_data.get("sqrt_mass_matrix"),
     )
@@ -817,7 +817,7 @@ def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
     }
 
 
-def _ensure_gonze_kernel_cache(static_data, mapping):
+def ensure_kernel_cache(static_data, mapping):
     if "pair_phase" not in static_data:
         position_deltas = (
             static_data["primitive_positions"][:, np.newaxis, :]
@@ -854,8 +854,8 @@ def _ensure_gonze_kernel_cache(static_data, mapping):
         static_data["sqrt_mass_matrix"] = np.sqrt(
             np.outer(static_data["masses"], static_data["masses"])
         )
-    if "gonze_conversion" not in static_data:
-        static_data["gonze_conversion"] = units.mol / (10 * units.J)
+    if "nac_conversion" not in static_data:
+        static_data["nac_conversion"] = units.mol / (10 * units.J)
     if "phase_weights" not in mapping:
         phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
         mapping["phase_weights"] = _build_segment_phase_weights(

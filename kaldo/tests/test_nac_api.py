@@ -3,7 +3,7 @@ import pytest
 from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
-from kaldo.observables.secondorder import bvk_supercell_matrix_key
+from kaldo.controllers.nac import bvk_supercell_matrix_key
 
 
 def nacl_phonopy_debug_supercell_matrix():
@@ -25,14 +25,14 @@ def nac_second_order(tmp_path_factory):
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
-    forceconstants.second.folder = str(tmp_path_factory.mktemp("gonze_runtime_cache"))
+    forceconstants.second.folder = str(tmp_path_factory.mktemp("nac_runtime_cache"))
     # The machinery tests attach charges to the file constants and exercise the
-    # Gonze pipeline as if they were total force constants.
+    # non-analytic correction pipeline as if they were total force constants.
     forceconstants.second.atoms.info.pop("dipole_subtracted_fc", None)
     return forceconstants.second
 
 
-def test_second_order_gonze_short_range_force_constants_use_lazy_numpy_cache(
+def test_second_order_nac_short_range_force_constants_use_lazy_numpy_cache(
     nac_second_order, tmp_path, monkeypatch
 ):
     original_folder = nac_second_order.folder
@@ -47,33 +47,33 @@ def test_second_order_gonze_short_range_force_constants_use_lazy_numpy_cache(
 
         monkeypatch.setattr(
             nac_second_order,
-            "calculate_gonze_short_range_force_constants",
+            "calculate_nac_short_range_force_constants",
             calculate_once,
         )
         np.testing.assert_allclose(
-            nac_second_order.gonze_short_range_force_constants, expected
+            nac_second_order.nac_short_range_force_constants, expected
         )
         assert calls["count"] == 1
-        assert (tmp_path / "gonze_short_range_force_constants.npy").exists()
+        assert (tmp_path / "nac_short_range_force_constants.npy").exists()
 
         def fail_if_recomputed():
             raise AssertionError(
-                "cached Gonze-Lee short-range force constants were not reused"
+                "cached NAC short-range force constants were not reused"
             )
 
         monkeypatch.setattr(
             nac_second_order,
-            "calculate_gonze_short_range_force_constants",
+            "calculate_nac_short_range_force_constants",
             fail_if_recomputed,
         )
         np.testing.assert_allclose(
-            nac_second_order.gonze_short_range_force_constants, expected
+            nac_second_order.nac_short_range_force_constants, expected
         )
     finally:
         nac_second_order.folder = original_folder
 
 
-def test_second_order_gonze_short_range_force_constants_use_matrix_specific_cache(
+def test_second_order_nac_short_range_force_constants_use_matrix_specific_cache(
     nac_second_order, tmp_path, monkeypatch
 ):
     original_folder = nac_second_order.folder
@@ -90,33 +90,33 @@ def test_second_order_gonze_short_range_force_constants_use_matrix_specific_cach
 
         monkeypatch.setattr(
             nac_second_order,
-            "calculate_gonze_short_range_force_constants",
+            "calculate_nac_short_range_force_constants",
             calculate_once,
         )
-        actual = nac_second_order.get_gonze_short_range_force_constants(matrix)
+        actual = nac_second_order.get_nac_short_range_force_constants(matrix)
         np.testing.assert_allclose(actual, expected)
         assert calls["count"] == 1
 
         property_name = (
-            "gonze_short_range_force_constants_" + bvk_supercell_matrix_key(matrix)
+            "nac_short_range_force_constants_" + bvk_supercell_matrix_key(matrix)
         )
         assert (tmp_path / f"{property_name}.npy").exists()
 
         def fail_if_recomputed(nac_bvk_supercell_matrix=None):
-            raise AssertionError("matrix-specific Gonze-Lee cache was not reused")
+            raise AssertionError("matrix-specific NAC cache was not reused")
 
         monkeypatch.setattr(
             nac_second_order,
-            "calculate_gonze_short_range_force_constants",
+            "calculate_nac_short_range_force_constants",
             fail_if_recomputed,
         )
-        actual = nac_second_order.get_gonze_short_range_force_constants(matrix)
+        actual = nac_second_order.get_nac_short_range_force_constants(matrix)
         np.testing.assert_allclose(actual, expected)
     finally:
         nac_second_order.folder = original_folder
 
 
-def test_second_order_gonze_short_range_force_constants_reuse_in_memory_matrix_cache(
+def test_second_order_nac_short_range_force_constants_reuse_in_memory_matrix_cache(
     nac_second_order, tmp_path, monkeypatch
 ):
     original_folder = nac_second_order.folder
@@ -131,22 +131,22 @@ def test_second_order_gonze_short_range_force_constants_reuse_in_memory_matrix_c
 
         monkeypatch.setattr(
             nac_second_order,
-            "calculate_gonze_short_range_force_constants",
+            "calculate_nac_short_range_force_constants",
             calculate_once,
         )
-        first = nac_second_order.get_gonze_short_range_force_constants(matrix)
+        first = nac_second_order.get_nac_short_range_force_constants(matrix)
         np.testing.assert_allclose(first, expected)
 
         def fail_if_loaded(*args, **kwargs):
-            raise AssertionError("matrix-specific Gonze-Lee array was not reused from memory")
+            raise AssertionError("matrix-specific NAC array was not reused from memory")
 
         monkeypatch.setattr(nac_second_order, "_load_property", fail_if_loaded)
         monkeypatch.setattr(
             nac_second_order,
-            "calculate_gonze_short_range_force_constants",
+            "calculate_nac_short_range_force_constants",
             fail_if_loaded,
         )
-        second = nac_second_order.get_gonze_short_range_force_constants(matrix)
+        second = nac_second_order.get_nac_short_range_force_constants(matrix)
         np.testing.assert_allclose(second, expected)
     finally:
         nac_second_order.folder = original_folder

@@ -3,7 +3,7 @@ Contract tests for QE force-constant files that embed Born charges.
 
 q2r.x writes dipole-subtracted force constants when it is given a dielectric
 tensor (the flag line is T). kALDo used to pair these with a reciprocal-space
-Ewald term (the legacy NAC); after its removal the Gonze path, which expects
+Ewald term (the legacy NAC); after its removal the non-analytic correction, which expects
 total force constants, must refuse this convention loudly instead of
 subtracting the dipole part twice. MgO frequencies for the legacy pairing were
 validated against matdyn.x (asr=simple, q=(0.3, 0, 0.3) crystal:
@@ -39,7 +39,7 @@ def test_embedded_charges_mark_the_convention(mgo_second):
     assert "charges" in mgo_second.atoms.arrays
 
 
-def test_dipole_subtracted_constants_refuse_gonze_nac(mgo_second):
+def test_dipole_subtracted_constants_refuse_nac(mgo_second):
     phonon = HarmonicWithQ(
         q_point=np.array([0.3, 0.0, 0.3]),
         second=mgo_second,
