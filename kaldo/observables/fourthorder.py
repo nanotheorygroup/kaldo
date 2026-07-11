@@ -50,6 +50,9 @@ class FourthOrder(ForceConstant):
             3x3 integer supercell expansion matrix. Accepted for API symmetry
             with ``ForceConstants.from_folder``; for TDEP the supercell is
             inferred from ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            For pheasy, ``supercell_matrix`` is not used here; when loading
+            through ``ForceConstants.from_folder`` its diagonal-only
+            validation happens in ``SecondOrder.load``.
         """
         match format:
             case "tdep":

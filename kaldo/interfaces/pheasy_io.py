@@ -127,6 +127,11 @@ def check_pheasy_supercell_order(folder, atoms, supercell):
         logging.warning(f"pheasy supercell file in {folder} has {len(written)} atoms, expected "
                         f"{expected.shape[0]} for supercell {(d0, d1, d2)}; skipping the ordering check.")
         return
+    if not np.array_equal(written.numbers, np.repeat(atoms.numbers, n_cells)):
+        logging.warning(f"pheasy supercell file in {folder} has a species order inconsistent with the "
+                        "atom-major convention reconstructed from the primitive cell; skipping the "
+                        "ordering check.")
+        return
     diff = written.get_scaled_positions() - expected
     diff -= np.round(diff)
     if not np.allclose(diff, 0.0, atol=1e-5):
@@ -153,7 +158,12 @@ def _decode_row_atoms(row_labels, n_unit_atoms, n_cells):
 
 
 def _read_fc2_text(filename, n_unit_atoms, n_cells, supercell):
-    """Parse a pheasy FORCE_CONSTANTS file into (rows, cols, blocks, is_full)."""
+    """Parse a pheasy FORCE_CONSTANTS file into (rows, cols, blocks, is_full).
+
+    For full-format files, rows outside the central cell are redundant under
+    translational symmetry; their 3 value lines are consumed but not stored,
+    so ``rows``/``cols``/``blocks`` only ever hold the rows the caller needs.
+    """
     n_sc = n_unit_atoms * n_cells
     with open(filename, 'r') as file:
         header = file.readline().split()
@@ -165,19 +175,29 @@ def _read_fc2_text(filename, n_unit_atoms, n_cells, supercell):
                              f"atoms and supercell {tuple(int(x) for x in supercell)} (expected "
                              f"({n_unit_atoms} or {n_sc}, {n_sc})); check the supercell argument against "
                              "pheasy's --dim.")
+        # for a (1, 1, 1) supercell n_uc == n_sc, so compact and full coincide and either path is correct
+        is_full = nat_a == n_sc
         n_blocks = nat_a * nat_b
-        rows = np.empty(n_blocks, dtype=np.int64)
-        cols = np.empty(n_blocks, dtype=np.int64)
-        blocks = np.empty((n_blocks, 3, 3))
+        n_kept = n_unit_atoms * nat_b if is_full else n_blocks
+        rows = np.empty(n_kept, dtype=np.int64)
+        cols = np.empty(n_kept, dtype=np.int64)
+        blocks = np.empty((n_kept, 3, 3))
+        kept = 0
         for n in range(n_blocks):
             index_line = file.readline().split()
             if len(index_line) < 2:
                 raise ValueError(f"{filename}: unexpected end of file at block {n}.")
-            rows[n], cols[n] = int(index_line[0]), int(index_line[1])
+            row, col = int(index_line[0]), int(index_line[1])
+            if is_full and (row - 1) % n_cells != 0:
+                # rows outside the central cell are redundant under translational symmetry
+                for _ in range(3):
+                    file.readline()
+                continue
+            rows[kept], cols[kept] = row, col
             for alpha in range(3):
-                blocks[n, alpha] = [float(x) for x in file.readline().split()]
-    # for a (1, 1, 1) supercell n_uc == n_sc, so compact and full coincide and either path is correct
-    return rows, cols, blocks, nat_a == n_sc
+                blocks[kept, alpha] = [float(x) for x in file.readline().split()]
+            kept += 1
+    return rows, cols, blocks, is_full
 
 
 def read_pheasy_second(folder, atoms, supercell):
@@ -202,9 +222,6 @@ def read_pheasy_second(folder, atoms, supercell):
         for n in range(rows.shape[0]):
             row, col = int(rows[n]), int(cols[n])
             if is_full:
-                if (row - 1) % n_cells != 0:
-                    # rows outside the central cell are redundant under translational symmetry
-                    continue
                 i_uc = (row - 1) // n_cells
             else:
                 i_uc = row_to_unit[row]
@@ -292,7 +309,7 @@ def read_pheasy_fourth(folder, atoms, supercell):
     """
     path = os.path.join(str(folder), FOURTH_ORDER_FILE)
     if not os.path.isfile(path):
-        raise FileNotFoundError(f"{path} not found (pheasy writes {FOURTH_ORDER_FILE} when fitting with "
-                                "order >= 4; fc4.hdf5 is not supported).")
+        raise FileNotFoundError(f"No pheasy fourth order file found in {folder}: expected {FOURTH_ORDER_FILE} "
+                                "(written when fitting with order >= 4; fc4.hdf5 is not supported).")
     logging.info(f"Reading pheasy fourth order from {path}")
     return shengbte_io.read_fourth_order_matrix(path, atoms, supercell, order='C')
