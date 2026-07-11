@@ -15,21 +15,8 @@ from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.observables.secondorder import (
     normalize_bvk_supercell_matrix,
-    _ensure_gonze_kernel_cache as _shared_ensure_gonze_kernel_cache,
-    _dielectric_part as _shared_dielectric_part,
-    _get_minimum_g_rad as _shared_get_minimum_g_rad,
-    _get_g_vec_list as _shared_get_g_vec_list,
-    _get_g_list as _shared_get_g_list,
-    _multiply_borns as _shared_multiply_borns,
-    _get_dd_base as _shared_get_dd_base,
-    _recip_dipole_dipole_q0 as _shared_recip_dipole_dipole_q0,
-    _limiting_dipole_dipole as _shared_limiting_dipole_dipole,
-    _recip_dipole_dipole as _shared_recip_dipole_dipole,
-    _h_tensor as _shared_h_tensor,
-    _real_dipole_dipole as _shared_real_dipole_dipole,
-    _mass_weight as _shared_mass_weight,
-    _short_range_dynamical_matrix as _shared_short_range_dynamical_matrix,
-    _gonze_dynamical_matrices as _shared_gonze_dynamical_matrices,
+    _ensure_gonze_kernel_cache,
+    _gonze_dynamical_matrices,
 )
 # from numpy.linalg import eigh
 
@@ -81,136 +68,6 @@ def _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues):
     return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
 
 
-def _gonze_velocity_debug_nac_branch(q_red, reciprocal_lattice, tolerance):
-    q_red = np.array(q_red, dtype=float, copy=True)
-    direction_cart = np.array(GONZE_VELOCITY_DIRECTIONS_CART[3], dtype=float, copy=True)
-    q_floor_cart = direction_cart / np.linalg.norm(direction_cart) * tolerance
-    dq_red = np.linalg.solve(reciprocal_lattice, q_floor_cart)
-    q_red_nac = q_red + dq_red
-    q_norm = max(float(np.linalg.norm(reciprocal_lattice @ q_red_nac)), tolerance)
-    return {
-        "nac_applied": bool(q_norm >= tolerance),
-        "q_direction_red": None,
-        "q_norm": q_norm,
-        "q_red": q_red_nac.tolist(),
-        "tolerance": tolerance,
-    }
-
-
-def _gonze_dielectric_part(q_cart, dielectric):
-    return _shared_dielectric_part(q_cart, dielectric)
-
-
-def _gonze_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
-    return _shared_get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad)
-
-
-def _gonze_get_g_vec_list(reciprocal_lattice, g_rad):
-    return _shared_get_g_vec_list(reciprocal_lattice, g_rad)
-
-
-def _gonze_get_g_list(reciprocal_lattice, g_cutoff):
-    return _shared_get_g_list(reciprocal_lattice, g_cutoff)
-
-
-def _gonze_multiply_borns(dd_in, born):
-    return _shared_multiply_borns(dd_in, born)
-
-
-def _gonze_get_dd_base(
-    g_list, q_cart, q_direction_cart, dielectric, positions, lambda_, tolerance
-):
-    return _shared_get_dd_base(
-        g_list,
-        q_cart,
-        q_direction_cart,
-        dielectric,
-        positions,
-        lambda_,
-        tolerance,
-    )
-
-
-def _gonze_recip_dipole_dipole_q0(
-    g_list, born, dielectric, positions, lambda_, tolerance
-):
-    return _shared_recip_dipole_dipole_q0(
-        g_list, born, dielectric, positions, lambda_, tolerance
-    )
-
-
-def _gonze_limiting_dipole_dipole(dielectric, lambda_):
-    return _shared_limiting_dipole_dipole(dielectric, lambda_)
-
-
-def _gonze_recip_dipole_dipole(
-    dd_q0,
-    g_list,
-    q_cart,
-    q_direction_cart,
-    born,
-    dielectric,
-    positions,
-    factor,
-    lambda_,
-    tolerance,
-    pair_phase=None,
-):
-    return _shared_recip_dipole_dipole(
-        dd_q0,
-        g_list,
-        q_cart,
-        q_direction_cart,
-        born,
-        dielectric,
-        positions,
-        factor,
-        lambda_,
-        tolerance,
-        pair_phase=pair_phase,
-    )
-
-
-def _gonze_h_tensor(supercell_cell, svecs, dielectric, lambda_):
-    return _shared_h_tensor(supercell_cell, svecs, dielectric, lambda_)
-
-
-def _gonze_real_dipole_dipole(
-    q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
-):
-    return _shared_real_dipole_dipole(
-        q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
-    )
-
-
-def _gonze_mass_weight(fc_term, masses):
-    return _shared_mass_weight(fc_term, masses)
-
-
-def _gonze_short_range_dynamical_matrix(
-    fc,
-    q_red,
-    svecs,
-    multi,
-    masses,
-    s2p_map,
-    p2s_map,
-    phase_weights=None,
-    target_mask=None,
-):
-    return _shared_short_range_dynamical_matrix(
-        fc,
-        q_red,
-        svecs,
-        multi,
-        masses,
-        s2p_map,
-        p2s_map,
-        phase_weights=phase_weights,
-        target_mask=target_mask,
-    )
-
-
 _warned_incommensurate = False
 
 
@@ -260,12 +117,8 @@ class HarmonicWithQ(Observable, Storable):
                  is_nw=False,
                  is_unfolding=False,
                  is_amorphous=False,
-                 nac_method='legacy',
-                 nac_debug=False,
-                 nac_debug_folder='debug',
                  nac_bvk_supercell_matrix=None,
                  nac_q_direction=(1, 0, 0),
-                 q_index=None,
                  gonze_nac_precomputed=None,
                  *kargs,
                  **kwargs):
@@ -286,30 +139,27 @@ class HarmonicWithQ(Observable, Storable):
             # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
             # which would flag every off-axis q as incommensurate (and
             # is_unfolding is not supported on the SNF path anyway).
-            if nac_method != 'gonze':
+            if 'dielectric' not in second.atoms.info:
                 _warn_incommensurate_once(q_point, self.supercell)
-        self.is_nac = True if 'dielectric' in self.atoms.info else False
-        supported_nac_methods = ('legacy', 'gonze')
-        if nac_method not in supported_nac_methods:
+        has_dielectric = 'dielectric' in self.atoms.info
+        if has_dielectric and 'charges' not in self.atoms.arrays:
             raise ValueError(
-                f"Unknown nac_method {nac_method!r}. Supported values are {supported_nac_methods}."
+                "atoms.info['dielectric'] is set but atoms.arrays['charges'] is missing: "
+                "the non-analytic correction needs both."
             )
-        if nac_method == 'gonze':
-            if not self.is_nac or 'charges' not in self.atoms.arrays:
-                raise ValueError(
-                    "nac_method='gonze' requires atoms.info['dielectric'] and atoms.arrays['charges']."
-                )
-        self.nac_method = nac_method
-        self.nac_debug = bool(nac_debug)
-        self.nac_debug_folder = nac_debug_folder
+        # Nonpolar QE files can carry a dielectric block with strictly zero Born
+        # charges; the correction is identically zero there.
+        self.is_nac = bool(
+            has_dielectric
+            and np.abs(self.atoms.get_array('charges')).max() > 1e-8
+        )
         self.nac_bvk_supercell_matrix = normalize_bvk_supercell_matrix(
             nac_bvk_supercell_matrix
         )
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
-        self.q_index = q_index
         self._gonze_nac_precomputed = gonze_nac_precomputed
         self._gonze_runtime_cache = {}
-        if self.nac_method == "gonze" and self._gonze_nac_precomputed is None:
+        if self.is_nac and self._gonze_nac_precomputed is None:
             self._gonze_nac_precomputed = self.second.get_gonze_nac_precomputed(
                 self._resolve_gonze_bvk_supercell_matrix()
             )
@@ -346,37 +196,6 @@ class HarmonicWithQ(Observable, Storable):
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
 
-    def _gonze_debug_static_folder(self):
-        return Path(self.nac_debug_folder) / "static"
-
-    def _gonze_debug_q_folder(self):
-        if self.q_index is not None:
-            return Path(self.nac_debug_folder) / f"q-{int(self.q_index):05d}"
-        label_parts = []
-        for value in np.asarray(self.q_point, dtype=float):
-            text = f"{value:.12g}"
-            if "." not in text:
-                text += ".0"
-            text = text.replace("-", "m").replace(".", "p")
-            label_parts.append(text)
-        return Path(self.nac_debug_folder) / ("q_" + "_".join(label_parts))
-
-    def _gonze_save_debug(self, folder, arrays):
-        if not self.nac_debug:
-            return
-        folder = Path(folder)
-        folder.mkdir(parents=True, exist_ok=True)
-        for name, value in arrays.items():
-            np.save(folder / f"{name}.npy", value)
-
-    def _gonze_save_debug_json(self, folder, payloads):
-        if not self.nac_debug:
-            return
-        folder = Path(folder)
-        folder.mkdir(parents=True, exist_ok=True)
-        for name, payload in payloads.items():
-            (folder / f"{name}.json").write_text(json.dumps(payload, indent=2, sort_keys=True))
-
     def _resolve_gonze_bvk_supercell_matrix(self):
         if self.nac_bvk_supercell_matrix is not None:
             return np.array(self.nac_bvk_supercell_matrix, dtype=int, copy=True)
@@ -412,18 +231,10 @@ class HarmonicWithQ(Observable, Storable):
         )
         delta_dm = dm_plus - dm_minus
         ddm_fd = delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH)
-        return {
-            "direction_cart": direction_cart,
-            "dq_cart": dq_cart,
-            "dq_red": dq_red,
-            "dm_minus": dm_minus,
-            "dm_plus": dm_plus,
-            "delta_dm": delta_dm,
-            "ddm_fd": ddm_fd,
-        }
+        return {"ddm_fd": ddm_fd}
 
     def _ensure_gonze_runtime_data(self, static_data, mapping):
-        static_data, mapping = _shared_ensure_gonze_kernel_cache(static_data, mapping)
+        static_data, mapping = _ensure_gonze_kernel_cache(static_data, mapping)
         effective_matrix = self._resolve_gonze_bvk_supercell_matrix()
         current_getter = self.second.get_gonze_short_range_force_constants
         getter_identity = getattr(current_getter, "__func__", current_getter)
@@ -465,29 +276,13 @@ class HarmonicWithQ(Observable, Storable):
         static_data, mapping = self._ensure_gonze_runtime_data(static_data, mapping)
         q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
         q_carts, q_direction_carts = self._gonze_q_direction_carts(q_reds, static_data)
-        dm_final = _shared_gonze_dynamical_matrices(
+        dm_final = _gonze_dynamical_matrices(
             q_reds,
             static_data,
             mapping,
             q_direction_carts=q_direction_carts,
             fc=static_data["fc_short_converted"],
         )
-        if self.nac_debug and len(q_reds) == 1:
-            q_red = q_reds[0]
-            q_cart = q_carts[0]
-            eigvals = np.linalg.eigvalsh(dm_final[0]).real
-            frequencies = np.abs(eigvals) ** 0.5 * np.sign(eigvals) / (2 * np.pi)
-            self._gonze_save_debug(
-                self._gonze_debug_q_folder(),
-                {
-                    "q_red": q_red,
-                    "q_cart": q_cart,
-                    "q_direction_cart": q_direction_carts[0],
-                    "dm_final": dm_final[0],
-                    "eigenvalues": eigvals,
-                    "frequencies": frequencies,
-                },
-            )
         return dm_final
 
     def _project_gonze_group_velocity_raw(self, ddms, eigenvectors, frequencies):
@@ -525,92 +320,28 @@ class HarmonicWithQ(Observable, Storable):
         gv_scaled[~active] = 0.0
         return gv_scaled, scaling, cutoff_mask
 
-    def _calculate_gonze_velocity_debug_data(self):
+    def _calculate_gonze_velocity_data(self):
         static_data = self._build_gonze_static_data()
         mapping = self._build_gonze_short_range_inputs(static_data)
         q_red = np.array(self.q_point, dtype=float, copy=True)
-        q_cart = static_data["reciprocal_lattice"] @ q_red
         q_samples = [q_red]
-        direction_payloads = []
         for direction_cart in GONZE_VELOCITY_DIRECTIONS_CART:
             dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
             dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
-            direction_payloads.append((direction_cart, dq_cart, dq_red))
             q_samples.extend((q_red - dq_red, q_red + dq_red))
         q_samples = np.array(q_samples, dtype=float)
-        dm_all_kaldo = self._calculate_gonze_dynamical_matrices_for_qs(q_samples, static_data, mapping)
-        dm_q_kaldo = dm_all_kaldo[0]
-        dm_q = _gonze_to_phonopy_dm(dm_q_kaldo)
+        dm_all = self._calculate_gonze_dynamical_matrices_for_qs(q_samples, static_data, mapping)
+        dm_q = _gonze_to_phonopy_dm(dm_all[0])
         eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
-        eigenvalues = eigenvalues.real
-        frequencies = _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues)
-        degenerate_sets = _gonze_degenerate_sets(frequencies)
-        q_cart = _gonze_to_phonopy_q_cart(q_cart)
-        nac_branch = _gonze_velocity_debug_nac_branch(
-            q_red,
-            _gonze_to_phonopy_q_cart(static_data["reciprocal_lattice"]),
-            GONZE_VELOCITY_Q_LENGTH,
-        )
-        directions = {}
-        for index, (direction_cart, dq_cart, dq_red) in enumerate(direction_payloads):
-            direction_name = f"d{index}"
-            dm_minus = _gonze_to_phonopy_dm(dm_all_kaldo[1 + 2 * index])
-            dm_plus = _gonze_to_phonopy_dm(dm_all_kaldo[2 + 2 * index])
-            delta_dm = dm_plus - dm_minus
-            direction_data = {
-                "direction_cart": np.array(direction_cart, dtype=float, copy=True),
-                "dq_cart": dq_cart,
-                "dq_red": dq_red,
-                "dm_minus": dm_minus,
-                "dm_plus": dm_plus,
-                "delta_dm": delta_dm,
-                "ddm_fd": delta_dm / (2 * GONZE_VELOCITY_Q_LENGTH),
-            }
-            directions[direction_name] = direction_data
-            self._gonze_save_debug(self._gonze_debug_q_folder() / direction_name, direction_data)
-        ddms = [directions[f"d{i}"]["ddm_fd"] for i in range(4)]
+        frequencies = _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues.real)
+        ddms = []
+        for index in range(len(GONZE_VELOCITY_DIRECTIONS_CART)):
+            dm_minus = _gonze_to_phonopy_dm(dm_all[1 + 2 * index])
+            dm_plus = _gonze_to_phonopy_dm(dm_all[2 + 2 * index])
+            ddms.append((dm_plus - dm_minus) / (2 * GONZE_VELOCITY_Q_LENGTH))
         gv_raw = self._project_gonze_group_velocity_raw(ddms, eigenvectors, frequencies)
-        gv_scaled, gv_scaling_prefactor, gv_cutoff_mask = self._scale_gonze_group_velocity_raw(
-            gv_raw, frequencies
-        )
-        data = {
-            "q_red": q_red,
-            "q_cart": q_cart,
-            "dm_q": dm_q,
-            "eigenvalues": eigenvalues,
-            "eigenvectors": eigenvectors,
-            "frequencies": frequencies,
-            "degenerate_sets": {"sets": degenerate_sets},
-            "nac_branch": nac_branch,
-            "directions": directions,
-            "gv_raw": gv_raw,
-            "gv_scaling_prefactor": gv_scaling_prefactor,
-            "gv_cutoff_mask": gv_cutoff_mask,
-            "gv_scaled": gv_scaled,
-        }
-        self._gonze_save_debug(
-            self._gonze_debug_q_folder(),
-            {
-                "q_red": q_red,
-                "q_cart": q_cart,
-                "dm_q": dm_q,
-                "eigenvalues": eigenvalues,
-                "eigenvectors": eigenvectors,
-                "frequencies": frequencies,
-                "gv_raw": gv_raw,
-                "gv_scaling_prefactor": gv_scaling_prefactor,
-                "gv_cutoff_mask": gv_cutoff_mask,
-                "gv_scaled": gv_scaled,
-            },
-        )
-        self._gonze_save_debug_json(
-            self._gonze_debug_q_folder(),
-            {
-                "degenerate_sets": {"sets": degenerate_sets},
-                "nac_branch": nac_branch,
-            },
-        )
-        return data
+        gv_scaled, _, _ = self._scale_gonze_group_velocity_raw(gv_raw, frequencies)
+        return {"frequencies": frequencies, "gv_scaled": gv_scaled}
 
     def _build_gonze_static_data(self):
         if self._gonze_nac_precomputed is not None:
@@ -715,7 +446,15 @@ class HarmonicWithQ(Observable, Storable):
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequency.real
 
+    def _calculate_gonze_dynmat_derivatives(self, direction):
+        static_data = self._build_gonze_static_data()
+        mapping = self._build_gonze_short_range_inputs(static_data)
+        data = self._calculate_gonze_velocity_direction_data(1 + direction, static_data, mapping)
+        return data["ddm_fd"] * (_PHONOPY_TO_KALDO_DM * units.Bohr)
+
     def calculate_dynmat_derivatives(self, direction):
+        if self.is_nac:
+            return self._calculate_gonze_dynmat_derivatives(direction)
         q_point = self.q_point
         is_amorphous = self.is_amorphous
         distance_threshold = self.distance_threshold
@@ -770,8 +509,6 @@ class HarmonicWithQ(Observable, Storable):
                                                       complex)),
                                               backend='tensorflow')
         dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
-        if self.is_nac:
-            dynmat_derivatives += self.nac_derivatives(direction=direction)
         return dynmat_derivatives
 
     def calculate_sij(self, direction):
@@ -804,8 +541,8 @@ class HarmonicWithQ(Observable, Storable):
         return sij
 
     def calculate_velocity(self):
-        if self.nac_method == 'gonze':
-            return self._calculate_gonze_velocity_debug_data()["gv_scaled"][np.newaxis, ...]
+        if self.is_nac:
+            return self._calculate_gonze_velocity_data()["gv_scaled"][np.newaxis, ...]
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
         inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
@@ -874,17 +611,9 @@ class HarmonicWithQ(Observable, Storable):
         return dyn_s
 
     def calculate_eigensystem(self, only_eigenvals):
-        if self.nac_method == 'gonze':
+        if self.is_nac:
             return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
         dyn_s = self._dynmat_fourier
-        if self.is_nac:
-            dyn_lr = self.nac_dynmat(qpoint=None)
-            dyn_lr += self.nac_dynmat(qpoint=self.q_point)
-            if (self.q_point == np.array([0, 0, 0])).all():
-                dyn_lr = tf.cast(dyn_lr, tf.float64)
-            else:
-                dyn_lr = tf.cast(dyn_lr, tf.complex128)
-            dyn_s += dyn_lr
 
         if only_eigenvals:
             esystem = tf.linalg.eigvalsh(dyn_s)
@@ -906,7 +635,7 @@ class HarmonicWithQ(Observable, Storable):
         return participation_ratio
 
     def calculate_eigensystem_unfolded(self, only_eigenvals=False):
-        if self.nac_method == 'gonze':
+        if self.is_nac:
             return self._calculate_gonze_eigensystem(only_eigenvals=only_eigenvals)
         q_point = self.q_point
         supercell = self.second.supercell
@@ -956,9 +685,6 @@ class HarmonicWithQ(Observable, Storable):
         dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
         # Apply correction for Born effective charges, if detected
-        if self.is_nac:
-            dyn_s += self.nac_dynmat(qpoint=None)
-            dyn_s += self.nac_dynmat(qpoint=self.q_point)
         # Diagonalize
         if only_eigenvals:
             omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
@@ -973,6 +699,8 @@ class HarmonicWithQ(Observable, Storable):
         return esystem
 
     def calculate_dynmat_derivatives_unfolded(self, direction):
+        if self.is_nac:
+            return self._calculate_gonze_dynmat_derivatives(direction)
         q_point = self.q_point
         supercell = self.second.supercell
         atoms = self.second.atoms
@@ -1023,249 +751,7 @@ class HarmonicWithQ(Observable, Storable):
         ddyn_s = ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
 
         # Apply correction for Born effective charges, if detected
-        if self.is_nac:
-            ddyn_s += self.nac_derivatives(direction=direction)
         return ddyn_s
-
-    def nac_dynmat(self, qpoint=None, gmax=None, Lambda=None):
-        '''
-        Calculate the non-analytic correction to the dynamical matrix.
-
-        Parameters
-        ----------
-        qpoint : (float, float, float)
-            Vector in reciprocal space to measure at. If none, the correction is simpler, using only the second half of
-            the second if block here.
-        gmax : float
-            Maximum g-vector to consider
-        Lambda : float
-            Parameter for Ewald summation. 1/(4*Lambda) is the cutoff for the
-
-        Returns
-        -------
-        correction_matrix
-        '''
-        # Constants, and system information
-        ryBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
-        eV_to_10Jmol = units.mol / (10 * units.J)
-        e2 = 2.  # square of electron charge in A.U.
-        atoms = self.second.atoms
-        natoms = len(atoms)
-        if gmax is None:
-            gmax = 14  # maximum reciprocal vector (same default value in ShengBTE/QE)
-        if Lambda is None:
-            Lambda = 1 # (2*np.pi*units.Bohr/np.linalg.norm(atoms.cell[0,:]))**2
-        geg0 = 4 * Lambda * gmax
-        omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
-        positions_n = atoms.positions.copy() / atoms.cell[0, :].max()  # Normalized positions
-        distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
-        reciprocal_n = np.round(np.linalg.inv(atoms.cell), 12)  # round to avoid accumulation of error
-        reciprocal_n /= np.abs(reciprocal_n[0, 0])  # Normalized reciprocal cell
-        correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
-        prefactor = 4 * np.pi * e2 / omega_bohr
-
-        sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
-        mass_prefactor = np.reciprocal(contract('i,j->ij', sqrt_mass, sqrt_mass))
-
-        # Charge information
-        epsilon = atoms.info['dielectric']  # in e^2/Bohr
-        zeff = atoms.get_array('charges')  # in e
-
-        # Charge sum rules
-        # Using the "simple" algorithm from QE, we enforce that the sum of
-        # charges for each polarization (e.g. xy, or yy) is zero
-        zeff -= zeff.mean(axis=0)
-
-        # 1. Construct grid of reciprocal unit cells
-        # a. Find the number of replicas to make
-        n_greplicas = 2 + 2 * np.sqrt(geg0) / np.linalg.norm(reciprocal_n, axis=0)
-        # b. If it's low-dimensional, don't replicate in reciprocal space along axes without replicas in real space
-        n_greplicas[np.array(self.second.supercell) == 1] = 1
-        # c. Generate the grid of replicas
-        g_grid = Grid(n_greplicas.astype(int))
-        g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
-        # d. Transform the raw indices, to coordinates in reciprocal space
-        g_positions = contract('ib,ab->ia', g_replicas, reciprocal_n)
-        if qpoint is not None:  # If we're measuring at finite q, shift the images' positions
-            g_positions = g_positions + (qpoint @ reciprocal_n.T)
-
-        # 2. Filter cells that don't meet our Ewald cutoff criteria
-        # a. setup mask
-        geg = contract('ia,ab,ib->i', g_positions, epsilon, g_positions)
-        # change_units_gmax = 16/np.pi**2
-        cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
-        # b. apply mask
-        geg = geg[cells_to_include]
-        g_positions = g_positions[cells_to_include]
-        g_replicas = g_replicas[cells_to_include] # for debugging - remove in production
-
-        # 3. Calculate for each cell
-        # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
-        decay = prefactor * np.exp(-1 * geg / (Lambda * 4)) / geg
-        # b. effective charges at each G-vector
-        zag = contract('nab,ia->inb', zeff, g_positions)
-
-        # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
-        # the phase factor is based on the distance of the G-vector and atomic positions
-        # TODO: This "if-else" block could likely be replaced with the just the "if" block since the imaginary term I
-        # think should be zero at Gamma, but we'd need to check that for sure.
-        if qpoint is not None:
-            phase = np.exp(1j * np.pi * contract('ia,nma->inm', g_positions, distances_n))
-
-            # The long range forces are the outer product of the effective charges, scaled by the phase term. We impose
-            # Hermicity on cartesian axes by taking the average of M and M^T
-            lr_correction = contract('ina,inm,imb->inmab', zag, phase, zag)
-            lr_correction += np.transpose(lr_correction, (0, 1, 2, 4, 3))
-            lr_correction *= 0.5
-
-            # Scale by exponential decay term, sum over G-vectors
-            lr_correction = contract('i,inmab->abnm', decay, lr_correction)
-
-            # Apply the correction to each atom pair
-            correction_matrix += lr_correction
-
-        else:  # only the real part of the phase is taken at Gamma
-            phase = np.cos(np.pi * contract('ia,nma->inm', g_positions, distances_n))
-
-            # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
-            # The long range forces are an outer product of the effective charges, scaled by the exponential term.
-            # We impose Hermicity on cartesian axes by taking the average of M and M^T
-            lr_correction = contract('ina,inm,imb->inab', zag, phase, zag)
-            lr_correction += np.transpose(lr_correction, (0, 1, 3, 2))
-            lr_correction *= 0.5
-
-            # Scale by exponential decay term, sum over G-vectors
-            lr_correction = contract('i,inab->abn', decay, lr_correction)
-
-            # Apply the correction to the diagonals of the dynamical matrix
-            correction_matrix = tf.linalg.set_diag(correction_matrix,
-                                                   tf.linalg.diag_part(correction_matrix) - lr_correction)
-        correction_matrix = tf.transpose(correction_matrix, perm=[2, 0, 3, 1])
-        correction_matrix = tf.reshape(correction_matrix, shape=(natoms * 3, natoms * 3))
-        correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
-        correction_matrix *= ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
-        return correction_matrix
-
-    def nac_derivatives(self, direction, Lambda=None, gmax=None):
-        '''
-        Calculate the non-analytic correction to the dynamical matrix.
-
-        qpoint : (float, float, float)
-            Vector in reciprocal space to measure at. If none, the correction is simpler, using only the second half of
-            the second if block here.
-        gmax : float
-            Maximum g-vector to consider
-        Lambda : float
-            Parameter for Ewald summation. 1/(4*Lambda) is the cutoff for the
-        Returns
-        -------
-        correction_matrix
-        '''
-        # Constants, and system information
-        ryBr_to_eVA = units.Rydberg / (units.Bohr ** 2)  # Rydberg / Bohr^2 to eV/A^2
-        eV_to_10Jmol = units.mol / (10 * units.J) # eV to 10J/mol
-        atoms = self.second.atoms
-        natoms = len(atoms)
-        cell = atoms.cell
-        e2 = 2.  # square of electron charge in A.U.
-
-        # Begin calculated values
-        if gmax==None:
-            gmax = 14  # maximum reciprocal vector (same default value in ShengBTE/QE)
-        if Lambda==None:
-            Lambda = (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2  # Ewald parameter
-        geg0 = 4 * Lambda * gmax
-        omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
-        positions_bohr = atoms.positions.copy() / units.Bohr
-        distances_bohr = positions_bohr[:, None, :] - positions_bohr[None, :, :]
-        reciprocal = 2 * np.pi * np.linalg.inv(atoms.cell / units.Bohr)
-        prefactor = 4 * np.pi * e2 / omega_bohr
-
-        sqrt_mass = np.sqrt(self.atoms.get_masses().repeat(3, axis=0))
-        mass_prefactor = np.reciprocal(contract('i,j->ij', sqrt_mass, sqrt_mass))
-
-        # Charge information
-        epsilon = atoms.info['dielectric']  # in e^2/Bohr
-        zeff = atoms.get_array('charges')  # in e
-
-        # Charge sum rules
-        # Using the "simple" algorithm from QE, we enforce that the sum of
-        # charges for each polarization (e.g. xy, or yy) is zero
-        zeff -= zeff.mean(axis=0)
-
-        # 1. Construct grid of reciprocal unit cells
-        # a. Find the number of replicas to make
-        n_greplicas = 2 + 2 * np.sqrt(geg0) / np.linalg.norm(reciprocal, axis=1)
-        # b. If it's low-dimensional, don't replicate in reciprocal space along axes without replicas in real space
-        n_greplicas[np.array(self.second.supercell) == 1] = 1
-        # c. Generate the grid of replicas
-        g_grid = Grid(n_greplicas.astype(int))
-        g_replicas = g_grid.grid(is_wrapping=True)  # minimium distance replicas
-        # d. Transform the raw indices, to coordinates in reciprocal space
-        g_positions = contract('ib,ab->ia', g_replicas, reciprocal)
-        g_positions = g_positions + (self.q_point @ reciprocal.T)
-
-        # 2. Filter cells that don't meet our Ewald cutoff criteria
-        # a. setup mask
-        geg = contract('ia,ab,ib->i', g_positions, epsilon, g_positions)
-        cells_to_include = (geg > 0) * (geg / (4 * Lambda) < gmax)
-        # b. apply mask
-        geg = geg[cells_to_include]
-        g_positions = g_positions[cells_to_include]
-
-        # 3. Calculate for each cell
-        # a. exponential decay term based on distance in reciprocal space, and dielectric tensor
-        decay = prefactor * np.exp(-1 * geg / (Lambda * 4)) / geg
-        # b. effective charges at each G-vector
-        zag = contract('nab,ia->inb', zeff, g_positions)
-
-        # 4. Calculate the actual correction as a product of the effective charges, exponential decay term, and phase factor
-        # the phase factor is based on the distance of the G-vector and atomic positions
-        phase = np.exp(1j * contract('ia,nma->inm', g_positions, distances_bohr))
-        '''
-        # All directions at once code
-        # Terms 1 + 2
-        zag_zeff = contract('ina,mcb->inmabc', zag, zeff)
-        zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3, 5))
-        # Term 3 (imaginary)
-        zag_zbg_rij = 1j * contract('ina,imb,nmc->inmabc', zag, zag, distances_bohr)
-        # Term 4 (negative)
-        dgeg = contract('ab,ib->ib', epsilon + epsilon.T, g_positions)
-        zag_zbg_dgeg = -1 * contract('ina,imb,ic,i->inmabc', zag, zag, dgeg, (1/(4*Lambda) + 1/geg))
-
-        # Combine terms!
-        lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
-
-        # Scale by exponential decay term
-        lr_correction = contract('i,inm,inmabc->nmabc', decay, phase, lr_correction)
-        '''
-        # Derivative terms in a single direction
-        # Terms 1 + 2
-        zag_zeff = contract('ina,mb->inmab', zag, zeff[:, direction, :])
-        zbg_zeff = np.transpose(zag_zeff, (0, 2, 1, 4, 3))
-        # Term 3 (imaginary)
-        zag_zbg_rij = 1j * contract('ina,imb,nm->inmab', zag, zag, distances_bohr[:, :, direction])
-        # Term 4 (negative)
-        dgeg = contract('ab,ib->ib', epsilon + epsilon.T, g_positions)[:, direction]
-        zag_zbg_dgeg = -1 * contract('ina,imb,i,i->inmab', zag, zag, dgeg,\
-                                      (1/(4*Lambda) + 1/(geg)))
-        # Combine terms!
-        lr_correction = zag_zeff + zbg_zeff + zag_zbg_rij + zag_zbg_dgeg
-
-        # Scale by exponential decay and phase terms, sum over G-vectors
-        # Note: Einsum does not use the distributive property for complex number mult., so we have to
-        # do a second multiplication operation when applying the phase factor.
-        lr_correction = contract('i,inmab->inmab', decay, lr_correction)
-        lr_correction *= phase[:, :, :, None, None]
-        lr_correction = lr_correction.sum(axis=0)
-
-        # Rotate, reshape, rescale, and, finally, return correction value
-        correction_matrix = np.transpose(lr_correction, axes=(0, 2, 1, 3,))
-        correction_matrix = np.reshape(correction_matrix, (natoms * 3, natoms * 3))
-        correction_matrix *= mass_prefactor # 1/sqrt(mass_i * mass_j)
-        correction_matrix *= units.Bohr * ryBr_to_eVA * eV_to_10Jmol # Rydberg / Bohr^2 to 10J/mol A^2
-        correction_matrix = 1j * correction_matrix
-        return correction_matrix
 
     def phonon_mode_frames(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100):
         """

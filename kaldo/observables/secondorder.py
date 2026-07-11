@@ -892,6 +892,16 @@ class SecondOrder(ForceConstant, Storable):
         return self.calculate_gonze_short_range_force_constants()
 
     def get_gonze_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        if self.atoms.info.get('dipole_subtracted_fc', False):
+            raise NotImplementedError(
+                "These force constants come from a QE .fc file with embedded Born "
+                "charges, which q2r writes in the dipole-subtracted convention. The "
+                "Gonze non-analytic correction expects total force constants and "
+                "would subtract the dipole part a second time. Re-run q2r.x without "
+                "epsil so the file contains total force constants, and provide the "
+                "dielectric tensor and Born charges separately (atoms.info and "
+                "atoms.arrays, or a ShengBTE CONTROL file)."
+            )
         matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         if matrix is None:
             return self.gonze_short_range_force_constants
@@ -1185,6 +1195,10 @@ class SecondOrder(ForceConstant, Storable):
                         if (not charges is None):
                             atoms.info['dielectric'] = charges[0, :, :]
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
+                            # q2r subtracts the dipole-dipole part before the back
+                            # transform when the file carries Born charges, so these
+                            # force constants are already short-range.
+                            atoms.info['dipole_subtracted_fc'] = True
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                         _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                         # must match the C-order flattening of (t1, t2, t3) in the reshape above
