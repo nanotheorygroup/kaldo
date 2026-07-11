@@ -28,6 +28,51 @@ class PhononsEnsemble:
             raise ValueError("PhononsEnsemble needs at least one member.")
         self._members = members
 
+    @classmethod
+    def from_calculators(cls, atoms, supercell, calculators, *,
+                         delta_shift=1e-2, symmetrize=True, **phonons_kwargs):
+        """Build an ensemble from N independent ASE calculators.
+
+        For each calculator, run a finite-difference second-order calculation,
+        optionally symmetrize the force constants (kaldo 2.2.0), and build a
+        Phonons member. Suited to a handful of independent committee members;
+        get_forces() is called serially per member.
+
+        Parameters
+        ----------
+        atoms : ase.Atoms
+            Unit cell (same for every member).
+        supercell : tuple of int, length 3
+            Supercell for the finite-difference second-order calculation.
+        calculators : list of ASE calculators
+            One calculator per committee member. Must be non-empty.
+        delta_shift : float, optional
+            Finite-difference displacement in Angstrom. Default 1e-2.
+        symmetrize : bool, optional
+            Project each member's force constants onto the space-group-invariant
+            subspace. Default True.
+        **phonons_kwargs
+            Forwarded to each Phonons (kpts, temperature, is_classic, storage,
+            folder, ...).
+        """
+        calculators = list(calculators)
+        if len(calculators) == 0:
+            raise ValueError("from_calculators needs at least one calculator.")
+
+        base_folder = phonons_kwargs.get('folder', None)
+        members = []
+        for i, calc in enumerate(calculators):
+            fc_folder = (f"{base_folder}/member_{i}" if base_folder
+                         else f"ensemble_member_{i}")
+            fc = ForceConstants(atoms=atoms, supercell=supercell,
+                                folder=fc_folder)
+            fc.second.calculate(calculator=calc, delta_shift=delta_shift,
+                                is_storing=False, symmetrize=False)
+            members.append(cls._member_from_second(
+                atoms, supercell, fc.second, symmetrize=symmetrize,
+                phonons_kwargs=phonons_kwargs))
+        return cls(members)
+
     @staticmethod
     def _member_from_second(atoms, supercell, second_order, symmetrize, phonons_kwargs):
         """Build one Phonons member from a computed SecondOrder.

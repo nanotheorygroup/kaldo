@@ -86,3 +86,26 @@ def test_shape_mismatch_across_members_raises(tmp_path):
     ens = PhononsEnsemble([m_a, m_b])
     with pytest.raises(ValueError, match="disagree on the shape"):
         ens.mean_std('frequency')
+
+
+def test_from_calculators_deterministic_zero_std(tmp_path):
+    atoms = bulk('Cu', 'fcc', a=3.61, cubic=True)
+    ens = PhononsEnsemble.from_calculators(
+        atoms, (2, 2, 2), [EMT(), EMT(), EMT()],
+        delta_shift=1e-2, symmetrize=True,
+        kpts=(3, 3, 3), temperature=300, storage='memory',
+        folder=str(tmp_path / 'ald'),
+    )
+    assert ens.n_members == 3
+    mean, std = ens.mean_std('frequency')
+    np.testing.assert_allclose(std, 0.0, atol=1e-8)
+    assert np.all(np.isfinite(mean))
+
+
+def test_from_calculators_empty_raises():
+    atoms = bulk('Cu', 'fcc', a=3.61, cubic=True)
+    with pytest.raises(ValueError, match="at least one"):
+        PhononsEnsemble.from_calculators(
+            atoms, (2, 2, 2), [], kpts=(3, 3, 3), temperature=300,
+            storage='memory'
+        )
