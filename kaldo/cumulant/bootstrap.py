@@ -16,8 +16,11 @@ import time
 
 import numpy as np
 
+from kaldo.helpers.logger import get_logger
 from .constants import KB_eV_per_K
 from .estimator import calculate_cumulants
+
+logging = get_logger()
 
 
 def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None,
@@ -48,17 +51,22 @@ def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None
         Cv0=Cv_c / (Nat * KB_eV_per_K),
     )
 
-    F_b = np.empty(n_boot); S_b = np.empty(n_boot)
-    U_b = np.empty(n_boot); Cv_b = np.empty(n_boot)
+    F_b = np.empty(n_boot)
+    S_b = np.empty(n_boot)
+    U_b = np.empty(n_boot)
+    Cv_b = np.empty(n_boot)
     t0 = time.time()
     for i in range(n_boot):
         idx = rng.integers(0, N, size=N)
         f, s, u, cv = calculate_cumulants(
             V[idx], V2[idx], V3[idx], V4[idx], V_ref[idx], T_K
         )
-        F_b[i] = f; S_b[i] = s; U_b[i] = u; Cv_b[i] = cv
+        F_b[i] = f
+        S_b[i] = s
+        U_b[i] = u
+        Cv_b[i] = cv
         if verbose and (i + 1) % max(1, n_boot // 10) == 0:
-            print(f"  boot {i+1}/{n_boot}  ({time.time()-t0:.1f}s)", flush=True)
+            logging.info(f"  boot {i+1}/{n_boot}  ({time.time()-t0:.1f}s)")
 
     se = dict(
         F0=np.std(F_b, ddof=0) / Nat,

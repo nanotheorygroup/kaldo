@@ -21,7 +21,7 @@ EXPECTED_PUBLIC_SYMBOLS = {
     "SCSampler", "SCContractors",
     "calculate_cumulants", "bootstrap_corrections",
     # top-level API
-    "cumulant_thermo", "CumulantResult", "print_ethan_table",
+    "cumulant_thermo", "CumulantResult", "print_thermo_table",
 }
 
 

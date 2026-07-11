@@ -74,7 +74,8 @@ def read_tdep_pair_fcs(fc_path, uc_positions, uc_cell, enforce_asr=True):
     """
     neighbors = []
     with open(fc_path) as f:
-        n = int(f.readline().split()[0]); _c = float(f.readline().split()[0])
+        n = int(f.readline().split()[0])
+        _c = float(f.readline().split()[0])
         for i in range(n):
             nn = int(f.readline().split()[0])
             il = []
@@ -113,7 +114,8 @@ def read_tdep_ifc3(fc3_path, na_uc=None):
     """
     per_atom = []
     with open(fc3_path) as f:
-        na = int(f.readline().split()[0]); _c = float(f.readline().split()[0])
+        na = int(f.readline().split()[0])
+        _c = float(f.readline().split()[0])
         if na_uc is not None and na != na_uc:
             raise ValueError(
                 f"IFC3 file declares n_atoms={na}, caller passed na_uc={na_uc}"
@@ -213,7 +215,8 @@ def read_tdep_ifc4(fc4_path, na_uc=None):
     """
     per_atom = []
     with open(fc4_path) as f:
-        na = int(f.readline().split()[0]); _c = float(f.readline().split()[0])
+        na = int(f.readline().split()[0])
+        _c = float(f.readline().split()[0])
         if na_uc is not None and na != na_uc:
             raise ValueError(
                 f"IFC4 file declares n_atoms={na}, caller passed na_uc={na_uc}"
@@ -222,8 +225,10 @@ def read_tdep_ifc4(fc4_path, na_uc=None):
             nq = int(f.readline().split()[0])
             qs = []
             for _ in range(nq):
-                i1 = int(f.readline().split()[0]); i2 = int(f.readline().split()[0])
-                i3 = int(f.readline().split()[0]); i4 = int(f.readline().split()[0])
+                i1 = int(f.readline().split()[0])
+                i2 = int(f.readline().split()[0])
+                i3 = int(f.readline().split()[0])
+                i4 = int(f.readline().split()[0])
                 _lv1 = np.array(f.readline().split(), dtype=float)
                 lv2 = np.array(f.readline().split(), dtype=float)
                 lv3 = np.array(f.readline().split(), dtype=float)
@@ -259,7 +264,8 @@ def dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart):
       * ``egvs`` (n_bands, n_bands): complex eigenvectors of the
         dynamical matrix, column-indexed by band.
     """
-    n = len(neighbors_pair); nb = 3 * n
+    n = len(neighbors_pair)
+    nb = 3 * n
     D = np.zeros((nb, nb), dtype=complex)
     for i, il in enumerate(neighbors_pair):
         for (j, rj, _lp, phi) in il:

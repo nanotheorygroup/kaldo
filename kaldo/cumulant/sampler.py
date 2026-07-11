@@ -50,7 +50,7 @@ class SCSampler:
 
     def __init__(
         self,
-        ifc2_sc_eVAng : np.ndarray, # assumes in eV / Ang^2
+        ifc2_sc_eVAng: np.ndarray, # assumes in eV / Ang^2
         masses_amu_sc: np.ndarray, # in amu
         T_K: float,
         is_classic: bool = True,

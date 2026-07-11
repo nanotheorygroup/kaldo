@@ -70,7 +70,7 @@ from .sampler import SCSampler
 from .taylor import SCContractors
 from .estimator import calculate_cumulants, dA_dT, d2A_dT2
 from .bootstrap import bootstrap_corrections
-from .api import cumulant_thermo, CumulantResult, print_ethan_table
+from .api import cumulant_thermo, CumulantResult, print_thermo_table
 
 # Public surface — kept minimal. Internal helpers (constants like HBAR,
 # parsers like read_tdep_*, kernel helpers like flatten_* and build_psi*,
@@ -91,5 +91,5 @@ __all__ = [
     "calculate_cumulants",
     "bootstrap_corrections",
     # top-level API
-    "cumulant_thermo", "CumulantResult", "print_ethan_table",
+    "cumulant_thermo", "CumulantResult", "print_thermo_table",
 ]

@@ -11,7 +11,7 @@ Two small cumulant correctness fixes.
    correct in the quantum branch (there ``sigma^2 = (2n+1)/(2 omega)``) and is
    wrong classically (where ``sigma^2 = kT/omega^2``), giving ~30 % error.
 
-2. ``print_ethan_table`` referenced ``result.F_offset`` / ``F_offset_SE`` etc.,
+2. ``print_thermo_table`` referenced ``result.F_offset`` / ``F_offset_SE`` etc.,
    fields that ``CumulantResult`` does not have (it exposes ``F_0`` and
    ``F_total_SE``), so any call raised ``AttributeError``.
 """
@@ -78,9 +78,9 @@ def test_v2_tilde_quantum_is_reweighted_harmonic_energy():
     assert vq.mean() <= vc.mean() * 1.05
 
 
-def test_print_ethan_table_runs(capsys):
-    """print_ethan_table must not raise (regression: it referenced F_offset)."""
-    from kaldo.cumulant.api import CumulantResult, print_ethan_table
+def test_print_thermo_table_runs(capsys):
+    """print_thermo_table must not raise (regression: it referenced F_offset)."""
+    from kaldo.cumulant.api import CumulantResult, print_thermo_table
 
     z3 = np.zeros(3)
     r = CumulantResult(
@@ -93,7 +93,7 @@ def test_print_ethan_table_runs(capsys):
         F_total_SE=2e-6, U_total_SE=2e-6, S_total_SE=3e-5, Cv_total_SE=1e-4,
         V=z3, V2=z3, V3=z3, V4=z3, V2_tilde=z3,
     )
-    print_ethan_table(r)
+    print_thermo_table(r)
     out = capsys.readouterr().out
     # A block per observable, with the 0th-order column relabeled F_0 (not F_offset).
     assert "F_0" in out and "F_total" in out

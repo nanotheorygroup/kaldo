@@ -20,9 +20,12 @@ import time
 
 import numpy as np
 
+from kaldo.helpers.logger import get_logger
 from .constants import (
     HBAR, KB, EV, ANG, FREQ_TOL_THZ,
 )
+
+logging = get_logger()
 
 
 def dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart):
@@ -48,7 +51,8 @@ def dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart):
       * ``egvs`` (n_bands, n_bands): complex eigenvectors of the
         dynamical matrix, column-indexed by band.
     """
-    n = len(neighbors_pair); nb = 3 * n
+    n = len(neighbors_pair)
+    nb = 3 * n
     D = np.zeros((nb, nb), dtype=complex)
     for i, il in enumerate(neighbors_pair):
         for (j, rj, _lp, phi) in il:
@@ -81,7 +85,10 @@ def flatten_quartets(quartets_per_atom, masses_kg, uc_cell):
     inv_sqrt_m = 1.0 / np.sqrt(masses_kg)
     for a1, quarts in enumerate(quartets_per_atom):
         for (a2, a3, a4, lv2f, lv3f, lv4f, ifcs) in quarts:
-            Q_a1.append(a1); Q_a2.append(a2); Q_a3.append(a3); Q_a4.append(a4)
+            Q_a1.append(a1)
+            Q_a2.append(a2)
+            Q_a3.append(a3)
+            Q_a4.append(a4)
             Q_lv2c.append(lv2f @ uc_cell)
             Q_lv3c.append(lv3f @ uc_cell)
             Q_lv4c.append(lv4f @ uc_cell)
@@ -157,7 +164,8 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
     and kB/atom for S, Cv).
     """
     nx, ny, nz = kmesh
-    n_uc = len(uc_positions); nb = 3 * n_uc
+    n_uc = len(uc_positions)
+    nb = 3 * n_uc
     recip = 2 * np.pi * np.linalg.inv(uc_cell).T
     nq = nx * ny * nz
     frac = np.array([[ix/nx, iy/ny, iz/nz]
@@ -174,7 +182,7 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
         orbit_sizes = np.bincount(ir_mapping, minlength=nq)
         q1_indices = list(ibz_indices)
         q1_weights = {int(iq): int(orbit_sizes[iq]) for iq in ibz_indices}
-        print(f"use_q_symmetry: reducing q1 from {nq} to {len(q1_indices)} "
+        logging.info(f"use_q_symmetry: reducing q1 from {nq} to {len(q1_indices)} "
               f"IBZ reps (avg orbit size {nq / len(q1_indices):.1f})")
     else:
         q1_indices = list(range(nq))
@@ -187,7 +195,7 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
         omegas[iq], egvs[iq] = dynmat_and_eigs(
             neighbors_pair, uc_positions, masses_kg, q
         )
-    print(f"eigs {nq} qs in {time.time()-t0:.1f}s")
+    logging.info(f"eigs {nq} qs in {time.time()-t0:.1f}s")
 
     # Planck distribution and derivatives.
     x = HBAR * omegas / (KB * T_K)
@@ -210,13 +218,13 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
     # Per-q eigenvector outer products: M[q, b, i, j] = e(q,b,i) * conj(e(q,b,j))
     t1 = time.time()
     M = np.einsum("qib,qjb->qbij", egvs, np.conj(egvs))
-    print(f"building per-q outer products  done in {time.time()-t1:.1f}s, shape {M.shape}")
+    logging.info(f"building per-q outer products  done in {time.time()-t1:.1f}s, shape {M.shape}")
 
     QD = flatten_quartets(quartets, masses_kg, uc_cell)
-    print(f"flattened {QD['a1'].shape[0]} quartets")
+    logging.info(f"flattened {QD['a1'].shape[0]} quartets")
 
     n_q1 = len(q1_indices)
-    print(f"F1/S1/Cv1 double-q loop over {n_q1}x{nq}={n_q1*nq} (q1,q2) pairs"
+    logging.info(f"F1/S1/Cv1 double-q loop over {n_q1}x{nq}={n_q1*nq} (q1,q2) pairs"
           + (" [q1 in IBZ]" if use_q_symmetry else ""))
     t2 = time.time()
     F1_acc = 0.0
@@ -252,8 +260,8 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
             S1_acc += w1 * (psi_re * s_w * mask).sum()
             Cv1_acc += w1 * (psi_re * cv_w * mask).sum()
         if (_i + 1) % max(1, n_q1 // 20) == 0:
-            print(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t2:.1f}s", flush=True)
-    print(f"F1 loop total {time.time()-t2:.1f}s")
+            logging.info(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t2:.1f}s")
+    logging.info(f"F1 loop total {time.time()-t2:.1f}s")
 
     prefac = HBAR * HBAR / (32.0 * nq * nq * n_uc)
     F1 = prefac * F1_acc / EV
@@ -278,7 +286,9 @@ def flatten_triplets(triplets_per_atom, masses_kg, uc_cell):
     inv_sqrt_m = 1.0 / np.sqrt(masses_kg)
     for a1, trips in enumerate(triplets_per_atom):
         for (a2, a3, lv2f, lv3f, ifcs) in trips:
-            T_a1.append(a1); T_a2.append(a2); T_a3.append(a3)
+            T_a1.append(a1)
+            T_a2.append(a2)
+            T_a3.append(a3)
             T_lv2c.append(lv2f @ uc_cell)
             T_lv3c.append(lv3f @ uc_cell)
             m = inv_sqrt_m[a1] * inv_sqrt_m[a2] * inv_sqrt_m[a3]
@@ -354,7 +364,8 @@ def compute_group_velocity(neighbors_pair, uc_positions, masses_kg, q_cart,
     nb = egv.shape[0]
     v = np.zeros((3, nb))
     for alpha in range(3):
-        dq_vec = np.zeros(3); dq_vec[alpha] = dq
+        dq_vec = np.zeros(3)
+        dq_vec[alpha] = dq
         om_p, _ = dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart + dq_vec)
         om_m, _ = dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart - dq_vec)
         v[alpha] = (om_p - om_m) / (2.0 * dq)
@@ -481,7 +492,8 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
     """
     nx, ny, nz = kmesh
     nq = nx * ny * nz
-    n_uc = len(uc_positions); nb = 3 * n_uc
+    n_uc = len(uc_positions)
+    nb = 3 * n_uc
     recip = 2 * np.pi * np.linalg.inv(uc_cell).T
     frac = np.array([[ix/nx, iy/ny, iz/nz]
                      for ix in range(nx) for iy in range(ny) for iz in range(nz)])
@@ -496,7 +508,7 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
         orbit_sizes = np.bincount(ir_mapping, minlength=nq)
         q1_indices = list(ibz_indices)
         q1_weights = {int(iq): int(orbit_sizes[iq]) for iq in ibz_indices}
-        print(f"use_q_symmetry: reducing q1 from {nq} to {len(q1_indices)} "
+        logging.info(f"use_q_symmetry: reducing q1 from {nq} to {len(q1_indices)} "
               f"IBZ reps (avg orbit size {nq / len(q1_indices):.1f})")
     else:
         q1_indices = list(range(nq))
@@ -509,7 +521,7 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
         omegas[iq], egvs[iq] = dynmat_and_eigs(
             neighbors_pair, uc_positions, masses_kg, q
         )
-    print(f"eigs {nq} qs in {time.time()-t0:.1f}s")
+    logging.info(f"eigs {nq} qs in {time.time()-t0:.1f}s")
 
     if sigma_THz is None:
         t_sig = time.time()
@@ -522,7 +534,7 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
                 neighbors_pair, uc_positions, masses_kg, q, omegas[iq], egvs[iq],
             )
             sigma_table[iq] = adaptive_sigma(radius, v, default_sigma_bands)
-        print(f"adaptive sigma: {time.time()-t_sig:.1f}s, "
+        logging.info(f"adaptive sigma: {time.time()-t_sig:.1f}s, "
               f"range {sigma_table.min():.2e}..{sigma_table.max():.2e} rad/s "
               f"(~{sigma_table.min()/(2*np.pi*1e12):.3f}..{sigma_table.max()/(2*np.pi*1e12):.3f} THz)")
     else:
@@ -530,7 +542,9 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
         sigma_table = np.full((nq, nb), sigma_rad_s)
 
     # Planck table
-    n_tab = np.empty((nq, nb)); dn_tab = np.empty_like(n_tab); ddn_tab = np.empty_like(n_tab)
+    n_tab = np.empty((nq, nb))
+    dn_tab = np.empty_like(n_tab)
+    ddn_tab = np.empty_like(n_tab)
     ok_tab = np.empty((nq, nb), dtype=bool)
     for iq in range(nq):
         n_tab[iq], dn_tab[iq], ddn_tab[iq], ok_tab[iq] = planck_and_derivs(omegas[iq], T_K)
@@ -543,10 +557,10 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
         lookup[i, j, k] = iq
 
     TD = flatten_triplets(triplets, masses_kg, uc_cell)
-    print(f"flattened {TD['a1'].shape[0]} triplets, nb={nb}")
+    logging.info(f"flattened {TD['a1'].shape[0]} triplets, nb={nb}")
 
     n_q1 = len(q1_indices)
-    print(f"F2/S2/Cv2 double-q loop over {n_q1}x{nq}={n_q1*nq} (q1,q2) pairs"
+    logging.info(f"F2/S2/Cv2 double-q loop over {n_q1}x{nq}={n_q1*nq} (q1,q2) pairs"
           + (" [q1 in IBZ]" if use_q_symmetry else ""))
     t2 = time.time()
     F2 = 0.0
@@ -560,7 +574,10 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
         q1c = cart[iq1]
         i1, j1, k1 = frac_rounded[iq1]
         e1 = egvs[iq1]
-        w1 = omegas[iq1]; n1 = n_tab[iq1]; dn1 = dn_tab[iq1]; ddn1 = ddn_tab[iq1]
+        w1 = omegas[iq1]
+        n1 = n_tab[iq1]
+        dn1 = dn_tab[iq1]
+        ddn1 = ddn_tab[iq1]
         ok1 = ok_tab[iq1]
         w_q1 = q1_weights[iq1]
         for iq2 in range(nq):
@@ -569,23 +586,32 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
             j3 = (-j1 - j2) % ny
             k3 = (-k1 - k2) % nz
             iq3 = lookup[i3, j3, k3]
-            q2c = cart[iq2]; q3c = cart[iq3]
+            q2c = cart[iq2]
+            q3c = cart[iq3]
 
             A = build_psi3_realspace(TD, q2c, q3c)
 
-            e2 = egvs[iq2]; e3 = egvs[iq3]
-            w2 = omegas[iq2]; w3 = omegas[iq3]
-            n2 = n_tab[iq2]; n3 = n_tab[iq3]
-            ok2 = ok_tab[iq2]; ok3 = ok_tab[iq3]
+            e2 = egvs[iq2]
+            e3 = egvs[iq3]
+            w2 = omegas[iq2]
+            w3 = omegas[iq3]
+            n2 = n_tab[iq2]
+            n3 = n_tab[iq3]
+            ok2 = ok_tab[iq2]
+            ok3 = ok_tab[iq3]
 
             # Psi_3 via conjugated eigenvectors (LDT convention).
-            e1c = np.conj(e1); e2c = np.conj(e2); e3c = np.conj(e3)
+            e1c = np.conj(e1)
+            e2c = np.conj(e2)
+            e3c = np.conj(e3)
             T1 = np.einsum("abc,ak->kbc", A, e1c)
             T2 = np.einsum("kbc,bl->klc", T1, e2c)
             Psi3 = np.einsum("klc,cm->klm", T2, e3c)
             psisq = np.abs(Psi3) ** 2
 
-            w1_ = w1[:, None, None]; w2_ = w2[None, :, None]; w3_ = w3[None, None, :]
+            w1_ = w1[:, None, None]
+            w2_ = w2[None, :, None]
+            w3_ = w3[None, None, :]
             mask = ok1[:, None, None] & ok2[None, :, None] & ok3[None, None, :]
             s1 = sigma_table[iq1][:, None, None]
             s2 = sigma_table[iq2][None, :, None]
@@ -596,9 +622,15 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
             denom2 = w1_ + w2_ - w3_
             Re2 = denom2 / (denom2 ** 2 + sigma_combo ** 2)
 
-            n1_ = n1[:, None, None]; n2_ = n2[None, :, None]; n3_ = n3[None, None, :]
-            dn1_ = dn_tab[iq1][:, None, None]; dn2_ = dn_tab[iq2][None, :, None]; dn3_ = dn_tab[iq3][None, None, :]
-            ddn1_ = ddn_tab[iq1][:, None, None]; ddn2_ = ddn_tab[iq2][None, :, None]; ddn3_ = ddn_tab[iq3][None, None, :]
+            n1_ = n1[:, None, None]
+            n2_ = n2[None, :, None]
+            n3_ = n3[None, None, :]
+            dn1_ = dn_tab[iq1][:, None, None]
+            dn2_ = dn_tab[iq2][None, :, None]
+            dn3_ = dn_tab[iq3][None, None, :]
+            ddn1_ = ddn_tab[iq1][:, None, None]
+            ddn2_ = ddn_tab[iq2][None, :, None]
+            ddn3_ = ddn_tab[iq3][None, None, :]
 
             f1 = (n1_ + 1.0) * (n2_ + n3_ + 1.0) + n2_ * n3_
             f2 = n3_ * (n1_ + n2_ + 1.0) - n1_ * n2_
@@ -628,8 +660,8 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
             S2 += w_q1 * integrand_S[mask].sum()
             Cv2 += w_q1 * integrand_Cv[mask].sum()
         if (_i + 1) % max(1, n_q1 // 10) == 0:
-            print(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t2:.1f}s", flush=True)
-    print(f"F2 loop total {time.time()-t2:.1f}s")
+            logging.info(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t2:.1f}s")
+    logging.info(f"F2 loop total {time.time()-t2:.1f}s")
 
     prefac = HBAR * HBAR / (nq * nq * n_uc)
     F2_eV = -prefac * F2 / EV

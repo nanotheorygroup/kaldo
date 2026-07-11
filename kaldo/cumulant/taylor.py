@@ -85,7 +85,8 @@ class SCContractors:
         folder = Path(folder)
         uc = ase.io.read(str(folder / "infile.ucposcar"), format="vasp")
         sc = ase.io.read(str(folder / "infile.ssposcar"), format="vasp")
-        n_uc = len(uc); n_sc = len(sc)
+        n_uc = len(uc)
+        n_sc = len(sc)
         uc_pos = np.asarray(uc.positions)
         uc_cell = np.asarray(uc.cell)
 
@@ -221,19 +222,24 @@ def _expand_pairs(neighbors, uc_pos, uc_cell, mapping, sc_atom_index):
     """Expand TDEP pair list to flat (a1, a2, phi) supercell tables."""
     lut = _replica_lookup_table(mapping)
     inv_uc_cell = np.linalg.inv(uc_cell)
-    a1_chunks = []; a2_chunks = []; phi_chunks = []
+    a1_chunks = []
+    a2_chunks = []
+    phi_chunks = []
     for i_uc, il in enumerate(neighbors):
         sc_idx_i, R_i_tab = _sc_replicas_of(i_uc, mapping)
         n_rep = sc_idx_i.shape[0]
         if not il:
             continue
         # Stack the per-i_uc partner descriptors.
-        partner_uc = []; R_j_list = []; phi_list = []
+        partner_uc = []
+        R_j_list = []
+        phi_list = []
         for (j_uc, r_j_cart, _lv, phi) in il:
             tau_j = uc_pos[j_uc]
             R_j = np.rint((r_j_cart - tau_j) @ inv_uc_cell).astype(int)
             partner_uc.append(int(j_uc))
-            R_j_list.append(R_j); phi_list.append(np.asarray(phi, dtype=np.float64))
+            R_j_list.append(R_j)
+            phi_list.append(np.asarray(phi, dtype=np.float64))
         partner_uc = np.asarray(partner_uc, dtype=np.int64)        # (n_pair,)
         R_j_arr = np.asarray(R_j_list, dtype=int)                   # (n_pair, 3)
         phi_arr = np.asarray(phi_list, dtype=np.float64)            # (n_pair, 3, 3)
@@ -257,7 +263,10 @@ def _expand_pairs(neighbors, uc_pos, uc_cell, mapping, sc_atom_index):
 
 def _expand_triplets(triplets, mapping, sc_atom_index):
     lut = _replica_lookup_table(mapping)
-    a1_c = []; a2_c = []; a3_c = []; phi_c = []
+    a1_c = []
+    a2_c = []
+    a3_c = []
+    phi_c = []
     for i_uc, ts in enumerate(triplets):
         sc_idx_i, R_i_tab = _sc_replicas_of(i_uc, mapping)
         n_rep = sc_idx_i.shape[0]
@@ -278,7 +287,9 @@ def _expand_triplets(triplets, mapping, sc_atom_index):
         k_sc = sc_atom_index[k_uc[None, :].repeat(n_rep, 0), rid_k]
 
         a1 = sc_idx_i[:, None].repeat(n_t, axis=1)
-        a1_c.append(a1.ravel()); a2_c.append(j_sc.ravel()); a3_c.append(k_sc.ravel())
+        a1_c.append(a1.ravel())
+        a2_c.append(j_sc.ravel())
+        a3_c.append(k_sc.ravel())
         phi_c.append(np.tile(phi_arr, (n_rep, 1, 1, 1, 1)).reshape(-1, 3, 3, 3))
 
     if not a1_c:
@@ -293,7 +304,11 @@ def _expand_triplets(triplets, mapping, sc_atom_index):
 
 def _expand_quartets(quartets, mapping, sc_atom_index):
     lut = _replica_lookup_table(mapping)
-    a1_c = []; a2_c = []; a3_c = []; a4_c = []; phi_c = []
+    a1_c = []
+    a2_c = []
+    a3_c = []
+    a4_c = []
+    phi_c = []
     for i_uc, qs in enumerate(quartets):
         sc_idx_i, R_i_tab = _sc_replicas_of(i_uc, mapping)
         n_rep = sc_idx_i.shape[0]
