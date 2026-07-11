@@ -202,7 +202,7 @@ class HarmonicWithQ(Observable, Storable):
         supercell = np.asarray(self.second.supercell, dtype=int)
         if supercell.shape != (3,):
             raise ValueError(
-                "nac_method='gonze' requires second.supercell to be a diagonal 3-vector "
+                "The non-analytic correction requires second.supercell to be a diagonal 3-vector "
                 "when nac_bvk_supercell_matrix is not provided."
             )
         return np.diag(supercell)
