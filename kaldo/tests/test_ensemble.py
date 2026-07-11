@@ -54,3 +54,32 @@ def test_unknown_observable_raises_helpful(tmp_path):
     ens = PhononsEnsemble(members)
     with pytest.raises(AttributeError, match="not_a_prop"):
         ens.mean_std('not_a_prop')
+
+
+def _cu_second(tmp_path, folder):
+    """Compute one raw (unsymmetrized) SecondOrder for Cu via EMT."""
+    atoms = bulk('Cu', 'fcc', a=3.61, cubic=True)
+    fc = ForceConstants(atoms=atoms, supercell=(2, 2, 2), folder=str(tmp_path / folder))
+    fc.second.calculate(calculator=EMT(), delta_shift=1e-2, is_storing=False, symmetrize=False)
+    return atoms, fc.second
+
+
+def test_member_from_second_builds_phonons(tmp_path):
+    atoms, second = _cu_second(tmp_path, 'a')
+    member = PhononsEnsemble._member_from_second(
+        atoms, (2, 2, 2), second, symmetrize=True, phonons_kwargs=dict(kpts=(3, 3, 3), temperature=300, storage='memory')
+    )
+    assert isinstance(member, Phonons)
+    assert np.asarray(member.frequency).shape[1] == len(atoms) * 3
+
+
+def test_shape_mismatch_across_members_raises(tmp_path):
+    atoms_a, second_a = _cu_second(tmp_path, 'a')
+    atoms_b, second_b = _cu_second(tmp_path, 'b')
+    m_a = PhononsEnsemble._member_from_second(
+        atoms_a, (2, 2, 2), second_a, symmetrize=False, phonons_kwargs=dict(kpts=(3, 3, 3), temperature=300, storage='memory'))
+    m_b = PhononsEnsemble._member_from_second(
+        atoms_b, (2, 2, 2), second_b, symmetrize=False, phonons_kwargs=dict(kpts=(2, 2, 2), temperature=300, storage='memory'))
+    ens = PhononsEnsemble([m_a, m_b])
+    with pytest.raises(ValueError, match="disagree on the shape"):
+        ens.mean_std('frequency')

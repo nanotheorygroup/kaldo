@@ -28,6 +28,19 @@ class PhononsEnsemble:
             raise ValueError("PhononsEnsemble needs at least one member.")
         self._members = members
 
+    @staticmethod
+    def _member_from_second(atoms, supercell, second_order, symmetrize, phonons_kwargs):
+        """Build one Phonons member from a computed SecondOrder.
+
+        If symmetrize is True, projects the force constants onto the
+        space-group-invariant subspace (kaldo 2.2.0). Wraps the SecondOrder in a
+        ForceConstants and constructs a Phonons with phonons_kwargs.
+        """
+        if symmetrize:
+            second_order.symmetrize()
+        fc = ForceConstants(atoms=atoms, supercell=supercell, second_order=second_order)
+        return Phonons(forceconstants=fc, **phonons_kwargs)
+
     @property
     def members(self):
         """List of Phonons members."""
