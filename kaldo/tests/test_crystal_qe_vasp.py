@@ -45,9 +45,41 @@ def test_lagacy_format():
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory").conductivity.sum(axis=0)
+    """QHGK conductivity with constant diffusivity_bandwidth.
+
+    Why a constant bandwidth: with the default
+    ``diffusivity_bandwidth=None``, the QHGK calculation uses
+    ``phonons.bandwidth / 2`` per mode, which includes
+    ``isotopic_bandwidth`` when ``include_isotopes=True``. The
+    isotopic bandwidth involves the squared overlap
+    ``|⟨e_q'μ' | e_qμ⟩|²``, which is NOT invariant under unitary
+    rotations of the eigenvector basis within a degenerate subspace.
+    Different LAPACK implementations (x86 vs arm64) return different
+    bases — all valid solutions — so per-mode isotopic bandwidth (and
+    therefore the per-mode diffusivity_bandwidth, and therefore the
+    per-mode QHGK conductivity contribution) varies platform-by-platform.
+
+    Setting ``diffusivity_bandwidth=1.0`` (THz, constant) decouples
+    the conductivity from this gauge-dependent per-mode quantity. The
+    SUM of conductivity contributions over a degenerate group remains
+    basis-invariant (trace of the Onsager-style scattering operator
+    in the degenerate subspace), but the per-mode breakdown does not.
+
+    Same gauge-vs-observable pattern as ``test_iso_bw`` and the
+    broadening-vs-symmetry trade-off documented for ``use_q_symmetry``
+    (PR #253): replace the basis-dependent regularization with a
+    constant to get a reproducible reference value.
+
+    Trade-off: this test no longer exercises the default per-mode
+    bandwidth path. That path's correctness is exercised by
+    ``test_qhgk_conductivity`` in ``test_crystal.py`` on a
+    centrosymmetric crystal where the degeneracies are sparse enough
+    that the basis dependence stays below the test tolerance.
+    """
+    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
+                        diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_approx_equal(cond, 3, significant=2)
+    np.testing.assert_approx_equal(cond, 2.2, significant=2)
 
 
 def test_rta_conductivity(phonons):

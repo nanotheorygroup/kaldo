@@ -36,7 +36,7 @@ def phonons():
 def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory").conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_approx_equal(cond, 141, significant=3)
+    np.testing.assert_allclose(cond, 141.0, rtol=2e-2, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):

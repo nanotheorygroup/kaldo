@@ -151,26 +151,29 @@ If you use κALDo, please cite:
 
 | Reference | When to Cite |
 |-----------|--------------|
-| [1] | Any work using κALDo |
-| [2] | QHGK method for disordered materials |
-| [3] | Participation ratio analysis |
-| [4] | Finite-size thermal conductivity with BTE |
-| [5] | TDEP + path-integral MD workflows |
-| [6] | Isotopic scattering and hydrodynamic extrapolation |
+| [1] | Any work using κALDo (2.0) |
+| [2] | Original κALDo implementation (v1) |
+| [3] | QHGK method for disordered materials |
+| [4] | Participation ratio analysis |
+| [5] | Finite-size thermal conductivity with BTE |
+| [6] | TDEP + path-integral MD workflows |
+| [7] | Isotopic scattering and hydrodynamic extrapolation |
 
 ### References
 
-[1] G. Barbalinardo, Z. Chen, N.W. Lundgren, D. Donadio, *Efficient anharmonic lattice dynamics calculations of thermal transport in crystalline and disordered solids*, [J. Appl. Phys. **128**, 135104 (2020)](https://aip.scitation.org/doi/10.1063/5.0020443).
+[1] G. Barbalinardo, Z. Chen, D.A. Folkner, B. Li, N.W. Lundgren, N. Troup, A. Fiorentino, D. Donadio, *κALDo 2.0: Scalable thermal transport from first principles and machine learning potentials*, [Comput. Phys. Commun. **327**, 110282 (2026)](https://doi.org/10.1016/j.cpc.2026.110282).
 
-[2] L. Isaeva, G. Barbalinardo, D. Donadio, S. Baroni, *Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach*, [Nat. Commun. **10**, 3853 (2019)](https://www.nature.com/articles/s41467-019-11572-4).
+[2] G. Barbalinardo, Z. Chen, N.W. Lundgren, D. Donadio, *Efficient anharmonic lattice dynamics calculations of thermal transport in crystalline and disordered solids*, [J. Appl. Phys. **128**, 135104 (2020)](https://aip.scitation.org/doi/10.1063/5.0020443).
 
-[3] N.W. Lundgren, G. Barbalinardo, D. Donadio, *Mode Localization and Suppressed Heat Transport in Amorphous Alloys*, [Phys. Rev. B **103**, 024204 (2021)](https://doi.org/10.1103/PhysRevB.103.024204).
+[3] L. Isaeva, G. Barbalinardo, D. Donadio, S. Baroni, *Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach*, [Nat. Commun. **10**, 3853 (2019)](https://www.nature.com/articles/s41467-019-11572-4).
 
-[4] G. Barbalinardo, Z. Chen, H. Dong, Z. Fan, D. Donadio, *Ultrahigh convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling*, [Phys. Rev. Lett. **127**, 025902 (2021)](https://doi.org/10.1103/PhysRevLett.127.025902).
+[4] N.W. Lundgren, G. Barbalinardo, D. Donadio, *Mode Localization and Suppressed Heat Transport in Amorphous Alloys*, [Phys. Rev. B **103**, 024204 (2021)](https://doi.org/10.1103/PhysRevB.103.024204).
 
-[5] D.A. Folkner, Z. Chen, G. Barbalinardo, F. Knoop, D. Donadio, *Elastic moduli and thermal conductivity of quantum materials at finite temperature*, [J. Appl. Phys. **136**, 221101 (2024)](https://pubs.aip.org/aip/jap/article/136/22/221101/3325173).
+[5] G. Barbalinardo, Z. Chen, H. Dong, Z. Fan, D. Donadio, *Ultrahigh convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling*, [Phys. Rev. Lett. **127**, 025902 (2021)](https://doi.org/10.1103/PhysRevLett.127.025902).
 
-[6] A. Fiorentino, P. Pegolo, S. Baroni, D. Donadio, *Effects of colored disorder on the heat conductivity of SiGe alloys from first principles*, [Phys. Rev. B **111**, 134205 (2025)](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.134205).
+[6] D.A. Folkner, Z. Chen, G. Barbalinardo, F. Knoop, D. Donadio, *Elastic moduli and thermal conductivity of quantum materials at finite temperature*, [J. Appl. Phys. **136**, 221101 (2024)](https://pubs.aip.org/aip/jap/article/136/22/221101/3325173).
+
+[7] A. Fiorentino, P. Pegolo, S. Baroni, D. Donadio, *Effects of colored disorder on the heat conductivity of SiGe alloys from first principles*, [Phys. Rev. B **111**, 134205 (2025)](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.111.134205).
 
 ## Publications Using κALDo
 

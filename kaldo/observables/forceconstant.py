@@ -86,14 +86,35 @@ class ForceConstant(Observable):
         # TODO: remove this method
         # forceconstant.replicated_atoms is used
         if self._replicated_atoms is None:
-            supercell = self.supercell
             atoms = self.atoms
-            replicated_atoms = atoms.copy() * supercell
-            replicated_positions = self._direct_grid.grid(is_wrapping=False).dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[
-                                                                                                np.newaxis, :, :]
-            replicated_atoms.set_positions(replicated_positions.reshape(-1, 3))
+            grid_arr = self._direct_grid.grid(is_wrapping=False)
+            replicated_positions = grid_arr.dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
+
+            n_replicas = grid_arr.shape[0]
+            replicated_atoms = Atoms(
+                symbols=atoms.get_chemical_symbols() * n_replicas,
+                positions=replicated_positions.reshape(-1, 3),
+                cell=self._replicated_cell,
+                pbc=atoms.pbc,
+            )
             self._replicated_atoms = replicated_atoms
         return self._replicated_atoms
+
+    @property
+    def _replicated_cell(self):
+        """Cartesian cell of the replicated (supercell) structure.
+
+        For a diagonal Grid this is ``diag(supercell) @ uc.cell`` (the same
+        cell ``atoms * supercell`` produced historically). For a
+        NonDiagonalGrid the tiling is the SNF matrix M, so the supercell
+        cell is ``M @ uc.cell`` (e.g. a rhombohedral primitive tiled into a
+        cubic conventional supercell); ``atoms * supercell`` would be wrong
+        because ``supercell`` is a linearized ``(n_rep, 1, 1)`` placeholder.
+        """
+        M = getattr(self._direct_grid, "_M", None)
+        if M is None:
+            M = np.diag(np.asarray(self.supercell))
+        return np.asarray(M) @ np.asarray(self.atoms.cell)
 
 
     @property
