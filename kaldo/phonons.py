@@ -954,8 +954,7 @@ class Phonons(Storable):
 
         # Only calculate for physical modes with positive frequencies
         # This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies
-        physical = self.physical_mode.reshape(self.frequency.shape)
-        valid_modes = physical & (self.frequency > 0)
+        valid_modes = self._thermodynamic_modes
 
         if self.is_classic:
             ln_term[valid_modes] = np.log(x_vals[valid_modes])
@@ -974,6 +973,14 @@ class Phonons(Storable):
         f_cell = thermal_part_eV + zpe_part
         return f_cell / self.n_k_points
 
+    @property
+    def _thermodynamic_modes(self):
+        """Boolean mask of modes that enter the thermodynamic sums:
+        physical modes with positive (real) frequencies. Shared by
+        free_energy and zero_point_harmonic_energy so their exclusions
+        cannot diverge."""
+        return self.physical_mode.reshape(self.frequency.shape) & (self.frequency > 0)
+
     @lazy_property(label='')
     def zero_point_harmonic_energy(self):
         """
@@ -990,7 +997,7 @@ class Phonons(Storable):
         include it.
         """
         zpe_cell = np.zeros_like(self.frequency)
-        valid = self.physical_mode.reshape(self.frequency.shape) & (self.frequency > 0)
+        valid = self._thermodynamic_modes
         zpe_cell[valid] = 0.5 * units._hbar * self.frequency[valid] * 2.0 * np.pi * 1.0e12 / units._e
         return zpe_cell / self.n_k_points
 
