@@ -48,15 +48,13 @@ class PhononsEnsemble:
         """
         arrays = []
         for i, member in enumerate(self._members):
-            try:
-                value = getattr(member, observable)
-            except AttributeError as exc:
+            if not hasattr(type(member), observable):
                 raise AttributeError(
                     f"Ensemble member has no property {observable!r}. "
                     "mean_std aggregates scalar per-mode Phonons properties such as "
                     "'frequency', 'heat_capacity', 'participation_ratio', 'bandwidth'."
-                ) from exc
-            arr = np.asarray(value)
+                )
+            arr = np.asarray(getattr(member, observable))
             if i == 0:
                 ref_shape = arr.shape
             elif arr.shape != ref_shape:
