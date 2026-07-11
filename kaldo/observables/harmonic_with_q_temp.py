@@ -4,8 +4,28 @@ import ase.units as units
 from kaldo.storable import lazy_property, Storable
 
 
+# Classical statistics are implemented as a numerical hbar -> 0 limit: the
+# temperature-dependent observables evaluate the same quantum formulas with
+# hbar scaled by this factor, which pushes every occupation argument
+# x = hbar*omega/(k_B T) deep into the classical regime, where the quantum
+# expressions reduce to their classical limits with O(x^2) ~ 1e-12 error.
+# Consequences of the convention:
+#   * heat_capacity reduces to the Dulong-Petit k_B exactly;
+#   * population becomes the equipartition occupation k_B T/(hbar*omega),
+#     carrying a 1/CLASSICAL_HBAR_SCALE factor and a -1/2 offset from the
+#     Bose expansion 1/(e^x - 1) = 1/x - 1/2 + O(x). Both cancel where it
+#     matters: the offsets cancel in the scattering population factors
+#     (n' - n'') and 1/2(1 + n' + n''), and the 1/CLASSICAL_HBAR_SCALE
+#     cancels against the matching CLASSICAL_HBAR_SCALE applied to the
+#     scattering potential in
+#     Phonons._select_algorithm_for_phase_space_and_gamma. The population
+#     and phase_space arrays a user reads therefore carry this internal
+#     convention factor; bandwidth, heat capacity, and conductivity do not.
+CLASSICAL_HBAR_SCALE = 1e-6
+
+
 class HarmonicWithQTemp(hwq.HarmonicWithQ):
-    
+
     # Define storage formats for temperature-dependent harmonic properties
     # Inherits base _store_formats from HarmonicWithQ and adds temperature-specific ones
     _store_formats = {
@@ -21,7 +41,7 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         self.is_classic = is_classic
         self.hbar = units._hbar
         if self.is_classic:
-            self.hbar = self.hbar * 1e-6
+            self.hbar = self.hbar * CLASSICAL_HBAR_SCALE
 
     def _get_folder_path_components(self, label):
         components = []
