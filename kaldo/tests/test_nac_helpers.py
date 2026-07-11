@@ -165,7 +165,7 @@ def test_nac_multiply_borns_contracts_cartesian_axes():
     actual = so._multiply_borns(dd_in, born)
     expected = np.zeros_like(actual)
     expected[0, :, 0, :] = born[0].T @ dd_in[0, :, 0, :] @ born[0]
-    np.testing.assert_allclose(actual, expected)
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-14)
 
 
 @pytest.mark.parametrize(

@@ -16,7 +16,7 @@ from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.phonons import Phonons
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def nac_second_order(tmp_path_factory):
     forceconstants = ForceConstants.from_folder(
         folder="kaldo/tests/nacl_phonopy",
@@ -198,8 +198,7 @@ def test_dielectric_without_charges_raises():
 
 
 @pytest.fixture(scope="module")
-def mgo_second():
-    import tempfile
+def mgo_second(tmp_path_factory):
     forceconstants = ForceConstants.from_folder(
         folder="kaldo/tests/mgo",
         supercell=[5, 5, 5],
@@ -207,7 +206,7 @@ def mgo_second():
         format="qe-d3q",
     )
     second = forceconstants.second
-    second.folder = tempfile.mkdtemp(prefix="mgo_nac_test_")
+    second.folder = str(tmp_path_factory.mktemp("mgo_nac_test"))
     return second
 
 
