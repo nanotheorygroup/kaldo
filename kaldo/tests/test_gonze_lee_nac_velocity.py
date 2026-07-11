@@ -375,4 +375,8 @@ def test_gonze_example_v2_near_gamma_optical_velocity_pair_stays_degenerate():
         nac_bvk_supercell_matrix=_NAC_BVK_MATRIX,
     )
     velocity_norm = np.linalg.norm(phonon.velocity[0], axis=-1)
-    np.testing.assert_allclose(velocity_norm[3], velocity_norm[4], atol=5e-3, rtol=0.0)
+    # The reconstructed short-range force constants carry a small numerical
+    # asymmetry (the spacegroup symmetrizer that used to shave it corrupted
+    # non-symmorphic cells and was removed), so the degenerate pair is only
+    # equal to a few percent here.
+    np.testing.assert_allclose(velocity_norm[3], velocity_norm[4], atol=2e-2, rtol=0.0)
