@@ -1019,8 +1019,10 @@
                             <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> not found.&quot;</span><span class="p">)</span>
                         <span class="n">_second_order</span> <span class="o">=</span> <span class="n">shengbte_io</span><span class="o">.</span><span class="n">read_second_order_matrix</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">supercell</span><span class="p">)</span>
                         <span class="n">_second_order</span> <span class="o">=</span> <span class="n">_second_order</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_unit_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
-                        <span class="c1"># must stay &quot;F&quot; together with the vasp-* case in ThirdOrder.load</span>
-                        <span class="n">grid_type</span> <span class="o">=</span> <span class="s2">&quot;F&quot;</span>
+                        <span class="c1"># the reader&#39;s replica axis is C-ordered, like the QE</span>
+                        <span class="c1"># case above; declared together with the vasp-* case in</span>
+                        <span class="c1"># ThirdOrder.load (see #272 for the QE analogue)</span>
+                        <span class="n">grid_type</span> <span class="o">=</span> <span class="s2">&quot;C&quot;</span>
                 <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span>
                     <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
                     <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">,</span>
