@@ -380,21 +380,6 @@ def first_meaningful_stage_difference(
     return None, 0.0
 
 
-def input_force_constants_compact(second_order) -> np.ndarray:
-    n_atom = len(second_order.atoms)
-    n_replicas = int(np.prod(second_order.supercell))
-    force_constants = np.array(second_order.value[0], dtype=float)
-    force_constants = force_constants.transpose(0, 2, 3, 1, 4)
-    force_constants = force_constants.reshape(n_atom, n_replicas * n_atom, 3, 3)
-    permutation = np.concatenate(
-        [
-            np.arange(atom_j, n_replicas * n_atom, n_atom, dtype=int)
-            for atom_j in range(n_atom)
-        ]
-    )
-    return force_constants[:, permutation]
-
-
 def test_gonze_dielectric_part_matches_quadratic_form():
     vector = np.array([1.0, 2.0, -1.0])
     dielectric = np.diag([2.0, 3.0, 4.0])
@@ -545,10 +530,10 @@ def test_matrix_specific_total_dynamical_matrix_matches_input_force_constants_fo
     mapping = second_order._gonze_build_mapping(matrix)
     actual = _dynamical_matrix_from_second_order(second_order, q_red)
     expected = hwq._gonze_short_range_dynamical_matrix(
-        input_force_constants_compact(second_order)
+        _build_interleaved_fc(second_order)
         * (ase_units.mol / (10 * ase_units.J)),
         q_red,
-        mapping["svecs"],
+        mapping["phase_svecs"],
         mapping["multi"],
         second_order.atoms.get_masses(),
         mapping["s2p_map"],
