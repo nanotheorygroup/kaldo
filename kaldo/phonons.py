@@ -933,7 +933,8 @@ class Phonons(Storable):
         - Modes with imaginary frequencies (negative frequency values) are automatically
           excluded and will trigger a warning, as they may indicate structural instability
         """
-        if self.temperature == 0:
+        # atol: any temperature below 1e-12 K is physically zero
+        if np.isclose(self.temperature, 0.0, rtol=0.0, atol=1e-12):
             if self.is_classic:
                 return np.zeros_like(self.frequency)
             return self.zero_point_harmonic_energy
