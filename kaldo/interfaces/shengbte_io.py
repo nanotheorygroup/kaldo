@@ -425,43 +425,6 @@ def save_second_order_matrix(phonons):
     logging.info('second order sheng saved')
 
 
-def save_second_order_qe_matrix(phonons):
-    shenbte_folder = phonons.folder + '/'
-    n_replicas = phonons.forceconstants.n_replicas
-    n_atoms = int(phonons.n_modes / 3)
-    second_order = phonons.forceconstants.second.value.reshape((n_atoms, 3, n_replicas, n_atoms, 3))
-    filename = 'espresso.ifc2'
-    filename = shenbte_folder + filename
-    file = open ('%s' % filename, 'w+')
-
-    list_of_index = phonons.list_of_index()
-
-    file.write (header(phonons))
-    for alpha in range (3):
-        for beta in range (3):
-            for i in range (n_atoms):
-                for j in range (n_atoms):
-                    file.write('%4d %4d %4d %4d\n' % (alpha + 1, beta + 1, i + 1, j + 1))
-                    for id_replica in range(list_of_index.shape[0]):
-
-                        l_vec = (phonons.list_of_index()[id_replica] + 1)
-                        for delta in range(3):
-                            if l_vec[delta] <= 0:
-                                l_vec[delta] = phonons.forceconstants.supercell[delta]
-
-
-                        file.write('%4d %4d %4d' % (int(l_vec[2]), int(l_vec[1]), int(l_vec[2])))
-
-                        matrix_element = second_order[i, alpha, id_replica, j, beta]
-
-                        matrix_element = matrix_element / Rydberg * (
-                                Bohr ** 2)
-                        file.write ('\t %.11E' % matrix_element)
-                        file.write ('\n')
-    file.close ()
-    logging.info('second order qe sheng saved')
-
-
 def save_third_order_matrix(phonons):
     filename = 'FORCE_CONSTANTS_3RD'
     filename = phonons.folder + '/' + filename
@@ -565,64 +528,6 @@ def create_control_file(phonons):
 
     with open (filename, 'w+') as file:
         file.write (string)
-
-
-def header(phonons):
-
-    # this convert masses to qm masses
-
-    nat = len (phonons.atoms.get_chemical_symbols ())
-
-    # TODO: The dielectric calculation is not implemented yet
-    dielectric_constant = 1.
-    born_eff_charge = 0.000000
-
-    ntype = len (np.unique (phonons.atoms.get_chemical_symbols ()))
-    # in quantum espresso ibrav = 0, do not use symmetry and use cartesian vectors to specify symmetries
-    ibrav = 0
-    header_str = ''
-    header_str += str (ntype) + ' '
-    header_str += str (nat) + ' '
-    header_str += str (ibrav) + ' '
-
-    # TODO: I'd like to have ibrav = 1 and put the actual positions here
-    header_str += '0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 0.0000000 \n'
-    header_str += matrix_to_string (phonons.atoms.cell)
-    mass_factor = 1.8218779 * 6.022e-4
-
-    for i in range (ntype):
-        mass = np.unique (phonons.forceconstants.atoms.get_masses ())[i] / mass_factor
-        label = np.unique (phonons.forceconstants.atoms.get_chemical_symbols ())[i]
-        header_str += str (i + 1) + ' \'' + label + '\' ' + str (mass) + '\n'
-
-    # TODO: this needs to be changed, it works only if all the atoms in the unit cell are different species
-    for i in range (nat):
-        header_str += str (i + 1) + '  ' + str (i + 1) + '  ' + matrix_to_string (phonons.atoms.positions[i])
-    header_str += 'T \n'
-    header_str += matrix_to_string (np.diag (np.ones (3)) * dielectric_constant)
-    for i in range (nat):
-        header_str += str (i + 1) + '\n'
-        header_str += matrix_to_string (np.diag (np.ones (3)) * born_eff_charge * (-1) ** i)
-    header_str += str (phonons.supercell[0]) + '    '
-    header_str += str (phonons.supercell[1]) + '    '
-    header_str += str (phonons.supercell[2]) + '\n'
-    return header_str
-
-
-
-
-def matrix_to_string(matrix):
-    string = ''
-    if len (matrix.shape) == 1:
-        for i in range (matrix.shape[0]):
-            string += '%.7f' % matrix[i] + ' '
-        string += '\n'
-    else:
-        for i in range (matrix.shape[0]):
-            for j in range (matrix.shape[1]):
-                string += '%.7f' % matrix[i, j] + ' '
-            string += '\n'
-    return string
 
 
 def type_element_id(atoms, element_name):
