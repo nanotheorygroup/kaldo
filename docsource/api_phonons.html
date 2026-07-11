@@ -3380,6 +3380,10 @@ excluded and will trigger a warning, as they may indicate structural instability
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">zero_point_harmonic_energy</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.zero_point_harmonic_energy" title="Link to this definition">¶</a></dt>
 <dd><p>Harmonic zero-point energy, Brillouin-zone averaged,
 returned in eV per mode.</p>
+<p>Non-physical modes and modes with imaginary (negative) frequencies
+contribute zero, matching the <code class="docutils literal notranslate"><span class="pre">free_energy</span></code> contract; summing
+hbar*omega/2 over imaginary modes would otherwise poison the total
+with negative spurious contributions on unstable structures.</p>
 <p>This is a quantum quantity (hbar*omega/2); it has no classical
 counterpart and <code class="docutils literal notranslate"><span class="pre">free_energy</span></code> with <code class="docutils literal notranslate"><span class="pre">is_classic=True</span></code> does not
 include it.</p>

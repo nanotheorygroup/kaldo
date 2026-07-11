@@ -1776,8 +1776,7 @@
 
         <span class="c1"># Only calculate for physical modes with positive frequencies</span>
         <span class="c1"># This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies</span>
-        <span class="n">physical</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-        <span class="n">valid_modes</span> <span class="o">=</span> <span class="n">physical</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">valid_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thermodynamic_modes</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
             <span class="n">ln_term</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x_vals</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">])</span>
@@ -1796,17 +1795,32 @@
         <span class="n">f_cell</span> <span class="o">=</span> <span class="n">thermal_part_eV</span> <span class="o">+</span> <span class="n">zpe_part</span>
         <span class="k">return</span> <span class="n">f_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_thermodynamic_modes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Boolean mask of modes that enter the thermodynamic sums:</span>
+<span class="sd">        physical modes with positive (real) frequencies. Shared by</span>
+<span class="sd">        free_energy and zero_point_harmonic_energy so their exclusions</span>
+<span class="sd">        cannot diverge.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
     <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">zero_point_harmonic_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Harmonic zero-point energy, Brillouin-zone averaged,</span>
 <span class="sd">        returned in eV per mode.</span>
 
+<span class="sd">        Non-physical modes and modes with imaginary (negative) frequencies</span>
+<span class="sd">        contribute zero, matching the ``free_energy`` contract; summing</span>
+<span class="sd">        hbar*omega/2 over imaginary modes would otherwise poison the total</span>
+<span class="sd">        with negative spurious contributions on unstable structures.</span>
+
 <span class="sd">        This is a quantum quantity (hbar*omega/2); it has no classical</span>
 <span class="sd">        counterpart and ``free_energy`` with ``is_classic=True`` does not</span>
 <span class="sd">        include it.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">zpe_cell</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e12</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span>
+        <span class="n">zpe_cell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">)</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thermodynamic_modes</span>
+        <span class="n">zpe_cell</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e12</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span>
         <span class="k">return</span> <span class="n">zpe_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
 
 
