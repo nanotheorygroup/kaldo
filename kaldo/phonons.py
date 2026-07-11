@@ -670,14 +670,19 @@ class Phonons(Storable):
 
 
 
-    @lazy_property(label='')
+    @property
     def _gonze_precomputed_bundle(self):
+        # Runtime cache of large arrays; never persisted (a storage-backed
+        # lazy_property would try to write None for legacy runs and the
+        # bundle dict is not a storable array anyway).
         if self.nac_method != "gonze":
             return None
-        matrix = self.nac_bvk_supercell_matrix
-        if matrix is None:
-            matrix = np.diag(np.asarray(self.forceconstants.second.supercell, dtype=int))
-        return self.forceconstants.second.get_gonze_nac_precomputed(matrix)
+        if getattr(self, "_gonze_bundle_cache", None) is None:
+            matrix = self.nac_bvk_supercell_matrix
+            if matrix is None:
+                matrix = np.diag(np.asarray(self.forceconstants.second.supercell, dtype=int))
+            self._gonze_bundle_cache = self.forceconstants.second.get_gonze_nac_precomputed(matrix)
+        return self._gonze_bundle_cache
 
     @lazy_property(label='')
     def physical_mode(self):
