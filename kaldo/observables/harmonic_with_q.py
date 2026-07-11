@@ -401,7 +401,7 @@ class HarmonicWithQ(Observable, Storable):
             GONZE_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
         )
         dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
-        dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
+        dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
         q_red = np.array(self.q_point, dtype=float, copy=True)
         dm_minus = _gonze_to_phonopy_dm(
             self._calculate_gonze_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
@@ -531,7 +531,7 @@ class HarmonicWithQ(Observable, Storable):
         direction_payloads = []
         for direction_cart in GONZE_VELOCITY_DIRECTIONS_CART:
             dq_cart = direction_cart / np.linalg.norm(direction_cart) * GONZE_VELOCITY_Q_LENGTH
-            dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
+            dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
             direction_payloads.append((direction_cart, dq_cart, dq_red))
             q_samples.extend((q_red - dq_red, q_red + dq_red))
         q_samples = np.array(q_samples, dtype=float)
