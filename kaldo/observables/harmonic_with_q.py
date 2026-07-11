@@ -286,7 +286,8 @@ class HarmonicWithQ(Observable, Storable):
             # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
             # which would flag every off-axis q as incommensurate (and
             # is_unfolding is not supported on the SNF path anyway).
-            _warn_incommensurate_once(q_point, self.supercell)
+            if nac_method != 'gonze':
+                _warn_incommensurate_once(q_point, self.supercell)
         self.is_nac = True if 'dielectric' in self.atoms.info else False
         supported_nac_methods = ('legacy', 'gonze')
         if nac_method not in supported_nac_methods:

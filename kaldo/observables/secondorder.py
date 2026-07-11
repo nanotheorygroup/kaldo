@@ -16,7 +16,6 @@ from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
 from kaldo.grid import Grid
 from opt_einsum import contract
-import spglib
 
 logging = get_logger()
 
@@ -704,142 +703,6 @@ def _build_interleaved_fc(second_order):
     return fc
 
 
-def _fc_short_translation_data(mapping, symprec=1e-8):
-    p2s_map = mapping["p2s_map"]
-    n_translation = int(mapping["multi"].shape[0] // len(p2s_map))
-    translations = np.array(
-        mapping["primitive_shifts"][p2s_map[0] : p2s_map[0] + n_translation],
-        dtype=float,
-        copy=True,
-    )
-    primitive_matrix = np.asarray(mapping["primitive_matrix"], dtype=float)
-    reduced = (translations @ primitive_matrix) % 1.0
-    reduced[np.isclose(reduced, 1.0, atol=symprec)] = 0.0
-    lookup = {
-        tuple(np.round(reduced[i_translation], 10)): i_translation
-        for i_translation in range(n_translation)
-    }
-    return translations, lookup
-
-
-def _cartesian_rotation_from_fractional(rotation, primitive_cell):
-    primitive_cell = np.asarray(primitive_cell, dtype=float)
-    rotation = np.asarray(rotation, dtype=float)
-    # Fractional coordinates transform as row vectors x' = x R^T, so the
-    # corresponding Cartesian operator on row-vector displacements is the
-    # inverse-space action used below when rotating FC blocks.
-    return np.linalg.inv(primitive_cell) @ np.linalg.inv(rotation).T @ primitive_cell
-
-
-def _build_fc_short_symmetry_data(atoms, mapping, symprec=1e-5):
-    primitive_scaled = np.array(
-        mapping["primitive_scaled_positions"],
-        dtype=float,
-        copy=True,
-    )
-    primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
-    symmetry = spglib.get_symmetry(
-        (primitive_cell, primitive_scaled, atoms.numbers),
-        symprec=symprec,
-    )
-    translations, translation_lookup = _fc_short_translation_data(mapping, symprec=symprec)
-    operations = []
-    for rotation, translation in zip(symmetry["rotations"], symmetry["translations"]):
-        rotation = np.array(rotation, dtype=np.int64, copy=True)
-        translation = np.array(translation, dtype=float, copy=True)
-        cart_rotation = _cartesian_rotation_from_fractional(rotation, primitive_cell)
-        atom_map = np.zeros(len(primitive_scaled), dtype=np.int64)
-        atom_shifts = np.zeros((len(primitive_scaled), 3), dtype=np.int64)
-        for i_atom, position in enumerate(primitive_scaled):
-            transformed = position @ rotation.T + translation
-            deltas = transformed - primitive_scaled
-            wrapped = deltas - np.rint(deltas)
-            distances = np.linalg.norm(wrapped, axis=1)
-            j_atom = int(np.argmin(distances))
-            if distances[j_atom] >= symprec:
-                raise ValueError(
-                    "Could not map primitive atom under symmetry operation while "
-                    "building Gonze short-range FC symmetrizer."
-                )
-            atom_map[i_atom] = j_atom
-            atom_shifts[i_atom] = np.rint(deltas[j_atom]).astype(np.int64)
-        operations.append(
-            {
-                "rotation": rotation,
-                "cart_rotation": cart_rotation,
-                "atom_map": atom_map,
-                "atom_shifts": atom_shifts,
-            }
-        )
-    return {
-        "operations": operations,
-        "translations": translations,
-        "translation_lookup": translation_lookup,
-    }
-
-
-def _symmetrize_fc_short(fc, atoms, mapping, symprec=1e-5):
-    symmetry_data = mapping.get("fc_short_symmetry_data")
-    if symmetry_data is None:
-        symmetry_data = _build_fc_short_symmetry_data(atoms, mapping, symprec=symprec)
-        mapping["fc_short_symmetry_data"] = symmetry_data
-
-    operations = symmetry_data["operations"]
-    if len(operations) <= 1:
-        return np.array(fc, dtype=float, copy=True)
-
-    fc = np.asarray(fc, dtype=float)
-    n_atom = len(atoms)
-    n_translation = fc.shape[1] // n_atom
-    translations = np.asarray(symmetry_data["translations"], dtype=float)
-    translation_lookup = symmetry_data["translation_lookup"]
-    primitive_matrix = np.asarray(mapping["primitive_matrix"], dtype=float)
-    symmetrized = np.zeros_like(fc, dtype=np.float64)
-
-    for operation in operations:
-        rotation = operation["rotation"]
-        cart_rotation = operation["cart_rotation"]
-        atom_map = operation["atom_map"]
-        atom_shifts = operation["atom_shifts"]
-        rotated_translations = translations @ rotation.T
-        for i_atom in range(n_atom):
-            target_i_atom = int(atom_map[i_atom])
-            shift_i = atom_shifts[i_atom]
-            for j_atom in range(n_atom):
-                target_j_atom = int(atom_map[j_atom])
-                transformed_shift = (
-                    rotated_translations
-                    + atom_shifts[j_atom][np.newaxis, :]
-                    - shift_i[np.newaxis, :]
-                )
-                reduced = (transformed_shift @ primitive_matrix) % 1.0
-                reduced[np.isclose(reduced, 1.0, atol=symprec)] = 0.0
-                target_translation_indices = np.fromiter(
-                    (
-                        translation_lookup[tuple(np.round(reduced_row, 10))]
-                        for reduced_row in reduced
-                    ),
-                    dtype=np.int64,
-                    count=n_translation,
-                )
-                transformed_blocks = np.einsum(
-                    "ac,tcd,bd->tab",
-                    cart_rotation,
-                    fc[
-                        i_atom,
-                        j_atom * n_translation : (j_atom + 1) * n_translation,
-                    ],
-                    cart_rotation,
-                    optimize=True,
-                )
-                symmetrized[
-                    target_i_atom,
-                    target_j_atom * n_translation + target_translation_indices,
-                ] += transformed_blocks
-
-    return symmetrized / len(operations)
-
-
 def _dynamical_matrix_from_second_order(second_order, q_red):
     """Compute the dynamical matrix at q_red directly from second_order force constants."""
     n_atom = len(second_order.atoms)
@@ -1042,11 +905,6 @@ class SecondOrder(ForceConstant, Storable):
         try:
             loaded = self._load_property(property_name, folder, format="numpy")
             logging.info("Loading " + folder + "/" + property_name)
-            loaded = _symmetrize_fc_short(
-                loaded,
-                self.atoms,
-                self.get_gonze_nac_precomputed(matrix)["mapping"],
-            )
             self._gonze_short_range_force_constants_cache[key] = loaded
             return loaded
         except (FileNotFoundError, OSError, KeyError):
@@ -1076,11 +934,10 @@ class SecondOrder(ForceConstant, Storable):
                 mapping.get("svecs_cell", static_data["supercell_cell"]),
             )
             dd_real_q0 = dd_real_q0_full.sum(axis=2)
-            static_data["dd_drift"] = (
-                static_data["dd_q0"] * float(units.Rydberg / units.Bohr ** 2)
-                + static_data["dd_limiting"] * len(static_data["masses"])
-                + dd_real_q0
-            )
+            # q -> 0 sum rule for the terms whose row sum does not vanish by
+            # construction: the limiting term (diagonal only) and the real-space
+            # Ewald part. The reciprocal part subtracts its own q0 row sum.
+            static_data["dd_drift"] = static_data["dd_limiting"] + dd_real_q0
             static_data, mapping = _ensure_gonze_kernel_cache(static_data, mapping)
             self._gonze_nac_precomputed_cache[key] = {
                 "static_data": static_data,
@@ -1127,10 +984,9 @@ class SecondOrder(ForceConstant, Storable):
             )
             dynmat -= _dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
             dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
-        force_constants = _inverse_transform_dynmats_to_force_constants(
+        return _inverse_transform_dynmats_to_force_constants(
             dynmats, qpoints, mapping, static_data["masses"]
         )
-        return _symmetrize_fc_short(force_constants, self.atoms, mapping)
 
     def _gonze_build_static_data(self, matrix=None):
         atoms = self.atoms
