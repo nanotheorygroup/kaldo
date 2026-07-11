@@ -211,6 +211,32 @@ def _gonze_short_range_dynamical_matrix(
     )
 
 
+_warned_incommensurate = False
+
+
+def _warn_incommensurate_once(q_point, supercell):
+    """Warn once per process when a q-point off the supercell-commensurate grid
+    is evaluated without Wigner-Seitz unfolding.
+
+    At such q-points the periodic-replica convention used by the default
+    dynamical-matrix construction is not invariant under the non-symmorphic
+    spacegroup operations, which can break symmetry-protected degeneracies
+    (e.g. split transverse-acoustic branches in diamond-structure crystals).
+    """
+    global _warned_incommensurate
+    if _warned_incommensurate:
+        return
+    scaled = np.asarray(q_point) * np.asarray(supercell)
+    if np.allclose(scaled, np.round(scaled), atol=1e-8):
+        return
+    _warned_incommensurate = True
+    logging.warning(
+        f'q-point {np.asarray(q_point)} is incommensurate with the supercell {tuple(supercell)}: '
+        'the default dynamical-matrix construction can break symmetry-protected degeneracies '
+        '(e.g. split transverse-acoustic branches). Consider is_unfolding=True.'
+    )
+
+
 class HarmonicWithQ(Observable, Storable):
     
     # Define storage formats for harmonic properties
@@ -255,6 +281,12 @@ class HarmonicWithQ(Observable, Storable):
         # Arguments for specific physical assumptions
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
+        if not is_unfolding and getattr(second, '_snf_mapping', None) is None:
+            # The commensurability heuristic reads self.supercell as an
+            # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
+            # which would flag every off-axis q as incommensurate (and
+            # is_unfolding is not supported on the SNF path anyway).
+            _warn_incommensurate_once(q_point, self.supercell)
         self.is_nac = True if 'dielectric' in self.atoms.info else False
         supported_nac_methods = ('legacy', 'gonze')
         if nac_method not in supported_nac_methods:

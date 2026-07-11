@@ -1,6 +1,8 @@
 include LICENSE
 include MANIFEST.in
 include versioneer.py
+include requirements.txt
+include README.md
 
 graft kaldo
 global-exclude *.py[cod] __pycache__ *.so

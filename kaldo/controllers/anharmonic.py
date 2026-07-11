@@ -270,21 +270,236 @@ def calculate_dirac_delta_amorphous(
 
     return sparse_phase
 
-def calculate_broadening(velocity_tf, cell_inv, k_size, index_kpp_vec):
+
+# ---------------------------------------------------------------------------
+# ShengBTE adaptive broadening (pair-based)
+# ---------------------------------------------------------------------------
+#
+# Reference: Li, W., Carrete, J., Katcho, N. A., & Mingo, N.
+# ShengBTE: A solver of the Boltzmann transport equation for phonons.
+# Comput. Phys. Commun. 185, 1747-1758 (2014).
+# doi:10.1016/j.cpc.2014.02.015
+
+def calculate_broadening_shengbte(velocity_tf, cell_inv, k_size, index_kpp_vec):
     """
-    Calculate the broadening for the Dirac delta function.
+    ShengBTE-style adaptive broadening σ for the Dirac δ function in 3-phonon
+    scattering.
+
+    σ(q', μ', q'', μ'') = sqrt( (1/6) Σ_α [(v(q',μ') − v(q'',μ'')) · b_α/N_α]² )
+
+    Ported from ShengBTE (bitbucket.org/sousaw/shengbte/src), specifically
+      * `base_sigma(v)` in `Src/config.f90`
+      * call sites in `Src/processes.f90` (e.g. line 122):
+          sigma = scalebroad * base_sigma(vel_j - velocity(:, k, ss_p))
 
     Args:
-        velocity_tf (tf.Tensor): Velocity tensor
-        cell_inv (tf.Tensor): Inverse of the unit cell
-        k_size (int): Size of the k-point mesh
-        index_kpp_vec (tf.Tensor): Indices of the k-points
+        velocity_tf (tf.Tensor):   shape (n_k, n_m, 3), mode velocities
+        cell_inv    (np.ndarray):  shape (3, 3), inverse unit cell; rows are the
+                                   reciprocal basis vectors (no 2π)
+        k_size      (array-like):  shape (3,), mesh dimensions
+        index_kpp_vec (tf.Tensor): shape (n_k,) int — for each q' index,
+                                   the corresponding q'' = q ± q' index
 
     Returns:
-        tf.Tensor: Calculated broadening
+        tf.Tensor, shape (n_k, n_m, n_m): per-pair σ
+
+    Notes
+    -----
+    This kernel is NOT invariant under the crystal point group when velocities
+    at degenerate modes are specified in an arbitrary basis within the
+    degenerate subspace (as numerical diagonalizers do by default). This shows
+    up as a per-mode asymmetry of phase_space, bandwidth, and gamma tensor
+    across symmetry-equivalent k-points. Use `calculate_broadening_tdep` for
+    a gauge-invariant alternative when mode-resolved, symmetry-consistent
+    results are needed (e.g. when combining with `use_q_symmetry=True`).
+
+    Reference
+    ---------
+    Li, W., Carrete, J., Katcho, N. A., & Mingo, N. *ShengBTE: A solver of
+    the Boltzmann transport equation for phonons.* Comput. Phys. Commun.
+    **185**, 1747-1758 (2014). doi:10.1016/j.cpc.2014.02.015
     """
     velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:, tf.newaxis, :, :]
     delta_k = cell_inv / k_size
     base_sigma = tf.reduce_sum((tf.tensordot(velocity_difference, delta_k, [-1, 1])) ** 2, axis=-1)
     base_sigma = tf.sqrt(base_sigma / 6.0)
     return base_sigma
+
+
+# Backwards-compatible alias. Prefer `calculate_broadening_shengbte` in new code.
+calculate_broadening = calculate_broadening_shengbte
+
+
+# ---------------------------------------------------------------------------
+# TDEP adaptive broadening (per-mode, gauge-invariant)
+# ---------------------------------------------------------------------------
+#
+# Reference: Hellman, O., Steneteg, P., Abrikosov, I. A., & Simak, S. I.
+# Temperature dependent effective potential method for accurate free energy
+# calculations of solids. Phys. Rev. B 87, 104111 (2013).
+# doi:10.1103/PhysRevB.87.104111
+#
+# Ported from TDEP (github.com/tdep-developers/tdep), specifically
+#   * `default_smearing` in `src/libolle/lo_electron_dispersion_relations.f90`
+#     (builds a per-band baseline σ from max adjacent-frequency spacing)
+#   * `adaptive_sigma(radius, gradient, default_sigma, scale)` in
+#     `src/libolle/type_qpointmesh_integrationweights.f90`
+#   * triplet combination σ = sqrt(σ₁² + σ₂² + σ₃²) in
+#     `src/thermal_conductivity_2023/phononevents_gaussian.f90:95`
+#
+# Also mirrored in Ethan Meitz's LatticeDynamicsToolkit.jl
+# (`src/harmonic/dispersion.jl::_adaptive_sigma`, `_default_smearing`).
+#
+# Physics: σ is computed per-mode from |v(q, μ)| — the Euclidean norm is a
+# gauge invariant within any degenerate subspace. Unlike the ShengBTE kernel
+# (velocity difference in a specific Cartesian basis), the resulting σ is
+# invariant under the crystal point group, yielding per-mode phase_space and
+# scattering rates that are symmetry-invariant to machine precision.
+
+ADAPTIVE_SIGMA_LARGEFACTOR = 4.0
+ADAPTIVE_SIGMA_SMALLFACTOR = 0.25
+ADAPTIVE_SIGMA_PREFACTOR = 2.0 * np.pi / np.sqrt(2.0)
+
+
+def calculate_default_smearing_per_band(frequency):
+    """
+    TDEP-style baseline smearing per band.
+
+    For each band μ, σ_default[μ] = max_j |f[j+1,μ] − f[j,μ]| over the sorted
+    frequency list. Then the whole vector is floored by max(σ_default) / 5
+    to avoid pathologically small σ on flat bands.
+
+    Args:
+        frequency (np.ndarray): shape (n_k, n_m), phonon frequencies in THz
+
+    Returns:
+        np.ndarray, shape (n_m,): baseline σ per band, same units as frequency.
+    """
+    frequency = np.asarray(frequency)
+    n_k, n_m = frequency.shape
+    sigma_default = np.zeros(n_m, dtype=np.float64)
+    for mu in range(n_m):
+        f_sorted = np.sort(frequency[:, mu])
+        gaps = np.abs(np.diff(f_sorted))
+        sigma_default[mu] = gaps.max() if gaps.size else 0.0
+    # Floor: help avoid issues when bands are flat. Matches TDEP's
+    # `f = maximum(σs) / 5.0; σs = max.(σs, Ref(f))` in LDT.
+    floor = sigma_default.max() / 5.0
+    sigma_default = np.maximum(sigma_default, floor)
+    return sigma_default
+
+
+def calculate_adaptive_sigma_tdep(radius, velocity, default_sigma, scale=1.0):
+    """
+    TDEP per-mode adaptive σ.
+
+        σ = scale * (2π/√2) * radius * ‖v(q, μ)‖
+
+    clamped into [0.25 · default_σ · scale, 4 · default_σ · scale].
+
+    Args:
+        radius        (float):       effective per-q-point BZ-cell radius
+        velocity      (np.ndarray):  shape (n_k, n_m, 3), mode velocities
+        default_sigma (np.ndarray):  shape (n_m,), per-band baseline (see
+                                     `calculate_default_smearing_per_band`)
+        scale         (float):       smearing prefactor (default 1.0)
+
+    Returns:
+        np.ndarray, shape (n_k, n_m): per-mode σ.
+    """
+    velocity = np.asarray(velocity)
+    v_norm = np.linalg.norm(velocity, axis=-1)  # (n_k, n_m)
+    sigma = scale * ADAPTIVE_SIGMA_PREFACTOR * radius * v_norm
+    low = default_sigma[np.newaxis, :] * ADAPTIVE_SIGMA_SMALLFACTOR * scale
+    high = default_sigma[np.newaxis, :] * ADAPTIVE_SIGMA_LARGEFACTOR * scale
+    sigma = np.maximum(sigma, low)
+    sigma = np.minimum(sigma, high)
+    return sigma
+
+
+def calculate_bz_cell_radius(cell_inv, n_k_points):
+    """
+    Effective radius for TDEP's ``adaptive_sigma``.
+
+    Matches TDEP (``src/libolle/type_qpointmesh_gridgeneration.f90``):
+
+        V_primitive = |det(cell)| = 1 / |det(cell_inv)|
+        r = cbrt( 3 / (V_primitive × N_q × 4π) )
+
+    Note: TDEP operates in atomic units (bohr), but the formula is
+    dimension-agnostic — as long as ``cell_inv`` and the velocity used
+    downstream share the same length convention. When velocity is
+    ``dω/dq`` with ω in rad/s and q in 1/Å (no 2π factor), radius in
+    1/Å as here gives σ in rad/s.
+
+    This is NOT the "Brillouin-zone volume including the (2π)³ factor"
+    — an earlier version of this function wrongly inserted (2π)³ which
+    made σ too large by exactly 2π. The earlier docstring mentioned
+    "V_BZ = (2π)³ / |det(cell)|" but the physical σ formula wants
+    radius without 2π to cancel correctly against a 1/Å velocity.
+
+    Args:
+        cell_inv    (np.ndarray): inverse unit cell (rows are b_i without 2π)
+        n_k_points  (int):        number of q-points in the mesh
+
+    Returns:
+        float: radius in the same length units as 1/cell_inv rows.
+    """
+    cell_inv = np.asarray(cell_inv)
+    # Primitive real-space volume V = 1 / |det(cell_inv)|  (cell_inv has no 2π).
+    V_primitive = 1.0 / abs(np.linalg.det(cell_inv))
+    return (3.0 / (V_primitive * float(n_k_points) * 4.0 * np.pi)) ** (1.0 / 3.0)
+
+
+def calculate_broadening_tdep(velocity, frequency, cell_inv, n_k_points,
+                              smearing_prefactor=1.0):
+    """
+    TDEP-style adaptive broadening: per-mode σ, |v|-based, gauge-invariant.
+
+    Args:
+        velocity           (np.ndarray): shape (n_k, n_m, 3)
+        frequency          (np.ndarray): shape (n_k, n_m) in THz
+        cell_inv           (np.ndarray): shape (3, 3)
+        n_k_points         (int):        mesh size (prod of kpts)
+        smearing_prefactor (float):      TDEP `scale`; default 1.0
+
+    Returns:
+        np.ndarray, shape (n_k, n_m): per-mode σ (units match `frequency`).
+
+    Reference
+    ---------
+    Hellman, O., Steneteg, P., Abrikosov, I. A., & Simak, S. I.
+    *Temperature dependent effective potential method for accurate free
+    energy calculations of solids.* Phys. Rev. B **87**, 104111 (2013).
+    doi:10.1103/PhysRevB.87.104111
+    """
+    default_sigma = calculate_default_smearing_per_band(frequency)
+    radius = calculate_bz_cell_radius(cell_inv, n_k_points)
+    return calculate_adaptive_sigma_tdep(
+        radius, velocity, default_sigma, scale=smearing_prefactor
+    )
+
+
+def combine_sigma_triplet_tdep(sigma_mode, index_k, mu, index_kpp_full):
+    """
+    Build the triplet σ for (q, μ) × (all q', μ') × (q'', μ''[q']) processes:
+
+        σ_triplet[q', μ', μ''] = √( σ[q, μ]² + σ[q', μ']² + σ[q''(q'), μ'']² )
+
+    Matches TDEP (`src/thermal_conductivity_2023/phononevents_gaussian.f90:95`)
+    where `sigma = sqrt(sig1**2 + sig2**2 + sig3**2)` with `sig1, sig2, sig3`
+    coming from `adaptive_sigma(radius, vel_i, default_smearing[b_i], scale)`.
+
+    Args:
+        sigma_mode     (tf.Tensor): shape (n_k, n_m), per-mode σ
+        index_k        (int):       q-point index of the "central" mode
+        mu             (int):       mode index of the "central" mode
+        index_kpp_full (tf.Tensor): shape (n_k,) int — q''(q') partner index
+
+    Returns:
+        tf.Tensor, shape (n_k, n_m, n_m): triplet σ indexed by (q', μ', μ'').
+    """
+    sig1_sq = sigma_mode[index_k, mu] ** 2                               # scalar
+    sig2_sq = sigma_mode[:, :, tf.newaxis] ** 2                          # (n_k, n_m, 1)
+    sig3_sq = tf.gather(sigma_mode, index_kpp_full)[:, tf.newaxis, :] ** 2  # (n_k, 1, n_m)
+    return tf.sqrt(sig1_sq + sig2_sq + sig3_sq)
