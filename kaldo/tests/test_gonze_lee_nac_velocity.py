@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import tempfile
+
 import numpy as np
 import pytest
 from ase import units as ase_units
@@ -46,9 +48,12 @@ def _attach_reference_short_range_force_constants(second_order):
     for the DM to match the att3 velocity debug reference; the v2 SR FCs have
     a different origin and will not reproduce the reference velocities.
     """
-    replay_sr_path = nacl_att3_debug_dir() / "static" / "short_range_force_constants.npy"
+    replay_dir = nacl_att3_debug_dir()
+    replay_sr_path = (
+        replay_dir / "static" / "short_range_force_constants.npy" if replay_dir else None
+    )
     fallback_sr_path = _V2_STATIC / "short_range_force_constants.npy"
-    if replay_sr_path.exists():
+    if replay_sr_path is not None and replay_sr_path.exists():
         sr_path = replay_sr_path
     elif fallback_sr_path.exists():
         sr_path = fallback_sr_path
@@ -74,6 +79,7 @@ def nac_second_order():
         format="shengbte-qe",
     )
     second = forceconstants.second
+    second.folder = tempfile.mkdtemp(prefix="gonze_v2_cache_")
     attach_reference_nac(second)
     _attach_reference_short_range_force_constants(second)
     return second
@@ -338,6 +344,7 @@ def _load_example_v2_second_order():
         format="shengbte-qe",
     )
     second = forceconstants.second
+    second.folder = tempfile.mkdtemp(prefix="gonze_v2_cache_")
     return attach_reference_nac(second)
 
 

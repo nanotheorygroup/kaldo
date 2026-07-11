@@ -9,20 +9,15 @@ import numpy as np
 import pytest
 
 
-DEFAULT_NACL_ATT3_DEBUG = Path(
-    "/data/nwlundgren/rephonopy/.worktrees/gonze-lee-nac-debug-replay/"
-    "example/nacl-att3/debug"
-)
-
-
-def nacl_att3_debug_dir() -> Path:
-    return Path(os.environ.get("NACL_ATT3_DEBUG_DIR", DEFAULT_NACL_ATT3_DEBUG))
+def nacl_att3_debug_dir() -> Path | None:
+    value = os.environ.get("NACL_ATT3_DEBUG_DIR")
+    return Path(value) if value else None
 
 
 def require_nacl_att3_debug() -> Path:
     path = nacl_att3_debug_dir()
-    if not (path / "static" / "metadata.json").exists():
-        pytest.skip(f"NaCl att3 debug tree not found at {path}")
+    if path is None or not (path / "static" / "metadata.json").exists():
+        pytest.skip("NaCl att3 debug tree not available; set NACL_ATT3_DEBUG_DIR")
     return path
 
 
@@ -92,25 +87,18 @@ def format_tensor_diff(name: str, q_name: str, actual: np.ndarray, expected: np.
     )
 
 
-DEFAULT_NACL_ATT3_VELOCITY_DEBUG = Path(
-    "/home/nwlundgren/data/rephonopy/.worktrees/gonze-velocity-debug-dump/"
-    "example/nacl-att3/debug-velocity"
-)
-
-
-def nacl_att3_velocity_debug_dir() -> Path:
-    return Path(
-        os.environ.get(
-            "NACL_ATT3_VELOCITY_DEBUG_DIR",
-            DEFAULT_NACL_ATT3_VELOCITY_DEBUG,
-        )
-    )
+def nacl_att3_velocity_debug_dir() -> Path | None:
+    value = os.environ.get("NACL_ATT3_VELOCITY_DEBUG_DIR")
+    return Path(value) if value else None
 
 
 def require_nacl_att3_velocity_debug() -> Path:
     path = nacl_att3_velocity_debug_dir()
-    if not (path / "q-00013" / "gv_scaled.npy").exists():
-        pytest.skip(f"NaCl att3 velocity debug tree not found at {path}")
+    if path is None or not (path / "q-00013" / "gv_scaled.npy").exists():
+        pytest.skip(
+            "NaCl att3 velocity debug tree not available; "
+            "set NACL_ATT3_VELOCITY_DEBUG_DIR"
+        )
     return path
 
 
