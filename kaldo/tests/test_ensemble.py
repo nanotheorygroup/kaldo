@@ -123,7 +123,6 @@ def _perturbed_second(atoms, base_second, scale, seed):
 
 def test_symmetrization_reduces_gamma_frequency_spread(tmp_path):
     atoms, base_second = _cu_second(tmp_path, 'base')
-    seconds = [_perturbed_second(atoms, base_second, scale=1e-2, seed=s) for s in range(4)]
 
     def build(symmetrize):
         members = [PhononsEnsemble._member_from_second(
