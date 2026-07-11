@@ -93,7 +93,7 @@ class SecondOrder(ForceConstant, Storable):
     def nac_short_range_force_constants(self):
         return self.calculate_nac_short_range_force_constants()
 
-    def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+    def _refuse_dipole_subtracted_fc(self):
         if self.atoms.info.get('dipole_subtracted_fc', False):
             raise NotImplementedError(
                 "These force constants come from a QE .fc file with embedded Born "
@@ -104,6 +104,9 @@ class SecondOrder(ForceConstant, Storable):
                 "dielectric tensor and Born charges separately (atoms.info and "
                 "atoms.arrays, or a ShengBTE CONTROL file)."
             )
+
+    def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        self._refuse_dipole_subtracted_fc()
         matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         if matrix is None:
             return self.nac_short_range_force_constants
@@ -165,6 +168,7 @@ class SecondOrder(ForceConstant, Storable):
         return self._nac_precomputed_cache[key]
 
     def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        self._refuse_dipole_subtracted_fc()
         if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
             raise ValueError(
                 "NAC short-range force constants require atoms.info['dielectric'] "

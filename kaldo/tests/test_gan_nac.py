@@ -19,7 +19,6 @@ The velocity test is referee-free: analytic group velocities must equal
 2 pi times the slope of the code's own dispersion (dOmega/dq in A/ps).
 """
 
-import tempfile
 
 import numpy as np
 import pytest
@@ -50,7 +49,7 @@ PHONOPY_REFERENCE = {
 
 
 @pytest.fixture(scope="module")
-def gan_second():
+def gan_second(tmp_path_factory):
     forceconstants = ForceConstants.from_folder(
         folder="kaldo/tests/gan",
         supercell=[5, 5, 5],
@@ -60,7 +59,7 @@ def gan_second():
     second = forceconstants.second
     second.atoms.info["dielectric"] = EPSILON.copy()
     second.atoms.set_array("charges", BORN.copy(), shape=(3, 3))
-    second.folder = tempfile.mkdtemp(prefix="gan_nac_test_")
+    second.folder = str(tmp_path_factory.mktemp("gan_nac_test"))
     return second
 
 
@@ -73,7 +72,9 @@ def _nac_frequencies_cm(second, q_point):
 @pytest.mark.parametrize("q_point", list(PHONOPY_REFERENCE))
 def test_nac_frequencies_match_phonopy(gan_second, q_point):
     actual = _nac_frequencies_cm(gan_second, q_point)
-    np.testing.assert_allclose(actual, PHONOPY_REFERENCE[q_point], atol=15.0)
+    # atol covers the kaldo-phonopy Ewald-parameter parity band (worst ~13
+    # cm^-1 off Gamma); rtol pinned to zero so the bound is absolute.
+    np.testing.assert_allclose(actual, PHONOPY_REFERENCE[q_point], rtol=0.0, atol=15.0)
 
 
 def test_nac_gamma_A_transverse_degeneracy(gan_second):
@@ -105,3 +106,18 @@ def test_nac_velocity_matches_dispersion_slope(gan_second):
     usable = np.abs(slope) > 0.05
     ratio = velocity[usable, 2] / slope[usable]
     np.testing.assert_allclose(ratio, 2 * np.pi, rtol=1e-2)
+
+
+def test_nac_sij_diagonal_matches_velocity(gan_second):
+    # The QHGK flux operators consume the same NAC dynamical-matrix derivative
+    # as the group velocity: their diagonal must satisfy v_n = sij_nn / (2 omega_n).
+    q0 = np.array([0.1, 0.1, 0.1])
+    hwq = HarmonicWithQ(q_point=q0, second=gan_second, storage="memory")
+    velocity = np.array(hwq.velocity)[0]
+    frequency = np.array(hwq.frequency).flatten()
+    for axis, sij in enumerate((hwq._sij_x, hwq._sij_y, hwq._sij_z)):
+        diagonal = np.real(np.diag(np.array(sij)))
+        # kALDo normalizes the flux operator so that sij_nn = 8 pi^2 nu_n v_n
+        # (the same 1/(8 pi^2 nu) scaling the group velocity uses).
+        np.testing.assert_allclose(diagonal / (8 * np.pi ** 2 * frequency),
+                                   velocity[:, axis], rtol=0.0, atol=1e-3)

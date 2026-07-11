@@ -575,7 +575,14 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
     q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
     q_direction_carts = np.atleast_2d(np.asarray(q_direction_carts, dtype=float))
     if fc is None:
-        fc = static_data["fc_short_converted"]
+        try:
+            fc = static_data["fc_short_converted"]
+        except KeyError:
+            raise ValueError(
+                "dynamical_matrices needs short-range force constants: pass fc "
+                "explicitly or populate static_data['fc_short_converted'] first "
+                "(HarmonicWithQ does this through its runtime cache)."
+            ) from None
 
     q_carts = np.einsum(
         "ab,qb->qa",
