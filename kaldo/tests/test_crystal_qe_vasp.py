@@ -80,7 +80,7 @@ def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
                         diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_approx_equal(cond, 2.2, significant=2)
+    np.testing.assert_allclose(cond, 2.241208, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):
